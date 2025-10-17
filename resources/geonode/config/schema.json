@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GeoNode Resource Configuration",
+  "type": "object",
+  "properties": {
+    "GEONODE_PORT": {
+      "type": "integer",
+      "description": "Port for GeoNode Django web portal",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8100
+    },
+    "GEONODE_GEOSERVER_PORT": {
+      "type": "integer",
+      "description": "Port for GeoServer map services",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8101
+    },
+    "GEONODE_DB_HOST": {
+      "type": "string",
+      "description": "Database host (container name or external)",
+      "default": "geonode-postgres"
+    },
+    "GEONODE_DB_PORT": {
+      "type": "integer",
+      "description": "Database port",
+      "default": 5432
+    },
+    "GEONODE_DB_NAME": {
+      "type": "string",
+      "description": "Database name",
+      "default": "geonode"
+    },
+    "GEONODE_DB_USER": {
+      "type": "string",
+      "description": "Database user",
+      "default": "geonode"
+    },
+    "GEONODE_DB_PASSWORD": {
+      "type": "string",
+      "description": "Database password",
+      "default": "geonode_secure_pass"
+    },
+    "GEONODE_ADMIN_USER": {
+      "type": "string",
+      "description": "Admin username for portal and GeoServer",
+      "default": "admin"
+    },
+    "GEONODE_ADMIN_PASSWORD": {
+      "type": "string",
+      "description": "Admin password",
+      "default": "admin"
+    },
+    "GEONODE_ADMIN_EMAIL": {
+      "type": "string",
+      "format": "email",
+      "description": "Admin email address",
+      "default": "admin@vrooli.local"
+    },
+    "GEONODE_SECRET_KEY": {
+      "type": "string",
+      "description": "Django secret key for sessions",
+      "minLength": 32
+    },
+    "GEONODE_DEBUG": {
+      "type": "boolean",
+      "description": "Enable Django debug mode",
+      "default": false
+    },
+    "GEONODE_MONITORING_ENABLED": {
+      "type": "boolean",
+      "description": "Enable monitoring features",
+      "default": true
+    },
+    "GEONODE_OAUTH_ENABLED": {
+      "type": "boolean",
+      "description": "Enable OAuth authentication",
+      "default": true
+    },
+    "GEONODE_API_ENABLED": {
+      "type": "boolean",
+      "description": "Enable REST API",
+      "default": true
+    },
+    "GEONODE_USE_MINIO": {
+      "type": "boolean",
+      "description": "Use MinIO for object storage",
+      "default": false
+    },
+    "GEONODE_MINIO_ENDPOINT": {
+      "type": "string",
+      "description": "MinIO endpoint URL",
+      "default": "localhost:9000"
+    },
+    "GEONODE_MINIO_BUCKET": {
+      "type": "string",
+      "description": "MinIO bucket name",
+      "default": "geonode-data"
+    },
+    "GEONODE_USE_EXTERNAL_POSTGIS": {
+      "type": "boolean",
+      "description": "Use external PostGIS instead of embedded",
+      "default": false
+    },
+    "GEONODE_EXTERNAL_POSTGIS_HOST": {
+      "type": "string",
+      "description": "External PostGIS host",
+      "default": "localhost"
+    },
+    "GEONODE_EXTERNAL_POSTGIS_PORT": {
+      "type": "integer",
+      "description": "External PostGIS port",
+      "default": 5434
+    }
+  },
+  "required": [
+    "GEONODE_PORT",
+    "GEONODE_DB_NAME",
+    "GEONODE_DB_USER",
+    "GEONODE_DB_PASSWORD",
+    "GEONODE_ADMIN_USER",
+    "GEONODE_ADMIN_PASSWORD"
+  ]
+}

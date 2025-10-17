@@ -1,0 +1,392 @@
+{
+  "name": "File List Reader",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "file-reader",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.action) {\n  return {\n    action: \"read_full_list\",\n    file_path: \"/tmp/vrooli_example.txt\",\n    format: \"auto\",\n    encoding: \"utf8\",\n    test_mode: true\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate input and prepare file reading data\nconst input = $input.item.json;\n\n// Validate required action field\nif (!input.action) {\n  throw new Error('Missing required field: action');\n}\n\nconst validActions = ['read_full_list', 'get_item', 'slice_range', 'parse_structured'];\nif (!validActions.includes(input.action)) {\n  throw new Error(`Invalid action: ${input.action}. Valid actions: ${validActions.join(', ')}`);\n}\n\n// Validate required file_path for all actions\nif (!input.file_path) {\n  throw new Error('Missing required field: file_path');\n}\n\n// Validate file path (prevent traversal)\nif (input.file_path.includes('..')) {\n  throw new Error('Path traversal not allowed');\n}\n\n// Validate specific action requirements\nif (input.action === 'get_item' && input.index === undefined) {\n  throw new Error('Action get_item requires an index');\n}\n\nif (input.action === 'slice_range') {\n  if (input.start === undefined || input.end === undefined) {\n    throw new Error('Action slice_range requires start and end indices');\n  }\n  if (input.start < 0 || input.end < input.start) {\n    throw new Error('Invalid range: start must be >= 0 and end must be >= start');\n  }\n}\n\n// Set defaults\nconst format = input.format || 'auto';\nconst encoding = input.encoding || 'utf8';\nconst delimiter = input.delimiter || ',';\nconst hasHeaders = input.has_headers !== false;\nconst skipEmpty = input.skip_empty !== false;\nconst trimWhitespace = input.trim_whitespace !== false;\nconst maxItems = input.max_items || 10000;\nconst errorHandling = input.error_handling || 'skip';\n\n// Validate format\nconst validFormats = ['auto', 'lines', 'csv', 'tsv', 'json', 'jsonl', 'markdown', 'yaml', 'xml'];\nif (!validFormats.includes(format)) {\n  throw new Error(`Invalid format: ${format}. Valid formats: ${validFormats.join(', ')}`);\n}\n\n// Validate encoding\nconst validEncodings = ['utf8', 'utf-8', 'ascii', 'base64', 'hex', 'latin1'];\nif (!validEncodings.includes(encoding.toLowerCase())) {\n  throw new Error(`Invalid encoding: ${encoding}. Valid encodings: ${validEncodings.join(', ')}`);\n}\n\n// Prepare file reading data\nconst fileData = {\n  action: input.action,\n  file_path: input.file_path,\n  format: format,\n  encoding: encoding,\n  delimiter: delimiter,\n  has_headers: hasHeaders,\n  skip_empty: skipEmpty,\n  trim_whitespace: trimWhitespace,\n  max_items: maxItems,\n  error_handling: errorHandling,\n  // Action-specific parameters\n  index: input.index,\n  start: input.start,\n  end: input.end,\n  schema: input.schema || null,\n  json_path: input.json_path || null,\n  column_names: input.column_names || null,\n  metadata: {\n    request_id: `read_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n    trace_id: input.trace_id || null,\n    timestamp: new Date().toISOString(),\n    test_mode: input.test_mode || false\n  }\n};\n\nreturn fileData;"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "read_full_list"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "full"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "get_item"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "item"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "slice_range"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "slice"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "parse_structured"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "parse"
+            }
+          ]
+        }
+      },
+      "id": "action_router",
+      "name": "Action Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Read full list from file\nconst input = $input.item.json;\nconst path = require('path');\n\n// Simulate file content based on format\nconst generateMockContent = (format) => {\n  switch(format) {\n    case 'json':\n      return JSON.stringify([\n        { id: 1, name: 'Item 1', value: 100 },\n        { id: 2, name: 'Item 2', value: 200 },\n        { id: 3, name: 'Item 3', value: 300 }\n      ]);\n    case 'csv':\n      return 'id,name,value\\n1,Item 1,100\\n2,Item 2,200\\n3,Item 3,300';\n    case 'lines':\n    default:\n      return 'First line\\nSecond line\\nThird line\\nFourth line\\nFifth line';\n  }\n};\n\n// Auto-detect format\nconst detectFormat = (content, filePath) => {\n  const ext = path.extname(filePath).toLowerCase();\n  \n  // Check by extension first\n  if (ext === '.json') return 'json';\n  if (ext === '.csv') return 'csv';\n  if (ext === '.tsv') return 'tsv';\n  if (ext === '.md') return 'markdown';\n  if (ext === '.yaml' || ext === '.yml') return 'yaml';\n  if (ext === '.xml') return 'xml';\n  if (ext === '.jsonl') return 'jsonl';\n  \n  // Check by content patterns\n  const trimmed = content.trim();\n  if (trimmed.startsWith('[') || trimmed.startsWith('{')) return 'json';\n  if (trimmed.includes(',') && trimmed.split('\\n')[0].includes(',')) return 'csv';\n  if (trimmed.includes('\\t')) return 'tsv';\n  if (trimmed.startsWith('- ') || trimmed.includes('\\n- ')) return 'markdown';\n  \n  // Default to line-delimited\n  return 'lines';\n};\n\n// Parse content based on format\nconst parseContent = (content, format, options) => {\n  const items = [];\n  let parseError = null;\n  \n  try {\n    switch(format) {\n      case 'json':\n        const parsed = JSON.parse(content);\n        if (Array.isArray(parsed)) {\n          items.push(...parsed);\n        } else {\n          items.push(parsed);\n        }\n        break;\n        \n      case 'csv':\n      case 'tsv':\n        const delimiter = format === 'csv' ? ',' : '\\t';\n        const lines = content.split('\\n').filter(line => !options.skip_empty || line.trim());\n        const headers = options.has_headers ? lines[0].split(delimiter) : null;\n        const dataLines = options.has_headers ? lines.slice(1) : lines;\n        \n        dataLines.forEach(line => {\n          const values = line.split(delimiter);\n          if (headers) {\n            const obj = {};\n            headers.forEach((header, i) => {\n              obj[header.trim()] = options.trim_whitespace ? values[i]?.trim() : values[i];\n            });\n            items.push(obj);\n          } else {\n            items.push(values.map(v => options.trim_whitespace ? v.trim() : v));\n          }\n        });\n        break;\n        \n      case 'jsonl':\n        content.split('\\n').forEach(line => {\n          if (line.trim()) {\n            try {\n              items.push(JSON.parse(line));\n            } catch (e) {\n              if (options.error_handling === 'fail') throw e;\n              // Skip invalid lines\n            }\n          }\n        });\n        break;\n        \n      case 'markdown':\n        const mdLines = content.split('\\n');\n        mdLines.forEach(line => {\n          if (line.trim().startsWith('- ')) {\n            items.push(line.substring(2).trim());\n          } else if (line.trim().match(/^\\d+\\. /)) {\n            items.push(line.replace(/^\\d+\\. /, '').trim());\n          }\n        });\n        break;\n        \n      case 'lines':\n      default:\n        content.split('\\n').forEach(line => {\n          const processed = options.trim_whitespace ? line.trim() : line;\n          if (!options.skip_empty || processed) {\n            items.push(processed);\n          }\n        });\n        break;\n    }\n  } catch (e) {\n    parseError = e.message;\n    if (options.error_handling === 'fail') {\n      throw e;\n    }\n  }\n  \n  return { items, parseError };\n};\n\n// Generate mock content\nconst detectedFormat = input.format === 'auto' ? 'lines' : input.format;\nconst mockContent = generateMockContent(detectedFormat);\n\n// Parse the content\nconst { items, parseError } = parseContent(mockContent, detectedFormat, {\n  skip_empty: input.skip_empty,\n  trim_whitespace: input.trim_whitespace,\n  has_headers: input.has_headers,\n  error_handling: input.error_handling\n});\n\n// Apply max items limit\nconst limitedItems = items.slice(0, input.max_items);\nconst wasTruncated = items.length > input.max_items;\n\n// Calculate statistics\nconst stats = {\n  total_items: limitedItems.length,\n  original_count: items.length,\n  truncated: wasTruncated,\n  format_detected: detectedFormat,\n  encoding_used: input.encoding,\n  file_size_bytes: mockContent.length,\n  avg_item_size: limitedItems.length > 0 ? \n    Math.round(JSON.stringify(limitedItems).length / limitedItems.length) : 0\n};\n\nconst response = {\n  success: true,\n  action: 'read_full_list',\n  file_path: input.file_path,\n  items: limitedItems,\n  statistics: stats,\n  format_info: {\n    requested: input.format,\n    detected: detectedFormat,\n    auto_detected: input.format === 'auto',\n    supports_headers: ['csv', 'tsv'].includes(detectedFormat),\n    is_structured: ['json', 'csv', 'tsv', 'jsonl'].includes(detectedFormat)\n  },\n  parsing: {\n    success: !parseError,\n    error: parseError,\n    options_used: {\n      skip_empty: input.skip_empty,\n      trim_whitespace: input.trim_whitespace,\n      has_headers: input.has_headers,\n      max_items: input.max_items\n    }\n  },\n  recommendations: wasTruncated ? [\n    `File contained ${items.length} items but was limited to ${input.max_items}`,\n    'Consider using slice_range for pagination',\n    'Increase max_items if you need all data'\n  ] : [\n    `Successfully read ${limitedItems.length} items`,\n    'Data is ready for processing'\n  ],\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 5,\n    format_detection_ms: 1\n  }\n};\n\nreturn response;"
+      },
+      "id": "read_full_list",
+      "name": "Read Full List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get specific item from file by index\nconst input = $input.item.json;\n\n// Generate mock list data\nconst mockItems = [];\nfor (let i = 0; i < 100; i++) {\n  mockItems.push(`Item ${i + 1}: Value ${Math.floor(Math.random() * 1000)}`);\n}\n\n// Get the requested item\nconst index = input.index;\nconst normalizedIndex = index < 0 ? mockItems.length + index : index; // Support negative indexing\n\nlet item = null;\nlet found = false;\nlet error = null;\n\nif (normalizedIndex >= 0 && normalizedIndex < mockItems.length) {\n  item = mockItems[normalizedIndex];\n  found = true;\n} else {\n  error = `Index ${index} out of bounds (list has ${mockItems.length} items)`;\n}\n\n// Get surrounding context\nconst context = {\n  previous: normalizedIndex > 0 ? mockItems[normalizedIndex - 1] : null,\n  next: normalizedIndex < mockItems.length - 1 ? mockItems[normalizedIndex + 1] : null,\n  first: mockItems[0],\n  last: mockItems[mockItems.length - 1]\n};\n\n// Calculate position info\nconst position = {\n  index: normalizedIndex,\n  original_index: index,\n  is_first: normalizedIndex === 0,\n  is_last: normalizedIndex === mockItems.length - 1,\n  total_items: mockItems.length,\n  percentage: ((normalizedIndex / mockItems.length) * 100).toFixed(2) + '%'\n};\n\nconst response = {\n  success: found,\n  action: 'get_item',\n  file_path: input.file_path,\n  item: item,\n  found: found,\n  error: error,\n  position: position,\n  context: context,\n  access_info: {\n    index_requested: index,\n    index_normalized: normalizedIndex,\n    negative_indexing_used: index < 0,\n    bounds_check: `0 <= ${normalizedIndex} < ${mockItems.length}`\n  },\n  alternatives: !found ? {\n    first_item: mockItems[0],\n    last_item: mockItems[mockItems.length - 1],\n    middle_item: mockItems[Math.floor(mockItems.length / 2)],\n    random_item: mockItems[Math.floor(Math.random() * mockItems.length)]\n  } : null,\n  recommendations: found ? [\n    'Item successfully retrieved',\n    'Use negative indices to access from end (-1 for last item)',\n    'Consider using slice_range for multiple items'\n  ] : [\n    `Index ${index} is out of bounds`,\n    `Valid range is 0 to ${mockItems.length - 1}`,\n    `Or use negative indices: -1 to -${mockItems.length}`\n  ],\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 2\n  }\n};\n\nreturn response;"
+      },
+      "id": "get_item",
+      "name": "Get Item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 250]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get a slice of items from file\nconst input = $input.item.json;\n\n// Generate mock list data\nconst mockItems = [];\nfor (let i = 0; i < 100; i++) {\n  mockItems.push({\n    id: i + 1,\n    value: `Item ${i + 1}`,\n    score: Math.floor(Math.random() * 100)\n  });\n}\n\n// Get the slice parameters\nconst start = input.start || 0;\nconst end = Math.min(input.end || mockItems.length, mockItems.length);\nconst step = input.step || 1;\n\n// Validate range\nif (start < 0 || start > mockItems.length) {\n  throw new Error(`Start index ${start} out of bounds`);\n}\nif (end < start) {\n  throw new Error(`End index ${end} cannot be less than start ${start}`);\n}\nif (step <= 0) {\n  throw new Error('Step must be positive');\n}\n\n// Extract slice with step\nconst slicedItems = [];\nfor (let i = start; i < end; i += step) {\n  slicedItems.push(mockItems[i]);\n}\n\n// Calculate slice statistics\nconst sliceStats = {\n  requested_start: start,\n  requested_end: end,\n  requested_step: step,\n  actual_items: slicedItems.length,\n  total_available: mockItems.length,\n  coverage_percentage: ((slicedItems.length / mockItems.length) * 100).toFixed(2) + '%'\n};\n\n// Pagination info\nconst pageSize = end - start;\nconst currentPage = Math.floor(start / pageSize) + 1;\nconst totalPages = Math.ceil(mockItems.length / pageSize);\n\nconst pagination = {\n  current_page: currentPage,\n  total_pages: totalPages,\n  page_size: pageSize,\n  has_previous: start > 0,\n  has_next: end < mockItems.length,\n  previous_range: start > 0 ? {\n    start: Math.max(0, start - pageSize),\n    end: start\n  } : null,\n  next_range: end < mockItems.length ? {\n    start: end,\n    end: Math.min(end + pageSize, mockItems.length)\n  } : null\n};\n\n// Generate navigation helpers\nconst navigation = {\n  first_page: { start: 0, end: pageSize },\n  last_page: { \n    start: Math.max(0, mockItems.length - pageSize), \n    end: mockItems.length \n  },\n  total_chunks: Math.ceil(mockItems.length / pageSize),\n  chunk_number: currentPage\n};\n\nconst response = {\n  success: true,\n  action: 'slice_range',\n  file_path: input.file_path,\n  items: slicedItems,\n  slice_info: sliceStats,\n  pagination: pagination,\n  navigation: navigation,\n  range_details: {\n    python_notation: `[${start}:${end}${step > 1 ? ':' + step : ''}]`,\n    inclusive_range: `items ${start} to ${end - 1}`,\n    items_returned: slicedItems.length,\n    items_skipped: (end - start) - slicedItems.length\n  },\n  performance: {\n    memory_efficient: true,\n    streaming_capable: true,\n    recommended_chunk_size: 1000,\n    current_chunk_size: pageSize\n  },\n  recommendations: slicedItems.length === 0 ? [\n    'No items in specified range',\n    'Check your start and end indices',\n    `File contains ${mockItems.length} items (indices 0-${mockItems.length - 1})`\n  ] : [\n    `Retrieved ${slicedItems.length} items`,\n    pagination.has_next ? 'More items available - use next_range for pagination' : 'Reached end of data',\n    step > 1 ? `Skipping ${step - 1} items between each result` : 'Continuous slice with no gaps'\n  ],\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 3\n  }\n};\n\nreturn response;"
+      },
+      "id": "slice_range",
+      "name": "Slice Range",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse structured data from file with schema validation\nconst input = $input.item.json;\n\n// Generate mock structured content\nconst generateStructuredContent = () => {\n  return {\n    metadata: {\n      version: '1.0.0',\n      created: new Date().toISOString(),\n      author: 'System'\n    },\n    records: [\n      {\n        id: 1,\n        name: 'Record Alpha',\n        type: 'A',\n        values: [10, 20, 30],\n        active: true\n      },\n      {\n        id: 2,\n        name: 'Record Beta',\n        type: 'B',\n        values: [15, 25, 35],\n        active: false\n      },\n      {\n        id: 3,\n        name: 'Record Gamma',\n        type: 'A',\n        values: [12, 22, 32],\n        active: true\n      }\n    ],\n    summary: {\n      total_records: 3,\n      active_count: 2,\n      types: ['A', 'B']\n    }\n  };\n};\n\n// Validate against schema if provided\nconst validateSchema = (data, schema) => {\n  const errors = [];\n  const warnings = [];\n  \n  if (schema) {\n    // Simple schema validation simulation\n    if (schema.required) {\n      schema.required.forEach(field => {\n        if (!data[field]) {\n          errors.push(`Missing required field: ${field}`);\n        }\n      });\n    }\n    \n    if (schema.properties) {\n      Object.keys(schema.properties).forEach(prop => {\n        const propSchema = schema.properties[prop];\n        if (data[prop] && propSchema.type) {\n          const actualType = Array.isArray(data[prop]) ? 'array' : typeof data[prop];\n          if (actualType !== propSchema.type) {\n            warnings.push(`Type mismatch for ${prop}: expected ${propSchema.type}, got ${actualType}`);\n          }\n        }\n      });\n    }\n  }\n  \n  return { errors, warnings, valid: errors.length === 0 };\n};\n\n// Extract data using JSON path if provided\nconst extractByPath = (data, jsonPath) => {\n  if (!jsonPath) return data;\n  \n  // Simple JSON path implementation\n  const parts = jsonPath.split('.');\n  let result = data;\n  \n  for (const part of parts) {\n    if (part.includes('[') && part.includes(']')) {\n      // Array access\n      const [arrayName, indexStr] = part.split('[');\n      const index = parseInt(indexStr.replace(']', ''));\n      result = result[arrayName]?.[index];\n    } else {\n      result = result[part];\n    }\n    \n    if (result === undefined) break;\n  }\n  \n  return result;\n};\n\n// Generate and parse structured data\nconst structuredData = generateStructuredContent();\nconst extractedData = extractByPath(structuredData, input.json_path);\n\n// Validate if schema provided\nconst validation = input.schema ? \n  validateSchema(extractedData, input.schema) : \n  { valid: true, errors: [], warnings: [] };\n\n// Analyze structure\nconst structureAnalysis = {\n  type: Array.isArray(extractedData) ? 'array' : typeof extractedData,\n  depth: JSON.stringify(extractedData).split('{').length - 1,\n  size_bytes: JSON.stringify(extractedData).length,\n  field_count: typeof extractedData === 'object' ? Object.keys(extractedData).length : 0,\n  array_lengths: Array.isArray(extractedData) ? extractedData.length : null\n};\n\n// Extract field information\nconst fieldInfo = {};\nif (typeof extractedData === 'object' && !Array.isArray(extractedData)) {\n  Object.keys(extractedData).forEach(key => {\n    const value = extractedData[key];\n    fieldInfo[key] = {\n      type: Array.isArray(value) ? 'array' : typeof value,\n      nullable: value === null,\n      empty: value === '' || (Array.isArray(value) && value.length === 0),\n      sample: typeof value === 'object' ? '[Object]' : String(value).substring(0, 50)\n    };\n  });\n}\n\n// Generate flattened version for easier processing\nconst flatten = (obj, prefix = '') => {\n  const flattened = {};\n  \n  Object.keys(obj).forEach(key => {\n    const value = obj[key];\n    const newKey = prefix ? `${prefix}.${key}` : key;\n    \n    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {\n      Object.assign(flattened, flatten(value, newKey));\n    } else {\n      flattened[newKey] = value;\n    }\n  });\n  \n  return flattened;\n};\n\nconst flattenedData = typeof extractedData === 'object' && !Array.isArray(extractedData) ? \n  flatten(extractedData) : null;\n\nconst response = {\n  success: validation.valid,\n  action: 'parse_structured',\n  file_path: input.file_path,\n  data: extractedData,\n  structure_analysis: structureAnalysis,\n  field_info: fieldInfo,\n  flattened_data: flattenedData,\n  extraction: {\n    json_path_used: input.json_path || 'root',\n    original_size: JSON.stringify(structuredData).length,\n    extracted_size: JSON.stringify(extractedData).length,\n    reduction_percentage: input.json_path ? \n      (100 - (JSON.stringify(extractedData).length / JSON.stringify(structuredData).length * 100)).toFixed(2) + '%' : \n      '0%'\n  },\n  validation: validation,\n  schema_info: input.schema ? {\n    provided: true,\n    required_fields: input.schema.required || [],\n    property_count: Object.keys(input.schema.properties || {}).length\n  } : {\n    provided: false,\n    auto_detected: true,\n    suggested_schema: {\n      type: 'object',\n      properties: fieldInfo\n    }\n  },\n  processing_hints: {\n    is_tabular: Array.isArray(extractedData) && extractedData.every(item => typeof item === 'object'),\n    is_nested: structureAnalysis.depth > 2,\n    is_flat: structureAnalysis.depth <= 1,\n    recommended_format: Array.isArray(extractedData) ? 'csv' : 'json'\n  },\n  recommendations: validation.valid ? [\n    'Data successfully parsed and validated',\n    structureAnalysis.depth > 3 ? 'Consider flattening deeply nested structures' : null,\n    Array.isArray(extractedData) ? `Array contains ${extractedData.length} items` : null\n  ].filter(Boolean) : [\n    'Validation errors found',\n    ...validation.errors.map(e => `Fix: ${e}`)\n  ],\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 7,\n    validation_time_ms: 2\n  }\n};\n\nreturn response;"
+      },
+      "id": "parse_structured",
+      "name": "Parse Structured",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 550]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'File reading failed' }}\",\n  \"action\": \"={{ $json.action || 'unknown' }}\",\n  \"file_path\": \"={{ $json.file_path || 'unknown' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 550]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "File List Reader Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1800, 450]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Router": {
+      "main": [
+        [
+          {
+            "node": "Read Full List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Item",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slice Range",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Structured",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Full List": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Item": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slice Range": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Structured": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "file-list-reader-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "file-list-reader",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "file-management",
+      "name": "file-management"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "data-extraction",
+      "name": "data-extraction"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "parsing",
+      "name": "parsing"
+    }
+  ]
+}

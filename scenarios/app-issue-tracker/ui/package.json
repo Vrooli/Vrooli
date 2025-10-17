@@ -1,0 +1,37 @@
+{
+  "name": "app-issue-tracker-ui",
+  "version": "2.0.0",
+  "description": "React/Vite dashboard for the App Issue Tracker scenario",
+  "type": "module",
+  "scripts": {
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port ${UI_PORT:-4173}",
+    "start": "node server.js",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "app-issue-tracker-ui": "link:../app-issue-tracker-ui",
+    "chart.js": "^4.4.4",
+    "express": "^4.19.2",
+    "lucide-react": "^0.441.0",
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^20.12.12",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^27.0.0",
+    "typescript": "^5.9.2",
+    "vite": "^5.4.20",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+}

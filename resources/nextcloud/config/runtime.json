@@ -1,0 +1,40 @@
+{
+  "startup_order": 3000,
+  "dependencies": ["postgres", "redis"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "health_check_retries": 10,
+  "health_check_delay": 3,
+  "category": "productivity",
+  "capabilities": [
+    "file-storage",
+    "file-sync",
+    "file-sharing",
+    "document-editing",
+    "webdav",
+    "caldav",
+    "carddav",
+    "collaboration"
+  ],
+  "resource_requirements": {
+    "cpu": "2 cores",
+    "memory": "2GB",
+    "storage": "10GB minimum"
+  },
+  "ports": {
+    "http": 8086,
+    "https": 8487
+  },
+  "api_endpoints": {
+    "webdav": "/remote.php/dav/",
+    "ocs": "/ocs/v2.php/",
+    "status": "/status.php",
+    "index": "/index.php"
+  },
+  "version": "stable",
+  "maintainer": "Vrooli Ecosystem",
+  "documentation": "https://docs.nextcloud.com",
+  "license": "AGPLv3"
+}

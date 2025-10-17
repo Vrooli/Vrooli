@@ -1,0 +1,225 @@
+{
+  "name": "Database Schema Inspector",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "schema/inspect",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return test defaults for manual trigger\nreturn {\n  database_name: 'main',\n  include_indexes: true,\n  include_constraints: true,\n  include_views: false,\n  schema: 'public'\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare schema inspection parameters\nconst input = $input.item.json;\n\n// Get database name with validation\nconst databaseName = (input.database_name || 'main').trim();\nif (!databaseName) {\n  throw new Error('Database name is required');\n}\n\n// Get schema name (default to public)\nconst schemaName = (input.schema || 'public').trim();\n\n// Get flags\nconst includeIndexes = input.include_indexes !== false;\nconst includeConstraints = input.include_constraints !== false;\nconst includeViews = input.include_views === true;\n\n// Build the schema introspection query\nconst query = `\nWITH table_info AS (\n  SELECT \n    t.table_name,\n    t.table_type,\n    obj_description(c.oid) as table_comment\n  FROM information_schema.tables t\n  JOIN pg_class c ON c.relname = t.table_name\n  WHERE t.table_schema = '${schemaName}'\n    ${includeViews ? '' : \"AND t.table_type = 'BASE TABLE'\"}\n),\ncolumn_info AS (\n  SELECT \n    c.table_name,\n    c.column_name,\n    c.ordinal_position,\n    c.column_default,\n    c.is_nullable,\n    c.data_type,\n    c.character_maximum_length,\n    c.numeric_precision,\n    c.numeric_scale,\n    col_description(pgc.oid, c.ordinal_position) as column_comment\n  FROM information_schema.columns c\n  JOIN pg_class pgc ON pgc.relname = c.table_name\n  WHERE c.table_schema = '${schemaName}'\n),\nconstraint_info AS (\n  SELECT \n    tc.table_name,\n    tc.constraint_name,\n    tc.constraint_type,\n    kcu.column_name,\n    ccu.table_name AS foreign_table_name,\n    ccu.column_name AS foreign_column_name\n  FROM information_schema.table_constraints tc\n  JOIN information_schema.key_column_usage kcu \n    ON tc.constraint_name = kcu.constraint_name\n  LEFT JOIN information_schema.constraint_column_usage ccu \n    ON ccu.constraint_name = tc.constraint_name\n  WHERE tc.table_schema = '${schemaName}'\n    AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE')\n)\nSELECT json_build_object(\n  'tables', (SELECT json_agg(t.*) FROM table_info t),\n  'columns', (SELECT json_agg(c.*) FROM column_info c),\n  'constraints', ${includeConstraints ? '(SELECT json_agg(con.*) FROM constraint_info con)' : 'null'},\n  'database_name', current_database(),\n  'schema_name', '${schemaName}',\n  'inspection_timestamp', now()\n) as schema_data;\n`;\n\n// Build command to execute query\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst tempFile = `/tmp/schema_query_${timestamp}_${randomId}.sql`;\n\n// Escape the query for shell\nconst escapedQuery = query.replace(/'/g, \"'\\\"'\\\"'\");\n\n// Build command\nconst command = `\nquery_file=\"${tempFile}\"\necho '${escapedQuery}' > \"$query_file\"\nvrooli resource postgres query \"$(cat \"$query_file\")\" --database \"${databaseName}\" --format json\nrm -f \"$query_file\"\n`;\n\nreturn {\n  command: command,\n  execution_meta: {\n    database_name: databaseName,\n    schema_name: schemaName,\n    include_indexes: includeIndexes,\n    include_constraints: includeConstraints,\n    include_views: includeViews,\n    temp_file: tempFile,\n    execution_id: `schema_inspect_${timestamp}_${randomId}`,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "prepare_query",
+      "name": "Prepare Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "execute_query",
+      "name": "Execute Query",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process schema introspection results\nconst commandResult = $input.item.json;\nconst executionMeta = $('Prepare Query').item.json.execution_meta;\n\n// Check execution status\nconst success = commandResult.exitCode === 0;\nconst hasOutput = commandResult.stdout && commandResult.stdout.trim().length > 0;\n\n// Parse schema data\nlet schemaData = null;\nlet parseError = null;\n\nif (success && hasOutput) {\n  try {\n    const output = commandResult.stdout.trim();\n    // The output might be wrapped in query result formatting\n    // Try to extract JSON from the output\n    let jsonStr = output;\n    \n    // If output contains the schema_data field, extract it\n    if (output.includes('schema_data')) {\n      const match = output.match(/{.*}/s);\n      if (match) {\n        jsonStr = match[0];\n      }\n    }\n    \n    const parsed = JSON.parse(jsonStr);\n    \n    // If the result is wrapped in a query result structure\n    if (parsed.rows && parsed.rows[0] && parsed.rows[0].schema_data) {\n      schemaData = parsed.rows[0].schema_data;\n    } else if (parsed.schema_data) {\n      schemaData = parsed.schema_data;\n    } else {\n      schemaData = parsed;\n    }\n    \n    // Process the schema data for easier consumption\n    if (schemaData) {\n      // Build table map for quick lookup\n      const tableMap = {};\n      if (schemaData.tables) {\n        schemaData.tables.forEach(table => {\n          tableMap[table.table_name] = {\n            ...table,\n            columns: [],\n            constraints: [],\n            relationships: []\n          };\n        });\n      }\n      \n      // Add columns to tables\n      if (schemaData.columns) {\n        schemaData.columns.forEach(column => {\n          if (tableMap[column.table_name]) {\n            tableMap[column.table_name].columns.push(column);\n          }\n        });\n      }\n      \n      // Add constraints and identify relationships\n      if (schemaData.constraints) {\n        schemaData.constraints.forEach(constraint => {\n          if (tableMap[constraint.table_name]) {\n            tableMap[constraint.table_name].constraints.push(constraint);\n            \n            // Track foreign key relationships\n            if (constraint.constraint_type === 'FOREIGN KEY') {\n              tableMap[constraint.table_name].relationships.push({\n                type: 'foreign_key',\n                from_table: constraint.table_name,\n                from_column: constraint.column_name,\n                to_table: constraint.foreign_table_name,\n                to_column: constraint.foreign_column_name,\n                constraint_name: constraint.constraint_name\n              });\n            }\n          }\n        });\n      }\n      \n      // Convert map back to array\n      schemaData.processed_tables = Object.values(tableMap);\n      \n      // Calculate statistics\n      schemaData.statistics = {\n        total_tables: schemaData.tables ? schemaData.tables.length : 0,\n        total_columns: schemaData.columns ? schemaData.columns.length : 0,\n        total_constraints: schemaData.constraints ? schemaData.constraints.length : 0,\n        total_relationships: Object.values(tableMap).reduce((sum, table) => sum + table.relationships.length, 0)\n      };\n    }\n  } catch (error) {\n    parseError = error.message;\n  }\n}\n\n// Build response\nconst result = {\n  success: success && schemaData !== null,\n  database_name: executionMeta.database_name,\n  schema_name: executionMeta.schema_name,\n  schema_data: schemaData,\n  execution: {\n    execution_id: executionMeta.execution_id,\n    timestamp: executionMeta.timestamp,\n    exit_code: commandResult.exitCode\n  },\n  error: success && schemaData ? null : {\n    message: parseError || commandResult.stderr || 'Failed to retrieve schema',\n    details: commandResult.stderr\n  }\n};\n\nreturn result;"
+      },
+      "id": "process_results",
+      "name": "Process Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_success",
+      "name": "Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Query": {
+      "main": [
+        [
+          {
+            "node": "Process Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Results": {
+      "main": [
+        [
+          {
+            "node": "Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-06T00:00:00.000Z",
+  "versionId": "db-schema-explorer-v1"
+}

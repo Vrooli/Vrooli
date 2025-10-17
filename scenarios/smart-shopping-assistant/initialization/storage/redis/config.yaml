@@ -1,0 +1,67 @@
+# Redis Configuration for Smart Shopping Assistant
+# Version: 1.0.0
+
+cache_config:
+  ttl:
+    price_data: 3600        # 1 hour for price data
+    product_search: 1800    # 30 minutes for search results
+    user_session: 86400     # 24 hours for user sessions
+    rate_limit: 60          # 1 minute for rate limit windows
+    
+  namespaces:
+    - name: prices
+      prefix: "price:"
+      max_size: 10000
+      eviction: lru
+      
+    - name: searches
+      prefix: "search:"
+      max_size: 5000
+      eviction: lru
+      
+    - name: sessions
+      prefix: "session:"
+      max_size: 1000
+      eviction: lru
+      
+    - name: alerts
+      prefix: "alert:"
+      max_size: 5000
+      eviction: ttl
+      
+    - name: rate_limits
+      prefix: "ratelimit:"
+      max_size: 10000
+      eviction: ttl
+
+rate_limiting:
+  endpoints:
+    - path: "/api/v1/shopping/research"
+      limit: 100
+      window: 60
+      
+    - path: "/api/v1/shopping/tracking"
+      limit: 1000
+      window: 60
+      
+    - path: "/api/v1/shopping/pattern-analysis"
+      limit: 10
+      window: 60
+      
+  scraping:
+    default_delay: 1000     # 1 second between requests
+    per_domain_limit: 60    # Max requests per minute per domain
+    concurrent_limit: 5     # Max concurrent scraping operations
+
+pubsub_channels:
+  - name: "price_updates"
+    description: "Real-time price change notifications"
+    
+  - name: "alert_triggers"
+    description: "Price alert trigger events"
+    
+  - name: "pattern_detected"
+    description: "Purchase pattern detection events"
+    
+  - name: "gift_suggestions"
+    description: "Gift recommendation events"

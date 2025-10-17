@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Tools - Events</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⏰ Time Tools</h1>
+            <nav>
+                <a href="index.html">Dashboard</a>
+                <a href="converter.html">Timezone Converter</a>
+                <a href="calculator.html">Duration Calculator</a>
+                <a href="scheduler.html">Meeting Scheduler</a>
+                <a href="events.html" class="active">Events</a>
+            </nav>
+        </header>
+
+        <main>
+            <div class="page-content">
+                <h2>📋 Events Management</h2>
+                
+                <div class="events-container">
+                    <!-- Event Creation Form -->
+                    <div class="events-section">
+                        <h3>Create New Event</h3>
+                        <form id="event-form">
+                            <div class="form-group">
+                                <label for="event-title">Event Title</label>
+                                <input type="text" id="event-title" class="form-control" 
+                                       placeholder="Team Meeting" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="event-description">Description</label>
+                                <textarea id="event-description" class="form-control" rows="3" 
+                                          placeholder="Weekly team sync to discuss project progress"></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="event-start-time">Start Time</label>
+                                    <input type="datetime-local" id="event-start-time" class="form-control" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="event-end-time">End Time</label>
+                                    <input type="datetime-local" id="event-end-time" class="form-control" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="event-timezone">Timezone</label>
+                                    <select id="event-timezone" class="form-control">
+                                        <option value="UTC">UTC</option>
+                                        <option value="America/New_York">Eastern Time</option>
+                                        <option value="America/Chicago">Central Time</option>
+                                        <option value="America/Denver">Mountain Time</option>
+                                        <option value="America/Los_Angeles">Pacific Time</option>
+                                        <option value="Europe/London">London</option>
+                                        <option value="Europe/Paris">Paris</option>
+                                        <option value="Asia/Tokyo">Tokyo</option>
+                                        <option value="Asia/Shanghai">Shanghai</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="event-priority">Priority</label>
+                                    <select id="event-priority" class="form-control">
+                                        <option value="normal">Normal</option>
+                                        <option value="low">Low</option>
+                                        <option value="high">High</option>
+                                        <option value="urgent">Urgent</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="event-location">Location</label>
+                                <input type="text" id="event-location" class="form-control" 
+                                       placeholder="Conference Room A / Zoom Link">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="event-organizer">Organizer ID</label>
+                                <input type="text" id="event-organizer" class="form-control" 
+                                       placeholder="organizer@company.com" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="event-participants">Participants (JSON format)</label>
+                                <textarea id="event-participants" class="form-control" rows="3" 
+                                          placeholder='[{"email": "alice@company.com", "name": "Alice"}, {"email": "bob@company.com", "name": "Bob"}]'></textarea>
+                                <small class="form-help">Enter participants as JSON array with email and name fields</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="event-tags">Tags (comma-separated)</label>
+                                <input type="text" id="event-tags" class="form-control" 
+                                       placeholder="meeting, team, weekly">
+                            </div>
+                            
+                            <div class="form-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="event-all-day">
+                                    <span class="checkbox-custom"></span>
+                                    All-day event
+                                </label>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Create Event</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Event List -->
+                    <div class="events-section">
+                        <div class="section-header">
+                            <h3>Events List</h3>
+                            <div class="list-controls">
+                                <input type="text" id="organizer-filter" class="form-control" 
+                                       placeholder="Filter by organizer ID">
+                                <select id="status-filter" class="form-control">
+                                    <option value="">All Statuses</option>
+                                    <option value="tentative">Tentative</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <button id="refresh-events" class="btn btn-secondary">Refresh</button>
+                            </div>
+                        </div>
+                        
+                        <div id="events-list" class="events-list">
+                            <div class="loading">Loading events...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Time Tools v1.0.0 | <span id="api-status">Checking API...</span></p>
+        </footer>
+    </div>
+
+    <!-- Include API discovery module -->
+    <script src="api-discovery.js"></script>
+    
+    <script>
+        // Standards-compliant API discovery
+        let API_BASE = null;
+
+        // Initialize API discovery
+        async function initializeAPI() {
+            try {
+                // Use the shared API discovery module
+                if (window.timeToolsAPI) {
+                    API_BASE = await window.timeToolsAPI.discoverAPI();
+                    console.log('Time Tools API discovered at:', API_BASE);
+                    updateAPIStatus('API Connected', 'online');
+                } else {
+                    throw new Error('API discovery module not loaded');
+                }
+            } catch (error) {
+                console.error('Failed to discover Time Tools API:', error);
+                API_BASE = null;
+                updateAPIStatus('API Not Found', 'offline');
+                // Show error to user
+                document.body.insertAdjacentHTML('afterbegin', 
+                    '<div style="background: #ff6b6b; color: white; padding: 10px; text-align: center;">' +
+                    'Time-tools API not found. Please ensure the scenario is running: vrooli scenario run time-tools' +
+                    '</div>'
+                );
+            }
+        }
+
+        // Update API status display
+        function updateAPIStatus(message, className) {
+            const statusElement = document.getElementById('api-status');
+            if (statusElement) {
+                statusElement.textContent = message;
+                statusElement.className = className;
+            }
+        }
+
+        // Initialize events page
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize API discovery first
+            await initializeAPI();
+
+            setupEventForm();
+            setupEventsList();
+            loadEvents();
+            
+            // Set default times (current time and 1 hour later)
+            const now = new Date();
+            const later = new Date(now.getTime() + 60 * 60 * 1000);
+            
+            document.getElementById('event-start-time').value = formatDateTimeLocal(now);
+            document.getElementById('event-end-time').value = formatDateTimeLocal(later);
+            
+            // Set default timezone to user's timezone
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const timezoneSelect = document.getElementById('event-timezone');
+            if ([...timezoneSelect.options].some(opt => opt.value === userTimezone)) {
+                timezoneSelect.value = userTimezone;
+            }
+        });
+
+        function setupEventForm() {
+            const form = document.getElementById('event-form');
+            if (!form) return;
+            
+            // Auto-update end time when start time changes
+            document.getElementById('event-start-time').addEventListener('change', function() {
+                const startTime = new Date(this.value);
+                const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour later
+                document.getElementById('event-end-time').value = formatDateTimeLocal(endTime);
+            });
+            
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const title = document.getElementById('event-title').value;
+                const description = document.getElementById('event-description').value || null;
+                const startTime = new Date(document.getElementById('event-start-time').value);
+                const endTime = new Date(document.getElementById('event-end-time').value);
+                const timezone = document.getElementById('event-timezone').value;
+                const priority = document.getElementById('event-priority').value;
+                const location = document.getElementById('event-location').value || null;
+                const organizerId = document.getElementById('event-organizer').value;
+                const participantsText = document.getElementById('event-participants').value;
+                const tagsText = document.getElementById('event-tags').value;
+                const allDay = document.getElementById('event-all-day').checked;
+                
+                // Parse participants
+                let participants = [];
+                if (participantsText.trim()) {
+                    try {
+                        participants = JSON.parse(participantsText);
+                    } catch (e) {
+                        alert('Invalid participants JSON format');
+                        return;
+                    }
+                }
+                
+                // Parse tags
+                const tags = tagsText ? tagsText.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+                
+                const eventData = {
+                    title: title,
+                    description: description,
+                    start_time: startTime.toISOString(),
+                    end_time: endTime.toISOString(),
+                    timezone: timezone,
+                    all_day: allDay,
+                    event_type: 'meeting',
+                    status: 'tentative',
+                    priority: priority,
+                    organizer_id: organizerId,
+                    participants: participants,
+                    location: location,
+                    location_type: location ? 'physical' : null,
+                    tags: tags
+                };
+                
+                try {
+                    const response = await fetch(`${API_BASE}/api/v1/events`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(eventData)
+                    });
+                    
+                    if (response.ok) {
+                        const createdEvent = await response.json();
+                        alert('Event created successfully!');
+                        form.reset();
+                        loadEvents(); // Refresh the events list
+                        
+                        // Reset default times
+                        const now = new Date();
+                        const later = new Date(now.getTime() + 60 * 60 * 1000);
+                        document.getElementById('event-start-time').value = formatDateTimeLocal(now);
+                        document.getElementById('event-end-time').value = formatDateTimeLocal(later);
+                    } else {
+                        const error = await response.json();
+                        alert(`Failed to create event: ${error.error}`);
+                    }
+                } catch (error) {
+                    alert('Failed to connect to API');
+                    console.error(error);
+                }
+            });
+        }
+
+        function setupEventsList() {
+            // Refresh button
+            document.getElementById('refresh-events').addEventListener('click', loadEvents);
+            
+            // Filters
+            document.getElementById('organizer-filter').addEventListener('input', debounce(loadEvents, 500));
+            document.getElementById('status-filter').addEventListener('change', loadEvents);
+        }
+
+        async function loadEvents() {
+            const eventsContainer = document.getElementById('events-list');
+            const organizerFilter = document.getElementById('organizer-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            
+            if (!eventsContainer || !API_BASE) return;
+            
+            eventsContainer.innerHTML = '<div class="loading">Loading events...</div>';
+            
+            try {
+                const params = new URLSearchParams();
+                if (organizerFilter) params.append('organizer_id', organizerFilter);
+                if (statusFilter) params.append('status', statusFilter);
+                
+                const response = await fetch(`${API_BASE}/api/v1/events?${params.toString()}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayEvents(data.events);
+                } else {
+                    eventsContainer.innerHTML = '<div class="error">Failed to load events</div>';
+                }
+            } catch (error) {
+                eventsContainer.innerHTML = '<div class="error">Failed to connect to API</div>';
+                console.error(error);
+            }
+        }
+
+        function displayEvents(events) {
+            const eventsContainer = document.getElementById('events-list');
+            
+            if (events.length === 0) {
+                eventsContainer.innerHTML = '<div class="no-events">No events found. Create your first event above!</div>';
+                return;
+            }
+            
+            const eventsHTML = events.map(event => {
+                const startTime = new Date(event.start_time);
+                const endTime = new Date(event.end_time);
+                const isUpcoming = startTime > new Date();
+                
+                return `
+                    <div class="event-card ${event.priority} ${isUpcoming ? 'upcoming' : 'past'}">
+                        <div class="event-header">
+                            <h4 class="event-title">${escapeHtml(event.title)}</h4>
+                            <span class="event-status status-${event.status}">${event.status}</span>
+                        </div>
+                        
+                        <div class="event-time">
+                            📅 ${startTime.toLocaleDateString()} 
+                            🕐 ${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
+                            ${endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            ${event.timezone ? ` (${event.timezone})` : ''}
+                        </div>
+                        
+                        ${event.description ? `<div class="event-description">${escapeHtml(event.description)}</div>` : ''}
+                        
+                        <div class="event-details">
+                            ${event.location ? `<div class="event-location">📍 ${escapeHtml(event.location)}</div>` : ''}
+                            <div class="event-organizer">👤 ${escapeHtml(event.organizer_id)}</div>
+                            ${event.participants && event.participants.length > 0 ? 
+                                `<div class="event-participants">👥 ${event.participants.length} participant(s)</div>` : ''}
+                            ${event.tags && event.tags.length > 0 ? 
+                                `<div class="event-tags">${event.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+                        </div>
+                        
+                        <div class="event-meta">
+                            <span class="event-priority priority-${event.priority}">${event.priority}</span>
+                            <span class="event-id">ID: ${event.id}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            eventsContainer.innerHTML = eventsHTML;
+        }
+
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
+</body>
+</html>

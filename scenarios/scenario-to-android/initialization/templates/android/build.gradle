@@ -1,0 +1,59 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    ext {
+        kotlin_version = '1.9.20'
+        gradle_version = '8.2.0'
+    }
+    
+    repositories {
+        google()
+        mavenCentral()
+    }
+    
+    dependencies {
+        classpath "com.android.tools.build:gradle:$gradle_version"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        
+        // Firebase for push notifications (optional)
+        {{#if PUSH_NOTIFICATIONS}}
+        classpath 'com.google.gms:google-services:4.4.0'
+        {{/if}}
+        
+        // Performance monitoring (optional)
+        {{#if PERFORMANCE_MONITORING}}
+        classpath 'com.google.firebase:perf-plugin:1.4.2'
+        {{/if}}
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+
+// Version configuration
+ext {
+    // SDK versions
+    compileSdkVersion = 34
+    minSdkVersion = 24
+    targetSdkVersion = 34
+    
+    // App versions
+    versionCode = {{VERSION_CODE}}
+    versionName = "{{VERSION_NAME}}"
+    
+    // Dependencies versions
+    kotlinVersion = kotlin_version
+    appCompatVersion = '1.6.1'
+    materialVersion = '1.11.0'
+    webkitVersion = '1.9.0'
+    lifecycleVersion = '2.7.0'
+    coroutinesVersion = '1.7.3'
+}

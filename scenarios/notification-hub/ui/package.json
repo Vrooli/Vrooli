@@ -1,0 +1,29 @@
+{
+  "name": "notification-hub-ui",
+  "version": "1.0.0",
+  "description": "Multi-tenant notification management dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'",
+    "postinstall": "node -e \"const fs=require('fs');const path=require('path');const linkDir=path.join(__dirname,'node_modules','@vrooli');const link=path.join(linkDir,'iframe-bridge');const target=path.resolve(__dirname,'../../../packages/iframe-bridge');if(!fs.existsSync(target)){console.warn('[iframe-bridge] shared package not found at',target);process.exit(0);}fs.mkdirSync(linkDir,{recursive:true});fs.rmSync(link,{recursive:true,force:true});const type=process.platform==='win32'?'junction':'dir';fs.symlinkSync(target,link,type);\""
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "notifications",
+    "multi-tenant",
+    "email",
+    "sms",
+    "push",
+    "dashboard"
+  ],
+  "author": "Vrooli",
+  "license": "MIT"
+}

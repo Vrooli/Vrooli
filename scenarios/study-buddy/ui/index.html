@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>☕ Study Buddy - Your Cozy Learning Space</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Comfortaa:wght@400;600&family=Kalam:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__studyBuddyBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[StudyBuddy] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'study-buddy' });
+            window.__studyBuddyBridgeInitialized = true;
+        }
+    </script>
+    <script src="progress-tracker.js" defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-gradient-1: #2c1f4a;
+            --bg-gradient-2: #4a3862;
+            --bg-gradient-3: #6b4c7a;
+            --card-bg: rgba(255, 248, 240, 0.95);
+            --accent-purple: #9b72aa;
+            --accent-pink: #d4a5c8;
+            --accent-yellow: #f9d978;
+            --text-dark: #3a2e4d;
+            --text-light: #6b5d7a;
+            --success: #7bb68e;
+            --warning: #f4a261;
+            --error: #e76f51;
+            --shadow: rgba(42, 32, 61, 0.2);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes steam {
+            0% { transform: translateY(0) scale(1); opacity: 0.6; }
+            100% { transform: translateY(-30px) scale(1.5); opacity: 0; }
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 50%, var(--bg-gradient-3) 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background elements */
+        .bg-stars {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: white;
+            font-family: 'Comfortaa', cursive;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .coffee-cup {
+            position: relative;
+            font-size: 2rem;
+        }
+
+        .coffee-steam {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            animation: steam 2s infinite;
+        }
+
+        .coffee-steam:nth-child(2) {
+            animation-delay: 0.5s;
+            left: 60%;
+        }
+
+        .coffee-steam:nth-child(3) {
+            animation-delay: 1s;
+            left: 40%;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+        /* Main container */
+        .main-container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 250px 1fr 300px;
+            gap: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px var(--shadow);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .subjects-list {
+            margin-top: 1rem;
+        }
+
+        .subject-item {
+            padding: 0.8rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+        }
+
+        .subject-item:hover {
+            background: var(--accent-purple);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .subject-item.active {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            color: white;
+        }
+
+        .add-subject-btn {
+            width: 100%;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            border: 2px dashed var(--accent-purple);
+            background: transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            color: var(--accent-purple);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .add-subject-btn:hover {
+            background: var(--accent-purple);
+            color: white;
+            border-style: solid;
+        }
+
+        /* Content area */
+        .content-area {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 1rem;
+            background: var(--card-bg);
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 5px 15px var(--shadow);
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px var(--shadow);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            color: white;
+        }
+
+        /* Flashcard */
+        .flashcard-container {
+            perspective: 1000px;
+            height: 400px;
+            margin-bottom: 2rem;
+        }
+
+        .flashcard {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            cursor: pointer;
+        }
+
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            background: var(--card-bg);
+            box-shadow: 0 15px 40px var(--shadow);
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+            background: linear-gradient(135deg, #fff9f0, #ffefd8);
+        }
+
+        .card-content {
+            font-size: 1.3rem;
+            text-align: center;
+            line-height: 1.6;
+            color: var(--text-dark);
+        }
+
+        .card-hint {
+            position: absolute;
+            bottom: 2rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-style: italic;
+        }
+
+        .flashcard-controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .control-btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .control-btn.easy {
+            background: var(--success);
+            color: white;
+        }
+
+        .control-btn.medium {
+            background: var(--warning);
+            color: white;
+        }
+
+        .control-btn.hard {
+            background: var(--error);
+            color: white;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Quiz */
+        .quiz-container {
+            display: none;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 15px 40px var(--shadow);
+        }
+
+        .quiz-question {
+            font-size: 1.4rem;
+            margin-bottom: 2rem;
+            color: var(--text-dark);
+        }
+
+        .quiz-options {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .quiz-option {
+            padding: 1.2rem;
+            background: white;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+        }
+
+        .quiz-option:hover {
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .quiz-option.correct {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .quiz-option.incorrect {
+            background: var(--error);
+            color: white;
+            border-color: var(--error);
+        }
+
+        /* Notes */
+        .notes-container {
+            display: none;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 15px 40px var(--shadow);
+        }
+
+        .notes-editor {
+            width: 100%;
+            min-height: 300px;
+            padding: 1rem;
+            border: 2px solid var(--accent-purple);
+            border-radius: 12px;
+            font-size: 1.1rem;
+            resize: vertical;
+            font-family: 'Quicksand', sans-serif;
+        }
+
+        .save-note-btn {
+            margin-top: 1rem;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .save-note-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Right sidebar */
+        .right-sidebar {
+            animation: fadeIn 0.7s ease-out;
+        }
+
+        .study-timer {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px var(--shadow);
+        }
+
+        .timer-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--accent-purple);
+            margin: 1rem 0;
+            font-family: 'Comfortaa', cursive;
+        }
+
+        .progress-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px var(--shadow);
+        }
+
+        .progress-item {
+            margin: 1rem 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-pink));
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        /* Floating action button */
+        .floating-action {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 10px 30px var(--shadow);
+            animation: float 3s ease-in-out infinite;
+            z-index: 1000;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .floating-action:hover {
+            transform: scale(1.1);
+        }
+
+        /* Decorative elements */
+        .plant-decoration {
+            position: fixed;
+            bottom: 0;
+            left: 2rem;
+            width: 150px;
+            height: 200px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 200"><path d="M75 200 Q50 150 60 100 Q70 50 75 0 Q80 50 90 100 Q100 150 75 200" fill="%237bb68e" opacity="0.3"/></svg>') no-repeat center;
+            background-size: contain;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .cat-decoration {
+            position: fixed;
+            bottom: 10px;
+            right: 400px;
+            width: 80px;
+            height: 80px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><ellipse cx="40" cy="50" rx="25" ry="20" fill="%233a2e4d" opacity="0.2"/><circle cx="30" cy="30" r="3" fill="%233a2e4d" opacity="0.3"/><circle cx="50" cy="30" r="3" fill="%233a2e4d" opacity="0.3"/><path d="M15 20 L20 35 L10 35 Z" fill="%233a2e4d" opacity="0.3"/><path d="M65 20 L70 35 L60 35 Z" fill="%233a2e4d" opacity="0.3"/></svg>') no-repeat center;
+            background-size: contain;
+            z-index: 5;
+            pointer-events: none;
+            animation: float 5s ease-in-out infinite;
+        }
+
+        /* Loading animation */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--accent-purple);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar, .right-sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated background stars -->
+    <div class="bg-stars" id="stars"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <div class="coffee-cup">
+                ☕
+                <div class="coffee-steam"></div>
+                <div class="coffee-steam"></div>
+                <div class="coffee-steam"></div>
+            </div>
+            <span>Study Buddy</span>
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                <span>🔥</span>
+                <span id="streak">0 day streak</span>
+            </div>
+            <div class="stat-item">
+                <span>⭐</span>
+                <span id="points">0 points</span>
+            </div>
+            <div class="stat-item">
+                <span>📚</span>
+                <span id="cards-studied">0 cards today</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <h3>Subjects</h3>
+            <div class="subjects-list" id="subjects-list">
+                <div class="subject-item active" data-subject="math">
+                    <span>📐</span> Mathematics
+                </div>
+                <div class="subject-item" data-subject="science">
+                    <span>🔬</span> Science
+                </div>
+                <div class="subject-item" data-subject="history">
+                    <span>📜</span> History
+                </div>
+                <div class="subject-item" data-subject="language">
+                    <span>📝</span> Language Arts
+                </div>
+                <div class="subject-item" data-subject="computer">
+                    <span>💻</span> Computer Science
+                </div>
+            </div>
+            <button class="add-subject-btn">+ Add Subject</button>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content-area">
+            <!-- Mode Selector -->
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="flashcards">
+                    <span>🎴</span> Flashcards
+                </button>
+                <button class="mode-btn" data-mode="quiz">
+                    <span>📝</span> Quiz
+                </button>
+                <button class="mode-btn" data-mode="notes">
+                    <span>📔</span> Notes
+                </button>
+            </div>
+
+            <!-- Flashcard Container -->
+            <div class="flashcard-container">
+                <div class="flashcard" id="flashcard">
+                    <div class="card-face card-front">
+                        <div class="card-content" id="card-front-content">
+                            What is the Pythagorean theorem?
+                        </div>
+                        <div class="card-hint">💡 Click to flip</div>
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="card-content" id="card-back-content">
+                            a² + b² = c²
+                            <br><br>
+                            In a right triangle, the square of the hypotenuse equals the sum of squares of the other two sides.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flashcard Controls -->
+            <div class="flashcard-controls">
+                <button class="control-btn again" data-quality="again" data-difficulty="hard">
+                    Again 🔄
+                </button>
+                <button class="control-btn hard" data-quality="hard" data-difficulty="hard">
+                    Hard 😅
+                </button>
+                <button class="control-btn good" data-quality="good" data-difficulty="medium">
+                    Good 👍
+                </button>
+                <button class="control-btn easy" data-quality="easy" data-difficulty="easy">
+                    Easy 😊
+                </button>
+            </div>
+
+            <!-- Quiz Container -->
+            <div class="quiz-container">
+                <div class="quiz-question" id="quiz-question">
+                    What is 2 + 2?
+                </div>
+                <div class="quiz-options" id="quiz-options">
+                    <div class="quiz-option" data-answer="a">3</div>
+                    <div class="quiz-option" data-answer="b">4</div>
+                    <div class="quiz-option" data-answer="c">5</div>
+                    <div class="quiz-option" data-answer="d">6</div>
+                </div>
+            </div>
+
+            <!-- Notes Container -->
+            <div class="notes-container">
+                <h3>Study Notes</h3>
+                <textarea class="notes-editor" id="notes-editor" placeholder="Type your notes here... Use markdown for formatting!"></textarea>
+                <button class="save-note-btn">Save Notes 💾</button>
+            </div>
+
+            <!-- Materials Upload Container -->
+            <div class="materials-container" id="materials-container" style="display: none;">
+                <h3>📚 Upload Study Materials</h3>
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📤</div>
+                    <h4>Drop files here or click to upload</h4>
+                    <p>Supports PDF, images, text files, or paste a URL</p>
+                    <input type="file" id="file-input" style="display: none;" accept=".pdf,.txt,.md,.doc,.docx,.png,.jpg,.jpeg">
+                </div>
+                <div class="url-input-container">
+                    <input type="url" id="url-input" placeholder="Or paste a URL to study material..." class="url-input">
+                    <button id="process-url-btn" class="process-btn">Process URL 🔗</button>
+                </div>
+                <div class="uploaded-materials" id="uploaded-materials">
+                    <h4>📖 Processed Materials</h4>
+                    <div class="materials-list" id="materials-list"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="right-sidebar">
+            <!-- Study Timer -->
+            <div class="study-timer">
+                <h3>Study Session</h3>
+                <div class="timer-display" id="timer">00:00</div>
+                <div>Keep it up! 🌟</div>
+            </div>
+
+            <!-- Progress Card -->
+            <div class="progress-card">
+                <h3>Today's Progress</h3>
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>Flashcards</span>
+                        <span id="flashcard-progress">0/20</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="flashcard-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>Quiz Score</span>
+                        <span id="quiz-score">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="quiz-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <span>Daily Goal</span>
+                        <span id="daily-goal">0/50 XP</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="goal-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="floating-action" id="fab" title="Generate AI Flashcards">
+        ✨
+    </div>
+
+    <!-- Decorative Elements -->
+    <div class="plant-decoration"></div>
+    <div class="cat-decoration"></div>
+
+    <!-- Loading Spinner -->
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Generate random stars
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starsContainer.appendChild(star);
+        }
+    </script>
+</body>
+</html>

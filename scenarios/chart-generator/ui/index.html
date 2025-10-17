@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart Generator - Professional Data Visualization</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">📊</span>
+                    <span class="logo-text">Chart Generator</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-outline" id="import-data-btn">Import Data</button>
+                    <button class="btn btn-primary" id="generate-chart-btn">Generate Chart</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-grid">
+                <!-- Sidebar -->
+                <aside class="sidebar">
+                    <nav class="nav-tabs">
+                        <button class="nav-tab active" data-tab="chart-types">Chart Types</button>
+                        <button class="nav-tab" data-tab="styles">Styles</button>
+                        <button class="nav-tab" data-tab="data">Data</button>
+                    </nav>
+
+                    <!-- Chart Types Panel -->
+                    <div class="tab-content active" id="chart-types">
+                        <div class="section">
+                            <h3>Chart Type</h3>
+                            <div class="chart-type-grid">
+                                <div class="chart-type-card active" data-type="bar">
+                                    <div class="chart-type-icon">📊</div>
+                                    <span>Bar Chart</span>
+                                </div>
+                                <div class="chart-type-card" data-type="line">
+                                    <div class="chart-type-icon">📈</div>
+                                    <span>Line Chart</span>
+                                </div>
+                                <div class="chart-type-card" data-type="pie">
+                                    <div class="chart-type-icon">🥧</div>
+                                    <span>Pie Chart</span>
+                                </div>
+                                <div class="chart-type-card" data-type="scatter">
+                                    <div class="chart-type-icon">•••</div>
+                                    <span>Scatter Plot</span>
+                                </div>
+                                <div class="chart-type-card" data-type="area">
+                                    <div class="chart-type-icon">🏔️</div>
+                                    <span>Area Chart</span>
+                                </div>
+                                <div class="chart-type-card" data-type="gantt">
+                                    <div class="chart-type-icon">📅</div>
+                                    <span>Gantt Chart</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Styles Panel -->
+                    <div class="tab-content" id="styles">
+                        <div class="section">
+                            <h3>Chart Styles</h3>
+                            <div class="styles-list">
+                                <div class="style-card active" data-style="professional">
+                                    <div class="style-preview">
+                                        <div class="style-swatch professional"></div>
+                                    </div>
+                                    <div class="style-info">
+                                        <span class="style-name">Professional</span>
+                                        <span class="style-desc">Clean, corporate styling</span>
+                                    </div>
+                                </div>
+                                <div class="style-card" data-style="minimal">
+                                    <div class="style-preview">
+                                        <div class="style-swatch minimal"></div>
+                                    </div>
+                                    <div class="style-info">
+                                        <span class="style-name">Minimal</span>
+                                        <span class="style-desc">Simple, distraction-free</span>
+                                    </div>
+                                </div>
+                                <div class="style-card" data-style="vibrant">
+                                    <div class="style-preview">
+                                        <div class="style-swatch vibrant"></div>
+                                    </div>
+                                    <div class="style-info">
+                                        <span class="style-name">Vibrant</span>
+                                        <span class="style-desc">Bold, colorful presentation</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline btn-full" id="create-style-btn">
+                                <span>+</span> Create Custom Style
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Data Panel -->
+                    <div class="tab-content" id="data">
+                        <div class="section">
+                            <h3>Sample Data</h3>
+                            <div class="data-options">
+                                <button class="btn btn-outline btn-small" data-sample="sales">Sales Data</button>
+                                <button class="btn btn-outline btn-small" data-sample="revenue">Revenue Trends</button>
+                                <button class="btn btn-outline btn-small" data-sample="performance">Performance Metrics</button>
+                            </div>
+                            <div class="data-editor">
+                                <textarea id="data-input" placeholder="Enter your data in JSON format..."></textarea>
+                                <div class="data-actions">
+                                    <button class="btn btn-outline btn-small" id="validate-data-btn">Validate</button>
+                                    <button class="btn btn-outline btn-small" id="clear-data-btn">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Preview Area -->
+                <div class="preview-area">
+                    <div class="preview-header">
+                        <h2>Chart Preview</h2>
+                        <div class="preview-actions">
+                            <button class="btn btn-outline btn-small" id="refresh-preview-btn">Refresh</button>
+                            <div class="export-dropdown">
+                                <button class="btn btn-outline btn-small" id="export-btn">Export ▼</button>
+                                <div class="dropdown-menu">
+                                    <button data-format="png">PNG Image</button>
+                                    <button data-format="svg">SVG Vector</button>
+                                    <button data-format="pdf">PDF Document</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="preview-container">
+                        <div id="chart-preview" class="chart-container">
+                            <div class="chart-placeholder">
+                                <div class="placeholder-icon">📊</div>
+                                <h3>Select chart type and data to preview</h3>
+                                <p>Choose a chart type from the sidebar and provide data to see your visualization</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-info">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Chart Type:</label>
+                                <span id="current-type">None selected</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Style:</label>
+                                <span id="current-style">Professional</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Data Points:</label>
+                                <span id="data-count">0</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Last Updated:</label>
+                                <span id="last-updated">Never</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Health Check Endpoint -->
+        <div style="display: none;" id="health-check">OK</div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="style-creator-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create Custom Style</h3>
+                <button class="modal-close" id="close-style-modal">×</button>
+            </div>
+            <div class="modal-content">
+                <div class="style-creator">
+                    <div class="creator-section">
+                        <h4>Basic Information</h4>
+                        <div class="form-group">
+                            <label for="style-name">Style Name</label>
+                            <input type="text" id="style-name" placeholder="My Custom Style">
+                        </div>
+                        <div class="form-group">
+                            <label for="style-category">Category</label>
+                            <select id="style-category">
+                                <option value="professional">Professional</option>
+                                <option value="creative">Creative</option>
+                                <option value="technical">Technical</option>
+                                <option value="branded">Branded</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="creator-section">
+                        <h4>Color Palette</h4>
+                        <div class="color-palette">
+                            <div class="color-input">
+                                <label>Primary</label>
+                                <input type="color" id="color-primary" value="#2563eb">
+                            </div>
+                            <div class="color-input">
+                                <label>Secondary</label>
+                                <input type="color" id="color-secondary" value="#64748b">
+                            </div>
+                            <div class="color-input">
+                                <label>Accent</label>
+                                <input type="color" id="color-accent" value="#f59e0b">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="creator-section">
+                        <h4>Preview</h4>
+                        <div class="style-preview-area">
+                            <svg id="style-preview-chart" width="200" height="120"></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancel-style-btn">Cancel</button>
+                <button class="btn btn-primary" id="save-style-btn">Save Style</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="chart-engine.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+# Unified Ecosystem Manager Prompt Configuration
+# Supports all 4 operations: resource/scenario generation/improvement
+
+name: ecosystem-manager
+type: unified
+target: ecosystem
+description: Unified system for generating and improving resources and scenarios
+
+# Base sections used by all operations
+base_sections:
+  # Core knowledge (all operations need these)
+  # Note: validation-gates are now operation-specific (see each operation below)
+  - shared/core/prd-protocol
+  - shared/core/security-requirements
+  
+  # Methodologies (shared across all operations)
+  - shared/methodologies/implementation-methodology
+  
+  # Operational procedures (shared across all operations)
+  - shared/operational/failure-recovery
+  - shared/operational/collision-avoidance
+  - shared/operational/task-completion-protocol
+
+# Operation-specific section configurations
+operations:
+  resource-generator:
+    name: resource-generator
+    type: generator
+    target: resources
+    description: Creates new resources with v2.0 contract compliance and proper scaffolding
+    
+    additional_sections:
+      # Resource-specific validation gates
+      - shared/core/resource-validation-gates
+      
+      # Testing reference for resources
+      - shared/testing/resource-testing-reference
+      
+      # Research methodology (comprehensive research approach)
+      - shared/methodologies/research-methodology
+      
+      # Generator-specific sections
+      - shared/generator-specific/duplicate-detection
+      - shared/generator-specific/scaffolding-phase
+      - shared/generator-specific/seeding-guidelines
+      
+      # Resource-specific knowledge
+      - shared/resource-specific/v2-contract
+      - shared/resource-specific/port-allocation
+    
+    variables:
+      scenario_type: "resource"
+      focus: "one-time creation of new resources"
+      primary_output: "v2.0 compliant resource with PRD"
+    
+    # Time allocation: See global_config.time_allocations.generators
+    
+    success_criteria:
+      - "Unique resource verified: `grep -r 'resource_name' resources/` returns no matches"
+      - "v2.0 contract compliance: `ls lib/` shows setup.sh, develop.sh, test.sh, stop.sh, health.sh"
+      - "Health checks working: `timeout 5 curl -sf http://localhost:${PORT}/health` returns 200"
+      - "Lifecycle hooks implemented: All `lib/*.sh` scripts execute without errors"
+      - "CLI integration functional: `vrooli resource RESOURCE_NAME help` shows available commands"
+      - "Port allocation successful: `netstat -tlnp | grep PORT` shows service listening"
+      - "PRD complete: All mandatory sections present, 5+ P0 requirements with test commands"
+    
+    principles:
+      - "v2.0 contract is mandatory"
+      - "Health checks are critical"
+      - "Port allocation must not conflict"
+      - "CLI interface must be consistent"
+      - "Enable scenario integration"
+
+  resource-improver:
+    name: resource-improver
+    type: improver
+    target: resources
+    description: Iteratively improves existing resources for v2.0 compliance and reliability
+    
+    additional_sections:
+      # Resource-specific validation gates
+      - shared/core/resource-validation-gates
+      
+      # Testing reference for resources
+      - shared/testing/resource-testing-reference
+      
+      # Improver-specific sections
+      - shared/improver-specific/progress-verification
+      - shared/improver-specific/prioritization-phase
+      
+      # Resource-specific knowledge
+      - shared/resource-specific/v2-contract
+      - shared/resource-specific/port-allocation
+    
+    variables:
+      scenario_type: "resource"
+      focus: "iterative improvement of existing resources"
+      primary_output: "v2.0 compliance and enhanced reliability"
+    
+    # Time allocation: See global_config.time_allocations.improvers
+    
+    success_criteria:
+      - "v2.0 contract compliance improved: Missing files in `ls lib/` are now present and executable"
+      - "Health checks more robust: `timeout 5 curl -sf http://localhost:${PORT}/health` passes with error details"
+      - "CLI commands standardized: `vrooli resource NAME help` shows status, health, logs, content commands"
+      - "No regressions: All previously passing `lib/test.sh` tests still pass"
+      - "Security & standards baseline captured: `resource-auditor audit NAME --timeout 240` recorded before changes"
+      - "Documentation updated: README reflects actual implementation, no broken links"
+      - "Memory system updated: `vrooli resource qdrant search 'resource_name'` returns updated info"
+    
+    principles:
+      - "v2.0 compliance is priority #1"
+      - "Health checks must be reliable"
+      - "Preserve working functionality"
+      - "Surface inherited security debt before implementing fixes"
+      - "Standardize patterns across resources"
+      - "Enable better scenario integration"
+
+  scenario-generator:
+    name: scenario-generator
+    type: generator
+    target: scenarios
+    description: Creates new scenarios from scratch with comprehensive PRDs
+    
+    additional_sections:
+      # Scenario-specific validation gates
+      - shared/core/scenario-validation-gates
+      
+      # Testing reference for scenarios
+      - shared/testing/scenario-testing-reference
+      
+      # Research methodology (comprehensive research approach)
+      - shared/methodologies/research-methodology
+      
+      # Generator-specific sections
+      - shared/generator-specific/duplicate-detection
+      - shared/generator-specific/scaffolding-phase
+      - shared/generator-specific/seeding-guidelines
+      
+      # Scenario-specific knowledge
+      - shared/scenario-specific/cross-impact
+    
+    variables:
+      scenario_type: "scenario"
+      focus: "one-time creation of new scenarios"
+      primary_output: "Comprehensive PRD.md and scaffolded structure"
+    
+    # Time allocation: See global_config.time_allocations.generators
+    
+    success_criteria:
+      - "Unique scenario verified: `grep -r 'scenario_name' scenarios/` returns no existing matches"
+      - "Complete PRD: PRD.md has Executive Summary, P0/P1/P2 sections, Technical Specs, Success Metrics"
+      - "Health checks respond: `timeout 5 curl -sf http://localhost:${PORT}/api/health` returns 200 OK"
+      - "Structure matches templates: Directory has api/, ui/, cli/, initialization/, PRD.md, README.md"
+      - "One P0 implemented and testable: Specific P0 requirement works with documented test command"
+      - "Memory updated: `vrooli resource qdrant search 'scenario_name'` returns new scenario info"
+    
+    principles:
+      - "Research prevents duplication"
+      - "PRD is the primary deliverable"
+      - "Quality over completeness"
+      - "Enable future improvements"
+      - "Focus on solving real problems"
+
+  scenario-improver:
+    name: scenario-improver
+    type: improver
+    target: scenarios
+    description: Iteratively improves existing scenarios to advance PRD completion
+    
+    additional_sections:
+      # Scenario-specific validation gates
+      - shared/core/scenario-validation-gates
+      
+      # Testing reference for scenarios
+      - shared/testing/scenario-testing-reference
+      
+      # Improver-specific sections
+      - shared/improver-specific/progress-verification
+      - shared/improver-specific/prioritization-phase
+      
+      # Scenario-specific knowledge
+      - shared/scenario-specific/cross-impact
+      - shared/scenario-specific/shared-workflows
+      # Note: Value generation guidance integrated into principles
+    
+    variables:
+      scenario_type: "scenario"
+      focus: "iterative improvement of existing scenarios"
+      primary_output: "PRD progression and working features"
+    
+    # Time allocation: See global_config.time_allocations.improvers
+    
+    success_criteria:
+      - "PRD accuracy validated: Each checked ✅ requirement tested and verified working"
+      - "Progress measurable: At least one P0/P1 requirement moves from ☐ to ✅ with completion date"
+      - "No regressions verified: All previously working features tested and still functional"
+      - "Security & standards baseline captured: `scenario-auditor audit NAME --timeout 240` recorded before changes"
+      - "Validation gates pass: Health, functionality, security, and integration tests all succeed"
+      - "Cross-scenario impacts assessed: Dependencies checked, no breaking changes to other scenarios"
+      - "Memory updated: `vrooli resource qdrant search 'scenario improvements'` includes recent work"
+    
+    principles:
+      - "Trust but verify everything"
+      - "Incremental progress is permanent"
+      - "PRD accuracy is sacred"
+      - "Expose existing security debt before implementing fixes"
+      - "Small focused changes win"
+      - "Learn from past attempts"
+
+# Global configuration
+global_config:
+  # Standardized time allocations (percentages)
+  time_allocations:
+    generators:
+      research: 30  # Memory search, web research, duplicate detection
+      prd_creation: 50  # PRIMARY DELIVERABLE - comprehensive PRD
+      scaffolding: 20  # Basic structure, health checks, minimal implementation
+    improvers:
+      assessment: 20  # Test current state, verify PRD accuracy
+      prioritization: 10  # Identify highest-impact improvements
+      implementation: 60  # Fix issues, advance PRD checkboxes
+      validation: 10  # Verify improvements, update documentation
+    
+  # Resource categories (for all resource operations)
+  resource_categories:
+    ai_ml: "AI/ML resources (models, inference)"
+    storage: "Databases and storage systems"
+    automation: "Workflow and automation tools"
+    monitoring: "Observability and monitoring"
+    communication: "Messaging and communication"
+    security: "Security and compliance tools"
+  
+  # Scenario categories (for all scenario operations)
+  scenario_categories:
+    productivity: "Personal and business productivity"
+    ai_tools: "AI-powered utilities and assistants"
+    business: "Business operations and management"
+    personal: "Personal life management"
+    automation: "Workflow and process automation"
+    entertainment: "Games and entertainment"
+  
+  # Port allocation ranges
+  port_allocation:
+    core_infrastructure: "20000-24999"
+    supporting_services: "25000-29999"
+    application_scenarios: "30000-34999"
+    development_tools: "35000-39999"
+    dynamic_pool: "40000-49999"
+  
+  # Common improvement areas
+  common_improvements:
+    resource_improvements:
+      health_checks: ["Add timeout handling", "Implement retry logic", "Add detailed error messages"]
+      lifecycle: ["Graceful shutdown", "Proper cleanup", "State persistence"]
+      cli: ["Standardize commands", "Add help documentation", "JSON output support"]
+    
+    scenario_improvements:
+      prd_accuracy: ["Validate checkboxes", "Complete P0 requirements", "Update percentages"]
+      user_experience: ["Improve UI/UX", "Optimize workflows", "Better error handling"]
+      performance: ["API optimization", "Database queries", "Response times"]
+  
+  # Priority rubric (for all improver operations)
+  priority_rubric:
+    critical: ["Contract violations", "Broken health checks", "Security vulnerabilities"]
+    high: ["Stability issues", "Missing functionality", "Integration failures"]
+    medium: ["Performance improvements", "Error handling", "Documentation"]
+    low: ["Code cleanup", "Optimizations", "Nice-to-have features"]

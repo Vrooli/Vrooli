@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Optimizer - Professional SEO Analysis Platform</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
+                        <path d="M16 8v8l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="16" cy="16" r="3" fill="currentColor"/>
+                    </svg>
+                    <span>SEO Optimizer</span>
+                </div>
+                <nav class="nav-menu">
+                    <button class="nav-item active" data-view="audit">SEO Audit</button>
+                    <button class="nav-item" data-view="keywords">Keywords</button>
+                    <button class="nav-item" data-view="content">Content</button>
+                    <button class="nav-item" data-view="competitors">Competitors</button>
+                    <button class="nav-item" data-view="rankings">Rankings</button>
+                </nav>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- SEO Audit View -->
+            <div class="view-panel active" id="audit-view">
+                <div class="view-header">
+                    <h2>Website SEO Audit</h2>
+                    <p class="view-description">Comprehensive analysis of on-page and technical SEO factors</p>
+                </div>
+
+                <div class="audit-controls">
+                    <div class="input-group">
+                        <input type="url" id="audit-url" placeholder="Enter website URL (e.g., https://example.com)" class="url-input">
+                        <select id="audit-depth" class="depth-select">
+                            <option value="1">1 page</option>
+                            <option value="3" selected>3 pages</option>
+                            <option value="5">5 pages</option>
+                            <option value="10">10 pages</option>
+                        </select>
+                        <button class="btn-primary" id="start-audit">Analyze</button>
+                    </div>
+                </div>
+
+                <div class="audit-results" id="audit-results">
+                    <div class="score-overview">
+                        <div class="score-card">
+                            <div class="score-circle" data-score="0">
+                                <svg width="120" height="120">
+                                    <circle cx="60" cy="60" r="54" class="score-bg"/>
+                                    <circle cx="60" cy="60" r="54" class="score-fill"/>
+                                </svg>
+                                <div class="score-value">--</div>
+                            </div>
+                            <h3>Overall SEO Score</h3>
+                        </div>
+
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-label">Performance</div>
+                                <div class="metric-value">--</div>
+                                <div class="metric-bar"><div class="metric-fill"></div></div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Accessibility</div>
+                                <div class="metric-value">--</div>
+                                <div class="metric-bar"><div class="metric-fill"></div></div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Best Practices</div>
+                                <div class="metric-value">--</div>
+                                <div class="metric-bar"><div class="metric-fill"></div></div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">SEO</div>
+                                <div class="metric-value">--</div>
+                                <div class="metric-bar"><div class="metric-fill"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="issues-panel">
+                        <h3>SEO Issues & Recommendations</h3>
+                        <div class="issues-list" id="issues-list">
+                            <div class="placeholder">Run an audit to see recommendations</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keywords View -->
+            <div class="view-panel" id="keywords-view">
+                <div class="view-header">
+                    <h2>Keyword Research</h2>
+                    <p class="view-description">Discover high-value keywords and search opportunities</p>
+                </div>
+
+                <div class="keyword-controls">
+                    <div class="input-group">
+                        <input type="text" id="seed-keyword" placeholder="Enter seed keyword" class="keyword-input">
+                        <select id="target-location" class="location-select">
+                            <option value="United States">United States</option>
+                            <option value="United Kingdom">United Kingdom</option>
+                            <option value="Canada">Canada</option>
+                            <option value="Australia">Australia</option>
+                            <option value="Global">Global</option>
+                        </select>
+                        <button class="btn-primary" id="research-keywords">Research</button>
+                    </div>
+                </div>
+
+                <div class="keywords-results" id="keywords-results">
+                    <div class="keywords-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Keyword</th>
+                                    <th>Search Volume</th>
+                                    <th>Competition</th>
+                                    <th>CPC</th>
+                                    <th>Intent</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="keywords-tbody">
+                                <tr class="placeholder-row">
+                                    <td colspan="6">Enter a seed keyword to start research</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Optimization View -->
+            <div class="view-panel" id="content-view">
+                <div class="view-header">
+                    <h2>Content Optimization</h2>
+                    <p class="view-description">Real-time SEO suggestions for your content</p>
+                </div>
+
+                <div class="content-editor">
+                    <div class="editor-toolbar">
+                        <input type="text" id="target-keyword" placeholder="Target keyword" class="target-keyword-input">
+                        <button class="btn-secondary" id="analyze-content">Analyze</button>
+                    </div>
+
+                    <div class="editor-container">
+                        <div class="editor-panel">
+                            <input type="text" id="page-title" placeholder="Page Title" class="title-input">
+                            <textarea id="meta-description" placeholder="Meta Description" class="meta-input"></textarea>
+                            <textarea id="content-body" placeholder="Enter or paste your content here..." class="content-textarea"></textarea>
+                        </div>
+
+                        <div class="suggestions-panel">
+                            <h3>SEO Suggestions</h3>
+                            <div class="suggestions-list" id="content-suggestions">
+                                <div class="suggestion-card info">
+                                    <span class="suggestion-icon">💡</span>
+                                    <span>Enter content to receive optimization suggestions</span>
+                                </div>
+                            </div>
+
+                            <div class="content-metrics">
+                                <div class="metric-item">
+                                    <span class="metric-label">Word Count:</span>
+                                    <span class="metric-value" id="word-count">0</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">Reading Time:</span>
+                                    <span class="metric-value" id="reading-time">0 min</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">Keyword Density:</span>
+                                    <span class="metric-value" id="keyword-density">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Competitors View -->
+            <div class="view-panel" id="competitors-view">
+                <div class="view-header">
+                    <h2>Competitor Analysis</h2>
+                    <p class="view-description">Compare SEO performance with competitors</p>
+                </div>
+
+                <div class="competitor-controls">
+                    <div class="input-group">
+                        <input type="text" id="your-domain" placeholder="Your domain" class="domain-input">
+                        <input type="text" id="competitor-domains" placeholder="Competitor domains (comma-separated)" class="competitors-input">
+                        <button class="btn-primary" id="analyze-competitors">Analyze</button>
+                    </div>
+                </div>
+
+                <div class="competitor-results" id="competitor-results">
+                    <div class="comparison-chart" id="comparison-chart">
+                        <canvas id="competitor-chart"></canvas>
+                    </div>
+                    <div class="competitor-insights" id="competitor-insights">
+                        <div class="placeholder">Add competitors to see comparison</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rankings View -->
+            <div class="view-panel" id="rankings-view">
+                <div class="view-header">
+                    <h2>Keyword Rankings</h2>
+                    <p class="view-description">Track your search engine rankings over time</p>
+                </div>
+
+                <div class="rankings-controls">
+                    <div class="input-group">
+                        <input type="text" id="track-keyword" placeholder="Add keyword to track" class="keyword-input">
+                        <input type="text" id="track-url" placeholder="URL to track" class="url-input">
+                        <button class="btn-primary" id="add-tracking">Add to Tracking</button>
+                    </div>
+                </div>
+
+                <div class="rankings-dashboard" id="rankings-dashboard">
+                    <div class="rankings-overview">
+                        <div class="stat-card">
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Keywords Tracked</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Avg. Position</div>
+                        </div>
+                        <div class="stat-card up">
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Improved</div>
+                        </div>
+                        <div class="stat-card down">
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Declined</div>
+                        </div>
+                    </div>
+
+                    <div class="rankings-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Keyword</th>
+                                    <th>Current Position</th>
+                                    <th>Change</th>
+                                    <th>URL</th>
+                                    <th>Last Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rankings-tbody">
+                                <tr class="placeholder-row">
+                                    <td colspan="5">No keywords being tracked yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="loading-overlay" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text">Analyzing...</div>
+        </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module" src="bridge-init.js"></script>
+    <script src="script.js" defer></script>
+</body>
+</html>

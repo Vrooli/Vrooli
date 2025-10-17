@@ -1,0 +1,502 @@
+{
+  "name": "Chain of Thought Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent/chain-of-thought",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for Chain of Thought processing\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.problem) {\n  throw new Error('Missing required field: problem');\n}\n\n// Extract and validate inputs\nconst problem = input.problem.trim();\nif (problem.length === 0) {\n  throw new Error('Problem field cannot be empty');\n}\n\nif (problem.length > 20000) {\n  throw new Error('Problem exceeds maximum length of 20000 characters');\n}\n\n// Thinking stages with defaults\nconst defaultStages = [\n  'identify_requirements',\n  'analyze_context', \n  'generate_solution',\n  'evaluate_tradeoffs',\n  'final_recommendation'\n];\n\nconst thinkingStages = input.thinking_stages || defaultStages;\nif (!Array.isArray(thinkingStages) || thinkingStages.length === 0) {\n  throw new Error('thinking_stages must be a non-empty array');\n}\n\nif (thinkingStages.length > 10) {\n  throw new Error('Maximum 10 thinking stages allowed');\n}\n\n// Configuration with defaults\nconst validationMode = input.validation_mode || 'self_critique';\nconst model = input.model || 'qwen2.5-coder:32b';\nconst qualityThreshold = Math.min(Math.max(input.quality_threshold || 0.7, 0.0), 1.0);\nconst maxValidationRetries = Math.min(Math.max(input.max_validation_retries || 2, 0), 5);\nconst temperature = Math.min(Math.max(input.temperature || 0.3, 0.0), 2.0);\n\n// Advanced options\nconst advanced = input.advanced || {};\nconst enableSelfReflection = advanced.enable_self_reflection !== false;\nconst detailedTrace = advanced.detailed_trace !== false;\nconst requireEvidence = advanced.require_evidence !== false;\nconst crossValidation = advanced.cross_validation || false;\n\n// Stage definitions with reasoning strategies\nconst stageDefinitions = {\n  'identify_requirements': {\n    description: 'Identify and clarify all requirements, constraints, and success criteria',\n    strategy: 'Break down the problem systematically. What exactly needs to be solved? What are the explicit and implicit requirements? What constraints exist? What would success look like?',\n    expectedOutputs: ['requirements_list', 'constraints', 'success_criteria'],\n    validationCriteria: 'Requirements are specific, measurable, and complete'\n  },\n  'analyze_context': {\n    description: 'Analyze the context, stakeholders, and environmental factors',\n    strategy: 'Consider the broader context. Who are the stakeholders? What environmental, technical, or business factors are relevant? What assumptions are being made?',\n    expectedOutputs: ['stakeholders', 'context_factors', 'assumptions'],\n    validationCriteria: 'Context analysis is thorough and identifies key factors'\n  },\n  'generate_solution': {\n    description: 'Generate potential solutions or approaches',\n    strategy: 'Think creatively about possible solutions. Consider multiple approaches. What are different ways this could be solved? Think both conventional and innovative.',\n    expectedOutputs: ['solution_options', 'approach_rationale', 'design_decisions'],\n    validationCriteria: 'Solutions are feasible, address requirements, and show creative thinking'\n  },\n  'evaluate_tradeoffs': {\n    description: 'Evaluate pros, cons, risks, and tradeoffs of different approaches',\n    strategy: 'Critically evaluate each solution. What are the advantages and disadvantages? What risks exist? What tradeoffs need to be made? Consider short-term vs long-term implications.',\n    expectedOutputs: ['pros_cons', 'risk_analysis', 'tradeoff_matrix'],\n    validationCriteria: 'Evaluation is balanced, considers multiple dimensions, and identifies key tradeoffs'\n  },\n  'final_recommendation': {\n    description: 'Provide final recommendation with reasoning and implementation guidance',\n    strategy: 'Synthesize all previous analysis into a clear recommendation. Why is this the best approach? How should it be implemented? What are the next steps?',\n    expectedOutputs: ['recommendation', 'implementation_plan', 'next_steps'],\n    validationCriteria: 'Recommendation is well-reasoned, actionable, and follows logically from analysis'\n  },\n  'enumerate_services': {\n    description: 'Identify and enumerate all necessary services or components',\n    strategy: 'Systematically identify all services, components, or modules needed. Consider data flow, dependencies, and service boundaries.',\n    expectedOutputs: ['service_list', 'dependencies', 'boundaries'],\n    validationCriteria: 'Services are well-defined with clear responsibilities and boundaries'\n  },\n  'define_interfaces': {\n    description: 'Define interfaces, APIs, and communication patterns',\n    strategy: 'Specify how components will interact. What APIs are needed? What data formats? What communication patterns? Consider consistency and scalability.',\n    expectedOutputs: ['api_definitions', 'data_schemas', 'communication_patterns'],\n    validationCriteria: 'Interfaces are well-defined, consistent, and support required interactions'\n  },\n  'consider_tradeoffs': {\n    description: 'Consider architectural and design tradeoffs',\n    strategy: 'Evaluate different architectural choices. Consider performance, scalability, maintainability, complexity, cost. What tradeoffs are acceptable?',\n    expectedOutputs: ['architecture_options', 'tradeoff_analysis', 'decision_rationale'],\n    validationCriteria: 'Tradeoffs are clearly articulated with justification for decisions'\n  }\n};\n\n// Build stage execution plan\nconst stageExecutionPlan = thinkingStages.map((stageName, index) => {\n  const definition = stageDefinitions[stageName] || {\n    description: `Custom stage: ${stageName}`,\n    strategy: 'Apply systematic thinking to this stage of the problem',\n    expectedOutputs: ['analysis', 'insights', 'conclusions'],\n    validationCriteria: 'Analysis is thorough and well-reasoned'\n  };\n  \n  return {\n    stageName,\n    stageIndex: index,\n    description: definition.description,\n    strategy: definition.strategy,\n    expectedOutputs: definition.expectedOutputs,\n    validationCriteria: definition.validationCriteria,\n    status: 'pending',\n    attempts: 0,\n    output: null,\n    validationResults: [],\n    processingTimeMs: 0\n  };\n});\n\n// Initialize execution context\nconst executionContext = {\n  problem: problem,\n  thinkingStages: thinkingStages,\n  stageExecutionPlan: stageExecutionPlan,\n  validationMode: validationMode,\n  model: model,\n  qualityThreshold: qualityThreshold,\n  maxValidationRetries: maxValidationRetries,\n  temperature: temperature,\n  enableSelfReflection: enableSelfReflection,\n  detailedTrace: detailedTrace,\n  requireEvidence: requireEvidence,\n  crossValidation: crossValidation,\n  \n  // Runtime state\n  currentStageIndex: 0,\n  totalStages: thinkingStages.length,\n  overallStartTime: new Date().toISOString(),\n  contextAccumulation: '',\n  reasoningTrace: [],\n  validationHistory: [],\n  qualityMetrics: {\n    averageQualityScore: 0,\n    totalValidationRetries: 0,\n    timePerStage: [],\n    reasoningDepthScore: 0\n  },\n  \n  // Session info\n  sessionId: `cot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  processingComplete: false,\n  finalSynthesis: null\n};\n\n// Validation configuration\nconst validationConfig = {\n  self_critique: {\n    description: 'Use the same model to critique and validate its own reasoning',\n    prompt_template: 'Critically evaluate the following reasoning for {stage_name}. Does it meet the criteria: {validation_criteria}? Rate the quality from 0.0 to 1.0 and provide specific feedback.'\n  },\n  cross_validation: {\n    description: 'Use a different model perspective to validate reasoning',\n    prompt_template: 'As an independent evaluator, assess this reasoning for {stage_name}. Is it thorough, logical, and does it meet: {validation_criteria}? Provide quality score (0.0-1.0) and detailed feedback.'\n  },\n  evidence_based: {\n    description: 'Validate that reasoning includes sufficient evidence and citations',\n    prompt_template: 'Evaluate whether this reasoning for {stage_name} provides sufficient evidence and justification. Does it meet: {validation_criteria}? Score quality (0.0-1.0) with evidence assessment.'\n  }\n};\n\nexecutionContext.validationConfig = validationConfig[validationMode] || validationConfig.self_critique;\n\nconsole.log(`[Chain of Thought] Initialized session: ${executionContext.sessionId}`);\nconsole.log(`[Chain of Thought] Problem: ${problem.substring(0, 100)}...`);\nconsole.log(`[Chain of Thought] Stages: ${thinkingStages.join(' -> ')}`);\nconsole.log(`[Chain of Thought] Validation: ${validationMode}, Quality threshold: ${qualityThreshold}`);\n\nreturn executionContext;"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if we should continue processing stages\nconst context = $input.item.json;\n\n// Continue if:\n// 1. Not all stages are complete\n// 2. Current stage exists and needs processing\n// 3. Processing hasn't been marked as complete\nconst shouldContinue = !context.processingComplete && \n                      context.currentStageIndex < context.totalStages;\n\nif (shouldContinue) {\n  const currentStage = context.stageExecutionPlan[context.currentStageIndex];\n  \n  // Check if current stage needs processing or validation retry\n  if (currentStage.status === 'pending' || \n      (currentStage.status === 'validation_failed' && currentStage.attempts < context.maxValidationRetries)) {\n    \n    // Prepare stage for processing\n    currentStage.stageStartTime = new Date().toISOString();\n    context.shouldProcessStage = true;\n    \n    console.log(`[Chain of Thought] Processing stage ${context.currentStageIndex + 1}/${context.totalStages}: ${currentStage.stageName}`);\n    \n  } else if (currentStage.status === 'completed') {\n    // Move to next stage\n    context.currentStageIndex += 1;\n    context.shouldProcessStage = false;\n    \n    if (context.currentStageIndex >= context.totalStages) {\n      // All stages complete, prepare for final synthesis\n      context.shouldProcessStage = false;\n      context.readyForSynthesis = true;\n    }\n  } else {\n    // Stage failed validation too many times, skip to next\n    console.warn(`[Chain of Thought] Stage ${currentStage.stageName} failed validation after ${currentStage.attempts} attempts, continuing...`);\n    context.currentStageIndex += 1;\n    context.shouldProcessStage = false;\n  }\n} else {\n  context.shouldProcessStage = false;\n  context.readyForSynthesis = !context.processingComplete;\n}\n\nreturn context;"
+      },
+      "id": "check_stage_condition",
+      "name": "Check Stage Condition", 
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldProcessStage }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "should_process_stage",
+      "name": "Should Process Stage?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare stage processing prompt\nconst context = $input.item.json;\nconst currentStage = context.stageExecutionPlan[context.currentStageIndex];\n\n// Build accumulated context from previous stages\nconst previousContext = context.stageExecutionPlan\n  .slice(0, context.currentStageIndex)\n  .filter(stage => stage.status === 'completed' && stage.output)\n  .map(stage => `${stage.stageName.toUpperCase()}:\\n${JSON.stringify(stage.output, null, 2)}`)\n  .join('\\n\\n');\n\n// Create reasoning prompt for current stage\nconst stagePrompt = `You are an expert problem solver using systematic Chain of Thought reasoning. You must work through this problem stage by stage, building on previous analysis.\n\nPROBLEM: ${context.problem}\n\nCURRENT STAGE: ${currentStage.stageName} (${context.currentStageIndex + 1}/${context.totalStages})\nSTAGE DESCRIPTION: ${currentStage.description}\nSTRATEGY: ${currentStage.strategy}\n\n${previousContext ? `PREVIOUS STAGE OUTPUTS:\\n${previousContext}\\n\\n` : ''}\nINSTRUCTIONS:\n1. Focus specifically on the current stage: ${currentStage.stageName}\n2. Build upon insights from previous stages\n3. Apply the reasoning strategy: ${currentStage.strategy}\n4. Provide structured output covering: ${currentStage.expectedOutputs.join(', ')}\n5. Show your step-by-step thinking process\n6. ${context.requireEvidence ? 'Include specific evidence and justification for your conclusions' : 'Support your reasoning with clear logic'}\n\nExpected outputs for this stage: ${currentStage.expectedOutputs.join(', ')}\nValidation criteria: ${currentStage.validationCriteria}\n\nRespond in the following JSON format:\n{\n  \"stage_name\": \"${currentStage.stageName}\",\n  \"thinking_process\": \"Your detailed step-by-step reasoning for this stage\",\n  \"key_insights\": [\"Insight 1\", \"Insight 2\", \"Insight 3\"],\n  \"stage_output\": {\n    // Structured output based on expected outputs: ${currentStage.expectedOutputs.join(', ')}\n  },\n  \"evidence_provided\": [\"Evidence 1\", \"Evidence 2\"] ${context.requireEvidence ? '// Required' : '// Optional'},\n  \"reasoning_confidence\": 0.85,\n  \"connections_to_previous_stages\": \"How this builds on previous analysis\",\n  \"readiness_for_next_stage\": \"What this stage provides for subsequent analysis\"\n}`;\n\ncontext.currentStagePrompt = stagePrompt;\ncurrentStage.attempts += 1;\n\nreturn context;"
+      },
+      "id": "prepare_stage_prompt",
+      "name": "Prepare Stage Prompt",
+      "type": "n8n-nodes-base.code", 
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.currentStagePrompt) }},\n  \"model\": {{ JSON.stringify($json.model) }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 180\n}",
+        "options": {
+          "timeout": 185000
+        }
+      },
+      "id": "execute_stage_reasoning",
+      "name": "Execute Stage Reasoning",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process stage reasoning response\nconst stageResponse = $input.item.json;\nconst context = $('Prepare Stage Prompt').item.json;\nconst currentStage = context.stageExecutionPlan[context.currentStageIndex];\n\nlet stageResult;\ntry {\n  // Check for universal executor success\n  if (!stageResponse.success) {\n    throw new Error(`Universal executor failed: ${stageResponse.error || 'Unknown error'}`);\n  }\n  \n  // Extract and parse response from universal executor format\n  const responseText = stageResponse.response || stageResponse.text || '';\n  \n  // Try to extract JSON from response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    stageResult = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('No JSON found in response');\n  }\n  \n  // Validate required fields\n  if (!stageResult.thinking_process) {\n    stageResult.thinking_process = responseText || 'Thinking process not captured';\n  }\n  if (!stageResult.key_insights) {\n    stageResult.key_insights = ['Processing completed but insights not structured'];\n  }\n  if (!stageResult.stage_output) {\n    stageResult.stage_output = { result: responseText };\n  }\n  if (typeof stageResult.reasoning_confidence !== 'number') {\n    stageResult.reasoning_confidence = 0.5;\n  }\n  \n} catch (error) {\n  console.warn(`[Chain of Thought] Failed to parse stage response: ${error.message}`);\n  \n  // Fallback processing\n  const responseText = stageResponse.response || stageResponse.text || '';\n  stageResult = {\n    stage_name: currentStage.stageName,\n    thinking_process: responseText,\n    key_insights: ['Stage processing completed with parsing issues'],\n    stage_output: {\n      raw_response: responseText,\n      parse_error: error.message\n    },\n    reasoning_confidence: 0.3,\n    connections_to_previous_stages: 'Unable to determine connections due to parsing error',\n    readiness_for_next_stage: 'Stage output available but may need manual review'\n  };\n}\n\n// Calculate processing time\nconst processingTime = Date.now() - new Date(currentStage.stageStartTime).getTime();\ncurrentStage.processingTimeMs = processingTime;\n\n// Store stage result\ncurrentStage.output = stageResult;\ncurrentStage.status = 'awaiting_validation';\n\n// Add to reasoning trace\ncontext.reasoningTrace.push({\n  stage: currentStage.stageName,\n  stageIndex: context.currentStageIndex,\n  thinking: stageResult.thinking_process,\n  insights: stageResult.key_insights,\n  confidence: stageResult.reasoning_confidence,\n  processingTimeMs: processingTime,\n  timestamp: new Date().toISOString()\n});\n\n// Update context accumulation\ncontext.contextAccumulation += `\\n\\n=== ${currentStage.stageName.toUpperCase()} ===\\n${stageResult.thinking_process}\\n\\nKey Insights: ${stageResult.key_insights.join(', ')}`;\n\nconsole.log(`[Chain of Thought] Completed reasoning for stage: ${currentStage.stageName} (${processingTime}ms)`);\n\nreturn context;"
+      },
+      "id": "process_stage_result",
+      "name": "Process Stage Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare validation prompt for current stage\nconst context = $input.item.json;\nconst currentStage = context.stageExecutionPlan[context.currentStageIndex];\nconst stageOutput = currentStage.output;\n\n// Create validation prompt based on validation mode\nconst validationPrompt = `You are an expert evaluator assessing the quality of Chain of Thought reasoning.\n\nSTAGE BEING VALIDATED: ${currentStage.stageName}\nSTAGE DESCRIPTION: ${currentStage.description}\nVALIDATION CRITERIA: ${currentStage.validationCriteria}\nEXPECTED OUTPUTS: ${currentStage.expectedOutputs.join(', ')}\n\nREASONING TO EVALUATE:\nThinking Process: ${stageOutput.thinking_process}\nKey Insights: ${JSON.stringify(stageOutput.key_insights, null, 2)}\nStage Output: ${JSON.stringify(stageOutput.stage_output, null, 2)}\nReasoning Confidence: ${stageOutput.reasoning_confidence}\n\nEVALUATION INSTRUCTIONS:\n1. Assess whether the reasoning meets the validation criteria: \"${currentStage.validationCriteria}\"\n2. Check if all expected outputs are addressed: ${currentStage.expectedOutputs.join(', ')}\n3. Evaluate the depth and quality of the thinking process\n4. Consider logical consistency and evidence provided\n5. Rate the overall quality on a scale from 0.0 to 1.0\n\nRespond in the following JSON format:\n{\n  \"validation_passed\": true/false,\n  \"quality_score\": 0.85,\n  \"strengths\": [\"Strength 1\", \"Strength 2\"],\n  \"weaknesses\": [\"Weakness 1\", \"Weakness 2\"],\n  \"missing_elements\": [\"Missing element 1\", \"Missing element 2\"],\n  \"improvement_suggestions\": [\"Suggestion 1\", \"Suggestion 2\"],\n  \"criteria_assessment\": \"How well does this meet the validation criteria?\",\n  \"overall_feedback\": \"Comprehensive assessment of the reasoning quality\"\n}`;\n\ncontext.currentValidationPrompt = validationPrompt;\n\nreturn context;"
+      },
+      "id": "prepare_validation",
+      "name": "Prepare Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.currentValidationPrompt) }},\n  \"model\": {{ JSON.stringify($json.model) }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 120\n}",
+        "options": {
+          "timeout": 125000
+        }
+      },
+      "id": "execute_validation",
+      "name": "Execute Validation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1850, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process validation result\nconst validationResponse = $input.item.json;\nconst context = $('Prepare Validation').item.json;\nconst currentStage = context.stageExecutionPlan[context.currentStageIndex];\n\nlet validationResult;\ntry {\n  // Check for universal executor success\n  if (!validationResponse.success) {\n    throw new Error(`Universal executor failed: ${validationResponse.error || 'Unknown error'}`);\n  }\n  \n  // Extract and parse validation response from universal executor format\n  const responseText = validationResponse.response || validationResponse.text || '';\n  \n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    validationResult = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('No JSON found in validation response');\n  }\n  \n  // Validate required fields\n  if (typeof validationResult.validation_passed !== 'boolean') {\n    // Try to infer from quality score or text content\n    if (typeof validationResult.quality_score === 'number') {\n      validationResult.validation_passed = validationResult.quality_score >= context.qualityThreshold;\n    } else {\n      validationResult.validation_passed = !responseText.toLowerCase().includes('failed') && !responseText.toLowerCase().includes('insufficient');\n    }\n  }\n  \n  if (typeof validationResult.quality_score !== 'number') {\n    validationResult.quality_score = validationResult.validation_passed ? 0.7 : 0.4;\n  }\n  \n  // Ensure arrays exist\n  validationResult.strengths = validationResult.strengths || [];\n  validationResult.weaknesses = validationResult.weaknesses || [];\n  validationResult.missing_elements = validationResult.missing_elements || [];\n  validationResult.improvement_suggestions = validationResult.improvement_suggestions || [];\n  \n} catch (error) {\n  console.warn(`[Chain of Thought] Validation parsing failed: ${error.message}`);\n  \n  // Fallback validation\n  const responseText = validationResponse.response || validationResponse.text || '';\n  const qualityScore = responseText.toLowerCase().includes('good') || responseText.toLowerCase().includes('quality') ? 0.6 : 0.4;\n  \n  validationResult = {\n    validation_passed: qualityScore >= context.qualityThreshold,\n    quality_score: qualityScore,\n    strengths: ['Validation completed'],\n    weaknesses: ['Validation response parsing failed'],\n    missing_elements: [],\n    improvement_suggestions: ['Review validation process'],\n    criteria_assessment: 'Unable to parse detailed assessment',\n    overall_feedback: responseText || 'Validation processing error'\n  };\n}\n\n// Store validation result\ncurrentStage.validationResults.push({\n  attempt: currentStage.attempts,\n  result: validationResult,\n  timestamp: new Date().toISOString()\n});\n\n// Update quality metrics\ncontext.qualityMetrics.totalValidationRetries += (currentStage.attempts - 1);\ncontext.validationHistory.push({\n  stage: currentStage.stageName,\n  passed: validationResult.validation_passed,\n  score: validationResult.quality_score,\n  attempt: currentStage.attempts\n});\n\n// Determine next action based on validation result\nif (validationResult.validation_passed || validationResult.quality_score >= context.qualityThreshold) {\n  // Validation passed - mark stage as completed\n  currentStage.status = 'completed';\n  \n  // Update quality metrics\n  context.qualityMetrics.timePerStage.push(currentStage.processingTimeMs);\n  \n  // Add reasoning depth score based on thinking process length and insights\n  const reasoningDepth = Math.min(\n    (currentStage.output.thinking_process.length / 500) * 0.3 +\n    (currentStage.output.key_insights.length / 10) * 0.4 +\n    validationResult.quality_score * 0.3,\n    1.0\n  );\n  \n  context.qualityMetrics.reasoningDepthScore += reasoningDepth;\n  \n  console.log(`[Chain of Thought] Stage ${currentStage.stageName} completed successfully (Score: ${validationResult.quality_score})`);\n  \n} else if (currentStage.attempts < context.maxValidationRetries) {\n  // Validation failed but retries available\n  currentStage.status = 'validation_failed';\n  \n  console.log(`[Chain of Thought] Stage ${currentStage.stageName} validation failed (Score: ${validationResult.quality_score}), will retry`);\n  \n} else {\n  // Validation failed and no retries left\n  currentStage.status = 'failed';\n  \n  console.warn(`[Chain of Thought] Stage ${currentStage.stageName} validation failed after ${currentStage.attempts} attempts`);\n}\n\nreturn context;"
+      },
+      "id": "process_validation",
+      "name": "Process Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.readyForSynthesis }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "ready_for_synthesis",
+      "name": "Ready for Synthesis?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare final synthesis\nconst context = $input.item.json;\n\n// Collect all completed stage outputs\nconst completedStages = context.stageExecutionPlan.filter(stage => \n  stage.status === 'completed' && stage.output\n);\n\n// Build comprehensive synthesis prompt\nconst stageOutputs = completedStages.map(stage => \n  `=== ${stage.stageName.toUpperCase()} ===\\n` +\n  `Thinking: ${stage.output.thinking_process}\\n` +\n  `Insights: ${stage.output.key_insights.join(', ')}\\n` +\n  `Output: ${JSON.stringify(stage.output.stage_output, null, 2)}\\n` +\n  `Confidence: ${stage.output.reasoning_confidence}`\n).join('\\n\\n');\n\n// Calculate overall metrics\nconst averageQualityScore = context.validationHistory.length > 0 ?\n  context.validationHistory.reduce((sum, v) => sum + v.score, 0) / context.validationHistory.length : 0;\n\nconst averageProcessingTime = context.qualityMetrics.timePerStage.length > 0 ?\n  context.qualityMetrics.timePerStage.reduce((sum, time) => sum + time, 0) / context.qualityMetrics.timePerStage.length : 0;\n\ncontext.qualityMetrics.averageQualityScore = averageQualityScore;\ncontext.qualityMetrics.reasoningDepthScore = context.qualityMetrics.reasoningDepthScore / completedStages.length;\n\nconst synthesisPrompt = `You are tasked with creating a comprehensive final synthesis from a multi-stage Chain of Thought reasoning process.\n\nORIGINAL PROBLEM: ${context.problem}\n\nSTAGE OUTPUTS:\n${stageOutputs}\n\nREASONING TRACE SUMMARY:\n${context.reasoningTrace.map(trace => `${trace.stage}: ${trace.insights.join(', ')}`).join('\\n')}\n\nMETRICS:\n- Completed Stages: ${completedStages.length}/${context.totalStages}\n- Average Quality Score: ${averageQualityScore.toFixed(2)}\n- Average Processing Time: ${averageProcessingTime.toFixed(0)}ms\n- Total Validation Retries: ${context.qualityMetrics.totalValidationRetries}\n\nSYNTHESIS INSTRUCTIONS:\n1. Integrate insights from all stages into a cohesive solution\n2. Identify connections and dependencies between stages\n3. Highlight the strongest insights and recommendations\n4. Address any gaps or limitations in the analysis\n5. Provide clear, actionable conclusions\n6. Assess the overall quality and reliability of the reasoning process\n\nRespond in the following JSON format:\n{\n  \"executive_summary\": \"High-level summary of the complete solution\",\n  \"key_findings\": [\"Finding 1\", \"Finding 2\", \"Finding 3\"],\n  \"integrated_solution\": {\n    \"approach\": \"Recommended approach based on all stages\",\n    \"components\": [\"Component 1\", \"Component 2\"],\n    \"implementation_steps\": [\"Step 1\", \"Step 2\", \"Step 3\"]\n  },\n  \"cross_stage_insights\": [\"How stages connected and built on each other\"],\n  \"confidence_assessment\": {\n    \"overall_confidence\": 0.85,\n    \"strongest_aspects\": [\"What was most thoroughly analyzed\"],\n    \"areas_needing_attention\": [\"What could be improved\"]\n  },\n  \"quality_evaluation\": {\n    \"reasoning_thoroughness\": \"Assessment of how thoroughly the problem was analyzed\",\n    \"logical_consistency\": \"Assessment of logical flow between stages\",\n    \"practical_applicability\": \"How actionable and realistic the solution is\"\n  },\n  \"final_recommendation\": \"Clear, specific recommendation with next steps\"\n}`;\n\ncontext.finalSynthesisPrompt = synthesisPrompt;\n\nreturn context;"
+      },
+      "id": "prepare_final_synthesis",
+      "name": "Prepare Final Synthesis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.finalSynthesisPrompt) }},\n  \"model\": {{ JSON.stringify($json.model) }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 240\n}",
+        "options": {
+          "timeout": 245000
+        }
+      },
+      "id": "execute_final_synthesis",
+      "name": "Execute Final Synthesis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process final synthesis and prepare output\nconst synthesisResponse = $input.item.json;\nconst context = $('Prepare Final Synthesis').item.json;\n\nlet finalSynthesis;\ntry {\n  // Check for universal executor success\n  if (!synthesisResponse.success) {\n    throw new Error(`Universal executor failed: ${synthesisResponse.error || 'Unknown error'}`);\n  }\n  \n  // Extract response from universal executor format\n  const responseText = synthesisResponse.response || synthesisResponse.text || '';\n  \n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    finalSynthesis = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('No JSON found in synthesis response');\n  }\n  \n  // Validate synthesis structure\n  if (!finalSynthesis.executive_summary) {\n    finalSynthesis.executive_summary = responseText.substring(0, 500);\n  }\n  \n  finalSynthesis.key_findings = finalSynthesis.key_findings || ['Synthesis processing completed'];\n  finalSynthesis.integrated_solution = finalSynthesis.integrated_solution || {\n    approach: 'Solution synthesis available in raw response',\n    components: [],\n    implementation_steps: []\n  };\n  \n} catch (error) {\n  console.warn(`[Chain of Thought] Synthesis parsing failed: ${error.message}`);\n  \n  const responseText = synthesisResponse.response || synthesisResponse.text || '';\n  finalSynthesis = {\n    executive_summary: responseText || 'Final synthesis completed with parsing issues',\n    key_findings: ['Synthesis available but structure could not be parsed'],\n    integrated_solution: {\n      approach: 'Raw synthesis response available',\n      components: [],\n      implementation_steps: []\n    },\n    cross_stage_insights: [],\n    confidence_assessment: {\n      overall_confidence: 0.5,\n      strongest_aspects: [],\n      areas_needing_attention: ['Response parsing']\n    },\n    quality_evaluation: {\n      reasoning_thoroughness: 'Unable to evaluate due to parsing issues',\n      logical_consistency: 'Unable to evaluate due to parsing issues',\n      practical_applicability: 'Manual review recommended'\n    },\n    final_recommendation: 'Review raw synthesis response for insights',\n    raw_response: responseText\n  };\n}\n\n// Calculate total processing time\nconst totalProcessingTime = Date.now() - new Date(context.overallStartTime).getTime();\n\n// Build comprehensive output\nconst chainOfThoughtOutput = {\n  // Core results\n  problem: context.problem,\n  final_synthesis: finalSynthesis,\n  \n  // Reasoning trace\n  reasoning_trace: context.reasoningTrace,\n  stage_execution_plan: context.stageExecutionPlan.map(stage => ({\n    stage_name: stage.stageName,\n    description: stage.description,\n    status: stage.status,\n    attempts: stage.attempts,\n    processing_time_ms: stage.processingTimeMs,\n    output_summary: stage.output ? {\n      confidence: stage.output.reasoning_confidence,\n      insights_count: stage.output.key_insights ? stage.output.key_insights.length : 0,\n      thinking_length: stage.output.thinking_process ? stage.output.thinking_process.length : 0\n    } : null,\n    validation_results: stage.validationResults.map(vr => ({\n      attempt: vr.attempt,\n      passed: vr.result.validation_passed,\n      quality_score: vr.result.quality_score,\n      feedback: vr.result.overall_feedback\n    }))\n  })),\n  \n  // Quality metrics  \n  quality_metrics: {\n    overall_quality_score: context.qualityMetrics.averageQualityScore,\n    reasoning_depth_score: context.qualityMetrics.reasoningDepthScore,\n    total_validation_retries: context.qualityMetrics.totalValidationRetries,\n    average_stage_time_ms: context.qualityMetrics.timePerStage.length > 0 ?\n      context.qualityMetrics.timePerStage.reduce((a, b) => a + b, 0) / context.qualityMetrics.timePerStage.length : 0,\n    completion_rate: context.stageExecutionPlan.filter(s => s.status === 'completed').length / context.totalStages,\n    total_processing_time_ms: totalProcessingTime\n  },\n  \n  // Processing metadata\n  processing_metadata: {\n    session_id: context.sessionId,\n    model: context.model,\n    validation_mode: context.validationMode,\n    quality_threshold: context.qualityThreshold,\n    thinking_stages: context.thinkingStages,\n    total_stages: context.totalStages,\n    completed_stages: context.stageExecutionPlan.filter(s => s.status === 'completed').length,\n    failed_stages: context.stageExecutionPlan.filter(s => s.status === 'failed').length,\n    processing_start: context.overallStartTime,\n    processing_end: new Date().toISOString(),\n    total_processing_time_ms: totalProcessingTime\n  },\n  \n  // Validation history\n  validation_history: context.validationHistory,\n  \n  // Success indicator\n  success: true,\n  message: `Chain of Thought processing completed. ${context.stageExecutionPlan.filter(s => s.status === 'completed').length}/${context.totalStages} stages completed successfully.`\n};\n\nconsole.log(`[Chain of Thought] Processing completed for session: ${context.sessionId}`);\nconsole.log(`[Chain of Thought] Total time: ${totalProcessingTime}ms, Quality score: ${context.qualityMetrics.averageQualityScore.toFixed(2)}`);\n\nreturn chainOfThoughtOutput;"
+      },
+      "id": "build_final_output",
+      "name": "Build Final Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "webhook_response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 500]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.problem) {\n  return {\n    problem: \"A train travels 120 miles in 2 hours. If it maintains the same speed, how far will it travel in 5 hours?\",\n    reasoning_steps: 3,\n    validate_logic: true,\n    show_work: true\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Chain of Thought Orchestrator Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1850, 500]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "handle_empty_input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "handle_empty_input": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge_triggers": {
+      "main": [
+        [
+          {
+            "node": "validate_input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_input": {
+      "main": [
+        [
+          {
+            "node": "check_stage_condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_stage_condition": {
+      "main": [
+        [
+          {
+            "node": "should_process_stage",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ready_for_synthesis", 
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "should_process_stage": {
+      "main": [
+        [
+          {
+            "node": "prepare_stage_prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "check_stage_condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_stage_prompt": {
+      "main": [
+        [
+          {
+            "node": "execute_stage_reasoning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute_stage_reasoning": {
+      "main": [
+        [
+          {
+            "node": "process_stage_result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_stage_result": {
+      "main": [
+        [
+          {
+            "node": "prepare_validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_validation": {
+      "main": [
+        [
+          {
+            "node": "execute_validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute_validation": {
+      "main": [
+        [
+          {
+            "node": "process_validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_validation": {
+      "main": [
+        [
+          {
+            "node": "check_stage_condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ready_for_synthesis": {
+      "main": [
+        [
+          {
+            "node": "prepare_final_synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "check_stage_condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_final_synthesis": {
+      "main": [
+        [
+          {
+            "node": "execute_final_synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute_final_synthesis": {
+      "main": [
+        [
+          {
+            "node": "build_final_output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "build_final_output": {
+      "main": [
+        [
+          {
+            "node": "webhook_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "webhook_response": {
+      "main": [
+        [
+          {
+            "node": "final_output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-14T00:00:00.000Z",
+  "versionId": "1"
+}

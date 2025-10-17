@@ -1,0 +1,25 @@
+{
+  "buckets": [
+    {
+      "name": "text-tools-data",
+      "policy": "private",
+      "versioning": true,
+      "description": "Storage for text documents and processing results"
+    },
+    {
+      "name": "text-tools-cache",
+      "policy": "private",
+      "versioning": false,
+      "lifecycle": {
+        "expiration_days": 7
+      },
+      "description": "Temporary cache for processing results"
+    },
+    {
+      "name": "text-tools-templates",
+      "policy": "public-read",
+      "versioning": true,
+      "description": "Shared text templates and patterns"
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "product-manager-agent",
+    "displayName": "Product Manager Agent",
+    "description": "Product manager AI agent with Go API and React UI",
+    "version": "1.0.0",
+    "tags": [
+      "product-management",
+      "ai-agent",
+      "go-api",
+      "react-ui",
+      "postgres-storage",
+      "redis-cache",
+      "ollama-ai",
+      "qdrant-vectors"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Product Manager Agent health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Product Manager Agent",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "product-manager-agent-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "product-manager-agent"
+             ]
+           }
+         ]
+       },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh . || echo \"Resource population skipped\"",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o product-manager-agent-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install --no-fund --no-audit",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🎯 Product Manager Agent initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./product-manager-agent-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/product-manager-agent-api"
+           }
+         },
+        {
+          "name": "wait_for_api",
+          "run": "timeout 30 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 1; done' || echo 'API health check timeout'",
+          "description": "Wait for API to be ready"
+        },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🎯 Product Manager Agent running\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+           "description": "Display service URLs"
+         }
+       ]
+     },
+    "timeout": 90,
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"product-manager-agent-api\" || true; sleep 1; pkill -9 -f \"product-manager-agent-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/product-manager-agent.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/product-manager-agent.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "resources": {
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache analysis results and session management"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store features, roadmaps, sprints, and analysis results"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": ["llama3.2"],
+      "purpose": "AI-powered analysis for market research, competitor analysis, and decision support"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": false,
+      "required": false,
+      "purpose": "Semantic search for features and feedback (optional)"
+    }
+  }
+}

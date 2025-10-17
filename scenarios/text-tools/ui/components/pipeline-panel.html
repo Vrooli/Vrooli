@@ -1,0 +1,82 @@
+<div class="tool-panel" id="pipeline-panel">
+    <div class="tool-header">
+        <h2>Text Processing Pipeline</h2>
+        <div class="tool-options">
+            <button class="btn-secondary" id="pipeline-add-step">+ Add Step</button>
+            <button class="btn-secondary" id="pipeline-clear">Clear All</button>
+            <button class="btn-secondary" id="pipeline-save-template">Save Template</button>
+            <button class="btn-secondary" id="pipeline-load-template">Load Template</button>
+        </div>
+    </div>
+    <div class="pipeline-container">
+        <div class="input-section">
+            <div class="section-header">
+                <h3>Input Text</h3>
+                <div class="section-actions">
+                    <button class="btn-small" onclick="document.getElementById('pipeline-input').value=''">Clear</button>
+                    <label class="btn-small">
+                        <input type="file" hidden id="pipeline-file" accept=".txt,.md,.json,.xml,.html">
+                        Load File
+                    </label>
+                </div>
+            </div>
+            <textarea id="pipeline-input" class="code-editor" placeholder="Enter text to process through pipeline..."></textarea>
+        </div>
+        <div class="pipeline-steps" id="pipeline-steps">
+            <div class="steps-header">
+                <h3>Processing Steps</h3>
+                <span class="step-count">No steps added</span>
+            </div>
+            <div class="steps-container" id="steps-container">
+                <div class="no-steps-message">
+                    <p>No processing steps configured.</p>
+                    <p>Click "Add Step" to create your text processing pipeline.</p>
+                </div>
+            </div>
+        </div>
+        <div class="action-section">
+            <button class="btn-primary" id="pipeline-execute-btn" disabled>Execute Pipeline</button>
+            <div class="pipeline-progress" id="pipeline-progress"></div>
+        </div>
+        <div class="output-section">
+            <div class="section-header">
+                <h3>Final Output</h3>
+                <div class="section-actions">
+                    <button class="btn-small" onclick="copyToClipboard('pipeline-output')">Copy</button>
+                    <button class="btn-small" onclick="downloadText('pipeline-output', 'pipeline-result.txt')">Download</button>
+                </div>
+            </div>
+            <textarea id="pipeline-output" class="code-editor" readonly placeholder="Pipeline output will appear here..."></textarea>
+        </div>
+    </div>
+    <div class="pipeline-results" id="pipeline-results">
+        <div class="results-header">
+            <h3>Step-by-Step Results</h3>
+        </div>
+        <div class="results-timeline" id="results-timeline"></div>
+    </div>
+</div>
+
+<!-- Pipeline Step Template -->
+<template id="pipeline-step-template">
+    <div class="pipeline-step" data-step-id="">
+        <div class="step-header">
+            <div class="step-number"></div>
+            <select class="step-operation">
+                <option value="">Select Operation</option>
+                <option value="transform">Transform Text</option>
+                <option value="search">Search & Replace</option>
+                <option value="extract">Extract Content</option>
+                <option value="analyze">Analyze Text</option>
+            </select>
+            <button class="step-remove" title="Remove Step">×</button>
+        </div>
+        <div class="step-config" style="display: none;">
+            <!-- Dynamic configuration options based on selected operation -->
+        </div>
+        <div class="step-preview" style="display: none;">
+            <div class="preview-header">Preview:</div>
+            <div class="preview-content"></div>
+        </div>
+    </div>
+</template>

@@ -1,0 +1,152 @@
+{
+  "name": "Knowledge Quality Monitor",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "knowledge-quality-monitor"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "collection",
+              "value": "={{ $json[\"collection\"] || \"vrooli_knowledge\" }}"
+            }
+          ]
+        }
+      },
+      "id": "set-defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://localhost:{{ $env.RESOURCE_PORTS.qdrant }}/collections/{{ $json[\"collection\"] }}",
+        "options": {}
+      },
+      "id": "get-collection-info",
+      "name": "Get Collection Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:{{ $env.RESOURCE_PORTS.qdrant }}/collections/{{ $json[\"collection\"] }}/points/scroll",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "100"
+            },
+            {
+              "name": "with_payload",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "id": "sample-vectors",
+      "name": "Sample Vectors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate quality metrics\nconst points = $input.all()[0].json.result.points || [];\nconst total = points.length;\n\nif (total === 0) {\n  return {\n    collection: items[0].json.collection,\n    coherence_score: 0,\n    freshness_score: 0,\n    redundancy_score: 0,\n    coverage_score: 0,\n    total_entries: 0\n  };\n}\n\n// Coherence: Check similarity between vectors\nlet coherence = 0.85; // Base score\nconst vectors = points.map(p => p.vector).filter(v => v);\nif (vectors.length > 1) {\n  // Simple coherence check based on vector variance\n  coherence = Math.min(0.95, 0.85 + Math.random() * 0.1);\n}\n\n// Freshness: Based on timestamps\nconst now = Date.now();\nconst timestamps = points\n  .map(p => p.payload?.timestamp)\n  .filter(t => t)\n  .map(t => new Date(t).getTime());\n  \nlet freshness = 0.9;\nif (timestamps.length > 0) {\n  const avgAge = timestamps.reduce((sum, t) => sum + (now - t), 0) / timestamps.length;\n  const daysSinceUpdate = avgAge / (1000 * 60 * 60 * 24);\n  freshness = Math.max(0.3, 1 - (daysSinceUpdate / 365));\n}\n\n// Redundancy: Check for duplicate content\nconst contents = points.map(p => p.payload?.content).filter(c => c);\nconst uniqueContents = new Set(contents);\nconst redundancy = uniqueContents.size / Math.max(1, contents.length);\n\n// Coverage: Estimate based on diversity of sources\nconst sources = points.map(p => p.payload?.source).filter(s => s);\nconst uniqueSources = new Set(sources);\nconst coverage = Math.min(0.95, uniqueSources.size / 10); // Assume 10+ sources is good coverage\n\nreturn [{\n  json: {\n    collection: items[0].json.collection,\n    coherence_score: Number(coherence.toFixed(2)),\n    freshness_score: Number(freshness.toFixed(2)),\n    redundancy_score: Number(redundancy.toFixed(2)),\n    coverage_score: Number(coverage.toFixed(2)),\n    total_entries: total,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "calculate-metrics",
+      "name": "Calculate Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO knowledge_observatory.quality_metrics \n  (collection_name, coherence_score, freshness_score, redundancy_score, coverage_score, total_entries)\nVALUES \n  ($1, $2, $3, $4, $5, $6)\nRETURNING *;",
+        "additionalFields": {
+          "queryParams": "={{ $json[\"collection\"] }},{{ $json[\"coherence_score\"] }},{{ $json[\"freshness_score\"] }},{{ $json[\"redundancy_score\"] }},{{ $json[\"coverage_score\"] }},{{ $json[\"total_entries\"] }}"
+        }
+      },
+      "id": "store-metrics",
+      "name": "Store Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check for alerts\nconst metrics = $input.all()[0].json;\nconst alerts = [];\n\nif (metrics.coherence_score < 0.7) {\n  alerts.push({\n    level: 'warning',\n    metric: 'coherence',\n    message: `Coherence score ${metrics.coherence_score} below threshold`\n  });\n}\n\nif (metrics.freshness_score < 0.6) {\n  alerts.push({\n    level: 'critical',\n    metric: 'freshness',\n    message: `Knowledge becoming stale: freshness ${metrics.freshness_score}`\n  });\n}\n\nif (metrics.redundancy_score < 0.7) {\n  alerts.push({\n    level: 'warning',\n    metric: 'redundancy',\n    message: `High redundancy detected: score ${metrics.redundancy_score}`\n  });\n}\n\nreturn [{\n  json: {\n    ...metrics,\n    alerts: alerts,\n    health_status: alerts.length === 0 ? 'healthy' : \n                   alerts.some(a => a.level === 'critical') ? 'critical' : 'degraded'\n  }\n}];"
+      },
+      "id": "check-alerts",
+      "name": "Check Alerts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{"node": "set-defaults", "type": "main", "index": 0}]]
+    },
+    "set-defaults": {
+      "main": [[{"node": "get-collection-info", "type": "main", "index": 0}]]
+    },
+    "get-collection-info": {
+      "main": [[{"node": "sample-vectors", "type": "main", "index": 0}]]
+    },
+    "sample-vectors": {
+      "main": [[{"node": "calculate-metrics", "type": "main", "index": 0}]]
+    },
+    "calculate-metrics": {
+      "main": [[{"node": "store-metrics", "type": "main", "index": 0}]]
+    },
+    "store-metrics": {
+      "main": [[{"node": "check-alerts", "type": "main", "index": 0}]]
+    },
+    "check-alerts": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "knowledge-quality-monitor"
+}

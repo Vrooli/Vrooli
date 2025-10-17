@@ -1,0 +1,324 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "ai-model-orchestra-controller",
+    "displayName": "AI Model Orchestra Controller",
+    "description": "Intelligent AI model routing and resource management system for optimal performance and cost efficiency",
+    "version": "1.0.0",
+    "tags": [
+      "vrooli-enhancement",
+      "ai-infrastructure",
+      "ai",
+      "orchestration",
+      "load-balancing",
+      "resource-management",
+      "model-routing",
+      "failover-handling",
+      "cost-optimization",
+      "go-api",
+      "ollama-models",
+      "postgres-storage",
+      "redis-caching"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Main AI orchestration API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "AI Model Orchestra Controller UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2:1b",
+        "llama3.2:3b",
+        "llama3.2:8b",
+        "codellama:7b",
+        "nomic-embed-text"
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "orchestration metrics and model performance data",
+      "initialization": []
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "real-time orchestration events and caching"
+    }
+  },
+  "endpoints": {
+    "health": "/health",
+    "api_health": "/api/v1/health",
+    "select_model": "/api/v1/ai/select-model",
+    "route_request": "/api/v1/ai/route-request",
+    "model_status": "/api/v1/ai/models/status",
+    "resource_metrics": "/api/v1/ai/resources/metrics",
+    "dashboard": "/dashboard"
+  },
+  "capabilities": {
+    "model_selection": {
+      "description": "Intelligent model selection based on task requirements and system resources",
+      "features": [
+        "capability-based-routing",
+        "resource-awareness",
+        "performance-optimization"
+      ]
+    },
+    "load_balancing": {
+      "description": "Dynamic load balancing across available AI models",
+      "features": [
+        "round-robin",
+        "least-connections",
+        "resource-based",
+        "failover"
+      ]
+    },
+    "resource_monitoring": {
+      "description": "Real-time monitoring of system resources and model performance",
+      "features": [
+        "memory-tracking",
+        "cpu-monitoring",
+        "response-time-analysis",
+        "health-checks"
+      ]
+    },
+    "cost_optimization": {
+      "description": "Automatic cost optimization through intelligent model routing",
+      "features": [
+        "cost-aware-routing",
+        "efficiency-metrics",
+        "usage-analytics"
+      ]
+    }
+  },
+  "environment": {
+    "ORCHESTRATOR_PORT": "${API_PORT}",
+    "ORCHESTRATOR_HOST": "${ORCHESTRATOR_HOST}",
+    "ORCHESTRATOR_LOG_LEVEL": "info",
+    "RESOURCE_MONITOR_INTERVAL": "5000",
+    "MODEL_HEALTH_CHECK_INTERVAL": "30000",
+    "MAX_RETRY_ATTEMPTS": "3",
+    "REQUEST_TIMEOUT": "30000"
+  },
+  "health_checks": [
+    {
+      "name": "api_endpoint",
+      "url": "http://${ORCHESTRATOR_HOST}:${API_PORT}/health",
+      "interval": 30,
+      "timeout": 10,
+      "retries": 3
+    },
+    {
+      "name": "model_availability",
+      "url": "http://${ORCHESTRATOR_HOST}:${API_PORT}/api/v1/ai/models/status",
+      "interval": 60,
+      "timeout": 15,
+      "retries": 2
+    }
+  ],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "AI Model Orchestra Controller health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://${ORCHESTRATOR_HOST}:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize AI Model Orchestra Controller",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/ai-model-orchestra-controller-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "ai-orchestra"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod tidy && go build -o ai-model-orchestra-controller-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API port: ${API_PORT}\\n  Dashboard endpoint: /dashboard\\n  CLI: ai-orchestra --help\\n  Health endpoints: /health and /api/v1/health'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start AI orchestration development environment",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./ai-model-orchestra-controller-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/ai-model-orchestra-controller-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 AI Model Orchestra Controller running:\\n  API port: ${API_PORT}\\n  Dashboard: /dashboard\\n  UI port: ${UI_PORT}\\n  Model Selection: POST /api/v1/ai/select-model\\n  Route Request: POST /api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for ai-model-orchestra-controller using the new testing architecture",
+      "steps": [
+        {
+          "name": "run-comprehensive-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)",
+          "condition": {
+            "file_exists": "test/run-tests.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"ai-model-orchestra-controller-api\" || true; sleep 1; pkill -9 -f \"ai-model-orchestra-controller-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/ai-model-orchestra-controller.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/ai-model-orchestra-controller.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "go": ">=1.21.0"
+  },
+  "monitoring": {
+    "metrics": [
+      "requests_per_second",
+      "average_response_time",
+      "model_selection_accuracy",
+      "resource_utilization",
+      "failover_rate",
+      "cost_savings_percentage"
+    ],
+    "alerts": [
+      {
+        "name": "high_error_rate",
+        "condition": "error_rate > 5%",
+        "severity": "warning"
+      },
+      {
+        "name": "resource_pressure",
+        "condition": "memory_usage > 90%",
+        "severity": "critical"
+      },
+      {
+        "name": "model_unavailable",
+        "condition": "available_models = 0",
+        "severity": "critical"
+      }
+    ]
+  },
+  "scaling": {
+    "min_instances": 1,
+    "max_instances": 3,
+    "scale_triggers": [
+      {
+        "metric": "requests_per_second",
+        "threshold": 100,
+        "action": "scale_up"
+      },
+      {
+        "metric": "cpu_usage",
+        "threshold": 80,
+        "action": "scale_up"
+      }
+    ]
+  },
+  "business_value": {
+    "primary_benefits": [
+      "99.9% AI service availability",
+      "3-5x improved throughput",
+      "40-60% cost reduction",
+      "Automatic failover and recovery",
+      "Resource-aware intelligent routing"
+    ],
+    "use_cases": [
+      "High-volume AI inference workloads",
+      "Multi-model AI applications",
+      "Cost-sensitive AI deployments",
+      "Mission-critical AI services",
+      "Resource-constrained environments"
+    ],
+    "roi_metrics": [
+      "Reduced infrastructure costs",
+      "Improved system reliability",
+      "Faster development cycles",
+      "Better resource utilization",
+      "Reduced operational overhead"
+    ]
+  }
+}

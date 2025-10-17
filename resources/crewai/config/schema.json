@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CrewAI Resource Configuration",
+  "description": "Configuration schema for CrewAI multi-agent AI framework",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Resource name",
+      "default": "crewai"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Display name for UI",
+      "default": "CrewAI"
+    },
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8084
+    },
+    "data_dir": {
+      "type": "string",
+      "description": "Data directory for crews, agents, and workspace",
+      "default": "${HOME}/.crewai"
+    },
+    "mock_mode": {
+      "type": "boolean",
+      "description": "Run in mock mode (without real CrewAI library)",
+      "default": true
+    },
+    "python_path": {
+      "type": "string",
+      "description": "Path to Python executable",
+      "default": "python3"
+    },
+    "crew_settings": {
+      "type": "object",
+      "description": "Crew configuration settings",
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "description": "Maximum iterations for crew execution",
+          "minimum": 1,
+          "default": 10
+        },
+        "verbose": {
+          "type": "boolean",
+          "description": "Enable verbose logging",
+          "default": false
+        }
+      }
+    },
+    "agent_settings": {
+      "type": "object",
+      "description": "Agent configuration settings",
+      "properties": {
+        "llm_provider": {
+          "type": "string",
+          "description": "LLM provider for agents",
+          "enum": ["ollama", "openai", "anthropic", "litellm"],
+          "default": "ollama"
+        },
+        "model": {
+          "type": "string",
+          "description": "Default model for agents",
+          "default": "llama3"
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Default temperature for agent responses",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.7
+        },
+        "max_tokens": {
+          "type": "integer",
+          "description": "Maximum tokens for responses",
+          "minimum": 1,
+          "default": 2048
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "External service integrations",
+      "properties": {
+        "ollama": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 11434
+            }
+          }
+        },
+        "qdrant": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 6333
+            }
+          }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "default": "INFO"
+        },
+        "file": {
+          "type": "string",
+          "description": "Log file path",
+          "default": "${HOME}/.crewai/crewai.log"
+        },
+        "rotate": {
+          "type": "boolean",
+          "description": "Enable log rotation",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": ["name", "port"],
+  "additionalProperties": false
+}

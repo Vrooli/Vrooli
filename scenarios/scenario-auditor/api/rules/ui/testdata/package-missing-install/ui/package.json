@@ -1,0 +1,7 @@
+{
+  "name": "demo-ui",
+  "version": "1.0.0",
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  }
+}

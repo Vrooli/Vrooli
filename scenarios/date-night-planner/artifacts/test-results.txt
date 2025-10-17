@@ -1,0 +1,98 @@
+=== RUN   TestIntegration_FullDatePlanningWorkflow
+--- PASS: TestIntegration_FullDatePlanningWorkflow (0.01s)
+=== RUN   TestIntegration_SurpriseDateWorkflow
+--- PASS: TestIntegration_SurpriseDateWorkflow (0.01s)
+=== RUN   TestIntegration_MultipleCoupleSeparation
+--- PASS: TestIntegration_MultipleCoupleSeparation (0.01s)
+=== RUN   TestIntegration_ErrorRecovery
+=== RUN   TestIntegration_ErrorRecovery/MissingCoupleID
+=== RUN   TestIntegration_ErrorRecovery/MalformedJSON
+=== RUN   TestIntegration_ErrorRecovery/MissingRequesterID
+--- PASS: TestIntegration_ErrorRecovery (0.00s)
+=== RUN   TestHealthHandler
+=== RUN   TestHealthHandler/HealthHandler_Success
+--- PASS: TestHealthHandler (0.00s)
+=== RUN   TestDatabaseHealthHandler
+=== RUN   TestDatabaseHealthHandler/DatabaseHealthHandler_Success
+--- PASS: TestDatabaseHealthHandler (0.00s)
+=== RUN   TestWorkflowHealthHandler
+=== RUN   TestWorkflowHealthHandler/WorkflowHealthHandler_Success
+--- PASS: TestWorkflowHealthHandler (0.00s)
+=== RUN   TestSuggestDatesHandler
+=== RUN   TestSuggestDatesHandler/Success_RomanticDate
+=== RUN   TestSuggestDatesHandler/Success_AdventureDate
+=== RUN   TestSuggestDatesHandler/Success_CulturalDate
+=== RUN   TestSuggestDatesHandler/Success_CasualDate
+=== RUN   TestSuggestDatesHandler/Success_IndoorPreference
+=== RUN   TestSuggestDatesHandler/Success_OutdoorPreference
+=== RUN   TestSuggestDatesHandler/Success_LowBudget
+=== RUN   TestSuggestDatesHandler/SuggestDatesHandler_MissingCoupleID
+=== RUN   TestSuggestDatesHandler/SuggestDatesHandler_EmptyBody
+--- PASS: TestSuggestDatesHandler (0.03s)
+=== RUN   TestPlanDateHandler
+=== RUN   TestPlanDateHandler/Success_CreateDatePlan
+=== RUN   TestPlanDateHandler/PlanDateHandler_MissingCoupleID
+=== RUN   TestPlanDateHandler/PlanDateHandler_EmptyBody
+--- PASS: TestPlanDateHandler (0.00s)
+=== RUN   TestSurpriseDateHandler
+=== RUN   TestSurpriseDateHandler/Success_CreateSurpriseDate
+=== RUN   TestSurpriseDateHandler/Error_MissingPlannedBy
+--- PASS: TestSurpriseDateHandler (0.00s)
+=== RUN   TestGetSurpriseHandler
+=== RUN   TestGetSurpriseHandler/Success_PlannerCanSeeDetails
+=== RUN   TestGetSurpriseHandler/Success_PartnerCannotSeeDetails
+=== RUN   TestGetSurpriseHandler/Error_MissingRequesterID
+--- PASS: TestGetSurpriseHandler (0.00s)
+=== RUN   TestGenerateDynamicSuggestions
+=== RUN   TestGenerateDynamicSuggestions/RomanticType
+=== RUN   TestGenerateDynamicSuggestions/AdventureType
+=== RUN   TestGenerateDynamicSuggestions/CulturalType
+=== RUN   TestGenerateDynamicSuggestions/CasualType
+=== RUN   TestGenerateDynamicSuggestions/BudgetConstraint
+=== RUN   TestGenerateDynamicSuggestions/IndoorPreference
+=== RUN   TestGenerateDynamicSuggestions/OutdoorPreference
+--- PASS: TestGenerateDynamicSuggestions (0.00s)
+=== RUN   TestGenerateUUID
+--- PASS: TestGenerateUUID (0.00s)
+=== RUN   TestEnableCORS
+=== RUN   TestEnableCORS/OPTIONS_Request
+=== RUN   TestEnableCORS/POST_Request
+--- PASS: TestEnableCORS (0.00s)
+=== RUN   TestInitDB
+--- PASS: TestInitDB (0.00s)
+=== RUN   TestGenerateDynamicSuggestions_HighBudgetAdventure
+--- PASS: TestGenerateDynamicSuggestions_HighBudgetAdventure (0.00s)
+=== RUN   TestGenerateDynamicSuggestions_HighBudgetFiltering
+--- PASS: TestGenerateDynamicSuggestions_HighBudgetFiltering (0.00s)
+=== RUN   TestGenerateDynamicSuggestions_WeatherBackup
+=== RUN   TestGenerateDynamicSuggestions_WeatherBackup/OutdoorWithBackup
+=== RUN   TestGenerateDynamicSuggestions_WeatherBackup/RomanticDefaultHasBackup
+--- PASS: TestGenerateDynamicSuggestions_WeatherBackup (0.00s)
+=== RUN   TestGenerateDynamicSuggestions_EmptyResult
+--- PASS: TestGenerateDynamicSuggestions_EmptyResult (0.00s)
+=== RUN   TestSuggestDatesHandler_WithDatabase
+=== RUN   TestSuggestDatesHandler_WithDatabase/WithDateType
+=== RUN   TestSuggestDatesHandler_WithDatabase/WithBudget
+=== RUN   TestSuggestDatesHandler_WithDatabase/WithWeather
+=== RUN   TestSuggestDatesHandler_WithDatabase/WithAllFilters
+--- PASS: TestSuggestDatesHandler_WithDatabase (0.02s)
+=== RUN   TestSuggestDatesHandler_EdgeCases
+=== RUN   TestSuggestDatesHandler_EdgeCases/EdgeCase_ZeroBudget
+=== RUN   TestSuggestDatesHandler_EdgeCases/EdgeCase_VeryHighBudget
+=== RUN   TestSuggestDatesHandler_EdgeCases/EdgeCase_EmptyDateType
+=== RUN   TestSuggestDatesHandler_EdgeCases/EdgeCase_AllParametersProvided
+--- PASS: TestSuggestDatesHandler_EdgeCases (0.02s)
+=== RUN   TestPlanDateHandler_EdgeCases
+=== RUN   TestPlanDateHandler_EdgeCases/EdgeCase_InvalidDateFormat
+=== RUN   TestPlanDateHandler_EdgeCases/EdgeCase_NoActivities
+--- PASS: TestPlanDateHandler_EdgeCases (0.01s)
+=== RUN   TestSurpriseDateHandler_EdgeCases
+=== RUN   TestSurpriseDateHandler_EdgeCases/EdgeCase_WithRevealTime
+=== RUN   TestSurpriseDateHandler_EdgeCases/EdgeCase_InvalidRevealTime
+--- PASS: TestSurpriseDateHandler_EdgeCases (0.01s)
+=== RUN   TestPerformance_SuggestDatesResponseTime
+--- PASS: TestPerformance_SuggestDatesResponseTime (0.00s)
+=== RUN   TestPerformance_ConcurrentSuggestions
+--- PASS: TestPerformance_ConcurrentSuggestions (0.00s)
+=== RUN   TestPerformance_UUIDUniqueness
+--- PASS: TestPerformance_UUIDUniqueness (0.00s)

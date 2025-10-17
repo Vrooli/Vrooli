@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Neo4j Resource Configuration Schema",
+  "description": "Configuration schema for Neo4j graph database resource",
+  "type": "object",
+  "properties": {
+    "container": {
+      "type": "object",
+      "description": "Container configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Container name",
+          "default": "vrooli-neo4j"
+        },
+        "image": {
+          "type": "string",
+          "description": "Docker image",
+          "default": "neo4j:5.15.0"
+        },
+        "version": {
+          "type": "string",
+          "description": "Neo4j version",
+          "default": "5.15.0"
+        }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "description": "Port configuration",
+      "properties": {
+        "http": {
+          "type": "integer",
+          "description": "HTTP browser port (from port registry)",
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "bolt": {
+          "type": "integer",
+          "description": "Bolt protocol port (from port registry)",
+          "minimum": 1024,
+          "maximum": 65535
+        }
+      }
+    },
+    "authentication": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Admin username",
+          "default": "neo4j"
+        },
+        "password": {
+          "type": "string",
+          "description": "Admin password (from environment variable)",
+          "minLength": 8
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "description": "Memory configuration",
+      "properties": {
+        "heap_size": {
+          "type": "string",
+          "description": "JVM heap size",
+          "pattern": "^[0-9]+[MG]$",
+          "default": "512M"
+        },
+        "pagecache_size": {
+          "type": "string",
+          "description": "Page cache size",
+          "pattern": "^[0-9]+[MG]$",
+          "default": "512M"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Data directory path"
+        },
+        "logs_dir": {
+          "type": "string",
+          "description": "Logs directory path"
+        },
+        "import_dir": {
+          "type": "string",
+          "description": "Import directory path"
+        },
+        "plugins_dir": {
+          "type": "string",
+          "description": "Plugins directory path"
+        }
+      }
+    },
+    "plugins": {
+      "type": "array",
+      "description": "Neo4j plugins to enable",
+      "items": {
+        "type": "string",
+        "enum": ["apoc", "graph-data-science", "streams", "neosemantics"]
+      },
+      "default": ["apoc"]
+    },
+    "startup": {
+      "type": "object",
+      "description": "Startup configuration",
+      "properties": {
+        "wait_timeout": {
+          "type": "integer",
+          "description": "Seconds to wait for startup",
+          "minimum": 10,
+          "maximum": 300,
+          "default": 30
+        },
+        "health_check_interval": {
+          "type": "integer",
+          "description": "Health check interval in seconds",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 2
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

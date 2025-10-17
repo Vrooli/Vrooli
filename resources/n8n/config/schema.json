@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "resource:n8n",
+  "title": "n8n Resource Configuration",
+  "description": "Workflow automation platform for connecting apps and building complex automations",
+  "type": "object",
+  "extends": "baseResource",
+  "properties": {
+  },
+  "examples": [
+    {
+      "title": "Minimal",
+      "config": {
+        "enabled": true
+      }
+    },
+    {
+      "title": "Development",
+      "config": {
+        "enabled": true,
+        "purpose": "Development workflow automation"
+      }
+    },
+    {
+      "title": "Production",
+      "config": {
+        "enabled": true,
+        "required": true,
+        "purpose": "Production workflow orchestration"
+      }
+    },
+    {
+      "title": "Workflow Hub",
+      "config": {
+        "enabled": true,
+        "purpose": "Central workflow orchestration hub"
+      }
+    }
+  ]
+}

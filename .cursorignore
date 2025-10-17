@@ -41,6 +41,13 @@ coverage
 # nyc test coverage
 .nyc_output
 
+# Vitest cache
+.vitest
+packages/*/.vitest
+
+# V8 compile cache
+v8-compile-cache-*/
+
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
 
@@ -111,6 +118,7 @@ storybook-static
 # rollup.js default build output
 dist/
 test-dist/
+*.map
 
 # Gatsby files
 .cache/
@@ -166,6 +174,8 @@ data/postgres*
 data/redis/
 data/stats/
 data/uploads/
+data/schema-hash
+data/backup*
 
 #Backups
 backups/
@@ -183,8 +193,7 @@ packages/ui/public/sitemaps/
 **/*.0x/
 
 # JWT keys
-jwt_pub.pem
-jwt_priv.pem
+*.pem
 
 # Vault keys
 .vault*
@@ -196,3 +205,13 @@ upload-keystore.jks
 # Bats test helpers (e.g. bats-core)
 scripts/tests/helpers
 scripts/tests/tmp
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz

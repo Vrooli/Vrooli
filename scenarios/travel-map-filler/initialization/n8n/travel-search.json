@@ -1,0 +1,194 @@
+{
+  "name": "travel-search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "travel-search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide test defaults for manual execution\nreturn [{\n  json: {\n    query: \"beaches in Europe\",\n    limit: 10,\n    user_id: \"test-user\"\n  }\n}];"
+      },
+      "id": "set-defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "content": "## Travel Search Workflow\n\nSemantic search through travel history using embeddings.\nFinds similar places, travel types, or experiences.",
+        "height": 120,
+        "width": 350
+      },
+      "id": "note_1",
+      "name": "Workflow Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 150]
+    },
+    {
+      "parameters": {
+        "workflow": "embedding-generator",
+        "workflowData": "={{ JSON.stringify({\n  text: $json.query,\n  model: 'nomic-embed-text',\n  store_in_qdrant: false\n}) }}"
+      },
+      "id": "generate-query-embedding",
+      "name": "Generate Query Embedding",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "collection": "travel_locations",
+        "vector": "={{ $('generate-query-embedding').item.json.embedding }}",
+        "limit": "={{ $('webhook-trigger').item.json.limit || 10 }}",
+        "withPayload": true,
+        "withVector": false
+      },
+      "id": "qdrant-search",
+      "name": "Search Vector DB",
+      "type": "n8n-nodes-base.qdrant",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "credentials": {
+        "qdrantApi": {
+          "id": "qdrant",
+          "name": "Qdrant"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process search results and enhance with recommendations\nconst results = $json.results || [];\nconst query = $('webhook-trigger').item.json.query;\n\n// Map results to travel objects\nconst travels = results.map(r => ({\n  id: r.payload.travel_id,\n  location: r.payload.location,\n  country: r.payload.country,\n  city: r.payload.city,\n  type: r.payload.type,\n  date: r.payload.date,\n  lat: r.payload.lat,\n  lng: r.payload.lng,\n  score: r.score\n}));\n\n// Generate insights\nconst countries = [...new Set(travels.map(t => t.country))];\nconst types = [...new Set(travels.map(t => t.type))];\n\nconst insights = {\n  topCountries: countries.slice(0, 3),\n  travelTypes: types,\n  totalMatches: travels.length,\n  searchQuery: query\n};\n\nreturn [{\n  json: {\n    status: 'success',\n    results: travels,\n    insights: insights,\n    message: `Found ${travels.length} matching travels`\n  }\n}];"
+      },
+      "id": "process-results",
+      "name": "Process Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "generate-query-embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "set-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set-defaults": {
+      "main": [
+        [
+          {
+            "node": "generate-query-embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-query-embedding": {
+      "main": [
+        [
+          {
+            "node": "qdrant-search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "qdrant-search": {
+      "main": [
+        [
+          {
+            "node": "process-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-results": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "executionTimeout": 900
+  },
+  "versionId": "travel-search-v1",
+  "id": "travel-search",
+  "meta": {
+    "instanceId": "travel-search"
+  },
+  "tags": ["travel", "search", "semantic", "embedding"]
+}

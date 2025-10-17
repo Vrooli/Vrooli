@@ -1,0 +1,290 @@
+version: 1.0
+scenario: quiz-generator
+description: AI-powered quiz generation and assessment platform
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/quiz-generator
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/automation/n8n/quiz-generator-ai.json
+    - ui/package.json
+    - ui/src/main.tsx
+    - ui/src/App.tsx
+    - scenario-test.yaml
+    
+  required_dirs:
+    - .vrooli
+    - api
+    - cli
+    - ui
+    - ui/src
+    - initialization
+    - initialization/automation
+    - initialization/automation/n8n
+    - initialization/storage
+    - initialization/storage/postgres
+    - docs
+    - tests
+
+# Resource validation
+resources:
+  required:
+    - postgres
+    - ollama
+    - n8n
+  optional:
+    - qdrant
+    - redis
+    - minio
+  health_timeout: 60  # Seconds to wait for resources to be healthy
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: resource_health
+    service: postgres
+    expect:
+      status: healthy
+      
+  - name: "n8n is accessible"
+    type: resource_health
+    service: n8n
+    expect:
+      status: healthy
+      
+  - name: "Ollama is accessible"
+    type: resource_health
+    service: ollama
+    expect:
+      status: healthy
+      
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    database: quiz_generator
+    query: |
+      SELECT COUNT(*) as count 
+      FROM information_schema.tables 
+      WHERE table_schema = 'quiz_generator' 
+      AND table_name IN ('quizzes', 'questions', 'quiz_results', 'question_responses', 'question_bank')
+    expect:
+      rows:
+        - count: 5
+        
+  - name: "Quiz templates table exists"
+    type: sql
+    service: postgres
+    database: quiz_generator
+    query: |
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'quiz_generator' 
+        AND table_name = 'quiz_templates'
+      ) as exists
+    expect:
+      rows:
+        - exists: true
+        
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        
+  - name: "API can generate quiz"
+    type: http
+    service: api
+    endpoint: /api/v1/quiz/generate
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      content: "The Earth orbits the Sun once every 365.25 days. This orbital period defines one Earth year."
+      question_count: 3
+      difficulty: "medium"
+      question_types: ["mcq", "true_false"]
+    expect:
+      status: 201
+      body_contains:
+        - quiz_id
+        - questions
+        - estimated_time
+        
+  - name: "API can list quizzes"
+    type: http
+    service: api
+    endpoint: /api/v1/quizzes
+    method: GET
+    expect:
+      status: 200
+      response_type: array
+      
+  - name: "API can search questions"
+    type: http
+    service: api
+    endpoint: /api/v1/question-bank/search
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      query: "test"
+      limit: 5
+    expect:
+      status: 200
+      body_contains:
+        - questions
+        
+  # CLI command tests
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/quiz-generator help
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Quiz Generator CLI"
+        - "COMMANDS:"
+        - "generate"
+        
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/quiz-generator version
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Quiz Generator CLI"
+        - "1.0.0"
+        
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/quiz-generator status
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Quiz Generator Status"
+        
+  - name: "CLI can generate quiz from text"
+    type: exec
+    command: |
+      ./cli/quiz-generator generate "The solar system has eight planets" \
+        --questions 2 \
+        --difficulty easy
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Quiz generated successfully"
+        - "Quiz ID:"
+        
+  # n8n workflow tests
+  - name: "Quiz generation workflow is registered"
+    type: n8n
+    workflow: quiz-generator-ai
+    expect:
+      exists: true
+      active: false  # Not active until first run
+      node_types:
+        - webhook
+        - executeCommand
+        - code
+        - httpRequest
+        
+  # UI tests
+  - name: "UI build completes successfully"
+    type: exec
+    command: cd ui && npm run build
+    timeout: 300  # 5 minutes for build
+    expect:
+      exit_code: 0
+      
+  - name: "UI has required dependencies"
+    type: file_contains
+    file: ui/package.json
+    expect:
+      contains:
+        - "react"
+        - "vite"
+        - "typescript"
+        - "react-router-dom"
+        - "axios"
+        
+  # Integration tests
+  - name: "End-to-end quiz generation flow"
+    type: integration
+    steps:
+      - action: generate_quiz
+        method: POST
+        endpoint: /api/v1/quiz/generate
+        body:
+          content: "Test content for quiz generation"
+          question_count: 5
+        capture:
+          quiz_id: $.quiz_id
+          
+      - action: retrieve_quiz
+        method: GET
+        endpoint: /api/v1/quiz/{{quiz_id}}
+        expect:
+          status: 200
+          body_contains:
+            - questions
+            
+      - action: submit_answers
+        method: POST
+        endpoint: /api/v1/quiz/{{quiz_id}}/submit
+        body:
+          responses: []
+          time_taken: 60
+        expect:
+          status: 200
+          body_contains:
+            - score
+            - percentage
+
+# Performance validation
+performance:
+  - name: "Quiz generation performance"
+    endpoint: /api/v1/quiz/generate
+    method: POST
+    body:
+      content: "Sample content"
+      question_count: 10
+    metrics:
+      response_time_ms: 5000  # Max 5 seconds
+      success_rate: 95  # 95% success rate
+      
+  - name: "Question search performance"
+    endpoint: /api/v1/question-bank/search
+    method: POST
+    body:
+      query: "test"
+    metrics:
+      response_time_ms: 200  # Max 200ms
+      success_rate: 99
+
+# Validation gates
+gates:
+  - all_files_exist: true
+  - all_resources_healthy: true
+  - all_tests_pass: true
+  - performance_targets_met: true
+  - no_critical_errors: true
+
+# Success criteria
+success:
+  message: "Quiz Generator scenario validated successfully!"
+  next_steps:
+    - "Run 'vrooli scenario run quiz-generator' to start"
+    - "Access UI at http://localhost:3251"
+    - "Use CLI: quiz-generator help"

@@ -1,0 +1,139 @@
+{
+  "1": {
+    "inputs": {
+      "text": "Create a detailed prompt for an AI image generator based on this description: 'a serene garden scene'",
+      "model": "llama3.1:8b",
+      "base_url": "http://localhost:11434",
+      "seed": 42
+    },
+    "class_type": "OllamaTextGenerator",
+    "_meta": {
+      "title": "Ollama Prompt Generator"
+    }
+  },
+  "2": {
+    "inputs": {
+      "ckpt_name": "v1-5-pruned-emaonly.ckpt"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "3": {
+    "inputs": {
+      "width": 768,
+      "height": 768,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "4": {
+    "inputs": {
+      "text": [
+        "1",
+        0
+      ],
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (AI-Generated Prompt)"
+    }
+  },
+  "5": {
+    "inputs": {
+      "text": "blurry, low quality, distorted, ugly, deformed",
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative)"
+    }
+  },
+  "6": {
+    "inputs": {
+      "seed": 42,
+      "steps": 25,
+      "cfg": 7.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "2",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "7": {
+    "inputs": {
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "2",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "8": {
+    "inputs": {
+      "filename_prefix": "ollama_guided_image",
+      "images": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save AI-Guided Image"
+    }
+  },
+  "9": {
+    "inputs": {
+      "bucket_name": "generated-images",
+      "object_key": "ollama-guided/test-image.png",
+      "endpoint": "http://localhost:9000",
+      "access_key": "test-key",
+      "secret_key": "test-secret",
+      "images": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "MinIOUpload",
+    "_meta": {
+      "title": "Upload to MinIO"
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "version": "1.0.0",
+  "description": "Standardized AI prompt templates for Task Planner operations",
+  "updated_at": "2024-01-01T00:00:00.000Z",
+  
+  "templates": {
+    "text_parsing": {
+      "system_prompt": "You are a task extraction AI specialized in parsing unstructured text into actionable tasks. Your goal is to identify concrete, implementable actions while preserving context and intent.\n\nKey principles:\n- Focus on actionable items that can be implemented\n- Preserve the original intent and context\n- Assign realistic priorities and time estimates\n- Add relevant tags for categorization\n- Be specific in task descriptions",
+      
+      "user_prompt_template": "Parse the following unstructured text into individual, actionable tasks.\n\nText to parse:\n{raw_text}\n\nExtract tasks and return ONLY a JSON array with this format:\n[\n  {\n    \"title\": \"Task title (max 100 chars)\",\n    \"description\": \"Detailed description\",\n    \"priority\": \"high|medium|low\",\n    \"tags\": [\"tag1\", \"tag2\"],\n    \"estimated_hours\": 2.5\n  }\n]\n\nRules:\n- Extract all actionable items, TODOs, ideas that could become tasks\n- Keep titles concise but descriptive\n- Assign reasonable priorities based on context\n- Add relevant tags for categorization\n- Estimate completion time in hours\n- Return ONLY the JSON array, no other text",
+      
+      "few_shot_examples": [
+        {
+          "input": "- Add dark mode toggle to settings\n- Fix login bug where users get stuck on loading screen\n- Research better caching strategies\nTODO: Improve test coverage to 80%\nRandom idea: what if we added voice commands?",
+          "output": "[\n  {\n    \"title\": \"Add dark mode toggle to settings\",\n    \"description\": \"Implement a dark/light theme toggle in the application settings panel\",\n    \"priority\": \"medium\",\n    \"tags\": [\"ui\", \"feature\", \"settings\"],\n    \"estimated_hours\": 4.0\n  },\n  {\n    \"title\": \"Fix login bug with loading screen\",\n    \"description\": \"Resolve authentication issue where users get stuck on loading screen during login process\",\n    \"priority\": \"high\",\n    \"tags\": [\"bug\", \"authentication\", \"login\"],\n    \"estimated_hours\": 3.0\n  },\n  {\n    \"title\": \"Research better caching strategies\",\n    \"description\": \"Investigate and evaluate improved caching approaches to optimize application performance\",\n    \"priority\": \"medium\",\n    \"tags\": [\"research\", \"performance\", \"caching\"],\n    \"estimated_hours\": 6.0\n  },\n  {\n    \"title\": \"Improve test coverage to 80%\",\n    \"description\": \"Increase automated test coverage from current level to 80% for better quality assurance\",\n    \"priority\": \"medium\",\n    \"tags\": [\"testing\", \"quality\", \"coverage\"],\n    \"estimated_hours\": 12.0\n  },\n  {\n    \"title\": \"Explore voice command functionality\",\n    \"description\": \"Research and prototype voice command interface for hands-free application interaction\",\n    \"priority\": \"low\",\n    \"tags\": [\"exploration\", \"voice\", \"ui\", \"accessibility\"],\n    \"estimated_hours\": 8.0\n  }\n]"
+        }
+      ]
+    },
+
+    "task_research": {
+      "system_prompt": "You are a technical research analyst with expertise in software development. Your role is to analyze task requirements, research best practices, and create detailed implementation plans based on available information.\n\nYour analysis should be:\n- Thorough and technically accurate\n- Based on current best practices\n- Practical and implementable\n- Risk-aware with mitigation strategies\n- Clear and actionable",
+      
+      "user_prompt_template": "Based on the following research data, create a comprehensive investigation report and implementation plan.\n\nTask Details:\n{task_details}\n\nResearch Results:\n{research_results}\n\nSimilar Tasks (for reference):\n{similar_tasks}\n\nGenerate a JSON response with exactly this structure:\n{\n  \"investigation_report\": \"Detailed analysis of the task, requirements, and approach based on research findings. Include key insights, potential challenges, and recommended technologies/approaches.\",\n  \"implementation_plan\": \"Step-by-step implementation plan with specific actions, dependencies, and milestones. Be concrete and actionable.\",\n  \"technical_requirements\": \"Specific technical requirements, dependencies, libraries, APIs, or tools needed for implementation.\",\n  \"estimated_hours\": 4.5,\n  \"confidence_score\": 0.85,\n  \"research_artifacts\": [\n    {\n      \"type\": \"documentation\",\n      \"title\": \"Most relevant documentation found\",\n      \"url\": \"https://example.com/docs\",\n      \"relevance_score\": 0.9,\n      \"key_points\": \"Main takeaways from this source\"\n    }\n  ]\n}\n\nEnsure the response is valid JSON only, no other text.",
+      
+      "quality_criteria": [
+        "Investigation report covers requirements, challenges, and approach",
+        "Implementation plan is step-by-step and actionable",
+        "Technical requirements are specific and complete",
+        "Estimated hours are realistic based on complexity",
+        "Confidence score reflects research quality",
+        "Research artifacts are relevant and useful"
+      ]
+    },
+
+    "task_implementation": {
+      "system_prompt": "You are an expert software engineer with extensive experience in implementing features across various technologies and frameworks. Your implementations should follow best practices, include proper error handling, be well-documented, and integrate seamlessly with existing codebases.\n\nImplementation principles:\n- Follow existing code patterns and conventions\n- Include comprehensive error handling\n- Write clear, maintainable code\n- Add appropriate tests\n- Document your changes\n- Consider security implications\n- Optimize for performance when relevant",
+      
+      "user_prompt_template": "Implement the following task according to the provided specifications.\n\n## Task Details\n**Title**: {title}\n**Description**: {description}\n**Priority**: {priority}\n\n## Investigation Report\n{investigation_report}\n\n## Implementation Plan\n{implementation_plan}\n\n## Technical Requirements\n{technical_requirements}\n\n## Research Context\n{research_context}\n\n## Instructions\n1. Implement the task according to the plan above\n2. Follow best practices and the project's existing patterns\n3. Include appropriate error handling and validation\n4. Write or update tests if applicable\n5. Provide clear documentation for your changes\n6. If the repository URL is provided, work within that codebase context\n\n## Expected Output\nProvide a JSON response with:\n- implementation_code: The actual code implementation\n- files_modified: Array of files that were changed\n- test_code: Any tests written or updated\n- documentation: Documentation for the implementation\n- deployment_notes: Any deployment considerations\n- success: boolean indicating if implementation completed successfully\n- error_details: Any issues encountered during implementation",
+      
+      "response_format": {
+        "implementation_code": "string",
+        "files_modified": ["array", "of", "file", "paths"],
+        "test_code": "string",
+        "documentation": "string", 
+        "deployment_notes": "string",
+        "success": true,
+        "error_details": null
+      }
+    },
+
+    "task_review": {
+      "system_prompt": "You are a senior software engineer conducting code reviews. Your role is to evaluate implementations for quality, correctness, performance, security, and maintainability.\n\nReview criteria:\n- Code quality and readability\n- Adherence to best practices\n- Error handling completeness\n- Security considerations\n- Performance implications\n- Test coverage\n- Documentation quality",
+      
+      "user_prompt_template": "Review the following task implementation for quality and correctness.\n\n## Original Task\n**Title**: {title}\n**Requirements**: {requirements}\n\n## Implementation\n{implementation_code}\n\n## Tests\n{test_code}\n\n## Evaluation Criteria\nReview the implementation and provide feedback on:\n1. Code quality and readability\n2. Correctness and completeness\n3. Error handling\n4. Security considerations\n5. Performance implications\n6. Test coverage\n7. Documentation\n\nProvide a JSON response with:\n- overall_score: 0-10 rating\n- feedback: Detailed review comments\n- issues: Array of specific problems found\n- recommendations: Suggested improvements\n- approved: boolean indicating if ready for deployment",
+      
+      "scoring_rubric": {
+        "excellent": "9-10: Exceptional quality, follows all best practices",
+        "good": "7-8: High quality with minor improvements needed",
+        "acceptable": "5-6: Functional but needs significant improvements",
+        "needs_work": "3-4: Major issues that must be addressed",
+        "poor": "1-2: Fundamental problems, requires complete rework"
+      }
+    },
+
+    "task_summarization": {
+      "system_prompt": "You are a technical writer specializing in creating clear, concise summaries of software development tasks and their outcomes.",
+      
+      "user_prompt_template": "Create a summary of the following completed task:\n\n## Task Information\n{task_details}\n\n## Implementation Results\n{implementation_results}\n\n## Performance Metrics\n{metrics}\n\nGenerate a concise summary highlighting:\n- What was accomplished\n- Key technical decisions\n- Challenges overcome\n- Results achieved\n- Future considerations\n\nKeep the summary under 200 words and make it accessible to both technical and non-technical stakeholders."
+    },
+
+    "error_analysis": {
+      "system_prompt": "You are a debugging expert specializing in analyzing task failures and providing actionable recommendations for resolution.",
+      
+      "user_prompt_template": "Analyze the following task failure and provide recommendations:\n\n## Failed Task\n{task_details}\n\n## Error Information\n{error_details}\n\n## Execution Context\n{context}\n\nProvide analysis including:\n- Root cause identification\n- Impact assessment\n- Recommended fixes\n- Prevention strategies\n- Whether task should be retried automatically\n\nFormat as JSON with clear, actionable recommendations."
+    }
+  },
+
+  "prompt_settings": {
+    "default_temperature": 0.3,
+    "default_max_tokens": 4096,
+    "default_timeout_seconds": 120,
+    "retry_attempts": 3,
+    "retry_delay_ms": 1000
+  },
+
+  "model_preferences": {
+    "text_parsing": {
+      "primary": "llama3.2",
+      "fallback": "llama3.1",
+      "temperature": 0.3,
+      "max_tokens": 2048
+    },
+    "research_analysis": {
+      "primary": "llama3.2", 
+      "fallback": "llama3.1",
+      "temperature": 0.2,
+      "max_tokens": 4096
+    },
+    "implementation": {
+      "primary": "claude-3-opus-20240229",
+      "fallback": "claude-3-sonnet-20240229", 
+      "temperature": 0.3,
+      "max_tokens": 8192
+    },
+    "review": {
+      "primary": "claude-3-opus-20240229",
+      "temperature": 0.2,
+      "max_tokens": 4096
+    }
+  },
+
+  "validation": {
+    "required_fields": {
+      "text_parsing": ["title", "description", "priority", "tags", "estimated_hours"],
+      "research_analysis": ["investigation_report", "implementation_plan", "technical_requirements", "confidence_score"],
+      "implementation": ["implementation_code", "files_modified", "success"]
+    },
+    "field_constraints": {
+      "title": {"max_length": 500, "required": true},
+      "priority": {"allowed_values": ["critical", "high", "medium", "low"]},
+      "confidence_score": {"min": 0.0, "max": 1.0},
+      "estimated_hours": {"min": 0.1, "max": 1000.0}
+    }
+  }
+}

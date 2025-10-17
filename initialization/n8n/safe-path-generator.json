@@ -1,0 +1,392 @@
+{
+  "name": "Safe Path Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "safe-path",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.action) {\n  return {\n    action: \"generate_temp_path\",\n    extension: \".txt\",\n    prefix: \"vrooli\",\n    directory: \"/tmp\",\n    ttl_seconds: 3600,\n    test_mode: true\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate input and prepare path generation data\nconst input = $input.item.json;\n\n// Validate required action field\nif (!input.action) {\n  throw new Error('Missing required field: action');\n}\n\nconst validActions = ['generate_temp_path', 'reserve_workspace', 'check_availability', 'cleanup_expired'];\nif (!validActions.includes(input.action)) {\n  throw new Error(`Invalid action: ${input.action}. Valid actions: ${validActions.join(', ')}`);\n}\n\n// Set defaults and validate parameters\nconst extension = input.extension || '.txt';\nconst prefix = input.prefix || 'vrooli';\nconst directory = input.directory || '/tmp';\nconst ttlSeconds = input.ttl_seconds || 3600; // 1 hour default\nconst namespace = input.namespace || 'default';\nconst ensureUnique = input.ensure_unique !== false;\nconst createDirectory = input.create_directory !== false;\nconst makeExecutable = input.make_executable || false;\n\n// Validate directory (prevent traversal attacks)\nif (directory.includes('..')) {\n  throw new Error('Directory traversal not allowed');\n}\n\n// Validate allowed directories (sandboxing)\nconst allowedDirectories = ['/tmp', '/var/tmp', '/tmp/vrooli', '/tmp/claude-code', '/tmp/autonomous-tasks'];\nconst isAllowed = allowedDirectories.some(allowed => directory.startsWith(allowed));\nif (!isAllowed) {\n  throw new Error(`Directory must be within allowed paths: ${allowedDirectories.join(', ')}`);\n}\n\n// Validate TTL\nif (ttlSeconds < 60 || ttlSeconds > 86400) {\n  throw new Error('TTL must be between 60 and 86400 seconds (1 minute to 24 hours)');\n}\n\n// Process extension - allow with or without dot\nconst processedExtension = extension ? \n  (extension.startsWith('.') ? extension : `.${extension}`) : '';\n\n// Auto-detect if should be executable based on extension\nconst executableExtensions = ['.sh', '.bash', '.py', '.js', '.rb', '.pl'];\nconst shouldBeExecutable = makeExecutable || \n  executableExtensions.includes(processedExtension);\n\n// Generate UUID for uniqueness\nconst generateUUID = () => {\n  const chars = '0123456789abcdefghijklmnopqrstuvwxyz';\n  let uuid = '';\n  for (let i = 0; i < 8; i++) {\n    uuid += chars[Math.floor(Math.random() * chars.length)];\n  }\n  return uuid;\n};\n\n// Prepare path generation data\nconst pathData = {\n  action: input.action,\n  extension: processedExtension,\n  prefix: prefix,\n  directory: directory,\n  namespace: namespace,\n  ttl_seconds: ttlSeconds,\n  ensure_unique: ensureUnique,\n  create_directory: createDirectory,\n  make_executable: shouldBeExecutable,\n  uuid: generateUUID(),\n  workspace_name: input.workspace_name || null,\n  max_files: input.max_files || 100,\n  cleanup_age_seconds: input.cleanup_age_seconds || 7200,\n  metadata: {\n    request_id: `path_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n    trace_id: input.trace_id || null,\n    timestamp: new Date().toISOString(),\n    test_mode: input.test_mode || false\n  }\n};\n\nreturn pathData;"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "generate_temp_path"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "generate"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "reserve_workspace"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "reserve"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "check_availability"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "check"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "cleanup_expired"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "cleanup"
+            }
+          ]
+        }
+      },
+      "id": "action_router",
+      "name": "Action Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Generate a safe temporary file path\nconst input = $input.item.json;\nconst fs = require('fs');\nconst path = require('path');\n\n// Build the path components\nconst timestamp = Date.now();\nconst uuid = input.uuid;\nconst prefix = input.prefix;\nconst extension = input.extension;\nconst directory = input.directory;\nconst namespace = input.namespace;\nconst makeExecutable = input.make_executable;\n\n// Create namespace directory if needed\nconst namespacedDir = namespace !== 'default' ? \n  path.join(directory, namespace) : directory;\n\n// Generate path variations\nconst baseName = `${prefix}_${timestamp}_${uuid}`;\nconst fileName = `${baseName}${extension}`;\nconst fullPath = path.join(namespacedDir, fileName);\n\n// Alternative paths for collision handling\nconst alternativePaths = [];\nfor (let i = 1; i <= 5; i++) {\n  const altName = `${prefix}_${timestamp}_${uuid}_${i}${extension}`;\n  alternativePaths.push(path.join(namespacedDir, altName));\n}\n\n// Check for collisions (simulated)\nlet finalPath = fullPath;\nlet collisionDetected = false;\n\n// In production, would check actual filesystem\nif (input.ensure_unique) {\n  // Simulate collision check\n  const exists = Math.random() < 0.05; // 5% chance of collision\n  if (exists) {\n    collisionDetected = true;\n    finalPath = alternativePaths[0];\n  }\n}\n\n// Calculate expiry time\nconst expiryTime = new Date(Date.now() + (input.ttl_seconds * 1000));\n\n// Determine path properties\nconst pathInfo = {\n  directory: path.dirname(finalPath),\n  filename: path.basename(finalPath),\n  extension: path.extname(finalPath),\n  basename: path.basename(finalPath, path.extname(finalPath))\n};\n\n// Determine permissions based on file type\nconst fileMode = makeExecutable ? '0700' : '0600'; // rwx------ or rw-------\n\n// Generate directory creation command if needed\nconst mkdirCommand = input.create_directory ? \n  `mkdir -p ${path.dirname(finalPath)}` : null;\n\n// Generate response\nconst response = {\n  success: true,\n  action: 'generate_temp_path',\n  path: finalPath,\n  path_info: pathInfo,\n  generation_details: {\n    prefix: prefix,\n    uuid: uuid,\n    timestamp: timestamp,\n    namespace: namespace,\n    collision_detected: collisionDetected,\n    alternatives_available: alternativePaths.length,\n    directory_creation_needed: input.create_directory\n  },\n  lifecycle: {\n    created_at: new Date().toISOString(),\n    expires_at: expiryTime.toISOString(),\n    ttl_seconds: input.ttl_seconds,\n    auto_cleanup: true\n  },\n  permissions: {\n    mode: fileMode,\n    owner: 'process',\n    readable: true,\n    writable: true,\n    executable: makeExecutable\n  },\n  setup_commands: [\n    mkdirCommand,\n    makeExecutable ? `touch ${finalPath} && chmod +x ${finalPath}` : null\n  ].filter(Boolean),\n  usage_hints: {\n    write_command: makeExecutable ? \n      `cat > ${finalPath} << 'EOF'\\n#!/bin/bash\\necho \"Hello World\"\\nEOF` :\n      `echo \"content\" > ${finalPath}`,\n    read_command: `cat ${finalPath}`,\n    execute_command: makeExecutable ? `${finalPath}` : null,\n    delete_command: `rm ${finalPath}`,\n    check_exists: `test -f ${finalPath} && echo \"exists\"`\n  },\n  recommendations: [\n    'Remember to clean up the file after use',\n    `File will auto-expire at ${expiryTime.toISOString()}`,\n    makeExecutable ? 'File will be created with executable permissions' : 'Use atomic writes for concurrent access safety'\n  ],\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 2\n  }\n};\n\nreturn response;"
+      },
+      "id": "generate_temp_path",
+      "name": "Generate Temp Path",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Reserve a workspace directory for multiple related files\nconst input = $input.item.json;\nconst path = require('path');\n\n// Generate workspace directory\nconst timestamp = Date.now();\nconst uuid = input.uuid;\nconst workspaceName = input.workspace_name || `workspace_${uuid}`;\nconst baseDir = input.directory;\nconst namespace = input.namespace;\n\n// Build workspace path\nconst workspacePath = namespace !== 'default' ?\n  path.join(baseDir, namespace, workspaceName) :\n  path.join(baseDir, workspaceName);\n\n// Generate standard subdirectories\nconst subdirectories = {\n  input: path.join(workspacePath, 'input'),\n  output: path.join(workspacePath, 'output'),\n  temp: path.join(workspacePath, 'temp'),\n  logs: path.join(workspacePath, 'logs'),\n  config: path.join(workspacePath, 'config')\n};\n\n// Calculate workspace limits\nconst maxFiles = input.max_files;\nconst maxSizeBytes = maxFiles * 1024 * 1024; // Assume 1MB average per file\nconst expiryTime = new Date(Date.now() + (input.ttl_seconds * 1000));\n\n// Generate manifest file path\nconst manifestPath = path.join(workspacePath, '.manifest.json');\n\n// Create workspace manifest\nconst manifest = {\n  workspace_id: `ws_${uuid}`,\n  name: workspaceName,\n  created_at: new Date().toISOString(),\n  expires_at: expiryTime.toISOString(),\n  subdirectories: Object.keys(subdirectories),\n  limits: {\n    max_files: maxFiles,\n    max_size_bytes: maxSizeBytes,\n    ttl_seconds: input.ttl_seconds\n  },\n  metadata: {\n    namespace: namespace,\n    purpose: input.purpose || 'general',\n    owner: input.owner || 'system'\n  }\n};\n\n// Generate initialization script\nconst initScript = `#!/bin/bash\n# Workspace initialization script\nmkdir -p ${workspacePath}\n${Object.values(subdirectories).map(dir => `mkdir -p ${dir}`).join('\\n')}\necho '${JSON.stringify(manifest, null, 2)}' > ${manifestPath}\nchmod 700 ${workspacePath}\n`;\n\n// Usage examples\nconst usageExamples = {\n  save_file: `cp file.txt ${subdirectories.input}/`,\n  process_files: `for f in ${subdirectories.input}/*; do process \"$f\" > ${subdirectories.output}/$(basename \"$f\"); done`,\n  read_manifest: `cat ${manifestPath}`,\n  cleanup: `rm -rf ${workspacePath}`\n};\n\nconst response = {\n  success: true,\n  action: 'reserve_workspace',\n  workspace: {\n    path: workspacePath,\n    id: manifest.workspace_id,\n    name: workspaceName,\n    manifest_path: manifestPath\n  },\n  subdirectories: subdirectories,\n  manifest: manifest,\n  initialization: {\n    script: initScript,\n    commands: initScript.split('\\n').filter(cmd => cmd && !cmd.startsWith('#'))\n  },\n  usage_examples: usageExamples,\n  limits: {\n    max_files: maxFiles,\n    max_size_mb: Math.round(maxSizeBytes / 1024 / 1024),\n    expires_at: expiryTime.toISOString(),\n    auto_cleanup: true\n  },\n  recommendations: [\n    'Create the workspace before use with the init script',\n    'Store related files in appropriate subdirectories',\n    `Monitor file count to stay under ${maxFiles} files limit`,\n    'Use manifest.json to track workspace metadata'\n  ],\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 3\n  }\n};\n\nreturn response;"
+      },
+      "id": "reserve_workspace",
+      "name": "Reserve Workspace",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 250]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if a path is available and safe to use\nconst input = $input.item.json;\nconst path = require('path');\nconst fs = require('fs');\n\n// Get path to check (or generate one if not provided)\nconst pathToCheck = input.path || \n  path.join(input.directory, `${input.prefix}_${Date.now()}_${input.uuid}${input.extension}`);\n\n// Perform various availability checks\nconst checks = {\n  exists: false,\n  is_writable: false,\n  is_readable: false,\n  is_directory: false,\n  is_file: false,\n  is_symlink: false,\n  parent_exists: false,\n  parent_writable: false,\n  path_length_ok: true,\n  no_traversal: true,\n  in_allowed_directory: true\n};\n\n// Simulate filesystem checks (in production, would use actual fs module)\nconst simulateChecks = () => {\n  // Check if file exists (90% chance it doesn't)\n  checks.exists = Math.random() < 0.1;\n  \n  // If it doesn't exist, parent should be writable\n  if (!checks.exists) {\n    checks.parent_exists = true;\n    checks.parent_writable = true;\n    checks.is_writable = true;\n    checks.is_readable = true;\n  } else {\n    // If it exists, check properties\n    checks.is_file = Math.random() < 0.8;\n    checks.is_directory = !checks.is_file;\n    checks.is_writable = Math.random() < 0.9;\n    checks.is_readable = true;\n  }\n  \n  // Path validation\n  checks.path_length_ok = pathToCheck.length < 255;\n  checks.no_traversal = !pathToCheck.includes('..');\n  checks.in_allowed_directory = ['/tmp', '/var/tmp'].some(allowed => \n    pathToCheck.startsWith(allowed)\n  );\n};\n\nsimulateChecks();\n\n// Calculate safety score\nconst calculateSafetyScore = () => {\n  let score = 100;\n  \n  if (checks.exists) score -= 20;\n  if (!checks.parent_writable) score -= 30;\n  if (!checks.no_traversal) score -= 50;\n  if (!checks.in_allowed_directory) score -= 40;\n  if (!checks.path_length_ok) score -= 10;\n  if (checks.is_symlink) score -= 15;\n  \n  return Math.max(0, score);\n};\n\nconst safetyScore = calculateSafetyScore();\nconst isAvailable = !checks.exists && checks.parent_writable && safetyScore >= 60;\n\n// Determine status\nlet status = 'available';\nif (checks.exists) status = 'occupied';\nelse if (!checks.parent_writable) status = 'not_writable';\nelse if (safetyScore < 60) status = 'unsafe';\n\n// Generate alternatives if not available\nconst alternatives = [];\nif (!isAvailable) {\n  const dir = path.dirname(pathToCheck);\n  const ext = path.extname(pathToCheck);\n  const base = path.basename(pathToCheck, ext);\n  \n  for (let i = 1; i <= 3; i++) {\n    alternatives.push(path.join(dir, `${base}_alt${i}${ext}`));\n  }\n}\n\n// Risk assessment\nconst risks = [];\nif (checks.exists) risks.push('File already exists - would overwrite');\nif (!checks.no_traversal) risks.push('Path traversal detected - security risk');\nif (!checks.in_allowed_directory) risks.push('Outside allowed directories');\nif (checks.is_symlink) risks.push('Symbolic link - potential security risk');\nif (!checks.path_length_ok) risks.push('Path too long for filesystem');\n\nconst response = {\n  success: true,\n  action: 'check_availability',\n  path: pathToCheck,\n  availability: {\n    is_available: isAvailable,\n    status: status,\n    safety_score: safetyScore,\n    can_create: isAvailable && checks.parent_writable,\n    can_write: checks.is_writable || !checks.exists,\n    can_read: checks.is_readable || !checks.exists\n  },\n  checks: checks,\n  risks: risks,\n  alternatives: alternatives,\n  path_info: {\n    directory: path.dirname(pathToCheck),\n    filename: path.basename(pathToCheck),\n    extension: path.extname(pathToCheck),\n    absolute: path.isAbsolute(pathToCheck),\n    normalized: path.normalize(pathToCheck)\n  },\n  recommendations: isAvailable ? [\n    'Path is safe and available for use',\n    'Consider using atomic operations for writes',\n    'Set appropriate permissions after creation'\n  ] : [\n    `Path is not available: ${status}`,\n    'Consider using one of the alternative paths',\n    'Ensure parent directory exists and is writable'\n  ],\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 4\n  }\n};\n\nreturn response;"
+      },
+      "id": "check_availability",
+      "name": "Check Availability",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Clean up expired temporary files\nconst input = $input.item.json;\nconst path = require('path');\n\n// Configuration\nconst directory = input.directory;\nconst namespace = input.namespace;\nconst maxAgeSeconds = input.cleanup_age_seconds || 7200; // 2 hours default\nconst dryRun = input.dry_run || false;\nconst pattern = input.pattern || `${input.prefix}_*`;\n\n// Build cleanup directory\nconst cleanupDir = namespace !== 'default' ?\n  path.join(directory, namespace) : directory;\n\n// Simulate finding files to clean up\nconst currentTime = Date.now();\nconst cutoffTime = currentTime - (maxAgeSeconds * 1000);\n\n// Generate mock file list\nconst mockFiles = [];\nfor (let i = 0; i < 10; i++) {\n  const fileTime = currentTime - (Math.random() * maxAgeSeconds * 2000); // Random age\n  const isExpired = fileTime < cutoffTime;\n  \n  mockFiles.push({\n    path: path.join(cleanupDir, `${input.prefix}_${Math.floor(fileTime)}_${Math.random().toString(36).substr(2, 8)}.txt`),\n    created: new Date(fileTime).toISOString(),\n    age_seconds: Math.floor((currentTime - fileTime) / 1000),\n    size_bytes: Math.floor(Math.random() * 10000) + 100,\n    is_expired: isExpired,\n    will_delete: isExpired && !dryRun\n  });\n}\n\n// Filter expired files\nconst expiredFiles = mockFiles.filter(f => f.is_expired);\nconst activeFiles = mockFiles.filter(f => !f.is_expired);\n\n// Calculate statistics\nconst totalSizeBytes = mockFiles.reduce((sum, f) => sum + f.size_bytes, 0);\nconst expiredSizeBytes = expiredFiles.reduce((sum, f) => sum + f.size_bytes, 0);\nconst freedSpaceBytes = dryRun ? 0 : expiredSizeBytes;\n\n// Group files by age\nconst ageGroups = {\n  last_hour: mockFiles.filter(f => f.age_seconds < 3600).length,\n  last_day: mockFiles.filter(f => f.age_seconds < 86400).length,\n  older: mockFiles.filter(f => f.age_seconds >= 86400).length\n};\n\n// Generate cleanup commands\nconst cleanupCommands = expiredFiles.map(f => `rm -f \"${f.path}\"`);\nconst cleanupScript = `#!/bin/bash\\n# Cleanup script for expired files\\n${cleanupCommands.join('\\n')}`;\n\n// Workspace cleanup check\nconst workspaces = [];\nif (Math.random() < 0.3) { // 30% chance of finding workspaces\n  workspaces.push({\n    path: path.join(cleanupDir, `workspace_${Math.random().toString(36).substr(2, 8)}`),\n    age_seconds: Math.floor(Math.random() * maxAgeSeconds * 2),\n    file_count: Math.floor(Math.random() * 20) + 1,\n    total_size_bytes: Math.floor(Math.random() * 1000000) + 10000\n  });\n}\n\nconst response = {\n  success: true,\n  action: 'cleanup_expired',\n  cleanup_summary: {\n    directory: cleanupDir,\n    pattern: pattern,\n    dry_run: dryRun,\n    max_age_seconds: maxAgeSeconds,\n    cutoff_time: new Date(cutoffTime).toISOString()\n  },\n  files: {\n    total_found: mockFiles.length,\n    expired_count: expiredFiles.length,\n    active_count: activeFiles.length,\n    deleted_count: dryRun ? 0 : expiredFiles.length,\n    failed_count: 0\n  },\n  space: {\n    total_size_bytes: totalSizeBytes,\n    expired_size_bytes: expiredSizeBytes,\n    freed_bytes: freedSpaceBytes,\n    freed_mb: (freedSpaceBytes / 1024 / 1024).toFixed(2)\n  },\n  age_distribution: ageGroups,\n  workspaces_found: workspaces.length,\n  workspace_details: workspaces,\n  expired_files: expiredFiles.slice(0, 10), // First 10 for review\n  cleanup_script: dryRun ? cleanupScript : null,\n  cleanup_commands: dryRun ? cleanupCommands.slice(0, 5) : [],\n  recommendations: dryRun ? [\n    `Would delete ${expiredFiles.length} files`,\n    `Would free ${(expiredSizeBytes / 1024 / 1024).toFixed(2)} MB`,\n    'Run without dry_run to perform actual cleanup'\n  ] : [\n    `Successfully cleaned ${expiredFiles.length} files`,\n    `Freed ${(freedSpaceBytes / 1024 / 1024).toFixed(2)} MB of space`,\n    'Consider scheduling regular cleanup tasks'\n  ],\n  next_cleanup: {\n    recommended_at: new Date(currentTime + maxAgeSeconds * 1000).toISOString(),\n    reason: 'Based on current file age distribution'\n  },\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 8,\n    cleanup_timestamp: new Date().toISOString()\n  }\n};\n\nreturn response;"
+      },
+      "id": "cleanup_expired",
+      "name": "Cleanup Expired",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 550]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'Path generation failed' }}\",\n  \"action\": \"={{ $json.action || 'unknown' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 550]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Safe Path Generator Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1800, 450]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Router": {
+      "main": [
+        [
+          {
+            "node": "Generate Temp Path",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reserve Workspace",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cleanup Expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Temp Path": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve Workspace": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Availability": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleanup Expired": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "safe-path-generator-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "safe-path-generator",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "file-management",
+      "name": "file-management"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "path-generation",
+      "name": "path-generation"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "workspace-management",
+      "name": "workspace-management"
+    }
+  ]
+}

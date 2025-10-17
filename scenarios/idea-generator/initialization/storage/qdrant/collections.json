@@ -1,0 +1,165 @@
+{
+  "collections": [
+    {
+      "name": "ideas",
+      "config": {
+        "vectors": {
+          "size": 768,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_optimization_threads": 2
+        },
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "description": "Vector embeddings for ideas to enable semantic search and similarity matching",
+      "payload_schema": {
+        "idea_id": "keyword",
+        "campaign_id": "keyword", 
+        "title": "text",
+        "content": "text",
+        "category": "keyword",
+        "tags": "keyword",
+        "status": "keyword",
+        "created_at": "datetime",
+        "score": "float"
+      }
+    },
+    {
+      "name": "documents",
+      "config": {
+        "vectors": {
+          "size": 768,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_optimization_threads": 2
+        },
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "description": "Vector embeddings for uploaded documents to enable content-based search and context retrieval",
+      "payload_schema": {
+        "document_id": "keyword",
+        "campaign_id": "keyword",
+        "filename": "text", 
+        "file_type": "keyword",
+        "extracted_text": "text",
+        "processing_status": "keyword",
+        "created_at": "datetime",
+        "file_size": "integer"
+      }
+    },
+    {
+      "name": "campaigns",
+      "config": {
+        "vectors": {
+          "size": 768,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 1,
+          "max_optimization_threads": 1
+        },
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "description": "Vector embeddings for campaign contexts to enable cross-campaign insights and similar campaign discovery",
+      "payload_schema": {
+        "campaign_id": "keyword",
+        "name": "text",
+        "description": "text",
+        "context": "text",
+        "color": "keyword",
+        "created_at": "datetime",
+        "owner_id": "keyword"
+      }
+    },
+    {
+      "name": "chat_messages",
+      "config": {
+        "vectors": {
+          "size": 768,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_optimization_threads": 2
+        },
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "description": "Vector embeddings for chat messages to enable conversation search and context retrieval",
+      "payload_schema": {
+        "message_id": "keyword",
+        "session_id": "keyword",
+        "idea_id": "keyword", 
+        "sender_type": "keyword",
+        "sender_name": "keyword",
+        "message_text": "text",
+        "message_type": "keyword",
+        "created_at": "datetime"
+      }
+    }
+  ],
+  "indexes": [
+    {
+      "collection_name": "ideas",
+      "field_name": "campaign_id",
+      "field_type": "keyword"
+    },
+    {
+      "collection_name": "ideas", 
+      "field_name": "status",
+      "field_type": "keyword"
+    },
+    {
+      "collection_name": "ideas",
+      "field_name": "category", 
+      "field_type": "keyword"
+    },
+    {
+      "collection_name": "documents",
+      "field_name": "campaign_id",
+      "field_type": "keyword"
+    },
+    {
+      "collection_name": "documents",
+      "field_name": "processing_status",
+      "field_type": "keyword"
+    },
+    {
+      "collection_name": "documents",
+      "field_name": "file_type",
+      "field_type": "keyword"
+    },
+    {
+      "collection_name": "campaigns",
+      "field_name": "owner_id", 
+      "field_type": "keyword"
+    },
+    {
+      "collection_name": "chat_messages",
+      "field_name": "session_id",
+      "field_type": "keyword"
+    },
+    {
+      "collection_name": "chat_messages",
+      "field_name": "sender_type",
+      "field_type": "keyword"
+    }
+  ],
+  "aliases": [
+    {
+      "alias_name": "semantic_search",
+      "collection_names": ["ideas", "documents"]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  \"name\": \"scenario-to-ios\",
+  \"version\": \"1.0.0\",
+  \"description\": \"Scenario to iOS conversion tool\",
+  \"lifecycle\": {
+    \"health\": {
+      \"endpoints\": {
+        \"api\": \"/api/v1/health\",
+        \"ui\": \"/\"
+      }
+    }
+  },
+  \"setup\": {
+    \"steps\": [
+      {
+        \"name\": \"build-api\",
+        \"run\": \"cd api && go build -o scenario-to-ios-api .\"
+      }
+    ]
+  }
+}

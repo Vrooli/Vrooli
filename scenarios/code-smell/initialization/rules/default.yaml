@@ -1,0 +1,250 @@
+# Default General Code Smell Rules
+# Common code quality patterns applicable to any codebase
+
+rules:
+  - id: trailing-whitespace
+    name: "Trailing Whitespace"
+    description: "Remove trailing whitespace from lines"
+    category: auto-fix
+    risk_level: safe
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: '[ \t]+$'
+      file_types: [js, ts, jsx, tsx, go, py, sh, yaml, json, md]
+    auto_fix:
+      search_regex: '[ \t]+$'
+      replace: ""
+    message: "Trailing whitespace detected"
+
+  - id: mixed-indentation
+    name: "Mixed Tabs and Spaces"
+    description: "Use consistent indentation (prefer spaces)"
+    category: auto-fix
+    risk_level: safe
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: '^(\t+ +| +\t+)'
+      file_types: [js, ts, jsx, tsx, go, py]
+    message: "Mixed tabs and spaces in indentation"
+
+  - id: long-function
+    name: "Function Too Long"
+    description: "Functions should be under 50 lines"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: ai
+      prompt: "Detect functions longer than 50 lines of code"
+    threshold: 50
+    message: "Function exceeds 50 lines. Consider breaking it into smaller functions"
+
+  - id: deep-nesting
+    name: "Excessive Nesting"
+    description: "Code nesting should not exceed 4 levels"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: ai
+      prompt: "Detect code with nesting depth greater than 4 levels"
+    threshold: 4
+    message: "Deep nesting detected. Consider extracting logic to reduce complexity"
+
+  - id: duplicate-imports
+    name: "Duplicate Imports"
+    description: "Remove duplicate import statements"
+    category: auto-fix
+    risk_level: safe
+    vrooli_specific: false
+    pattern:
+      type: ai
+      prompt: "Detect duplicate import statements for the same module"
+    message: "Duplicate import detected"
+
+  - id: unused-variables
+    name: "Unused Variables"
+    description: "Remove unused variable declarations"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: '(const|let|var)\s+(\w+)\s*=.*(?!.*\2)'
+      file_types: [js, ts, jsx, tsx]
+    message: "Potentially unused variable detected"
+
+  - id: empty-catch-block
+    name: "Empty Catch Block"
+    description: "Catch blocks should handle or log errors"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: 'catch\s*\([^)]*\)\s*\{\s*\}'
+      file_types: [js, ts, jsx, tsx, java]
+    fix_template: |
+      catch (error) {
+        logger.error('Error occurred:', error);
+      }
+    message: "Empty catch block. Add error handling or logging"
+
+  - id: magic-numbers
+    name: "Magic Numbers"
+    description: "Use named constants instead of magic numbers"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: '(?<![\w\.])[2-9]\d{2,}(?![\w\.])'
+      file_types: [js, ts, jsx, tsx, go, py]
+      exclude_patterns: ["*.test.js", "*.spec.js", "*.config.js"]
+    message: "Magic number detected. Consider using a named constant"
+
+  - id: no-return-await
+    name: "Unnecessary Return Await"
+    description: "Remove unnecessary await in return statements"
+    category: auto-fix
+    risk_level: safe
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: 'return\s+await\s+'
+      file_types: [js, ts, jsx, tsx]
+    auto_fix:
+      search: "return await "
+      replace: "return "
+    message: "Unnecessary 'await' in return statement"
+
+  - id: commented-code
+    name: "Commented Out Code"
+    description: "Remove commented-out code blocks"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: '^\s*//.*[{};]|^\s*/\*[\s\S]*?\*/'
+      file_types: [js, ts, jsx, tsx, go, py]
+      multiline: true
+    message: "Commented-out code detected. Remove or uncomment if needed"
+
+  - id: inconsistent-naming
+    name: "Inconsistent Naming Convention"
+    description: "Use consistent naming (camelCase for JS/TS)"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: '(const|let|var|function)\s+[A-Z][a-zA-Z]*\s*[=\(]'
+      file_types: [js, ts, jsx, tsx]
+    message: "Variable/function name should use camelCase"
+
+  - id: complex-conditional
+    name: "Complex Conditional Expression"
+    description: "Simplify complex boolean expressions"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: 'if\s*\([^)]{100,}\)'
+      file_types: [js, ts, jsx, tsx, go, py]
+    message: "Complex conditional detected. Consider extracting to a descriptive variable"
+
+  - id: missing-semicolon
+    name: "Missing Semicolon"
+    description: "Add semicolons for consistency"
+    category: auto-fix
+    risk_level: safe
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: '(^|\n)\s*(const|let|var|return|break|continue|throw).*[^;{]\s*$'
+      file_types: [js, ts, jsx, tsx]
+    auto_fix:
+      search_regex: '([^;{])\s*$'
+      replace: '$1;'
+    message: "Missing semicolon"
+
+  - id: unnecessary-else
+    name: "Unnecessary Else After Return"
+    description: "Remove else block after return statement"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: 'return[^}]*}\s*else\s*{'
+      file_types: [js, ts, jsx, tsx, go]
+    message: "Unnecessary 'else' after return. Use early return pattern"
+
+  - id: large-file
+    name: "File Too Large"
+    description: "Files should be under 500 lines"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: line-count
+      threshold: 500
+      file_types: [js, ts, jsx, tsx, go, py]
+      exclude_patterns: ["*.generated.js", "*.min.js"]
+    message: "File exceeds 500 lines. Consider splitting into multiple modules"
+
+  - id: missing-error-type
+    name: "Generic Error Type"
+    description: "Use specific error types instead of generic Error"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: 'throw\s+new\s+Error\('
+      file_types: [js, ts, jsx, tsx]
+    fix_template: |
+      Consider using specific error types:
+      - ValidationError
+      - NotFoundError
+      - AuthenticationError
+    message: "Generic Error type. Use specific error class for better error handling"
+
+  - id: async-without-await
+    name: "Async Function Without Await"
+    description: "Async functions should use await"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: ai
+      prompt: "Detect async functions that don't use await"
+    message: "Async function without await. Remove async or add await"
+
+  - id: unsafe-regex
+    name: "Potentially Unsafe Regex"
+    description: "Regex may cause ReDoS vulnerability"
+    category: needs-approval
+    risk_level: high
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: '((\[[^\]]*\]|\.|[^*+?{}[\]\\|()])(\\{[0-9,]+\\}|[*+])){2,}'
+      file_types: [js, ts, jsx, tsx, py]
+    message: "Potentially unsafe regex pattern detected (ReDoS risk)"
+
+  - id: hardcoded-timeout
+    name: "Hardcoded Timeout Value"
+    description: "Use configurable timeout values"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: false
+    pattern:
+      type: regex
+      value: 'setTimeout\([^,]+,\s*\d{4,}'
+      file_types: [js, ts, jsx, tsx]
+    message: "Hardcoded timeout value. Use configuration constant"

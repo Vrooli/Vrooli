@@ -1,0 +1,256 @@
+{
+  "templates": [
+    {
+      "id": "modern-tech",
+      "name": "Modern Tech",
+      "category": "technology",
+      "style": {
+        "design_style": "minimalist",
+        "color_scheme": "monochromatic",
+        "typography": "sans-serif",
+        "logo_style": "geometric"
+      },
+      "color_palettes": [
+        {
+          "name": "Deep Blue",
+          "primary": "#1e40af",
+          "secondary": "#3b82f6",
+          "accent": "#60a5fa",
+          "background": "#f8fafc",
+          "text": "#0f172a"
+        },
+        {
+          "name": "Emerald",
+          "primary": "#047857",
+          "secondary": "#059669",
+          "accent": "#10b981",
+          "background": "#f0fdf4",
+          "text": "#064e3b"
+        }
+      ],
+      "font_combinations": [
+        {
+          "heading": "Inter",
+          "body": "Inter",
+          "accent": "JetBrains Mono"
+        },
+        {
+          "heading": "Poppins",
+          "body": "Open Sans",
+          "accent": "Fira Code"
+        }
+      ],
+      "prompt_templates": {
+        "slogan": "Generate a concise, tech-forward slogan for {brandName} that emphasizes innovation, reliability, and user experience. Keep it under 6 words.",
+        "description": "Write a professional brand description for {brandName} in the {industry} industry. Focus on cutting-edge technology, user-centric design, and market leadership. 2-3 sentences.",
+        "ad_copy": "Create compelling ad copy for {brandName} that highlights technical excellence and user benefits. Include a clear call-to-action. 50-75 words.",
+        "logo_prompt": "minimalist logo design, geometric shapes, {brandColors.primary} and {brandColors.secondary}, clean lines, modern typography, scalable vector, professional"
+      }
+    },
+    {
+      "id": "creative-agency",
+      "name": "Creative Agency",
+      "category": "design",
+      "style": {
+        "design_style": "bold",
+        "color_scheme": "vibrant",
+        "typography": "mixed",
+        "logo_style": "artistic"
+      },
+      "color_palettes": [
+        {
+          "name": "Rainbow",
+          "primary": "#8b5cf6",
+          "secondary": "#ec4899",
+          "accent": "#f59e0b",
+          "background": "#fefefe",
+          "text": "#18181b"
+        },
+        {
+          "name": "Sunset",
+          "primary": "#dc2626",
+          "secondary": "#ea580c",
+          "accent": "#facc15",
+          "background": "#fffbeb",
+          "text": "#7c2d12"
+        }
+      ],
+      "font_combinations": [
+        {
+          "heading": "Montserrat",
+          "body": "Source Sans Pro",
+          "accent": "Pacifico"
+        },
+        {
+          "heading": "Playfair Display",
+          "body": "Lato",
+          "accent": "Dancing Script"
+        }
+      ],
+      "prompt_templates": {
+        "slogan": "Create an inspiring, creative slogan for {brandName} that captures artistic vision and innovation. Make it memorable and energetic.",
+        "description": "Write an engaging brand description for {brandName} that showcases creativity, artistic excellence, and client collaboration. Emphasize unique vision and results.",
+        "ad_copy": "Develop vibrant ad copy for {brandName} that inspires creativity and showcases artistic capabilities. Use energetic language with strong visual appeal.",
+        "logo_prompt": "creative artistic logo, dynamic composition, {brandColors.primary} gradient, expressive design, contemporary art style, memorable symbol"
+      }
+    },
+    {
+      "id": "professional-services",
+      "name": "Professional Services",
+      "category": "business",
+      "style": {
+        "design_style": "classic",
+        "color_scheme": "conservative",
+        "typography": "serif",
+        "logo_style": "traditional"
+      },
+      "color_palettes": [
+        {
+          "name": "Navy Trust",
+          "primary": "#1e3a8a",
+          "secondary": "#3730a3",
+          "accent": "#6366f1",
+          "background": "#f9fafb",
+          "text": "#111827"
+        },
+        {
+          "name": "Forest Professional",
+          "primary": "#14532d",
+          "secondary": "#166534",
+          "accent": "#22c55e",
+          "background": "#f7fee7",
+          "text": "#0f2d1a"
+        }
+      ],
+      "font_combinations": [
+        {
+          "heading": "Merriweather",
+          "body": "Source Sans Pro",
+          "accent": "Merriweather Sans"
+        },
+        {
+          "heading": "Playfair Display",
+          "body": "Inter",
+          "accent": "Source Serif Pro"
+        }
+      ],
+      "prompt_templates": {
+        "slogan": "Generate a trustworthy, professional slogan for {brandName} that conveys expertise, reliability, and client success. Focus on trust and results.",
+        "description": "Write a professional brand description for {brandName} that establishes authority, experience, and client-focused service. Emphasize track record and expertise.",
+        "ad_copy": "Create authoritative ad copy for {brandName} that builds trust and demonstrates expertise. Include client benefits and professional credentials.",
+        "logo_prompt": "professional logo design, traditional elements, {brandColors.primary} monogram, clean typography, corporate identity, timeless design"
+      }
+    },
+    {
+      "id": "startup-bold",
+      "name": "Bold Startup",
+      "category": "startup",
+      "style": {
+        "design_style": "disruptive",
+        "color_scheme": "high-contrast",
+        "typography": "modern",
+        "logo_style": "dynamic"
+      },
+      "color_palettes": [
+        {
+          "name": "Electric",
+          "primary": "#7c3aed",
+          "secondary": "#a855f7",
+          "accent": "#06d6a0",
+          "background": "#ffffff",
+          "text": "#000000"
+        },
+        {
+          "name": "Fire",
+          "primary": "#dc2626",
+          "secondary": "#f97316",
+          "accent": "#eab308",
+          "background": "#fafafa",
+          "text": "#1a1a1a"
+        }
+      ],
+      "font_combinations": [
+        {
+          "heading": "Space Grotesk",
+          "body": "Inter",
+          "accent": "JetBrains Mono"
+        },
+        {
+          "heading": "Outfit",
+          "body": "Work Sans",
+          "accent": "Fira Code"
+        }
+      ],
+      "prompt_templates": {
+        "slogan": "Create a disruptive, energetic slogan for startup {brandName} that captures innovation, growth, and market disruption. Make it bold and memorable.",
+        "description": "Write a dynamic brand description for startup {brandName} that emphasizes innovation, rapid growth, and market transformation. Show ambition and vision.",
+        "ad_copy": "Develop high-energy ad copy for startup {brandName} that showcases disruption, innovation, and rapid results. Use action-oriented language.",
+        "logo_prompt": "dynamic startup logo, bold geometric shapes, {brandColors.primary} vibrant colors, modern typography, growth symbol, energetic design"
+      }
+    },
+    {
+      "id": "healthcare-trust",
+      "name": "Healthcare Trust",
+      "category": "healthcare",
+      "style": {
+        "design_style": "clean",
+        "color_scheme": "calming",
+        "typography": "readable",
+        "logo_style": "medical"
+      },
+      "color_palettes": [
+        {
+          "name": "Medical Blue",
+          "primary": "#0ea5e9",
+          "secondary": "#0284c7",
+          "accent": "#38bdf8",
+          "background": "#f0f9ff",
+          "text": "#0c4a6e"
+        },
+        {
+          "name": "Healing Green",
+          "primary": "#16a34a",
+          "secondary": "#15803d",
+          "accent": "#4ade80",
+          "background": "#f0fdf4",
+          "text": "#14532d"
+        }
+      ],
+      "font_combinations": [
+        {
+          "heading": "Source Sans Pro",
+          "body": "Open Sans",
+          "accent": "Source Sans Pro"
+        },
+        {
+          "heading": "Nunito Sans",
+          "body": "Inter",
+          "accent": "Nunito"
+        }
+      ],
+      "prompt_templates": {
+        "slogan": "Generate a caring, trustworthy slogan for healthcare brand {brandName} that emphasizes patient care, expertise, and healing. Focus on compassion.",
+        "description": "Write a compassionate brand description for healthcare provider {brandName} that builds trust, shows expertise, and emphasizes patient-centered care.",
+        "ad_copy": "Create caring ad copy for healthcare {brandName} that builds trust and emphasizes quality patient care. Use reassuring, professional language.",
+        "logo_prompt": "medical healthcare logo, clean design, {brandColors.primary} calming colors, cross or healing symbol, professional typography, trustworthy"
+      }
+    }
+  ],
+  "default_settings": {
+    "generation_parameters": {
+      "temperature": 0.8,
+      "max_tokens": 200,
+      "top_p": 0.9
+    },
+    "asset_specifications": {
+      "logo_sizes": [16, 32, 64, 128, 256, 512],
+      "favicon_sizes": [16, 32, 48],
+      "formats": ["svg", "png", "ico"]
+    },
+    "export_settings": {
+      "include_manifest": true,
+      "include_css_variables": true,
+      "include_brand_guide": true
+    }
+  }
+}

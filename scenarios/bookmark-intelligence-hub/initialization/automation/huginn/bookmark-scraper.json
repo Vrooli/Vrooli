@@ -1,0 +1,131 @@
+{
+  "version": "1.0",
+  "description": "Generic bookmark scraper agent for social media platforms",
+  "agents": [
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "bookmark-content-extractor",
+      "description": "Extracts bookmark content from social media URLs",
+      "schedule": "never",
+      "options": {
+        "expected_update_period_in_days": 1,
+        "url": "{{ bookmark_url }}",
+        "type": "html",
+        "mode": "on_change",
+        "extract": {
+          "title": {
+            "css": "title, h1, .title, [data-testid='tweetText'], .post-title",
+            "value": "normalize-space(.)"
+          },
+          "content": {
+            "css": ".content, .post-content, [data-testid='tweetText'], .usertext-body, article",
+            "value": "normalize-space(.)"
+          },
+          "author": {
+            "css": ".author, .username, [data-testid='User-Name'], .user",
+            "value": "normalize-space(.)"
+          },
+          "timestamp": {
+            "css": "time, .timestamp, [datetime], .created",
+            "value": "@datetime"
+          },
+          "platform": {
+            "value": "{{ platform_name }}"
+          },
+          "url": {
+            "value": "{{ bookmark_url }}"
+          }
+        },
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (compatible; BookmarkIntelligenceBot/1.0)"
+        }
+      }
+    },
+    {
+      "type": "Agents::PostAgent",
+      "name": "bookmark-processor",
+      "description": "Processes extracted bookmark content and sends to API",
+      "schedule": "never",
+      "options": {
+        "post_url": "{{ api_base_url }}/api/v1/bookmarks/process",
+        "expected_receive_period_in_days": 1,
+        "content_type": "json",
+        "method": "post",
+        "payload": {
+          "profile_id": "{{ profile_id }}",
+          "bookmarks": [
+            {
+              "platform": "{{ platform_name }}",
+              "url": "{{ bookmark_url }}",
+              "title": "{{ title }}",
+              "content": "{{ content }}",
+              "author": "{{ author }}",
+              "timestamp": "{{ timestamp }}",
+              "metadata": {
+                "extracted_at": "{{ date }}"
+              }
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{ api_token }}"
+        }
+      }
+    },
+    {
+      "type": "Agents::TriggerAgent",
+      "name": "bookmark-workflow-coordinator",
+      "description": "Coordinates the bookmark extraction and processing workflow",
+      "schedule": "never",
+      "options": {
+        "expected_receive_period_in_days": 1,
+        "rules": [
+          {
+            "type": "regex",
+            "value": "reddit\\.com",
+            "path": "bookmark_url"
+          },
+          {
+            "type": "regex", 
+            "value": "twitter\\.com|x\\.com",
+            "path": "bookmark_url"
+          },
+          {
+            "type": "regex",
+            "value": "tiktok\\.com",
+            "path": "bookmark_url"
+          }
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "bookmark-content-extractor",
+      "receiver": "bookmark-processor"
+    },
+    {
+      "source": "bookmark-workflow-coordinator",
+      "receiver": "bookmark-content-extractor"
+    }
+  ],
+  "variables": {
+    "api_base_url": "http://localhost:${API_PORT}",
+    "profile_id": "default-profile",
+    "api_token": "${BOOKMARK_API_TOKEN}",
+    "platform_name": "generic",
+    "bookmark_url": "https://example.com"
+  },
+  "metadata": {
+    "created_by": "bookmark-intelligence-hub",
+    "version": "1.0.0",
+    "last_updated": "2025-09-06",
+    "reusability": "high",
+    "used_by_scenarios": [
+      "bookmark-intelligence-hub",
+      "content-aggregator",
+      "social-media-scheduler"
+    ]
+  }
+}

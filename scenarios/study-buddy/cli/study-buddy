@@ -1,0 +1,251 @@
+#!/usr/bin/env bash
+
+# Study Buddy CLI
+# Interactive study assistant with flashcards, quizzes, and progress tracking
+
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/study-buddy/cli"
+APP_DIR="${APP_ROOT}/scenarios/study-buddy"
+
+# Load environment variables if available
+if [ -f "$APP_DIR/.env" ]; then
+    export $(cat "$APP_DIR/.env" | xargs)
+fi
+
+# Default ports (will be overridden by environment)
+API_PORT="${API_PORT:-8580}"
+UI_PORT="${UI_PORT:-3580}"
+API_URL="${API_URL:-http://localhost:$API_PORT}"
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+print_success() { echo -e "${GREEN}✅ $1${NC}"; }
+print_error() { echo -e "${RED}❌ $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+print_purple() { echo -e "${PURPLE}📚 $1${NC}"; }
+
+# Show help
+show_help() {
+    echo -e "${PURPLE}📚 Study Buddy CLI${NC}"
+    echo ""
+    echo "Usage: study-buddy <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  generate-flashcards <subject> <content>  Generate flashcards from content"
+    echo "  list-subjects                           List all study subjects"
+    echo "  start-session <subject>                 Start a study session"
+    echo "  show-progress                          Show study progress and stats"
+    echo "  quiz <subject> [difficulty]            Generate and take a quiz"
+    echo "  review                                 Review flashcards with spaced repetition"
+    echo "  health                                 Check service health"
+    echo "  help                                   Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  study-buddy generate-flashcards biology \"The mitochondria is the powerhouse of the cell\""
+    echo "  study-buddy quiz math hard"
+    echo "  study-buddy start-session chemistry"
+    echo ""
+}
+
+# Check if API is running
+check_api() {
+    if ! curl -sf "$API_URL/health" > /dev/null 2>&1; then
+        print_error "Study Buddy API is not running on port $API_PORT"
+        print_info "Start it with: cd $APP_DIR && npm start"
+        exit 1
+    fi
+}
+
+# Generate flashcards
+generate_flashcards() {
+    local subject="$1"
+    local content="$2"
+    
+    check_api
+    print_info "Generating flashcards for $subject..."
+    
+    response=$(curl -sf -X POST "$API_URL/api/flashcards/generate" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"subject_id\": \"$subject\",
+            \"content\": \"$content\",
+            \"count\": 5,
+            \"difficulty\": \"medium\"
+        }" 2>/dev/null || echo '{"error": "Failed to generate flashcards"}')
+    
+    if echo "$response" | grep -q '"success":true'; then
+        print_success "Generated flashcards successfully!"
+        echo "$response" | jq -r '.flashcards[] | "❓ \(.front)\n💡 \(.back)\n"'
+    else
+        print_error "Failed to generate flashcards"
+        echo "$response" | jq -r '.error // "Unknown error"'
+    fi
+}
+
+# List subjects
+list_subjects() {
+    check_api
+    print_purple "Study Subjects:"
+    
+    response=$(curl -sf "$API_URL/api/subjects" 2>/dev/null || echo '[]')
+    
+    if [ "$response" != "[]" ]; then
+        echo "$response" | jq -r '.[] | "  📖 \(.name) - \(.flashcard_count) cards, \(.quiz_count) quizzes"'
+    else
+        print_info "No subjects found. Create one to get started!"
+    fi
+}
+
+# Start study session
+start_session() {
+    local subject="$1"
+    
+    check_api
+    print_purple "Starting study session for $subject..."
+    
+    response=$(curl -sf -X POST "$API_URL/api/sessions/start" \
+        -H "Content-Type: application/json" \
+        -d "{\"subject_id\": \"$subject\"}" 2>/dev/null || echo '{"error": "Failed to start session"}')
+    
+    if echo "$response" | grep -q '"session_id"'; then
+        session_id=$(echo "$response" | jq -r '.session_id')
+        print_success "Study session started! (ID: $session_id)"
+        print_info "Open the UI at http://localhost:$UI_PORT to continue studying"
+    else
+        print_error "Failed to start session"
+    fi
+}
+
+# Show progress
+show_progress() {
+    check_api
+    print_purple "Study Progress & Statistics:"
+    
+    response=$(curl -sf "$API_URL/api/progress" 2>/dev/null || echo '{}')
+    
+    if [ "$response" != "{}" ]; then
+        echo ""
+        echo "📊 Overall Stats:"
+        echo "$response" | jq -r '"  • Total Study Time: \(.total_minutes) minutes"'
+        echo "$response" | jq -r '"  • Cards Reviewed: \(.cards_reviewed)"'
+        echo "$response" | jq -r '"  • Quiz Score: \(.average_quiz_score)%"'
+        echo "$response" | jq -r '"  • Current Streak: \(.streak_days) days 🔥"'
+        echo "$response" | jq -r '"  • XP Points: \(.xp_points) ⭐"'
+    else
+        print_info "No progress data yet. Start studying to track your progress!"
+    fi
+}
+
+# Generate quiz
+generate_quiz() {
+    local subject="$1"
+    local difficulty="${2:-medium}"
+    
+    check_api
+    print_info "Generating $difficulty quiz for $subject..."
+    
+    response=$(curl -sf -X POST "$API_URL/api/quiz/generate" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"subject\": \"$subject\",
+            \"difficulty\": \"$difficulty\",
+            \"question_count\": 5
+        }" 2>/dev/null || echo '{"error": "Failed to generate quiz"}')
+    
+    if echo "$response" | grep -q '"questions"'; then
+        print_success "Quiz generated! Answer the questions:"
+        echo ""
+        echo "$response" | jq -r '.questions[] | "Q: \(.question)\nOptions: \(.options | join(", "))\n"'
+        print_info "Submit answers through the UI for immediate feedback"
+    else
+        print_error "Failed to generate quiz"
+    fi
+}
+
+# Review flashcards
+review_cards() {
+    check_api
+    print_purple "Flashcard Review (Spaced Repetition)"
+    
+    response=$(curl -sf "$API_URL/api/flashcards/due" 2>/dev/null || echo '[]')
+    
+    if [ "$response" != "[]" ]; then
+        count=$(echo "$response" | jq '. | length')
+        print_info "You have $count cards due for review"
+        print_info "Open the UI at http://localhost:$UI_PORT to start reviewing"
+    else
+        print_success "No cards due for review! Great job staying on top of your studies!"
+    fi
+}
+
+# Check health
+check_health() {
+    print_info "Checking Study Buddy services..."
+    
+    if curl -sf "$API_URL/health" > /dev/null 2>&1; then
+        print_success "API is healthy (port $API_PORT)"
+    else
+        print_error "API is not responding"
+    fi
+    
+    if curl -sf "http://localhost:$UI_PORT" > /dev/null 2>&1; then
+        print_success "UI is healthy (port $UI_PORT)"
+    else
+        print_warning "UI is not running"
+    fi
+}
+
+# Main command handler
+case "${1:-help}" in
+    generate-flashcards)
+        if [ $# -lt 3 ]; then
+            print_error "Usage: study-buddy generate-flashcards <subject> <content>"
+            exit 1
+        fi
+        generate_flashcards "$2" "$3"
+        ;;
+    list-subjects)
+        list_subjects
+        ;;
+    start-session)
+        if [ $# -lt 2 ]; then
+            print_error "Usage: study-buddy start-session <subject>"
+            exit 1
+        fi
+        start_session "$2"
+        ;;
+    show-progress)
+        show_progress
+        ;;
+    quiz)
+        if [ $# -lt 2 ]; then
+            print_error "Usage: study-buddy quiz <subject> [difficulty]"
+            exit 1
+        fi
+        generate_quiz "$2" "${3:-medium}"
+        ;;
+    review)
+        review_cards
+        ;;
+    health)
+        check_health
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac

@@ -1,0 +1,38 @@
+# This file specifies patterns for files and directories that should be ignored by Helm when packaging the chart.
+# It works similarly to a .gitignore file.
+# Ignoring unnecessary files keeps the chart package small and clean.
+
+# Patterns to ignore when packaging Helm charts
+
+# Ignore previously packaged chart archives.
+*.tgz
+*.zip
+
+# Ignore macOS specific files.
+.DS_Store
+
+# Ignore editor temporary/backup files.
+*.swp
+*.bak
+
+# Ignore Git-related directories and files.
+.git/
+.gitignore
+
+# Ignore build or automation related files not part of the chart itself.
+Makefile
+helmfile.yaml
+
+# Ignore common development or local script directories.
+# k8s/ # Removed for clarity, assume it was for a sub-directory not present or handled differently
+scripts/
+
+# Ignore Node.js dependency directories.
+node_modules/
+
+# Ignore log files.
+*.log # Added to ignore log files like setup.log
+
+# Ignore the top-level 'tests/' directory that might contain non-templated tests or test runners.
+# Templated tests within 'templates/tests/' are still included.
+tests/

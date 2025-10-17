@@ -1,0 +1,224 @@
+name: web-scraper-manager
+description: Test suite for unified web scraper management dashboard using modern lifecycle system
+version: 2.0.0
+
+# Modern test configuration that works with the new lifecycle system
+api_base_url: "http://localhost:${API_PORT}"
+
+prerequisites:
+  - name: API Server Running
+    check: "curl -sf ${api_base_url}/health"
+    timeout: 30
+    retry_interval: 2
+  
+  - name: Database Ready
+    check: "pg_isready -h localhost -p ${RESOURCE_PORTS[postgres]}"
+    timeout: 30
+    retry_interval: 2
+  
+  - name: MinIO Ready  
+    check: "curl -sf http://localhost:${RESOURCE_PORTS[minio]}/minio/health/ready"
+    timeout: 30
+    retry_interval: 2
+
+test_suites:
+  - name: API Health Tests
+    description: Test basic API functionality and health endpoints
+    tests:
+      - name: API Health Check
+        description: Verify API is healthy and responsive
+        steps:
+          - action: http_request
+            method: GET
+            url: "${api_base_url}/health"
+            expect_status: 200
+            expect_json: '{"success": true}'
+      
+      - name: API Status Check
+        description: Verify API status endpoint returns system information
+        steps:
+          - action: http_request
+            method: GET
+            url: "${api_base_url}/api/status"
+            expect_status: 200
+            expect_json_contains: '{"success": true, "data": {"api": "healthy"}}'
+  
+  - name: Agent Management Tests
+    description: Test CRUD operations for scraping agents
+    tests:
+      - name: List Empty Agents
+        description: Initially should return empty list
+        steps:
+          - action: http_request
+            method: GET
+            url: "${api_base_url}/api/agents"
+            expect_status: 200
+            expect_json_contains: '{"success": true, "data": []}'
+      
+      - name: Create Agent
+        description: Create a new scraping agent
+        steps:
+          - action: http_request
+            method: POST
+            url: "${api_base_url}/api/agents"
+            headers:
+              Content-Type: application/json
+            body: |
+              {
+                "name": "Test Scraper",
+                "platform": "huginn",
+                "agent_type": "WebsiteAgent",
+                "enabled": true,
+                "configuration": {
+                  "url": "https://example.com",
+                  "mode": "on_change"
+                },
+                "tags": ["test", "example"]
+              }
+            expect_status: 201
+            expect_json_contains: '{"success": true}'
+            save_response_field: "data.id"
+            as: "test_agent_id"
+      
+      - name: Get Created Agent
+        description: Retrieve the created agent by ID
+        steps:
+          - action: http_request
+            method: GET
+            url: "${api_base_url}/api/agents/${test_agent_id}"
+            expect_status: 200
+            expect_json_contains: '{"success": true, "data": {"name": "Test Scraper"}}'
+      
+      - name: List Agents After Creation
+        description: Should now return the created agent
+        steps:
+          - action: http_request
+            method: GET
+            url: "${api_base_url}/api/agents"
+            expect_status: 200
+            expect_json_contains: '{"success": true}'
+            assert_json_length: "data"
+            expected_length: 1
+      
+      - name: Update Agent
+        description: Update agent configuration
+        steps:
+          - action: http_request
+            method: PUT
+            url: "${api_base_url}/api/agents/${test_agent_id}"
+            headers:
+              Content-Type: application/json
+            body: |
+              {
+                "name": "Updated Test Scraper",
+                "platform": "huginn",
+                "agent_type": "WebsiteAgent",
+                "enabled": false,
+                "configuration": {
+                  "url": "https://updated-example.com",
+                  "mode": "daily"
+                },
+                "tags": ["test", "updated"]
+              }
+            expect_status: 200
+            expect_json_contains: '{"success": true, "data": {"name": "Updated Test Scraper"}}'
+  
+  - name: Platform Management Tests
+    description: Test platform capabilities and information
+    tests:
+      - name: List Supported Platforms
+        description: Get list of supported scraping platforms
+        steps:
+          - action: http_request
+            method: GET
+            url: "${api_base_url}/api/platforms"
+            expect_status: 200
+            expect_json_contains: '{"success": true}'
+            assert_json_length: "data"
+            expected_length: 3
+      
+      - name: Platform Capabilities Check
+        description: Verify platform capabilities are properly structured
+        steps:
+          - action: http_request
+            method: GET
+            url: "${api_base_url}/api/platforms"
+            expect_status: 200
+            expect_json_path_exists: "data[0].platform"
+            expect_json_path_exists: "data[0].features"
+            expect_json_path_exists: "data[0].best_for"
+  
+  - name: Database Integration Tests
+    description: Test database connectivity and schema
+    tests:
+      - name: Database Connection Test
+        description: Verify database connection and schema
+        steps:
+          - action: shell_command
+            command: "bash test/test-database-connection.sh"
+            expect_exit_code: 0
+  
+  - name: Storage Integration Tests
+    description: Test MinIO storage functionality
+    tests:
+      - name: Storage Bucket Test
+        description: Verify MinIO buckets are accessible
+        steps:
+          - action: shell_command
+            command: "bash test/test-storage-buckets.sh"
+            expect_exit_code: 0
+  
+  - name: CLI Integration Tests
+    description: Test CLI functionality
+    tests:
+      - name: CLI Help Test
+        description: Verify CLI shows help information
+        steps:
+          - action: shell_command
+            command: "./cli/web-scraper-manager help"
+            expect_exit_code: 0
+            expect_output_contains: "Web Scraper Manager CLI"
+      
+      - name: CLI Version Test
+        description: Verify CLI shows version
+        steps:
+          - action: shell_command
+            command: "./cli/web-scraper-manager version"
+            expect_exit_code: 0
+            expect_output_contains: "Web Scraper Manager CLI v"
+      
+      - name: CLI Status Test
+        description: Test CLI status command
+        steps:
+          - action: shell_command
+            command: "WEB_SCRAPER_MANAGER_API_URL=${api_base_url} ./cli/web-scraper-manager status"
+            expect_exit_code: 0
+            expect_output_contains: "Web Scraper Manager API is healthy"
+
+cleanup:
+  - name: Remove Test Agents
+    description: Clean up test data
+    steps:
+      - action: http_request
+        method: DELETE
+        url: "${api_base_url}/api/agents/${test_agent_id}"
+        expect_status: 200
+        ignore_errors: true
+
+validation:
+  performance:
+    response_time_p95: "1000ms"
+    concurrent_users: 5
+    test_duration: "30s"
+  
+  resources:
+    postgres: 
+      check: "resource-postgres status >/dev/null"
+    redis: 
+      check: "resource-redis status >/dev/null"
+    minio: 
+      check: "curl -sf http://localhost:${RESOURCE_PORTS[minio]}/minio/health/ready"
+    windmill: 
+      check: "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version"
+    api:
+      check: "curl -sf ${api_base_url}/health"

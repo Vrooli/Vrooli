@@ -1,0 +1,107 @@
+workflow:
+  name: "login-dashboard"
+  description: "Login to a web application and capture dashboard screenshot"
+  version: "1.0.0"
+  debug_level: "steps"
+  
+  parameters:
+    base_url:
+      type: string
+      required: true
+      description: "Base URL of the application"
+      default: "http://localhost:3000"
+    username:
+      type: string
+      required: true
+      description: "Login username"
+    password:
+      type: string
+      required: true
+      description: "Login password"
+      sensitive: true
+    login_path:
+      type: string
+      required: false
+      description: "Login page path"
+      default: "/login"
+    dashboard_path:
+      type: string
+      required: false
+      description: "Dashboard page path"
+      default: "/dashboard"
+  
+  steps:
+    - name: "navigate-to-login"
+      action: "navigate"
+      url: "${params.base_url}${params.login_path}"
+      wait_for: "networkidle2"
+      timeout: 30000
+      debug:
+        screenshot: true
+        console: true
+        network: true
+      
+    - name: "wait-for-login-form"
+      action: "wait_for_element"
+      selector: "input[name='username'], input[name='email'], #username, #email"
+      timeout: 10000
+      visible: true
+      debug:
+        screenshot: false
+      
+    - name: "fill-credentials"
+      action: "fill_form"
+      selectors:
+        username: "input[name='username'], input[name='email'], #username, #email"
+        password: "input[name='password'], #password"
+      values:
+        username: "${params.username}"
+        password: "${params.password}"
+      debug:
+        screenshot: true
+      
+    - name: "submit-login"
+      action: "click"
+      selector: "button[type='submit'], input[type='submit'], button:contains('Login'), button:contains('Sign In')"
+      wait_for_navigation: true
+      on_error: "retry"
+      debug:
+        screenshot: true
+        network: true
+      
+    - name: "wait-for-dashboard"
+      action: "wait_for_redirect"
+      expected_url: "${params.base_url}${params.dashboard_path}"
+      timeout: 15000
+      on_error: "continue"
+      debug:
+        screenshot: true
+        console: true
+      
+    - name: "wait-for-content-load"
+      action: "wait"
+      duration: 3000
+      debug:
+        screenshot: false
+      
+    - name: "capture-dashboard"
+      action: "screenshot"
+      output: "${context.outputDir}/dashboard-${context.timestamp}.png"
+      full_page: true
+      debug:
+        screenshot: true
+      
+    - name: "extract-user-info"
+      action: "extract_data"
+      selectors:
+        username: ".user-name, .username, #user-name, [data-testid='username']"
+        role: ".user-role, .role, #user-role, [data-testid='role']"
+        lastLogin: ".last-login, #last-login, [data-testid='last-login']"
+      on_error: "continue"
+      debug:
+        screenshot: false
+      
+    - name: "verify-login-success"
+      action: "assert_url"
+      expected_url: "${params.base_url}${params.dashboard_path}"
+      on_error: "fail"

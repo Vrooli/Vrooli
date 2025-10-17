@@ -1,0 +1,272 @@
+{
+  "name": "travel-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "travel-list/get",
+        "options": {}
+      },
+      "id": "webhook-list",
+      "name": "Webhook - Get Travels",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "travel-list-get"
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "user_id",
+              "value": "default_user"
+            },
+            {
+              "name": "filter_type",
+              "value": "all"
+            }
+          ],
+          "number": [
+            {
+              "name": "limit",
+              "value": 100
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM travels WHERE user_id = '{{ $json.user_id }}' ORDER BY date DESC LIMIT {{ $json.limit }}",
+        "additionalFields": {}
+      },
+      "id": "postgres-query",
+      "name": "Query Travels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 200],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery", 
+        "query": "SELECT * FROM travel_stats WHERE user_id = '{{ $json.user_id }}'",
+        "additionalFields": {}
+      },
+      "id": "postgres-stats",
+      "name": "Get Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 350],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM achievements WHERE user_id = '{{ $json.user_id }}' ORDER BY unlocked_at DESC",
+        "additionalFields": {}
+      },
+      "id": "postgres-achievements",
+      "name": "Get Achievements",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 500],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge-data",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: $json.status, travels: $items[0].json, stats: $items[1].json, achievements: $items[2].json }) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 350]
+    }
+  ],
+  "connections": {
+    "webhook-list": {
+      "main": [
+        [
+          {
+            "node": "postgres-query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "postgres-stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "postgres-achievements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "set-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set-defaults": {
+      "main": [
+        [
+          {
+            "node": "postgres-query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "postgres-stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "postgres-achievements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-query": {
+      "main": [
+        [
+          {
+            "node": "merge-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-stats": {
+      "main": [
+        [
+          {
+            "node": "merge-data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "postgres-achievements": {
+      "main": [
+        [
+          {
+            "node": "merge-data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "merge-data": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "executionTimeout": 900
+  },
+  "versionId": "travel-list-v1",
+  "id": "travel-list",
+  "meta": {
+    "instanceId": "travel-list"
+  },
+  "tags": []
+}

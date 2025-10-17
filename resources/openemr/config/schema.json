@@ -1,0 +1,205 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenEMR Resource Configuration",
+  "type": "object",
+  "properties": {
+    "ports": {
+      "type": "object",
+      "properties": {
+        "web": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8080,
+          "description": "Web interface port"
+        },
+        "portal": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8081,
+          "description": "Patient portal port"
+        },
+        "api": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8082,
+          "description": "REST API port"
+        },
+        "fhir": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8083,
+          "description": "FHIR API port"
+        },
+        "database": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 3306,
+          "description": "MySQL database port"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "openemr-mysql"
+        },
+        "name": {
+          "type": "string",
+          "default": "openemr"
+        },
+        "user": {
+          "type": "string",
+          "default": "openemr"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8
+        }
+      },
+      "required": ["host", "name", "user", "password"]
+    },
+    "admin": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "default": "admin"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "default": "admin@clinic.local"
+        }
+      },
+      "required": ["username", "password"]
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "enableFHIR": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable FHIR R4 API"
+        },
+        "enableAPI": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable REST API"
+        },
+        "enablePortal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable patient portal"
+        },
+        "enableAudit": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable audit logging"
+        },
+        "loadDemoData": {
+          "type": "boolean",
+          "default": true,
+          "description": "Load demo clinic data on install"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "phpMemory": {
+          "type": "string",
+          "pattern": "^[0-9]+[MG]$",
+          "default": "256M"
+        },
+        "maxUpload": {
+          "type": "string",
+          "pattern": "^[0-9]+[MG]$",
+          "default": "30M"
+        },
+        "maxExecution": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300,
+          "default": 60
+        },
+        "mysqlBuffer": {
+          "type": "string",
+          "pattern": "^[0-9]+[MG]$",
+          "default": "256M"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "forceHttps": {
+          "type": "boolean",
+          "default": false
+        },
+        "sessionTimeout": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 86400,
+          "default": 7200
+        },
+        "passwordComplexity": {
+          "type": "string",
+          "enum": ["weak", "medium", "strong"],
+          "default": "strong"
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "rateLimit": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 10000,
+          "default": 100,
+          "description": "Requests per minute"
+        },
+        "tokenExpiry": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 86400,
+          "default": 3600,
+          "description": "Token expiry in seconds"
+        },
+        "corsOrigin": {
+          "type": "string",
+          "default": "*"
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "properties": {
+        "webImage": {
+          "type": "string",
+          "default": "openemr/openemr:7.0.2"
+        },
+        "mysqlImage": {
+          "type": "string",
+          "default": "mysql:8.0"
+        },
+        "network": {
+          "type": "string",
+          "default": "openemr-network"
+        }
+      }
+    }
+  },
+  "required": ["database", "admin"]
+}

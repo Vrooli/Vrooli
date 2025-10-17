@@ -1,0 +1,427 @@
+#!/bin/bash
+
+# Recipe Book CLI
+# Provides command-line interface to the Recipe Book API
+
+API_PORT="${API_PORT:-3250}"
+API_BASE="http://localhost:${API_PORT}/api/v1"
+USER_ID="${RECIPE_BOOK_USER:-user-default}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Show help
+show_help() {
+    cat << EOF
+Recipe Book CLI - Manage your recipes from the command line
+
+Usage: recipe-book [COMMAND] [OPTIONS]
+
+Commands:
+  list            List all recipes
+  search QUERY    Search for recipes
+  get ID          Get a specific recipe
+  create          Create a new recipe (interactive)
+  generate PROMPT Generate a recipe with AI
+  modify ID TYPE  Modify a recipe (vegan, keto, etc.)
+  cook ID         Mark a recipe as cooked
+  rate ID RATING  Rate a recipe (1-5)
+  share ID        Share a recipe
+  status          Check service status
+  help            Show this help message
+  version         Show version information
+
+Options:
+  --user USER     Specify user ID
+  --json          Output in JSON format
+  --dietary TYPE  Filter by dietary restriction
+  --max-time MIN  Maximum cooking time in minutes
+
+Examples:
+  recipe-book list --dietary vegetarian
+  recipe-book search "chocolate dessert"
+  recipe-book generate "healthy dinner for two"
+  recipe-book modify abc123 vegan
+  recipe-book cook abc123 --rating 5
+
+EOF
+}
+
+# Check service status
+check_status() {
+    echo -e "${BLUE}Checking Recipe Book service status...${NC}"
+    
+    response=$(curl -s -w "\n%{http_code}" "${API_BASE%/api/v1}/health" 2>/dev/null)
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n-1)
+    
+    if [ "$http_code" = "200" ]; then
+        echo -e "${GREEN}✓ Service is healthy${NC}"
+        if [ "$1" = "--json" ]; then
+            echo "$body" | jq '.' 2>/dev/null || echo "$body"
+        else
+            echo "API: http://localhost:${API_PORT}"
+            echo "Database: Connected"
+        fi
+    else
+        echo -e "${RED}✗ Service is not responding${NC}"
+        echo "Please ensure the Recipe Book service is running"
+        echo "Run: vrooli scenario run recipe-book"
+        exit 1
+    fi
+}
+
+# List recipes
+list_recipes() {
+    local dietary=""
+    local format="table"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --dietary)
+                dietary="&dietary=$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}Fetching recipes...${NC}"
+    
+    response=$(curl -s "${API_BASE}/recipes?user_id=${USER_ID}${dietary}" 2>/dev/null)
+    
+    if [ "$format" = "json" ]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo "$response" | jq -r '
+            .recipes[] | 
+            "ID: \(.id)\nTitle: \(.title)\nDescription: \(.description // "No description")\nCuisine: \(.cuisine // "Unknown")\nTime: \((.prep_time // 0) + (.cook_time // 0)) minutes\n---"
+        ' 2>/dev/null || echo "Failed to parse recipes"
+    fi
+}
+
+# Search recipes
+search_recipes() {
+    local query="$1"
+    shift
+    
+    if [ -z "$query" ]; then
+        echo -e "${RED}Error: Search query required${NC}"
+        echo "Usage: recipe-book search QUERY"
+        exit 1
+    fi
+    
+    local max_time=""
+    local format="table"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --max-time)
+                max_time="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}Searching for: $query${NC}"
+    
+    # Build JSON payload
+    payload="{\"query\": \"$query\", \"user_id\": \"$USER_ID\""
+    if [ -n "$max_time" ]; then
+        payload="${payload}, \"filters\": {\"max_time\": $max_time}"
+    fi
+    payload="${payload}}"
+    
+    response=$(curl -s -X POST "${API_BASE}/recipes/search" \
+        -H "Content-Type: application/json" \
+        -d "$payload" 2>/dev/null)
+    
+    if [ "$format" = "json" ]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo "$response" | jq -r '
+            .results[] | 
+            "Title: \(.recipe.title)\nDescription: \(.recipe.description // "No description")\nRelevance: \(.relevance)\n---"
+        ' 2>/dev/null || echo "No results found"
+    fi
+}
+
+# Get specific recipe
+get_recipe() {
+    local recipe_id="$1"
+    local format="${2:-table}"
+    
+    if [ -z "$recipe_id" ]; then
+        echo -e "${RED}Error: Recipe ID required${NC}"
+        echo "Usage: recipe-book get RECIPE_ID"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Fetching recipe ${recipe_id}...${NC}"
+    
+    response=$(curl -s "${API_BASE}/recipes/${recipe_id}?user_id=${USER_ID}" 2>/dev/null)
+    
+    if [ "$format" = "--json" ]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo "$response" | jq -r '
+            "Title: \(.title)\n" +
+            "Description: \(.description // "No description")\n" +
+            "Prep Time: \(.prep_time // 0) minutes\n" +
+            "Cook Time: \(.cook_time // 0) minutes\n" +
+            "Servings: \(.servings // 4)\n" +
+            "\nIngredients:\n" +
+            (.ingredients // [] | map("  - \(.amount) \(.unit) \(.name)") | join("\n")) +
+            "\n\nInstructions:\n" +
+            (.instructions // [] | to_entries | map("  \(.key + 1). \(.value)") | join("\n"))
+        ' 2>/dev/null || echo "Recipe not found"
+    fi
+}
+
+# Generate recipe with AI
+generate_recipe() {
+    local prompt="$1"
+    shift
+    
+    if [ -z "$prompt" ]; then
+        echo -e "${RED}Error: Recipe prompt required${NC}"
+        echo "Usage: recipe-book generate PROMPT"
+        exit 1
+    fi
+    
+    local ingredients=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --ingredients)
+                ingredients="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}Generating recipe: $prompt${NC}"
+    echo -e "${YELLOW}This may take a moment...${NC}"
+    
+    # Build JSON payload
+    payload="{\"prompt\": \"$prompt\", \"user_id\": \"$USER_ID\""
+    if [ -n "$ingredients" ]; then
+        IFS=',' read -ra ing_array <<< "$ingredients"
+        ing_json=$(printf '"%s",' "${ing_array[@]}" | sed 's/,$//')
+        payload="${payload}, \"available_ingredients\": [$ing_json]"
+    fi
+    payload="${payload}}"
+    
+    response=$(curl -s -X POST "${API_BASE}/recipes/generate" \
+        -H "Content-Type: application/json" \
+        -d "$payload" 2>/dev/null)
+    
+    echo "$response" | jq -r '
+        if .recipe then
+            "✨ Recipe Generated!\n\n" +
+            "Title: \(.recipe.title)\n" +
+            "Description: \(.recipe.description // "No description")\n" +
+            "Confidence: \(.confidence)\n" +
+            "\nIngredients:\n" +
+            (.recipe.ingredients // [] | map("  - \(.amount) \(.unit) \(.name)") | join("\n")) +
+            "\n\nInstructions:\n" +
+            (.recipe.instructions // [] | to_entries | map("  \(.key + 1). \(.value)") | join("\n"))
+        else
+            "Failed to generate recipe: \(.error // "Unknown error")"
+        end
+    ' 2>/dev/null || echo "Generation failed"
+}
+
+# Modify recipe
+modify_recipe() {
+    local recipe_id="$1"
+    local mod_type="$2"
+    
+    if [ -z "$recipe_id" ] || [ -z "$mod_type" ]; then
+        echo -e "${RED}Error: Recipe ID and modification type required${NC}"
+        echo "Usage: recipe-book modify RECIPE_ID TYPE"
+        echo "Types: vegan, gluten-free, keto, dairy-free, instant-pot"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Modifying recipe to be ${mod_type}...${NC}"
+    
+    response=$(curl -s -X POST "${API_BASE}/recipes/${recipe_id}/modify" \
+        -H "Content-Type: application/json" \
+        -d "{\"modification_type\": \"$mod_type\", \"user_id\": \"$USER_ID\"}" 2>/dev/null)
+    
+    echo "$response" | jq -r '
+        if .modified_recipe then
+            "✨ Recipe Modified!\n\n" +
+            "Title: \(.modified_recipe.title)\n" +
+            "Changes Made:\n" +
+            (.changes_made // [] | map("  - \(.)") | join("\n"))
+        else
+            "Failed to modify recipe"
+        end
+    ' 2>/dev/null || echo "Modification failed"
+}
+
+# Mark recipe as cooked
+cook_recipe() {
+    local recipe_id="$1"
+    shift
+    
+    if [ -z "$recipe_id" ]; then
+        echo -e "${RED}Error: Recipe ID required${NC}"
+        echo "Usage: recipe-book cook RECIPE_ID [--rating N]"
+        exit 1
+    fi
+    
+    local rating="5"
+    local notes=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --rating)
+                rating="$2"
+                shift 2
+                ;;
+            --notes)
+                notes="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}Marking recipe as cooked...${NC}"
+    
+    response=$(curl -s -X POST "${API_BASE}/recipes/${recipe_id}/cook" \
+        -H "Content-Type: application/json" \
+        -d "{\"user_id\": \"$USER_ID\", \"rating\": $rating, \"notes\": \"$notes\"}" 2>/dev/null)
+    
+    echo -e "${GREEN}✓ Recipe marked as cooked with rating: ${rating}/5${NC}"
+}
+
+# Rate recipe
+rate_recipe() {
+    local recipe_id="$1"
+    local rating="$2"
+    
+    if [ -z "$recipe_id" ] || [ -z "$rating" ]; then
+        echo -e "${RED}Error: Recipe ID and rating required${NC}"
+        echo "Usage: recipe-book rate RECIPE_ID RATING"
+        exit 1
+    fi
+    
+    if ! [[ "$rating" =~ ^[1-5]$ ]]; then
+        echo -e "${RED}Error: Rating must be between 1 and 5${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Rating recipe...${NC}"
+    
+    response=$(curl -s -X POST "${API_BASE}/recipes/${recipe_id}/rate" \
+        -H "Content-Type: application/json" \
+        -d "{\"user_id\": \"$USER_ID\", \"rating\": $rating}" 2>/dev/null)
+    
+    echo -e "${GREEN}✓ Recipe rated: ${rating}/5${NC}"
+}
+
+# Share recipe
+share_recipe() {
+    local recipe_id="$1"
+    
+    if [ -z "$recipe_id" ]; then
+        echo -e "${RED}Error: Recipe ID required${NC}"
+        echo "Usage: recipe-book share RECIPE_ID"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Generating share link...${NC}"
+    echo -e "${GREEN}Share link: http://localhost:${API_PORT}/recipe/${recipe_id}${NC}"
+    echo "Link copied to clipboard (if supported)"
+    
+    # Try to copy to clipboard on different systems
+    if command -v pbcopy &> /dev/null; then
+        echo "http://localhost:${API_PORT}/recipe/${recipe_id}" | pbcopy
+    elif command -v xclip &> /dev/null; then
+        echo "http://localhost:${API_PORT}/recipe/${recipe_id}" | xclip -selection clipboard
+    fi
+}
+
+# Show version
+show_version() {
+    echo "Recipe Book CLI v1.0.0"
+    echo "API Version: 1.0.0"
+    echo "Port: ${API_PORT}"
+}
+
+# Main command handler
+case "$1" in
+    list)
+        shift
+        list_recipes "$@"
+        ;;
+    search)
+        shift
+        search_recipes "$@"
+        ;;
+    get)
+        shift
+        get_recipe "$@"
+        ;;
+    generate)
+        shift
+        generate_recipe "$@"
+        ;;
+    modify)
+        shift
+        modify_recipe "$@"
+        ;;
+    cook)
+        shift
+        cook_recipe "$@"
+        ;;
+    rate)
+        shift
+        rate_recipe "$@"
+        ;;
+    share)
+        shift
+        share_recipe "$@"
+        ;;
+    status)
+        shift
+        check_status "$@"
+        ;;
+    version)
+        show_version
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo "Run 'recipe-book help' for usage information"
+        exit 1
+        ;;
+esac

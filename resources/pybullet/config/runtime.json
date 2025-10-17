@@ -1,0 +1,28 @@
+{
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 30,
+  "startup_time_estimate": "5-15s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "category": "simulation",
+  "description": "Python-based physics simulation engine for robotics and ML",
+  "health_check": {
+    "endpoint": "/health",
+    "timeout": 5,
+    "interval": 30
+  },
+  "resource_limits": {
+    "memory_mb": 512,
+    "cpu_cores": 2,
+    "max_instances": 10
+  },
+  "capabilities": [
+    "rigid_body_dynamics",
+    "collision_detection",
+    "inverse_kinematics",
+    "urdf_loading",
+    "headless_simulation",
+    "python_api"
+  ]
+}

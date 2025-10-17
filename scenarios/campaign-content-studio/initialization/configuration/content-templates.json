@@ -1,0 +1,163 @@
+{
+  "blog_post": {
+    "name": "Blog Post",
+    "description": "Comprehensive blog post with SEO optimization",
+    "structure": [
+      "headline",
+      "introduction", 
+      "main_points",
+      "conclusion",
+      "call_to_action"
+    ],
+    "guidelines": {
+      "min_words": 600,
+      "max_words": 1500,
+      "include_headings": true,
+      "seo_optimization": true,
+      "readability_target": "grade_8"
+    },
+    "prompt_template": "Write a comprehensive blog post about: {prompt}\n\nTarget audience: {target_audience}\nTone: {tone}\nKey points to cover: {context_summary}\n\nStructure the post with:\n1. Compelling headline\n2. Engaging introduction\n3. 3-5 main sections with subheadings\n4. Strong conclusion\n5. Clear call-to-action\n\nOptimize for SEO and ensure high readability.",
+    "output_format": "markdown"
+  },
+  
+  "social_media": {
+    "name": "Social Media Post",
+    "description": "Engaging social media content for various platforms",
+    "platforms": {
+      "linkedin": {
+        "max_chars": 3000,
+        "tone": "professional",
+        "include_hashtags": true,
+        "max_hashtags": 5
+      },
+      "twitter": {
+        "max_chars": 280,
+        "tone": "conversational",
+        "include_hashtags": true,
+        "max_hashtags": 3
+      },
+      "facebook": {
+        "max_chars": 2000,
+        "tone": "engaging",
+        "include_hashtags": true,
+        "max_hashtags": 5
+      },
+      "instagram": {
+        "max_chars": 2200,
+        "tone": "casual",
+        "include_hashtags": true,
+        "max_hashtags": 10
+      }
+    },
+    "guidelines": {
+      "include_call_to_action": true,
+      "use_emojis": true,
+      "encourage_engagement": true
+    },
+    "prompt_template": "Create a {platform} post about: {prompt}\n\nTarget audience: {target_audience}\nTone: {tone}\nContext: {context_summary}\n\nMake it engaging, include relevant hashtags, and add a call-to-action.\nCharacter limit: {max_chars}",
+    "output_format": "plain_text"
+  },
+  
+  "email": {
+    "name": "Email Content",
+    "description": "Professional email content with clear structure",
+    "structure": [
+      "subject_line",
+      "greeting",
+      "body",
+      "closing",
+      "signature_placeholder"
+    ],
+    "guidelines": {
+      "max_words": 400,
+      "clear_subject": true,
+      "personalization": true,
+      "single_cta": true
+    },
+    "prompt_template": "Write professional email content for: {prompt}\n\nTarget audience: {target_audience}\nTone: {tone}\nContext: {context_summary}\n\nInclude:\n1. Compelling subject line\n2. Personal greeting\n3. Clear, concise body (max 400 words)\n4. Strong call-to-action\n5. Professional closing\n\nMake it scannable and action-oriented.",
+    "output_format": "structured_text"
+  },
+  
+  "marketing_copy": {
+    "name": "Marketing Copy",
+    "description": "Persuasive marketing content that converts",
+    "types": [
+      "landing_page",
+      "product_description", 
+      "ad_copy",
+      "sales_page",
+      "brochure"
+    ],
+    "guidelines": {
+      "focus_on_benefits": true,
+      "include_social_proof": true,
+      "clear_value_proposition": true,
+      "strong_cta": true,
+      "urgency_elements": false
+    },
+    "prompt_template": "Create compelling marketing copy for: {prompt}\n\nTarget audience: {target_audience}\nTone: {tone}\nKey selling points: {context_summary}\n\nFocus on:\n1. Clear value proposition\n2. Customer benefits (not just features)\n3. Social proof if available\n4. Strong call-to-action\n5. Persuasive but authentic language",
+    "output_format": "html_friendly"
+  },
+  
+  "product_description": {
+    "name": "Product Description",
+    "description": "Detailed product descriptions that sell",
+    "structure": [
+      "headline",
+      "key_benefits",
+      "features",
+      "specifications",
+      "call_to_action"
+    ],
+    "guidelines": {
+      "benefit_focused": true,
+      "scannable_format": true,
+      "include_specifications": true,
+      "seo_optimized": true
+    },
+    "prompt_template": "Write a compelling product description for: {prompt}\n\nTarget audience: {target_audience}\nTone: {tone}\nProduct details: {context_summary}\n\nStructure:\n1. Attention-grabbing headline\n2. Key benefits (what's in it for the customer)\n3. Important features\n4. Technical specifications if relevant\n5. Clear call-to-action\n\nMake it scannable with bullet points and emphasize customer value.",
+    "output_format": "markdown"
+  },
+  
+  "case_study": {
+    "name": "Case Study",
+    "description": "Detailed case study showcasing success stories",
+    "structure": [
+      "executive_summary",
+      "challenge",
+      "solution",
+      "implementation",
+      "results",
+      "conclusion"
+    ],
+    "guidelines": {
+      "data_driven": true,
+      "story_format": true,
+      "include_metrics": true,
+      "professional_tone": true
+    },
+    "prompt_template": "Create a detailed case study about: {prompt}\n\nTarget audience: {target_audience}\nContext and data: {context_summary}\n\nStructure:\n1. Executive summary\n2. Challenge/problem statement\n3. Solution overview\n4. Implementation details\n5. Results and metrics\n6. Key takeaways and conclusion\n\nUse specific data points and tell a compelling story of transformation.",
+    "output_format": "structured_markdown"
+  },
+  
+  "press_release": {
+    "name": "Press Release",
+    "description": "Professional press release format",
+    "structure": [
+      "headline",
+      "dateline",
+      "lead_paragraph",
+      "body_paragraphs",
+      "boilerplate",
+      "contact_info"
+    ],
+    "guidelines": {
+      "inverted_pyramid": true,
+      "newsworthy_angle": true,
+      "third_person": true,
+      "include_quotes": true
+    },
+    "prompt_template": "Write a professional press release for: {prompt}\n\nCompany info: {target_audience}\nKey details: {context_summary}\n\nFollow standard press release format:\n1. Compelling, newsworthy headline\n2. Strong lead paragraph (who, what, when, where, why)\n3. Supporting details in body paragraphs\n4. Relevant quotes from key stakeholders\n5. Company boilerplate\n\nWrite in third person, use objective tone, focus on newsworthiness.",
+    "output_format": "structured_text"
+  }
+}

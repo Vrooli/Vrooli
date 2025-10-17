@@ -1,0 +1,202 @@
+{
+  "app": {
+    "name": "Task Planner",
+    "version": "1.0.0",
+    "description": "AI-powered task management with progressive refinement from unstructured text to implementation",
+    "default_timezone": "UTC",
+    "max_tasks_per_app": 10000,
+    "max_concurrent_implementations": 3,
+    "max_text_input_length": 50000
+  },
+  "task_processing": {
+    "parsing": {
+      "default_model": "llama3.2",
+      "temperature": 0.3,
+      "max_tokens": 2048,
+      "retry_attempts": 3,
+      "retry_delay_ms": 1000,
+      "min_confidence_threshold": 0.5
+    },
+    "research": {
+      "default_timeout_seconds": 300,
+      "max_search_results": 10,
+      "max_artifacts_per_task": 20,
+      "similarity_threshold": 0.3,
+      "min_relevance_score": 0.6
+    },
+    "implementation": {
+      "default_model": "claude-3-opus-20240229",
+      "temperature": 0.3,
+      "max_tokens": 8192,
+      "timeout_seconds": 600,
+      "max_files_per_task": 50
+    }
+  },
+  "task_lifecycle": {
+    "auto_transition_rules": {
+      "backlog_to_staged": {
+        "enabled": true,
+        "require_investigation_report": true,
+        "require_implementation_plan": true,
+        "min_confidence_score": 0.6
+      },
+      "staged_to_in_progress": {
+        "enabled": false,
+        "require_manual_approval": true
+      },
+      "timeout_handling": {
+        "enabled": true,
+        "timeout_hours": 24,
+        "timeout_action": "fail"
+      }
+    },
+    "priority_weights": {
+      "critical": 4,
+      "high": 3,
+      "medium": 2,
+      "low": 1
+    },
+    "status_colors": {
+      "unstructured": "#gray-400",
+      "backlog": "#blue-500",
+      "staged": "#yellow-500",
+      "in_progress": "#orange-500",
+      "completed": "#green-500",
+      "cancelled": "#gray-600",
+      "failed": "#red-500"
+    }
+  },
+  "ai_agent_configuration": {
+    "text_parser_agent": {
+      "system_prompt": "You are a task extraction AI specialized in parsing unstructured text into actionable tasks. Focus on identifying concrete, implementable actions while preserving context and intent.",
+      "few_shot_examples": [
+        {
+          "input": "- Add dark mode toggle to settings\n- Fix login bug\nTODO: improve test coverage",
+          "output": [
+            {
+              "title": "Add dark mode toggle to settings",
+              "description": "Implement a dark/light theme toggle in the application settings panel",
+              "priority": "medium",
+              "tags": ["ui", "feature", "settings"],
+              "estimated_hours": 4
+            },
+            {
+              "title": "Fix login bug",
+              "description": "Resolve authentication issue affecting user login process",
+              "priority": "high",
+              "tags": ["bug", "authentication", "login"],
+              "estimated_hours": 2
+            },
+            {
+              "title": "Improve test coverage",
+              "description": "Increase automated test coverage for better code quality assurance",
+              "priority": "medium",
+              "tags": ["testing", "quality", "coverage"],
+              "estimated_hours": 8
+            }
+          ]
+        }
+      ]
+    },
+    "research_agent": {
+      "system_prompt": "You are a technical research analyst. Analyze task requirements, research best practices, and create detailed implementation plans based on available information.",
+      "search_strategies": [
+        "technology_specific",
+        "best_practices",
+        "implementation_examples",
+        "common_pitfalls",
+        "testing_approaches"
+      ],
+      "output_requirements": {
+        "investigation_report": "Detailed analysis of requirements, challenges, and approach",
+        "implementation_plan": "Step-by-step implementation guide with milestones",
+        "technical_requirements": "Dependencies, tools, libraries, and infrastructure needs",
+        "risk_assessment": "Potential issues and mitigation strategies"
+      }
+    },
+    "implementation_agent": {
+      "system_prompt": "You are an expert software engineer. Implement tasks following best practices, proper error handling, testing, and documentation standards.",
+      "coding_standards": {
+        "prefer_existing_patterns": true,
+        "require_error_handling": true,
+        "include_documentation": true,
+        "write_tests": true,
+        "follow_project_conventions": true
+      }
+    }
+  },
+  "monitoring": {
+    "status_check_interval_minutes": 15,
+    "health_check_endpoints": [
+      "/api/health",
+      "/api/tasks/stats"
+    ],
+    "alert_thresholds": {
+      "stuck_tasks_count": 5,
+      "failed_runs_per_hour": 10,
+      "avg_processing_time_hours": 12
+    },
+    "metrics_retention_days": 90
+  },
+  "security": {
+    "api_rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 60,
+      "burst_limit": 100
+    },
+    "input_sanitization": {
+      "enabled": true,
+      "max_input_length": 50000,
+      "blocked_patterns": [
+        "eval\\(",
+        "exec\\(",
+        "<script",
+        "javascript:",
+        "data:text/html"
+      ]
+    },
+    "audit_logging": {
+      "enabled": true,
+      "log_task_changes": true,
+      "log_api_access": true,
+      "retention_days": 365
+    }
+  },
+  "integration": {
+    "webhooks": {
+      "enabled": true,
+      "max_retries": 3,
+      "timeout_seconds": 30,
+      "supported_events": [
+        "task.created",
+        "task.status_changed",
+        "task.completed",
+        "task.failed"
+      ]
+    },
+    "external_apis": {
+      "github_integration": {
+        "enabled": false,
+        "auto_create_issues": false,
+        "auto_create_prs": false
+      },
+      "slack_notifications": {
+        "enabled": false,
+        "channels": {
+          "alerts": "#task-planner-alerts",
+          "completions": "#task-planner-updates"
+        }
+      }
+    }
+  },
+  "development": {
+    "debug_mode": false,
+    "verbose_logging": false,
+    "mock_ai_responses": false,
+    "test_data_generation": {
+      "enabled": false,
+      "sample_apps_count": 3,
+      "sample_tasks_per_app": 10
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OWASP ZAP Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "api_port": {
+      "type": "integer",
+      "description": "Port for ZAP REST API",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8180
+    },
+    "proxy_port": {
+      "type": "integer",
+      "description": "Port for ZAP HTTP/HTTPS proxy",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8181
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key for authentication (auto-generated if empty)",
+      "pattern": "^[a-zA-Z0-9-_]{0,64}$"
+    },
+    "disable_api_key": {
+      "type": "boolean",
+      "description": "Disable API key requirement (development only)",
+      "default": false
+    },
+    "attack_strength": {
+      "type": "string",
+      "description": "Active scan attack strength",
+      "enum": ["LOW", "MEDIUM", "HIGH", "INSANE"],
+      "default": "MEDIUM"
+    },
+    "alert_threshold": {
+      "type": "string",
+      "description": "Alert reporting threshold",
+      "enum": ["LOW", "MEDIUM", "HIGH"],
+      "default": "MEDIUM"
+    },
+    "scan_timeout": {
+      "type": "integer",
+      "description": "Maximum scan duration in seconds",
+      "minimum": 60,
+      "maximum": 86400,
+      "default": 3600
+    },
+    "spider_max_depth": {
+      "type": "integer",
+      "description": "Maximum spider crawl depth",
+      "minimum": 1,
+      "maximum": 50,
+      "default": 10
+    },
+    "memory_limit": {
+      "type": "string",
+      "description": "Docker container memory limit",
+      "pattern": "^[0-9]+[kmg]$",
+      "default": "1g"
+    },
+    "jvm_heap": {
+      "type": "string",
+      "description": "Java heap size",
+      "pattern": "^[0-9]+[kmg]$",
+      "default": "512m"
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging verbosity",
+      "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+      "default": "INFO"
+    },
+    "data_dir": {
+      "type": "string",
+      "description": "Directory for ZAP data storage",
+      "default": "${HOME}/.vrooli/resources/owasp-zap"
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

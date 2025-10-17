@@ -1,0 +1,21 @@
+{
+  "name": "study-buddy-ui",
+  "version": "1.0.0",
+  "description": "Interactive AI-powered study assistant with gamified learning",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
+    "socket.io": "^4.6.1",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

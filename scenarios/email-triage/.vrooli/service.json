@@ -1,0 +1,236 @@
+{
+   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+   "version": "1.0.0",
+   "service": {
+     "name": "email-triage",
+     "displayName": "Email Triage",
+     "description": "AI-powered multi-tenant email management and triage system",
+     "version": "1.0.0"
+   },
+  "category": "automation",
+  "type": "scenario",
+  "capabilities": [
+    "email-processing",
+    "semantic-search",
+    "ai-rule-generation",
+    "multi-tenant-saas"
+  ],
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "range": "35000-39999"
+     }
+   },
+  "resources": {
+    "required": [
+      "postgres",
+      "qdrant",
+      "scenario-authenticator",
+      "mail-in-a-box"
+    ],
+    "optional": [
+      "notification-hub",
+      "ollama",
+      "redis"
+    ]
+  },
+  "endpoints": {
+    "api": "http://localhost:3200",
+    "ui": "http://localhost:3201",
+    "health": "http://localhost:3200/health"
+  },
+  "database": {
+    "name": "email_triage",
+    "migrations": "initialization/postgres/",
+    "required_tables": [
+      "users",
+      "email_accounts",
+      "triage_rules",
+      "processed_emails"
+    ]
+  },
+  "authentication": {
+    "provider": "scenario-authenticator",
+    "required": true,
+    "jwt_validation": "http://localhost:8080/api/v1/auth/validate"
+  },
+  "revenue_model": {
+    "type": "subscription",
+    "pricing_tiers": [
+      {
+        "name": "free",
+        "price": 0,
+        "limits": {
+          "email_accounts": 1,
+          "processed_emails_per_month": 1000,
+          "rules": 5
+        }
+      },
+      {
+        "name": "pro",
+        "price": 29,
+        "limits": {
+          "email_accounts": 5,
+          "processed_emails_per_month": 10000,
+          "rules": 50
+        }
+      },
+      {
+        "name": "business",
+        "price": 99,
+        "limits": {
+          "email_accounts": 20,
+          "processed_emails_per_month": 100000,
+          "rules": 200
+        }
+      }
+    ]
+  },
+  "deployment": {
+    "startup_script": "api/start.sh",
+    "health_check_path": "/health",
+    "environment_variables": {
+      "DATABASE_URL": "postgres://postgres:password@localhost/email_triage",
+      "QDRANT_URL": "http://localhost:6333",
+      "AUTH_SERVICE_URL": "http://localhost:8080",
+      "MAIL_SERVER_URL": "localhost",
+      "NOTIFICATION_HUB_URL": "http://localhost:8081"
+    }
+  },
+  "ai_features": {
+    "rule_generation": true,
+    "semantic_search": true,
+    "priority_scoring": true,
+    "models": {
+      "embeddings": "all-MiniLM-L6-v2",
+      "rule_generation": "phi3.5:3.8b",
+      "classification": "phi3.5:3.8b"
+    }
+  },
+  "metadata": {
+    "created_at": "2025-01-09",
+    "business_value": "$20K-50K per deployment",
+    "target_users": [
+      "business-professionals",
+      "executives",
+      "support-teams"
+    ],
+    "integration_complexity": "moderate",
+    "maintenance_level": "low"
+  },
+    "lifecycle": {
+      "version": "2.0.0",
+      "health": {
+        "endpoints": {
+          "api": "/health",
+          "ui": "/health"
+        },
+        "checks": [
+          {
+            "name": "api_endpoint",
+            "type": "http",
+            "target": "http://localhost:${API_PORT}/health",
+            "timeout": 5,
+            "interval": 10,
+            "critical": true
+          },
+          {
+            "name": "ui_endpoint",
+            "type": "http",
+            "target": "http://localhost:${UI_PORT}/health",
+            "timeout": 5,
+            "interval": 10,
+            "critical": false
+          }
+        ]
+      },
+      "setup": {
+        "description": "Initialize Email Triage",
+        "condition": {
+          "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "api/email-triage-api"
+              ]
+            },
+             {
+               "type": "cli",
+               "targets": [
+                 "email-triage"
+               ]
+             }
+          ]
+        },
+        "steps": [
+          {
+            "name": "build-api",
+            "run": "cd api && go build -o email-triage-api .",
+            "description": "Build Go API binary"
+          },
+          {
+            "name": "install-cli",
+            "run": "cd cli && ./install.sh",
+            "description": "Install CLI command globally"
+          }
+        ]
+      },
+      "develop": {
+       "description": "Start email-triage services",
+       "steps": [
+          {
+            "name": "start-api",
+             "run": "cd api && DEV_MODE=true ./email-triage-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+               "file_exists": "api/email-triage-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && npm run dev",
+           "description": "Start UI development server",
+           "background": true,
+           "condition": {
+             "file_exists": "ui/package.json"
+           }
+         },
+         {
+           "name": "show-urls",
+           "run": "echo \"🚀 Email Triage running: API: http://localhost:${API_PORT:-19544} UI: http://localhost:${UI_PORT:-36294} Health: http://localhost:${API_PORT:-19544}/health\"",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+     "stop": {
+      "description": "Stop email-triage services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"email-triage-api\" || true; sleep 1; pkill -9 -f \"email-triage-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/email-triage/ui\" || true; sleep 1; pkill -9 -f \"scenarios/email-triage/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run email-triage test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd test && DEV_MODE=true API_PORT=${API_PORT} UI_PORT=${UI_PORT} bash test.sh",
+          "description": "Execute phased test suite"
+        }
+      ]
+    }
+  }
+}

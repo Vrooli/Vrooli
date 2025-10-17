@@ -1,0 +1,149 @@
+name: personal-digital-twin
+description: Validate digital twin creation and interaction capabilities
+version: 1.0.0
+
+resources:
+  required:
+    - ollama
+    - qdrant
+    - postgres
+    - minio
+    - unstructured-io
+    - n8n
+
+tests:
+  - name: resource_availability
+    description: Verify all required resources are accessible
+    steps:
+      - check_service: ollama:11434
+      - check_service: qdrant:6333
+      - check_service: postgres:5432
+      - check_service: minio:9000
+      - check_service: unstructured-io:8000
+      - check_service: n8n:5678
+
+  - name: persona_creation
+    description: Test creating a new digital twin persona
+    steps:
+      - api_call:
+          method: POST
+          url: http://localhost:8200/api/persona/create
+          body:
+            name: "TestPersona"
+            description: "Test digital twin"
+            personality_traits:
+              creativity: 0.8
+              analytical: 0.9
+          expected_status: 201
+      - verify_database:
+          table: personas
+          condition: "name = 'TestPersona'"
+
+  - name: data_ingestion_flow
+    description: Test data source connection and processing
+    steps:
+      - api_call:
+          method: POST
+          url: http://localhost:8200/api/datasource/connect
+          body:
+            persona_id: "${persona_id}"
+            source_type: "local_files"
+            source_config:
+              path: "/test-data"
+          expected_status: 200
+      - webhook_call:
+          url: http://n8n:5678/webhook/ingest
+          method: POST
+          body:
+            persona_id: "${persona_id}"
+            source_type: "local_files"
+      - wait: 10
+      - verify_database:
+          table: documents
+          condition: "persona_id = '${persona_id}' AND processing_status = 'completed'"
+
+  - name: semantic_search
+    description: Test vector search capabilities
+    steps:
+      - api_call:
+          method: POST
+          url: http://localhost:8200/api/search
+          body:
+            persona_id: "${persona_id}"
+            query: "test query"
+            limit: 10
+          expected_status: 200
+          validate_response:
+            has_field: "results"
+            array_length: ">=1"
+
+  - name: chat_interaction
+    description: Test chatting with digital twin
+    steps:
+      - api_call:
+          method: POST
+          url: http://localhost:8201/api/chat
+          body:
+            persona_id: "${persona_id}"
+            message: "Tell me about yourself"
+          expected_status: 200
+          validate_response:
+            has_field: "response"
+      - verify_database:
+          table: conversations
+          condition: "persona_id = '${persona_id}'"
+
+  - name: fine_tuning_trigger
+    description: Test model fine-tuning initiation
+    steps:
+      - api_call:
+          method: POST
+          url: http://localhost:8200/api/train/start
+          body:
+            persona_id: "${persona_id}"
+            model: "llama3.2"
+            technique: "lora"
+          expected_status: 202
+      - verify_database:
+          table: training_jobs
+          condition: "persona_id = '${persona_id}' AND status IN ('queued', 'running')"
+
+  - name: vector_storage
+    description: Verify vector embeddings are stored correctly
+    steps:
+      - http_request:
+          method: GET
+          url: http://qdrant:6333/collections/memories/points/${test_vector_id}
+          expected_status: 200
+          validate_response:
+            has_field: "result.payload.persona_id"
+
+  - name: api_token_generation
+    description: Test API token creation for external access
+    steps:
+      - api_call:
+          method: POST
+          url: http://localhost:8200/api/tokens/create
+          body:
+            persona_id: "${persona_id}"
+            name: "app-personalizer-integration"
+            permissions: ["read", "chat"]
+          expected_status: 201
+          validate_response:
+            has_field: "token"
+      - verify_database:
+          table: api_tokens
+          condition: "persona_id = '${persona_id}' AND name = 'app-personalizer-integration'"
+
+validation:
+  performance:
+    document_processing_time: "<60s per MB"
+    embedding_generation_time: "<5s per document"
+    search_response_time: "<500ms"
+    chat_response_time: "<3s"
+  
+  data_integrity:
+    - all_documents_have_embeddings: true
+    - personas_have_unique_names: true
+    - conversations_are_logged: true
+    - vectors_match_dimension: 768

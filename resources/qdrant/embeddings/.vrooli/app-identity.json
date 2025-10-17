@@ -1,0 +1,33 @@
+{
+  "app_id": "vrooli-test",
+  "type": "main",
+  "source_scenario": null,
+  "git_origin": "",
+  "created": "2025-08-27T16:35:10-04:00",
+  "last_indexed": "2025-08-28T01:38:09-04:00",
+  "index_commit": null,
+  "embedding_config": {
+    "model": "mxbai-embed-large",
+    "dimensions": 1024,
+    "collections": {
+      "workflows": "vrooli-test-workflows",
+      "scenarios": "vrooli-test-scenarios",
+      "knowledge": "vrooli-test-knowledge",
+      "code": "vrooli-test-code",
+      "resources": "vrooli-test-resources"
+    }
+  },
+  "stats": {
+    "total_embeddings": 0,
+    "last_refresh_duration_seconds": null,
+    "collections_count": 0,
+    "index_size_mb": 0
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "schema_version": "1.0.0",
+    "auto_index": true,
+    "index_on_commit": true,
+    "last_sync": "2025-08-28T01:38:09-04:00"
+  }
+}

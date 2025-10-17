@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OBS Studio Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "WebSocket server port for OBS Studio control",
+      "default": 4455,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "password": {
+      "type": "string",
+      "description": "WebSocket authentication password",
+      "minLength": 8,
+      "pattern": "^[a-zA-Z0-9!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]+$"
+    },
+    "config_dir": {
+      "type": "string",
+      "description": "Directory for OBS Studio configuration files",
+      "default": "~/.vrooli/obs-studio"
+    },
+    "recordings_dir": {
+      "type": "string",
+      "description": "Directory for saving recorded videos",
+      "default": "~/Videos/obs-recordings"
+    },
+    "mock_mode": {
+      "type": "boolean",
+      "description": "Run in mock mode for testing without real OBS Studio",
+      "default": true
+    },
+    "recording": {
+      "type": "object",
+      "description": "Recording configuration",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["mp4", "mkv", "flv", "mov"],
+          "default": "mp4",
+          "description": "Output file format for recordings"
+        },
+        "quality": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "ultra"],
+          "default": "high",
+          "description": "Recording quality preset"
+        },
+        "fps": {
+          "type": "integer",
+          "enum": [24, 30, 60, 120],
+          "default": 30,
+          "description": "Frames per second for recording"
+        },
+        "resolution": {
+          "type": "string",
+          "enum": ["720p", "1080p", "1440p", "4k"],
+          "default": "1080p",
+          "description": "Recording resolution"
+        }
+      }
+    },
+    "streaming": {
+      "type": "object",
+      "description": "Streaming configuration",
+      "properties": {
+        "service": {
+          "type": "string",
+          "enum": ["twitch", "youtube", "custom"],
+          "description": "Streaming service to use"
+        },
+        "server": {
+          "type": "string",
+          "description": "Streaming server URL",
+          "format": "uri"
+        },
+        "key": {
+          "type": "string",
+          "description": "Stream key (sensitive - store in environment)",
+          "minLength": 1
+        },
+        "bitrate": {
+          "type": "integer",
+          "description": "Streaming bitrate in kbps",
+          "minimum": 500,
+          "maximum": 10000,
+          "default": 2500
+        }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "description": "Pre-configured scenes",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Scene name",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "sources": {
+            "type": "array",
+            "description": "Sources in this scene",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["display", "window", "camera", "image", "text", "browser"],
+                  "description": "Source type"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Source name"
+                },
+                "settings": {
+                  "type": "object",
+                  "description": "Source-specific settings"
+                }
+              },
+              "required": ["type", "name"]
+            }
+          }
+        },
+        "required": ["name"]
+      }
+    },
+    "audio": {
+      "type": "object",
+      "description": "Audio configuration",
+      "properties": {
+        "desktop_audio": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable desktop audio capture"
+        },
+        "microphone": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable microphone capture"
+        },
+        "volume": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 50,
+          "description": "Master volume level"
+        }
+      }
+    },
+    "startup": {
+      "type": "object",
+      "description": "Startup behavior configuration",
+      "properties": {
+        "auto_start_recording": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start recording on startup"
+        },
+        "default_scene": {
+          "type": "string",
+          "description": "Scene to load on startup"
+        },
+        "minimize_to_tray": {
+          "type": "boolean",
+          "default": true,
+          "description": "Minimize OBS to system tray on startup"
+        }
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

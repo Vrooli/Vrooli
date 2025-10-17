@@ -1,0 +1,71 @@
+.alternatives-list {
+  background: var(--bg-primary);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.alternatives-list h3 {
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.alternatives-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.alternative-card {
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  transition: border-color 0.3s ease;
+}
+
+.alternative-card:hover {
+  border-color: var(--success-color);
+}
+
+.alternative-type {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.alternative-card h4 {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.alternative-price {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.alternative-price .price {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.alternative-price .savings {
+  background: var(--success-color);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.alternative-reason {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0.5rem 0 0 0;
+  line-height: 1.4;
+}

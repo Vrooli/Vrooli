@@ -1,0 +1,144 @@
+{
+  "platform_capabilities": {
+    "huginn": {
+      "agent_types": [
+        "WebsiteAgent",
+        "RssAgent", 
+        "TwitterStreamAgent",
+        "EmailAgent",
+        "JsonAgent",
+        "DataOutputAgent"
+      ],
+      "features": {
+        "scheduling": true,
+        "chaining": true,
+        "filtering": true,
+        "templating": true,
+        "webhooks": true
+      },
+      "best_for": "RSS feeds, social media monitoring, scheduled scraping"
+    },
+    "browserless": {
+      "capabilities": [
+        "screenshot",
+        "pdf",
+        "content",
+        "scrape",
+        "function"
+      ],
+      "features": {
+        "javascript_rendering": true,
+        "cookie_management": true,
+        "proxy_support": true,
+        "stealth_mode": true,
+        "parallel_execution": true
+      },
+      "best_for": "JavaScript-heavy sites, screenshots, PDF generation"
+    },
+    "agent-s2": {
+      "capabilities": [
+        "navigate",
+        "interact",
+        "extract",
+        "monitor",
+        "automate"
+      ],
+      "features": {
+        "ai_powered": true,
+        "visual_recognition": true,
+        "natural_language": true,
+        "adaptive_learning": true,
+        "complex_workflows": true
+      },
+      "best_for": "Complex interactions, dynamic content, AI-guided scraping"
+    }
+  },
+  "default_configurations": {
+    "huginn": {
+      "WebsiteAgent": {
+        "type": "WebsiteAgent",
+        "mode": "on_change",
+        "expected_update_period_in_days": 1,
+        "extract": {
+          "title": {"css": "h1", "value": "."},
+          "content": {"css": "article", "value": "."},
+          "links": {"css": "a", "value": "@href"}
+        }
+      }
+    },
+    "browserless": {
+      "screenshot": {
+        "fullPage": true,
+        "type": "png",
+        "quality": 80,
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "waitUntil": "networkidle2"
+      },
+      "scrape": {
+        "elements": [
+          {
+            "selector": "[data-testid]",
+            "timeout": 30000
+          }
+        ]
+      }
+    },
+    "agent-s2": {
+      "extraction": {
+        "strategy": "smart",
+        "fallback": "css",
+        "retry_on_failure": true,
+        "max_retries": 3,
+        "screenshot_on_error": true
+      }
+    }
+  },
+  "rate_limits": {
+    "default": {
+      "requests_per_second": 1,
+      "burst_size": 10,
+      "cooldown_seconds": 60
+    },
+    "by_domain": {
+      "twitter.com": {
+        "requests_per_second": 0.5,
+        "burst_size": 5
+      },
+      "linkedin.com": {
+        "requests_per_second": 0.2,
+        "burst_size": 3
+      }
+    }
+  },
+  "proxy_rotation": {
+    "enabled": true,
+    "strategy": "round_robin",
+    "health_check_interval_seconds": 300,
+    "failure_threshold": 3,
+    "providers": [
+      {
+        "name": "default",
+        "type": "datacenter",
+        "locations": ["US", "EU", "ASIA"]
+      }
+    ]
+  },
+  "export_formats": {
+    "json": {
+      "pretty_print": true,
+      "compression": "gzip"
+    },
+    "csv": {
+      "delimiter": ",",
+      "include_headers": true,
+      "encoding": "utf-8"
+    },
+    "parquet": {
+      "compression": "snappy",
+      "row_group_size": 10000
+    }
+  }
+}

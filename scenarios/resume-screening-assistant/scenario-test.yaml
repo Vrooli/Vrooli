@@ -1,0 +1,136 @@
+version: 1.0
+scenario: resume-screening-assistant
+
+# Structure validation
+structure:
+  required_files:
+    - .vrooli/service.json
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - initialization/automation/n8n/resume-processing-pipeline.json
+    - initialization/automation/n8n/job-management-workflow.json
+    - initialization/automation/n8n/semantic-search-workflow.json
+    - initialization/automation/windmill/recruitment-app.json
+    - api/main.go
+    - api/go.mod
+    - cli/resume-screening-assistant
+    - cli/install.sh
+    - test.sh
+    - custom-tests.sh
+  
+  required_dirs:
+    - .vrooli
+    - initialization/storage/postgres
+    - initialization/automation/n8n
+    - initialization/automation/windmill
+    - api
+    - cli
+    - test
+
+# Resource requirements
+resources:
+  required: [postgres, ollama, qdrant, n8n, windmill]
+  optional: [minio, browserless]
+  health_timeout: 35
+
+# Declarative tests
+tests:
+  - name: "Resume Screening API Health Check"
+    type: http
+    service: coordination-api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "AI Model Engine Ready"
+    type: http
+    service: ollama
+    endpoint: /api/tags
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Vector Database Ready"
+    type: http
+    service: qdrant
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Windmill Dashboard Ready"
+    type: http
+    service: windmill
+    endpoint: /api/version
+    method: GET
+    expect:
+      status: 200
+
+  - name: "n8n Automation Engine Ready"
+    type: http
+    service: n8n
+    endpoint: /healthz
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Jobs API Endpoint"
+    type: http
+    service: coordination-api
+    endpoint: /api/jobs
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Candidates API Endpoint"
+    type: http
+    service: coordination-api
+    endpoint: /api/candidates
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Search API Endpoint"
+    type: http
+    service: coordination-api
+    endpoint: /api/search
+    method: GET
+    params:
+      query: "test"
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Database Connection"
+    type: tcp
+    service: postgres
+    port: 5432
+        
+  - name: "Resume Screening Business Workflow"
+    type: custom
+    script: custom-tests.sh
+    function: test_resume_screening_assistant_workflow
+
+# Validation criteria
+validation:
+  success_rate: 85        # High success rate for HR tech platform
+  response_time: 12000    # 12 seconds max for resume processing operations
+  revenue_potential: 58000  # Total estimate from service.json
+  business_criteria:
+    - "AI-powered resume parsing and analysis operational"
+    - "Intelligent candidate scoring system functional"
+    - "Vector-based job matching capabilities validated"
+    - "HR workflow automation features verified"
+    - "Talent acquisition pipeline optimization confirmed"
+    - "Modern API and CLI interface available"
+    - "Windmill dashboard providing user interface"

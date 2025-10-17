@@ -1,0 +1,172 @@
+{
+  "resources": {
+    "postgres": {
+      "host": "localhost",
+      "port": 5435,
+      "database": "file_manager",
+      "username": "filemanager_user",
+      "url": "postgresql://filemanager_user:${POSTGRES_PASSWORD}@localhost:5435/file_manager",
+      "sslMode": "prefer",
+      "maxConnections": 20,
+      "idleTimeout": 30000
+    },
+    
+    "redis": {
+      "host": "localhost", 
+      "port": 6380,
+      "database": 1,
+      "url": "redis://localhost:6380/1",
+      "keyPrefix": "file_manager:",
+      "maxRetries": 3,
+      "retryDelay": 1000
+    },
+    
+    "qdrant": {
+      "host": "localhost",
+      "port": 6335,
+      "url": "http://localhost:6335",
+      "timeout": 30000,
+      "collections": {
+        "fileEmbeddings": "file_embeddings",
+        "imageEmbeddings": "image_embeddings", 
+        "contentChunks": "content_chunks"
+      }
+    },
+    
+    "minio": {
+      "endpoint": "localhost",
+      "port": 9001,
+      "url": "http://localhost:9001",
+      "accessKey": "${MINIO_ROOT_USER}",
+      "secretKey": "${MINIO_ROOT_PASSWORD}",
+      "useSSL": false,
+      "buckets": {
+        "original": "original-files",
+        "processed": "processed-files",
+        "thumbnails": "thumbnails",
+        "exports": "exports"
+      }
+    },
+    
+    "ollama": {
+      "host": "localhost",
+      "port": 11434,
+      "url": "http://localhost:11434",
+      "timeout": 300000,
+      "models": {
+        "vision": "llava:13b",
+        "text": "llama3.2",
+        "embedding": "nomic-embed-text"
+      },
+      "endpoints": {
+        "generate": "/api/generate",
+        "embeddings": "/api/embeddings",
+        "tags": "/api/tags",
+        "show": "/api/show"
+      }
+    },
+    
+    "unstructured": {
+      "host": "localhost",
+      "port": 8000,
+      "url": "http://localhost:8000",
+      "timeout": 120000,
+      "endpoints": {
+        "general": "/general/v0/general"
+      },
+      "config": {
+        "strategy": "hi_res",
+        "pdfInferTableStructure": true,
+        "extractImagesInPdf": true,
+        "ocrLanguages": ["eng", "spa", "fra", "deu"]
+      }
+    },
+    
+    "n8n": {
+      "host": "localhost",
+      "port": 5680,
+      "url": "http://localhost:5680",
+      "timeout": 60000,
+      "webhooks": {
+        "fileUpload": "/webhook/file-upload",
+        "batchProcess": "/webhook/batch-process",
+        "searchQuery": "/webhook/search"
+      },
+      "api": {
+        "workflows": "/api/v1/workflows",
+        "executions": "/api/v1/executions"
+      }
+    },
+    
+    "windmill": {
+      "host": "localhost",
+      "port": 8002,
+      "url": "http://localhost:8002",
+      "workspace": "file_manager",
+      "timeout": 300000,
+      "api": {
+        "scripts": "/api/w/file_manager/scripts",
+        "apps": "/api/w/file_manager/apps",
+        "jobs": "/api/w/file_manager/jobs",
+        "resources": "/api/w/file_manager/resources"
+      }
+    }
+  },
+  
+  "healthChecks": {
+    "postgres": {
+      "query": "SELECT 1",
+      "timeout": 5000
+    },
+    "redis": {
+      "command": "PING", 
+      "timeout": 3000
+    },
+    "qdrant": {
+      "endpoint": "/health",
+      "timeout": 5000
+    },
+    "minio": {
+      "endpoint": "/minio/health/ready",
+      "timeout": 5000
+    },
+    "ollama": {
+      "endpoint": "/api/version",
+      "timeout": 10000
+    },
+    "unstructured": {
+      "endpoint": "/healthcheck",
+      "timeout": 5000
+    },
+    "n8n": {
+      "endpoint": "/healthz",
+      "timeout": 5000
+    },
+    "windmill": {
+      "endpoint": "/api/version",
+      "timeout": 5000
+    }
+  },
+  
+  "failover": {
+    "enabled": true,
+    "retries": 3,
+    "backoff": {
+      "initial": 1000,
+      "multiplier": 2,
+      "max": 30000
+    }
+  },
+  
+  "monitoring": {
+    "enabled": true,
+    "interval": 30000,
+    "alerts": {
+      "enabled": true,
+      "thresholds": {
+        "responseTime": 5000,
+        "errorRate": 0.05
+      }
+    }
+  }
+}

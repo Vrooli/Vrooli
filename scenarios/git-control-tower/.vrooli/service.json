@@ -1,0 +1,158 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "git-control-tower",
+    "displayName": "Git Control Tower",
+    "description": "Centralized git repository management with structured APIs for agent-accessible version control operations",
+    "version": "1.0.0",
+    "tags": ["git", "version-control", "devops", "automation"]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 18700,
+      "description": "Git Control Tower API port",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Metadata storage for commit history, audit logs, draft queue"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "description": "Diff snapshot caching and fsnotify invalidation"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "description": "AI-assisted commit message generation and change analysis"
+    },
+    "resource-openrouter": {
+      "type": "resource-openrouter",
+      "enabled": false,
+      "required": false,
+      "description": "AI fallback for commit message generation"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Git Control Tower health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "target": "vrooli_git_control_tower",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Git Control Tower with database and git access",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/git-control-tower-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "git-control-tower"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o git-control-tower-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "create-data-directories",
+          "run": "mkdir -p data/temp data/logs",
+          "description": "Create data storage directories"
+        },
+        {
+          "name": "initialize-database",
+          "run": "if command -v psql &> /dev/null; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql 2>/dev/null || echo '⚠️  Database schema initialization skipped (psql connection failed - run schema manually via docker exec)'; else echo '⚠️  Database initialization skipped (psql not available - run: docker exec vrooli-postgres-main psql -U vrooli -d vrooli -f /path/to/schema.sql)'; fi",
+          "description": "Run schema in shared vrooli database (optional if using containerized DB)"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"🚀 Git Control Tower initialized\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Git Control Tower services for development",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./git-control-tower-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/git-control-tower-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"🚀 Git Control Tower running\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Git Control Tower functionality",
+      "steps": [
+        {
+          "name": "test-structure",
+          "run": "bash test/phases/test-structure.sh",
+          "description": "Validate project structure"
+        },
+        {
+          "name": "test-dependencies",
+          "run": "bash test/phases/test-dependencies.sh",
+          "description": "Check required dependencies"
+        },
+        {
+          "name": "test-integration",
+          "run": "bash test/phases/test-integration.sh",
+          "description": "Run integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop all services gracefully"
+    }
+  }
+}

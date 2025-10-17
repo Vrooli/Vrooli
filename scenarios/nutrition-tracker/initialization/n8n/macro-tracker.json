@@ -1,0 +1,180 @@
+{
+  "name": "NutriTrack - Macro Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nutrition-tracker/macro-tracker",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  user_id: 'test-user',\n  date: new Date().toISOString().split('T')[0],\n  meal_entries: [\n    {\n      meal_type: 'breakfast',\n      calories: 350,\n      protein: 25,\n      carbs: 40,\n      fat: 12\n    },\n    {\n      meal_type: 'lunch',\n      calories: 550,\n      protein: 35,\n      carbs: 60,\n      fat: 20\n    }\n  ],\n  daily_goals: {\n    calories: 2000,\n    protein: 150,\n    carbs: 250,\n    fat: 65\n  }\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $('Manual').first() !== undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "defaults",
+      "name": "Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate macro totals and remaining targets\nconst isManual = $('Manual').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\n// Calculate totals from meal entries\nlet totals = {\n  calories: 0,\n  protein: 0,\n  carbs: 0,\n  fat: 0\n};\n\nif (input.meal_entries && Array.isArray(input.meal_entries)) {\n  input.meal_entries.forEach(meal => {\n    totals.calories += meal.calories || 0;\n    totals.protein += meal.protein || 0;\n    totals.carbs += meal.carbs || 0;\n    totals.fat += meal.fat || 0;\n  });\n}\n\n// Get daily goals (with defaults if not provided)\nconst goals = input.daily_goals || {\n  calories: 2000,\n  protein: 150,\n  carbs: 250,\n  fat: 65\n};\n\n// Calculate remaining macros\nconst remaining = {\n  calories: Math.max(0, goals.calories - totals.calories),\n  protein: Math.max(0, goals.protein - totals.protein),\n  carbs: Math.max(0, goals.carbs - totals.carbs),\n  fat: Math.max(0, goals.fat - totals.fat)\n};\n\n// Calculate percentages\nconst percentages = {\n  calories: Math.min(100, (totals.calories / goals.calories * 100).toFixed(1)),\n  protein: Math.min(100, (totals.protein / goals.protein * 100).toFixed(1)),\n  carbs: Math.min(100, (totals.carbs / goals.carbs * 100).toFixed(1)),\n  fat: Math.min(100, (totals.fat / goals.fat * 100).toFixed(1))\n};\n\n// Calculate macro distribution\nconst totalCaloriesFromMacros = (totals.protein * 4) + (totals.carbs * 4) + (totals.fat * 9);\nconst macroDistribution = {\n  protein_percent: totalCaloriesFromMacros > 0 ? ((totals.protein * 4 / totalCaloriesFromMacros) * 100).toFixed(1) : 0,\n  carbs_percent: totalCaloriesFromMacros > 0 ? ((totals.carbs * 4 / totalCaloriesFromMacros) * 100).toFixed(1) : 0,\n  fat_percent: totalCaloriesFromMacros > 0 ? ((totals.fat * 9 / totalCaloriesFromMacros) * 100).toFixed(1) : 0\n};\n\nreturn [{\n  json: {\n    user_id: input.user_id,\n    date: input.date || new Date().toISOString().split('T')[0],\n    totals: totals,\n    goals: goals,\n    remaining: remaining,\n    percentages: percentages,\n    macro_distribution: macroDistribution,\n    meal_count: input.meal_entries ? input.meal_entries.length : 0,\n    status: {\n      on_track: percentages.calories <= 100,\n      protein_adequate: percentages.protein >= 80,\n      balanced: Math.abs(parseFloat(macroDistribution.protein_percent) - 30) < 10 &&\n                Math.abs(parseFloat(macroDistribution.carbs_percent) - 40) < 10 &&\n                Math.abs(parseFloat(macroDistribution.fat_percent) - 30) < 10\n    }\n  }\n}];"
+      },
+      "id": "calculate-macros",
+      "name": "Calculate Macros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate insights about macro intake\nconst data = $json;\n\nconst prompt = `You are a nutrition expert analyzing macro nutrient data.\n\nUser's daily macro intake:\n- Calories: ${data.totals.calories} / ${data.goals.calories} (${data.percentages.calories}%)\n- Protein: ${data.totals.protein}g / ${data.goals.protein}g (${data.percentages.protein}%)\n- Carbs: ${data.totals.carbs}g / ${data.goals.carbs}g (${data.percentages.carbs}%)\n- Fat: ${data.totals.fat}g / ${data.goals.fat}g (${data.percentages.fat}%)\n\nMacro distribution:\n- Protein: ${data.macro_distribution.protein_percent}%\n- Carbs: ${data.macro_distribution.carbs_percent}%\n- Fat: ${data.macro_distribution.fat_percent}%\n\nProvide a brief (2-3 sentences) personalized insight about their macro intake today. Focus on:\n1. What they're doing well\n2. One specific suggestion for improvement\n3. Be encouraging and constructive\n\nReturn ONLY the insight text, no JSON or formatting.`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2\",\n    type: \"generation\",\n    temperature: 0.7,\n    format: \"text\",\n    quiet: true,\n    macro_data: data\n  }\n}];"
+      },
+      "id": "prepare-insight-prompt",
+      "name": "Prepare Insight Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.prompt,\n  model: $json.model,\n  type: $json.type,\n  quiet: $json.quiet,\n  timeout_seconds: $json.timeout_seconds || 120\n}) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "generate-insight",
+      "name": "Call Shared Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine macro data with AI insight from HTTP response\nconst httpResponse = $json;\nconst macroData = $('Prepare Insight Prompt').first().json.macro_data;\n\n// Extract the insight from the ollama HTTP response\nlet insight = \"Keep up the great work tracking your nutrition!\";\nif (httpResponse.response) {\n  insight = httpResponse.response;\n}\n\nreturn [{\n  json: {\n    success: true,\n    user_id: macroData.user_id,\n    date: macroData.date,\n    totals: macroData.totals,\n    goals: macroData.goals,\n    remaining: macroData.remaining,\n    percentages: macroData.percentages,\n    macro_distribution: macroData.macro_distribution,\n    meal_count: macroData.meal_count,\n    status: macroData.status,\n    insight: insight,\n    recommendations: {\n      need_more_protein: macroData.percentages.protein < 60,\n      reduce_carbs: parseFloat(macroData.macro_distribution.carbs_percent) > 50,\n      increase_healthy_fats: parseFloat(macroData.macro_distribution.fat_percent) < 20,\n      calorie_warning: macroData.percentages.calories > 90 ? \"approaching_limit\" : macroData.percentages.calories > 100 ? \"exceeded\" : \"on_track\"\n    },\n    created_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Calculate Macros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual": {
+      "main": [
+        [
+          {
+            "node": "Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defaults": {
+      "main": [
+        [
+          {
+            "node": "Calculate Macros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Macros": {
+      "main": [
+        [
+          {
+            "node": "Prepare Insight Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Insight Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["nutrition", "macros", "tracking", "ai"],
+  "id": "macro-tracker"
+}

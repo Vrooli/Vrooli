@@ -1,0 +1,66 @@
+# Scenario Generation Task Template
+id: "scenario-generator-CHANGEME-{{ timestamp }}"
+title: "Generate [SCENARIO_NAME] scenario for [PURPOSE]"
+
+# Core classification
+type: "scenario"
+operation: "generator"
+category: "CHANGEME"  # productivity | ai-tools | business | personal | automation | entertainment
+
+# Priority and scheduling
+priority: "medium"
+effort_estimate: "6h"  # Scenarios typically more complex than resources
+urgency: "normal"
+
+# Dependencies and relationships
+dependencies: []  # Required resources or other scenarios
+blocks: []
+related_scenarios: []  # Scenarios this could integrate with
+related_resources: []  # Resources this scenario will use
+
+# Progress tracking
+status: "pending"
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 0
+last_completed_at: ""
+
+# Quality gates for scenario generation
+validation_criteria:
+  - "PRD.md is comprehensive with clear value proposition"
+  - "All required resources are available or planned"
+  - "API endpoints are functional"
+  - "UI provides complete user workflow"
+  - "CLI commands work as expected"
+  - "Test coverage above 70%"
+  - "Documentation includes user guides and examples"
+  - "Revenue model is clearly defined"
+
+# Metadata
+created_by: "user"
+created_at: "{{ timestamp }}"
+updated_at: "{{ timestamp }}"
+tags: ["new-scenario", "generation"]
+notes: |
+  Template guidance for new scenario generation. Before execution define:
+    • Base template (basic, ai-powered, data-processing, business-tool, personal-utility)
+    • Research focus (similar scenarios, required resources, user workflows, revenue opportunities, integration paths)
+    • Deliverables (comprehensive PRD, full directory, API + UI + CLI implementations, robust tests, documentation)
+    • Unique requirements, required resources, and key user journeys to prioritize
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    test_coverage_percentage: 0
+    api_endpoints_count: 0
+    revenue_potential: ""
+  artifacts:
+    prd_location: ""
+    api_docs_location: ""
+    ui_demo_url: ""
+    scenario_directory: ""

@@ -1,0 +1,60 @@
+name: agent-dashboard
+description: Cyberpunk-themed monitoring dashboard for AI agents within Vrooli resources
+version: 1.0.0
+
+tests:
+  - name: Service Configuration Test
+    type: validate_config
+    config:
+      file: .vrooli/service.json
+      required_fields:
+        - service.name
+        - service.description
+        - service.version
+        - ports
+        - lifecycle
+
+  - name: UI Server Test
+    type: http_check
+    config:
+      url: http://localhost:${UI_PORT}
+      method: GET
+      expected_status: 200
+      timeout: 10
+
+  - name: API Health Check
+    type: http_check
+    config:
+      url: http://localhost:${API_PORT}/health
+      method: GET
+      expected_status: 200
+      timeout: 5
+
+  - name: Agent Discovery Endpoint
+    type: api_test
+    config:
+      url: http://localhost:${API_PORT}/api/v1/agents
+      method: GET
+      expected_response:
+        type: object
+        required_fields:
+          - agents
+          - last_scan
+          - scan_in_progress
+      timeout: 5
+
+  - name: CLI Installation Test
+    type: cli_test
+    config:
+      install_script: cli/install.sh
+      commands:
+        - agent-dashboard --version
+        - agent-dashboard list
+        - agent-dashboard status
+
+validation:
+  required_resources: []
+  optional_resources: []
+  environment:
+    - UI_PORT
+    - API_PORT

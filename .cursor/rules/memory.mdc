@@ -1,135 +1,56 @@
 ---
-description: 
+description: Vrooli Intelligence System - Core Instructions
 globs: 
 alwaysApply: true
 ---
-You have no persistent memory - your memory resets completely between sessions. This design choice ensures you maintain impeccable, clear, and thorough documentation. **After every memory reset, you rely solely on files in /docs.** This acts as your long-term memory back. Reading **ALL** required /docs files at the start of every task is mandatory and non-negotiable.
+You are working on Vrooli - a **self-improving intelligence system** where agents build tools that make future agents smarter in an infinite recursive loop. This is NOT just an automation platform.
 
-## Memory Bank (Documenation) Structure
+## ⚡ Essential Commands
+- `vrooli help` - See all available commands
+- `vrooli test help` - See test commands  
+- `vrooli develop` - Start development environment
+- `./scripts/manage.sh setup --yes yes` - Initial setup
 
-All documentation files are Markdown files, structured clearly to maintain context and progress continuity across resets.
+## 🧠 Understanding Vrooli's True Nature
 
-### Core Files (Always Required):
+### Core Vision
+- **Recursive Intelligence**: Every app built becomes a permanent capability
+- **Compound Learning**: System literally cannot forget solutions, only improves
+- **Shared Resources**: Apps share N8n, Redis, Qdrant, PostgreSQL to collaborate
+- **Scenarios = Businesses**: Not tests! Each scenario generates $10K-50K value
 
-- **[context.md](mdc:docs/context.md)**
-  - Overview of project purpose and goals  
-  - Business and technical rationale  
-  - User experience expectations and core functionality
+### The Intelligence Loop
+1. Agent solves problem → Solution crystallized as app/workflow
+2. Future agents use solution as building block → More complex problems solvable
+3. Each iteration makes ALL future iterations more powerful → ∞
 
-- **[decisions.md](mdc:docs/decisions.md)**  
-  - Major project decisions  
-  - Justifications for each decision  
-  - Impact and consequences of decisions
+## 📋 Task Management
+Use keywords to trigger commands:
+- **"organize next task"** - Process first unstructured task
+- **"start next task"** - Begin highest priority task
+- **"update task statuses"** - Review and update progress
+- **"research"** - Deep dive on topics
+- **"suggest new tasks"** - Analyze for improvements
 
-- **[risks.md](mdc:docs/risks.md)**  
-  - Technical, strategic, operational risks  
-  - Risk severity and potential impacts  
-  - Mitigation strategies
+## 🔧 AI Maintenance Tracking
+- Before work: `rg "AI_CHECK:.*TASK_ID" --type ts`
+- After work: `// AI_CHECK: TASK_ID=count | LAST: YYYY-MM-DD`
+- Details: `/docs/ai-maintenance/README.md`
 
-- **[roadmap.md](mdc:docs/roadmap.md)**  
-  - Project milestones  
-  - Future vision and long-term goals  
-  - Realistic timelines for delivery
+## ❌ Critical Rules
+1. **NEVER** create files unless absolutely necessary
+2. **ALWAYS** prefer editing existing files
+3. **NEVER** install packages without permission
+4. **NEVER** create documentation unless explicitly requested
+5. **ALWAYS** read `/docs/context.md` and CLAUDE.md at session start
 
-- **[tools.md](mdc:docs/tools.md)**
-  - Commands and tools available to you, typically within the terminal
+## 📁 Documentation Structure
+Core files to read at session start:
+- `/CLAUDE.md` - Primary instructions (this overrides defaults!)
+- `/docs/context.md` - Project overview
+- `/docs/scratch/` - Previous session notes
 
-### Task Management (`/docs/tasks/` folder):
+## 🎯 Remember The Mission
+Every line of code becomes **permanent intelligence** the system uses forever. You're not building features - you're expanding the system's ability to understand and solve problems autonomously.
 
-Tasks are clearly organized and managed through multiple Markdown files categorized by their status:
-
-- **[active.md](mdc:docs/tasks/active.md)** : Tasks currently underway
-- **[background.md](mdc:docs/docs/about/background.md)**: Unstructured, quick notes, and ideas awaiting research and clarification
-- **[staged.md](mdc:docs/tasks/staged.md)**: Tasks that have been clarified, researched, and structured but not yet started
-- **[completed.md](mdc:docs/tasks/completed.md)**: Finished tasks with clear documentation on outcomes
-- **[failed.md](mdc:docs/tasks/failed.md)**: Tasks that have been abandoned or blocked permanently, including reasons and lessons learned
-
-### Temporary Working Files (`/docs/scratch` folder):
-
-- Temporary notes, research results, or drafts generated during the current task
-- Clear out or transfer important information after confirmation of task completion
-
-### Project Documentation (`docs/` folder):
-
-Organized documentation covering technical details, integrations, testing, deployments, APIs, and guides.
-
-Recommended organization:
-
-- **Deployment:** Guides for Kubernetes, Docker, serverless deployments, etc.
-  - `deploy-kubernetes.md`
-  - `deploy-docker.md`
-
-- **Testing:** Documentation for performance, mobile, unit, integration, and end-to-end testing strategies
-  - `testing-performance.md`
-  - `testing-mobile.md`
-  - `testing-strategies.md`
-
-- **API Reference:**
-  - Clearly structured API endpoint details, usage, and examples
-  - `api-reference.md`
-
-- **Integrations and Infrastructure:** Documentation for third-party integrations, cloud setup, and infrastructure specifics
-  - `integrations.md`
-  - `infrastructure.md`
-
-- **Other:** Additional docs as necessary (e.g., architectural diagrams, security standards)
-
----
-
-## Agent Core Workflows
-
-### Initialization Workflow
-
-Every task session begins by reading **ALL** Memory Bank files:
-
-```mermaid
-flowchart TD
-  Start --> ReadAll[Read ALL Memory Bank Files]
-  ReadAll --> VerifyContext[Verify Completeness and Context Clarity]
-  VerifyContext --> DecideAction{Ready to Proceed?}
-  DecideAction -->|Yes| Act[Continue with Task]
-  DecideAction -->|No| Clarify[Request Clarifications]
-```
-
-### Documentation Update Workflow
-
-Trigger documentation updates when:
-
-- New project patterns or important insights are identified
-- Significant project decisions are made or implemented
-- User explicitly requests with **"update memory bank"** (requires reviewing **all files**)
-- Context becomes outdated or ambiguous
-
-Prioritize updating `active.md`, `backlog.md`, `staged.md`, `completed.md`, and core docs (`context.md`, `decisions.md`, `risks.md`, `roadmap.md`).
-
-```mermaid
-flowchart TD
-  Trigger[Documentation Update Triggered]
-  Trigger --> Review[Review ALL Memory Bank Files]
-  Review --> UpdateTasks[Update Tasks & Task States]
-  UpdateTasks --> UpdateCore[Update Core Docs & Context]
-  UpdateCore --> Summarize[Summarize Updates Clearly]
-```
-
-### Task Execution Workflow
-
-```mermaid
-flowchart TD
-  Start[Start Task] --> CheckMemory[Check & Read Memory Bank]
-  CheckMemory --> UpdateDocs[Update Docs if Needed]
-  UpdateDocs --> ExecuteTask[Perform Task]
-  ExecuteTask --> UpdateTasks[Update Task Status & Outcomes]
-  UpdateTasks --> Summarize[Summarize & Document Results]
-```
-
----
-
-## Key Rules to Remember:
-
-- **Always** start by reading **every** required memory file.
-- Maintain each file’s integrity and organization rigorously—clarity is critical.
-- Clearly document decisions, changes, task outcomes, and discovered insights.
-- Update the documentation regularly, proactively, and thoroughly—your effectiveness depends solely on its completeness and accuracy.
-- Use `/docs/scratch/` for temporary working information; transfer finalized insights and important details to permanent documenation files before clearing.
-
-This structured and disciplined documentation approach ensures continuous progress and clarity, no matter how many resets occur.
+**When in doubt:** Read `/CLAUDE.md` - it contains the most up-to-date instructions and overrides everything else.

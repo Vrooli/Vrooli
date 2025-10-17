@@ -1,0 +1,75 @@
+# User-Specific Automation Example
+# This demonstrates how to create automations that respond to different users
+
+automation:
+  - alias: "Welcome Admin User"
+    trigger:
+      - platform: state
+        entity_id: person.admin
+        to: 'home'
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "Admin Access"
+          message: "Welcome back, Administrator. All systems operational."
+          notification_id: "admin_welcome"
+  
+  - alias: "Welcome Regular User"
+    trigger:
+      - platform: state
+        entity_id: person.user
+        to: 'home'
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "User Access"
+          message: "Welcome home! Your regular services are available."
+          notification_id: "user_welcome"
+  
+  - alias: "Guest Access Notification"
+    trigger:
+      - platform: state
+        entity_id: person.guest
+        to: 'home'
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "Guest Access"
+          message: "Welcome, guest. Limited access granted."
+          notification_id: "guest_welcome"
+
+# Input boolean for user permissions
+input_boolean:
+  admin_mode:
+    name: Administrator Mode
+    initial: off
+    icon: mdi:shield-account
+  
+  guest_mode:
+    name: Guest Mode
+    initial: off
+    icon: mdi:account-question
+
+# Scripts for user-specific actions
+script:
+  enable_admin_features:
+    alias: "Enable Admin Features"
+    sequence:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.admin_mode
+      - service: notify.persistent_notification
+        data:
+          title: "Admin Mode"
+          message: "Administrator features enabled"
+  
+  enable_guest_restrictions:
+    alias: "Enable Guest Restrictions"
+    sequence:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.guest_mode
+      - service: notify.persistent_notification
+        data:
+          title: "Guest Mode"
+          message: "Guest restrictions applied"

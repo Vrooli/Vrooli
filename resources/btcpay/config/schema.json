@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BTCPay Server Configuration Schema",
+  "type": "object",
+  "properties": {
+    "network": {
+      "type": "string",
+      "enum": ["mainnet", "testnet", "regtest"],
+      "default": "mainnet",
+      "description": "Bitcoin network to use"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 23000,
+      "description": "Port for BTCPay Server API"
+    },
+    "postgres": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "btcpay-postgres",
+          "description": "PostgreSQL host"
+        },
+        "port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port"
+        },
+        "database": {
+          "type": "string",
+          "default": "btcpayserver",
+          "description": "Database name"
+        },
+        "user": {
+          "type": "string",
+          "default": "btcpay",
+          "description": "Database user"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password"
+        }
+      },
+      "required": ["host", "port", "database", "user", "password"]
+    },
+    "lightning": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Lightning Network support"
+        },
+        "implementation": {
+          "type": "string",
+          "enum": ["lnd", "c-lightning", "eclair"],
+          "default": "lnd",
+          "description": "Lightning Network implementation to use"
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable REST API"
+        },
+        "rateLimit": {
+          "type": "integer",
+          "default": 100,
+          "description": "API rate limit per minute"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "requireHttps": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require HTTPS for all connections"
+        },
+        "allowedOrigins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"],
+          "description": "CORS allowed origins"
+        }
+      }
+    }
+  },
+  "required": ["network", "port", "postgres"]
+}

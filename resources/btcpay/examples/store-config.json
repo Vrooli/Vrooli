@@ -1,0 +1,31 @@
+{
+  "name": "Demo Store",
+  "website": "https://example.com",
+  "invoice_expiration": 15,
+  "monitoring_expiration": 1440,
+  "speed_policy": "HighSpeed",
+  "network": "BTC",
+  "payment_methods": [
+    {
+      "type": "BTCLike",
+      "crypto_code": "BTC",
+      "enabled": true
+    },
+    {
+      "type": "LightningLike",
+      "crypto_code": "BTC_LightningNetwork",
+      "enabled": false
+    }
+  ],
+  "checkout": {
+    "default_language": "en",
+    "redirect_automatically": true,
+    "require_email": true,
+    "show_recommendations": false
+  },
+  "receipt": {
+    "enabled": true,
+    "show_qr": true,
+    "show_payments": true
+  }
+}

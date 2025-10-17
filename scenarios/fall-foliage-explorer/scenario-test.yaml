@@ -1,0 +1,52 @@
+name: fall-foliage-explorer
+description: Tests for Fall Foliage Explorer scenario
+version: 1.0.0
+timeout: 30
+
+tests:
+  - name: API Health Check
+    type: http
+    request:
+      method: GET
+      url: http://localhost:${API_PORT}/health
+    expected:
+      status: 200
+      body:
+        status: healthy
+
+  - name: Get Regions
+    type: http
+    request:
+      method: GET
+      url: http://localhost:${API_PORT}/api/regions
+    expected:
+      status: 200
+      body:
+        status: success
+
+  - name: Get Foliage Data
+    type: http
+    request:
+      method: GET
+      url: http://localhost:${API_PORT}/api/foliage?region_id=1
+    expected:
+      status: 200
+      body:
+        status: success
+        data:
+          region_id: "1"
+
+  - name: CLI Version Check
+    type: cli
+    command: foliage-explorer --version
+    expected:
+      exit_code: 0
+      output_contains: "Fall Foliage Explorer"
+
+  - name: UI Health Check
+    type: http
+    request:
+      method: GET
+      url: http://localhost:${UI_PORT}/
+    expected:
+      status: 200

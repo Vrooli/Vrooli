@@ -1,0 +1,176 @@
+/* Application Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Header */
+.app-header {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-icon {
+  font-size: 1.5rem;
+}
+
+.logo h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Navigation Tabs */
+.nav-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+  justify-content: center;
+  max-width: 600px;
+  margin: 0 2rem;
+}
+
+.nav-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.nav-tab:hover {
+  background-color: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.nav-tab.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Status Indicator */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background-color: var(--bg-tertiary);
+  border-radius: 20px;
+  font-size: 0.875rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--warning-color);
+  animation: pulse 2s infinite;
+}
+
+.status-dot.connected {
+  background-color: var(--success-color);
+  animation: none;
+}
+
+.status-dot.disconnected {
+  background-color: var(--danger-color);
+  animation: none;
+}
+
+/* Main Content */
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--bg-primary);
+  padding: 1rem;
+}
+
+/* Tool Panels */
+.tool-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  animation: fadeIn 0.3s;
+}
+
+.tool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tool-header h2 {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.tool-options {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Footer */
+.app-footer {
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  flex-shrink: 0;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.footer-separator {
+  color: var(--border-color);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .nav-tabs {
+    flex-wrap: wrap;
+    margin: 0.5rem 0;
+  }
+  
+  .nav-tab {
+    font-size: 0.8rem;
+    padding: 0.375rem 0.5rem;
+  }
+  
+  .tool-options {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}

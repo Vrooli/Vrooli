@@ -1,0 +1,33 @@
+{
+  "type": "function",
+  "category": "git",
+  "function": {
+    "name": "git_commit",
+    "description": "Create a git commit with message and optional staging",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Commit message"
+        },
+        "files": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Files to stage before commit (optional)"
+        },
+        "all": {
+          "type": "boolean",
+          "description": "Stage all modified files before commit",
+          "default": false
+        },
+        "path": {
+          "type": "string",
+          "description": "Repository path",
+          "default": "."
+        }
+      },
+      "required": ["message"]
+    }
+  }
+}

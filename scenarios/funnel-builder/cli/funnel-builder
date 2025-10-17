@@ -1,0 +1,401 @@
+#!/bin/bash
+
+# Funnel Builder CLI
+# Command-line interface for managing funnels
+
+set -e
+
+# Resolve symlinks to find the real script location
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+    [[ $SCRIPT_PATH != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Discover API port if not set
+if [ -z "$API_PORT" ]; then
+    # Try to discover port from running scenario
+    DISCOVERED_PORT=$("$SCENARIO_DIR/scripts/get-api-port.sh" 2>/dev/null)
+    if [ -n "$DISCOVERED_PORT" ]; then
+        API_PORT="$DISCOVERED_PORT"
+    else
+        API_PORT="15000"  # Default fallback
+    fi
+fi
+
+API_URL="${FUNNEL_API_URL:-http://localhost:${API_PORT}}"
+API_BASE="${API_URL}/api/v1"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+show_help() {
+    cat << EOF
+Funnel Builder CLI - Create and manage conversion funnels
+
+Usage: funnel-builder <command> [options]
+
+Commands:
+    status              Show operational status
+    list                List all funnels
+    create              Create a new funnel
+    get <id>            Get funnel details
+    delete <id>         Delete a funnel
+    analytics <id>      Show funnel analytics
+    export-leads <id>   Export leads from a funnel
+    templates           List available templates
+    version             Show version information
+    help                Show this help message
+
+Options:
+    --json              Output in JSON format
+    --verbose           Verbose output
+    --tenant <id>       Specify tenant ID for multi-tenant operations
+
+Examples:
+    funnel-builder list
+    funnel-builder create --name "Lead Generation" --template quiz
+    funnel-builder analytics abc123 --format json
+    funnel-builder export-leads abc123 --format csv --output leads.csv
+
+EOF
+}
+
+check_api() {
+    if ! curl -sf "${API_BASE}/health" > /dev/null; then
+        echo -e "${RED}Error: API is not reachable at ${API_URL}${NC}" >&2
+        echo "Make sure the funnel-builder API is running." >&2
+        exit 1
+    fi
+}
+
+cmd_status() {
+    local json_output=false
+    
+    if [[ "$1" == "--json" ]]; then
+        json_output=true
+    fi
+    
+    response=$(curl -sf "${API_BASE}/health" || echo '{"status":"error","message":"API unreachable"}')
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+    else
+        status=$(echo "$response" | jq -r '.status // "unknown"')
+        if [[ "$status" == "healthy" ]]; then
+            echo -e "${GREEN}✓ Funnel Builder is operational${NC}"
+            echo "  API: ${API_URL}"
+            echo "  Status: Healthy"
+        else
+            echo -e "${RED}✗ Funnel Builder is not operational${NC}"
+            echo "  API: ${API_URL}"
+            echo "  Status: Error"
+        fi
+    fi
+}
+
+cmd_list() {
+    local json_output=false
+    local tenant_id=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --tenant)
+                tenant_id="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local query=""
+    if [[ -n "$tenant_id" ]]; then
+        query="?tenant_id=${tenant_id}"
+    fi
+    
+    response=$(curl -sf "${API_BASE}/funnels${query}")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+    else
+        echo "Funnels:"
+        echo "$response" | jq -r '.[] | "  \(.id) - \(.name) [\(.status)]"'
+    fi
+}
+
+cmd_create() {
+    local name=""
+    local template=""
+    local description=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --template)
+                template="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}Error: --name is required${NC}" >&2
+        exit 1
+    fi
+    
+    local data=$(jq -n \
+        --arg name "$name" \
+        --arg desc "$description" \
+        '{name: $name, description: $desc}')
+    
+    if [[ -n "$template" ]]; then
+        # Load template data
+        template_data=$(curl -sf "${API_BASE}/templates/${template}" | jq '.templateData')
+        data=$(echo "$data" | jq --argjson tpl "$template_data" '. + $tpl')
+    fi
+    
+    response=$(curl -sf -X POST "${API_BASE}/funnels" \
+        -H "Content-Type: application/json" \
+        -d "$data")
+    
+    if [[ $? -eq 0 ]]; then
+        funnel_id=$(echo "$response" | jq -r '.id')
+        echo -e "${GREEN}✓ Funnel created successfully${NC}"
+        echo "  ID: $funnel_id"
+        echo "  Preview URL: ${API_URL}/preview/$funnel_id"
+    else
+        echo -e "${RED}Error creating funnel${NC}" >&2
+        exit 1
+    fi
+}
+
+cmd_get() {
+    local funnel_id="$1"
+    local json_output=false
+    
+    if [[ "$2" == "--json" ]]; then
+        json_output=true
+    fi
+    
+    if [[ -z "$funnel_id" ]]; then
+        echo -e "${RED}Error: Funnel ID is required${NC}" >&2
+        exit 1
+    fi
+    
+    response=$(curl -sf "${API_BASE}/funnels/${funnel_id}")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+    else
+        echo "Funnel Details:"
+        echo "$response" | jq -r '
+            "  ID: \(.id)",
+            "  Name: \(.name)",
+            "  Slug: \(.slug)",
+            "  Status: \(.status)",
+            "  Steps: \(.steps | length)",
+            "  Created: \(.created_at)"'
+    fi
+}
+
+cmd_delete() {
+    local funnel_id="$1"
+    
+    if [[ -z "$funnel_id" ]]; then
+        echo -e "${RED}Error: Funnel ID is required${NC}" >&2
+        exit 1
+    fi
+    
+    echo -n "Are you sure you want to delete funnel $funnel_id? (y/N) "
+    read -r confirm
+    
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "Cancelled"
+        exit 0
+    fi
+    
+    response=$(curl -sf -X DELETE "${API_BASE}/funnels/${funnel_id}")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓ Funnel deleted successfully${NC}"
+    else
+        echo -e "${RED}Error deleting funnel${NC}" >&2
+        exit 1
+    fi
+}
+
+cmd_analytics() {
+    local funnel_id="$1"
+    local format="table"
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$funnel_id" ]]; then
+        echo -e "${RED}Error: Funnel ID is required${NC}" >&2
+        exit 1
+    fi
+    
+    response=$(curl -sf "${API_BASE}/funnels/${funnel_id}/analytics")
+    
+    if [[ "$format" == "json" ]]; then
+        echo "$response"
+    else
+        echo "Funnel Analytics:"
+        echo "$response" | jq -r '
+            "  Total Views: \(.totalViews)",
+            "  Total Leads: \(.totalLeads)",
+            "  Conversion Rate: \(.conversionRate)%",
+            "  Average Time: \(.averageTime)s",
+            "",
+            "Drop-off Points:",
+            (if .dropOffPoints then (.dropOffPoints[] | "  - \(.stepTitle): \(.dropOffRate)% drop-off") else "  None" end)'
+    fi
+}
+
+cmd_export_leads() {
+    local funnel_id="$1"
+    local format="json"
+    local output=""
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --output)
+                output="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$funnel_id" ]]; then
+        echo -e "${RED}Error: Funnel ID is required${NC}" >&2
+        exit 1
+    fi
+    
+    response=$(curl -sf "${API_BASE}/funnels/${funnel_id}/leads?format=${format}")
+    
+    if [[ -n "$output" ]]; then
+        echo "$response" > "$output"
+        echo -e "${GREEN}✓ Leads exported to $output${NC}"
+    else
+        echo "$response"
+    fi
+}
+
+cmd_templates() {
+    local json_output=false
+    
+    if [[ "$1" == "--json" ]]; then
+        json_output=true
+    fi
+    
+    response=$(curl -sf "${API_BASE}/templates")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+    else
+        echo "Available Templates:"
+        echo "$response" | jq -r '.[] | "  \(.slug) - \(.name)"'
+        echo ""
+        echo "Use: funnel-builder create --name \"My Funnel\" --template <slug>"
+    fi
+}
+
+cmd_version() {
+    echo "Funnel Builder CLI v1.0.0"
+    echo "API: ${API_URL}"
+}
+
+# Main command routing
+case "${1:-}" in
+    status)
+        shift
+        cmd_status "$@"
+        ;;
+    list)
+        shift
+        check_api
+        cmd_list "$@"
+        ;;
+    create)
+        shift
+        check_api
+        cmd_create "$@"
+        ;;
+    get)
+        shift
+        check_api
+        cmd_get "$@"
+        ;;
+    delete)
+        shift
+        check_api
+        cmd_delete "$@"
+        ;;
+    analytics)
+        shift
+        check_api
+        cmd_analytics "$@"
+        ;;
+    export-leads)
+        shift
+        check_api
+        cmd_export_leads "$@"
+        ;;
+    templates)
+        shift
+        check_api
+        cmd_templates "$@"
+        ;;
+    version)
+        cmd_version
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Error: Unknown command '${1:-}'${NC}" >&2
+        echo "Run 'funnel-builder help' for usage information" >&2
+        exit 1
+        ;;
+esac

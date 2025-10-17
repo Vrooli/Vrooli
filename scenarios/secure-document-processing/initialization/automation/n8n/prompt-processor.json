@@ -1,0 +1,368 @@
+{
+  "name": "Prompt Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "prompt-processor",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-prompt",
+      "name": "Prompt Processor Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "prompt-processor-webhook"
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, j.output_folder FROM secure_doc_processing.documents d JOIN secure_doc_processing.processing_jobs j ON j.id = $1 WHERE d.id = $2",
+        "queryParameters": "={{ [$json.jobId, $json.documentId] }}",
+        "options": {}
+      },
+      "id": "get-document",
+      "name": "Get Document Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [400, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_minio }}/{{ $json.storage_bucket }}/{{ $json.storage_path }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "retrieve-from-minio",
+      "name": "Retrieve Document from MinIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [600, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_unstructured_io }}/general/v0/general",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "strategy",
+              "value": "auto"
+            },
+            {
+              "name": "pdf_infer_table_structure",
+              "value": "true"
+            },
+            {
+              "name": "include_page_breaks",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "extract-with-unstructured",
+      "name": "Extract Document Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [800, 300]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process extracted content\nconst extractedData = $input.item.json;\nconst prompt = $node[\"Prompt Processor Webhook\"].json.prompt;\nconst documentName = $node[\"Get Document Info\"].json[0].filename;\n\n// Build context from extracted elements\nlet documentText = '';\nif (Array.isArray(extractedData)) {\n  documentText = extractedData.map(element => {\n    if (element.type === 'Title') {\n      return `\\n## ${element.text}\\n`;\n    } else if (element.type === 'Table') {\n      return `\\n[Table: ${element.text}]\\n`;\n    } else {\n      return element.text;\n    }\n  }).join('\\n');\n} else if (extractedData.text) {\n  documentText = extractedData.text;\n} else {\n  documentText = JSON.stringify(extractedData);\n}\n\n// Prepare AI prompt\nconst aiPrompt = `You are a document processing assistant. Process the following document according to the user's instructions.\n\nDocument: ${documentName}\n\nUser Instructions: ${prompt}\n\nDocument Content:\n${documentText.substring(0, 10000)} // Limit to prevent token overflow\n\nProvide a structured response with:\n1. Summary of processing performed\n2. Key findings or extracted information\n3. Any recommendations or next steps\n\nResponse:`;\n\nreturn {\n  prompt: aiPrompt,\n  documentName: documentName,\n  originalPrompt: prompt,\n  contentLength: documentText.length\n};"
+      },
+      "id": "prepare-ai-prompt",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_ollama }}/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.1:8b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "stream",
+              "value": "={{ false }}"
+            },
+            {
+              "name": "temperature",
+              "value": "={{ 0.7 }}"
+            },
+            {
+              "name": "max_tokens",
+              "value": "={{ 4096 }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "process-with-ollama",
+      "name": "Process with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 300]
+    },
+    
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "save-workflow",
+              "leftValue": "={{ $node[\"Prompt Processor Webhook\"].json.saveAsWorkflow }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-save-workflow",
+      "name": "Save as Workflow?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Create workflow from prompt\nconst prompt = $node[\"Prompt Processor Webhook\"].json.originalPrompt || $node[\"Prompt Processor Webhook\"].json.prompt;\nconst workflowName = $node[\"Prompt Processor Webhook\"].json.workflowName || `Generated: ${prompt.substring(0, 50)}...`;\nconst jobId = $node[\"Prompt Processor Webhook\"].json.jobId;\n\n// Generate workflow definition\nconst workflowDefinition = {\n  nodes: [\n    {\n      id: 'extract',\n      type: 'unstructured-io',\n      operation: 'extract_text',\n      parameters: {\n        strategy: 'auto'\n      }\n    },\n    {\n      id: 'ai-process',\n      type: 'ollama',\n      operation: 'generate',\n      parameters: {\n        model: 'llama3.1:8b',\n        prompt_template: prompt,\n        temperature: 0.7\n      }\n    }\n  ],\n  connections: [\n    {from: 'extract', to: 'ai-process'}\n  ]\n};\n\nreturn {\n  name: workflowName,\n  description: `AI-generated workflow from prompt: ${prompt}`,\n  category: 'ai-generated',\n  tags: ['ai-generated', 'prompt-based'],\n  workflow_type: 'ai_generated',\n  workflow_definition: workflowDefinition,\n  created_from_prompt: prompt,\n  source_job_id: jobId,\n  is_public: false,\n  created_by: 'system'\n};"
+      },
+      "id": "create-workflow-def",
+      "name": "Create Workflow Definition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 200]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO secure_doc_processing.workflows (name, description, category, tags, workflow_type, workflow_definition, created_from_prompt, source_job_id, is_public, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+        "queryParameters": "={{ [$json.name, $json.description, $json.category, $json.tags, $json.workflow_type, JSON.stringify($json.workflow_definition), $json.created_from_prompt, $json.source_job_id, $json.is_public, $json.created_by] }}",
+        "options": {}
+      },
+      "id": "save-workflow",
+      "name": "Save Workflow to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1800, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare processed document for storage\nconst aiResponse = $node[\"Process with Ollama\"].json.response || $node[\"Process with Ollama\"].json.text || '';\nconst originalDoc = $node[\"Get Document Info\"].json[0];\nconst outputFolder = originalDoc.output_folder;\n\n// Create processed document\nconst processedDoc = {\n  original_document_id: originalDoc.id,\n  processed_content: aiResponse,\n  processing_metadata: {\n    prompt: $node[\"Prompt Processor Webhook\"].json.prompt,\n    model: 'llama3.1:8b',\n    processing_time: new Date().toISOString(),\n    content_length: aiResponse.length\n  },\n  output_filename: `processed_${originalDoc.filename}`,\n  output_path: `${outputFolder}/processed_${originalDoc.id}.json`\n};\n\nreturn processedDoc;"
+      },
+      "id": "prepare-output",
+      "name": "Prepare Output Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 400]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:{{ $env.RESOURCE_PORTS_minio }}/{{ $json.output_path }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-amz-server-side-encryption",
+              "value": "AES256"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "store-processed",
+      "name": "Store Processed Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE secure_doc_processing.job_documents SET status = 'completed', completed_at = NOW(), processing_result = $1 WHERE job_id = $2 AND document_id = $3",
+        "queryParameters": "={{ [JSON.stringify($json.processing_metadata), $node[\"Prompt Processor Webhook\"].json.jobId, $node[\"Prompt Processor Webhook\"].json.documentId] }}",
+        "options": {}
+      },
+      "id": "update-job-doc",
+      "name": "Update Job Document Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2200, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Document processed successfully with prompt"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [2400, 300]
+    },
+    
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2600, 300]
+    }
+  ],
+  
+  "connections": {
+    "Prompt Processor Webhook": {
+      "main": [[{"node": "Get Document Info", "type": "main", "index": 0}]]
+    },
+    "Get Document Info": {
+      "main": [[{"node": "Retrieve Document from MinIO", "type": "main", "index": 0}]]
+    },
+    "Retrieve Document from MinIO": {
+      "main": [[{"node": "Extract Document Content", "type": "main", "index": 0}]]
+    },
+    "Extract Document Content": {
+      "main": [[{"node": "Prepare AI Prompt", "type": "main", "index": 0}]]
+    },
+    "Prepare AI Prompt": {
+      "main": [[{"node": "Process with Ollama", "type": "main", "index": 0}]]
+    },
+    "Process with Ollama": {
+      "main": [[{"node": "Save as Workflow?", "type": "main", "index": 0}]]
+    },
+    "Save as Workflow?": {
+      "main": [
+        [{"node": "Create Workflow Definition", "type": "main", "index": 0}],
+        [{"node": "Prepare Output Document", "type": "main", "index": 0}]
+      ]
+    },
+    "Create Workflow Definition": {
+      "main": [[{"node": "Save Workflow to Database", "type": "main", "index": 0}]]
+    },
+    "Save Workflow to Database": {
+      "main": [[{"node": "Prepare Output Document", "type": "main", "index": 0}]]
+    },
+    "Prepare Output Document": {
+      "main": [[{"node": "Store Processed Document", "type": "main", "index": 0}]]
+    },
+    "Store Processed Document": {
+      "main": [[{"node": "Update Job Document Status", "type": "main", "index": 0}]]
+    },
+    "Update Job Document Status": {
+      "main": [[{"node": "Prepare Response", "type": "main", "index": 0}]]
+    },
+    "Prepare Response": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  
+  "versionId": "v1.0.0",
+  "id": "prompt-processor"
+}

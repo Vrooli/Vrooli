@@ -1,0 +1,100 @@
+{
+  "name": "Document Processing Workflow",
+  "description": "Process documents with Unstructured.io and send results",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "parameters": {
+        "path": "process-document",
+        "method": "POST",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "2", 
+      "name": "Process with Unstructured",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11450/general/v0/general",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "files",
+              "value": "={{$json.file}}",
+              "parameterType": "formData"
+            },
+            {
+              "name": "strategy",
+              "value": "hi_res",
+              "parameterType": "formData"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "3",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.function",
+      "position": [650, 300],
+      "parameters": {
+        "functionCode": "// Extract text from Unstructured.io response\nconst items = [];\nconst elements = $input.first().json;\n\nfor (const element of elements) {\n  if (element.text) {\n    items.push({\n      json: {\n        type: element.type,\n        text: element.text,\n        metadata: element.metadata\n      }\n    });\n  }\n}\n\nreturn items;"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Send Results",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [850, 300],
+      "parameters": {
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "Process with Unstructured",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process with Unstructured": {
+      "main": [
+        [
+          {
+            "node": "Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text": {
+      "main": [
+        [
+          {
+            "node": "Send Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

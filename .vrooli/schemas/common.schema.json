@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/common.schema.json",
+  "title": "Common Schema Definitions",
+  "description": "Shared definitions used across Vrooli service schemas",
+  "definitions": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      "description": "Semantic version string"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Valid TCP/UDP port number"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "HTTP or HTTPS URL"
+    },
+    "path": {
+      "type": "string",
+      "description": "File system path (relative or absolute)"
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^\\d+(ms|s|m|h|d)$",
+      "description": "Duration with unit (ms, s, m, h, d)"
+    },
+    "memory": {
+      "type": "string",
+      "pattern": "^\\d+(Ki|Mi|Gi|Ti)?$",
+      "description": "Memory size with optional unit"
+    },
+    "cpu": {
+      "type": "string",
+      "pattern": "^\\d+(\\.\\d+)?(m)?$",
+      "description": "CPU resources (cores or millicores)"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Environment variables as key-value pairs"
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Metadata labels for resources"
+    },
+    "annotations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Metadata annotations for resources"
+    },
+    "secretReference": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Secret name"
+        },
+        "key": {
+          "type": "string",
+          "description": "Key within the secret"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Secret namespace (Kubernetes)"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["environment", "file", "vault", "kubernetes", "aws-secrets", "azure-keyvault", "gcp-secrets"],
+          "description": "Secret source type"
+        }
+      },
+      "description": "Reference to a secret value"
+    },
+    "secretRef": {
+      "$ref": "#/definitions/secretReference",
+      "description": "Alias for secretReference (backward compatibility)"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+item_id	product_name	category	subcategory	sku	quantity_on_hand	quantity_reserved	reorder_point	reorder_quantity	unit_cost	unit_price	location	supplier_id	supplier_name	last_restocked	next_inventory_date	status
+INV-001	AI Development Platform License	Software	Development Tools	AI-DEV-001	450	25	50	100	150.00	299.99	DIGITAL-VAULT-A	SUP-101	TechSource Solutions	2025-07-15	2025-08-15	active
+INV-002	Document Processing Engine	Software	AI Services	DOC-PROC-002	1200	150	200	300	25.00	49.99	DIGITAL-VAULT-B	SUP-102	AI Components Inc	2025-07-20	2025-08-20	active
+INV-003	Automation Toolkit Suite	Software	Workflow Tools	AUTO-TK-003	800	75	100	200	65.00	129.99	DIGITAL-VAULT-C	SUP-103	Workflow Systems Ltd	2025-07-10	2025-08-10	active
+INV-004	Voice Recognition Module	Software	AI Components	VOICE-REC-004	350	40	75	150	30.00	59.99	DIGITAL-VAULT-A	SUP-104	Speech Tech Corp	2025-07-25	2025-08-25	active
+INV-005	Computer Vision API	Software	AI Services	CV-API-005	600	85	125	250	40.00	79.99	DIGITAL-VAULT-B	SUP-105	Vision Systems Inc	2025-07-18	2025-08-18	active
+INV-006	Neural Network Framework	Software	ML Libraries	NN-FRAME-006	290	15	50	100	75.00	149.99	DIGITAL-VAULT-C	SUP-106	Deep Learning Corp	2025-07-12	2025-08-12	low_stock
+INV-007	Data Processing Pipeline	Software Development	ETL Tools	DATA-PIPE-007	150	25	30	75	45.00	89.99	DIGITAL-VAULT-A	SUP-107	Data Systems LLC	2025-07-22	2025-08-22	active
+INV-008	Cloud Integration Adapter	Software	Integration	CLOUD-INT-008	750	100	150	250	35.00	69.99	DIGITAL-VAULT-B	SUP-108	Cloud Connect Ltd	2025-07-16	2025-08-16	active
+INV-009	Security Authentication Module	Software	Security	SEC-AUTH-009	420	60	80	150	55.00	109.99	DIGITAL-VAULT-C	SUP-109	SecureTech Solutions	2025-07-14	2025-08-14	active
+INV-010	Mobile App SDK	Software	Development Kits	MOBILE-SDK-010	980	120	200	300	20.00	39.99	DIGITAL-VAULT-A	SUP-110	Mobile Dev Tools	2025-07-28	2025-08-28	active
+INV-011	Real-time Analytics Engine	Software	Analytics	RT-ANALYTICS-011	180	35	40	100	85.00	169.99	DIGITAL-VAULT-B	SUP-111	Analytics Pro Inc	2025-07-08	2025-08-08	low_stock
+INV-012	Blockchain Integration Kit	Software	Blockchain	BC-INT-012	320	45	60	120	70.00	139.99	DIGITAL-VAULT-C	SUP-112	Blockchain Systems	2025-07-19	2025-08-19	active
+INV-013	IoT Device Manager	Software	IoT Platform	IOT-MGR-013	560	70	100	200	50.00	99.99	DIGITAL-VAULT-A	SUP-113	IoT Solutions Ltd	2025-07-24	2025-08-24	active
+INV-014	Machine Learning Model Store	Software	ML Operations	ML-STORE-014	240	20	50	100	95.00	189.99	DIGITAL-VAULT-B	SUP-114	MLOps Systems	2025-07-11	2025-08-11	active
+INV-015	API Gateway Service	Software	API Management	API-GW-015	680	90	120	250	60.00	119.99	DIGITAL-VAULT-C	SUP-115	API Tech Corp	2025-07-26	2025-08-26	active
+INV-016	Database Optimization Tool	Software	Database Tools	DB-OPT-016	390	55	75	150	40.00	79.99	DIGITAL-VAULT-A	SUP-116	Database Solutions	2025-07-13	2025-08-13	active
+INV-017	Container Orchestration Platform	Software	DevOps	CONTAINER-017	270	30	50	100	80.00	159.99	DIGITAL-VAULT-B	SUP-117	DevOps Systems Inc	2025-07-21	2025-08-21	active
+INV-018	Monitoring Dashboard Suite	Software	Operations	MONITOR-018	520	65	100	180	45.00	89.99	DIGITAL-VAULT-C	SUP-118	Ops Monitoring Ltd	2025-07-17	2025-08-17	active
+INV-019	Testing Automation Framework	Software	QA Tools	TEST-AUTO-019	830	110	150	300	35.00	69.99	DIGITAL-VAULT-A	SUP-119	QA Systems Corp	2025-07-27	2025-08-27	active
+INV-020	Content Management System	Software	CMS Platforms	CMS-SYS-020	410	50	80	160	65.00	129.99	DIGITAL-VAULT-B	SUP-120	Content Tech Inc	2025-07-23	2025-08-23	active

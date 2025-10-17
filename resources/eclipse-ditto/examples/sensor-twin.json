@@ -1,0 +1,99 @@
+{
+  "thingId": "industrial:sensor:example-001",
+  "policyId": "industrial:sensor:example-001",
+  "definition": "org.eclipse.ditto:sensor:1.0.0",
+  "attributes": {
+    "name": "Industrial Temperature Sensor",
+    "description": "High-precision temperature monitoring sensor for industrial applications",
+    "created": "2024-01-16T10:00:00Z",
+    "status": "active",
+    "type": "temperature-sensor",
+    "location": {
+      "building": "Factory A",
+      "floor": 2,
+      "room": "Production Line 3",
+      "coordinates": {
+        "latitude": 37.7749,
+        "longitude": -122.4194
+      }
+    },
+    "manufacturer": {
+      "name": "SensorCorp Industries",
+      "model": "TC-500-PRO",
+      "serialNumber": "SC2024001234",
+      "firmwareVersion": "2.3.1"
+    }
+  },
+  "features": {
+    "temperature": {
+      "definition": ["org.eclipse.ditto:temperature:1.0.0"],
+      "properties": {
+        "value": 22.5,
+        "unit": "celsius",
+        "timestamp": "2024-01-16T10:30:00Z",
+        "accuracy": 0.1,
+        "range": {
+          "min": -40,
+          "max": 125
+        },
+        "calibration": {
+          "offset": 0,
+          "lastCalibrated": "2024-01-01T00:00:00Z"
+        }
+      }
+    },
+    "humidity": {
+      "definition": ["org.eclipse.ditto:humidity:1.0.0"],
+      "properties": {
+        "value": 45,
+        "unit": "percent",
+        "timestamp": "2024-01-16T10:30:00Z",
+        "accuracy": 2
+      }
+    },
+    "diagnostics": {
+      "definition": ["org.eclipse.ditto:diagnostics:1.0.0"],
+      "properties": {
+        "batteryLevel": 85,
+        "batteryVoltage": 3.7,
+        "signalStrength": -45,
+        "signalQuality": "excellent",
+        "uptime": 86400,
+        "restarts": 0,
+        "errors": [],
+        "lastMaintenance": "2024-01-01T00:00:00Z",
+        "nextMaintenance": "2024-04-01T00:00:00Z"
+      }
+    },
+    "alerts": {
+      "definition": ["org.eclipse.ditto:alerts:1.0.0"],
+      "properties": {
+        "active": false,
+        "thresholds": {
+          "temperatureHigh": 50,
+          "temperatureLow": 5,
+          "humidityHigh": 80,
+          "humidityLow": 20
+        },
+        "notifications": {
+          "email": true,
+          "sms": false,
+          "webhook": true,
+          "webhookUrl": "https://example.com/alerts"
+        }
+      }
+    },
+    "connectivity": {
+      "definition": ["org.eclipse.ditto:connectivity:1.0.0"],
+      "properties": {
+        "protocol": "mqtt",
+        "broker": "tcp://mqtt.example.com:1883",
+        "topic": "sensors/industrial/temperature/001",
+        "qos": 1,
+        "updateInterval": 30,
+        "lastSeen": "2024-01-16T10:30:00Z",
+        "connectionStatus": "connected"
+      }
+    }
+  }
+}

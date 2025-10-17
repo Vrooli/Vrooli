@@ -1,0 +1,31 @@
+id: scenario-improver-prompt-manager-20250924-004259
+title: Enhance scenario prompt-manager
+type: scenario
+operation: improver
+target: prompt-manager
+targets:
+    - prompt-manager
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: blocked
+started_at: "2025-10-05T20:20:02-04:00"
+completed_at: "2025-10-05T20:20:32-04:00"
+completion_count: 1
+last_completed_at: "2025-09-28T00:29:31-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-24T00:42:59-04:00"
+updated_at: "2025-10-14T00:47:34-04:00"
+tags: []
+notes: "Notes from last time:\n\n- **What was accomplished:** \nStarted health monitor for claude-code (PID: 123455, interval: 30s)\nNon-TTY environment detected - using automation-friendly settings\n\n- **Current status:** \nRunning Claude Code\nWARNING: Permission checks are disabled!\n\n- **Remaining issues or limitations:** \nPermission checks are not enabled, potentially affecting task integrity.\n\n- **Suggested next actions:** None reported"
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

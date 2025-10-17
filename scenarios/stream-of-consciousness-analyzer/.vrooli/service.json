@@ -1,0 +1,227 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "stream-of-consciousness-analyzer",
+    "displayName": "Stream of Consciousness Analyzer",
+    "description": "Transform unstructured text/voice into organized notes with AI-powered insights",
+    "version": "1.0.0",
+    "tags": [
+      "saas-applications",
+      "productivity",
+      "ai-tools",
+      "note-taking",
+      "voice-processing",
+      "text-analysis",
+      "insight-extraction",
+      "campaign-management",
+      "thought-organization",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Stream analyzer API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Stream analyzer UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "chain-of-thought-orchestrator",
+        "embedding-generator",
+        "ollama",
+        "rate-limiter"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/process-stream.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/organize-thoughts.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/extract-insights.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/campaign-context-builder.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/autonomous-thought-processor.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store organized thoughts, insights, and campaigns",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache for real-time processing and session management"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector storage for semantic search across thoughts and insights",
+      "initialization": [
+        {
+          "file": "initialization/qdrant/collections.json",
+          "type": "collections"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2:3b",
+        "nomic-embed-text"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Stream of Consciousness Analyzer health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Stream of Consciousness Analyzer",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "stream-of-consciousness-analyzer-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["stream-of-consciousness-analyzer"]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-deps",
+          "run": "cd ui && npm install && cd ../api && npm install",
+          "description": "Install dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Stream Analyzer initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Stream of Consciousness Analyzer services",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./stream-of-consciousness-analyzer-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/stream-of-consciousness-analyzer-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Stream Analyzer",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"stream-of-consciousness-analyzer-api\" || true; sleep 1; pkill -9 -f \"stream-of-consciousness-analyzer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/stream-of-consciousness-analyzer.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/stream-of-consciousness-analyzer.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

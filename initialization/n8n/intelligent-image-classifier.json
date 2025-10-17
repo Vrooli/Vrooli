@@ -1,0 +1,360 @@
+{
+  "name": "Intelligent Image Classifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "classify-image",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [300, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for image classification\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.image && !input.images) {\n  throw new Error('Missing required field: image (base64) or images (for batch mode)');\n}\n\n// Handle batch mode\nconst isBatchMode = Array.isArray(input.images);\nconst imagesToProcess = isBatchMode ? input.images : [input.image];\n\n// Validate batch size\nif (isBatchMode && imagesToProcess.length > 10) {\n  throw new Error('Batch size exceeds maximum limit of 10 images');\n}\n\n// Validate classifier\nconst classifier = input.classifier || 'visual_content';\nconst supportedClassifiers = [\n  'workflow_analysis',\n  'ui_quality',\n  'screenshot_type',\n  'visual_content',\n  'accessibility_check',\n  'custom'\n];\n\nif (!supportedClassifiers.includes(classifier)) {\n  throw new Error(`Unsupported classifier: ${classifier}. Supported: ${supportedClassifiers.join(', ')}`);\n}\n\n// Configuration validation and defaults\nconst config = input.config || {};\nconst confidence_threshold = config.confidence_threshold || 0.7;\nconst return_explanations = config.return_explanations !== false;\nconst batch_mode = isBatchMode;\nconst model = config.model || 'llava:latest';\nconst detail_level = config.detail_level || 'medium'; // low, medium, high\nconst include_coordinates = config.include_coordinates || false;\n\n// Vision model validation\nconst supportedVisionModels = ['llava:latest', 'llava:7b', 'llava:13b', 'llava-phi3', 'bakllava'];\nif (!supportedVisionModels.includes(model)) {\n  console.warn(`Unsupported vision model: ${model}. Using llava:latest as fallback.`);\n}\n\n// Custom classifier validation\nif (classifier === 'custom') {\n  if (!config.name) {\n    throw new Error('Custom classifier requires config.name');\n  }\n  if (!config.classes || !Array.isArray(config.classes)) {\n    throw new Error('Custom classifier requires config.classes array');\n  }\n  if (config.classes.length < 2) {\n    throw new Error('Custom classifier requires at least 2 classes');\n  }\n}\n\n// Validate base64 images\nfor (let i = 0; i < imagesToProcess.length; i++) {\n  const image = imagesToProcess[i];\n  if (typeof image !== 'string') {\n    throw new Error(`Image ${i + 1} must be a base64 string`);\n  }\n  \n  // Remove data URL prefix if present\n  let cleanImage = image;\n  if (image.startsWith('data:image/')) {\n    const base64Index = image.indexOf('base64,');\n    if (base64Index !== -1) {\n      cleanImage = image.substring(base64Index + 7);\n    }\n  }\n  \n  // Basic base64 validation\n  try {\n    atob(cleanImage.substring(0, 100)); // Test decode first 100 chars\n  } catch (error) {\n    throw new Error(`Image ${i + 1} does not appear to be valid base64 data`);\n  }\n  \n  imagesToProcess[i] = cleanImage;\n}\n\n// Prepare metadata\nconst metadata = {\n  classifier: classifier,\n  batch_mode: batch_mode,\n  image_count: imagesToProcess.length,\n  confidence_threshold: confidence_threshold,\n  vision_model: model,\n  detail_level: detail_level,\n  processing_started_at: new Date().toISOString(),\n  request_id: `classify_img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn {\n  images: imagesToProcess,\n  classifier: classifier,\n  config: {\n    confidence_threshold: confidence_threshold,\n    return_explanations: return_explanations,\n    batch_mode: batch_mode,\n    model: model,\n    detail_level: detail_level,\n    include_coordinates: include_coordinates,\n    ...config\n  },\n  metadata: metadata\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.classifier }}",
+              "operation": "equal",
+              "value2": "workflow_analysis"
+            }
+          ]
+        }
+      },
+      "id": "classifier_router",
+      "name": "Classifier Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Workflow Analysis using specialized prompts for n8n workflow screenshots\nconst input = $input.item.json;\nconst images = input.images;\nconst config = input.config;\n\n// Build specialized prompt for workflow analysis\nconst systemPrompt = 'You are an expert n8n workflow analyzer. You can identify workflow health, connection issues, and visual problems by examining workflow screenshots.';\n\nconst analysisPrompt = `Analyze this n8n workflow screenshot for the following aspects:\n\n1. **Node Connectivity**: Are all nodes properly connected? Look for:\n   - Disconnected nodes (isolated nodes with no connections)\n   - Incomplete connection lines\n   - Missing connections between related nodes\n\n2. **Error Indicators**: Check for visual error signs:\n   - Red error badges or indicators on nodes\n   - Warning icons (yellow/orange indicators)\n   - Failed execution states\n   - Error messages or alerts\n\n3. **Workflow Completeness**: Assess overall workflow structure:\n   - Does the workflow have a clear start (trigger nodes)?\n   - Does it have proper endpoints (response nodes, data outputs)?\n   - Are there any obvious gaps in the logic flow?\n\n4. **Visual Layout Quality**: Evaluate the visual organization:\n   - Are nodes well-organized and readable?\n   - Is the layout logical and easy to follow?\n   - Are there overlapping nodes or confusing layouts?\n\n5. **Execution Status**: If visible, check execution state:\n   - Are there successful execution indicators (green)?n   - Failed executions (red)?\n   - Pending or running states?\n\nRespond with a JSON object containing:\n{\n  \"overall_health\": \"healthy|warning|error\",\n  \"confidence\": number (0-1),\n  \"connectivity_issues\": {\n    \"disconnected_nodes\": number,\n    \"incomplete_connections\": boolean,\n    \"isolated_clusters\": number\n  },\n  \"error_indicators\": {\n    \"has_errors\": boolean,\n    \"error_count_estimate\": number,\n    \"error_types\": [\"list of error types if visible\"]\n  },\n  \"workflow_completeness\": {\n    \"has_trigger\": boolean,\n    \"has_endpoints\": boolean,\n    \"logical_flow\": \"complete|partial|broken\"\n  },\n  \"visual_quality\": {\n    \"layout_score\": number (0-1),\n    \"readability\": \"good|fair|poor\",\n    \"organization\": \"excellent|good|needs_improvement\"\n  },\n  \"recommendations\": [\"list of improvement suggestions\"],\n  \"explanation\": \"detailed analysis of what you observed\"\n}`;\n\nconst requests = images.map((image, index) => {\n  return {\n    image: image,\n    index: index,\n    prompt: `${systemPrompt}\\n\\n${analysisPrompt}`,\n    analysis_type: 'workflow_health'\n  };\n});\n\nreturn {\n  classifier: 'workflow_analysis',\n  vision_requests: requests,\n  config: config,\n  processing_method: 'specialized_analysis',\n  images_count: images.length\n};"
+      },
+      "id": "workflow_analyzer",
+      "name": "Workflow Analyzer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.classifier }}",
+              "operation": "equal",
+              "value2": "ui_quality"
+            }
+          ]
+        }
+      },
+      "id": "ui_quality_router",
+      "name": "UI Quality Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// UI Quality Analysis for web interfaces and applications\nconst input = $input.item.json;\nconst images = input.images;\nconst config = input.config;\n\nconst systemPrompt = 'You are a UI/UX expert who can assess visual design quality, usability, and professionalism of web interfaces from screenshots.';\n\nconst qualityPrompt = `Analyze this user interface screenshot for design quality and usability:\n\n1. **Visual Design Quality**:\n   - Overall professional appearance\n   - Color scheme and contrast\n   - Typography and readability\n   - Visual hierarchy and organization\n   - Consistent styling and branding\n\n2. **Layout and Structure**:\n   - Logical information architecture\n   - Proper spacing and alignment\n   - Responsive design indicators\n   - Navigation clarity\n   - Content organization\n\n3. **Usability Indicators**:\n   - Clear call-to-action buttons\n   - Intuitive navigation elements\n   - Form design and input fields\n   - Error states or validation messages\n   - Loading states or feedback\n\n4. **Accessibility Considerations**:\n   - Color contrast (if visible)\n   - Text size and readability\n   - Focus indicators\n   - Alt text compliance (if determinable)\n\n5. **Technical Quality**:\n   - Rendering issues (broken layouts, missing images)\n   - Performance indicators (loading states)\n   - Cross-browser compatibility signs\n   - Mobile responsiveness (if mobile view)\n\nRespond with a JSON object containing:\n{\n  \"quality_score\": number (0-1),\n  \"confidence\": number (0-1),\n  \"visual_design\": {\n    \"professional_appearance\": number (0-1),\n    \"color_scheme\": \"excellent|good|fair|poor\",\n    \"typography\": \"excellent|good|fair|poor\",\n    \"visual_hierarchy\": number (0-1)\n  },\n  \"layout_structure\": {\n    \"organization\": \"excellent|good|fair|poor\",\n    \"spacing\": \"excellent|good|fair|poor\",\n    \"alignment\": \"excellent|good|fair|poor\",\n    \"responsive_indicators\": boolean\n  },\n  \"usability\": {\n    \"navigation_clarity\": number (0-1),\n    \"cta_visibility\": number (0-1),\n    \"form_design\": \"excellent|good|fair|poor|not_applicable\"\n  },\n  \"accessibility\": {\n    \"contrast_adequate\": boolean,\n    \"text_readable\": boolean,\n    \"accessibility_score\": number (0-1)\n  },\n  \"technical_issues\": {\n    \"has_rendering_issues\": boolean,\n    \"broken_elements\": [\"list of broken elements if any\"],\n    \"performance_indicators\": \"good|fair|poor|unknown\"\n  },\n  \"recommendations\": [\"list of specific improvement suggestions\"],\n  \"explanation\": \"detailed analysis of the interface quality\"\n}`;\n\nconst requests = images.map((image, index) => {\n  return {\n    image: image,\n    index: index,\n    prompt: `${systemPrompt}\\n\\n${qualityPrompt}`,\n    analysis_type: 'ui_quality'\n  };\n});\n\nreturn {\n  classifier: 'ui_quality',\n  vision_requests: requests,\n  config: config,\n  processing_method: 'specialized_analysis',\n  images_count: images.length\n};"
+      },
+      "id": "ui_quality_analyzer",
+      "name": "UI Quality Analyzer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// General Vision Classification for other classifier types\nconst input = $input.item.json;\nconst images = input.images;\nconst classifier = input.classifier;\nconst config = input.config;\n\n// Build prompt based on classifier type\nlet systemPrompt = '';\nlet classificationInstructions = '';\n\nswitch (classifier) {\n  case 'screenshot_type':\n    systemPrompt = 'You are a screenshot analysis expert. You can identify what type of application or interface is shown in screenshots.';\n    classificationInstructions = `\nAnalyze this screenshot and identify what type of interface or application it shows:\n\nCommon types include:\n- n8n workflow editor\n- web application dashboard\n- e-commerce website\n- documentation site\n- admin panel\n- mobile app interface\n- desktop application\n- development tool (IDE, terminal, etc.)\n- social media platform\n- email interface\n\nRespond with a JSON object containing:\n{\n  \"screenshot_type\": \"primary type identified\",\n  \"confidence\": number (0-1),\n  \"secondary_types\": [\"other possible types\"],\n  \"application_category\": \"productivity|e-commerce|social|development|entertainment|business|other\",\n  \"interface_elements\": [\"list of notable UI elements\"],\n  \"explanation\": \"brief explanation of identification\"\n}`;\n    break;\n    \n  case 'visual_content':\n    systemPrompt = 'You are a general image content analyzer. You can describe and categorize visual content in images.';\n    classificationInstructions = `\nAnalyze this image and describe its visual content:\n\nConsider:\n- Main subject matter\n- Image composition and quality\n- Colors and visual style\n- Text content (if any)\n- Objects and elements present\n- Overall purpose or intent\n\nRespond with a JSON object containing:\n{\n  \"content_type\": \"screenshot|diagram|photo|graphic|chart|other\",\n  \"confidence\": number (0-1),\n  \"main_subjects\": [\"list of main subjects\"],\n  \"text_detected\": boolean,\n  \"color_scheme\": \"colorful|monochrome|limited_palette|high_contrast\",\n  \"visual_quality\": \"excellent|good|fair|poor\",\n  \"purpose\": \"interface|documentation|presentation|artistic|informational|other\",\n  \"description\": \"detailed description of image content\"\n}`;\n    break;\n    \n  case 'accessibility_check':\n    systemPrompt = 'You are an accessibility expert who can identify potential accessibility issues in user interfaces.';\n    classificationInstructions = `\nAnalyze this interface screenshot for accessibility considerations:\n\nCheck for:\n- Color contrast issues\n- Text size and readability\n- Focus indicators\n- Alternative text compliance\n- Keyboard navigation elements\n- Screen reader compatibility indicators\n\nRespond with a JSON object containing:\n{\n  \"accessibility_score\": number (0-1),\n  \"confidence\": number (0-1),\n  \"contrast_issues\": {\n    \"has_low_contrast\": boolean,\n    \"problematic_areas\": [\"list of areas with poor contrast\"]\n  },\n  \"text_readability\": {\n    \"font_size_adequate\": boolean,\n    \"text_clarity\": \"excellent|good|fair|poor\"\n  },\n  \"navigation_accessibility\": {\n    \"focus_indicators_visible\": boolean,\n    \"keyboard_navigation_apparent\": boolean\n  },\n  \"compliance_level\": \"AAA|AA|A|non_compliant\",\n  \"issues_found\": [\"list of accessibility issues\"],\n  \"recommendations\": [\"specific accessibility improvements\"],\n  \"explanation\": \"detailed accessibility assessment\"\n}`;\n    break;\n    \n  case 'custom':\n    systemPrompt = `You are a custom image classifier for: ${config.name}`;\n    classificationInstructions = `\nClassify this image into one of these categories: ${config.classes.join(', ')}\n\n${config.description ? `Context: ${config.description}` : ''}\n\n${config.examples ? 'Examples:' : ''}\n${config.examples ? Object.entries(config.examples).map(([cls, examples]) => \n  `${cls}: ${examples.slice(0, 2).join(', ')}`\n).join('\\n') : ''}\n\nRespond with a JSON object containing:\n{\n  \"primary_class\": \"the most likely class\",\n  \"confidence\": number (0-1),\n  \"all_classes\": {\n    ${config.classes.map(cls => `\"${cls}\": number`).join(',\\n    ')}\n  },\n  \"visual_features\": [\"key visual features that informed classification\"],\n  \"explanation\": \"brief explanation of classification reasoning\"\n}`;\n    break;\n}\n\n// Prepare images for vision model processing\nconst visionRequests = images.map((image, index) => {\n  return {\n    image: image,\n    index: index,\n    prompt: `${systemPrompt}\\n\\n${classificationInstructions}`,\n    analysis_type: 'general_vision_classification'\n  };\n});\n\nreturn {\n  classifier: classifier,\n  vision_requests: visionRequests,\n  config: config,\n  processing_method: 'vision_model_based',\n  images_count: images.length\n};"
+      },
+      "id": "prepare_vision_classification",
+      "name": "Prepare Vision Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.ollama.url}/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"model\": \"={{ $json.config.model || 'llava:latest' }}\",\n  \"prompt\": \"={{ $json.vision_requests[0].prompt }}\",\n  \"images\": [\"={{ $json.vision_requests[0].image }}\"],\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"top_p\": 0.9,\n    \"max_tokens\": 1000\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "ollama_vision_classification",
+      "name": "Ollama Vision Classification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process vision model response and format classification result\nconst input = $input.item.json;\nconst visionResponse = input.response || '';\nconst requestData = $('Workflow Analyzer').item.json || $('UI Quality Analyzer').item.json || $('Prepare Vision Classification').item.json;\nconst classifier = requestData.classifier;\nconst config = requestData.config;\nconst originalImages = $('Validate Input').item.json.images;\n\nlet results = [];\n\ntry {\n  // Parse vision model response\n  let classificationResult;\n  try {\n    // Try to extract JSON from response\n    const jsonMatch = visionResponse.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      classificationResult = JSON.parse(jsonMatch[0]);\n    } else {\n      throw new Error('No JSON found in response');\n    }\n  } catch (parseError) {\n    // Fallback: create basic classification\n    classificationResult = {\n      classification: 'unknown',\n      confidence: 0.1,\n      explanation: 'Failed to parse vision model response',\n      error: parseError.message,\n      raw_response: visionResponse.substring(0, 500)\n    };\n  }\n  \n  // Process single image (for now, handle batch in future iteration)\n  const imageIndex = 0;\n  \n  // Format result based on classifier type\n  let formattedResult;\n  \n  switch (classifier) {\n    case 'workflow_analysis':\n      formattedResult = {\n        image_index: imageIndex,\n        classification: {\n          overall_health: classificationResult.overall_health || 'unknown',\n          confidence: classificationResult.confidence || 0.5,\n          connectivity_issues: classificationResult.connectivity_issues || {\n            disconnected_nodes: 0,\n            incomplete_connections: false,\n            isolated_clusters: 0\n          },\n          error_indicators: classificationResult.error_indicators || {\n            has_errors: false,\n            error_count_estimate: 0,\n            error_types: []\n          },\n          workflow_completeness: classificationResult.workflow_completeness || {\n            has_trigger: true,\n            has_endpoints: true,\n            logical_flow: 'unknown'\n          },\n          visual_quality: classificationResult.visual_quality || {\n            layout_score: 0.5,\n            readability: 'fair',\n            organization: 'good'\n          }\n        },\n        metadata: {\n          recommendations: classificationResult.recommendations || [],\n          explanation: classificationResult.explanation || 'No detailed explanation available',\n          processing_method: 'workflow_specialized_analysis',\n          processing_time_ms: 3000\n        }\n      };\n      break;\n      \n    case 'ui_quality':\n      formattedResult = {\n        image_index: imageIndex,\n        classification: {\n          quality_score: classificationResult.quality_score || 0.5,\n          confidence: classificationResult.confidence || 0.5,\n          visual_design: classificationResult.visual_design || {\n            professional_appearance: 0.5,\n            color_scheme: 'fair',\n            typography: 'fair',\n            visual_hierarchy: 0.5\n          },\n          layout_structure: classificationResult.layout_structure || {\n            organization: 'fair',\n            spacing: 'fair',\n            alignment: 'fair',\n            responsive_indicators: false\n          },\n          usability: classificationResult.usability || {\n            navigation_clarity: 0.5,\n            cta_visibility: 0.5,\n            form_design: 'not_applicable'\n          },\n          accessibility: classificationResult.accessibility || {\n            contrast_adequate: true,\n            text_readable: true,\n            accessibility_score: 0.5\n          },\n          technical_issues: classificationResult.technical_issues || {\n            has_rendering_issues: false,\n            broken_elements: [],\n            performance_indicators: 'unknown'\n          }\n        },\n        metadata: {\n          recommendations: classificationResult.recommendations || [],\n          explanation: classificationResult.explanation || 'No detailed explanation available',\n          processing_method: 'ui_specialized_analysis',\n          processing_time_ms: 3000\n        }\n      };\n      break;\n      \n    case 'screenshot_type':\n      formattedResult = {\n        image_index: imageIndex,\n        classification: {\n          screenshot_type: classificationResult.screenshot_type || 'unknown',\n          confidence: classificationResult.confidence || 0.5,\n          secondary_types: classificationResult.secondary_types || [],\n          application_category: classificationResult.application_category || 'other',\n          interface_elements: classificationResult.interface_elements || []\n        },\n        metadata: {\n          explanation: classificationResult.explanation || 'No explanation provided',\n          processing_method: 'vision_model_based',\n          processing_time_ms: 3000\n        }\n      };\n      break;\n      \n    case 'visual_content':\n      formattedResult = {\n        image_index: imageIndex,\n        classification: {\n          content_type: classificationResult.content_type || 'unknown',\n          confidence: classificationResult.confidence || 0.5,\n          main_subjects: classificationResult.main_subjects || [],\n          text_detected: classificationResult.text_detected || false,\n          color_scheme: classificationResult.color_scheme || 'unknown',\n          visual_quality: classificationResult.visual_quality || 'fair',\n          purpose: classificationResult.purpose || 'unknown'\n        },\n        metadata: {\n          description: classificationResult.description || 'No description available',\n          processing_method: 'vision_model_based',\n          processing_time_ms: 3000\n        }\n      };\n      break;\n      \n    case 'accessibility_check':\n      formattedResult = {\n        image_index: imageIndex,\n        classification: {\n          accessibility_score: classificationResult.accessibility_score || 0.5,\n          confidence: classificationResult.confidence || 0.5,\n          contrast_issues: classificationResult.contrast_issues || {\n            has_low_contrast: false,\n            problematic_areas: []\n          },\n          text_readability: classificationResult.text_readability || {\n            font_size_adequate: true,\n            text_clarity: 'good'\n          },\n          navigation_accessibility: classificationResult.navigation_accessibility || {\n            focus_indicators_visible: false,\n            keyboard_navigation_apparent: false\n          },\n          compliance_level: classificationResult.compliance_level || 'unknown'\n        },\n        metadata: {\n          issues_found: classificationResult.issues_found || [],\n          recommendations: classificationResult.recommendations || [],\n          explanation: classificationResult.explanation || 'No explanation provided',\n          processing_method: 'accessibility_specialized_analysis',\n          processing_time_ms: 3000\n        }\n      };\n      break;\n      \n    case 'custom':\n      formattedResult = {\n        image_index: imageIndex,\n        classification: {\n          primary_class: classificationResult.primary_class || 'unknown',\n          confidence: classificationResult.confidence || 0.5,\n          all_classes: classificationResult.all_classes || {},\n          visual_features: classificationResult.visual_features || []\n        },\n        metadata: {\n          classifier_name: config.name,\n          explanation: classificationResult.explanation || 'No explanation provided',\n          processing_method: 'custom_vision_classification',\n          processing_time_ms: 3000\n        }\n      };\n      break;\n      \n    default:\n      formattedResult = {\n        image_index: imageIndex,\n        classification: classificationResult,\n        metadata: {\n          explanation: 'Generic vision classification',\n          processing_method: 'vision_model_based',\n          processing_time_ms: 3000\n        }\n      };\n  }\n  \n  results.push(formattedResult);\n  \n} catch (error) {\n  // Error handling\n  results.push({\n    image_index: 0,\n    classification: {\n      error: true,\n      confidence: 0,\n      message: error.message\n    },\n    metadata: {\n      processing_method: 'vision_model_based',\n      processing_time_ms: 100,\n      error_details: error.toString(),\n      raw_response: visionResponse ? visionResponse.substring(0, 500) : 'No response'\n    }\n  });\n}\n\nreturn {\n  classifier: classifier,\n  results: results,\n  batch_mode: false, // TODO: implement batch processing\n  processing_completed: true\n};"
+      },
+      "id": "process_vision_response",
+      "name": "Process Vision Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format final response for all image classification types\nconst input = $input.item.json;\nconst originalRequest = $('Validate Input').item.json;\n\n// Determine which classification result to use\nlet classificationResults;\nif (input.classifier && input.results) {\n  classificationResults = input;\n} else {\n  // This shouldn't happen, but provide fallback\n  classificationResults = {\n    classifier: 'unknown',\n    results: [{\n      image_index: 0,\n      classification: { error: true, message: 'No classification results found' },\n      metadata: { processing_method: 'error', processing_time_ms: 0 }\n    }],\n    processing_completed: false\n  };\n}\n\n// Calculate total processing time\nconst startTime = new Date(originalRequest.metadata.processing_started_at);\nconst totalProcessingTime = Date.now() - startTime.getTime();\n\n// Format response based on batch mode\nif (originalRequest.config.batch_mode) {\n  // Batch mode response\n  return {\n    success: true,\n    classifier: classificationResults.classifier,\n    batch_mode: true,\n    results: classificationResults.results,\n    summary: {\n      total_images: classificationResults.results.length,\n      processing_time_ms: totalProcessingTime,\n      avg_confidence: classificationResults.results.reduce((sum, r) => \n        sum + (r.classification.confidence || 0), 0) / classificationResults.results.length,\n      processing_method: classificationResults.results[0]?.metadata?.processing_method || 'unknown',\n      vision_model: originalRequest.config.model\n    },\n    metadata: {\n      request_id: originalRequest.metadata.request_id,\n      completed_at: new Date().toISOString(),\n      vision_model_used: originalRequest.config.model\n    }\n  };\n} else {\n  // Single image response\n  const result = classificationResults.results[0];\n  return {\n    success: true,\n    classifier: classificationResults.classifier,\n    image_index: result.image_index,\n    classification: result.classification,\n    metadata: {\n      ...result.metadata,\n      total_processing_time_ms: totalProcessingTime,\n      request_id: originalRequest.metadata.request_id,\n      completed_at: new Date().toISOString(),\n      vision_model_used: originalRequest.config.model\n    }\n  };\n}"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1700, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "success_check",
+      "name": "Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2100, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'Image classification failed' }}\",\n  \"classifier\": \"={{ $json.classifier || 'unknown' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\",\n  \"troubleshooting\": {\n    \"common_issues\": [\n      \"Invalid base64 image data\",\n      \"Vision model not available\",\n      \"Image too large or corrupted\",\n      \"Unsupported image format\"\n    ],\n    \"supported_models\": [\"llava:latest\", \"llava:7b\", \"llava:13b\", \"llava-phi3\", \"bakllava\"],\n    \"max_image_size\": \"Images should be under 10MB when base64 encoded\"\n  }\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2100, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Classifier Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classifier Router": {
+      "main": [
+        [
+          {
+            "node": "Workflow Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "UI Quality Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UI Quality Router": {
+      "main": [
+        [
+          {
+            "node": "UI Quality Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Vision Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Ollama Vision Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UI Quality Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Ollama Vision Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Vision Classification": {
+      "main": [
+        [
+          {
+            "node": "Ollama Vision Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Vision Classification": {
+      "main": [
+        [
+          {
+            "node": "Process Vision Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Vision Response": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90
+  },
+  "versionId": "image-classifier-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "intelligent-image-classifier",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "vision-analysis",
+      "name": "vision-analysis"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "ai-classification",
+      "name": "ai-classification"
+    }
+  ]
+}

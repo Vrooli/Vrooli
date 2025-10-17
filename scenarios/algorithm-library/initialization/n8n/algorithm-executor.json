@@ -1,0 +1,174 @@
+{
+  "name": "Algorithm Executor",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "algorithm-executor"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"language\"]}}",
+              "value2": "python"
+            }
+          ]
+        }
+      },
+      "id": "language-router",
+      "name": "Language Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://judge0:2358/submissions",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "source_code",
+              "value": "={{$json[\"code\"]}}"
+            },
+            {
+              "name": "language_id",
+              "value": "71"
+            },
+            {
+              "name": "stdin",
+              "value": "={{$json[\"input\"]}}"
+            }
+          ]
+        },
+        "options": {
+          "wait": true
+        }
+      },
+      "id": "judge0-python",
+      "name": "Judge0 Python",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://judge0:2358/submissions",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "source_code",
+              "value": "={{$json[\"code\"]}}"
+            },
+            {
+              "name": "language_id",
+              "value": "63"
+            },
+            {
+              "name": "stdin",
+              "value": "={{$json[\"input\"]}}"
+            }
+          ]
+        },
+        "options": {
+          "wait": true
+        }
+      },
+      "id": "judge0-javascript",
+      "name": "Judge0 JavaScript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://judge0:2358/submissions",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "source_code",
+              "value": "={{$json[\"code\"]}}"
+            },
+            {
+              "name": "language_id",
+              "value": "60"
+            },
+            {
+              "name": "stdin",
+              "value": "={{$json[\"input\"]}}"
+            }
+          ]
+        },
+        "options": {
+          "wait": true
+        }
+      },
+      "id": "judge0-go",
+      "name": "Judge0 Go",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "const items = [];\n\nfor (const item of $input.all()) {\n  const result = item.json;\n  \n  items.push({\n    json: {\n      success: result.status?.id === 3,\n      output: result.stdout || '',\n      error: result.stderr || result.compile_output || '',\n      time: result.time || 0,\n      memory: result.memory || 0,\n      status: result.status?.description || 'Unknown'\n    }\n  });\n}\n\nreturn items;"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [[{"node": "language-router", "type": "main", "index": 0}]]
+    },
+    "language-router": {
+      "main": [
+        [{"node": "judge0-python", "type": "main", "index": 0}],
+        [{"node": "judge0-javascript", "type": "main", "index": 0}],
+        [{"node": "judge0-go", "type": "main", "index": 0}]
+      ]
+    },
+    "judge0-python": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "judge0-javascript": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "judge0-go": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    },
+    "format-response": {
+      "main": [[{"node": "response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "algorithm-library-1.0",
+  "meta": {
+    "instanceId": "algorithm-library"
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "app_name": "Idea Generator",
+  "version": "1.0.0",
+  "theme": {
+    "default_colors": {
+      "primary": "#3B82F6",
+      "secondary": "#10B981", 
+      "accent": "#8B5CF6",
+      "success": "#059669",
+      "warning": "#D97706",
+      "error": "#DC2626",
+      "info": "#0891B2"
+    },
+    "campaign_colors": [
+      "#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", 
+      "#EF4444", "#06B6D4", "#84CC16", "#EC4899",
+      "#6366F1", "#14B8A6", "#F97316", "#A855F7"
+    ],
+    "dark_mode": {
+      "enabled": true,
+      "auto_detect": true
+    }
+  },
+  "dice": {
+    "animation_types": ["roll", "bounce", "spin", "flip"],
+    "default_animation": "roll",
+    "animation_duration": 1500,
+    "sound_enabled": true,
+    "haptic_feedback": true,
+    "colors": {
+      "default": "#FFFFFF",
+      "hover": "#F3F4F6",
+      "active": "#E5E7EB"
+    }
+  },
+  "ui": {
+    "sidebar": {
+      "width": 320,
+      "collapsible": true,
+      "default_collapsed": false,
+      "show_search": true,
+      "show_filters": true
+    },
+    "chat": {
+      "panel_width": 400,
+      "max_height": 600,
+      "auto_scroll": true,
+      "show_timestamps": true,
+      "typing_indicators": true,
+      "message_grouping": true
+    },
+    "campaign_tabs": {
+      "max_tabs": 10,
+      "tab_width": "auto",
+      "show_colors": true,
+      "closeable": true,
+      "reorderable": true
+    },
+    "idea_cards": {
+      "compact_view": false,
+      "show_preview": true,
+      "max_preview_length": 150,
+      "show_tags": true,
+      "show_scores": true
+    }
+  },
+  "animations": {
+    "page_transitions": true,
+    "loading_animations": true,
+    "micro_interactions": true,
+    "reduced_motion_respect": true
+  },
+  "notifications": {
+    "push_enabled": true,
+    "sound_enabled": true,
+    "toast_position": "top-right",
+    "auto_dismiss": true,
+    "dismiss_timeout": 5000
+  },
+  "accessibility": {
+    "high_contrast_mode": false,
+    "font_size_scale": 1.0,
+    "keyboard_navigation": true,
+    "screen_reader_support": true,
+    "alt_text_required": true
+  },
+  "performance": {
+    "virtual_scrolling": true,
+    "lazy_loading": true,
+    "debounce_search": 300,
+    "cache_responses": true,
+    "prefetch_enabled": true
+  },
+  "export": {
+    "formats": ["json", "csv", "markdown", "pdf"],
+    "default_format": "json",
+    "include_metadata": true,
+    "batch_size": 100
+  },
+  "search": {
+    "fuzzy_matching": true,
+    "search_threshold": 0.7,
+    "max_results": 50,
+    "highlight_matches": true,
+    "save_history": true,
+    "suggestions_enabled": true
+  }
+}

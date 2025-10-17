@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Extension Generator - Vrooli</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>🚀 Extension Generator</h1>
+                    <span class="subtitle">Transform Scenarios into Browser Extensions</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="refreshStatus()">
+                        <span class="icon">🔄</span>
+                        Refresh
+                    </button>
+                    <div class="status-indicator" id="status-indicator">
+                        <span class="dot" id="status-dot"></span>
+                        <span id="status-text">Checking...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Navigation Tabs -->
+            <nav class="tabs" id="main-tabs">
+                <button class="tab-button active" data-tab="generator">Generator</button>
+                <button class="tab-button" data-tab="builds">Builds</button>
+                <button class="tab-button" data-tab="templates">Templates</button>
+                <button class="tab-button" data-tab="testing">Testing</button>
+            </nav>
+
+            <!-- Generator Tab -->
+            <section id="tab-generator" class="tab-content active">
+                <div class="card">
+                    <h2>Generate Browser Extension</h2>
+                    <p>Create a browser extension from a Vrooli scenario with intelligent templates and automated build processes.</p>
+                    
+                    <form id="extension-form" class="extension-form">
+                        <!-- Scenario Details -->
+                        <div class="form-section">
+                            <h3>Scenario Details</h3>
+                            <div class="form-group">
+                                <label for="scenario-name">Scenario Name *</label>
+                                <input type="text" id="scenario-name" name="scenario_name" required 
+                                       placeholder="e.g., web-scraper-manager">
+                                <span class="help-text">Name of the Vrooli scenario to create extension for</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="app-name">Extension Name *</label>
+                                <input type="text" id="app-name" name="app_name" required 
+                                       placeholder="e.g., Web Scraper Assistant">
+                                <span class="help-text">User-friendly name displayed in browser</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="app-description">Description *</label>
+                                <textarea id="app-description" name="app_description" required rows="3"
+                                          placeholder="Describe what your extension does..."></textarea>
+                                <span class="help-text">Brief description shown in browser stores</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="api-endpoint">API Endpoint *</label>
+                                <input type="url" id="api-endpoint" name="api_endpoint" required 
+                                       placeholder="http://localhost:3000" value="http://localhost:3000">
+                                <span class="help-text">Base URL of your scenario's API</span>
+                            </div>
+                        </div>
+
+                        <!-- Template Selection -->
+                        <div class="form-section">
+                            <h3>Extension Template</h3>
+                            <div class="template-grid" id="template-grid">
+                                <div class="template-card active" data-template="full">
+                                    <div class="template-icon">🔧</div>
+                                    <h4>Full Extension</h4>
+                                    <p>Complete extension with background, content scripts, and popup UI</p>
+                                    <div class="template-features">
+                                        <span class="feature">Background Service</span>
+                                        <span class="feature">Content Scripts</span>
+                                        <span class="feature">Popup Interface</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-card" data-template="content-script-only">
+                                    <div class="template-icon">📄</div>
+                                    <h4>Content Script Only</h4>
+                                    <p>Inject scripts into web pages for data extraction and manipulation</p>
+                                    <div class="template-features">
+                                        <span class="feature">Page Injection</span>
+                                        <span class="feature">DOM Manipulation</span>
+                                        <span class="feature">Data Extraction</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-card" data-template="background-only">
+                                    <div class="template-icon">⚙️</div>
+                                    <h4>Background Only</h4>
+                                    <p>Headless automation and cross-tab coordination</p>
+                                    <div class="template-features">
+                                        <span class="feature">API Polling</span>
+                                        <span class="feature">Scheduled Tasks</span>
+                                        <span class="feature">Event Handling</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-card" data-template="popup-only">
+                                    <div class="template-icon">🎛️</div>
+                                    <h4>Popup Only</h4>
+                                    <p>Simple UI tools and utilities accessible from toolbar</p>
+                                    <div class="template-features">
+                                        <span class="feature">Quick Access</span>
+                                        <span class="feature">Settings Panel</span>
+                                        <span class="feature">Tool Interface</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuration -->
+                        <div class="form-section">
+                            <h3>Extension Configuration</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="permissions">Browser Permissions</label>
+                                    <select id="permissions" name="permissions" multiple>
+                                        <option value="storage" selected>Local Storage</option>
+                                        <option value="activeTab" selected>Current Tab Access</option>
+                                        <option value="tabs">All Tabs Access</option>
+                                        <option value="scripting">Script Injection</option>
+                                        <option value="contextMenus">Context Menus</option>
+                                        <option value="notifications">Desktop Notifications</option>
+                                        <option value="alarms">Background Alarms</option>
+                                        <option value="webRequest">Web Request Monitoring</option>
+                                        <option value="cookies">Cookie Access</option>
+                                        <option value="bookmarks">Bookmark Management</option>
+                                    </select>
+                                    <span class="help-text">Select minimal required permissions</span>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="host-permissions">Website Access Patterns</label>
+                                    <textarea id="host-permissions" name="host_permissions" rows="3"
+                                              placeholder="https://*.example.com/*&#10;https://specific-site.com/*">https://*.example.com/*</textarea>
+                                    <span class="help-text">One pattern per line. Use specific patterns when possible</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="version">Version</label>
+                                    <input type="text" id="version" name="version" value="1.0.0" 
+                                           pattern="[0-9]+\.[0-9]+\.[0-9]+" placeholder="1.0.0">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="author">Author</label>
+                                    <input type="text" id="author" name="author" 
+                                           placeholder="Your Name" value="Vrooli Scenario Generator">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox">
+                                    <input type="checkbox" id="debug-mode" name="debug_mode">
+                                    <span class="checkmark"></span>
+                                    Enable debug mode in generated extension
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Generation Controls -->
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                Reset Form
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="generate-btn">
+                                <span class="icon">⚡</span>
+                                Generate Extension
+                                <div class="spinner hidden" id="generate-spinner"></div>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Builds Tab -->
+            <section id="tab-builds" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Extension Builds</h2>
+                        <button class="btn btn-outline" onclick="loadBuilds()">
+                            <span class="icon">🔄</span>
+                            Refresh
+                        </button>
+                    </div>
+                    
+                    <div id="builds-container" class="builds-container">
+                        <div class="loading-state" id="builds-loading">
+                            <div class="spinner"></div>
+                            Loading builds...
+                        </div>
+                        
+                        <div class="empty-state hidden" id="builds-empty">
+                            <div class="empty-icon">📦</div>
+                            <h3>No Builds Yet</h3>
+                            <p>Generate your first extension to see builds here.</p>
+                            <button class="btn btn-primary" onclick="switchTab('generator')">
+                                Create Extension
+                            </button>
+                        </div>
+                        
+                        <div id="builds-list" class="builds-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Templates Tab -->
+            <section id="tab-templates" class="tab-content">
+                <div class="card">
+                    <h2>Extension Templates</h2>
+                    <p>Available templates for generating browser extensions from scenarios.</p>
+                    
+                    <div id="templates-container" class="templates-container">
+                        <div class="loading-state" id="templates-loading">
+                            <div class="spinner"></div>
+                            Loading templates...
+                        </div>
+                        
+                        <div id="templates-list" class="templates-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Testing Tab -->
+            <section id="tab-testing" class="tab-content">
+                <div class="card">
+                    <h2>Extension Testing</h2>
+                    <p>Test browser extensions with automated validation and screenshot capture.</p>
+                    
+                    <form id="testing-form" class="testing-form">
+                        <div class="form-group">
+                            <label for="test-extension-path">Extension Path *</label>
+                            <div class="input-group">
+                                <input type="text" id="test-extension-path" name="extension_path" required
+                                       placeholder="Path to extension directory">
+                                <button type="button" class="btn btn-secondary" onclick="browseExtension()">
+                                    Browse
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="test-sites">Test Sites</label>
+                            <textarea id="test-sites" name="test_sites" rows="4"
+                                      placeholder="https://example.com&#10;https://google.com">https://example.com</textarea>
+                            <span class="help-text">One URL per line</span>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="checkbox">
+                                    <input type="checkbox" id="test-screenshot" name="screenshot" checked>
+                                    <span class="checkmark"></span>
+                                    Capture screenshots
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox">
+                                    <input type="checkbox" id="test-headless" name="headless">
+                                    <span class="checkmark"></span>
+                                    Headless mode
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" id="test-btn">
+                                <span class="icon">🧪</span>
+                                Run Tests
+                                <div class="spinner hidden" id="test-spinner"></div>
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Test Results -->
+                    <div id="test-results" class="test-results hidden">
+                        <h3>Test Results</h3>
+                        <div id="test-results-content"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Vrooli - AI Intelligence Platform</p>
+            <div class="footer-links">
+                <a href="https://github.com/vrooli/vrooli" target="_blank">GitHub</a>
+                <a href="/docs" target="_blank">Documentation</a>
+                <a href="/api/v1/health" target="_blank">API Health</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Notification System -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="spinner large"></div>
+            <h3 id="loading-title">Processing...</h3>
+            <p id="loading-message">This may take a moment...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module" src="bridge-init.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

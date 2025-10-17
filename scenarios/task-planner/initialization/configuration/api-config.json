@@ -1,0 +1,429 @@
+{
+  "api": {
+    "version": "1.0.0",
+    "title": "Task Planner API",
+    "description": "AI-powered task management system with progressive refinement",
+    "base_path": "/api",
+    "port": 8092,
+    "host": "localhost",
+    "cors": {
+      "enabled": true,
+      "origins": ["http://localhost:3000", "http://localhost:8001"],
+      "methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      "headers": ["Content-Type", "Authorization", "X-API-Key"]
+    },
+    "rate_limiting": {
+      "enabled": true,
+      "window_minutes": 1,
+      "max_requests": 60,
+      "max_burst": 10,
+      "key_generator": "ip_and_user"
+    }
+  },
+
+  "authentication": {
+    "methods": ["api_key", "bearer_token"],
+    "api_key": {
+      "header_name": "X-API-Key",
+      "query_param": "api_key",
+      "required_for_all": false
+    },
+    "bearer_token": {
+      "header_name": "Authorization",
+      "token_prefix": "Bearer ",
+      "jwt_secret": "${TASK_PLANNER_JWT_SECRET}",
+      "expiration_hours": 24
+    },
+    "app_isolation": {
+      "enabled": true,
+      "require_app_token": true,
+      "token_validation": "database_lookup"
+    }
+  },
+
+  "endpoints": {
+    "health": {
+      "path": "/health",
+      "method": "GET",
+      "public": true,
+      "description": "Service health check",
+      "response_format": "json"
+    },
+    
+    "apps": {
+      "list": {
+        "path": "/apps",
+        "method": "GET",
+        "auth_required": false,
+        "description": "List all registered apps"
+      },
+      "create": {
+        "path": "/apps",
+        "method": "POST", 
+        "auth_required": true,
+        "description": "Register a new app",
+        "required_fields": ["name", "display_name"],
+        "optional_fields": ["type", "repository_url", "webhook_url"]
+      },
+      "get": {
+        "path": "/apps/{app_id}",
+        "method": "GET",
+        "auth_required": false,
+        "description": "Get app details and statistics"
+      },
+      "update": {
+        "path": "/apps/{app_id}",
+        "method": "PUT",
+        "auth_required": true,
+        "description": "Update app configuration"
+      },
+      "stats": {
+        "path": "/apps/{app_id}/stats",
+        "method": "GET",
+        "auth_required": false,
+        "description": "Get app task statistics and metrics"
+      }
+    },
+
+    "tasks": {
+      "parse_text": {
+        "path": "/parse-text",
+        "method": "POST",
+        "auth_required": true,
+        "description": "Parse unstructured text into tasks",
+        "required_fields": ["app_id", "raw_text", "api_token"],
+        "optional_fields": ["input_type", "submitted_by"],
+        "timeout_seconds": 120,
+        "max_text_length": 50000
+      },
+      
+      "list": {
+        "path": "/tasks",
+        "method": "GET", 
+        "auth_required": false,
+        "description": "List tasks with filtering and pagination",
+        "query_params": {
+          "app_id": "Filter by app",
+          "status": "Filter by status", 
+          "priority": "Filter by priority",
+          "tags": "Filter by tags (comma-separated)",
+          "limit": "Results per page (default: 50, max: 500)",
+          "offset": "Pagination offset",
+          "sort": "Sort order (created_at, updated_at, priority)",
+          "order": "Sort direction (asc, desc)"
+        }
+      },
+
+      "get": {
+        "path": "/tasks/{task_id}",
+        "method": "GET",
+        "auth_required": false,
+        "description": "Get detailed task information"
+      },
+
+      "research": {
+        "path": "/tasks/{task_id}/research",
+        "method": "POST",
+        "auth_required": true,
+        "description": "Research and plan a backlog task",
+        "optional_fields": ["force_refresh"],
+        "timeout_seconds": 300
+      },
+
+      "implement": {
+        "path": "/tasks/{task_id}/implement",
+        "method": "POST",
+        "auth_required": true,
+        "description": "Implement a staged task",
+        "optional_fields": ["override_staging", "implementation_notes"],
+        "timeout_seconds": 600
+      },
+
+      "status": {
+        "path": "/tasks/{task_id}/status",
+        "method": "PUT",
+        "auth_required": true,
+        "description": "Update task status manually",
+        "required_fields": ["to_status"],
+        "optional_fields": ["reason", "notes"]
+      },
+
+      "similar": {
+        "path": "/tasks/{task_id}/similar",
+        "method": "GET",
+        "auth_required": false,
+        "description": "Find similar tasks using semantic search",
+        "query_params": {
+          "limit": "Maximum number of results (default: 5, max: 20)",
+          "threshold": "Similarity threshold (default: 0.3)"
+        }
+      },
+
+      "artifacts": {
+        "path": "/tasks/{task_id}/artifacts",
+        "method": "GET",
+        "auth_required": false,
+        "description": "Get research artifacts for a task"
+      }
+    },
+
+    "batch": {
+      "research": {
+        "path": "/batch/research",
+        "method": "POST",
+        "auth_required": true,
+        "description": "Research multiple tasks in batch",
+        "required_fields": ["task_ids"],
+        "optional_fields": ["max_concurrent"],
+        "timeout_seconds": 1800
+      },
+      
+      "implement": {
+        "path": "/batch/implement", 
+        "method": "POST",
+        "auth_required": true,
+        "description": "Implement multiple staged tasks in batch",
+        "required_fields": ["task_ids"],
+        "optional_fields": ["max_concurrent", "implementation_notes"],
+        "timeout_seconds": 3600
+      },
+
+      "status_update": {
+        "path": "/batch/status",
+        "method": "POST",
+        "auth_required": true,
+        "description": "Update status of multiple tasks",
+        "required_fields": ["updates"],
+        "timeout_seconds": 120
+      }
+    },
+
+    "search": {
+      "semantic": {
+        "path": "/search/semantic",
+        "method": "POST",
+        "auth_required": false,
+        "description": "Semantic search across tasks",
+        "required_fields": ["query"],
+        "optional_fields": ["app_id", "status_filter", "limit"],
+        "timeout_seconds": 30
+      },
+      
+      "text": {
+        "path": "/search/text",
+        "method": "GET",
+        "auth_required": false,
+        "description": "Full-text search across task titles and descriptions",
+        "query_params": {
+          "q": "Search query",
+          "app_id": "Filter by app",
+          "status": "Filter by status",
+          "limit": "Results limit"
+        }
+      }
+    },
+
+    "analytics": {
+      "stats": {
+        "path": "/analytics/stats",
+        "method": "GET",
+        "auth_required": false,
+        "description": "System-wide task statistics",
+        "query_params": {
+          "app_id": "Filter by app",
+          "time_range": "Time range for stats (7d, 30d, 90d, 1y)"
+        }
+      },
+      
+      "activity": {
+        "path": "/analytics/activity", 
+        "method": "GET",
+        "auth_required": false,
+        "description": "Recent system activity feed",
+        "query_params": {
+          "limit": "Number of activities to return",
+          "app_id": "Filter by app"
+        }
+      }
+    }
+  },
+
+  "cli": {
+    "command_prefix": "task-planner",
+    "config_file": "~/.task-planner/config.json",
+    "default_api_base": "http://localhost:8092/api",
+    "output_formats": ["json", "table", "csv"],
+    "default_format": "table",
+    
+    "commands": {
+      "parse": {
+        "description": "Parse unstructured text into tasks",
+        "usage": "task-planner parse [options] <text>",
+        "options": {
+          "--app-id": "App ID to create tasks for",
+          "--file": "Read text from file instead",
+          "--type": "Input type (markdown, plaintext, structured_list)",
+          "--format": "Output format (json, table)"
+        },
+        "examples": [
+          "task-planner parse --app-id=my-app 'Add login page'",
+          "task-planner parse --app-id=my-app --file=tasks.md"
+        ]
+      },
+
+      "list": {
+        "description": "List tasks with optional filtering",
+        "usage": "task-planner list [options]",
+        "options": {
+          "--app-id": "Filter by app ID",
+          "--status": "Filter by status",
+          "--priority": "Filter by priority", 
+          "--tags": "Filter by tags (comma-separated)",
+          "--limit": "Maximum results to return",
+          "--format": "Output format"
+        },
+        "examples": [
+          "task-planner list --status=backlog --priority=high",
+          "task-planner list --app-id=my-app --format=json"
+        ]
+      },
+
+      "research": {
+        "description": "Research and plan a task",
+        "usage": "task-planner research [options] <task-id>",
+        "options": {
+          "--force": "Force re-research even if already researched",
+          "--format": "Output format"
+        },
+        "examples": [
+          "task-planner research abc123",
+          "task-planner research --force abc123"
+        ]
+      },
+
+      "implement": {
+        "description": "Implement a staged task",
+        "usage": "task-planner implement [options] <task-id>",
+        "options": {
+          "--force": "Force implementation of non-staged task",
+          "--notes": "Additional implementation notes",
+          "--format": "Output format"
+        },
+        "examples": [
+          "task-planner implement def456",
+          "task-planner implement --notes='Use async/await' def456"
+        ]
+      },
+
+      "status": {
+        "description": "Update task status",
+        "usage": "task-planner status [options] <task-id> <new-status>",
+        "options": {
+          "--reason": "Reason for status change",
+          "--notes": "Additional notes"
+        },
+        "examples": [
+          "task-planner status abc123 completed",
+          "task-planner status --reason='Testing failed' abc123 failed"
+        ]
+      },
+
+      "search": {
+        "description": "Search tasks semantically or by text",
+        "usage": "task-planner search [options] <query>",
+        "options": {
+          "--semantic": "Use semantic search (default: text search)",
+          "--app-id": "Filter by app ID",
+          "--status": "Filter by status",
+          "--limit": "Maximum results"
+        },
+        "examples": [
+          "task-planner search 'authentication issues'",
+          "task-planner search --semantic 'login problems'"
+        ]
+      },
+
+      "apps": {
+        "description": "Manage apps",
+        "usage": "task-planner apps <command> [options]",
+        "subcommands": {
+          "list": "List all apps",
+          "create": "Create new app",
+          "show": "Show app details",
+          "stats": "Show app statistics"
+        },
+        "examples": [
+          "task-planner apps list",
+          "task-planner apps create --name=my-app --display-name='My App'",
+          "task-planner apps stats my-app"
+        ]
+      },
+
+      "config": {
+        "description": "Manage CLI configuration",
+        "usage": "task-planner config <command> [options]",
+        "subcommands": {
+          "show": "Show current configuration",
+          "set": "Set configuration value",
+          "reset": "Reset to defaults"
+        },
+        "examples": [
+          "task-planner config show",
+          "task-planner config set api_base http://localhost:8092/api",
+          "task-planner config set default_format json"
+        ]
+      }
+    }
+  },
+
+  "webhooks": {
+    "supported_events": [
+      "task.created",
+      "task.status_changed", 
+      "task.research_completed",
+      "task.implementation_completed",
+      "task.failed",
+      "app.created",
+      "batch.completed"
+    ],
+    
+    "delivery": {
+      "timeout_seconds": 30,
+      "retry_attempts": 3,
+      "retry_backoff": "exponential",
+      "retry_delays": [1, 3, 9]
+    },
+    
+    "security": {
+      "signature_header": "X-Task-Planner-Signature",
+      "signing_algorithm": "sha256",
+      "signature_secret": "${WEBHOOK_SECRET}"
+    }
+  },
+
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "include_request_id": true,
+    "audit_events": [
+      "task.created",
+      "task.status_changed", 
+      "app.created",
+      "authentication.failed"
+    ]
+  },
+
+  "error_handling": {
+    "include_stack_trace": false,
+    "error_codes": {
+      "TASK_NOT_FOUND": 404,
+      "APP_NOT_FOUND": 404,
+      "INVALID_STATUS_TRANSITION": 400,
+      "AUTHENTICATION_REQUIRED": 401,
+      "INSUFFICIENT_PERMISSIONS": 403,
+      "RATE_LIMIT_EXCEEDED": 429,
+      "TEXT_TOO_LONG": 413,
+      "PROCESSING_TIMEOUT": 504
+    }
+  }
+}

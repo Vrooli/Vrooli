@@ -1,0 +1,5 @@
+packageManager: "pnpm@10.14.0"
+link-workspace-packages: false
+shared-workspace-lockfile: false
+packages:
+  - packages/*

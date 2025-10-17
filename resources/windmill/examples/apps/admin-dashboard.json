@@ -1,0 +1,509 @@
+{
+  "name": "User Management Dashboard",
+  "description": "Admin dashboard for managing users, viewing metrics, and performing administrative tasks",
+  "app_structure": {
+    "layout": {
+      "type": "container",
+      "direction": "vertical",
+      "components": [
+        {
+          "id": "header",
+          "type": "container",
+          "direction": "horizontal",
+          "style": {
+            "padding": "16px",
+            "backgroundColor": "#f5f5f5",
+            "borderBottom": "1px solid #ddd"
+          },
+          "components": [
+            {
+              "id": "title",
+              "type": "text",
+              "content": "User Management Dashboard",
+              "style": {
+                "fontSize": "24px",
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "id": "refresh_button",
+              "type": "button",
+              "text": "Refresh Data",
+              "variant": "secondary",
+              "onClick": {
+                "runScript": "f/admin/refresh_all_data"
+              }
+            }
+          ]
+        },
+        {
+          "id": "metrics_row",
+          "type": "container",
+          "direction": "horizontal",
+          "style": {
+            "padding": "16px",
+            "gap": "16px"
+          },
+          "components": [
+            {
+              "id": "total_users_card",
+              "type": "metric_card",
+              "title": "Total Users",
+              "value": "${scripts.get_user_metrics.output.total_users}",
+              "icon": "users",
+              "color": "blue"
+            },
+            {
+              "id": "active_users_card",
+              "type": "metric_card",
+              "title": "Active Today",
+              "value": "${scripts.get_user_metrics.output.active_today}",
+              "icon": "activity",
+              "color": "green"
+            },
+            {
+              "id": "new_users_card",
+              "type": "metric_card",
+              "title": "New This Week",
+              "value": "${scripts.get_user_metrics.output.new_this_week}",
+              "icon": "user-plus",
+              "color": "purple"
+            },
+            {
+              "id": "suspended_users_card",
+              "type": "metric_card",
+              "title": "Suspended",
+              "value": "${scripts.get_user_metrics.output.suspended}",
+              "icon": "user-x",
+              "color": "red"
+            }
+          ]
+        },
+        {
+          "id": "main_content",
+          "type": "container",
+          "direction": "horizontal",
+          "style": {
+            "padding": "16px",
+            "gap": "16px",
+            "flex": 1
+          },
+          "components": [
+            {
+              "id": "users_table_section",
+              "type": "container",
+              "style": {
+                "flex": 2
+              },
+              "components": [
+                {
+                  "id": "search_bar",
+                  "type": "search",
+                  "placeholder": "Search users by name or email...",
+                  "onSearch": {
+                    "runScript": "f/admin/search_users",
+                    "inputs": {
+                      "query": "${value}"
+                    }
+                  }
+                },
+                {
+                  "id": "users_table",
+                  "type": "table",
+                  "data": "${scripts.get_users.output}",
+                  "columns": [
+                    {
+                      "key": "id",
+                      "title": "ID",
+                      "width": "80px"
+                    },
+                    {
+                      "key": "name",
+                      "title": "Name",
+                      "sortable": true
+                    },
+                    {
+                      "key": "email",
+                      "title": "Email",
+                      "sortable": true
+                    },
+                    {
+                      "key": "role",
+                      "title": "Role",
+                      "sortable": true,
+                      "filterable": true
+                    },
+                    {
+                      "key": "status",
+                      "title": "Status",
+                      "sortable": true,
+                      "render": {
+                        "type": "badge",
+                        "colorMap": {
+                          "active": "green",
+                          "inactive": "gray",
+                          "suspended": "red"
+                        }
+                      }
+                    },
+                    {
+                      "key": "last_login",
+                      "title": "Last Login",
+                      "sortable": true,
+                      "format": "relative_time"
+                    },
+                    {
+                      "key": "actions",
+                      "title": "Actions",
+                      "render": {
+                        "type": "actions",
+                        "actions": [
+                          {
+                            "icon": "edit",
+                            "tooltip": "Edit user",
+                            "onClick": {
+                              "openModal": "edit_user_modal",
+                              "data": "${row}"
+                            }
+                          },
+                          {
+                            "icon": "trash",
+                            "tooltip": "Delete user",
+                            "onClick": {
+                              "confirm": "Are you sure you want to delete this user?",
+                              "runScript": "f/admin/delete_user",
+                              "inputs": {
+                                "user_id": "${row.id}"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "pagination": {
+                    "pageSize": 20,
+                    "showSizeChanger": true
+                  },
+                  "selection": {
+                    "type": "checkbox",
+                    "actions": [
+                      {
+                        "label": "Bulk Suspend",
+                        "onClick": {
+                          "runScript": "f/admin/bulk_suspend",
+                          "inputs": {
+                            "user_ids": "${selected.map(u => u.id)}"
+                          }
+                        }
+                      },
+                      {
+                        "label": "Export Selected",
+                        "onClick": {
+                          "runScript": "f/admin/export_users",
+                          "inputs": {
+                            "user_ids": "${selected.map(u => u.id)}"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "side_panel",
+              "type": "container",
+              "style": {
+                "flex": 1,
+                "backgroundColor": "#f9f9f9",
+                "padding": "16px",
+                "borderRadius": "8px"
+              },
+              "components": [
+                {
+                  "id": "quick_actions",
+                  "type": "container",
+                  "components": [
+                    {
+                      "type": "text",
+                      "content": "Quick Actions",
+                      "style": {
+                        "fontSize": "18px",
+                        "fontWeight": "bold",
+                        "marginBottom": "16px"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "text": "Add New User",
+                      "variant": "primary",
+                      "fullWidth": true,
+                      "onClick": {
+                        "openModal": "add_user_modal"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "text": "Import Users",
+                      "variant": "secondary",
+                      "fullWidth": true,
+                      "onClick": {
+                        "openModal": "import_users_modal"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "text": "Export All Users",
+                      "variant": "secondary",
+                      "fullWidth": true,
+                      "onClick": {
+                        "runScript": "f/admin/export_all_users"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "activity_feed",
+                  "type": "container",
+                  "style": {
+                    "marginTop": "24px"
+                  },
+                  "components": [
+                    {
+                      "type": "text",
+                      "content": "Recent Activity",
+                      "style": {
+                        "fontSize": "18px",
+                        "fontWeight": "bold",
+                        "marginBottom": "16px"
+                      }
+                    },
+                    {
+                      "type": "activity_list",
+                      "data": "${scripts.get_recent_activity.output}",
+                      "itemTemplate": {
+                        "icon": "${item.type}",
+                        "title": "${item.title}",
+                        "subtitle": "${item.user} - ${item.timestamp}",
+                        "color": "${item.severity}"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "modals": [
+      {
+        "id": "edit_user_modal",
+        "title": "Edit User",
+        "size": "medium",
+        "components": [
+          {
+            "type": "form",
+            "id": "edit_user_form",
+            "fields": [
+              {
+                "name": "name",
+                "label": "Full Name",
+                "type": "text",
+                "required": true,
+                "defaultValue": "${modal.data.name}"
+              },
+              {
+                "name": "email",
+                "label": "Email",
+                "type": "email",
+                "required": true,
+                "defaultValue": "${modal.data.email}"
+              },
+              {
+                "name": "role",
+                "label": "Role",
+                "type": "select",
+                "options": ["admin", "user", "viewer"],
+                "defaultValue": "${modal.data.role}"
+              },
+              {
+                "name": "status",
+                "label": "Status",
+                "type": "select",
+                "options": ["active", "inactive", "suspended"],
+                "defaultValue": "${modal.data.status}"
+              }
+            ],
+            "actions": [
+              {
+                "type": "button",
+                "text": "Cancel",
+                "variant": "secondary",
+                "onClick": {
+                  "closeModal": true
+                }
+              },
+              {
+                "type": "button",
+                "text": "Save Changes",
+                "variant": "primary",
+                "onClick": {
+                  "runScript": "f/admin/update_user",
+                  "inputs": {
+                    "user_id": "${modal.data.id}",
+                    "updates": "${form.values}"
+                  },
+                  "onSuccess": {
+                    "closeModal": true,
+                    "refreshData": ["users_table", "metrics"]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "add_user_modal",
+        "title": "Add New User",
+        "size": "medium",
+        "components": [
+          {
+            "type": "form",
+            "id": "add_user_form",
+            "fields": [
+              {
+                "name": "name",
+                "label": "Full Name",
+                "type": "text",
+                "required": true
+              },
+              {
+                "name": "email",
+                "label": "Email",
+                "type": "email",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Initial Password",
+                "type": "password",
+                "required": true,
+                "minLength": 8
+              },
+              {
+                "name": "role",
+                "label": "Role",
+                "type": "select",
+                "options": ["admin", "user", "viewer"],
+                "defaultValue": "user"
+              },
+              {
+                "name": "send_welcome_email",
+                "label": "Send welcome email",
+                "type": "checkbox",
+                "defaultValue": true
+              }
+            ],
+            "actions": [
+              {
+                "type": "button",
+                "text": "Cancel",
+                "variant": "secondary",
+                "onClick": {
+                  "closeModal": true
+                }
+              },
+              {
+                "type": "button",
+                "text": "Create User",
+                "variant": "primary",
+                "onClick": {
+                  "runScript": "f/admin/create_user",
+                  "inputs": "${form.values}",
+                  "onSuccess": {
+                    "closeModal": true,
+                    "refreshData": ["users_table", "metrics"],
+                    "showNotification": {
+                      "type": "success",
+                      "message": "User created successfully"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "scripts": [
+      {
+        "id": "get_users",
+        "path": "f/admin/get_users",
+        "trigger": "onLoad",
+        "refreshInterval": 30000
+      },
+      {
+        "id": "get_user_metrics",
+        "path": "f/admin/get_user_metrics",
+        "trigger": "onLoad",
+        "refreshInterval": 60000
+      },
+      {
+        "id": "get_recent_activity",
+        "path": "f/admin/get_recent_activity",
+        "trigger": "onLoad",
+        "refreshInterval": 10000
+      }
+    ]
+  },
+  "required_scripts": [
+    {
+      "path": "f/admin/get_users",
+      "description": "Fetches paginated user list with filters"
+    },
+    {
+      "path": "f/admin/get_user_metrics",
+      "description": "Calculates user statistics"
+    },
+    {
+      "path": "f/admin/get_recent_activity",
+      "description": "Fetches recent admin activities"
+    },
+    {
+      "path": "f/admin/search_users",
+      "description": "Searches users by name or email"
+    },
+    {
+      "path": "f/admin/create_user",
+      "description": "Creates a new user account"
+    },
+    {
+      "path": "f/admin/update_user",
+      "description": "Updates user information"
+    },
+    {
+      "path": "f/admin/delete_user",
+      "description": "Deletes a user account"
+    },
+    {
+      "path": "f/admin/bulk_suspend",
+      "description": "Suspends multiple users"
+    },
+    {
+      "path": "f/admin/export_users",
+      "description": "Exports user data to CSV"
+    }
+  ],
+  "permissions": {
+    "required_role": "admin",
+    "features": {
+      "create_users": ["admin"],
+      "edit_users": ["admin"],
+      "delete_users": ["admin"],
+      "view_users": ["admin", "viewer"]
+    }
+  }
+}

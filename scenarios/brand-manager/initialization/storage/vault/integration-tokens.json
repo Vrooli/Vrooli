@@ -1,0 +1,15 @@
+{
+  "github_token": "github-pat-demo-token-for-repository-access",
+  "gitlab_token": "gitlab-demo-token-for-repository-access", 
+  "filesystem_access_token": "filesystem-access-token-for-app-integration",
+  "backup_encryption_key": "backup-encryption-key-aes-256-replace-in-production",
+  "claude_session_tokens": {
+    "demo_session_1": "claude-session-token-demo-1",
+    "demo_session_2": "claude-session-token-demo-2"
+  },
+  "webhook_validation_secrets": {
+    "claude_progress": "claude-progress-webhook-secret",
+    "claude_completion": "claude-completion-webhook-secret", 
+    "claude_error": "claude-error-webhook-secret"
+  }
+}

@@ -1,0 +1,173 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "swarm-manager",
+    "displayName": "Swarm Manager",
+    "description": "Autonomous task orchestrator that coordinates work across all Vrooli scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "orchestration",
+      "task-management",
+      "automation",
+      "ai-coordinator",
+      "vrooli-core"
+    ]
+  },
+  "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Swarm Manager API port",
+       "range": "15000-19999"
+     },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 31011,
+      "description": "Swarm Manager dashboard UI port"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Task metadata, execution history, and configuration storage",
+      "schema": "swarm_manager"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "description": "Task locks, real-time updates, and pub/sub messaging"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "description": "Task embeddings, pattern recognition, and learning system"
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "description": "Task analysis, priority estimation, and work execution"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "description": "Local LLM for lightweight task analysis"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Swarm Manager health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/",
+        "metrics": "/api/metrics"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Swarm Manager",
+      "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "swarm-manager-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["swarm-manager"]
+            }
+         ]
+      },
+      "steps": [
+        {
+          "name": "verify-directories",
+          "run": "ls -la tasks/ | head -5"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o swarm-manager-api ."
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error"
+        }
+      ]
+    },
+     "develop": {
+       "description": "Start Swarm Manager services",
+       "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./swarm-manager-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/swarm-manager-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo \"✅ Swarm Manager is running at http://localhost:${UI_PORT}\""
+         }
+       ]
+     },
+    "test": {
+      "description": "Run Swarm Manager tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd api && go test ./..."
+        }
+      ]
+    },
+    "shutdown": {
+      "description": "Stop Swarm Manager services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f swarm-manager-api || true; pkill -f 'node server.js' || true"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"swarm-manager-api\" || true; sleep 1; pkill -9 -f \"swarm-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/swarm-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/swarm-manager.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

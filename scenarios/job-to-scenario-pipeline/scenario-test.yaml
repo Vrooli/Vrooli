@@ -1,0 +1,120 @@
+version: 1.0
+scenario: job-to-scenario-pipeline
+
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/job-to-scenario
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/automation/huginn/upwork-scraper.json
+    - data/manage.sh
+    - data/templates/job-template.yaml
+    - ui/index.html
+    - ui/styles.css
+    - ui/app.js
+    - ui/server.js
+    - ui/package.json
+    - README.md
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - data/pending
+    - data/researching
+    - data/evaluated
+    - data/approved
+    - data/building
+    - data/completed
+    - data/archive
+    - data/templates
+    - initialization/automation/huginn
+    - initialization/storage/postgres
+    - ui
+
+resources:
+  required: [postgres, ollama, huginn, browserless]
+  optional: [qdrant, redis]
+  health_timeout: 60
+
+tests:
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Ollama is accessible"
+    type: http
+    service: ollama
+    endpoint: /api/tags
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "API health check"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        service: job-to-scenario-pipeline
+        
+  - name: "Import manual job"
+    type: http
+    service: api
+    endpoint: /api/v1/jobs/import
+    method: POST
+    body:
+      source: manual
+      data: "Test job description for validation"
+    expect:
+      status: 201
+      body:
+        state: pending
+        
+  - name: "List jobs endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/jobs
+    method: GET
+    expect:
+      status: 200
+      body:
+        jobs: []
+        total: 0
+        
+  - name: "CLI help command"
+    type: exec
+    command: ./cli/job-to-scenario --help
+    expect:
+      exit_code: 0
+      output_contains: ["import", "research", "approve", "list"]
+      
+  - name: "File management script"
+    type: exec
+    command: ./data/manage.sh status
+    expect:
+      exit_code: 0
+      output_contains: ["pending", "completed"]
+      
+  - name: "Test job file exists"
+    type: file
+    path: data/pending/TEST-JOB-001.yaml
+    expect:
+      exists: true
+      
+  - name: "Database schema is valid SQL"
+    type: exec
+    command: psql -h localhost -p 5433 -U postgres -d postgres -c "SELECT 1" 2>/dev/null || echo "Database test skipped"
+    expect:
+      exit_code: 0

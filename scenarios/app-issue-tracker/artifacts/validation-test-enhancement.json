@@ -1,0 +1,326 @@
+{
+  "scenario": "validation",
+  "full_name": "Vrooli Scenario Validation Framework",
+  "location": "/home/matthalloran8/Vrooli/scripts/scenarios/validation",
+  "type": "infrastructure_testing_framework",
+  "description": "Declarative testing framework for validating Vrooli business scenarios",
+
+  "current_state": {
+    "total_lines_of_code": 4489,
+    "main_scripts": {
+      "scenario_test_runner": 527,
+      "run_all_scenarios": 445,
+      "existing_tests": 128
+    },
+    "modules": {
+      "clients": ["common.sh", "ollama.sh"],
+      "handlers": ["http.sh", "database.sh", "chain.sh", "custom.sh"],
+      "validators": ["resources.sh", "structure.sh"]
+    },
+    "existing_test_coverage": {
+      "bats_tests_count": 8,
+      "test_file": "scenario-test-runner.bats",
+      "tested_areas": [
+        "Help message display",
+        "Argument validation",
+        "Directory validation",
+        "Config loading",
+        "Dry run mode",
+        "Verbose mode"
+      ],
+      "coverage_estimate": "15%"
+    },
+    "test_infrastructure_issues": {
+      "broken_dependency": "BATS test setup references missing __test/fixtures/setup.bash",
+      "missing_test_fixtures": true,
+      "test_execution_blocked": true
+    }
+  },
+
+  "test_enhancement_requirements": {
+    "focus_areas": [
+      "dependencies",
+      "structure",
+      "unit",
+      "integration",
+      "business",
+      "performance"
+    ],
+    "target_coverage": "80%",
+    "minimum_coverage": "50%"
+  },
+
+  "gap_analysis": {
+    "untested_modules": {
+      "clients_common": {
+        "file": "clients/common.sh",
+        "critical_functions": [
+          "get_service_path",
+          "is_resource_enabled",
+          "get_service_url",
+          "get_resource_url",
+          "is_resource_available",
+          "check_url_health",
+          "parse_json_value"
+        ],
+        "test_priority": "HIGH"
+      },
+      "clients_ollama": {
+        "file": "clients/ollama.sh",
+        "critical_functions": [
+          "ollama_list_models",
+          "ollama_has_model",
+          "ollama_ensure_model",
+          "ollama_generate",
+          "ollama_generate_and_validate"
+        ],
+        "test_priority": "HIGH"
+      },
+      "handlers_http": {
+        "file": "handlers/http.sh",
+        "critical_functions": [
+          "check_service_availability",
+          "make_http_request",
+          "parse_http_response",
+          "validate_http_response",
+          "execute_http_test_from_config"
+        ],
+        "test_priority": "CRITICAL"
+      },
+      "handlers_chain": {
+        "file": "handlers/chain.sh",
+        "critical_functions": [
+          "set_chain_variable",
+          "get_chain_variable",
+          "substitute_variables",
+          "execute_ollama_step",
+          "execute_chain_step"
+        ],
+        "test_priority": "HIGH"
+      },
+      "handlers_database": {
+        "file": "handlers/database.sh",
+        "critical_functions": [
+          "get_db_connection",
+          "test_db_connection",
+          "execute_sql",
+          "query_and_validate"
+        ],
+        "test_priority": "MEDIUM"
+      },
+      "handlers_custom": {
+        "file": "handlers/custom.sh",
+        "critical_functions": [
+          "execute_custom_script",
+          "validate_custom_script",
+          "source_framework_utilities"
+        ],
+        "test_priority": "HIGH"
+      },
+      "validators_resources": {
+        "file": "validators/resources.sh",
+        "critical_functions": [
+          "check_http_health",
+          "check_database_health",
+          "validate_resource_availability"
+        ],
+        "test_priority": "CRITICAL"
+      },
+      "validators_structure": {
+        "file": "validators/structure.sh",
+        "critical_functions": [
+          "check_file",
+          "check_directory",
+          "validate_yaml",
+          "validate_json",
+          "validate_sql",
+          "validate_shell"
+        ],
+        "test_priority": "HIGH"
+      }
+    },
+    "missing_test_types": [
+      "Unit tests for individual functions",
+      "Integration tests for module interactions",
+      "End-to-end workflow tests",
+      "Error handling tests",
+      "Performance tests",
+      "Mock service tests"
+    ]
+  },
+
+  "recommended_test_structure": {
+    "test_directory": "scripts/scenarios/validation/test",
+    "files_to_create": [
+      {
+        "path": "test/test-helpers.sh",
+        "purpose": "Reusable test utilities, mock services, fixtures",
+        "key_functions": [
+          "setup_test_environment",
+          "cleanup_test_environment",
+          "create_mock_service",
+          "create_test_scenario_yaml",
+          "assert_function_exists",
+          "mock_service_response"
+        ]
+      },
+      {
+        "path": "test/unit/test-clients-common.bats",
+        "purpose": "Unit tests for clients/common.sh",
+        "test_count_target": 25
+      },
+      {
+        "path": "test/unit/test-clients-ollama.bats",
+        "purpose": "Unit tests for clients/ollama.sh",
+        "test_count_target": 20
+      },
+      {
+        "path": "test/unit/test-handlers-http.bats",
+        "purpose": "Unit tests for handlers/http.sh",
+        "test_count_target": 30
+      },
+      {
+        "path": "test/unit/test-handlers-chain.bats",
+        "purpose": "Unit tests for handlers/chain.sh",
+        "test_count_target": 25
+      },
+      {
+        "path": "test/unit/test-handlers-database.bats",
+        "purpose": "Unit tests for handlers/database.sh",
+        "test_count_target": 20
+      },
+      {
+        "path": "test/unit/test-handlers-custom.bats",
+        "purpose": "Unit tests for handlers/custom.sh",
+        "test_count_target": 15
+      },
+      {
+        "path": "test/unit/test-validators-resources.bats",
+        "purpose": "Unit tests for validators/resources.sh",
+        "test_count_target": 25
+      },
+      {
+        "path": "test/unit/test-validators-structure.bats",
+        "purpose": "Unit tests for validators/structure.sh",
+        "test_count_target": 20
+      },
+      {
+        "path": "test/integration/test-framework-integration.bats",
+        "purpose": "Integration tests for complete workflows",
+        "test_count_target": 15
+      },
+      {
+        "path": "test/integration/test-yaml-config-parsing.bats",
+        "purpose": "Integration tests for YAML configuration parsing",
+        "test_count_target": 10
+      },
+      {
+        "path": "test/performance/test-framework-performance.bats",
+        "purpose": "Performance tests for framework operations",
+        "test_count_target": 10
+      },
+      {
+        "path": "test/run-all-tests.sh",
+        "purpose": "Main test runner script",
+        "features": [
+          "Run all unit tests",
+          "Run integration tests",
+          "Run performance tests",
+          "Generate coverage reports",
+          "Support CI/CD integration"
+        ]
+      }
+    ]
+  },
+
+  "implementation_plan": {
+    "phase_1_foundation": {
+      "tasks": [
+        "Fix BATS test infrastructure dependency issues",
+        "Create test directory structure",
+        "Implement test-helpers.sh with mock utilities",
+        "Update existing scenario-test-runner.bats tests"
+      ],
+      "estimated_time": "2-3 hours"
+    },
+    "phase_2_unit_tests": {
+      "tasks": [
+        "Create unit tests for clients/common.sh (25 tests)",
+        "Create unit tests for clients/ollama.sh (20 tests)",
+        "Create unit tests for all handlers (90 tests)",
+        "Create unit tests for all validators (45 tests)"
+      ],
+      "estimated_time": "6-8 hours"
+    },
+    "phase_3_integration_tests": {
+      "tasks": [
+        "Create end-to-end workflow tests",
+        "Create YAML config parsing tests",
+        "Create multi-handler integration tests",
+        "Test error propagation and handling"
+      ],
+      "estimated_time": "3-4 hours"
+    },
+    "phase_4_performance_tests": {
+      "tasks": [
+        "Create performance benchmarks for framework operations",
+        "Test concurrent test execution",
+        "Test large YAML configuration parsing",
+        "Measure resource utilization"
+      ],
+      "estimated_time": "2-3 hours"
+    },
+    "phase_5_documentation": {
+      "tasks": [
+        "Document test architecture",
+        "Create testing guide for contributors",
+        "Update README with test instructions",
+        "Generate coverage report"
+      ],
+      "estimated_time": "1-2 hours"
+    }
+  },
+
+  "estimated_totals": {
+    "total_new_tests": 215,
+    "total_implementation_time": "14-20 hours",
+    "expected_final_coverage": "75-85%"
+  },
+
+  "risks_and_challenges": {
+    "broken_test_infrastructure": {
+      "severity": "HIGH",
+      "description": "Current BATS tests cannot run due to missing test fixtures",
+      "mitigation": "Need to create self-contained test infrastructure or fix fixture paths"
+    },
+    "mock_service_complexity": {
+      "severity": "MEDIUM",
+      "description": "Testing requires mocking Ollama, PostgreSQL, and other services",
+      "mitigation": "Create comprehensive mock utilities in test-helpers.sh"
+    },
+    "shell_testing_limitations": {
+      "severity": "LOW",
+      "description": "BATS has limitations for complex test scenarios",
+      "mitigation": "Use helper functions to simplify test setup and assertions"
+    }
+  },
+
+  "success_criteria": [
+    "All 215+ tests pass successfully",
+    "Test coverage reaches minimum 50% (target 80%)",
+    "Test suite completes in <60 seconds",
+    "All critical functions have unit tests",
+    "Integration tests cover main workflows",
+    "Performance tests establish baselines",
+    "Documentation is complete and clear"
+  ],
+
+  "next_steps": [
+    "Fix BATS test infrastructure",
+    "Create test directory structure",
+    "Implement test-helpers.sh",
+    "Begin unit test implementation starting with critical modules",
+    "Run coverage analysis after each phase",
+    "Generate final test completion report"
+  ]
+}

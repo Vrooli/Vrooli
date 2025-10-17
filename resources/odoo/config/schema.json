@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Odoo Resource Configuration Schema",
+  "description": "Configuration schema for Odoo Community Edition ERP resource",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Odoo version to use",
+      "default": "17.0",
+      "enum": ["15.0", "16.0", "17.0"]
+    },
+    "port": {
+      "type": "integer",
+      "description": "HTTP port for Odoo web interface",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8069
+    },
+    "database": {
+      "type": "object",
+      "description": "Database configuration",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "PostgreSQL host",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "description": "PostgreSQL port",
+          "default": 5432
+        },
+        "name": {
+          "type": "string",
+          "description": "Default database name",
+          "default": "odoo"
+        },
+        "user": {
+          "type": "string",
+          "description": "Database user",
+          "default": "odoo"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password",
+          "default": "odoo"
+        }
+      },
+      "required": ["host", "name", "user", "password"]
+    },
+    "admin": {
+      "type": "object",
+      "description": "Admin user configuration",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Admin email address",
+          "default": "admin@example.com"
+        },
+        "password": {
+          "type": "string",
+          "description": "Admin password",
+          "default": "admin"
+        }
+      },
+      "required": ["email", "password"]
+    },
+    "modules": {
+      "type": "array",
+      "description": "Odoo modules to install on startup",
+      "items": {
+        "type": "string"
+      },
+      "default": ["base", "web"]
+    },
+    "workers": {
+      "type": "integer",
+      "description": "Number of worker processes",
+      "minimum": 0,
+      "maximum": 16,
+      "default": 2
+    },
+    "max_cron_threads": {
+      "type": "integer",
+      "description": "Maximum number of threads for cron jobs",
+      "minimum": 1,
+      "maximum": 8,
+      "default": 2
+    },
+    "limit_memory_soft": {
+      "type": "integer",
+      "description": "Soft memory limit per worker (bytes)",
+      "default": 2147483648
+    },
+    "limit_memory_hard": {
+      "type": "integer",
+      "description": "Hard memory limit per worker (bytes)",
+      "default": 2684354560
+    },
+    "data_dir": {
+      "type": "string",
+      "description": "Directory for Odoo data files",
+      "default": "/var/lib/odoo"
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging level",
+      "enum": ["debug", "info", "warning", "error", "critical"],
+      "default": "info"
+    },
+    "without_demo": {
+      "type": "boolean",
+      "description": "Load without demo data",
+      "default": true
+    }
+  },
+  "required": ["version", "database", "admin"],
+  "additionalProperties": false
+}

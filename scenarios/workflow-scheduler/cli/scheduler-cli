@@ -1,0 +1,569 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Workflow Scheduler CLI
+# Professional CLI interface for the Workflow Scheduler platform
+
+readonly APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+readonly SCRIPT_DIR="${APP_ROOT}/scenarios/workflow-scheduler/cli"
+readonly API_BASE="${SCHEDULER_API_URL:-http://localhost:8090}"
+readonly VERSION="1.0.0"
+
+# Color codes for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Display help message
+show_help() {
+    cat << EOF
+Workflow Scheduler CLI v${VERSION}
+
+Professional scheduling platform for Vrooli workflows with centralized management,
+execution tracking, and intelligent retry handling.
+
+USAGE:
+    scheduler-cli <command> [options]
+
+COMMANDS:
+    create          Create a new schedule
+    list            List all schedules
+    show            Show schedule details
+    update          Update existing schedule
+    delete          Delete a schedule
+    enable          Enable a schedule
+    disable         Disable a schedule
+    trigger         Manually trigger a schedule
+    history         View execution history
+    metrics         Get performance metrics
+    status          Check schedule status
+    next-runs       Preview next scheduled runs
+    dashboard       Display dashboard statistics
+    retry           Retry a failed execution
+    validate        Validate a cron expression
+    presets         List available cron presets
+    health          Check system health
+
+GLOBAL OPTIONS:
+    --api URL       Override API endpoint (default: ${API_BASE})
+    --format FORMAT Output format: json, table, csv (default: table)
+    --help          Show this help message
+    --version       Show version information
+
+EXAMPLES:
+    # Create a new schedule
+    scheduler-cli create --name "Daily Backup" --cron "0 3 * * *" --url http://localhost:5678/webhook/backup
+
+    # List all enabled schedules
+    scheduler-cli list --enabled
+
+    # View schedule execution history
+    scheduler-cli history SCHEDULE_ID --limit 20
+
+    # Manually trigger a schedule
+    scheduler-cli trigger SCHEDULE_ID
+
+    # Check schedule metrics
+    scheduler-cli metrics SCHEDULE_ID
+
+For more information, visit: https://docs.vrooli.com/scheduler
+EOF
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local extra_args="${4:-}"
+    
+    local url="${API_BASE}${endpoint}"
+    local args="-s -w \n%{http_code}"
+    
+    if [[ -n "${data}" ]]; then
+        args="${args} -H 'Content-Type: application/json' -d '${data}'"
+    fi
+    
+    if [[ -n "${extra_args}" ]]; then
+        args="${args} ${extra_args}"
+    fi
+    
+    local response
+    response=$(curl -X "${method}" "${url}" ${args} 2>/dev/null || echo "000")
+    
+    local http_code="${response##*$'\n'}"
+    local body="${response%$'\n'*}"
+    
+    if [[ "${http_code}" -ge 200 && "${http_code}" -lt 300 ]]; then
+        echo "${body}"
+    else
+        echo -e "${RED}Error: HTTP ${http_code}${NC}" >&2
+        echo "${body}" >&2
+        return 1
+    fi
+}
+
+# Create a new schedule
+cmd_create() {
+    local name=""
+    local cron=""
+    local url=""
+    local timezone="UTC"
+    local overlap_policy="skip"
+    local max_retries=3
+    local retry_strategy="exponential"
+    local timeout=300
+    local catch_up=false
+    local tags=""
+    local payload="{}"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name) name="$2"; shift 2 ;;
+            --cron) cron="$2"; shift 2 ;;
+            --url) url="$2"; shift 2 ;;
+            --timezone) timezone="$2"; shift 2 ;;
+            --overlap-policy) overlap_policy="$2"; shift 2 ;;
+            --max-retries) max_retries="$2"; shift 2 ;;
+            --retry-strategy) retry_strategy="$2"; shift 2 ;;
+            --timeout) timeout="$2"; shift 2 ;;
+            --catch-up) catch_up=true; shift ;;
+            --tag) tags="${tags},\"$2\""; shift 2 ;;
+            --payload) payload="$2"; shift 2 ;;
+            *) echo "Unknown option: $1"; exit 1 ;;
+        esac
+    done
+    
+    if [[ -z "${name}" || -z "${cron}" || -z "${url}" ]]; then
+        echo -e "${RED}Error: --name, --cron, and --url are required${NC}"
+        exit 1
+    fi
+    
+    local data=$(cat <<EOF
+{
+    "name": "${name}",
+    "cron_expression": "${cron}",
+    "target_type": "webhook",
+    "target_url": "${url}",
+    "timezone": "${timezone}",
+    "overlap_policy": "${overlap_policy}",
+    "max_retries": ${max_retries},
+    "retry_strategy": "${retry_strategy}",
+    "timeout_seconds": ${timeout},
+    "catch_up_missed": ${catch_up},
+    "target_payload": ${payload},
+    "tags": [${tags#,}]
+}
+EOF
+)
+    
+    echo "Creating schedule: ${name}"
+    local response
+    response=$(api_request POST "/api/schedules" "${data}")
+    
+    if [[ $? -eq 0 ]]; then
+        local id=$(echo "${response}" | jq -r '.id')
+        echo -e "${GREEN}✓ Schedule created successfully${NC}"
+        echo "Schedule ID: ${id}"
+        echo "Next run: $(echo "${response}" | jq -r '.next_run')"
+    fi
+}
+
+# List schedules
+cmd_list() {
+    local enabled=""
+    local tag=""
+    local status=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --enabled) enabled="enabled=true"; shift ;;
+            --disabled) enabled="enabled=false"; shift ;;
+            --tag) tag="tag=$2"; shift 2 ;;
+            --status) status="status=$2"; shift 2 ;;
+            *) echo "Unknown option: $1"; exit 1 ;;
+        esac
+    done
+    
+    local query=""
+    [[ -n "${enabled}" ]] && query="${query}&${enabled}"
+    [[ -n "${tag}" ]] && query="${query}&${tag}"
+    [[ -n "${status}" ]] && query="${query}&${status}"
+    query="${query#&}"
+    
+    local endpoint="/api/schedules"
+    [[ -n "${query}" ]] && endpoint="${endpoint}?${query}"
+    
+    echo "Fetching schedules..."
+    local response
+    response=$(api_request GET "${endpoint}")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "${response}" | jq -r '.[] | "\(.id)\t\(.name)\t\(.cron_expression)\t\(.enabled)\t\(.status)"' | \
+            column -t -s $'\t' -N "ID,NAME,CRON,ENABLED,STATUS"
+    fi
+}
+
+# Show schedule details
+cmd_show() {
+    local schedule_id="$1"
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    echo "Fetching schedule details..."
+    local response
+    response=$(api_request GET "/api/schedules/${schedule_id}")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "${response}" | jq '.'
+    fi
+}
+
+# Update schedule
+cmd_update() {
+    local schedule_id="$1"
+    shift
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    local updates="{}"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name) updates=$(echo "${updates}" | jq ". + {name: \"$2\"}"); shift 2 ;;
+            --cron) updates=$(echo "${updates}" | jq ". + {cron_expression: \"$2\"}"); shift 2 ;;
+            --url) updates=$(echo "${updates}" | jq ". + {target_url: \"$2\"}"); shift 2 ;;
+            --timezone) updates=$(echo "${updates}" | jq ". + {timezone: \"$2\"}"); shift 2 ;;
+            --max-retries) updates=$(echo "${updates}" | jq ". + {max_retries: $2}"); shift 2 ;;
+            *) echo "Unknown option: $1"; exit 1 ;;
+        esac
+    done
+    
+    echo "Updating schedule ${schedule_id}..."
+    local response
+    response=$(api_request PUT "/api/schedules/${schedule_id}" "${updates}")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓ Schedule updated successfully${NC}"
+    fi
+}
+
+# Delete schedule
+cmd_delete() {
+    local schedule_id="$1"
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    echo "Deleting schedule ${schedule_id}..."
+    local response
+    response=$(api_request DELETE "/api/schedules/${schedule_id}")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓ Schedule deleted successfully${NC}"
+    fi
+}
+
+# Enable schedule
+cmd_enable() {
+    local schedule_id="$1"
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    echo "Enabling schedule ${schedule_id}..."
+    local response
+    response=$(api_request POST "/api/schedules/${schedule_id}/enable")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓ Schedule enabled${NC}"
+    fi
+}
+
+# Disable schedule
+cmd_disable() {
+    local schedule_id="$1"
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    echo "Disabling schedule ${schedule_id}..."
+    local response
+    response=$(api_request POST "/api/schedules/${schedule_id}/disable")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓ Schedule disabled${NC}"
+    fi
+}
+
+# Manually trigger schedule
+cmd_trigger() {
+    local schedule_id="$1"
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    echo "Triggering schedule ${schedule_id}..."
+    local response
+    response=$(api_request POST "/api/schedules/${schedule_id}/trigger")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓ Schedule triggered${NC}"
+        echo "Execution ID: $(echo "${response}" | jq -r '.execution_id')"
+    fi
+}
+
+# View execution history
+cmd_history() {
+    local schedule_id="$1"
+    shift
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    local limit=20
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --limit) limit="$2"; shift 2 ;;
+            *) echo "Unknown option: $1"; exit 1 ;;
+        esac
+    done
+    
+    echo "Fetching execution history..."
+    local response
+    response=$(api_request GET "/api/schedules/${schedule_id}/executions?limit=${limit}")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "${response}" | jq -r '.[] | "\(.id)\t\(.scheduled_time)\t\(.status)\t\(.execution_time_ms)ms"' | \
+            column -t -s $'\t' -N "EXECUTION_ID,SCHEDULED,STATUS,DURATION"
+    fi
+}
+
+# Get performance metrics
+cmd_metrics() {
+    local schedule_id="$1"
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    echo "Fetching metrics..."
+    local response
+    response=$(api_request GET "/api/schedules/${schedule_id}/metrics")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "${response}" | jq '.'
+    fi
+}
+
+# Check schedule status
+cmd_status() {
+    local schedule_id="$1"
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    echo "Checking schedule status..."
+    local response
+    response=$(api_request GET "/api/schedules/${schedule_id}")
+    
+    if [[ $? -eq 0 ]]; then
+        local enabled=$(echo "${response}" | jq -r '.enabled')
+        local status=$(echo "${response}" | jq -r '.status')
+        local last_run=$(echo "${response}" | jq -r '.last_run')
+        local next_run=$(echo "${response}" | jq -r '.next_run')
+        local failures=$(echo "${response}" | jq -r '.consecutive_failures')
+        
+        echo -e "Status: ${status}"
+        echo -e "Enabled: ${enabled}"
+        echo -e "Last Run: ${last_run}"
+        echo -e "Next Run: ${next_run}"
+        echo -e "Consecutive Failures: ${failures}"
+    fi
+}
+
+# Preview next runs
+cmd_next_runs() {
+    local schedule_id="$1"
+    shift
+    
+    if [[ -z "${schedule_id}" ]]; then
+        echo -e "${RED}Error: Schedule ID required${NC}"
+        exit 1
+    fi
+    
+    local count=10
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --count) count="$2"; shift 2 ;;
+            *) echo "Unknown option: $1"; exit 1 ;;
+        esac
+    done
+    
+    echo "Calculating next ${count} runs..."
+    local response
+    response=$(api_request GET "/api/schedules/${schedule_id}/next-runs?count=${count}")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "${response}" | jq -r '.[]'
+    fi
+}
+
+# Display dashboard statistics
+cmd_dashboard() {
+    echo "Fetching dashboard statistics..."
+    local response
+    response=$(api_request GET "/api/dashboard/stats")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "${response}" | jq '.'
+    fi
+}
+
+# Retry failed execution
+cmd_retry() {
+    local execution_id="$1"
+    
+    if [[ -z "${execution_id}" ]]; then
+        echo -e "${RED}Error: Execution ID required${NC}"
+        exit 1
+    fi
+    
+    echo "Retrying execution ${execution_id}..."
+    local response
+    response=$(api_request POST "/api/executions/${execution_id}/retry")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓ Retry initiated${NC}"
+    fi
+}
+
+# Validate cron expression
+cmd_validate() {
+    local expression="$1"
+    
+    if [[ -z "${expression}" ]]; then
+        echo -e "${RED}Error: Cron expression required${NC}"
+        exit 1
+    fi
+    
+    echo "Validating cron expression..."
+    local response
+    response=$(api_request GET "/api/cron/validate?expression=$(echo -n "${expression}" | jq -sRr @uri)")
+    
+    if [[ $? -eq 0 ]]; then
+        local valid=$(echo "${response}" | jq -r '.valid')
+        if [[ "${valid}" == "true" ]]; then
+            echo -e "${GREEN}✓ Valid cron expression${NC}"
+            echo "Next runs:"
+            echo "${response}" | jq -r '.next_runs[]'
+        else
+            echo -e "${RED}✗ Invalid cron expression${NC}"
+            echo "Error: $(echo "${response}" | jq -r '.error')"
+        fi
+    fi
+}
+
+# List cron presets
+cmd_presets() {
+    echo "Available cron presets:"
+    local response
+    response=$(api_request GET "/api/cron/presets")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "${response}" | jq -r '.[] | "\(.name)\t\(.expression)\t\(.description)"' | \
+            column -t -s $'\t' -N "NAME,EXPRESSION,DESCRIPTION"
+    fi
+}
+
+# Check system health
+cmd_health() {
+    echo "Checking system health..."
+    local response
+    response=$(api_request GET "/health")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓ System healthy${NC}"
+        echo "${response}" | jq '.'
+    else
+        echo -e "${RED}✗ System unhealthy${NC}"
+    fi
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "${command}" in
+        create) cmd_create "$@" ;;
+        list) cmd_list "$@" ;;
+        show) cmd_show "$@" ;;
+        update) cmd_update "$@" ;;
+        delete) cmd_delete "$@" ;;
+        enable) cmd_enable "$@" ;;
+        disable) cmd_disable "$@" ;;
+        trigger) cmd_trigger "$@" ;;
+        history) cmd_history "$@" ;;
+        metrics) cmd_metrics "$@" ;;
+        status) cmd_status "$@" ;;
+        next-runs) cmd_next_runs "$@" ;;
+        dashboard) cmd_dashboard ;;
+        retry) cmd_retry "$@" ;;
+        validate) cmd_validate "$@" ;;
+        presets) cmd_presets ;;
+        health) cmd_health ;;
+        --help|-h) show_help ;;
+        --version|-v) echo "scheduler-cli v${VERSION}" ;;
+        *) 
+            echo -e "${RED}Unknown command: ${command}${NC}"
+            echo "Run 'scheduler-cli --help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Check for required dependencies
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}Error: jq is required but not installed${NC}"
+    echo "Install with: apt-get install jq"
+    exit 1
+fi
+
+if ! command -v curl &> /dev/null; then
+    echo -e "${RED}Error: curl is required but not installed${NC}"
+    echo "Install with: apt-get install curl"
+    exit 1
+fi
+
+# Run main function
+main "$@"

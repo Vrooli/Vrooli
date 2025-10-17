@@ -1,0 +1,88 @@
+name: test-data-generator
+description: Test Data Generator scenario functionality
+version: 1.0.0
+
+tests:
+  - name: API Health Check
+    type: http
+    config:
+      url: http://localhost:${API_PORT}/health
+      method: GET
+      expected_status: 200
+      expected_body:
+        status: healthy
+        service: test-data-generator-api
+
+  - name: Generate User Data
+    type: http
+    config:
+      url: http://localhost:${API_PORT}/api/generate/users
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        count: 5
+        format: json
+        fields:
+          - name
+          - email
+          - phone
+          - address
+      expected_status: 200
+      validate_response: |
+        Array.isArray(response.data) && response.data.length === 5
+
+  - name: Generate Company Data
+    type: http
+    config:
+      url: http://localhost:${API_PORT}/api/generate/companies
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        count: 3
+        format: json
+      expected_status: 200
+      validate_response: |
+        Array.isArray(response.data) && response.data.length === 3
+
+  - name: Custom Schema Generation
+    type: http
+    config:
+      url: http://localhost:${API_PORT}/api/generate/custom
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        count: 2
+        schema:
+          id: integer
+          title: string
+          price: decimal
+          active: boolean
+        format: json
+      expected_status: 200
+      validate_response: |
+        Array.isArray(response.data) && response.data.length === 2
+
+  - name: List Available Data Types
+    type: http
+    config:
+      url: http://localhost:${API_PORT}/api/types
+      method: GET
+      expected_status: 200
+      validate_response: |
+        Array.isArray(response.types) && response.types.length > 0
+
+  - name: UI Health Check
+    type: http
+    config:
+      url: http://localhost:${UI_PORT}/
+      method: GET
+      expected_status: 200
+      validate_response: |
+        response.includes('Test Data Generator')
+
+dependencies: []
+
+timeout: 30

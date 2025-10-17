@@ -1,0 +1,35 @@
+{
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 60,
+  "startup_time_estimate": "10-30s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "ai",
+  "description": "AI-powered NSFW content detection and moderation",
+  "port": 11451,
+  "health_check_path": "/health",
+  "health_check_timeout": 5,
+  "memory_requirement": "2GB",
+  "cpu_requirement": "2 cores",
+  "disk_requirement": "1GB",
+  "capabilities": [
+    "image_classification",
+    "content_moderation",
+    "batch_processing",
+    "real_time_detection"
+  ],
+  "supported_formats": [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp"
+  ],
+  "models": {
+    "nsfwjs": {
+      "size": "200MB",
+      "accuracy": "98%",
+      "latency": "100ms"
+    }
+  }
+}

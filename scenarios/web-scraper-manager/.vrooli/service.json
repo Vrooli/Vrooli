@@ -1,0 +1,296 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "web-scraper-manager",
+    "displayName": "Web Scraper Manager",
+    "description": "Unified dashboard for managing web scraping across multiple platforms (Huginn, Browserless, Agent-S2) with orchestrated workflows and data export",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "data-collection",
+      "web-scraping",
+      "automation",
+      "multi-platform",
+      "custom-ui",
+      "orchestration",
+      "export",
+      "monitoring",
+      "go-api",
+      "node-ui",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Web scraper manager coordination API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Web scraper manager UI dashboard port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store scraping agent configurations, results, metrics, and orchestration metadata",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store scraped assets, screenshots, and exported data files"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector database for content similarity detection and duplicate removal"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Job queues and caching for scraping orchestration"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "AI models for intelligent content extraction and analysis",
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "huginn": {
+      "type": "external-service",
+      "enabled": false,
+      "required": false,
+      "purpose": "RSS/social media monitoring and scheduled scraping",
+      "default_port": 4111,
+      "health_endpoint": "/agents"
+    },
+    "browserless": {
+      "type": "external-service",
+      "enabled": false,
+      "required": false,
+      "purpose": "JavaScript-heavy sites, screenshots, PDF generation",
+      "default_port": 4110,
+      "health_endpoint": "/stats"
+    },
+    "agent-s2": {
+      "type": "external-service",
+      "enabled": false,
+      "required": false,
+      "purpose": "AI-powered web interaction and complex scraping",
+      "default_port": 4113,
+      "health_endpoint": "/health"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Web Scraper Manager health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Web Scraper Manager",
+       "condition": {
+         "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "web-scraper-manager-api",
+                "web-scraper-manager"
+              ]
+            },
+           {
+             "type": "cli",
+             "targets": [
+               "web-scraper-manager"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash ../../scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "setup-storage-buckets",
+          "run": "bash scripts/lib/setup-minio-buckets.sh",
+          "description": "Create MinIO buckets for scraped content"
+        },
+        {
+          "name": "setup-vector-collections",
+          "run": "bash scripts/lib/setup-qdrant-collections.sh",
+          "description": "Initialize Qdrant collections for content similarity",
+          "condition": {
+            "resource_enabled": "qdrant"
+          }
+        },
+        {
+          "name": "load-platform-configs",
+          "run": "bash scripts/lib/load-platform-configs.sh",
+          "description": "Load platform capability configurations into database"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o web-scraper-manager-api .",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start web scraper manager with Go API server",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./web-scraper-manager-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/web-scraper-manager-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start Node.js UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "initialize-redis-queues",
+          "run": "bash scripts/lib/initialize-redis-queues.sh",
+          "description": "Initialize Redis job queues"
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test web scraper manager API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-agents-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/agents",
+          "description": "Test API agents endpoint"
+        },
+        {
+          "name": "test-platforms-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/platforms",
+          "description": "Test API platforms endpoint"
+        },
+        {
+          "name": "test-database-connection",
+          "run": "bash test/test-database-connection.sh",
+          "description": "Test PostgreSQL database connectivity and schema"
+        },
+        {
+          "name": "test-storage-buckets",
+          "run": "bash test/test-storage-buckets.sh",
+          "description": "Test MinIO bucket accessibility"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats web-scraper-manager.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/web-scraper-manager.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"web-scraper-manager-api\" || true; sleep 1; pkill -9 -f \"web-scraper-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/web-scraper-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/web-scraper-manager.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

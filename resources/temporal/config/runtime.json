@@ -1,0 +1,39 @@
+{
+  "startup_order": 600,
+  "dependencies": ["postgres"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "resource_type": "automation",
+  "capabilities": {
+    "workflow_orchestration": true,
+    "durable_execution": true,
+    "distributed_transactions": true,
+    "exactly_once_semantics": true,
+    "time_travel_debugging": true,
+    "saga_patterns": true
+  },
+  "ports": {
+    "web_ui": 7233,
+    "grpc": 7234
+  },
+  "requirements": {
+    "memory": "2GB",
+    "cpu": "2 cores",
+    "storage": "10GB",
+    "docker": true
+  },
+  "health_check": {
+    "endpoint": "http://localhost:7233/health",
+    "timeout": 5,
+    "interval": 30,
+    "retries": 3
+  },
+  "configuration": {
+    "database": "postgresql",
+    "persistence": "required",
+    "clustering": "optional",
+    "archival": "optional"
+  }
+}

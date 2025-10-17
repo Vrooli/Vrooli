@@ -1,0 +1,684 @@
+#!/bin/bash
+################################################################################
+# Vrooli Bridge CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
+
+set -e
+
+# Configuration
+SCENARIO_NAME="vrooli-bridge"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}Vrooli Bridge CLI${NC}"
+    echo "Manage Vrooli integrations for external projects"
+    echo ""
+    echo "Usage: vrooli-bridge [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}scan${NC}            Scan directory for projects"
+    echo -e "  ${GREEN}list${NC}            List all discovered projects"
+    echo -e "  ${GREEN}integrate${NC}       Add Vrooli integration to a project"
+    echo -e "  ${GREEN}remove${NC}          Remove Vrooli integration from project"
+    echo -e "  ${GREEN}status${NC}          Show integration statistics"
+    echo -e "  ${GREEN}health${NC}          Check service health"
+    echo -e "  ${GREEN}version${NC}         Show version information"
+    echo ""
+    echo "Examples:"
+    echo "  vrooli-bridge scan ~/workspace --depth 2"
+    echo "  vrooli-bridge list --status active"
+    echo "  vrooli-bridge integrate /path/to/project"
+    echo "  vrooli-bridge remove /path/to/project"
+    echo "  vrooli-bridge status --verbose"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo ""
+    echo "For more information: vrooli-bridge <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# Scan command
+cmd_scan() {
+    local path="${1:-$HOME}"
+    local depth="3"
+    local type=""
+    local json_output=false
+    
+    # Parse arguments
+    if [[ -n "$1" && "$1" != --* ]]; then
+        shift
+    fi
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --depth)
+                depth="$2"
+                shift 2
+                ;;
+            --type)
+                type="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-bridge scan [PATH] [OPTIONS]"
+                echo ""
+                echo "Scan directory for projects"
+                echo ""
+                echo "Arguments:"
+                echo "  PATH            Directory to scan (default: home directory)"
+                echo ""
+                echo "Options:"
+                echo "  --depth N       Maximum scan depth (default: 3)"
+                echo "  --type TYPE     Filter by project type"
+                echo "  --json          Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-bridge scan"
+                echo "  vrooli-bridge scan ~/workspace --depth 2"
+                echo "  vrooli-bridge scan /projects --type npm"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🔍 Scanning $path (depth: $depth)${NC}"
+    echo ""
+    
+    # Build request JSON
+    local request_data
+    request_data=$(jq -n \
+        --argjson directories "[\"$path\"]" \
+        --argjson depth "$depth" \
+        '{
+            directories: $directories,
+            depth: $depth
+        }')
+    
+    local response
+    response=$(api_request "POST" "/api/v1/projects/scan" "$request_data")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local found=$(echo "$response" | jq -r '.found // 0' 2>/dev/null)
+        local new=$(echo "$response" | jq -r '.new // 0' 2>/dev/null)
+        
+        echo -e "${GREEN}✅ Scan completed${NC}"
+        echo "   Found: $found projects"
+        echo "   New: $new projects"
+        echo ""
+        
+        if [[ $new -gt 0 ]]; then
+            echo -e "${CYAN}ℹ️ Run 'vrooli-bridge list' to see all projects${NC}"
+        fi
+    fi
+}
+
+# List command
+cmd_list() {
+    local status=""
+    local type=""
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --status)
+                status="$2"
+                shift 2
+                ;;
+            --type)
+                type="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-bridge list [OPTIONS]"
+                echo ""
+                echo "List all discovered projects"
+                echo ""
+                echo "Options:"
+                echo "  --status STATUS  Filter by status (active|outdated|missing|error)"
+                echo "  --type TYPE      Filter by project type"
+                echo "  --json           Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-bridge list"
+                echo "  vrooli-bridge list --status active"
+                echo "  vrooli-bridge list --type npm --status active"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📋 Discovered Projects${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/api/v1/projects")
+    
+    if [[ $json_output == true ]]; then
+        # Apply filters in jq if specified
+        local jq_filter=".projects[]"
+        if [[ -n "$status" ]]; then
+            jq_filter="$jq_filter | select(.integration_status == \"$status\")"
+        fi
+        if [[ -n "$type" ]]; then
+            jq_filter="$jq_filter | select(.type == \"$type\")"
+        fi
+        
+        echo "$response" | jq "[$jq_filter]" | format_json
+    else
+        # Count total projects
+        local total_count=$(echo "$response" | jq '.projects | length' 2>/dev/null)
+        
+        # Apply filters for display
+        local filtered_projects="$response"
+        if [[ -n "$status" || -n "$type" ]]; then
+            local jq_filter=".projects[]"
+            if [[ -n "$status" ]]; then
+                jq_filter="$jq_filter | select(.integration_status == \"$status\")"
+            fi
+            if [[ -n "$type" ]]; then
+                jq_filter="$jq_filter | select(.type == \"$type\")"
+            fi
+            filtered_projects=$(echo "$response" | jq "{projects: [$jq_filter]}")
+        fi
+        
+        local filtered_count=$(echo "$filtered_projects" | jq '.projects | length' 2>/dev/null)
+        
+        if [[ -n "$status" || -n "$type" ]]; then
+            echo -e "${CYAN}Showing $filtered_count of $total_count projects${NC}"
+        else
+            echo -e "${CYAN}Found $total_count projects${NC}"
+        fi
+        echo ""
+        
+        if [[ $filtered_count -gt 0 ]]; then
+            # Header
+            printf "%-40s %-15s %-15s %-60s\n" "NAME" "TYPE" "STATUS" "PATH"
+            printf "%-40s %-15s %-15s %-60s\n" "----" "----" "------" "----"
+            
+            # Data rows
+            echo "$filtered_projects" | jq -r '.projects[] | 
+                [.name, .type, .integration_status, .path] | 
+                @tsv' 2>/dev/null | while IFS=$'\t' read -r name type status path; do
+                
+                # Truncate long fields
+                name=$(echo "$name" | cut -c1-39)
+                type=$(echo "$type" | cut -c1-14)
+                path=$(echo "$path" | cut -c1-59)
+                
+                # Color code status
+                case "$status" in
+                    "active") status_colored="${GREEN}${status}${NC}" ;;
+                    "outdated") status_colored="${YELLOW}${status}${NC}" ;;
+                    "missing") status_colored="${RED}${status}${NC}" ;;
+                    "error") status_colored="${RED}${status}${NC}" ;;
+                    *) status_colored="$status" ;;
+                esac
+                
+                printf "%-40s %-15s %-15s %-60s\n" "$name" "$type" "$(echo -e "$status_colored")" "$path"
+            done
+        else
+            echo "No projects found."
+            if [[ -n "$status" || -n "$type" ]]; then
+                echo "   Try without filters to see all projects."
+            fi
+        fi
+    fi
+}
+
+# Integrate command
+cmd_integrate() {
+    local project_path="$1"
+    local force=false
+    local json_output=false
+    
+    if [[ -z "$project_path" ]]; then
+        echo -e "${RED}❌ Error: Project path is required${NC}" >&2
+        echo "Usage: vrooli-bridge integrate <project-path> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --force)
+                force=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-bridge integrate <project-path> [OPTIONS]"
+                echo ""
+                echo "Add Vrooli integration to a project"
+                echo ""
+                echo "Arguments:"
+                echo "  <project-path>  Path to the project directory"
+                echo ""
+                echo "Options:"
+                echo "  --force         Overwrite existing integration"
+                echo "  --json          Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-bridge integrate /path/to/project"
+                echo "  vrooli-bridge integrate /path/to/project --force"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    # Find project by path
+    echo -e "${BLUE}🔍 Finding project: $project_path${NC}"
+    local projects_response
+    projects_response=$(api_request "GET" "/api/v1/projects")
+    
+    local project_id
+    project_id=$(echo "$projects_response" | jq -r ".projects[] | select(.path == \"$project_path\") | .id" 2>/dev/null)
+    
+    if [[ -z "$project_id" || "$project_id" == "null" ]]; then
+        echo -e "${RED}❌ Project not found: $project_path${NC}"
+        echo -e "${CYAN}ℹ️ Run 'vrooli-bridge scan' to discover projects first${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}🔧 Integrating project...${NC}"
+    echo ""
+    
+    # Build request JSON
+    local request_data
+    request_data=$(jq -n \
+        --argjson force "$force" \
+        '{
+            force: $force
+        }')
+    
+    local response
+    response=$(api_request "POST" "/api/v1/projects/$project_id/integrate" "$request_data")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local success=$(echo "$response" | jq -r '.success // false' 2>/dev/null)
+        
+        if [[ "$success" == "true" ]]; then
+            echo -e "${GREEN}✅ Integration completed successfully${NC}"
+            
+            local files_created=$(echo "$response" | jq -r '.files_created[]?' 2>/dev/null)
+            local files_updated=$(echo "$response" | jq -r '.files_updated[]?' 2>/dev/null)
+            
+            if [[ -n "$files_created" ]]; then
+                echo ""
+                echo -e "${CYAN}Files created:${NC}"
+                echo "$files_created" | while read -r file; do
+                    echo "  + $file"
+                done
+            fi
+            
+            if [[ -n "$files_updated" ]]; then
+                echo ""
+                echo -e "${CYAN}Files updated:${NC}"
+                echo "$files_updated" | while read -r file; do
+                    echo "  ~ $file"
+                done
+            fi
+        else
+            echo -e "${RED}❌ Integration failed${NC}"
+            local message=$(echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null)
+            echo "   Error: $message"
+            return 1
+        fi
+    fi
+}
+
+# Remove command
+cmd_remove() {
+    local project_path="$1"
+    local json_output=false
+    
+    if [[ -z "$project_path" ]]; then
+        echo -e "${RED}❌ Error: Project path is required${NC}" >&2
+        echo "Usage: vrooli-bridge remove <project-path> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-bridge remove <project-path> [OPTIONS]"
+                echo ""
+                echo "Remove Vrooli integration from project"
+                echo ""
+                echo "Arguments:"
+                echo "  <project-path>  Path to the project directory"
+                echo ""
+                echo "Options:"
+                echo "  --json          Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-bridge remove /path/to/project"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    # Find project by path
+    echo -e "${BLUE}🔍 Finding project: $project_path${NC}"
+    local projects_response
+    projects_response=$(api_request "GET" "/api/v1/projects")
+    
+    local project_id
+    project_id=$(echo "$projects_response" | jq -r ".projects[] | select(.path == \"$project_path\") | .id" 2>/dev/null)
+    
+    if [[ -z "$project_id" || "$project_id" == "null" ]]; then
+        echo -e "${RED}❌ Project not found: $project_path${NC}"
+        return 1
+    fi
+    
+    echo -e "${YELLOW}⚠️ Are you sure you want to remove integration from $project_path? [y/N]${NC}"
+    read -r confirm
+    
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo -e "${CYAN}ℹ️ Removal cancelled${NC}"
+        return 0
+    fi
+    
+    echo -e "${BLUE}🗑️ Removing integration...${NC}"
+    
+    local response
+    response=$(api_request "DELETE" "/api/v1/projects/$project_id")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | jq -e '.message' >/dev/null 2>&1; then
+            local message=$(echo "$response" | jq -r '.message')
+            echo -e "${GREEN}✅ $message${NC}"
+        else
+            echo -e "${GREEN}✅ Integration removed successfully${NC}"
+        fi
+    fi
+}
+
+# Status command
+cmd_status() {
+    local json_output=false
+    local verbose=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-bridge status [OPTIONS]"
+                echo ""
+                echo "Show integration statistics"
+                echo ""
+                echo "Options:"
+                echo "  --verbose       Show detailed information"
+                echo "  --json          Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-bridge status"
+                echo "  vrooli-bridge status --verbose"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    local response
+    response=$(api_request "GET" "/api/v1/projects")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | jq '{
+            total: (.projects | length),
+            active: (.projects | map(select(.integration_status == "active")) | length),
+            outdated: (.projects | map(select(.integration_status == "outdated")) | length),
+            missing: (.projects | map(select(.integration_status == "missing")) | length),
+            error: (.projects | map(select(.integration_status == "error")) | length)
+        }' | format_json
+    else
+        local total=$(echo "$response" | jq '.projects | length' 2>/dev/null)
+        local active=$(echo "$response" | jq '.projects | map(select(.integration_status == "active")) | length' 2>/dev/null)
+        local outdated=$(echo "$response" | jq '.projects | map(select(.integration_status == "outdated")) | length' 2>/dev/null)
+        local missing=$(echo "$response" | jq '.projects | map(select(.integration_status == "missing")) | length' 2>/dev/null)
+        local errors=$(echo "$response" | jq '.projects | map(select(.integration_status == "error")) | length' 2>/dev/null)
+        
+        echo -e "${CYAN}📊 Vrooli Bridge Status${NC}"
+        echo "===================="
+        echo "Total Projects:    $total"
+        echo -e "Active:           ${GREEN}$active${NC}"
+        echo -e "Outdated:         ${YELLOW}$outdated${NC}"
+        echo -e "Not Integrated:   ${RED}$missing${NC}"
+        echo -e "Errors:           ${RED}$errors${NC}"
+        
+        if [[ "$verbose" == true ]]; then
+            echo ""
+            echo -e "${BLUE}Project Breakdown by Type:${NC}"
+            echo "$response" | jq -r '
+                .projects | group_by(.type) | 
+                .[] | "\(.[0].type): \(length) projects"' 2>/dev/null
+        fi
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health")
+    
+    if echo "$response" | jq -e '.status' >/dev/null 2>&1; then
+        local status=$(echo "$response" | jq -r '.status')
+        local version=$(echo "$response" | jq -r '.version // "unknown"')
+        
+        case "$status" in
+            "healthy")
+                echo -e "${GREEN}✅ Vrooli Bridge is healthy${NC}"
+                ;;
+            *)
+                echo -e "${RED}❌ Vrooli Bridge status: $status${NC}"
+                ;;
+        esac
+        
+        echo "   API: ${api_url}"
+        echo "   Version: $version"
+    else
+        echo -e "${RED}❌ Health check failed${NC}"
+        echo "   Response: $response"
+        return 1
+    fi
+}
+
+# Version command
+cmd_version() {
+    echo "Vrooli Bridge CLI v2.0.0 (thin wrapper)"
+    
+    # Try to get API version too
+    if api_url=$(get_api_url 2>/dev/null); then
+        local health_response
+        health_response=$(curl -s "${api_url}/health" 2>/dev/null)
+        if [[ -n "$health_response" ]]; then
+            local api_version
+            api_version=$(echo "$health_response" | jq -r '.version // "unknown"' 2>/dev/null)
+            echo "API Version: $api_version"
+            echo "API URL: $api_url"
+        fi
+    else
+        echo "API: Not running"
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
+        scan)
+            cmd_scan "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        integrate)
+            cmd_integrate "$@"
+            ;;
+        remove)
+            cmd_remove "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        version|--version|-v)
+            cmd_version "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            echo ""
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Check dependencies
+if ! command -v curl >/dev/null 2>&1; then
+    echo -e "${RED}❌ Error: curl is required but not installed${NC}" >&2
+    exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo -e "${RED}❌ Error: jq is required but not installed${NC}" >&2
+    exit 1
+fi
+
+# Run main function
+main "$@"

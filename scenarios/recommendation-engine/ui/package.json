@@ -1,0 +1,24 @@
+{
+  "name": "recommendation-engine-ui",
+  "version": "1.0.0",
+  "description": "Management dashboard for the Recommendation Engine",
+  "main": "index.html",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh python3 -m http.server 3000 2>/dev/null || python -m SimpleHTTPServer 3000 2>/dev/null || echo 'Python not found, serving at file://$(pwd)/index.html''",
+    "build": "echo 'Build complete - static files ready for deployment'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'",
+    "serve": "npm start"
+  },
+  "keywords": [
+    "recommendation-engine",
+    "dashboard",
+    "vrooli",
+    "management-ui"
+  ],
+  "author": "Vrooli Recommendation Engine",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  }
+}

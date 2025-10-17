@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Tools - Duration Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⏰ Time Tools</h1>
+            <nav>
+                <a href="index.html">Dashboard</a>
+                <a href="converter.html">Timezone Converter</a>
+                <a href="calculator.html" class="active">Duration Calculator</a>
+                <a href="scheduler.html">Meeting Scheduler</a>
+                <a href="events.html">Events</a>
+            </nav>
+        </header>
+
+        <main>
+            <div class="page-content">
+                <h2>⏱️ Duration Calculator</h2>
+                
+                <div class="calculator-container">
+                    <form id="duration-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="start-time">Start Date & Time</label>
+                                <input type="datetime-local" id="start-time" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="end-time">End Date & Time</label>
+                                <input type="datetime-local" id="end-time" class="form-control" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="timezone">Timezone</label>
+                            <select id="timezone" class="form-control">
+                                <option value="UTC">UTC</option>
+                                <option value="America/New_York">Eastern Time (New York)</option>
+                                <option value="America/Chicago">Central Time (Chicago)</option>
+                                <option value="America/Denver">Mountain Time (Denver)</option>
+                                <option value="America/Los_Angeles">Pacific Time (Los Angeles)</option>
+                                <option value="Europe/London">London</option>
+                                <option value="Europe/Paris">Paris</option>
+                                <option value="Europe/Berlin">Berlin</option>
+                                <option value="Asia/Tokyo">Tokyo</option>
+                                <option value="Asia/Shanghai">Shanghai</option>
+                                <option value="Australia/Sydney">Sydney</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-options">
+                            <h3>Calculation Options</h3>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="exclude-weekends">
+                                    <span class="checkbox-custom"></span>
+                                    Exclude weekends
+                                </label>
+                                
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="exclude-holidays">
+                                    <span class="checkbox-custom"></span>
+                                    Exclude holidays
+                                </label>
+                                
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="business-hours-only">
+                                    <span class="checkbox-custom"></span>
+                                    Business hours only (9 AM - 5 PM)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Calculate Duration</button>
+                    </form>
+                    
+                    <div id="duration-result" class="result-container" style="display: none;">
+                        <h3>Duration Result</h3>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <label>Total Time</label>
+                                <div id="total-duration" class="result-value">--</div>
+                            </div>
+                            <div class="result-item">
+                                <label>Total Hours</label>
+                                <div id="total-hours" class="result-value">--</div>
+                            </div>
+                            <div class="result-item">
+                                <label>Total Days</label>
+                                <div id="total-days" class="result-value">--</div>
+                            </div>
+                            <div class="result-item" id="business-hours-result" style="display: none;">
+                                <label>Business Hours</label>
+                                <div id="business-hours" class="result-value">--</div>
+                            </div>
+                            <div class="result-item" id="business-days-result" style="display: none;">
+                                <label>Business Days</label>
+                                <div id="business-days" class="result-value">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Calculations -->
+                    <div class="quick-calculations">
+                        <h3>Quick Calculations</h3>
+                        <div class="quick-calc-grid">
+                            <button class="quick-calc-btn" data-duration="1h">Add 1 Hour</button>
+                            <button class="quick-calc-btn" data-duration="1d">Add 1 Day</button>
+                            <button class="quick-calc-btn" data-duration="1w">Add 1 Week</button>
+                            <button class="quick-calc-btn" data-duration="1m">Add 1 Month</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Time Tools v1.0.0 | <span id="api-status">Checking API...</span></p>
+        </footer>
+    </div>
+
+    <!-- Include API discovery module -->
+    <script src="api-discovery.js"></script>
+    <script src="calculator.js"></script>
+</body>
+</html>

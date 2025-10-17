@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+ui/node_modules/
+!api/rules/ui/testdata/**/ui/node_modules/
+!api/rules/ui/testdata/**/ui/node_modules/**
+
+# Build artifacts
+dist/
+!api/rules/ui/testdata/**/packages/iframe-bridge/dist/
+!api/rules/ui/testdata/**/packages/iframe-bridge/dist/**
+!api/rules/ui/testdata/**/ui/node_modules/**/dist/
+!api/rules/ui/testdata/**/ui/node_modules/**/dist/**
+!api/rules/ui/packages/iframe-bridge/dist/
+!api/rules/ui/packages/iframe-bridge/dist/**
+!api/packages/iframe-bridge/dist/
+!api/packages/iframe-bridge/dist/**
+ui/dist/
+*.exe
+cli/scenario-auditor
+
+# Transpiled configs (vite.config.ts is source, .js is generated)
+ui/vite.config.js
+
+# Test outputs
+coverage/
+*.test.js.snap
+test-results/
+api/test/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

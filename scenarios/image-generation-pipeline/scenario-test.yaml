@@ -1,0 +1,218 @@
+name: image-generation-pipeline
+description: Test suite for Enterprise Image Generation Pipeline
+version: 1.0.0
+
+prerequisites:
+  resources:
+    - ollama
+    - n8n
+    - windmill
+    - postgres
+    - whisper
+    - comfyui
+    - minio
+    - qdrant
+    - go
+  environment:
+    N8N_BASE_URL: http://localhost:${RESOURCE_PORTS[n8n]}
+    WINDMILL_BASE_URL: http://localhost:${RESOURCE_PORTS[windmill]}
+    COMFYUI_BASE_URL: http://localhost:${RESOURCE_PORTS[comfyui]}
+    WHISPER_BASE_URL: http://localhost:${RESOURCE_PORTS[whisper]}
+    API_PORT: ${API_PORT:-dynamic}
+
+tests:
+  - name: resource_availability
+    description: Verify all required resources are running
+    steps:
+      - check: ollama_api
+        command: curl -f http://localhost:${RESOURCE_PORTS[ollama]}/api/version
+        expected_status: 200
+      - check: n8n_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[n8n]}/healthz
+        expected_status: 200
+      - check: windmill_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/version
+        expected_status: 200
+      - check: postgres_ready
+        command: pg_isready -h localhost -p ${RESOURCE_PORTS[postgres]}
+        expected_status: 0
+      - check: whisper_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[whisper]}/health
+        expected_status: 200
+      - check: comfyui_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[comfyui]}/system_stats
+        expected_status: 200
+      - check: minio_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[minio]}/minio/health/live
+        expected_status: 200
+      - check: qdrant_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[qdrant]}/
+        expected_status: 200
+      - check: go_runtime
+        command: go version
+        contains: go1.21
+
+  - name: go_api_service
+    description: Verify Go API is built and running
+    steps:
+      - check: api_binary_exists
+        command: test -f api/image-generation-pipeline-api
+        expected_status: 0
+      - check: api_health
+        command: curl -f http://localhost:${API_PORT}/health
+        expected_status: 200
+        contains: "status":"healthy"
+      - check: api_campaigns_endpoint
+        command: curl -f http://localhost:${API_PORT}/api/campaigns
+        expected_status: 200
+      - check: api_brands_endpoint
+        command: curl -f http://localhost:${API_PORT}/api/brands
+        expected_status: 200
+      - check: api_generations_endpoint
+        command: curl -f http://localhost:${API_PORT}/api/generations
+        expected_status: 200
+
+  - name: n8n_workflow_deployment
+    description: Verify image generation workflow is deployed to n8n
+    steps:
+      - check: main_workflow
+        command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
+        contains: main-workflow
+
+  - name: windmill_app_deployment
+    description: Verify Windmill image generation app is deployed
+    steps:
+      - check: windmill_api
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/version
+        expected_status: 200
+      - check: image_generation_app
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/w/main/apps
+        expected_status: 200
+
+  - name: postgres_database
+    description: Verify PostgreSQL database schema is initialized
+    steps:
+      - check: database_exists
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -lqt | cut -d \| -f 1 | grep -qw image_generation_pipeline
+        expected_status: 0
+      - check: campaigns_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d image_generation_pipeline -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'campaigns')"
+        contains: "t"
+      - check: brands_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d image_generation_pipeline -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'brands')"
+        contains: "t"
+      - check: image_generations_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d image_generation_pipeline -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'image_generations')"
+        contains: "t"
+      - check: seed_data_loaded
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d image_generation_pipeline -t -c "SELECT COUNT(*) FROM brands"
+        min_value: 1
+
+  - name: comfyui_workflows
+    description: Verify ComfyUI workflows are deployed
+    steps:
+      - check: comfyui_api_available
+        command: curl -f http://localhost:${RESOURCE_PORTS[comfyui]}/system_stats
+        expected_status: 200
+      - check: workflows_available
+        command: curl -f http://localhost:${RESOURCE_PORTS[comfyui]}/object_info
+        expected_status: 200
+
+  - name: api_integration_tests
+    description: Test API endpoints with real data
+    steps:
+      - check: create_brand
+        method: POST
+        url: http://localhost:${API_PORT}/api/brands
+        headers:
+          Content-Type: application/json
+        body:
+          name: Test Brand API
+          description: Brand created by integration test
+          colors: ["#FF0000", "#00FF00"]
+          fonts: ["Arial", "Helvetica"]
+        expected_status: 201
+        timeout: 30
+      - check: create_campaign
+        method: POST
+        url: http://localhost:${API_PORT}/api/campaigns
+        headers:
+          Content-Type: application/json
+        body:
+          name: Test Campaign API
+          brand_id: test-brand-id
+          description: Campaign created by integration test
+          status: active
+        expected_status: 201
+        timeout: 30
+      - check: image_generation_request
+        method: POST
+        url: http://localhost:${API_PORT}/api/generate
+        headers:
+          Content-Type: application/json
+        body:
+          campaign_id: test-campaign-id
+          prompt: A beautiful landscape for testing
+          style: photorealistic
+          dimensions: 512x512
+        expected_status: 202
+        timeout: 30
+
+  - name: ai_models_availability
+    description: Verify required AI models are available
+    steps:
+      - check: llama_model
+        command: ollama list | grep llama3.1
+        expected: llama3.1:8b
+      - check: embedding_model
+        command: ollama list | grep nomic-embed-text
+        expected: nomic-embed-text
+      - check: vision_model
+        command: ollama list | grep llava
+        expected: llava:13b
+
+  - name: cli_functionality
+    description: Verify CLI is installed and functional
+    steps:
+      - check: cli_installed
+        command: which image-generation-pipeline
+        expected: /usr/local/bin/image-generation-pipeline
+      - check: cli_health
+        command: image-generation-pipeline status
+        expected_status: 0
+        contains: healthy
+      - check: cli_campaigns_list
+        command: image-generation-pipeline campaigns
+        expected_status: 0
+      - check: cli_brands_list
+        command: image-generation-pipeline brands
+        expected_status: 0
+      - check: cli_generations_list
+        command: image-generation-pipeline generations
+        expected_status: 0
+
+  - name: end_to_end_workflow
+    description: Test complete image generation workflow
+    steps:
+      - check: brand_creation_via_cli
+        command: image-generation-pipeline brands create "E2E Test Brand" "End-to-end test brand"
+        expected_status: 0
+        contains: Brand created successfully
+        timeout: 30
+      - check: campaign_creation_via_api
+        method: POST
+        url: http://localhost:${API_PORT}/api/campaigns
+        headers:
+          Content-Type: application/json
+        body:
+          name: E2E Test Campaign
+          brand_id: e2e-brand-id
+          description: End-to-end test campaign
+          status: active
+        expected_status: 201
+        timeout: 30
+
+validation:
+  timeout: 600
+  retry_count: 3
+  success_threshold: 0.90

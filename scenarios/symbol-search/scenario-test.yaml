@@ -1,0 +1,257 @@
+# Symbol Search Scenario Test Configuration
+# Defines declarative tests for validation
+
+version: 1.0
+scenario: symbol-search
+
+# Required file/directory structure validation
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/symbol-search
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - ui/package.json
+    - ui/index.html
+    - ui/vite.config.js
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - ui
+    - ui/src
+    - ui/src/components
+    - ui/src/hooks
+    - initialization
+    - initialization/postgres
+    - test
+    - data
+
+# Resource health and population validation
+resources:
+  required: [postgres]
+  optional: []
+  health_timeout: 60
+
+# Declarative test specifications
+tests:
+  # Database health and population tests
+  - name: "PostgreSQL database is accessible"
+    type: sql
+    service: postgres
+    query: "SELECT 1"
+    expect:
+      rows:
+        - "?column?": 1
+        
+  - name: "Unicode categories table is populated"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM categories"
+    expect:
+      rows:
+        - count: "> 25"  # Should have major Unicode categories
+        
+  - name: "Character blocks table is populated" 
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM character_blocks"
+    expect:
+      rows:
+        - count: "> 10"  # Should have major Unicode blocks
+        
+  - name: "Characters table has sample data"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM characters"
+    expect:
+      rows:
+        - count: "> 50"  # Should have sample characters loaded
+
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        database: "connected"
+        
+  - name: "API search endpoint works with query"
+    type: http
+    service: api
+    endpoint: /api/search?q=heart&limit=5
+    method: GET
+    expect:
+      status: 200
+      body:
+        total: "> 0"
+        characters: "Array"
+        
+  - name: "API search endpoint works with category filter"
+    type: http
+    service: api
+    endpoint: /api/search?category=So&limit=5
+    method: GET
+    expect:
+      status: 200
+      body:
+        total: "> 0"
+        characters: "Array"
+        
+  - name: "API character detail endpoint works"
+    type: http
+    service: api
+    endpoint: /api/character/U+2764
+    method: GET
+    expect:
+      status: 200
+      body:
+        character.codepoint: "U+2764"
+        character.name: "HEAVY BLACK HEART"
+        
+  - name: "API categories endpoint returns data"
+    type: http
+    service: api
+    endpoint: /api/categories
+    method: GET
+    expect:
+      status: 200
+      body:
+        categories: "Array"
+        
+  - name: "API blocks endpoint returns data"
+    type: http
+    service: api
+    endpoint: /api/blocks
+    method: GET
+    expect:
+      status: 200
+      body:
+        blocks: "Array"
+        
+  - name: "API bulk range endpoint works"
+    type: http
+    service: api
+    endpoint: /api/bulk/range
+    method: POST
+    body:
+      ranges:
+        - start: "U+0041"
+          end: "U+005A"
+    expect:
+      status: 200
+      body:
+        total_characters: "> 0"
+        characters: "Array"
+
+  # CLI command tests
+  - name: "CLI help command executes"
+    type: exec
+    command: ./cli/symbol-search help
+    expect:
+      exit_code: 0
+      output_contains: ["Symbol Search CLI", "USAGE", "COMMANDS"]
+      
+  - name: "CLI version command executes"
+    type: exec
+    command: ./cli/symbol-search version
+    expect:
+      exit_code: 0
+      output_contains: ["Symbol Search CLI", "1.0.0"]
+      
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/symbol-search status
+    expect:
+      exit_code: 0
+      output_contains: ["healthy"]
+      
+  - name: "CLI search command works"
+    type: exec
+    command: ./cli/symbol-search search "heart" --limit 3 --json
+    expect:
+      exit_code: 0
+      output_contains: ["characters", "total"]
+      
+  - name: "CLI character command works"
+    type: exec
+    command: ./cli/symbol-search character U+2764 --json
+    expect:
+      exit_code: 0
+      output_contains: ["HEAVY BLACK HEART", "U+2764"]
+      
+  - name: "CLI categories command works"
+    type: exec
+    command: ./cli/symbol-search categories --json
+    expect:
+      exit_code: 0
+      output_contains: ["categories"]
+
+  # Performance and integration tests
+  - name: "Search performance test - basic query under 100ms"
+    type: exec
+    command: bash test/performance-test.sh basic-search
+    expect:
+      exit_code: 0
+      output_contains: ["PASS"]
+      
+  - name: "Search performance test - large result set under 200ms"
+    type: exec
+    command: bash test/performance-test.sh large-search
+    expect:
+      exit_code: 0
+      output_contains: ["PASS"]
+      
+  - name: "Database index performance test"
+    type: exec
+    command: bash test/performance-test.sh db-indexes
+    expect:
+      exit_code: 0
+      output_contains: ["PASS"]
+
+  # UI build and functionality tests
+  - name: "UI dependencies install successfully"
+    type: exec
+    command: cd ui && npm install --silent
+    expect:
+      exit_code: 0
+      
+  - name: "UI builds successfully"
+    type: exec
+    command: cd ui && npm run build
+    expect:
+      exit_code: 0
+      output_contains: ["built"]
+
+# Test execution configuration
+execution:
+  timeout: 300  # 5 minutes total timeout
+  parallel: false  # Run tests sequentially to avoid resource conflicts
+  cleanup_after: true
+  
+# Performance benchmarks
+benchmarks:
+  search_latency:
+    description: "Search query response time"
+    target: "< 100ms for 95% of queries"
+    command: "bash test/performance-test.sh search-latency"
+    
+  ui_render_time:
+    description: "UI rendering performance with large result sets"
+    target: "< 200ms for 10K+ characters"
+    command: "bash test/performance-test.sh ui-render"
+    
+  memory_usage:
+    description: "Memory usage under load"
+    target: "< 512MB with 100 concurrent users"
+    command: "bash test/performance-test.sh memory-load"

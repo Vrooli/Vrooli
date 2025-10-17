@@ -1,0 +1,222 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "agent-metareasoning-manager",
+    "displayName": "Agent Metareasoning Manager",
+    "description": "Dashboard for managing metareasoning tools (prompts, workflows) that enhance agent decision-making",
+    "version": "1.0.0",
+    "tags": [
+      "vrooli-enhancement",
+      "vrooli-helpers",
+      "metareasoning",
+      "decision-support",
+      "ai-enhancement",
+      "reasoning-patterns",
+      "windmill-ui",
+      "prompt-management",
+      "workflow-orchestration",
+      "go-api",
+      "postgres-storage", 
+      "qdrant-vectors",
+      "native-go-reasoning"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Main coordination API port",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/metareasoning-orchestrator.json",
+          "type": "app"
+        },
+        {
+          "file": "initialization/automation/windmill/prompt-tester.json",
+          "type": "app"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "mistral",
+        "codellama",
+        "nomic-embed-text"
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "execution history and workflow metadata",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Agent Metareasoning Manager health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Agent Metareasoning Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/agent-metareasoning-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "agent-metareasoning-manager"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o agent-metareasoning-manager-api .",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:${API_PORT}/reasoning\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-metareasoning-manager --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start metareasoning manager with Go API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./agent-metareasoning-manager-api",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/agent-metareasoning-manager-api"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:$API_PORT/reasoning\\n  API: http://localhost:$API_PORT\\n  CLI: agent-metareasoning-manager --help\\n\\nReasoning endpoints:\\n  POST /reasoning/pros-cons\\n  POST /reasoning/swot\\n  POST /reasoning/risk-assessment\\n  POST /reasoning/self-review\\n  POST /reasoning/chain'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test metareasoning manager Go API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-workflows-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/workflows",
+          "description": "Test API workflows endpoint"
+        },
+        {
+          "name": "test-analyze-endpoint",
+          "run": "bash test/test-analyze-endpoint.sh",
+          "description": "Test API analysis endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats agent-metareasoning-manager.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/agent-metareasoning-manager.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"agent-metareasoning-manager-api\" || true; sleep 1; pkill -9 -f \"agent-metareasoning-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

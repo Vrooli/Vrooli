@@ -1,0 +1,102 @@
+{
+  "workflow_name": "Favicon Generator",
+  "description": "Generate favicons optimized for web browsers",
+  "version": "1.0.0",
+  "nodes": {
+    "text_input": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "favicon icon, {brand_symbol}, {primary_color}, minimal design, single symbol, geometric shape, high contrast, scalable vector, web optimized",
+        "clip": ["clip_loader", 0]
+      }
+    },
+    "negative_prompt": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "text, letters, complex details, multiple colors, gradients, shadows, realistic, photographic, cluttered design, thin lines",
+        "clip": ["clip_loader", 0]
+      }
+    },
+    "clip_loader": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "sd_xl_base_1.0.safetensors"
+      }
+    },
+    "empty_latent": {
+      "class_type": "EmptyLatentImage", 
+      "inputs": {
+        "width": 256,
+        "height": 256,
+        "batch_size": 3
+      }
+    },
+    "sampler": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["clip_loader", 0],
+        "positive": ["text_input", 0],
+        "negative": ["negative_prompt", 0],
+        "latent_image": ["empty_latent", 0],
+        "seed": 456,
+        "steps": 20,
+        "cfg": 9.0,
+        "sampler_name": "euler_a",
+        "scheduler": "normal",
+        "denoise": 1.0
+      }
+    },
+    "vae_decode": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["sampler", 0],
+        "vae": ["clip_loader", 2]
+      }
+    },
+    "upscale": {
+      "class_type": "ImageUpscaleWithModel",
+      "inputs": {
+        "upscale_model": ["upscale_loader", 0],
+        "image": ["vae_decode", 0]
+      }
+    },
+    "upscale_loader": {
+      "class_type": "UpscaleModelLoader",
+      "inputs": {
+        "model_name": "RealESRGAN_x4plus.pth"
+      }
+    },
+    "save_image": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["upscale", 0],
+        "filename_prefix": "brand_favicon_"
+      }
+    }
+  },
+  "parameters": {
+    "brand_symbol": {
+      "type": "string",
+      "required": true,
+      "description": "Simple symbol representing the brand"
+    },
+    "primary_color": {
+      "type": "string", 
+      "default": "#3b82f6",
+      "description": "Primary brand color"
+    }
+  },
+  "output_format": {
+    "type": "image",
+    "dimensions": {
+      "width": 256,
+      "height": 256
+    },
+    "format": "png",
+    "variations": 3,
+    "post_process": {
+      "resize_to": [16, 32, 48, 64],
+      "convert_to_ico": true
+    }
+  }
+}

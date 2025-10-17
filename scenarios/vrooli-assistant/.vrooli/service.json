@@ -1,0 +1,214 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "vrooli-assistant",
+    "displayName": "Vrooli Assistant",
+    "description": "Real-time issue capture and agent spawning overlay for rapid iteration on Vrooli scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "meta-tools",
+      "developer-experience",
+      "iteration-speed",
+      "electron",
+      "overlay",
+      "issue-tracking",
+      "agent-spawning",
+      "context-capture",
+      "screenshot",
+      "productivity"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Main API port for issue capture and agent coordination",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store issue history, patterns, and agent sessions",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector search for similar issues and pattern matching"
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": false,
+      "purpose": "Enhanced DOM capture for web scenarios"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Vrooli Assistant health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "electron_daemon",
+          "type": "process",
+          "target": "vrooli-assistant-daemon",
+          "critical": true
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Vrooli Assistant with Electron app",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/vrooli-assistant-api",
+              "ui/electron/dist/vrooli-assistant"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "vrooli-assistant"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-electron-deps",
+          "run": "cd ui/electron && npm install",
+          "description": "Install Electron dependencies"
+        },
+        {
+          "name": "build-electron-app",
+          "run": "cd ui/electron && npm run build",
+          "description": "Build Electron application"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o vrooli-assistant-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Vrooli Assistant initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-assistant --help\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
+          "description": "Display service access info"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Vrooli Assistant with Electron overlay and API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./vrooli-assistant-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/vrooli-assistant-api"
+          }
+        },
+        {
+          "name": "start-electron-daemon",
+          "run": "cd ui/electron && npm run start:daemon",
+          "description": "Start Electron overlay daemon",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Vrooli Assistant running:\\n  API: http://localhost:$API_PORT\\n  Overlay: Active (use hotkey to trigger)\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
+          "description": "Display running service info"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Vrooli Assistant functionality",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation"
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-capture-endpoint",
+          "run": "bash test/test-capture-endpoint.sh",
+          "description": "Test issue capture endpoint"
+        },
+        {
+          "name": "test-electron-hotkey",
+          "run": "./cli/vrooli-assistant test-hotkey",
+          "description": "Test global hotkey registration"
+        },
+        {
+          "name": "test-screenshot",
+          "run": "API_PORT=${API_PORT} ./cli/vrooli-assistant capture \"Test screenshot capture\"",
+          "description": "Test screenshot capture"
+        },
+        {
+          "name": "run-standard-tests",
+          "run": "test/run-tests.sh",
+          "description": "Run standard Vrooli test phases"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"vrooli-assistant-api\" || true; sleep 1; pkill -9 -f \"vrooli-assistant-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "# WARNING: Could not determine UI technology, using generic pattern\npkill -f \"scenarios/vrooli-assistant/ui\" || true; sleep 1; pkill -9 -f \"scenarios/vrooli-assistant/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

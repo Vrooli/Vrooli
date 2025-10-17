@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  claude-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vrooli/claude-code-sandbox:latest
+    container_name: claude-code-sandbox
+    
+    # Security configurations
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Volume mounts
+    volumes:
+      # Mount sandbox credentials (read-only)
+      - type: bind
+        source: ${CLAUDE_SANDBOX_CONFIG:-~/.claude-sandbox}
+        target: /home/claude/.claude
+        read_only: true
+      
+      # Mount test files directory
+      - type: bind
+        source: ../test-files
+        target: /workspace
+        read_only: false
+      
+      # Temporary directory for claude operations
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 100M
+    
+    # Environment variables
+    environment:
+      - CLAUDE_CONFIG_DIR=/home/claude/.claude
+      - CLAUDE_SANDBOX=true
+      - NODE_ENV=production
+      - TERM=xterm-256color
+    
+    # Network configuration - isolated by default
+    networks:
+      - claude-sandbox-net
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Interactive terminal
+    tty: true
+    stdin_open: true
+    
+    # Working directory
+    working_dir: /workspace
+    
+    # Labels for identification
+    labels:
+      com.vrooli.resource: "claude-code"
+      com.vrooli.sandbox: "true"
+      com.vrooli.purpose: "testing"
+
+networks:
+  claude-sandbox-net:
+    driver: bridge
+    internal: true  # No external network access by default
+    
+# Optional: Add this section to allow external network access when needed
+# networks:
+#   claude-sandbox-net:
+#     driver: bridge
+#     internal: false

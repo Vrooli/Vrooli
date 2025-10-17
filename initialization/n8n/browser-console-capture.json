@@ -1,0 +1,327 @@
+{
+  "name": "Browser Console Capture",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "browser/console",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for browser console capture\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.url) {\n  throw new Error('Missing required field: url');\n}\n\n// Extract and validate URL\nconst url = input.url.trim();\nif (!url.startsWith('http://') && !url.startsWith('https://')) {\n  throw new Error('URL must start with http:// or https://');\n}\n\n// Configuration with defaults\nconst config = {\n  url: url,\n  waitTime: Math.min(Math.max(input.wait_time || 3000, 500), 30000), // 0.5s to 30s\n  captureScreenshot: input.capture_screenshot !== false, // default true\n  includeNetworkLogs: input.include_network_logs !== false, // default true\n  includePerformance: input.include_performance !== false, // default true\n  timeout: Math.min(Math.max(input.timeout || 30000, 5000), 60000), // 5s to 60s\n  userAgent: input.user_agent || null,\n  viewport: input.viewport || {\n    width: 1280,\n    height: 720\n  },\n  // Optional interactions to perform after page load\n  interactions: input.interactions || []\n};\n\n// Validate interactions if provided\nif (config.interactions.length > 0) {\n  const validTypes = ['click', 'type', 'wait', 'scroll', 'hover', 'select'];\n  for (const interaction of config.interactions) {\n    if (!interaction.type || !validTypes.includes(interaction.type)) {\n      throw new Error(`Invalid interaction type: ${interaction.type}. Valid types: ${validTypes.join(', ')}`);\n    }\n    if (interaction.type !== 'wait' && interaction.type !== 'scroll' && !interaction.selector) {\n      throw new Error(`Interaction of type '${interaction.type}' requires a selector`);\n    }\n  }\n}\n\n// Prepare metadata\nconst metadata = {\n  captureId: `capture_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  startTime: new Date().toISOString(),\n  userAgent: config.userAgent,\n  viewport: config.viewport,\n  interactionCount: config.interactions.length\n};\n\nreturn {\n  config: config,\n  metadata: metadata\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare the browserless function code for console capture\nconst inputData = $input.item.json;\nconst config = inputData.config;\nconst metadata = inputData.metadata;\n\n// Build the comprehensive browser monitoring function\nconst functionCode = `async ({ page }) => {\n  const captureData = {\n    url: '${config.url}',\n    captureId: '${metadata.captureId}',\n    consoleLogs: [],\n    pageErrors: [],\n    networkErrors: [],\n    networkRequests: [],\n    dialogs: [],\n    performanceMetrics: {},\n    pageInfo: {},\n    interactions: [],\n    screenshot: null,\n    startTime: new Date().toISOString()\n  };\n  \n  try {\n    // Set viewport if specified\n    ${config.viewport ? `await page.setViewport(${JSON.stringify(config.viewport)});` : ''}\n    \n    // Set user agent if specified\n    ${config.userAgent ? `await page.setUserAgent('${config.userAgent}');` : ''}\n    \n    // Set up console log capture\n    page.on('console', msg => {\n      try {\n        captureData.consoleLogs.push({\n          type: msg.type(),\n          text: msg.text(),\n          args: msg.args().map(arg => {\n            try {\n              return arg.toString();\n            } catch {\n              return '[Complex Object]';\n            }\n          }),\n          location: msg.location(),\n          timestamp: new Date().toISOString()\n        });\n      } catch (err) {\n        console.warn('Failed to capture console log:', err.message);\n      }\n    });\n    \n    // Set up page error capture\n    page.on('pageerror', err => {\n      captureData.pageErrors.push({\n        message: err.message,\n        stack: err.stack,\n        name: err.name,\n        timestamp: new Date().toISOString()\n      });\n    });\n    \n    // Set up network monitoring\n    ${config.includeNetworkLogs ? `\n    page.on('requestfailed', req => {\n      captureData.networkErrors.push({\n        url: req.url(),\n        method: req.method(),\n        failure: req.failure()?.errorText || 'Unknown error',\n        timestamp: new Date().toISOString()\n      });\n    });\n    \n    page.on('response', res => {\n      captureData.networkRequests.push({\n        url: res.url(),\n        status: res.status(),\n        statusText: res.statusText(),\n        headers: res.headers(),\n        fromCache: res.fromCache(),\n        timestamp: new Date().toISOString()\n      });\n    });` : ''}\n    \n    // Set up dialog capture\n    page.on('dialog', dialog => {\n      captureData.dialogs.push({\n        type: dialog.type(),\n        message: dialog.message(),\n        defaultValue: dialog.defaultValue(),\n        timestamp: new Date().toISOString()\n      });\n      // Auto-dismiss dialogs to prevent hanging\n      dialog.dismiss().catch(() => {});\n    });\n    \n    // Navigate to the URL\n    const navigationStart = Date.now();\n    await page.goto('${config.url}', {\n      waitUntil: 'networkidle2',\n      timeout: ${config.timeout}\n    });\n    const navigationTime = Date.now() - navigationStart;\n    \n    // Wait for initial page load\n    await page.waitForTimeout(${config.waitTime});\n    \n    // Capture basic page information\n    captureData.pageInfo = {\n      title: await page.title(),\n      url: page.url(),\n      navigationTime: navigationTime,\n      timestamp: new Date().toISOString()\n    };\n    \n    // Perform interactions if specified\n    ${config.interactions.length > 0 ? `\n    const interactions = ${JSON.stringify(config.interactions)};\n    \n    for (const interaction of interactions) {\n      const interactionStart = Date.now();\n      \n      try {\n        switch (interaction.type) {\n          case 'click':\n            await page.click(interaction.selector);\n            break;\n          case 'type':\n            await page.type(interaction.selector, interaction.text || '');\n            break;\n          case 'wait':\n            if (interaction.selector) {\n              await page.waitForSelector(interaction.selector, { timeout: interaction.timeout || 5000 });\n            } else {\n              await page.waitForTimeout(interaction.duration || 1000);\n            }\n            break;\n          case 'scroll':\n            await page.evaluate((coords) => {\n              window.scrollTo(coords.x || 0, coords.y || 0);\n            }, interaction.coordinates || { x: 0, y: 300 });\n            break;\n          case 'hover':\n            await page.hover(interaction.selector);\n            break;\n          case 'select':\n            await page.select(interaction.selector, interaction.value || '');\n            break;\n        }\n        \n        captureData.interactions.push({\n          type: interaction.type,\n          selector: interaction.selector,\n          success: true,\n          duration: Date.now() - interactionStart,\n          timestamp: new Date().toISOString()\n        });\n        \n        // Wait briefly after each interaction\n        await page.waitForTimeout(500);\n        \n      } catch (err) {\n        captureData.interactions.push({\n          type: interaction.type,\n          selector: interaction.selector,\n          success: false,\n          error: err.message,\n          duration: Date.now() - interactionStart,\n          timestamp: new Date().toISOString()\n        });\n      }\n    }` : ''}\n    \n    // Capture performance metrics if enabled\n    ${config.includePerformance ? `\n    try {\n      const performanceData = await page.evaluate(() => {\n        const perfTiming = performance.timing;\n        const navigation = performance.getEntriesByType('navigation')[0];\n        \n        return {\n          domContentLoaded: perfTiming.domContentLoadedEventEnd - perfTiming.navigationStart,\n          loadComplete: perfTiming.loadEventEnd - perfTiming.navigationStart,\n          firstPaint: performance.getEntriesByType('paint').find(entry => entry.name === 'first-paint')?.startTime || null,\n          firstContentfulPaint: performance.getEntriesByType('paint').find(entry => entry.name === 'first-contentful-paint')?.startTime || null,\n          resourceLoadTime: navigation?.loadEventEnd - navigation?.loadEventStart || null,\n          domInteractive: perfTiming.domInteractive - perfTiming.navigationStart,\n          memoryUsage: performance.memory ? {\n            usedJSHeapSize: performance.memory.usedJSHeapSize,\n            totalJSHeapSize: performance.memory.totalJSHeapSize,\n            jsHeapSizeLimit: performance.memory.jsHeapSizeLimit\n          } : null\n        };\n      });\n      \n      captureData.performanceMetrics = performanceData;\n    } catch (err) {\n      captureData.performanceMetrics = { error: 'Failed to capture performance metrics: ' + err.message };\n    }` : ''}\n    \n    // Capture screenshot if enabled\n    ${config.captureScreenshot ? `\n    try {\n      const screenshot = await page.screenshot({ \n        type: 'png',\n        fullPage: false,\n        encoding: 'base64'\n      });\n      captureData.screenshot = screenshot;\n    } catch (err) {\n      captureData.screenshot = { error: 'Failed to capture screenshot: ' + err.message };\n    }` : ''}\n    \n    captureData.endTime = new Date().toISOString();\n    captureData.success = true;\n    \n    return {\n      data: captureData,\n      type: 'application/json'\n    };\n    \n  } catch (err) {\n    captureData.success = false;\n    captureData.error = {\n      message: err.message,\n      stack: err.stack,\n      timestamp: new Date().toISOString()\n    };\n    captureData.endTime = new Date().toISOString();\n    \n    return {\n      data: captureData,\n      type: 'application/json'\n    };\n  }\n}`;\n\nreturn {\n  functionCode: functionCode,\n  config: config,\n  metadata: metadata\n};"
+      },
+      "id": "prepare_browserless_function",
+      "name": "Prepare Browserless Function",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.browserless.url}/function",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/javascript"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "raw",
+        "body": "={{ $json.functionCode }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "execute_browserless_capture",
+      "name": "Execute Browser Capture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process browserless response and create structured output\nconst browserlessResponse = $input.item.json;\nconst inputData = $('Prepare Browserless Function').item.json;\n\nlet captureResult;\ntry {\n  // Parse the browserless response\n  if (typeof browserlessResponse === 'string') {\n    captureResult = JSON.parse(browserlessResponse);\n  } else if (browserlessResponse.data) {\n    captureResult = browserlessResponse.data;\n  } else {\n    captureResult = browserlessResponse;\n  }\n} catch (error) {\n  throw new Error(`Failed to parse browserless response: ${error.message}`);\n}\n\n// Calculate summary statistics\nconst stats = {\n  totalConsoleLogs: captureResult.consoleLogs?.length || 0,\n  consoleLogsByType: {},\n  totalPageErrors: captureResult.pageErrors?.length || 0,\n  totalNetworkErrors: captureResult.networkErrors?.length || 0,\n  totalNetworkRequests: captureResult.networkRequests?.length || 0,\n  successfulRequests: 0,\n  failedRequests: 0,\n  totalDialogs: captureResult.dialogs?.length || 0,\n  interactionsPerformed: captureResult.interactions?.length || 0,\n  interactionsSuccessful: 0\n};\n\n// Count console logs by type\nif (captureResult.consoleLogs) {\n  captureResult.consoleLogs.forEach(log => {\n    stats.consoleLogsByType[log.type] = (stats.consoleLogsByType[log.type] || 0) + 1;\n  });\n}\n\n// Count network request success/failure\nif (captureResult.networkRequests) {\n  captureResult.networkRequests.forEach(req => {\n    if (req.status >= 200 && req.status < 400) {\n      stats.successfulRequests++;\n    } else {\n      stats.failedRequests++;\n    }\n  });\n}\n\n// Count successful interactions\nif (captureResult.interactions) {\n  stats.interactionsSuccessful = captureResult.interactions.filter(i => i.success).length;\n}\n\n// Determine overall health score\nlet healthScore = 1.0;\n\n// Reduce score for errors\nif (stats.totalPageErrors > 0) {\n  healthScore -= Math.min(stats.totalPageErrors * 0.2, 0.4);\n}\n\nif (stats.totalNetworkErrors > 0) {\n  healthScore -= Math.min(stats.totalNetworkErrors * 0.1, 0.3);\n}\n\n// Reduce score for console errors\nconst consoleErrors = stats.consoleLogsByType.error || 0;\nif (consoleErrors > 0) {\n  healthScore -= Math.min(consoleErrors * 0.1, 0.2);\n}\n\n// Reduce score for failed interactions\nif (stats.interactionsPerformed > 0) {\n  const interactionFailureRate = (stats.interactionsPerformed - stats.interactionsSuccessful) / stats.interactionsPerformed;\n  healthScore -= interactionFailureRate * 0.3;\n}\n\nhealthScore = Math.max(healthScore, 0);\n\n// Extract key insights\nconst insights = [];\n\nif (stats.totalPageErrors > 0) {\n  insights.push(`Found ${stats.totalPageErrors} JavaScript error(s) on the page`);\n}\n\nif (consoleErrors > 0) {\n  insights.push(`Page logged ${consoleErrors} console error(s)`);\n}\n\nif (stats.totalNetworkErrors > 0) {\n  insights.push(`${stats.totalNetworkErrors} network request(s) failed`);\n}\n\nif (stats.failedRequests > 0) {\n  insights.push(`${stats.failedRequests} HTTP request(s) returned error status codes`);\n}\n\nif (stats.totalDialogs > 0) {\n  insights.push(`Page triggered ${stats.totalDialogs} dialog box(es)`);\n}\n\nif (captureResult.performanceMetrics?.domContentLoaded > 5000) {\n  insights.push(`Slow DOM loading: ${captureResult.performanceMetrics.domContentLoaded}ms`);\n}\n\nif (insights.length === 0) {\n  insights.push('No issues detected during capture');\n}\n\n// Calculate processing time\nconst processingTime = captureResult.endTime ? \n  new Date(captureResult.endTime) - new Date(captureResult.startTime) : null;\n\n// Build final response\nconst response = {\n  success: captureResult.success !== false,\n  captureId: captureResult.captureId || inputData.metadata.captureId,\n  url: captureResult.url || inputData.config.url,\n  \n  // Summary\n  summary: {\n    healthScore: Math.round(healthScore * 100) / 100,\n    insights: insights,\n    processingTime: processingTime,\n    capturedAt: new Date().toISOString()\n  },\n  \n  // Statistics\n  stats: stats,\n  \n  // Raw data\n  consoleLogs: captureResult.consoleLogs || [],\n  pageErrors: captureResult.pageErrors || [],\n  networkErrors: captureResult.networkErrors || [],\n  networkRequests: captureResult.networkRequests || [],\n  dialogs: captureResult.dialogs || [],\n  interactions: captureResult.interactions || [],\n  performanceMetrics: captureResult.performanceMetrics || {},\n  pageInfo: captureResult.pageInfo || {},\n  \n  // Screenshot data (base64 encoded)\n  screenshot: captureResult.screenshot || null,\n  \n  // Configuration used\n  config: inputData.config,\n  \n  // Error information if any\n  error: captureResult.error || null\n};\n\nreturn response;"
+      },
+      "id": "process_capture_results",
+      "name": "Process Capture Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_capture_success",
+      "name": "Check Capture Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error?.message || 'Browser console capture failed' }}\",\n  \"captureId\": \"={{ $json.captureId || 'unknown' }}\",\n  \"url\": \"={{ $json.url || 'unknown' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\",\n  \"partial_data\": {\n    \"consoleLogs\": \"={{ $json.consoleLogs?.length || 0 }}\",\n    \"pageErrors\": \"={{ $json.pageErrors?.length || 0 }}\",\n    \"networkErrors\": \"={{ $json.networkErrors?.length || 0 }}\"\n  }\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.url) {\n  return {\n    url: \"https://httpbin.org/status/200\",\n    wait_time: 2000,\n    capture_screenshot: true,\n    include_network_logs: true,\n    include_performance: true,\n    interactions: [\n      {\n        \"type\": \"wait\",\n        \"duration\": 1000\n      }\n    ]\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Browser Console Capture Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1600, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Prepare Browserless Function",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Browserless Function": {
+      "main": [
+        [
+          {
+            "node": "Execute Browser Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Browser Capture": {
+      "main": [
+        [
+          {
+            "node": "Process Capture Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Capture Results": {
+      "main": [
+        [
+          {
+            "node": "Check Capture Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Capture Success": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "browser-console-capture-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "browser-console-capture",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "browser-automation",
+      "name": "browser-automation"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "debugging",
+      "name": "debugging"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "monitoring",
+      "name": "monitoring"
+    }
+  ]
+}

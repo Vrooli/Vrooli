@@ -1,0 +1,246 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "graph-studio",
+    "displayName": "Graph Studio",
+    "description": "Unified platform for creating, validating, and converting all forms of graph-based visualizations and data structures",
+    "version": "1.0.0",
+    "tags": [
+      "graphs",
+      "diagrams",
+      "mind-maps",
+      "bpmn",
+      "uml",
+      "visualization",
+      "knowledge-graphs",
+      "workflow",
+      "architecture",
+      "plugin-system",
+      "format-conversion",
+      "go-api",
+      "react-ui",
+      "postgres-storage"
+    ]
+  },
+  "environment": {
+    "PREVIEW_ACCESS_TOKEN": {
+      "description": "Preview token required by middleware for managed lifecycles",
+      "default": "graph-studio-preview-token",
+      "required": false
+    },
+    "GRAPH_STUDIO_PREVIEW_TOKEN": {
+      "description": "Graph Studio specific preview token alias",
+      "default": "graph-studio-preview-token",
+      "required": false
+    },
+    "GRAPH_STUDIO_DISABLE_PREVIEW_GUARD": {
+      "description": "Disable preview token guard for local development and automated tests",
+      "default": "true",
+      "required": false
+    }
+  },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Graph Studio API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Graph Studio UI port",
+       "range": "35000-39999"
+     }
+   },
+  "resources": {
+    "postgres": {
+      "enabled": true,
+      "required": true,
+      "purpose": "Store graph metadata, relationships, and versioning",
+      "initialization": {
+        "database": "graph_studio",
+        "schema_file": "initialization/postgres/schema.sql"
+      }
+    },
+    "minio": {
+      "enabled": true,
+      "required": true,
+      "purpose": "Store large graph files and visualization assets",
+      "initialization": {
+        "buckets": ["graph-files", "graph-renders", "graph-exports"]
+      }
+    },
+    "redis": {
+      "enabled": false,
+      "required": false,
+      "purpose": "Cache frequently accessed graphs and session state",
+      "fallback": "No caching, direct database queries"
+    },
+    "ollama": {
+      "enabled": false,
+      "required": false,
+      "purpose": "AI-powered graph suggestions and natural language queries",
+      "fallback": "Disable AI features"
+    },
+    "qdrant": {
+      "enabled": false,
+      "required": false,
+      "purpose": "Vector search for semantic graph similarity",
+      "fallback": "Keyword-based search only"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Graph Studio health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Graph Studio",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "graph-studio-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "graph-studio"
+             ]
+           },
+          {
+            "type": "file",
+            "path": "initialization/postgres/schema.sql"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o graph-studio-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "initialize-postgres",
+          "run": "echo 'Postgres initialization handled by resource-postgres'",
+          "description": "PostgreSQL initialization placeholder"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Graph Studio initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Graph Studio with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./graph-studio-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/graph-studio-api"
+          },
+          "env": {
+            "VROOLI_LIFECYCLE": "active",
+            "API_PORT": "${API_PORT}",
+            "POSTGRES_DB": "graph_studio",
+            "LOG_LEVEL": "info",
+            "CORS_ORIGINS": "http://localhost:${UI_PORT},http://127.0.0.1:${UI_PORT}",
+            "MAX_GRAPH_SIZE": "10000",
+            "PLUGIN_DIR": "./plugins",
+            "PREVIEW_ACCESS_TOKEN": "graph-studio-preview-token",
+            "GRAPH_STUDIO_PREVIEW_TOKEN": "graph-studio-preview-token"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          },
+          "env": {
+            "UI_PORT": "${UI_PORT}",
+            "API_PORT": "${API_PORT}",
+            "VITE_APP_NAME": "Graph Studio",
+            "VITE_ENABLE_AI": "${resource.ollama.enabled}",
+            "VITE_PREVIEW_ACCESS_TOKEN": "graph-studio-preview-token"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Run comprehensive Graph Studio test suite",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "cd test && ./run-tests.sh",
+          "description": "Execute phased test suite (unit, integration, API, CLI, UI)",
+          "condition": {
+            "file_exists": "test/run-tests.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Graph Studio services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"graph-studio-api\" || true; sleep 1; pkill -9 -f \"graph-studio-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/graph-studio.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/graph-studio.*vite\" 2>/dev/null || true",
+          "description": "Stop UI development server"
+        }
+      ]
+    }
+  }
+}

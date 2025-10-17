@@ -1,0 +1,29 @@
+{
+  "name": "pregnancy-tracker-ui",
+  "version": "1.0.0",
+  "description": "Privacy-first pregnancy tracking UI with evidence-based information",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && ln -snf ../../../../../packages/iframe-bridge node_modules/@vrooli/iframe-bridge'"
+  },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "keywords": [
+    "pregnancy",
+    "tracking",
+    "health",
+    "privacy",
+    "women-health"
+  ],
+  "author": "Vrooli",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "bats": "^1.10.0"
+  }
+}

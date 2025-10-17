@@ -1,0 +1,738 @@
+{
+  "value": {
+    "type": "tabscomponent",
+    "tabs": [
+      {
+        "id": "prompt_tester",
+        "value": "Prompt Tester"
+      },
+      {
+        "id": "template_editor",
+        "value": "Template Editor"
+      },
+      {
+        "id": "batch_testing",
+        "value": "Batch Testing"
+      },
+      {
+        "id": "results",
+        "value": "Results & Analytics"
+      }
+    ],
+    "configuration": {
+      "prompt_tester": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🧪 Prompt Testing Laboratory\n## Test, refine, and optimize metareasoning prompts across different AI models\n**Interactive prompt development and A/B testing environment**",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#2d3748",
+                "backgroundColor": "#f0fff4",
+                "padding": "20px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "prompt_editor_section",
+            "type": "containercomponent",
+            "configuration": {
+              "title": "Prompt Editor",
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "reasoning_pattern_select",
+                "type": "selectcomponent",
+                "configuration": {
+                  "label": "Reasoning Pattern",
+                  "options": [
+                    {"value": "pros_cons_analysis", "label": "Pros & Cons Analysis"},
+                    {"value": "swot_analysis", "label": "SWOT Analysis"},
+                    {"value": "risk_assessment", "label": "Risk Assessment"},
+                    {"value": "devil_advocate", "label": "Devil's Advocate"},
+                    {"value": "introspection", "label": "Self-Review/Introspection"},
+                    {"value": "multi_perspective", "label": "Multi-Perspective Analysis"},
+                    {"value": "assumption_checking", "label": "Assumption Validation"},
+                    {"value": "bias_detection", "label": "Bias Detection"},
+                    {"value": "custom", "label": "Custom Pattern"}
+                  ],
+                  "defaultValue": "pros_cons_analysis",
+                  "style": {
+                    "marginBottom": "15px"
+                  }
+                }
+              },
+              {
+                "id": "prompt_template",
+                "type": "textareacomponent",
+                "configuration": {
+                  "label": "Prompt Template",
+                  "placeholder": "Enter your metareasoning prompt template here...\n\nUse variables like {{input}}, {{context}}, {{constraints}} for dynamic content.",
+                  "rows": 8,
+                  "required": true,
+                  "style": {
+                    "marginBottom": "15px",
+                    "fontFamily": "monospace"
+                  },
+                  "defaultValue": "Analyze the following decision or scenario: {{input}}\n\nContext: {{context || 'General analysis'}}\n\nProvide a comprehensive analysis including:\n1. Key factors and considerations\n2. Potential outcomes and implications\n3. Confidence assessment (0-100%)\n4. Recommended approach\n\nStructure your response clearly with specific reasoning for each point."
+                }
+              },
+              {
+                "id": "variables_section",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Test Variables",
+                  "style": {
+                    "backgroundColor": "#f8f9fa",
+                    "padding": "15px",
+                    "borderRadius": "6px",
+                    "marginBottom": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "test_input",
+                    "type": "textareacomponent",
+                    "configuration": {
+                      "label": "Input ({{input}})",
+                      "placeholder": "The main input/decision/scenario to analyze",
+                      "rows": 3,
+                      "defaultValue": "Should our team adopt a new project management methodology?"
+                    }
+                  },
+                  {
+                    "id": "test_context",
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Context ({{context}})",
+                      "placeholder": "Additional context or constraints",
+                      "defaultValue": "Remote team of 12 developers, current using Agile/Scrum"
+                    }
+                  },
+                  {
+                    "id": "test_constraints",
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Constraints ({{constraints}})",
+                      "placeholder": "Any limitations or requirements",
+                      "defaultValue": "Limited training budget, must implement within 3 months"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "testing_section",
+            "type": "containercomponent",
+            "configuration": {
+              "title": "Model Testing",
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "model_selection",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "flex",
+                    "gap": "15px",
+                    "marginBottom": "15px",
+                    "flexWrap": "wrap"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "model_llama",
+                    "type": "checkboxcomponent",
+                    "configuration": {
+                      "label": "Llama 3.2",
+                      "defaultChecked": true
+                    }
+                  },
+                  {
+                    "id": "model_mistral",
+                    "type": "checkboxcomponent",
+                    "configuration": {
+                      "label": "Mistral",
+                      "defaultChecked": true
+                    }
+                  },
+                  {
+                    "id": "model_codellama",
+                    "type": "checkboxcomponent",
+                    "configuration": {
+                      "label": "CodeLlama",
+                      "defaultChecked": false
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "temperature_slider",
+                "type": "slidercomponent",
+                "configuration": {
+                  "label": "Temperature",
+                  "min": 0,
+                  "max": 2,
+                  "step": 0.1,
+                  "defaultValue": 0.5,
+                  "style": {
+                    "marginBottom": "15px"
+                  }
+                }
+              },
+              {
+                "id": "max_tokens",
+                "type": "numberinputcomponent",
+                "configuration": {
+                  "label": "Max Tokens",
+                  "min": 100,
+                  "max": 4000,
+                  "defaultValue": 2000,
+                  "style": {
+                    "marginBottom": "15px"
+                  }
+                }
+              },
+              {
+                "id": "test_prompts_button",
+                "type": "buttoncomponent",
+                "configuration": {
+                  "text": "🚀 Test Across Selected Models",
+                  "variant": "contained",
+                  "color": "primary",
+                  "size": "large",
+                  "style": {
+                    "marginTop": "10px"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "live_results_section",
+            "type": "containercomponent",
+            "configuration": {
+              "title": "Live Test Results",
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "results_tabs",
+                "type": "tabscomponent",
+                "tabs": [
+                  {"id": "llama_result", "value": "Llama 3.2"},
+                  {"id": "mistral_result", "value": "Mistral"}, 
+                  {"id": "codellama_result", "value": "CodeLlama"},
+                  {"id": "comparison", "value": "Comparison"}
+                ],
+                "configuration": {
+                  "llama_result": {
+                    "type": "containercomponent",
+                    "components": [
+                      {
+                        "id": "llama_response",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "**Response from Llama 3.2:**\n\n*Results will appear here after testing...*\n\n**Metrics:**\n- Response time: -- ms\n- Token count: --\n- Estimated confidence: --%",
+                          "style": {
+                            "backgroundColor": "#f8f9fa",
+                            "padding": "15px",
+                            "borderRadius": "6px",
+                            "fontFamily": "monospace",
+                            "whiteSpace": "pre-wrap"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "mistral_result": {
+                    "type": "containercomponent",
+                    "components": [
+                      {
+                        "id": "mistral_response",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "**Response from Mistral:**\n\n*Results will appear here after testing...*\n\n**Metrics:**\n- Response time: -- ms\n- Token count: --\n- Estimated confidence: --%",
+                          "style": {
+                            "backgroundColor": "#f8f9fa",
+                            "padding": "15px",
+                            "borderRadius": "6px",
+                            "fontFamily": "monospace",
+                            "whiteSpace": "pre-wrap"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "codellama_result": {
+                    "type": "containercomponent",
+                    "components": [
+                      {
+                        "id": "codellama_response",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "**Response from CodeLlama:**\n\n*Results will appear here after testing...*\n\n**Metrics:**\n- Response time: -- ms\n- Token count: --\n- Estimated confidence: --%",
+                          "style": {
+                            "backgroundColor": "#f8f9fa",
+                            "padding": "15px",
+                            "borderRadius": "6px",
+                            "fontFamily": "monospace",
+                            "whiteSpace": "pre-wrap"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "comparison": {
+                    "type": "containercomponent",
+                    "components": [
+                      {
+                        "id": "comparison_table",
+                        "type": "tablecomponent",
+                        "configuration": {
+                          "title": "Model Comparison",
+                          "columns": [
+                            {"key": "model", "header": "Model"},
+                            {"key": "response_time", "header": "Response Time (ms)"},
+                            {"key": "token_count", "header": "Tokens"},
+                            {"key": "confidence", "header": "Confidence"},
+                            {"key": "reasoning_depth", "header": "Depth Score"},
+                            {"key": "actionability", "header": "Actionability"}
+                          ],
+                          "data": [
+                            {
+                              "model": "Llama 3.2",
+                              "response_time": "--",
+                              "token_count": "--",
+                              "confidence": "--%",
+                              "reasoning_depth": "--/10",
+                              "actionability": "--/10"
+                            },
+                            {
+                              "model": "Mistral", 
+                              "response_time": "--",
+                              "token_count": "--",
+                              "confidence": "--%",
+                              "reasoning_depth": "--/10",
+                              "actionability": "--/10"
+                            },
+                            {
+                              "model": "CodeLlama",
+                              "response_time": "--", 
+                              "token_count": "--",
+                              "confidence": "--%",
+                              "reasoning_depth": "--/10",
+                              "actionability": "--/10"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "template_editor": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "template_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 📝 Template Editor & Library\n## Create, modify, and manage metareasoning prompt templates",
+              "style": {
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "template_management",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "grid",
+                "gridTemplateColumns": "1fr 2fr",
+                "gap": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "template_list",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Saved Templates",
+                  "style": {
+                    "backgroundColor": "#f8f9fa",
+                    "padding": "15px",
+                    "borderRadius": "8px",
+                    "border": "1px solid #dee2e6"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "template_selector",
+                    "type": "listcomponent",
+                    "configuration": {
+                      "items": [
+                        {"id": "pros_cons_basic", "label": "Basic Pros & Cons", "description": "Simple advantage/disadvantage analysis"},
+                        {"id": "swot_comprehensive", "label": "Comprehensive SWOT", "description": "Full strategic analysis"},
+                        {"id": "risk_matrix", "label": "Risk Assessment Matrix", "description": "Probability × Impact evaluation"},
+                        {"id": "devil_advocate", "label": "Devil's Advocate", "description": "Challenge assumptions"},
+                        {"id": "introspection_loop", "label": "Self-Review Loop", "description": "Recursive reasoning check"},
+                        {"id": "multi_perspective", "label": "Six Thinking Hats", "description": "Multiple viewpoint analysis"},
+                        {"id": "assumption_checker", "label": "Assumption Validator", "description": "Validate underlying beliefs"},
+                        {"id": "bias_detector", "label": "Bias Scanner", "description": "Detect cognitive biases"}
+                      ]
+                    }
+                  },
+                  {
+                    "id": "new_template_button",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "+ New Template",
+                      "variant": "outlined",
+                      "style": {
+                        "marginTop": "10px"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "template_editor_area",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Template Editor",
+                  "style": {
+                    "backgroundColor": "#ffffff",
+                    "padding": "15px",
+                    "borderRadius": "8px",
+                    "border": "1px solid #e2e8f0"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "template_name",
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Template Name",
+                      "placeholder": "Enter template name...",
+                      "style": {
+                        "marginBottom": "15px"
+                      }
+                    }
+                  },
+                  {
+                    "id": "template_description",
+                    "type": "textareacomponent",
+                    "configuration": {
+                      "label": "Description",
+                      "placeholder": "Describe when and how to use this template...",
+                      "rows": 2,
+                      "style": {
+                        "marginBottom": "15px"
+                      }
+                    }
+                  },
+                  {
+                    "id": "template_content",
+                    "type": "textareacomponent",
+                    "configuration": {
+                      "label": "Template Content",
+                      "placeholder": "Enter your metareasoning prompt template...\n\nAvailable variables:\n- {{input}} - Main input/decision\n- {{context}} - Additional context\n- {{constraints}} - Limitations or requirements\n- {{previous_results}} - Results from previous steps in chain",
+                      "rows": 12,
+                      "style": {
+                        "marginBottom": "15px",
+                        "fontFamily": "monospace"
+                      }
+                    }
+                  },
+                  {
+                    "id": "template_actions",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "display": "flex",
+                        "gap": "10px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "save_template",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "💾 Save Template",
+                          "variant": "contained",
+                          "color": "primary"
+                        }
+                      },
+                      {
+                        "id": "test_template",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "🧪 Test Template",
+                          "variant": "outlined"
+                        }
+                      },
+                      {
+                        "id": "delete_template",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "🗑️ Delete",
+                          "variant": "outlined",
+                          "color": "error"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "batch_testing": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "batch_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🔄 Batch Testing Suite\n## Test multiple prompts across different inputs and models simultaneously",
+              "style": {
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "batch_config",
+            "type": "containercomponent",
+            "configuration": {
+              "title": "Batch Configuration",
+              "style": {
+                "backgroundColor": "#f8f9fa",
+                "padding": "20px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "test_scenarios",
+                "type": "textareacomponent",
+                "configuration": {
+                  "label": "Test Scenarios (one per line)",
+                  "placeholder": "Enter multiple test scenarios:\n\nShould we adopt remote work permanently?\nWhich cloud provider should we choose?\nIs it worth investing in AI automation for customer service?\nShould we expand to the European market?",
+                  "rows": 8,
+                  "style": {
+                    "marginBottom": "15px"
+                  }
+                }
+              },
+              {
+                "id": "batch_models",
+                "type": "checkboxcomponent",
+                "configuration": {
+                  "label": "Test all available models",
+                  "defaultChecked": true,
+                  "style": {
+                    "marginBottom": "15px"
+                  }
+                }
+              },
+              {
+                "id": "run_batch_test",
+                "type": "buttoncomponent",
+                "configuration": {
+                  "text": "🚀 Run Batch Test",
+                  "variant": "contained",
+                  "color": "primary",
+                  "size": "large"
+                }
+              }
+            ]
+          },
+          {
+            "id": "batch_progress",
+            "type": "containercomponent",
+            "configuration": {
+              "title": "Batch Execution Progress",
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "progress_indicator",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "**Batch Status:** Ready to run\n\n*Progress will be shown here during execution*\n\n- Total scenarios: --\n- Models to test: --\n- Estimated time: -- minutes\n- Current status: Waiting for start",
+                  "style": {
+                    "fontFamily": "monospace",
+                    "backgroundColor": "#f8f9fa",
+                    "padding": "15px",
+                    "borderRadius": "6px"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "results": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "results_header", 
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 📊 Results & Analytics\n## Analyze prompt performance across models and scenarios",
+              "style": {
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "analytics_dashboard",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "grid",
+                "gridTemplateColumns": "repeat(auto-fit, minmax(250px, 1fr))",
+                "gap": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "total_tests_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Total Tests Run",
+                  "style": {
+                    "backgroundColor": "#f0fff4",
+                    "border": "2px solid #68d391",
+                    "borderRadius": "8px",
+                    "padding": "15px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "total_tests_count",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "## {{total_tests || 0}}\n**Prompt Tests**",
+                      "style": {"color": "#2d5016"}
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "avg_confidence_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Average Confidence",
+                  "style": {
+                    "backgroundColor": "#fffaf0",
+                    "border": "2px solid #f6ad55",
+                    "borderRadius": "8px",
+                    "padding": "15px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "avg_confidence_score",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "## {{avg_confidence || 0}}%\n**Confidence Score**",
+                      "style": {"color": "#744210"}
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "best_model_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Best Performing Model",
+                  "style": {
+                    "backgroundColor": "#fef5e7",
+                    "border": "2px solid #9f7aea",
+                    "borderRadius": "8px",
+                    "padding": "15px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "best_model_name",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "## {{best_model || 'N/A'}}\n**Top Performer**",
+                      "style": {"color": "#44337a"}
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "detailed_results_table",
+            "type": "tablecomponent",
+            "configuration": {
+              "title": "Detailed Test Results",
+              "columns": [
+                {"key": "timestamp", "header": "Time", "type": "datetime"},
+                {"key": "prompt_template", "header": "Template"},
+                {"key": "test_scenario", "header": "Scenario"},
+                {"key": "model", "header": "Model"},
+                {"key": "confidence", "header": "Confidence %"},
+                {"key": "response_time", "header": "Time (ms)"},
+                {"key": "reasoning_quality", "header": "Quality Score"},
+                {"key": "actionability", "header": "Actionable"}
+              ],
+              "data": "{{test_results || []}}",
+              "pagination": true,
+              "pageSize": 15,
+              "sortable": true
+            }
+          }
+        ]
+      }
+    }
+  }
+}

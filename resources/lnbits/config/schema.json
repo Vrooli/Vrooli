@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "LNbits Configuration Schema",
+  "description": "Configuration schema for LNbits Lightning Network payments resource",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API port for LNbits service",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 5001
+    },
+    "backend": {
+      "type": "string",
+      "description": "Lightning backend wallet class",
+      "enum": [
+        "FakeWallet",
+        "LndWallet",
+        "CoreLightningWallet",
+        "EclairWallet",
+        "SparkWallet",
+        "LNPayWallet",
+        "OpenNodeWallet"
+      ],
+      "default": "FakeWallet"
+    },
+    "database": {
+      "type": "object",
+      "description": "PostgreSQL database configuration",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "lnbits-postgres"
+        },
+        "port": {
+          "type": "integer",
+          "default": 5432
+        },
+        "user": {
+          "type": "string",
+          "default": "lnbits"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password (auto-generated if not provided)"
+        },
+        "database": {
+          "type": "string",
+          "default": "lnbits"
+        }
+      }
+    },
+    "lnd": {
+      "type": "object",
+      "description": "LND backend configuration (if using LndWallet)",
+      "properties": {
+        "grpc_endpoint": {
+          "type": "string",
+          "description": "LND gRPC endpoint"
+        },
+        "grpc_port": {
+          "type": "integer",
+          "default": 10009
+        },
+        "macaroon_path": {
+          "type": "string",
+          "description": "Path to admin macaroon"
+        },
+        "cert_path": {
+          "type": "string",
+          "description": "Path to TLS certificate"
+        }
+      }
+    },
+    "core_lightning": {
+      "type": "object",
+      "description": "Core Lightning backend configuration",
+      "properties": {
+        "rpc_path": {
+          "type": "string",
+          "description": "Path to lightning-rpc socket"
+        }
+      }
+    },
+    "admin": {
+      "type": "object",
+      "description": "Admin interface configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "allowed_users": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of allowed admin user IDs"
+        }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "description": "LNbits extensions configuration",
+      "properties": {
+        "default_enabled": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["lnurlp", "withdraw"],
+          "description": "Extensions enabled by default"
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "description": "Service limits and thresholds",
+      "properties": {
+        "max_wallets_per_user": {
+          "type": "integer",
+          "default": 10
+        },
+        "max_payment_amount": {
+          "type": "integer",
+          "description": "Maximum payment amount in satoshis",
+          "default": 100000000
+        },
+        "min_payment_amount": {
+          "type": "integer",
+          "description": "Minimum payment amount in satoshis",
+          "default": 1
+        }
+      }
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

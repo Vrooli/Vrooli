@@ -1,0 +1,254 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "resume-screening-assistant",
+    "displayName": "Resume Screening Assistant",
+    "description": "AI-powered resume screening and candidate evaluation platform with semantic matching and automated assessment workflows",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "business",
+      "resume-screening",
+      "candidate-evaluation",
+      "recruitment",
+      "semantic-matching",
+      "javascript-ui",
+      "retro-futuristic",
+      "ai-assessment",
+      "job-matching",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "qdrant-vectors",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Resume screening assistant API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "HyperRecruit 3000 UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/job-management-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/resume-processing-pipeline.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/semantic-search-workflow.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "resume data, job listings, and assessment results",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "semantic search and candidate-job matching"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Resume Screening Assistant health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Resume Screening Assistant",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "resume-screening-assistant-api"
+             ]
+           },
+             {
+               "type": "cli",
+               "targets": ["resume-screening-assistant"]
+             },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o resume-screening-assistant-api .",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Resume Screening Assistant initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: resume-screening-assistant --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start resume screening assistant with Go API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./resume-screening-assistant-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/resume-screening-assistant-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  🎨 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$API_PORT\\n  🖥️ CLI: resume-screening-assistant --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test resume screening assistant Go API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-jobs-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/jobs",
+          "description": "Test API jobs endpoint"
+        },
+        {
+          "name": "test-candidates-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/candidates",
+          "description": "Test API candidates endpoint"
+        },
+        {
+          "name": "test-search-endpoint",
+          "run": "bash test/test-search-endpoint.sh",
+          "description": "Test API semantic search endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats resume-screening-assistant.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/resume-screening-assistant.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"resume-screening-assistant-api\" || true; sleep 1; pkill -9 -f \"resume-screening-assistant-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/resume-screening-assistant.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/resume-screening-assistant.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

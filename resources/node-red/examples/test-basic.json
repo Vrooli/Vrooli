@@ -1,0 +1,48 @@
+[
+    {
+        "id": "test-basic-flow",
+        "type": "tab",
+        "label": "Test Basic",
+        "disabled": false,
+        "info": "Basic connectivity test flow"
+    },
+    {
+        "id": "http-in-test",
+        "type": "http in",
+        "z": "test-basic-flow",
+        "name": "Test Endpoint",
+        "url": "/test/hello",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 130,
+        "y": 100,
+        "wires": [["function-test"]]
+    },
+    {
+        "id": "function-test",
+        "type": "function",
+        "z": "test-basic-flow",
+        "name": "Generate Response",
+        "func": "msg.payload = {\n    status: 'success',\n    message: 'Node-RED is working!',\n    timestamp: new Date().toISOString(),\n    service: 'Node-RED',\n    container: 'node-red-vrooli'\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 100,
+        "wires": [["http-out-test"]]
+    },
+    {
+        "id": "http-out-test",
+        "type": "http response",
+        "z": "test-basic-flow",
+        "name": "Send Response",
+        "statusCode": "200",
+        "headers": {},
+        "x": 580,
+        "y": 100,
+        "wires": []
+    }
+]

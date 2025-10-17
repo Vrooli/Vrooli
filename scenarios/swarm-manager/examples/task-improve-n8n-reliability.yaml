@@ -1,0 +1,23 @@
+id: task-example-001
+title: "Improve n8n webhook reliability"
+description: |
+  N8n webhooks are failing intermittently when receiving rapid consecutive requests.
+  Need to implement retry logic with exponential backoff and better error handling.
+  This should include proper queue management and timeout configuration.
+type: bug-fix
+target: n8n
+priority_estimates:
+  impact: 7
+  urgency: "high"
+  success_prob: 0.75
+  resource_cost: "moderate"
+priority_score: null
+dependencies: []
+blockers: []
+created_at: 2024-01-15T10:30:00Z
+created_by: human
+analyzed_at: null
+started_at: null
+completed_at: null
+attempts: []
+notes: "Critical for scenario automation reliability"

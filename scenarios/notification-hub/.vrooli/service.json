@@ -1,0 +1,198 @@
+{
+   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+   "version": "1.0.0",
+   "service": {
+     "name": "notification-hub",
+     "displayName": "Notification Hub",
+     "description": "Multi-tenant notification management system for email, SMS, and push notifications across all Vrooli scenarios",
+     "version": "1.0.0",
+     "tags": [
+       "notifications",
+       "multi-tenant",
+       "email",
+       "sms",
+       "push-notifications",
+       "infrastructure",
+       "communication",
+       "api",
+       "rate-limiting",
+       "analytics",
+       "compliance",
+       "go-api",
+       "nodejs-server",
+       "postgres-storage",
+       "redis-cache"
+     ]
+   },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Notification Hub API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Notification Hub dashboard port",
+      "range": "35000-39999"
+    }
+   },
+   "resources": {
+     "postgres": {
+       "type": "postgres",
+       "enabled": true,
+       "required": true,
+       "purpose": "Store profiles, contacts, templates, notifications, and delivery tracking",
+       "initialization": [
+         {
+           "file": "initialization/storage/postgres/schema.sql",
+           "type": "schema"
+         },
+         {
+           "file": "initialization/storage/postgres/seed.sql",
+           "type": "seed"
+         }
+       ]
+     },
+     "redis": {
+       "type": "redis",
+       "enabled": true,
+       "required": true,
+       "purpose": "Notification queues, rate limiting counters, and caching"
+     }
+   },
+   "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Notification Hub health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Notification Hub with multi-tenant capabilities",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "notification-hub-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "notification-hub"
+             ]
+           }
+         ]
+       },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "ln -sf $(pwd)/cli/notification-hub ~/.local/bin/notification-hub 2>/dev/null || sudo ln -sf $(pwd)/cli/notification-hub /usr/local/bin/notification-hub",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o notification-hub-api .",
+          "description": "Build Go API server binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install Node.js UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔔 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Notification Hub with Go API server and Node.js dashboard",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./notification-hub-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/notification-hub-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start Node.js dashboard server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test notification hub API and delivery workflows",
+      "steps": [
+        {
+          "name": "test-api-health",
+          "run": "curl -f http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-profile-creation",
+          "run": "cd api && ./notification-hub-api --test-profile-creation",
+          "description": "Test profile management functionality"
+        },
+        {
+          "name": "test-notification-send",
+          "run": "cd api && ./notification-hub-api --test-notification-send",
+          "description": "Test notification sending workflow"
+        },
+        {
+          "name": "test-cli",
+          "run": "notification-hub profiles list --format json",
+          "description": "Test CLI functionality"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"notification-hub-api\" || true; sleep 1; pkill -9 -f \"notification-hub-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/notification-hub.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/notification-hub.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

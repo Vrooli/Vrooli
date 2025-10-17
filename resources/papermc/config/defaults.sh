@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# PaperMC default configuration
+
+# Server configuration
+export PAPERMC_SERVER_TYPE="${PAPERMC_SERVER_TYPE:-docker}"  # docker or native
+export PAPERMC_VERSION="${PAPERMC_VERSION:-latest}"
+export PAPERMC_MEMORY="${PAPERMC_MEMORY:-2G}"
+export PAPERMC_MAX_MEMORY="${PAPERMC_MAX_MEMORY:-4G}"
+
+# Server ports
+export PAPERMC_SERVER_PORT="${PAPERMC_SERVER_PORT:-25565}"
+export PAPERMC_RCON_PORT="${PAPERMC_RCON_PORT:-25575}"
+export PAPERMC_HEALTH_PORT="${PAPERMC_HEALTH_PORT:-11461}"  # Health service port from port_registry.sh
+
+# RCON configuration
+export PAPERMC_RCON_ENABLED="${PAPERMC_RCON_ENABLED:-true}"
+export PAPERMC_RCON_PASSWORD="${PAPERMC_RCON_PASSWORD:-changeme123}"
+
+# World configuration
+export PAPERMC_WORLD_NAME="${PAPERMC_WORLD_NAME:-world}"
+export PAPERMC_WORLD_SEED="${PAPERMC_WORLD_SEED:-}"
+export PAPERMC_GAMEMODE="${PAPERMC_GAMEMODE:-creative}"
+export PAPERMC_DIFFICULTY="${PAPERMC_DIFFICULTY:-normal}"
+export PAPERMC_MAX_PLAYERS="${PAPERMC_MAX_PLAYERS:-20}"
+
+# EULA acceptance
+export PAPERMC_EULA="${PAPERMC_EULA:-true}"
+
+# Docker configuration
+export PAPERMC_DOCKER_IMAGE="${PAPERMC_DOCKER_IMAGE:-itzg/minecraft-server}"
+export PAPERMC_DOCKER_TAG="${PAPERMC_DOCKER_TAG:-latest}"
+export PAPERMC_CONTAINER_NAME="${PAPERMC_CONTAINER_NAME:-papermc-server}"
+
+# Runtime configuration
+export PAPERMC_DATA_DIR="${PAPERMC_DATA_DIR:-${HOME}/.papermc}"
+export PAPERMC_WORLD_DIR="${PAPERMC_WORLD_DIR:-${PAPERMC_DATA_DIR}/world}"
+export PAPERMC_PLUGINS_DIR="${PAPERMC_PLUGINS_DIR:-${PAPERMC_DATA_DIR}/plugins}"
+export PAPERMC_CONFIG_DIR="${PAPERMC_CONFIG_DIR:-${PAPERMC_DATA_DIR}/config}"
+export PAPERMC_BACKUP_DIR="${PAPERMC_BACKUP_DIR:-${PAPERMC_DATA_DIR}/backups}"
+export PAPERMC_LOG_FILE="${PAPERMC_LOG_FILE:-${PAPERMC_DATA_DIR}/server.log}"
+
+# Performance tuning
+export PAPERMC_JVM_OPTS="${PAPERMC_JVM_OPTS:--XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200}"
+
+# Startup configuration
+export PAPERMC_STARTUP_TIMEOUT="${PAPERMC_STARTUP_TIMEOUT:-60}"
+export PAPERMC_STOP_TIMEOUT="${PAPERMC_STOP_TIMEOUT:-30}"
+
+# Debug settings
+export PAPERMC_DEBUG="${PAPERMC_DEBUG:-false}"
+export PAPERMC_VERBOSE="${PAPERMC_VERBOSE:-false}"

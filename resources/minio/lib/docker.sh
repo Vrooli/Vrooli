@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+# MinIO Docker Management - Ultra-Simplified
+# Uses docker-resource-utils.sh for minimal boilerplate
+
+# Source var.sh to get proper directory variables
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+_MINIO_DOCKER_DIR="${APP_ROOT}/resources/minio/lib"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
+# Source configuration and ensure it's exported
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/minio/config/defaults.sh"
+minio::export_config 2>/dev/null || true
+
+# Source shared libraries
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
+# shellcheck disable=SC1091
+source "${_MINIO_DOCKER_DIR}/common.sh"
+
+
+# Execute command in MinIO container
+minio::docker::exec() {
+    docker exec "${MINIO_CONTAINER_NAME}" "$@"
+}
+
+# Create and start MinIO container
+minio::docker::create_container() {
+    # Ensure directories exist
+    minio::common::create_directories || return 1
+    
+    # Generate credentials if needed
+    minio::common::generate_credentials || return 1
+    
+    # Create network
+    docker::create_network "${MINIO_NETWORK_NAME}"
+    
+    # Pull image if needed
+    log::info "${MSG_PULLING_IMAGE}"
+    docker::pull_image "${MINIO_IMAGE}"
+    
+    log::info "${MSG_STARTING_CONTAINER}"
+    
+    # Validate required environment variables
+    docker_resource::validate_env_vars "MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "MINIO_IMAGE" || return 1
+    
+    # Load performance configuration if exists
+    local perf_config="${HOME}/.minio/config/performance.conf"
+    if [[ -f "$perf_config" ]]; then
+        # shellcheck disable=SC1090
+        source "$perf_config"
+    fi
+    
+    # Prepare environment variables array
+    local env_vars=(
+        "MINIO_ROOT_USER=${MINIO_ROOT_USER}"
+        "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}"
+        "MINIO_BROWSER=${MINIO_PERF_BROWSER:-${MINIO_BROWSER:-on}}"
+        "MINIO_REGION=${MINIO_REGION:-us-east-1}"
+        "GOMAXPROCS=${GOMAXPROCS:-4}"
+        "MINIO_API_REQUESTS_MAX=${MINIO_API_REQUESTS_MAX:-8000}"
+        "MINIO_API_REQUESTS_DEADLINE=${MINIO_API_REQUESTS_DEADLINE:-10s}"
+    )
+    
+    # Add cache configuration if specified
+    if [[ -n "${MINIO_CACHE_SIZE:-}" ]]; then
+        env_vars+=("MINIO_CACHE=on")
+        env_vars+=("MINIO_CACHE_DIR=/cache")
+        env_vars+=("MINIO_CACHE_QUOTA=${MINIO_CACHE_SIZE:-256MB}")
+        env_vars+=("MINIO_CACHE_WATERMARK_LOW=${MINIO_CACHE_WATERMARK_LOW:-80}")
+        env_vars+=("MINIO_CACHE_WATERMARK_HIGH=${MINIO_CACHE_WATERMARK_HIGH:-90}")
+    fi
+    
+    # Port mappings for dual-port MinIO setup
+    local port_mappings="${MINIO_PORT}:9000 ${MINIO_CONSOLE_PORT}:9001"
+    
+    # Volumes
+    local volumes="${MINIO_DATA_DIR}:/data ${MINIO_CONFIG_DIR}:/root/.minio"
+    
+    # Add cache volume if caching is enabled
+    if [[ -n "${MINIO_CACHE_SIZE:-}" ]]; then
+        volumes="${volumes} ${HOME}/.minio/cache:/cache"
+    fi
+    
+    # Health check command
+    local health_cmd="curl -f http://localhost:9000/minio/health/live || exit 1"
+    
+    # Docker options for MinIO-specific health timeout
+    local docker_opts=(
+        "--health-timeout" "10s"
+    )
+    
+    # MinIO server command arguments
+    local entrypoint_cmd=(
+        "server" "/data" "--console-address" ":9001"
+    )
+    
+    # Use advanced creation function
+    if docker_resource::create_service_advanced \
+        "$MINIO_CONTAINER_NAME" \
+        "$MINIO_IMAGE" \
+        "$port_mappings" \
+        "$MINIO_NETWORK_NAME" \
+        "$volumes" \
+        "env_vars" \
+        "docker_opts" \
+        "$health_cmd" \
+        "entrypoint_cmd"; then
+        
+        # Wait for container to initialize
+        sleep "${MINIO_INITIALIZATION_WAIT:-10}"
+        return 0
+    else
+        log::error "Failed to create MinIO container"
+        return 1
+    fi
+}
+
+# Start MinIO container
+minio::docker::start() {
+    if ! docker::container_exists "$MINIO_CONTAINER_NAME"; then
+        log::error "MinIO container does not exist. Run install first."
+        return 1
+    fi
+    
+    log::info "Starting MinIO container..."
+    
+    if docker::start_container "$MINIO_CONTAINER_NAME"; then
+        # Simple wait for container to be ready
+        log::info "Waiting for MinIO to be ready..."
+        sleep 5
+        
+        # Check if container is still running
+        if docker ps --format "{{.Names}}" | grep -q "^${MINIO_CONTAINER_NAME}$"; then
+            log::success "${MSG_START_SUCCESS:-MinIO started successfully}"
+            log::info "${MSG_CONSOLE_AVAILABLE:-Console available}: ${MINIO_CONSOLE_URL:-http://localhost:9001}"
+            return 0
+        else
+            log::error "${MSG_START_FAILED:-Failed to start MinIO}"
+            return 1
+        fi
+    else
+        log::error "Failed to start MinIO container"
+        return 1
+    fi
+}
+
+# Stop MinIO container
+minio::docker::stop() {
+    if ! docker::container_exists "$MINIO_CONTAINER_NAME"; then
+        log::warn "MinIO container does not exist"
+        return 0
+    fi
+    
+    log::info "Stopping MinIO container..."
+    
+    if docker::stop_container "$MINIO_CONTAINER_NAME"; then
+        log::success "${MSG_STOP_SUCCESS}"
+        return 0
+    else
+        log::error "${MSG_STOP_FAILED:-Failed to stop MinIO container}"
+        return 1
+    fi
+}
+
+# Restart MinIO container
+minio::docker::restart() {
+    log::info "Restarting MinIO..."
+    
+    if docker::restart_container "$MINIO_CONTAINER_NAME"; then
+        # Simple wait for container to be ready
+        log::info "Waiting for MinIO to be ready..."
+        sleep 10
+        
+        # Check if container is still running and healthy
+        if docker ps --format "{{.Names}}" | grep -q "^${MINIO_CONTAINER_NAME}$"; then
+            # Verify health endpoint
+            if timeout 5 curl -sf "http://localhost:${MINIO_PORT:-9000}/minio/health/live" &>/dev/null; then
+                log::success "${MSG_RESTART_SUCCESS}"
+                log::info "${MSG_CONSOLE_AVAILABLE}: ${MINIO_CONSOLE_URL}"
+                return 0
+            else
+                log::error "MinIO restarted but health check failed"
+                return 1
+            fi
+        else
+            log::error "MinIO container not running after restart"
+            return 1
+        fi
+    else
+        log::error "Failed to restart MinIO"
+        return 1
+    fi
+}
+
+# Remove MinIO container
+minio::docker::remove() {
+    local force=${1:-false}
+    docker::remove_container "$MINIO_CONTAINER_NAME" "$force"
+}

@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    @apply transition-colors duration-200;
+  }
+}
+
+@layer components {
+  .kanban-column {
+    @apply bg-gray-100 dark:bg-gray-800 rounded-lg p-4 min-h-[500px] w-full;
+  }
+
+  .feature-card {
+    @apply bg-white dark:bg-gray-700 rounded-lg p-4 mb-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer;
+  }
+
+  .vote-button {
+    @apply px-3 py-1 rounded-md text-sm font-medium transition-all duration-200;
+  }
+
+  .vote-button-up {
+    @apply hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400;
+  }
+
+  .vote-button-down {
+    @apply hover:bg-red-100 dark:hover:bg-red-900 text-red-600 dark:text-red-400;
+  }
+
+  .vote-button-active-up {
+    @apply bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300;
+  }
+
+  .vote-button-active-down {
+    @apply bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300;
+  }
+
+  .status-badge {
+    @apply px-2 py-1 rounded-full text-xs font-semibold uppercase;
+  }
+
+  .priority-badge {
+    @apply px-2 py-1 rounded text-xs font-medium;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500 dark:bg-gray-500;
+}
+
+/* Loading animation */
+.loading-dots {
+  display: inline-flex;
+  align-items: center;
+}
+
+.loading-dots span {
+  animation: loading 1.4s infinite both;
+  background-color: currentColor;
+  border-radius: 50%;
+  display: inline-block;
+  height: 0.5rem;
+  width: 0.5rem;
+  margin: 0 0.25rem;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes loading {
+  0%, 80%, 100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

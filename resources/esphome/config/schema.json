@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ESPHome Resource Configuration",
+  "type": "object",
+  "properties": {
+    "container_name": {
+      "type": "string",
+      "description": "Docker container name",
+      "default": "esphome"
+    },
+    "port": {
+      "type": "integer",
+      "description": "Dashboard web interface port (from port registry)",
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "dashboard_enabled": {
+      "type": "boolean",
+      "description": "Enable web dashboard",
+      "default": true
+    },
+    "dashboard_password": {
+      "type": "string",
+      "description": "Optional dashboard password",
+      "default": ""
+    },
+    "ota_password": {
+      "type": "string",
+      "description": "OTA update password",
+      "default": "vrooli_ota"
+    },
+    "mdns_enabled": {
+      "type": "boolean",
+      "description": "Enable mDNS device discovery",
+      "default": true
+    },
+    "parallel_builds": {
+      "type": "integer",
+      "description": "Number of parallel firmware builds",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 2
+    },
+    "compile_timeout": {
+      "type": "integer",
+      "description": "Firmware compilation timeout in seconds",
+      "minimum": 60,
+      "maximum": 1800,
+      "default": 300
+    },
+    "upload_timeout": {
+      "type": "integer",
+      "description": "OTA upload timeout in seconds",
+      "minimum": 30,
+      "maximum": 600,
+      "default": 120
+    },
+    "log_level": {
+      "type": "string",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+      "description": "Logging level",
+      "default": "INFO"
+    },
+    "supported_platforms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["ESP32", "ESP8266", "ESP32-S2", "ESP32-S3", "ESP32-C3"]
+      },
+      "description": "Supported microcontroller platforms",
+      "default": ["ESP32", "ESP8266"]
+    }
+  },
+  "required": ["container_name", "port"],
+  "additionalProperties": false
+}

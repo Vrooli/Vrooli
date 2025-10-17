@@ -1,0 +1,188 @@
+{
+  "name": "date-orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "date-night-planner/orchestrate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "couple_id",
+              "value": "={{$json[\"couple_id\"]}}"
+            },
+            {
+              "name": "date_type",
+              "value": "={{$json[\"date_type\"] || \"romantic\"}}"
+            },
+            {
+              "name": "budget_max",
+              "value": "={{$json[\"budget_max\"] || 100}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-params",
+      "name": "Set Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:{{$env.POSTGRES_PORT}}/query",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "SELECT * FROM date_night_planner.preferences WHERE couple_id = '{{$json[\"couple_id\"]}}'"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-preferences",
+      "name": "Fetch Preferences",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:{{$env.LOCAL_INFO_SCOUT_PORT}}/api/venues",
+        "method": "GET",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "{{$json[\"date_type\"]}}"
+            },
+            {
+              "name": "max_price",
+              "value": "{{$json[\"budget_max\"]}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "fetch-venues",
+      "name": "Fetch Local Venues",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const preferences = $node[\"Fetch Preferences\"].json || [];\nconst venues = $node[\"Fetch Local Venues\"].json || [];\nconst dateType = items[0].json.date_type;\nconst budget = items[0].json.budget_max;\n\n// Generate date plan based on preferences and venues\nconst suggestions = [];\n\n// Add venue-based suggestions\nif (venues.length > 0) {\n  venues.slice(0, 3).forEach(venue => {\n    suggestions.push({\n      title: `Visit ${venue.name}`,\n      description: venue.description || \"A local favorite\",\n      estimated_cost: venue.price_range || budget / 2,\n      activities: [{\n        type: \"venue\",\n        name: venue.name,\n        duration: \"2 hours\",\n        location: venue.address\n      }]\n    });\n  });\n}\n\n// Add preference-based suggestions\nif (preferences.length > 0) {\n  const cuisinePrefs = preferences.filter(p => p.category === \"dining\");\n  if (cuisinePrefs.length > 0) {\n    suggestions.push({\n      title: \"Romantic Dinner\",\n      description: `Based on your love for ${cuisinePrefs[0].preference_value}`,\n      estimated_cost: budget * 0.7,\n      activities: [{\n        type: \"dining\",\n        cuisine: cuisinePrefs[0].preference_value,\n        duration: \"2 hours\"\n      }]\n    });\n  }\n}\n\n// Add default suggestions if needed\nif (suggestions.length === 0) {\n  suggestions.push({\n    title: \"Classic Date Night\",\n    description: \"Dinner and a movie\",\n    estimated_cost: budget * 0.8,\n    activities: [\n      { type: \"dining\", duration: \"1.5 hours\" },\n      { type: \"entertainment\", duration: \"2 hours\" }\n    ]\n  });\n}\n\nreturn [{\n  json: {\n    couple_id: items[0].json.couple_id,\n    suggestions: suggestions,\n    personalization_factors: preferences.map(p => `${p.category}: ${p.preference_value}`)\n  }\n}];"
+      },
+      "id": "generate-plan",
+      "name": "Generate Date Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Parameters": {
+      "main": [
+        [
+          {
+            "node": "Fetch Preferences",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Local Venues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Preferences": {
+      "main": [
+        [
+          {
+            "node": "Generate Date Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Local Venues": {
+      "main": [
+        [
+          {
+            "node": "Generate Date Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Date Plan": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "date-night-planner"
+  },
+  "id": "date-orchestrator",
+  "tags": []
+}

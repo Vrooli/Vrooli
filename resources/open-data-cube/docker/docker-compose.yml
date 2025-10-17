@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  odc-db:
+    image: postgis/postgis:13-3.1
+    container_name: open-data-cube-db
+    environment:
+      POSTGRES_DB: datacube
+      POSTGRES_USER: datacube
+      POSTGRES_PASSWORD: datacube_password
+    ports:
+      - "5450:5432"
+    volumes:
+      - odc-db-data:/var/lib/postgresql/data
+    networks:
+      - odc-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datacube"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  odc-api:
+    image: opendatacube/datacube-core:latest
+    container_name: open-data-cube-api
+    environment:
+      DB_HOSTNAME: odc-db
+      DB_PORT: 5432
+      DB_DATABASE: datacube
+      DB_USERNAME: datacube
+      DB_PASSWORD: datacube_password
+      DATACUBE_CONFIG_PATH: /etc/datacube.conf
+    ports:
+      - "8850:8080"
+    volumes:
+      - /home/matthalloran8/Vrooli/resources/open-data-cube/data:/data
+      - ./datacube.conf:/etc/datacube.conf:ro
+    networks:
+      - odc-network
+    depends_on:
+      odc-db:
+        condition: service_healthy
+    command: ["datacube", "system", "init"]
+
+  odc-ows:
+    image: opendatacube/ows:latest
+    container_name: open-data-cube-ows
+    environment:
+      DB_HOSTNAME: odc-db
+      DB_PORT: 5432
+      DB_DATABASE: datacube
+      DB_USERNAME: datacube
+      DB_PASSWORD: datacube_password
+      DATACUBE_OWS_CFG: config.datacube_ows_cfg.ows_cfg
+    ports:
+      - "8851:8000"
+    volumes:
+      - /home/matthalloran8/Vrooli/resources/open-data-cube/data:/data
+    networks:
+      - odc-network
+    depends_on:
+      - odc-db
+      - redis
+
+  redis:
+    image: redis:alpine
+    container_name: open-data-cube-redis
+    networks:
+      - odc-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  odc-network:
+    driver: bridge
+
+volumes:
+  odc-db-data:

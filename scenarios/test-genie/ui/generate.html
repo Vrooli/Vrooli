@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Tests - Test Genie</title>
+    <meta name="description" content="Generate comprehensive test suites with AI-powered analysis">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="lucide.js"></script>
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__testGenieBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[TestGenie] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'test-genie' });
+            window.__testGenieBridgeInitialized = true;
+        }
+    </script>
+    <style>
+        /* Page-specific styles */
+        .generate-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            margin-top: var(--header-height);
+            padding: var(--spacing-lg);
+            overflow-y: auto;
+        }
+
+        .generate-form {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .form-section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .form-section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--accent-primary);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+        }
+
+        .form-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .form-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent-primary);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            justify-content: flex-end;
+            margin-top: var(--spacing-lg);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: var(--font-sans);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-success);
+            box-shadow: 0 0 20px var(--glow-primary);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-panel);
+        }
+
+        .generation-progress {
+            display: none;
+            background: var(--bg-panel);
+            border: 1px solid var(--accent-primary);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: var(--spacing-md) 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-status {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .generation-results {
+            display: none;
+            background: var(--bg-panel);
+            border: 1px solid var(--accent-success);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm);
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .result-label {
+            color: var(--text-secondary);
+        }
+
+        .result-value {
+            font-family: var(--font-mono);
+            color: var(--accent-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="generate-container">
+        <!-- Header will be injected here -->
+        <div id="header-container"></div>
+        
+        <!-- Navigation will be injected here -->
+        <div id="nav-container"></div>
+        
+        <main class="main-content">
+            <div class="generate-form">
+                <div class="form-section">
+                    <h2 class="form-section-title">Test Generation Configuration</h2>
+                    
+                    <form id="test-generation-form">
+                        <div class="form-group">
+                            <label class="form-label" for="scenario-name">Scenario Name</label>
+                            <input type="text" id="scenario-name" class="form-input" placeholder="e.g., my-application" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Test Types</label>
+                            <div class="form-checkbox-group">
+                                <div class="form-checkbox-item">
+                                    <input type="checkbox" id="test-unit" class="form-checkbox" value="unit" checked>
+                                    <label for="test-unit">Unit Tests</label>
+                                </div>
+                                <div class="form-checkbox-item">
+                                    <input type="checkbox" id="test-integration" class="form-checkbox" value="integration" checked>
+                                    <label for="test-integration">Integration Tests</label>
+                                </div>
+                                <div class="form-checkbox-item">
+                                    <input type="checkbox" id="test-performance" class="form-checkbox" value="performance">
+                                    <label for="test-performance">Performance Tests</label>
+                                </div>
+                                <div class="form-checkbox-item">
+                                    <input type="checkbox" id="test-vault" class="form-checkbox" value="vault">
+                                    <label for="test-vault">Vault Tests</label>
+                                </div>
+                                <div class="form-checkbox-item">
+                                    <input type="checkbox" id="test-regression" class="form-checkbox" value="regression">
+                                    <label for="test-regression">Regression Tests</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="coverage-target">Coverage Target (%)</label>
+                            <input type="number" id="coverage-target" class="form-input" min="0" max="100" value="95" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="source-paths">Source Code Paths (one per line)</label>
+                            <textarea id="source-paths" class="form-textarea" placeholder="./src&#10;./api&#10;./lib"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Additional Options</label>
+                            <div class="form-checkbox-group">
+                                <div class="form-checkbox-item">
+                                    <input type="checkbox" id="opt-performance" class="form-checkbox">
+                                    <label for="opt-performance">Include Performance Tests</label>
+                                </div>
+                                <div class="form-checkbox-item">
+                                    <input type="checkbox" id="opt-security" class="form-checkbox">
+                                    <label for="opt-security">Include Security Tests</label>
+                                </div>
+                                <div class="form-checkbox-item">
+                                    <input type="checkbox" id="opt-parallel" class="form-checkbox" checked>
+                                    <label for="opt-parallel">Enable Parallel Generation</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="custom-patterns">Custom Test Patterns (optional)</label>
+                            <textarea id="custom-patterns" class="form-textarea" placeholder="Pattern descriptions or requirements..."></textarea>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="reset-btn">Reset</button>
+                            <button type="submit" class="btn btn-primary">Generate Test Suite</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Progress Section -->
+                <div class="generation-progress" id="progress-section">
+                    <h3>Generating Test Suite...</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-status" id="progress-status">Initializing...</div>
+                </div>
+                
+                <!-- Results Section -->
+                <div class="generation-results" id="results-section">
+                    <h3>Generation Complete!</h3>
+                    <div id="results-content"></div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" id="view-suite-btn">View Test Suite</button>
+                        <button class="btn btn-secondary" id="execute-btn">Execute Tests</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="/components.js"></script>
+    <script>
+        // Initialize Lucide icons
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+        // Initialize components
+        const nav = new Navigation('generate');
+        const header = new Header();
+        const api = new TestGenieAPI();
+        
+        // Inject navigation and header
+        document.getElementById('nav-container').innerHTML = nav.render();
+        document.getElementById('header-container').innerHTML = header.render();
+        
+        // Attach event listeners
+        nav.attachEventListeners();
+        header.startStatusCheck();
+        
+        // Form handling
+        const form = document.getElementById('test-generation-form');
+        const progressSection = document.getElementById('progress-section');
+        const resultsSection = document.getElementById('results-section');
+        const progressFill = document.getElementById('progress-fill');
+        const progressStatus = document.getElementById('progress-status');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Collect form data
+            const testTypes = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                if (cb.value) testTypes.push(cb.value);
+            });
+            
+            const config = {
+                scenario_name: document.getElementById('scenario-name').value,
+                test_types: testTypes,
+                coverage_target: parseInt(document.getElementById('coverage-target').value),
+                source_code_paths: document.getElementById('source-paths').value.split('\n').filter(p => p.trim()),
+                options: {
+                    include_performance_tests: document.getElementById('opt-performance').checked,
+                    include_security_tests: document.getElementById('opt-security').checked,
+                    parallel_generation: document.getElementById('opt-parallel').checked,
+                    custom_test_patterns: document.getElementById('custom-patterns').value.split('\n').filter(p => p.trim())
+                }
+            };
+            
+            // Show progress
+            progressSection.style.display = 'block';
+            resultsSection.style.display = 'none';
+            form.style.opacity = '0.5';
+            form.style.pointerEvents = 'none';
+            
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                progressFill.style.width = progress + '%';
+                
+                // Update status messages
+                if (progress < 30) {
+                    progressStatus.textContent = 'Analyzing source code...';
+                } else if (progress < 60) {
+                    progressStatus.textContent = 'Generating test cases...';
+                } else {
+                    progressStatus.textContent = 'Finalizing test suite...';
+                }
+            }, 500);
+            
+            try {
+                // Call API
+                const result = await api.generateTestSuite(config);
+                
+                // Complete progress
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                progressStatus.textContent = 'Complete!';
+                
+                // Show results
+                setTimeout(() => {
+                    progressSection.style.display = 'none';
+                    resultsSection.style.display = 'block';
+                    
+                    document.getElementById('results-content').innerHTML = `
+                        <div class="result-item">
+                            <span class="result-label">Suite ID:</span>
+                            <span class="result-value">${result.suite_id}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Generated Tests:</span>
+                            <span class="result-value">${result.generated_tests}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Estimated Coverage:</span>
+                            <span class="result-value">${result.estimated_coverage}%</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Generation Time:</span>
+                            <span class="result-value">${result.generation_time.toFixed(2)}s</span>
+                        </div>
+                    `;
+                    
+                    // Store suite ID for actions
+                    window.currentSuiteId = result.suite_id;
+                }, 1000);
+                
+                Toast.show('Test suite generated successfully!', 'success');
+            } catch (error) {
+                clearInterval(progressInterval);
+                progressSection.style.display = 'none';
+                form.style.opacity = '1';
+                form.style.pointerEvents = 'auto';
+                Toast.show('Failed to generate test suite: ' + error.message, 'error');
+            }
+        });
+        
+        // Reset form
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            form.reset();
+            progressSection.style.display = 'none';
+            resultsSection.style.display = 'none';
+            form.style.opacity = '1';
+            form.style.pointerEvents = 'auto';
+        });
+        
+        // View suite button
+        document.getElementById('view-suite-btn').addEventListener('click', () => {
+            if (window.currentSuiteId) {
+                window.location.href = `/suites.html?id=${window.currentSuiteId}`;
+            }
+        });
+        
+        // Execute button
+        document.getElementById('execute-btn').addEventListener('click', () => {
+            if (window.currentSuiteId) {
+                window.location.href = `/executions.html?suite=${window.currentSuiteId}`;
+            }
+        });
+        
+        // Re-initialize lucide icons after dynamic content updates
+        const observer = new MutationObserver(() => {
+            lucide.createIcons();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    </script>
+</body>
+</html>

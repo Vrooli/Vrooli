@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Downloader - Smart Media Retrieval</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="2"/>
+                    <path d="M16 14L26 20L16 26V14Z" fill="currentColor"/>
+                </svg>
+                <h1>Video Downloader</h1>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-value" id="queueCount">0</span>
+                    <span class="stat-label">In Queue</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="downloadCount">0</span>
+                    <span class="stat-label">Downloaded</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- URL Input Section -->
+            <section class="url-input-section">
+                <div class="input-container">
+                    <input type="text" id="urlInput" placeholder="Paste video URL here or drag & drop..." />
+                    <button id="analyzeBtn" class="btn-secondary">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="2"/>
+                            <path d="M10 6V10M10 14H10.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Analyze
+                    </button>
+                </div>
+                
+                <div id="urlPreview" class="url-preview hidden">
+                    <img id="previewThumbnail" src="" alt="Video thumbnail">
+                    <div class="preview-info">
+                        <h3 id="previewTitle">Loading...</h3>
+                        <p id="previewDescription"></p>
+                        <div class="preview-meta">
+                            <span id="previewDuration"></span>
+                            <span id="previewPlatform"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="options-container">
+                    <!-- Video/Format Options Row -->
+                    <div class="options-row">
+                        <div class="option-group">
+                            <label class="option-label">Video Quality</label>
+                            <select id="qualitySelect" class="option-select">
+                                <option value="best">Best Quality</option>
+                                <option value="2160p">4K (2160p)</option>
+                                <option value="1080p">Full HD (1080p)</option>
+                                <option value="720p" selected>HD (720p)</option>
+                                <option value="480p">SD (480p)</option>
+                                <option value="360p">Low (360p)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="option-group">
+                            <label class="option-label">Video Format</label>
+                            <select id="formatSelect" class="option-select">
+                                <option value="mp4" selected>MP4</option>
+                                <option value="webm">WebM</option>
+                                <option value="mkv">MKV</option>
+                            </select>
+                        </div>
+                        
+                        <div class="option-group">
+                            <label class="audio-toggle">
+                                <input type="checkbox" id="audioOnly">
+                                <span class="toggle-label">Audio Only</span>
+                                <div class="toggle-switch"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Enhanced Audio Options Row -->
+                    <div id="audioOptions" class="options-row audio-options hidden">
+                        <div class="option-group">
+                            <label class="option-label">Audio Format</label>
+                            <select id="audioFormatSelect" class="option-select">
+                                <option value="mp3" selected>MP3</option>
+                                <option value="flac">FLAC (Lossless)</option>
+                                <option value="aac">AAC</option>
+                                <option value="ogg">OGG Vorbis</option>
+                            </select>
+                        </div>
+                        
+                        <div class="option-group">
+                            <label class="option-label">Audio Quality</label>
+                            <select id="audioQualitySelect" class="option-select">
+                                <option value="320k">320 kbps (High)</option>
+                                <option value="192k" selected>192 kbps (Standard)</option>
+                                <option value="128k">128 kbps (Low)</option>
+                                <option value="96k">96 kbps (Very Low)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Transcript Options Row -->
+                    <div class="options-row transcript-options">
+                        <div class="option-group">
+                            <label class="transcript-toggle">
+                                <input type="checkbox" id="generateTranscript">
+                                <span class="toggle-label">Generate Transcript</span>
+                                <div class="toggle-switch"></div>
+                            </label>
+                        </div>
+                        
+                        <div id="transcriptSettings" class="transcript-settings hidden">
+                            <div class="option-group">
+                                <label class="option-label">Whisper Model</label>
+                                <select id="whisperModelSelect" class="option-select">
+                                    <option value="tiny">Tiny (Fast, Lower Accuracy)</option>
+                                    <option value="base" selected>Base (Balanced)</option>
+                                    <option value="small">Small (Better Accuracy)</option>
+                                    <option value="medium">Medium (High Accuracy)</option>
+                                    <option value="large">Large (Best Accuracy, Slow)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="option-group">
+                                <label class="option-label">Language (Optional)</label>
+                                <select id="targetLanguageSelect" class="option-select">
+                                    <option value="">Auto-detect</option>
+                                    <option value="en">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="it">Italian</option>
+                                    <option value="pt">Portuguese</option>
+                                    <option value="ru">Russian</option>
+                                    <option value="ja">Japanese</option>
+                                    <option value="ko">Korean</option>
+                                    <option value="zh">Chinese</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Download Button -->
+                    <div class="download-action">
+                        <button id="downloadBtn" class="btn-primary">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M3 17H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <span id="downloadBtnText">Download</span>
+                        </button>
+                        <div id="downloadEstimate" class="download-estimate hidden">
+                            <span class="estimate-text">Estimated time: <span id="estimateTime">~3 min</span></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="queue">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <rect x="2" y="4" width="14" height="2" fill="currentColor"/>
+                        <rect x="2" y="8" width="14" height="2" fill="currentColor"/>
+                        <rect x="2" y="12" width="14" height="2" fill="currentColor"/>
+                    </svg>
+                    Queue
+                </button>
+                <button class="tab" data-tab="history">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M9 5V9L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    History
+                </button>
+                <button class="tab" data-tab="transcripts">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M3 3H15V15H3V3Z" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M6 6H12M6 9H12M6 12H9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Transcripts
+                </button>
+                <button class="tab" data-tab="batch">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <rect x="3" y="3" width="4" height="4" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="11" y="3" width="4" height="4" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="3" y="11" width="4" height="4" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="11" y="11" width="4" height="4" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    Batch
+                </button>
+            </div>
+
+            <!-- Queue Tab -->
+            <section id="queueTab" class="tab-content active">
+                <div class="queue-header">
+                    <h2>Download Queue</h2>
+                    <button id="processQueueBtn" class="btn-secondary">Process Queue</button>
+                </div>
+                <div id="queueList" class="download-list">
+                    <div class="empty-state">
+                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" opacity="0.3">
+                            <rect x="10" y="20" width="40" height="30" rx="2" stroke="currentColor" stroke-width="2"/>
+                            <path d="M20 35H40M20 40H35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <p>No downloads in queue</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Tab -->
+            <section id="historyTab" class="tab-content">
+                <div class="history-header">
+                    <h2>Download History</h2>
+                    <input type="text" id="searchInput" placeholder="Search downloads..." class="search-input">
+                </div>
+                <div id="historyList" class="download-list">
+                    <div class="empty-state">
+                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" opacity="0.3">
+                            <circle cx="30" cy="30" r="20" stroke="currentColor" stroke-width="2"/>
+                            <path d="M30 20V30L36 36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <p>No download history</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transcripts Tab -->
+            <section id="transcriptsTab" class="tab-content">
+                <div class="transcript-header">
+                    <h2>Transcripts</h2>
+                    <div class="transcript-controls">
+                        <input type="text" id="transcriptSearchInput" placeholder="Search within transcripts..." class="search-input">
+                        <select id="languageFilter" class="filter-select">
+                            <option value="">All Languages</option>
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="transcriptsList" class="transcripts-list">
+                    <div class="empty-state">
+                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" opacity="0.3">
+                            <path d="M10 10H50V50H10V10Z" stroke="currentColor" stroke-width="2"/>
+                            <path d="M18 20H42M18 26H42M18 32H35M18 38H28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <p>No transcripts available</p>
+                        <small>Transcripts will appear here when you download videos with transcript generation enabled</small>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Batch Tab -->
+            <section id="batchTab" class="tab-content">
+                <div class="batch-container">
+                    <h2>Batch Download</h2>
+                    <p class="batch-info">Add multiple URLs, one per line</p>
+                    <textarea id="batchUrls" placeholder="https://youtube.com/watch?v=abc123
+https://vimeo.com/123456789
+https://youtube.com/watch?v=xyz789"></textarea>
+                    <div class="batch-actions">
+                        <button id="clearBatchBtn" class="btn-secondary">Clear</button>
+                        <button id="batchDownloadBtn" class="btn-primary">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="2"/>
+                                <path d="M8 8H12M8 12H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            Add to Queue
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Toast Container -->
+        <div id="toastContainer" class="toast-container"></div>
+        
+        <!-- Transcript Viewer Modal -->
+        <div id="transcriptModal" class="modal hidden">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content transcript-modal-content">
+                <div class="modal-header">
+                    <div class="modal-title-section">
+                        <h3 id="transcriptTitle">Transcript Viewer</h3>
+                        <div class="transcript-meta">
+                            <span id="transcriptLanguage" class="meta-badge"></span>
+                            <span id="transcriptConfidence" class="meta-badge"></span>
+                            <span id="transcriptDuration" class="meta-badge"></span>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="searchInTranscriptBtn" class="btn-secondary">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M12 12L11 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            Search
+                        </button>
+                        <button id="exportTranscriptBtn" class="btn-secondary">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M2 12H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            Export
+                        </button>
+                        <button id="closeTranscriptBtn" class="btn-close">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Search Bar for Transcript -->
+                <div id="transcriptSearchBar" class="transcript-search-bar hidden">
+                    <input type="text" id="transcriptSearchQuery" placeholder="Search within this transcript..." class="transcript-search-input">
+                    <div class="search-results-count">
+                        <span id="searchResultsCount">0 results</span>
+                    </div>
+                    <div class="search-navigation">
+                        <button id="prevSearchResult" class="search-nav-btn" disabled>
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M8 3L5 6L8 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button id="nextSearchResult" class="search-nav-btn" disabled>
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M6 3L9 6L6 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Export Options -->
+                <div id="transcriptExportOptions" class="export-options hidden">
+                    <div class="export-format-selector">
+                        <label>Export Format:</label>
+                        <div class="format-buttons">
+                            <button class="format-btn" data-format="srt">SRT</button>
+                            <button class="format-btn" data-format="vtt">VTT</button>
+                            <button class="format-btn" data-format="txt">Text</button>
+                            <button class="format-btn active" data-format="json">JSON</button>
+                        </div>
+                    </div>
+                    <div class="export-settings">
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="includeTimestamps" checked>
+                            <span>Include timestamps</span>
+                        </label>
+                        <label class="export-checkbox">
+                            <input type="checkbox" id="includeConfidence">
+                            <span>Include confidence scores</span>
+                        </label>
+                    </div>
+                    <button id="downloadExportBtn" class="btn-primary">Download</button>
+                </div>
+                
+                <!-- Transcript Content -->
+                <div class="transcript-content">
+                    <div id="transcriptText" class="transcript-text-content">
+                        <div class="transcript-loading">
+                            <div class="loading-spinner"></div>
+                            <p>Loading transcript...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

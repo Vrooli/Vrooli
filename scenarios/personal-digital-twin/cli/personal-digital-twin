@@ -1,0 +1,543 @@
+#!/bin/bash
+
+# Personal Digital Twin CLI
+# A lightweight wrapper around the API for common operations
+
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/personal-digital-twin/cli"
+API_BASE_URL="${API_BASE_URL:-http://localhost:8200}"
+CHAT_BASE_URL="${CHAT_BASE_URL:-http://localhost:8201}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+check_api() {
+    if ! curl -sf "$API_BASE_URL/health" > /dev/null 2>&1; then
+        log_error "API server is not running at $API_BASE_URL"
+        log_info "Start the service with: vrooli scenario develop personal-digital-twin"
+        exit 1
+    fi
+}
+
+check_chat_api() {
+    if ! curl -sf "$CHAT_BASE_URL/health" > /dev/null 2>&1; then
+        log_error "Chat API server is not running at $CHAT_BASE_URL"
+        log_info "Start the service with: vrooli scenario develop personal-digital-twin"
+        exit 1
+    fi
+}
+
+show_help() {
+    cat << EOF
+Personal Digital Twin CLI
+
+USAGE:
+    personal-digital-twin <command> [options]
+
+COMMANDS:
+    persona create <name> [description]    Create a new persona
+    persona list                           List all personas
+    persona show <id>                      Show persona details
+    
+    datasource connect <persona_id> <type> [config]  Connect data source
+    datasource list <persona_id>                     List data sources
+    
+    chat <persona_id> <message>            Chat with a persona
+    chat history <session_id> <persona_id> Show chat history
+    
+    train start <persona_id> <model> <technique>  Start training
+    train status <persona_id>                     Show training jobs
+    
+    token create <persona_id> <name> [permissions]  Create API token
+    token list <persona_id>                         List API tokens
+    
+    search <persona_id> <query> [limit]    Search persona documents
+    
+    status                                 Show service status
+    help                                   Show this help
+
+EXAMPLES:
+    personal-digital-twin persona create "Alex" "My digital assistant"
+    personal-digital-twin chat persona-id "Hello, how are you?"
+    personal-digital-twin train start persona-id llama3.2 lora
+    personal-digital-twin datasource connect persona-id local_files '{"path":"/data"}'
+
+ENVIRONMENT:
+    API_BASE_URL     Base URL for main API (default: http://localhost:8200)
+    CHAT_BASE_URL    Base URL for chat API (default: http://localhost:8201)
+EOF
+}
+
+persona_create() {
+    check_api
+    local name="$1"
+    local description="${2:-}"
+    
+    local payload
+    if [[ -n "$description" ]]; then
+        payload=$(jq -n --arg name "$name" --arg desc "$description" '{
+            name: $name,
+            description: $desc,
+            personality_traits: {}
+        }')
+    else
+        payload=$(jq -n --arg name "$name" '{
+            name: $name,
+            personality_traits: {}
+        }')
+    fi
+    
+    log_info "Creating persona '$name'..."
+    
+    local response
+    if response=$(curl -sf -X POST "$API_BASE_URL/api/persona/create" \
+        -H "Content-Type: application/json" \
+        -d "$payload"); then
+        
+        local persona_id
+        persona_id=$(echo "$response" | jq -r '.id')
+        log_success "Persona created with ID: $persona_id"
+        echo "$response" | jq '.'
+    else
+        log_error "Failed to create persona"
+        exit 1
+    fi
+}
+
+persona_list() {
+    check_api
+    log_info "Fetching personas..."
+    
+    local response
+    if response=$(curl -sf "$API_BASE_URL/api/personas"); then
+        echo "$response" | jq '.personas[] | {id, name, description, training_status, document_count, created_at}'
+    else
+        log_error "Failed to fetch personas"
+        exit 1
+    fi
+}
+
+persona_show() {
+    check_api
+    local persona_id="$1"
+    
+    log_info "Fetching persona details for $persona_id..."
+    
+    local response
+    if response=$(curl -sf "$API_BASE_URL/api/persona/$persona_id"); then
+        echo "$response" | jq '.'
+    else
+        log_error "Failed to fetch persona details"
+        exit 1
+    fi
+}
+
+datasource_connect() {
+    check_api
+    local persona_id="$1"
+    local source_type="$2"
+    local config="${3:-{}}"
+    
+    local payload
+    payload=$(jq -n --arg persona_id "$persona_id" --arg source_type "$source_type" --argjson config "$config" '{
+        persona_id: $persona_id,
+        source_type: $source_type,
+        source_config: $config
+    }')
+    
+    log_info "Connecting $source_type data source to persona $persona_id..."
+    
+    local response
+    if response=$(curl -sf -X POST "$API_BASE_URL/api/datasource/connect" \
+        -H "Content-Type: application/json" \
+        -d "$payload"); then
+        log_success "Data source connected"
+        echo "$response" | jq '.'
+    else
+        log_error "Failed to connect data source"
+        exit 1
+    fi
+}
+
+datasource_list() {
+    check_api
+    local persona_id="$1"
+    
+    log_info "Fetching data sources for persona $persona_id..."
+    
+    local response
+    if response=$(curl -sf "$API_BASE_URL/api/datasources/$persona_id"); then
+        echo "$response" | jq '.data_sources[] | {id, source_type, status, total_documents, created_at}'
+    else
+        log_error "Failed to fetch data sources"
+        exit 1
+    fi
+}
+
+chat_with_persona() {
+    check_chat_api
+    local persona_id="$1"
+    local message="$2"
+    local session_id="${3:-}"
+    
+    local payload
+    if [[ -n "$session_id" ]]; then
+        payload=$(jq -n --arg persona_id "$persona_id" --arg message "$message" --arg session_id "$session_id" '{
+            persona_id: $persona_id,
+            message: $message,
+            session_id: $session_id
+        }')
+    else
+        payload=$(jq -n --arg persona_id "$persona_id" --arg message "$message" '{
+            persona_id: $persona_id,
+            message: $message
+        }')
+    fi
+    
+    log_info "Sending message to persona..."
+    
+    local response
+    if response=$(curl -sf -X POST "$CHAT_BASE_URL/api/chat" \
+        -H "Content-Type: application/json" \
+        -d "$payload"); then
+        
+        local persona_name
+        local chat_response
+        local session_id_response
+        
+        persona_name=$(echo "$response" | jq -r '.persona_name')
+        chat_response=$(echo "$response" | jq -r '.response')
+        session_id_response=$(echo "$response" | jq -r '.session_id')
+        
+        echo
+        echo -e "${GREEN}$persona_name:${NC} $chat_response"
+        echo
+        log_info "Session ID: $session_id_response"
+    else
+        log_error "Failed to send message"
+        exit 1
+    fi
+}
+
+chat_history() {
+    check_chat_api
+    local session_id="$1"
+    local persona_id="$2"
+    
+    log_info "Fetching chat history..."
+    
+    local response
+    if response=$(curl -sf "$CHAT_BASE_URL/api/chat/history/$session_id?persona_id=$persona_id"); then
+        echo "$response" | jq '.messages[] | "\(.role): \(.content)"' -r
+    else
+        log_error "Failed to fetch chat history"
+        exit 1
+    fi
+}
+
+train_start() {
+    check_api
+    local persona_id="$1"
+    local model="$2"
+    local technique="$3"
+    
+    local payload
+    payload=$(jq -n --arg persona_id "$persona_id" --arg model "$model" --arg technique "$technique" '{
+        persona_id: $persona_id,
+        model: $model,
+        technique: $technique
+    }')
+    
+    log_info "Starting training job..."
+    
+    local response
+    if response=$(curl -sf -X POST "$API_BASE_URL/api/train/start" \
+        -H "Content-Type: application/json" \
+        -d "$payload"); then
+        log_success "Training job started"
+        echo "$response" | jq '.'
+    else
+        log_error "Failed to start training"
+        exit 1
+    fi
+}
+
+train_status() {
+    check_api
+    local persona_id="$1"
+    
+    log_info "Fetching training jobs for persona $persona_id..."
+    
+    local response
+    if response=$(curl -sf "$API_BASE_URL/api/training/jobs/$persona_id"); then
+        echo "$response" | jq '.training_jobs[] | {id, status, model_name, technique, created_at, started_at, completed_at}'
+    else
+        log_error "Failed to fetch training jobs"
+        exit 1
+    fi
+}
+
+token_create() {
+    check_api
+    local persona_id="$1"
+    local name="$2"
+    local permissions="${3:-[\"read\"]}"
+    
+    local payload
+    payload=$(jq -n --arg persona_id "$persona_id" --arg name "$name" --argjson permissions "$permissions" '{
+        persona_id: $persona_id,
+        name: $name,
+        permissions: $permissions
+    }')
+    
+    log_info "Creating API token..."
+    
+    local response
+    if response=$(curl -sf -X POST "$API_BASE_URL/api/tokens/create" \
+        -H "Content-Type: application/json" \
+        -d "$payload"); then
+        log_success "API token created"
+        echo "$response" | jq '.'
+        log_warning "Save the token securely - it won't be shown again"
+    else
+        log_error "Failed to create API token"
+        exit 1
+    fi
+}
+
+token_list() {
+    check_api
+    local persona_id="$1"
+    
+    log_info "Fetching API tokens for persona $persona_id..."
+    
+    local response
+    if response=$(curl -sf "$API_BASE_URL/api/tokens/$persona_id"); then
+        echo "$response" | jq '.tokens[] | {id, name, permissions, last_used, created_at}'
+    else
+        log_error "Failed to fetch API tokens"
+        exit 1
+    fi
+}
+
+search_documents() {
+    check_api
+    local persona_id="$1"
+    local query="$2"
+    local limit="${3:-10}"
+    
+    local payload
+    payload=$(jq -n --arg persona_id "$persona_id" --arg query "$query" --argjson limit "$limit" '{
+        persona_id: $persona_id,
+        query: $query,
+        limit: $limit
+    }')
+    
+    log_info "Searching documents..."
+    
+    local response
+    if response=$(curl -sf -X POST "$API_BASE_URL/api/search" \
+        -H "Content-Type: application/json" \
+        -d "$payload"); then
+        echo "$response" | jq '.results[] | {id, score, text, source, timestamp}'
+    else
+        log_error "Failed to search documents"
+        exit 1
+    fi
+}
+
+show_status() {
+    log_info "Checking service status..."
+    
+    # Check main API
+    if curl -sf "$API_BASE_URL/health" > /dev/null 2>&1; then
+        log_success "Main API: Running at $API_BASE_URL"
+    else
+        log_error "Main API: Not running at $API_BASE_URL"
+    fi
+    
+    # Check chat API
+    if curl -sf "$CHAT_BASE_URL/health" > /dev/null 2>&1; then
+        log_success "Chat API: Running at $CHAT_BASE_URL"
+    else
+        log_error "Chat API: Not running at $CHAT_BASE_URL"
+    fi
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+    
+    # Check for required tools
+    if ! command -v curl &> /dev/null; then
+        log_error "curl is required but not installed"
+        exit 1
+    fi
+    
+    if ! command -v jq &> /dev/null; then
+        log_error "jq is required but not installed"
+        exit 1
+    fi
+    
+    case "$1" in
+        "persona")
+            case "${2:-}" in
+                "create")
+                    if [[ $# -lt 3 ]]; then
+                        log_error "Usage: personal-digital-twin persona create <name> [description]"
+                        exit 1
+                    fi
+                    persona_create "$3" "${4:-}"
+                    ;;
+                "list")
+                    persona_list
+                    ;;
+                "show")
+                    if [[ $# -lt 3 ]]; then
+                        log_error "Usage: personal-digital-twin persona show <id>"
+                        exit 1
+                    fi
+                    persona_show "$3"
+                    ;;
+                *)
+                    log_error "Unknown persona command: ${2:-}"
+                    log_info "Available: create, list, show"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        "datasource")
+            case "${2:-}" in
+                "connect")
+                    if [[ $# -lt 4 ]]; then
+                        log_error "Usage: personal-digital-twin datasource connect <persona_id> <type> [config]"
+                        exit 1
+                    fi
+                    datasource_connect "$3" "$4" "${5:-{}}"
+                    ;;
+                "list")
+                    if [[ $# -lt 3 ]]; then
+                        log_error "Usage: personal-digital-twin datasource list <persona_id>"
+                        exit 1
+                    fi
+                    datasource_list "$3"
+                    ;;
+                *)
+                    log_error "Unknown datasource command: ${2:-}"
+                    log_info "Available: connect, list"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        "chat")
+            case "${2:-}" in
+                "history")
+                    if [[ $# -lt 4 ]]; then
+                        log_error "Usage: personal-digital-twin chat history <session_id> <persona_id>"
+                        exit 1
+                    fi
+                    chat_history "$3" "$4"
+                    ;;
+                *)
+                    if [[ $# -lt 3 ]]; then
+                        log_error "Usage: personal-digital-twin chat <persona_id> <message>"
+                        exit 1
+                    fi
+                    chat_with_persona "$2" "$3" "${4:-}"
+                    ;;
+            esac
+            ;;
+        "train")
+            case "${2:-}" in
+                "start")
+                    if [[ $# -lt 5 ]]; then
+                        log_error "Usage: personal-digital-twin train start <persona_id> <model> <technique>"
+                        exit 1
+                    fi
+                    train_start "$3" "$4" "$5"
+                    ;;
+                "status")
+                    if [[ $# -lt 3 ]]; then
+                        log_error "Usage: personal-digital-twin train status <persona_id>"
+                        exit 1
+                    fi
+                    train_status "$3"
+                    ;;
+                *)
+                    log_error "Unknown train command: ${2:-}"
+                    log_info "Available: start, status"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        "token")
+            case "${2:-}" in
+                "create")
+                    if [[ $# -lt 4 ]]; then
+                        log_error "Usage: personal-digital-twin token create <persona_id> <name> [permissions]"
+                        exit 1
+                    fi
+                    token_create "$3" "$4" "${5:-[\"read\"]}"
+                    ;;
+                "list")
+                    if [[ $# -lt 3 ]]; then
+                        log_error "Usage: personal-digital-twin token list <persona_id>"
+                        exit 1
+                    fi
+                    token_list "$3"
+                    ;;
+                *)
+                    log_error "Unknown token command: ${2:-}"
+                    log_info "Available: create, list"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        "search")
+            if [[ $# -lt 3 ]]; then
+                log_error "Usage: personal-digital-twin search <persona_id> <query> [limit]"
+                exit 1
+            fi
+            search_documents "$2" "$3" "${4:-10}"
+            ;;
+        "status")
+            show_status
+            ;;
+        "help"|"--help"|"-h")
+            show_help
+            ;;
+        *)
+            log_error "Unknown command: $1"
+            log_info "Run 'personal-digital-twin help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

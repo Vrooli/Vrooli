@@ -1,0 +1,14 @@
+{
+  "name": "system-monitor",
+  "version": "1.0.0",
+  "description": "Server monitoring with AI-driven anomaly investigation",
+  "runtime": {
+    "protected": true,
+    "protection_reason": "System health monitoring - needed to detect issues during automation"
+  },
+  "metadata": {
+    "category": "vrooli-helpers",
+    "importance": "important",
+    "auto_start": false
+  }
+}

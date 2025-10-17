@@ -1,0 +1,377 @@
+{
+  "service": {
+    "name": "scenario-to-desktop"
+  },
+  "version": "1.0.0",
+  "description": "Transform Vrooli scenarios into professional desktop applications using Electron and other frameworks",
+  "type": "scenario",
+  "category": "automation",
+  "keywords": [
+    "desktop",
+    "electron",
+    "native",
+    "cross-platform",
+    "packaging",
+    "distribution"
+  ],
+  "author": "Vrooli Platform",
+  "license": "MIT",
+  "capabilities": [
+    "desktop_app_generation",
+    "cross_platform_packaging",
+    "native_os_integration",
+    "template_system",
+    "build_automation"
+  ],
+  "requirements": {
+    "node_version": ">=18.0.0",
+    "platform": [
+      "linux",
+      "darwin",
+      "win32"
+    ],
+    "memory": "512MB",
+    "disk": "100MB"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Desktop build API server port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999",
+      "description": "Desktop build UI server port"
+    }
+  },
+  "resources": {
+    "required": [],
+    "optional": [
+      {
+        "name": "browserless",
+        "purpose": "Desktop application testing and screenshot validation",
+        "fallback": "Manual testing workflow"
+      },
+      {
+        "name": "postgres",
+        "purpose": "Store desktop application templates and build history",
+        "fallback": "File-based template storage"
+      },
+      {
+        "name": "redis",
+        "purpose": "Cache compiled applications and build artifacts",
+        "fallback": "Local filesystem caching"
+      }
+    ]
+  },
+  "apis": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/v1/health",
+        "description": "Health check endpoint"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/status",
+        "description": "Desktop generation system status"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/templates",
+        "description": "List available desktop application templates"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/desktop/generate",
+        "description": "Generate desktop application from scenario configuration"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/desktop/status/{build_id}",
+        "description": "Check desktop build status and get deployment info"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/desktop/build",
+        "description": "Build a desktop application project"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/desktop/test",
+        "description": "Test desktop application functionality"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/desktop/package",
+        "description": "Package desktop application for distribution"
+      }
+    ]
+  },
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Show desktop generation system status",
+      "flags": [
+        "--json",
+        "--verbose"
+      ]
+    },
+    {
+      "name": "generate",
+      "description": "Generate desktop application for a scenario",
+      "arguments": [
+        "scenario_name"
+      ],
+      "flags": [
+        "--framework",
+        "--template",
+        "--platforms",
+        "--output",
+        "--features"
+      ]
+    },
+    {
+      "name": "build",
+      "description": "Build a desktop application project",
+      "arguments": [
+        "desktop_path"
+      ],
+      "flags": [
+        "--platforms",
+        "--sign",
+        "--publish"
+      ]
+    },
+    {
+      "name": "test",
+      "description": "Test desktop application functionality",
+      "arguments": [
+        "app_path"
+      ],
+      "flags": [
+        "--platforms",
+        "--headless"
+      ]
+    },
+    {
+      "name": "package",
+      "description": "Package desktop application for distribution",
+      "arguments": [
+        "app_path"
+      ],
+      "flags": [
+        "--store",
+        "--enterprise"
+      ]
+    },
+    {
+      "name": "templates",
+      "description": "List available templates",
+      "flags": [
+        "--json",
+        "--detail"
+      ]
+    }
+  ],
+  "events": {
+    "published": [
+      {
+        "name": "desktop.build.started",
+        "description": "Desktop application build started"
+      },
+      {
+        "name": "desktop.build.completed",
+        "description": "Desktop application build completed successfully"
+      },
+      {
+        "name": "desktop.build.failed",
+        "description": "Desktop application build failed"
+      },
+      {
+        "name": "desktop.deployed",
+        "description": "Desktop application deployed to distribution channels"
+      }
+    ],
+    "consumed": [
+      {
+        "name": "scenario.updated",
+        "description": "Scenario was updated, may trigger desktop app regeneration"
+      },
+      {
+        "name": "resource.browserless.ready",
+        "description": "Browserless resource is available for testing"
+      }
+    ]
+  },
+  "integrations": {
+    "provides_to": [
+      {
+        "scenario": "system-monitor",
+        "capability": "Native desktop system monitoring application",
+        "interface": "API/CLI"
+      },
+      {
+        "scenario": "personal-digital-twin",
+        "capability": "Offline-capable desktop assistant application",
+        "interface": "API/CLI"
+      },
+      {
+        "scenario": "document-manager",
+        "capability": "Desktop document management with native file integration",
+        "interface": "API/CLI"
+      }
+    ],
+    "consumes_from": [
+      {
+        "scenario": "browserless",
+        "capability": "Desktop application UI testing and screenshot capture",
+        "fallback": "Manual testing instructions"
+      },
+      {
+        "scenario": "notification-hub",
+        "capability": "Build completion notifications",
+        "fallback": "CLI output only"
+      }
+    ]
+  },
+  "deployment": {
+    "type": "service",
+    "auto_start": true,
+    "health_check_interval": 30,
+    "restart_policy": "on-failure",
+    "max_restarts": 3
+  },
+  "monitoring": {
+    "metrics": [
+      "desktop_apps_generated",
+      "build_success_rate",
+      "average_build_time",
+      "template_usage_stats",
+      "platform_distribution"
+    ],
+    "logs": {
+      "level": "info",
+      "format": "json",
+      "rotation": "daily"
+    }
+  },
+  "security": {
+    "permissions": [
+      "file_system",
+      "network",
+      "process"
+    ],
+    "sandbox": false,
+    "code_signing": {
+      "required": false,
+      "development": false,
+      "production": true
+    }
+  },
+  "development": {
+    "hot_reload": true,
+    "debug_mode": true,
+    "test_runner": "jest",
+    "linting": true
+  },
+  "metadata": {
+    "created": "2025-09-04",
+    "updated": "2025-09-04",
+    "status": "active",
+    "maturity": "stable",
+    "documentation": "README.md",
+    "repository": "https://github.com/vrooli/vrooli",
+    "issues": "https://github.com/vrooli/vrooli/issues",
+    "homepage": "https://vrooli.com/scenarios/scenario-to-desktop"
+   },
+    "lifecycle": {
+      "setup": {
+        "description": "Initialize scenario-to-desktop",
+        "condition": {
+          "checks": [
+             {
+               "type": "binaries",
+               "targets": [
+                 "scenario-to-desktop-api"
+               ]
+             },
+             {
+               "type": "cli",
+               "targets": [
+                 "scenario-to-desktop"
+               ]
+             },
+            {
+              "type": "dependencies",
+              "paths": [
+                "ui/package.json"
+              ]
+            },
+            {
+              "type": "resources",
+              "populated": true
+            }
+          ]
+        },
+        "steps": [
+          {
+            "name": "install-cli",
+            "run": "cd cli && ./install.sh",
+            "description": "Install CLI command globally"
+          },
+          {
+            "name": "build-api",
+            "run": "cd api && go build -o scenario-to-desktop-api .",
+            "description": "Build Go API binary"
+          },
+          {
+            "name": "setup-ui",
+            "run": "cd ui && npm install",
+            "description": "Install UI dependencies"
+          }
+        ]
+      },
+      "develop": {
+       "description": "Start scenario-to-desktop services",
+       "steps": [
+          {
+            "name": "start-api",
+            "run": "cd api && ./scenario-to-desktop-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+              "file_exists": "api/scenario-to-desktop-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Scenario to Desktop running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+     "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/scenario-to-desktop.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

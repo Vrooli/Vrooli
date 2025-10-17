@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FreeCAD Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable or disable FreeCAD resource",
+      "default": true
+    },
+    "image": {
+      "type": "string",
+      "description": "Docker image for FreeCAD",
+      "default": "registry.gitlab.com/daviddaish/freecad_docker_env:latest"
+    },
+    "port": {
+      "type": "integer",
+      "description": "API port for FreeCAD service",
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "display": {
+      "type": "object",
+      "properties": {
+        "number": {
+          "type": "string",
+          "description": "Virtual display number",
+          "default": ":99"
+        },
+        "resolution": {
+          "type": "string",
+          "description": "Display resolution",
+          "default": "1920x1080x24"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "memory_limit": {
+          "type": "string",
+          "description": "Memory limit for container",
+          "pattern": "^[0-9]+[kmg]$",
+          "default": "4096m"
+        },
+        "cpu_limit": {
+          "type": "number",
+          "description": "CPU limit (cores)",
+          "minimum": 0.5,
+          "default": 2.0
+        },
+        "thread_count": {
+          "type": "integer",
+          "description": "Number of processing threads",
+          "minimum": 1,
+          "default": 4
+        }
+      }
+    },
+    "workbenches": {
+      "type": "object",
+      "properties": {
+        "fem": {
+          "type": "boolean",
+          "description": "Enable FEM workbench",
+          "default": true
+        },
+        "path": {
+          "type": "boolean",
+          "description": "Enable Path (CAM) workbench",
+          "default": true
+        },
+        "assembly": {
+          "type": "boolean",
+          "description": "Enable Assembly workbench",
+          "default": true
+        },
+        "arch": {
+          "type": "boolean",
+          "description": "Enable Architecture workbench",
+          "default": false
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "properties": {
+        "default_format": {
+          "type": "string",
+          "enum": ["STEP", "IGES", "STL", "OBJ", "DXF", "SVG"],
+          "description": "Default export format",
+          "default": "STEP"
+        },
+        "quality": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Export quality setting",
+          "default": "high"
+        },
+        "mesh_resolution": {
+          "type": "number",
+          "description": "Mesh resolution for STL export",
+          "minimum": 0.01,
+          "default": 0.1
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "cache_size": {
+          "type": "integer",
+          "description": "Cache size in MB",
+          "minimum": 128,
+          "default": 512
+        },
+        "undo_levels": {
+          "type": "integer",
+          "description": "Number of undo levels",
+          "minimum": 1,
+          "default": 20
+        },
+        "auto_save": {
+          "type": "boolean",
+          "description": "Enable auto-save",
+          "default": true
+        },
+        "auto_save_interval": {
+          "type": "integer",
+          "description": "Auto-save interval in minutes",
+          "minimum": 1,
+          "default": 10
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "description": "Logging level",
+          "default": "INFO"
+        },
+        "debug": {
+          "type": "boolean",
+          "description": "Enable debug mode",
+          "default": false
+        }
+      }
+    }
+  },
+  "required": ["enabled"],
+  "additionalProperties": false
+}

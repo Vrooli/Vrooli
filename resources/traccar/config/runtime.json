@@ -1,0 +1,18 @@
+{
+  "startup_order": 500,
+  "dependencies": ["postgres"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "description": "Traccar GPS tracking server for fleet management and telematics",
+  "category": "mobility",
+  "capabilities": [
+    "gps-tracking",
+    "fleet-management",
+    "geofencing",
+    "reporting",
+    "webhooks",
+    "realtime-tracking"
+  ]
+}

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Manager Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <!-- Load shared utilities first -->
+    <script src="/components/shared.js"></script>
+    
+    <!-- Load components -->
+    <script src="/components/CampaignTree.js" type="text/babel"></script>
+    <script src="/components/PromptList.js" type="text/babel"></script>
+    <script src="/components/PromptEditor.js" type="text/babel"></script>
+    <script src="/components/App.js" type="text/babel"></script>
+    
+    <!-- Initialize app -->
+    <script type="text/babel">
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

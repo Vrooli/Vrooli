@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Picker Wheel - Spin to Decide!</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Animated background -->
+        <div class="animated-bg">
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+        </div>
+
+        <!-- Header -->
+        <header class="header">
+            <h1 class="title">
+                <span class="neon-text">PICKER</span>
+                <span class="neon-text accent">WHEEL</span>
+            </h1>
+            <p class="subtitle">Let fate decide! 🎲</p>
+        </header>
+
+        <!-- Main wheel container -->
+        <div class="wheel-section">
+            <div class="wheel-container">
+                <div class="wheel-wrapper">
+                    <svg id="wheel" class="wheel" viewBox="0 0 500 500">
+                        <!-- Wheel segments will be drawn here -->
+                    </svg>
+                    <div class="wheel-center">
+                        <button id="spinButton" class="spin-button">
+                            <span class="spin-text">SPIN!</span>
+                        </button>
+                    </div>
+                    <div class="wheel-pointer"></div>
+                </div>
+                
+                <!-- Result display -->
+                <div id="resultDisplay" class="result-display hidden">
+                    <div class="result-content">
+                        <p class="result-label">Winner:</p>
+                        <p id="resultText" class="result-text"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls panel -->
+            <div class="controls-panel">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="presets">Preset Wheels</button>
+                    <button class="tab-btn" data-tab="custom">Custom Wheel</button>
+                    <button class="tab-btn" data-tab="saved">My Wheels</button>
+                    <button class="tab-btn" data-tab="history">History</button>
+                </div>
+
+                <!-- Presets tab -->
+                <div id="presetsTab" class="tab-content active">
+                    <div class="preset-grid">
+                        <button class="preset-btn" data-wheel="dinner">
+                            <span class="preset-icon">🍕</span>
+                            <span class="preset-name">Dinner Decider</span>
+                        </button>
+                        <button class="preset-btn" data-wheel="yes-no">
+                            <span class="preset-icon">✅</span>
+                            <span class="preset-name">Yes or No</span>
+                        </button>
+                        <button class="preset-btn" data-wheel="teams">
+                            <span class="preset-icon">👥</span>
+                            <span class="preset-name">Team Picker</span>
+                        </button>
+                        <button class="preset-btn" data-wheel="d20">
+                            <span class="preset-icon">🎲</span>
+                            <span class="preset-name">D20 Roll</span>
+                        </button>
+                        <button class="preset-btn" data-wheel="workout">
+                            <span class="preset-icon">💪</span>
+                            <span class="preset-name">Workout</span>
+                        </button>
+                        <button class="preset-btn" data-wheel="movie">
+                            <span class="preset-icon">🎬</span>
+                            <span class="preset-name">Movie Genre</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Custom wheel tab -->
+                <div id="customTab" class="tab-content">
+                    <div class="custom-options">
+                        <div class="option-header">
+                            <h3>Build Your Wheel</h3>
+                            <button id="addOptionBtn" class="add-btn">+ Add Option</button>
+                        </div>
+                        <div id="optionsList" class="options-list">
+                            <!-- Options will be added here -->
+                        </div>
+                        <div class="custom-actions">
+                            <button id="clearAllBtn" class="action-btn secondary">Clear All</button>
+                            <button id="saveWheelBtn" class="action-btn primary">Save Wheel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Saved wheels tab -->
+                <div id="savedTab" class="tab-content">
+                    <div class="saved-wheels-grid" id="savedWheelsList">
+                        <!-- Saved wheels will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- History tab -->
+                <div id="historyTab" class="tab-content">
+                    <div class="history-stats">
+                        <div class="stat-card">
+                            <span class="stat-value" id="totalSpins">0</span>
+                            <span class="stat-label">Total Spins</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="todaySpins">0</span>
+                            <span class="stat-label">Today</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="favoriteResult">-</span>
+                            <span class="stat-label">Most Common</span>
+                        </div>
+                    </div>
+                    <div class="history-list" id="historyList">
+                        <!-- History items will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings panel -->
+        <div class="settings-panel">
+            <button id="settingsToggle" class="settings-toggle">⚙️</button>
+            <div id="settingsMenu" class="settings-menu hidden">
+                <h3>Settings</h3>
+                <label class="setting-item">
+                    <input type="checkbox" id="soundToggle" checked>
+                    <span>Sound Effects</span>
+                </label>
+                <label class="setting-item">
+                    <input type="checkbox" id="confettiToggle" checked>
+                    <span>Confetti Animation</span>
+                </label>
+                <label class="setting-item">
+                    <span>Animation Speed</span>
+                    <select id="speedSelect">
+                        <option value="slow">Slow</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="fast">Fast</option>
+                    </select>
+                </label>
+                <label class="setting-item">
+                    <span>Theme</span>
+                    <select id="themeSelect">
+                        <option value="neon" selected>Neon Arcade</option>
+                        <option value="retro">Retro Casino</option>
+                        <option value="minimal">Minimalist</option>
+                        <option value="dark">Dark Mode</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confetti canvas -->
+    <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+    <!-- Audio elements -->
+    <audio id="spinSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
+    </audio>
+    <audio id="winSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
+    </audio>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

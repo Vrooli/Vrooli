@@ -1,0 +1,59 @@
+# Build artifacts
+build/
+dist/
+*.log
+
+# API binaries
+api/crypto-tools
+api/crypto-tools-api
+api/test-build
+api/test-crypto-tools-api
+
+# UI build outputs
+ui/dist/
+ui/build/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Environment files (if any are added later)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Go artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Temporary files
+*.tmp
+.temp/

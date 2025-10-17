@@ -1,0 +1,41 @@
+#!/bin/bash
+# Unit test phase template - runs language-specific unit tests with coverage
+# TEMPLATE: Copy this to your scenario's test/phases/test-unit.sh
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+# Initialize phase with 60-second target (unit tests should be fast)
+testing::phase::init --target-time "60s"
+
+# Source centralized testing library
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
+
+# Change to scenario directory
+cd "$TESTING_PHASE_SCENARIO_DIR"
+
+# Configure test parameters based on your scenario's structure
+# Adjust these based on your actual directory layout:
+#   - Go code typically in 'api/' directory
+#   - Node.js code typically in 'ui/' directory  
+#   - Python code typically in project root or 'lib/' directory
+#
+# Coverage thresholds:
+#   - coverage-warn: Tests pass but show warning if coverage below this %
+#   - coverage-error: Tests fail if coverage below this %
+if testing::unit::run_all_tests \
+    --go-dir "api" \
+    --node-dir "ui" \
+    --skip-python \
+    --coverage-warn 75 \
+    --coverage-error 50; then
+    log::success "All unit tests passed"
+else
+    testing::phase::add_error "Some unit tests failed"
+fi
+
+# End with summary
+testing::phase::end_with_summary "Unit tests completed"

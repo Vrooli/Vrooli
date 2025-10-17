@@ -1,0 +1,202 @@
+# Multi-Provider LiteLLM Configuration
+# This configuration demonstrates how to set up multiple AI providers
+# with intelligent routing, fallbacks, and cost optimization
+
+model_list:
+  # OpenAI Models (Primary)
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_key: ${OPENAI_API_KEY}
+      rpm: 3500
+      tpm: 90000
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.000001
+      output_cost_per_token: 0.000002
+      max_tokens: 4096
+      
+  - model_name: gpt-4
+    litellm_params:
+      model: openai/gpt-4
+      api_key: ${OPENAI_API_KEY}
+      rpm: 500
+      tpm: 10000
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.00003
+      output_cost_per_token: 0.00006
+      max_tokens: 8192
+
+  # Anthropic Models (Secondary)
+  - model_name: claude-3-haiku
+    litellm_params:
+      model: anthropic/claude-3-haiku-20240307
+      api_key: ${ANTHROPIC_API_KEY}
+      rpm: 1000
+      tpm: 50000
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.00000025
+      output_cost_per_token: 0.00000125
+      max_tokens: 200000
+      
+  - model_name: claude-3-sonnet
+    litellm_params:
+      model: anthropic/claude-3-5-sonnet-20241022
+      api_key: ${ANTHROPIC_API_KEY}
+      rpm: 1000
+      tpm: 40000
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.000003
+      output_cost_per_token: 0.000015
+      max_tokens: 200000
+
+  # Google Models (Tertiary)
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-pro
+      api_key: ${GOOGLE_API_KEY}
+      rpm: 300
+      tpm: 32000
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.00000125
+      output_cost_per_token: 0.00000375
+      max_tokens: 30720
+
+  # OpenRouter Fallbacks (Quaternary)
+  - model_name: openrouter-gpt-3.5
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_base: https://openrouter.ai/api/v1
+      api_key: ${OPENROUTER_API_KEY}
+      rpm: 200
+      tpm: 40000
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.000001
+      output_cost_per_token: 0.000002
+      max_tokens: 4096
+      
+  - model_name: openrouter-claude-haiku
+    litellm_params:
+      model: anthropic/claude-3-haiku
+      api_base: https://openrouter.ai/api/v1
+      api_key: ${OPENROUTER_API_KEY}
+      rpm: 200
+      tpm: 25000
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.00000025
+      output_cost_per_token: 0.00000125
+      max_tokens: 200000
+
+# Router Configuration
+router_settings:
+  routing_strategy: "cost-based-routing"
+  enable_pre_call_checks: true
+  enable_fallbacks: true
+  fallbacks:
+    - gpt-3.5-turbo: ["claude-3-haiku", "openrouter-gpt-3.5"]
+    - gpt-4: ["claude-3-sonnet", "gpt-3.5-turbo"]
+    - claude-3-haiku: ["gpt-3.5-turbo", "openrouter-claude-haiku"] 
+    - claude-3-sonnet: ["gpt-4", "claude-3-haiku"]
+    - gemini-pro: ["gpt-3.5-turbo", "claude-3-haiku"]
+  num_retries: 3
+  retry_delay: 1
+  timeout: 30
+  cooldown_time: 60
+
+# Model Groups for Easy Routing
+model_group_alias:
+  "cheap": "claude-3-haiku"
+  "balanced": "gpt-3.5-turbo"
+  "premium": "gpt-4"
+  "creative": "claude-3-sonnet"
+  "analytical": "gemini-pro"
+
+# Logging Configuration
+litellm_settings:
+  set_verbose: false
+  json_logs: true
+  log_file: "/app/logs/litellm.log"
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  drop_params: true
+  add_function_to_prompt: false
+  
+# General Settings
+general_settings:
+  master_key: "${LITELLM_MASTER_KEY}"
+  database_url: "sqlite:///app/data/litellm.db"
+  store_model_in_db: true
+  custom_auth: "custom_auth.py"
+  
+# Budget Controls
+budget_settings:
+  enable_budget_control: true
+  max_budget: 100.0  # $100 per month
+  budget_duration: "30d"
+  budget_reset: "monthly"
+  
+  # Per-model budgets
+  model_max_budget:
+    "gpt-4": 50.0
+    "claude-3-sonnet": 30.0
+    "gpt-3.5-turbo": 15.0
+    "claude-3-haiku": 5.0
+
+# Rate Limiting
+rate_limit_settings:
+  default_tpm: 1000
+  default_rpm: 100
+  
+  # Per-model rate limits
+  model_rpm:
+    "gpt-4": 20
+    "claude-3-sonnet": 50
+    "gpt-3.5-turbo": 100
+    "claude-3-haiku": 200
+
+# Caching Configuration
+cache_settings:
+  cache_responses: true
+  cache_type: "redis"
+  cache_timeout: 3600  # 1 hour
+  similar_cache_keys: true
+  cache_kwargs:
+    host: "vrooli-redis"
+    port: 6380
+    password: "${REDIS_PASSWORD}"
+
+# Health Check Settings
+health_check_settings:
+  health_check_interval: 300  # 5 minutes
+  health_check_models: ["gpt-3.5-turbo", "claude-3-haiku"]
+  
+# Security Settings
+security_settings:
+  enable_cors: true
+  allowed_origins: ["http://localhost:*", "https://*.vrooli.com"]
+  enable_request_validation: true
+  max_request_size: 10485760  # 10MB
+  
+# Monitoring and Alerting
+alerting:
+  webhook_url: "${ALERTING_WEBHOOK_URL}"
+  alert_types: ["budget_exceeded", "rate_limit_exceeded", "model_error"]
+  alert_to_email: ["admin@vrooli.com"]
+
+# Environment-specific overrides
+environment: "production"
+
+# Custom callbacks for tracking
+callbacks:
+  success:
+    - log_success_metrics
+    - update_usage_stats
+  failure:
+    - log_failure_metrics
+    - alert_on_repeated_failures

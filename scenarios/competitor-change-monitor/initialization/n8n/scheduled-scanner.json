@@ -1,0 +1,502 @@
+{
+  "name": "competitor-scheduled-scanner",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "competitor-monitor/manual-scan",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize scan session\nconst scanId = `scan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  scanId,\n  timestamp,\n  scanType: $node['Webhook']?.json ? 'manual' : 'scheduled',\n  status: 'initializing'\n};"
+      },
+      "id": "init-scan",
+      "name": "Initialize Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  c.id as competitor_id,\n  c.name as competitor_name,\n  c.is_active,\n  mt.id as target_id,\n  mt.url,\n  mt.target_type,\n  mt.selector,\n  mt.check_frequency,\n  mt.last_checked,\n  mt.last_content_hash\nFROM competitors c\nINNER JOIN monitoring_targets mt ON c.id = mt.competitor_id\nWHERE c.is_active = true\n  AND mt.is_active = true\n  AND (mt.last_checked IS NULL OR \n       mt.last_checked < NOW() - INTERVAL '1 hour' * mt.check_frequency)\nORDER BY mt.last_checked ASC NULLS FIRST\nLIMIT 50;",
+        "additionalFields": {}
+      },
+      "id": "get-targets",
+      "name": "Get Monitoring Targets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [650, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "split-batches",
+      "name": "Split Into Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process each target in the batch\nconst targets = $items().map(item => item.json);\nconst scanId = $node['Initialize Scan'].json.scanId;\n\nconst results = [];\n\nfor (const target of targets) {\n  results.push({\n    scanId,\n    competitorId: target.competitor_id,\n    competitorName: target.competitor_name,\n    targetId: target.target_id,\n    url: target.url,\n    targetType: target.target_type,\n    selector: target.selector,\n    lastContentHash: target.last_content_hash,\n    checkStarted: new Date().toISOString()\n  });\n}\n\nreturn results;"
+      },
+      "id": "prepare-batch",
+      "name": "Prepare Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 30000,
+          "fullResponse": false,
+          "ignoreResponseStatusErrors": true,
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 5
+            }
+          }
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          ]
+        }
+      },
+      "id": "fetch-content",
+      "name": "Fetch Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 500],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const target = $node['Prepare Batch'].json;\nconst response = $json;\nconst hasError = $node['Fetch Content'].error;\n\nif (hasError) {\n  // Handle fetch error\n  return {\n    ...target,\n    status: 'error',\n    error: 'Failed to fetch content',\n    checkCompleted: new Date().toISOString()\n  };\n}\n\n// Extract content based on selector if provided\nlet content = response;\nif (typeof response === 'string') {\n  content = response;\n} else if (response.data) {\n  content = response.data;\n} else {\n  content = JSON.stringify(response);\n}\n\n// Clean and normalize content\ncontent = content.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '')\n                 .replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '')\n                 .replace(/<[^>]+>/g, ' ')\n                 .replace(/\\s+/g, ' ')\n                 .trim()\n                 .substring(0, 10000); // Limit content size\n\n// Generate content hash\nconst crypto = require('crypto');\nconst newHash = crypto.createHash('md5').update(content).digest('hex');\n\n// Check if content changed\nconst contentChanged = target.lastContentHash && target.lastContentHash !== newHash;\n\nreturn {\n  ...target,\n  newContent: content,\n  newContentHash: newHash,\n  contentChanged,\n  oldContentHash: target.lastContentHash,\n  status: 'success',\n  checkCompleted: new Date().toISOString()\n};"
+      },
+      "id": "process-content",
+      "name": "Process Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.contentChanged }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-if-changed",
+      "name": "Check If Changed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1650, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT content FROM monitoring_targets WHERE id = $1;",
+        "additionalFields": {
+          "queryParams": "={{ $json.targetId }}"
+        }
+      },
+      "id": "get-old-content",
+      "name": "Get Old Content",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1850, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "http://localhost:5678/webhook/competitor-monitor/analyze-change",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"competitorId\": \"{{ $json.competitorId }}\",\n  \"competitorName\": \"{{ $json.competitorName }}\",\n  \"targetUrl\": \"{{ $json.url }}\",\n  \"changeType\": \"content\",\n  \"oldContent\": \"{{ $node['Get Old Content'].json.content || '' }}\",\n  \"newContent\": \"{{ $json.newContent }}\",\n  \"timestamp\": \"{{ $json.checkCompleted }}\"\n}",
+        "options": {}
+      },
+      "id": "trigger-analysis",
+      "name": "Trigger Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2050, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE monitoring_targets \nSET \n  last_checked = $2,\n  last_content_hash = $3,\n  content = $4,\n  last_change_detected = CASE WHEN $5 = true THEN $2 ELSE last_change_detected END\nWHERE id = $1\nRETURNING *;",
+        "additionalFields": {
+          "queryParams": "={{ $json.targetId }},{{ $json.checkCompleted }},{{ $json.newContentHash }},{{ $json.newContent }},{{ $json.contentChanged }}"
+        }
+      },
+      "id": "update-target",
+      "name": "Update Target",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1850, 600],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO scan_history (\n  id,\n  scan_type,\n  targets_checked,\n  changes_detected,\n  errors,\n  started_at,\n  completed_at\n) VALUES (\n  $1, $2, $3, $4, $5, $6, $7\n) ON CONFLICT (id) DO UPDATE SET\n  targets_checked = scan_history.targets_checked + 1,\n  changes_detected = scan_history.changes_detected + CASE WHEN $8 = true THEN 1 ELSE 0 END,\n  errors = scan_history.errors + CASE WHEN $9 = 'error' THEN 1 ELSE 0 END,\n  completed_at = $7\nRETURNING *;",
+        "additionalFields": {
+          "queryParams": "={{ $node['Initialize Scan'].json.scanId }},{{ $node['Initialize Scan'].json.scanType }},1,{{ $json.contentChanged ? 1 : 0 }},{{ $json.status === 'error' ? 1 : 0 }},{{ $node['Initialize Scan'].json.timestamp }},{{ $json.checkCompleted }},{{ $json.contentChanged }},{{ $json.status }}"
+        }
+      },
+      "id": "update-scan-history",
+      "name": "Update Scan History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2050, 600],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2000,
+        "unit": "milliseconds"
+      },
+      "id": "rate-limit",
+      "name": "Rate Limit",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2250, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  sh.*,\n  (SELECT COUNT(*) FROM monitoring_targets WHERE is_active = true) as total_targets\nFROM scan_history sh\nWHERE sh.id = $1;",
+        "additionalFields": {
+          "queryParams": "={{ $node['Initialize Scan'].json.scanId }}"
+        }
+      },
+      "id": "get-scan-summary",
+      "name": "Get Scan Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2450, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "completed"
+            },
+            {
+              "name": "message",
+              "value": "=Scan completed: {{ $json.targets_checked }} targets checked, {{ $json.changes_detected }} changes detected"
+            }
+          ],
+          "number": [
+            {
+              "name": "targetsChecked",
+              "value": "={{ $json.targets_checked }}"
+            },
+            {
+              "name": "changesDetected",
+              "value": "={{ $json.changes_detected }}"
+            },
+            {
+              "name": "errors",
+              "value": "={{ $json.errors }}"
+            },
+            {
+              "name": "totalTargets",
+              "value": "={{ $json.total_targets }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [2650, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Initialize Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Initialize Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Initialize Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Scan": {
+      "main": [
+        [
+          {
+            "node": "Get Monitoring Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Monitoring Targets": {
+      "main": [
+        [
+          {
+            "node": "Split Into Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Into Batches": {
+      "main": [
+        [
+          {
+            "node": "Prepare Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Batch": {
+      "main": [
+        [
+          {
+            "node": "Fetch Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Content": {
+      "main": [
+        [
+          {
+            "node": "Process Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Content": {
+      "main": [
+        [
+          {
+            "node": "Check If Changed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Changed": {
+      "main": [
+        [
+          {
+            "node": "Get Old Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Old Content": {
+      "main": [
+        [
+          {
+            "node": "Trigger Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Analysis": {
+      "main": [
+        [
+          {
+            "node": "Update Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Target": {
+      "main": [
+        [
+          {
+            "node": "Update Scan History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Scan History": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Split Into Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Into Batches": {
+      "main": [
+        [
+          {
+            "node": "Get Scan Summary",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Scan Summary": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "competitor-scheduled-scanner"
+  },
+  "tags": []
+}

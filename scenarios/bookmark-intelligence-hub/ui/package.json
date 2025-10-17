@@ -1,0 +1,34 @@
+{
+  "name": "bookmark-intelligence-hub-ui",
+  "version": "1.0.0",
+  "description": "Dashboard UI for Bookmark Intelligence Hub",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'",
+    "build": "echo 'Build completed - static assets ready'",
+    "test": "echo 'UI tests not yet implemented'"
+  },
+  "keywords": [
+    "bookmarks",
+    "social-media",
+    "intelligence",
+    "dashboard",
+    "automation"
+  ],
+  "author": "Vrooli AI",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.0",
+    "express-rate-limit": "^6.7.0",
+    "helmet": "^6.1.0",
+    "cors": "^2.8.5",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

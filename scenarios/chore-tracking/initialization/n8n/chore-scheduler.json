@@ -1,0 +1,361 @@
+{
+  "name": "Chore Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chore-tracker/schedule",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide defaults for manual testing\nreturn {\n  action: 'generate_weekly_schedule',\n  user_id: 'test-user-001',\n  week_start: new Date().toISOString().split('T')[0],\n  preferences: {\n    max_daily_chores: 3,\n    preferred_time: 'morning'\n  }\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "value2": "generate_weekly_schedule"
+            }
+          ]
+        }
+      },
+      "id": "check_action",
+      "name": "Check Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, \n       COALESCE(recent.avg_completion_time, c.estimated_minutes) as typical_duration,\n       COALESCE(recent.completion_rate, 1.0) as user_completion_rate\nFROM chores c\nLEFT JOIN (\n  SELECT chore_id, \n         AVG(EXTRACT(EPOCH FROM (completed_at - created_at))/60)::INTEGER as avg_completion_time,\n         COUNT(CASE WHEN status = 'completed' THEN 1 END)::FLOAT / COUNT(*) as completion_rate\n  FROM chore_assignments\n  WHERE user_id = $1\n    AND created_at > NOW() - INTERVAL '30 days'\n  GROUP BY chore_id\n) recent ON c.id = recent.chore_id\nWHERE c.is_active = true\nORDER BY c.frequency, c.difficulty",
+        "additionalFields": {
+          "queryParams": "={{ $json.user_id }}"
+        }
+      },
+      "id": "fetch_chores",
+      "name": "Fetch Available Chores",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1000, 300],
+      "credentials": {
+        "postgres": {
+          "id": "shared",
+          "name": "Shared PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare the prompt for shared Ollama workflow\nconst userPrefs = $('merge_triggers').item.json.preferences;\nconst chores = $('fetch_chores').all().map(c => c.json);\n\nconst prompt = `You are a chore scheduling assistant. Create an optimal weekly schedule for household chores.\n\nUser preferences:\n- Maximum ${userPrefs.max_daily_chores} chores per day\n- Preferred time: ${userPrefs.preferred_time}\n\nAvailable chores:\n${chores.map(c => `- ${c.name} (ID: ${c.id}): ${c.frequency} frequency, ${c.difficulty} difficulty, ${c.typical_duration} minutes`).join('\\n')}\n\nGenerate a balanced weekly schedule (Monday-Sunday) that:\n1. Distributes chores evenly across days\n2. Groups similar tasks when possible\n3. Considers difficulty and time requirements\n4. Respects frequency requirements\n\nReturn ONLY a valid JSON object with this exact structure:\n{\n  \"schedule\": [\n    {\n      \"day\": \"Monday\",\n      \"chores\": [\"chore_id_1\", \"chore_id_2\"],\n      \"total_time\": 45\n    }\n  ],\n  \"reasoning\": \"Brief explanation of scheduling logic\"\n}\n\nImportant: Use the actual chore IDs from the list above. Return ONLY valid JSON, no other text.`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2:3b',\n  type: 'reasoning',\n  quiet: true,\n  timeout_seconds: 120\n};"
+      },
+      "id": "prepare_ollama_request",
+      "name": "Prepare Ollama Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:{{ $env.RESOURCE_PORTS.n8n }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "model",
+              "value": "={{ $json.model }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $json.type }}"
+            },
+            {
+              "name": "quiet",
+              "value": "={{ $json.quiet }}"
+            },
+            {
+              "name": "timeout_seconds",
+              "value": "={{ $json.timeout_seconds }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 130
+        }
+      },
+      "id": "generate_schedule",
+      "name": "Generate AI Schedule",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const aiResponse = $json;\nconst userId = $('merge_triggers').item.json.user_id;\nconst weekStart = $('merge_triggers').item.json.week_start;\nconst chores = $('fetch_chores').all().map(c => c.json);\n\n// Parse AI response from shared Ollama workflow\nlet schedule;\ntry {\n  // Check if we got a valid response\n  if (aiResponse && aiResponse.result) {\n    const responseText = aiResponse.result.trim();\n    const parsedResponse = JSON.parse(responseText);\n    schedule = parsedResponse.schedule;\n  } else if (aiResponse && aiResponse.response) {\n    // Alternative response format\n    const responseText = aiResponse.response.trim();\n    const parsedResponse = JSON.parse(responseText);\n    schedule = parsedResponse.schedule;\n  } else {\n    throw new Error('Invalid response from Ollama workflow');\n  }\n} catch (e) {\n  console.log('AI scheduling failed, using fallback:', e.message);\n  // Fallback to simple distribution if AI fails\n  schedule = generateFallbackSchedule(chores);\n}\n\n// Create assignments for each scheduled chore\nconst assignments = [];\nconst startDate = new Date(weekStart);\n\nschedule.forEach((day, index) => {\n  const assignDate = new Date(startDate);\n  assignDate.setDate(startDate.getDate() + index);\n  \n  day.chores.forEach(choreId => {\n    const chore = chores.find(c => c.id === choreId);\n    if (chore) {\n      assignments.push({\n        chore_id: choreId,\n        user_id: userId,\n        assigned_date: assignDate.toISOString().split('T')[0],\n        due_date: assignDate.toISOString().split('T')[0],\n        status: 'pending',\n        base_points: chore.base_points\n      });\n    }\n  });\n});\n\nfunction generateFallbackSchedule(chores) {\n  // Simple round-robin distribution\n  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];\n  const schedule = days.map(day => ({ day, chores: [], total_time: 0 }));\n  \n  chores.forEach((chore, index) => {\n    const dayIndex = index % 7;\n    schedule[dayIndex].chores.push(chore.id);\n    schedule[dayIndex].total_time += chore.estimated_minutes;\n  });\n  \n  return schedule;\n}\n\nreturn {\n  assignments,\n  week_start: weekStart,\n  total_assignments: assignments.length\n};"
+      },
+      "id": "process_schedule",
+      "name": "Process Schedule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO chore_assignments (chore_id, user_id, assigned_date, due_date, status)\nVALUES ($1, $2, $3::DATE, $4::DATE, $5)\nON CONFLICT (chore_id, user_id, assigned_date) DO UPDATE\nSET due_date = EXCLUDED.due_date,\n    status = EXCLUDED.status,\n    updated_at = CURRENT_TIMESTAMP\nRETURNING *",
+        "additionalFields": {
+          "mode": "independently",
+          "queryParams": "={{ $json.assignments.map(a => `${a.chore_id},${a.user_id},${a.assigned_date},${a.due_date},${a.status}`).join(',') }}"
+        }
+      },
+      "id": "save_assignments",
+      "name": "Save Assignments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1600, 300],
+      "credentials": {
+        "postgres": {
+          "id": "shared",
+          "name": "Shared PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, ca.* \nFROM chore_assignments ca\nJOIN chores c ON ca.chore_id = c.id\nWHERE ca.user_id = $1\n  AND ca.assigned_date >= $2::DATE\n  AND ca.assigned_date < $2::DATE + INTERVAL '7 days'\nORDER BY ca.assigned_date, c.difficulty",
+        "additionalFields": {
+          "queryParams": "={{ $json.user_id }},{{ $json.week_start }}"
+        }
+      },
+      "id": "fetch_weekly_schedule",
+      "name": "Fetch Weekly Schedule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1000, 500],
+      "credentials": {
+        "postgres": {
+          "id": "shared",
+          "name": "Shared PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "={{ `Weekly schedule ${$json.action === 'generate_weekly_schedule' ? 'generated' : 'retrieved'} successfully` }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare_response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1800, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "set_defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_defaults": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge_triggers": {
+      "main": [
+        [
+          {
+            "node": "check_action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_action": {
+      "main": [
+        [
+          {
+            "node": "fetch_chores",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "fetch_weekly_schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_chores": {
+      "main": [
+        [
+          {
+            "node": "prepare_ollama_request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_ollama_request": {
+      "main": [
+        [
+          {
+            "node": "generate_schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_schedule": {
+      "main": [
+        [
+          {
+            "node": "process_schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_schedule": {
+      "main": [
+        [
+          {
+            "node": "save_assignments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save_assignments": {
+      "main": [
+        [
+          {
+            "node": "prepare_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_weekly_schedule": {
+      "main": [
+        [
+          {
+            "node": "prepare_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "chore-scheduler",
+  "tags": []
+}

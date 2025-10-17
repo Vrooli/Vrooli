@@ -1,0 +1,102 @@
+id: scenario-improver-app-issue-tracker-20250926-124914
+title: Enhance scenario app-issue-tracker
+type: scenario
+operation: improver
+target: app-issue-tracker
+targets:
+    - app-issue-tracker
+category: ""
+priority: critical
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: rate_limited
+started_at: "2025-10-01T01:24:10-04:00"
+completed_at: ""
+completion_count: 3
+last_completed_at: "2025-10-01T01:23:13-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-26T12:49:14-04:00"
+updated_at: "2025-10-01T01:31:44-04:00"
+tags: []
+notes: |-
+    Already pretty good, but could use some additional validation/tidying. Notes from last time:
+
+    **What was accomplished:**
+
+    - Fixed critical missing route: Git integration handler existed but wasn't wired to API
+    - Added endpoint: `POST /api/v1/issues/{id}/create-pr` in api/main.go:2560
+    - Verified endpoint responds correctly (returns proper error when no investigation data present)
+    - Requires GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO environment variables to function
+
+    **Current status:**
+    Working - All P0 requirements verified, 3 of 4 P1 requirements complete
+
+    **Remaining issues or limitations:**
+
+    - ✅ Git Integration - Now wired and accessible (requires GitHub credentials to execute)
+    - ✅ Export Functions - Fully working (JSON, CSV, Markdown)
+    - ✅ Web UI - Running and functional
+    - ❌ Semantic Search - Blocked by Qdrant availability (not a code issue)
+
+    **Known Gaps:**
+
+    - P2 requirements not implemented (performance analytics, multi-agent support, webhooks)
+    - UI automation tests not present in test suite
+    - Security features implemented but disabled by default (production consideration)
+
+    **Auditor Findings (from previous session):**
+    - 1 security issue identified (not blocking, likely related to default open CORS)
+    - 489 standards violations (mostly style/documentation, not functional issues)
+
+    **Validation evidence:**
+
+    ```bash
+    # API health verification
+    curl -sf http://localhost:19751/health
+    # Result: {"success":true,"message":"App Issue Tracker API is healthy",...}
+
+    # Git integration endpoint test
+    curl -X POST http://localhost:19751/api/v1/issues/issue-ae9a67a6/create-pr
+    # Result: {"success":false,"message":"No fixes available for this issue. Run investigation first."}
+    # (Correct behavior - requires investigation to be run first)
+
+    # Export functionality tests
+    curl -sf "http://localhost:19751/api/v1/export?format=json&status=open" | jq '.count'
+    # Result: 2 issues exported
+
+    curl -sf "http://localhost:19751/api/v1/export?format=csv&status=open" | head -2
+    # Result: Proper CSV headers and data
+
+    curl -sf "http://localhost:19751/api/v1/export?format=markdown&status=open" | head -5
+    # Result: Formatted markdown with issue details
+
+    # Build verification
+    cd api && go build -o /tmp/test-build .
+    # Result: ✅ Build successful
+
+    # Test suite
+    ./test/phases/test-unit.sh
+    # Result: ✅ test-unit.sh completed successfully
+    ```
+
+    **Suggested next actions:**
+
+    1. **Production deployment**: Enable security features (ENABLE_AUTH=true, configure API_TOKENS)
+    2. **Git integration testing**: Set up GitHub credentials and test end-to-end PR creation
+    3. **UI automation tests**: Add test suite for React frontend
+    4. **Address auditor findings**: Review and remediate the 1 security issue and high-priority standards violations
+    5. **Performance analytics**: Implement P2 requirement for tracking resolution metrics
+results:
+    rate_limit_info:
+        hit_at: "2025-10-01T01:31:44-04:00"
+        message: Rate limited at 2025-10-01T01:31:44-04:00. Will retry after 1800 seconds.
+        retry_after: 1800
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

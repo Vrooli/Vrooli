@@ -1,0 +1,315 @@
+{
+  "service": {
+    "name": "quiz-generator"
+  },
+  "version": "1.0.0",
+  "description": "AI-powered quiz generation and assessment platform",
+  "category": "education",
+  "status": "active",
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999"
+    }
+  },
+  "metadata": {
+    "author": "AI Agent",
+    "created": "2024-09-05",
+    "last_updated": "2024-09-05",
+    "tags": [
+      "education",
+      "assessment",
+      "quiz",
+      "ai",
+      "learning"
+    ],
+    "documentation": "docs/README.md"
+  },
+  "resources": {
+    "required": [
+      {
+        "name": "postgres",
+        "version": ">=14",
+        "purpose": "Store quizzes, questions, and results",
+        "config": {
+          "database": "quiz_generator",
+          "schema": "initialization/storage/postgres/schema.sql"
+        }
+      },
+      {
+        "name": "ollama",
+        "version": ">=0.1",
+        "purpose": "LLM for intelligent question generation",
+        "config": {
+          "model": "llama2",
+          "access_method": "shared_workflow"
+        }
+      }
+    ],
+    "optional": [
+      {
+        "name": "qdrant",
+        "version": ">=1.0",
+        "purpose": "Semantic search for questions",
+        "fallback": "postgres_fts",
+        "config": {
+          "collection": "quiz_questions"
+        }
+      },
+      {
+        "name": "redis",
+        "version": ">=6.0",
+        "purpose": "Cache active quiz sessions",
+        "fallback": "in_memory",
+        "config": {
+          "ttl": 3600
+        }
+      },
+      {
+        "name": "minio",
+        "version": ">=2023",
+        "purpose": "Store uploaded documents",
+        "fallback": "local_filesystem",
+        "config": {
+          "bucket": "quiz-documents"
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "api": {
+      "enabled": true,
+      "type": "rest",
+      "base_path": "/api/v1",
+      "port": 3250,
+      "docs": "/api/docs",
+      "health": "/health",
+      "metrics": "/metrics"
+    },
+    "cli": {
+      "enabled": true,
+      "binary": "quiz-generator",
+      "install_path": "~/.vrooli/bin/",
+      "commands": [
+        "generate",
+        "list",
+        "take",
+        "search",
+        "export"
+      ]
+    },
+    "ui": {
+      "enabled": true,
+      "type": "react",
+      "port": 3251,
+      "build_tool": "vite",
+      "entry": "ui/src/main.tsx"
+    },
+    "events": {
+      "enabled": true,
+      "namespace": "quiz",
+      "publish": [
+        "quiz.generated",
+        "quiz.completed",
+        "question.bank.updated"
+      ],
+      "subscribe": [
+        "content.uploaded",
+        "learning.goal.set"
+      ]
+    }
+  },
+  "deployment": {
+    "type": "docker-compose",
+    "startup_script": "scripts/startup.sh",
+    "health_check": {
+      "endpoint": "/health",
+      "interval": 30,
+      "timeout": 5,
+      "retries": 3
+    },
+    "resource_limits": {
+      "memory": "512Mi",
+      "cpu": "500m",
+      "storage": "5Gi"
+    }
+  },
+  "capabilities": {
+    "provides": [
+      {
+        "name": "quiz_generation",
+        "description": "Generate quizzes from any content",
+        "interface": "POST /api/v1/quiz/generate"
+      },
+      {
+        "name": "quiz_management",
+        "description": "Create, edit, and manage quizzes",
+        "interface": "CRUD /api/v1/quizzes"
+      },
+      {
+        "name": "question_search",
+        "description": "Semantic search for questions",
+        "interface": "POST /api/v1/question-bank/search"
+      },
+      {
+        "name": "quiz_analytics",
+        "description": "Analyze quiz performance and results",
+        "interface": "GET /api/v1/analytics"
+      }
+    ],
+    "consumes": [
+      {
+        "name": "document_processing",
+        "provider": "document-processor",
+        "optional": true
+      },
+      {
+        "name": "progress_tracking",
+        "provider": "progress-tracker",
+        "optional": true
+      }
+    ]
+  },
+  "revenue_model": {
+    "type": "subscription",
+    "tiers": [
+      {
+        "name": "free",
+        "price": 0,
+        "limits": {
+          "quizzes_per_month": 10,
+          "questions_per_quiz": 20
+        }
+      },
+      {
+        "name": "pro",
+        "price": 19.99,
+        "limits": {
+          "quizzes_per_month": "unlimited",
+          "questions_per_quiz": "unlimited",
+          "features": [
+            "analytics",
+            "export",
+            "api_access"
+          ]
+        }
+      },
+      {
+        "name": "enterprise",
+        "price": "custom",
+        "features": [
+          "custom_deployment",
+          "sla",
+          "support"
+        ]
+      }
+    ]
+  },
+  "monitoring": {
+    "metrics": [
+      "quiz_generation_rate",
+      "question_quality_score",
+      "api_response_time",
+      "quiz_completion_rate"
+    ],
+    "alerts": [
+      {
+        "metric": "api_response_time",
+        "threshold": "> 500ms",
+        "severity": "warning"
+      },
+      {
+        "metric": "quiz_generation_failures",
+        "threshold": "> 5/hour",
+        "severity": "critical"
+      }
+    ]
+  },
+   "lifecycle": {
+     "setup": {
+       "description": "Initialize Quiz Generator",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "quiz-generator-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "quiz-generator"
+              ]
+            }
+         ]
+       },
+       "steps": [
+         {
+           "name": "build-api",
+           "run": "cd api && go mod download && go build -o quiz-generator-api .",
+           "description": "Build Go API binary"
+         },
+         {
+           "name": "install-cli",
+           "run": "cd cli && ./install.sh",
+           "description": "Install CLI command globally"
+         },
+         {
+           "name": "setup-ui",
+           "run": "cd ui && npm install",
+           "description": "Install UI dependencies"
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+     "develop": {
+       "description": "Start development environment",
+       "steps": [
+          {
+            "name": "start-api",
+            "run": "cd api && ./quiz-generator-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+              "file_exists": "api/quiz-generator-api"
+            }
+          },
+          {
+            "name": "start-ui",
+            "run": "cd ui && npm run dev",
+            "description": "Start React UI development server",
+            "background": true
+          },
+         {
+           "name": "show-urls",
+           "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
+           "description": "Display service URLs"
+         }
+       ]
+     },
+    "stop": {
+      "description": "Stop quiz-generator services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"quiz-generator-api\" || true; sleep 1; pkill -9 -f \"quiz-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/quiz-generator.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/quiz-generator.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

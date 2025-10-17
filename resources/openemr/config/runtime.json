@@ -1,0 +1,40 @@
+{
+  "startup_order": 800,
+  "dependencies": [],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "resource_type": "healthcare",
+  "capabilities": [
+    "electronic-medical-records",
+    "practice-management",
+    "fhir-api",
+    "patient-portal",
+    "billing",
+    "clinical-decision-support"
+  ],
+  "health_check": {
+    "endpoint": "http://localhost:${OPENEMR_PORT}/interface/globals.php",
+    "timeout": 5,
+    "interval": 30,
+    "retries": 3
+  },
+  "ports": {
+    "web": "${OPENEMR_PORT}",
+    "portal": "${OPENEMR_PORTAL_PORT}",
+    "api": "${OPENEMR_API_PORT}",
+    "fhir": "${OPENEMR_FHIR_PORT}",
+    "database": "${OPENEMR_DB_PORT}"
+  },
+  "memory_requirements": {
+    "minimum": "2GB",
+    "recommended": "4GB",
+    "optimal": "8GB"
+  },
+  "storage_requirements": {
+    "minimum": "10GB",
+    "recommended": "50GB",
+    "notes": "Grows with patient data and documents"
+  }
+}

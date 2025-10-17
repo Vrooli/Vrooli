@@ -1,0 +1,45 @@
+{
+  "name": "dev_crew",
+  "description": "A crew for software development tasks",
+  "agents": [
+    {
+      "name": "architect",
+      "role": "Software Architect",
+      "goal": "Design robust and scalable software architectures",
+      "backstory": "You are a senior architect with deep knowledge of design patterns, best practices, and system architecture.",
+      "tools": ["file_reader", "database_query", "memory_store"]
+    },
+    {
+      "name": "developer",
+      "role": "Full Stack Developer",
+      "goal": "Implement clean, efficient, and maintainable code",
+      "backstory": "You are an experienced developer proficient in multiple languages and frameworks.",
+      "tools": ["file_reader", "api_caller", "llm_query"]
+    },
+    {
+      "name": "tester",
+      "role": "QA Engineer",
+      "goal": "Ensure code quality through comprehensive testing",
+      "backstory": "You are meticulous about quality, finding edge cases and ensuring robust test coverage.",
+      "tools": ["api_caller", "memory_retrieve"]
+    }
+  ],
+  "tasks": [
+    {
+      "description": "Design the system architecture for the requirement",
+      "agent": "architect",
+      "expected_output": "Architecture design document with diagrams"
+    },
+    {
+      "description": "Implement the solution based on the architecture",
+      "agent": "developer",
+      "expected_output": "Working code implementation"
+    },
+    {
+      "description": "Test the implementation thoroughly",
+      "agent": "tester",
+      "expected_output": "Test report with coverage metrics"
+    }
+  ],
+  "process": "sequential"
+}

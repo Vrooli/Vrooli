@@ -1,0 +1,33 @@
+{
+    "profile": "default",
+    "version": 1,
+    "executeButton": [
+        "[data-test-id=\"execute-workflow-button\"]",
+        "button[aria-label=\"Execute workflow\"]",
+        "button[title*=\"Execute\"]",
+        "button[title*=\"Run\"]",
+        ".execute-button",
+        ".run-button"
+    ],
+    "executeDropdown": [
+        "[data-test-id=\"execute-workflow-button\"] ._chevron_p52lz_142",
+        ".action-dropdown-container button",
+        "button[aria-label*=\"Select trigger\"]",
+        ".el-dropdown ._chevron_p52lz_142"
+    ],
+    "triggerMenuItems": [
+        "//text()[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'manual trigger')]/ancestor::li[1]",
+        "//li//*[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'),'manual')]",
+        "[data-test-id*=\"manual\"]"
+    ],
+    "successIndicators": [
+        "[class*=success]",
+        "[data-test-id*=success]",
+        ".el-notification--success"
+    ],
+    "errorIndicators": [
+        "[class*=error]",
+        "[data-test-id*=error]",
+        ".el-notification--error"
+    ]
+}

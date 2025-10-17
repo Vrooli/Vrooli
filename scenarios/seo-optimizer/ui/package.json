@@ -1,0 +1,18 @@
+{
+  "name": "seo-optimizer-ui",
+  "version": "1.0.0",
+  "description": "Professional SEO analysis and optimization platform UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+  },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "author": "Vrooli Team",
+  "license": "MIT",
+  "keywords": []
+}

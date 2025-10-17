@@ -1,0 +1,97 @@
+{
+  "status": "healthy",
+  "service": "data-backup-manager-ui",
+  "timestamp": "2025-09-13T00:00:00Z",
+  "readiness": true,
+  "version": "1.0.0",
+  "api_connectivity": {
+    "connected": false,
+    "api_url": "http://localhost:${API_PORT}/api/v1",
+    "last_check": "2025-09-13T00:00:00Z",
+    "error": {
+      "code": "STATIC_UI_JS_CHECK",
+      "message": "Static health check - live API connectivity tested by JavaScript application",
+      "category": "configuration",
+      "retryable": false
+    },
+    "latency_ms": null
+  },
+  "static_files": {
+    "available": true,
+    "files": {
+      "index_html": true,
+      "app_js": true,
+      "styles_css": true
+    }
+  },
+  "backup_features": {
+    "postgres_backup": true,
+    "file_backup": true,
+    "scenario_backup": true,
+    "resource_backup": true,
+    "incremental_backup": true,
+    "scheduled_backup": true,
+    "restore_capability": true,
+    "compliance_monitoring": true
+  },
+  "ui_framework": {
+    "type": "vanilla_js",
+    "real_time_updates": true,
+    "dashboard_interface": true,
+    "tabbed_interface": true
+  },
+  "integrations": {
+    "minio": {
+      "configured": true,
+      "url": "http://localhost:9000",
+      "storage_enabled": true
+    },
+    "n8n": {
+      "configured": true,
+      "url": "http://localhost:5678", 
+      "workflows_enabled": true,
+      "backup_workflows": [
+        "backup-orchestrator",
+        "backup-scheduler", 
+        "backup-validator",
+        "backup-monitor"
+      ]
+    },
+    "postgres": {
+      "configured": true,
+      "backup_enabled": true
+    },
+    "visited_tracker": {
+      "configured": true,
+      "integration_active": true
+    }
+  },
+  "backup_capabilities": {
+    "database_backup": true,
+    "file_system_backup": true,
+    "scenario_configuration_backup": true,
+    "encrypted_backups": true,
+    "compressed_backups": true,
+    "retention_policies": true,
+    "compliance_validation": true,
+    "automated_verification": true
+  },
+  "metrics": {
+    "deployment_mode": "development",
+    "server_type": "static_files",
+    "requires_api": true,
+    "polling_enabled": true,
+    "backup_types_supported": [
+      "full",
+      "incremental", 
+      "differential"
+    ],
+    "retention_days_max": 365,
+    "compression_levels": [
+      "none",
+      "low",
+      "medium",
+      "high"
+    ]
+  }
+}

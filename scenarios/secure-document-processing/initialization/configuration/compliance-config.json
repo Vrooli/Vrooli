@@ -1,0 +1,129 @@
+{
+  "compliance": {
+    "enabled": true,
+    "standards": {
+      "HIPAA": {
+        "enabled": true,
+        "requirements": {
+          "encryption": {
+            "at_rest": true,
+            "in_transit": true,
+            "algorithm": "AES-256-GCM"
+          },
+          "access_control": {
+            "authentication_required": true,
+            "authorization_required": true,
+            "audit_logging": true
+          },
+          "data_integrity": {
+            "checksums": true,
+            "versioning": true,
+            "backup_required": true
+          },
+          "audit_controls": {
+            "log_access": true,
+            "log_modifications": true,
+            "log_deletions": true,
+            "retention_period": "6_years"
+          }
+        }
+      },
+      "GDPR": {
+        "enabled": true,
+        "requirements": {
+          "data_subject_rights": {
+            "right_to_access": true,
+            "right_to_rectification": true,
+            "right_to_erasure": true,
+            "right_to_portability": true,
+            "right_to_restriction": true
+          },
+          "consent_management": {
+            "explicit_consent": true,
+            "consent_tracking": true,
+            "withdraw_mechanism": true
+          },
+          "data_protection": {
+            "privacy_by_design": true,
+            "data_minimization": true,
+            "purpose_limitation": true
+          },
+          "breach_notification": {
+            "notification_required": true,
+            "notification_timeline": "72_hours",
+            "documentation_required": true
+          }
+        }
+      },
+      "SOX": {
+        "enabled": true,
+        "requirements": {
+          "internal_controls": {
+            "access_controls": true,
+            "change_management": true,
+            "segregation_of_duties": true
+          },
+          "audit_trail": {
+            "comprehensive_logging": true,
+            "tamper_proof": true,
+            "retention_period": "7_years"
+          },
+          "reporting": {
+            "financial_reporting": true,
+            "compliance_attestation": true,
+            "regular_audits": true
+          }
+        }
+      },
+      "PCI_DSS": {
+        "enabled": false,
+        "requirements": {
+          "note": "Enable if processing payment card data"
+        }
+      }
+    },
+    "automated_checks": {
+      "pii_detection": {
+        "enabled": true,
+        "patterns": [
+          "social_security_number",
+          "credit_card_number",
+          "email_address",
+          "phone_number",
+          "date_of_birth",
+          "passport_number",
+          "driver_license"
+        ],
+        "action": "flag_and_report"
+      },
+      "data_classification": {
+        "enabled": true,
+        "levels": [
+          "public",
+          "internal",
+          "confidential",
+          "restricted"
+        ],
+        "auto_classify": true
+      },
+      "retention_policy": {
+        "enabled": true,
+        "default_retention": "7_years",
+        "auto_delete": false,
+        "review_required": true
+      }
+    },
+    "reporting": {
+      "compliance_dashboard": true,
+      "automated_reports": {
+        "frequency": "monthly",
+        "recipients": ["compliance@example.com"],
+        "format": "pdf"
+      },
+      "audit_reports": {
+        "on_demand": true,
+        "scheduled": "quarterly"
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+services:
+  unstructured-io:
+    image: downloads.unstructured.io/unstructured-io/unstructured-api:0.0.78
+    container_name: vrooli-unstructured-io
+    ports:
+      - "11450:8000"
+    environment:
+      - UNSTRUCTURED_API_LOG_LEVEL=INFO
+      - UNSTRUCTURED_API_MAX_REQUEST_SIZE=52428800  # 50MB
+      - UNSTRUCTURED_API_WORKERS=1
+    volumes:
+      # Persistent cache directory
+      - ${HOME}/.vrooli/cache/unstructured-io:/app/cache
+      # Logs directory for debugging
+      - ${HOME}/.vrooli/logs/unstructured-io:/app/logs
+      # Temporary processing directory
+      - /tmp/unstructured-io:/tmp/unstructured-processing
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthcheck"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=unstructured-io"
+    labels:
+      - "com.vrooli.service=unstructured-io"
+      - "com.vrooli.version=0.0.78"
+      - "com.vrooli.description=Document processing and content extraction"
+    networks:
+      - vrooli-resources
+
+networks:
+  vrooli-resources:
+    external: true
+    name: vrooli-resources

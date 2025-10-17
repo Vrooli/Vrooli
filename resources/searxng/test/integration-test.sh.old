@@ -1,0 +1,321 @@
+#!/usr/bin/env bash
+# SearXNG Integration Test
+# Tests real SearXNG search engine functionality
+# Tests web interface, search API, engines, and privacy features
+
+set -euo pipefail
+
+# Source var.sh first to get path variables
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SEARXNG_TEST_DIR="${APP_ROOT}/resources/searxng/test"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
+# Source shared integration test library
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
+
+#######################################
+# SERVICE-SPECIFIC CONFIGURATION
+#######################################
+
+# Load SearXNG configuration using var_ variables
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/searxng/config/defaults.sh"
+searxng::export_config
+
+# Override library defaults with SearXNG-specific settings
+SERVICE_NAME="searxng"
+BASE_URL="${SEARXNG_BASE_URL:-http://localhost:9200}"
+HEALTH_ENDPOINT="/stats"
+REQUIRED_TOOLS=("curl" "jq" "docker")
+SERVICE_METADATA=(
+    "Port: ${SEARXNG_PORT:-9200}"
+    "Container: ${SEARXNG_CONTAINER_NAME:-searxng}"
+    "Default Engines: ${SEARXNG_DEFAULT_ENGINES:-google,bing,duckduckgo,startpage}"
+    "Safe Search: ${SEARXNG_SAFE_SEARCH:-1}"
+    "Instance: ${SEARXNG_INSTANCE_NAME:-Vrooli SearXNG}"
+)
+
+#######################################
+# SEARXNG-SPECIFIC TEST FUNCTIONS
+#######################################
+
+test_web_interface() {
+    local test_name="web interface accessibility"
+    
+    local response
+    if response=$(make_api_request "/" "GET" 10); then
+        if echo "$response" | grep -qi "searxng\|search\|<!DOCTYPE html>"; then
+            log_test_result "$test_name" "PASS" "web interface accessible"
+            return 0
+        fi
+    fi
+    
+    log_test_result "$test_name" "FAIL" "web interface not accessible"
+    return 1
+}
+
+test_stats_endpoint() {
+    local test_name="stats endpoint"
+    
+    local response
+    if response=$(make_api_request "/stats" "GET" 5); then
+        if echo "$response" | jq . >/dev/null 2>&1; then
+            # Check for expected stats fields
+            if echo "$response" | jq -e '.engines // .queries // .error_percentage' >/dev/null 2>&1; then
+                log_test_result "$test_name" "PASS" "stats endpoint working"
+                return 0
+            fi
+        elif echo "$response" | grep -qi "searxng\|statistics\|engines"; then
+            log_test_result "$test_name" "PASS" "stats endpoint accessible (HTML format)"
+            return 0
+        fi
+    fi
+    
+    log_test_result "$test_name" "FAIL" "stats endpoint not working"
+    return 1
+}
+
+test_config_endpoint() {
+    local test_name="config endpoint"
+    
+    local response
+    if response=$(make_api_request "/config" "GET" 5); then
+        if echo "$response" | jq . >/dev/null 2>&1; then
+            # Check for expected config fields
+            if echo "$response" | jq -e '.categories // .engines // .safe_search' >/dev/null 2>&1; then
+                log_test_result "$test_name" "PASS" "config endpoint working"
+                return 0
+            fi
+        fi
+    fi
+    
+    log_test_result "$test_name" "SKIP" "config endpoint not available"
+    return 2
+}
+
+test_search_api_basic() {
+    local test_name="basic search API"
+    
+    # Test simple search query
+    local response
+    if response=$(make_api_request "/search?q=test&format=json" "GET" 10); then
+        if echo "$response" | jq . >/dev/null 2>&1; then
+            # Check for expected search result fields
+            if echo "$response" | jq -e '.results // .query // .number_of_results' >/dev/null 2>&1; then
+                local result_count
+                result_count=$(echo "$response" | jq '.results | length' 2>/dev/null || echo "0")
+                log_test_result "$test_name" "PASS" "search API working (results: $result_count)"
+                return 0
+            fi
+        fi
+    fi
+    
+    log_test_result "$test_name" "FAIL" "search API not working"
+    return 1
+}
+
+test_search_categories() {
+    local test_name="search category filtering"
+    
+    # Test images category search
+    local response
+    if response=$(make_api_request "/search?q=logo&format=json&categories=images" "GET" 10); then
+        if echo "$response" | jq . >/dev/null 2>&1; then
+            if echo "$response" | jq -e '.results' >/dev/null 2>&1; then
+                log_test_result "$test_name" "PASS" "category filtering working"
+                return 0
+            fi
+        fi
+    fi
+    
+    log_test_result "$test_name" "SKIP" "category filtering not available"
+    return 2
+}
+
+test_search_engines() {
+    local test_name="search engines availability"
+    
+    # Try to get engine information from stats or config
+    local engines_response
+    if engines_response=$(make_api_request "/stats" "GET" 5); then
+        if echo "$engines_response" | jq -e '.engines' >/dev/null 2>&1; then
+            local engine_count
+            engine_count=$(echo "$engines_response" | jq '.engines | length' 2>/dev/null || echo "0")
+            if [[ $engine_count -gt 0 ]]; then
+                log_test_result "$test_name" "PASS" "search engines available (count: $engine_count)"
+                return 0
+            fi
+        fi
+    fi
+    
+    log_test_result "$test_name" "SKIP" "engine information not available"
+    return 2
+}
+
+test_opensearch_descriptor() {
+    local test_name="OpenSearch descriptor"
+    
+    local response
+    if response=$(make_api_request "/opensearch.xml" "GET" 5); then
+        if echo "$response" | grep -qi "opensearch\|description\|<url"; then
+            log_test_result "$test_name" "PASS" "OpenSearch descriptor available"
+            return 0
+        fi
+    fi
+    
+    log_test_result "$test_name" "SKIP" "OpenSearch descriptor not available"
+    return 2
+}
+
+test_rate_limiting() {
+    local test_name="rate limiting (if enabled)"
+    
+    # Make multiple rapid requests to test rate limiting
+    local requests_made=0
+    local rate_limited=false
+    
+    for i in {1..5}; do
+        local status_code
+        if status_code=$(check_http_status "/search?q=test$i&format=json" "200" "GET" 2>/dev/null); then
+            requests_made=$((requests_made + 1))
+        elif status_code=$(check_http_status "/search?q=test$i&format=json" "429" "GET" 2>/dev/null); then
+            rate_limited=true
+            break
+        fi
+        sleep 0.1  # Small delay between requests
+    done
+    
+    if [[ "$rate_limited" == "true" ]]; then
+        log_test_result "$test_name" "PASS" "rate limiting enabled and working"
+        return 0
+    elif [[ $requests_made -gt 0 ]]; then
+        log_test_result "$test_name" "SKIP" "rate limiting not triggered (may be disabled)"
+        return 2
+    else
+        log_test_result "$test_name" "FAIL" "search requests not working"
+        return 1
+    fi
+}
+
+test_container_health() {
+    local test_name="Docker container health"
+    
+    if ! command -v docker >/dev/null 2>&1; then
+        log_test_result "$test_name" "SKIP" "Docker not available"
+        return 2
+    fi
+    
+    if docker ps --format '{{.Names}}' | grep -q "^${SEARXNG_CONTAINER_NAME}$"; then
+        local container_status
+        container_status=$(docker inspect "${SEARXNG_CONTAINER_NAME}" --format '{{.State.Status}}' 2>/dev/null || echo "unknown")
+        
+        if [[ "$container_status" == "running" ]]; then
+            log_test_result "$test_name" "PASS" "container running"
+            return 0
+        else
+            log_test_result "$test_name" "FAIL" "container status: $container_status"
+            return 1
+        fi
+    else
+        log_test_result "$test_name" "FAIL" "container not found"
+        return 1
+    fi
+}
+
+test_privacy_features() {
+    local test_name="privacy features check"
+    
+    # Check if server doesn't leak identifying information
+    local response
+    if response=$(make_api_request "/" "GET" 5 "--include"); then
+        # Check that response doesn't contain server version or other identifying info
+        if ! echo "$response" | grep -qi "server:.*nginx\|server:.*apache\|x-powered-by"; then
+            # Check if it has basic privacy headers
+            if echo "$response" | grep -qi "x-content-type-options\|x-frame-options"; then
+                log_test_result "$test_name" "PASS" "privacy headers present"
+                return 0
+            else
+                log_test_result "$test_name" "PASS" "no server information leaked"
+                return 0
+            fi
+        fi
+    fi
+    
+    log_test_result "$test_name" "SKIP" "privacy feature check inconclusive"
+    return 2
+}
+
+test_log_output() {
+    local test_name="application log health"
+    
+    if ! command -v docker >/dev/null 2>&1; then
+        log_test_result "$test_name" "SKIP" "Docker not available"
+        return 2
+    fi
+    
+    local logs_output
+    if logs_output=$(docker logs "${SEARXNG_CONTAINER_NAME}" --tail 15 2>&1 2>/dev/null || true); then
+        # Look for startup success patterns
+        if echo "$logs_output" | grep -qi "searxng\|started\|listening\|ready"; then
+            log_test_result "$test_name" "PASS" "healthy application logs"
+            return 0
+        elif echo "$logs_output" | grep -qi "error\|exception\|failed\|critical"; then
+            log_test_result "$test_name" "FAIL" "errors detected in logs"
+            return 1
+        fi
+    fi
+    
+    log_test_result "$test_name" "SKIP" "log status unclear"
+    return 2
+}
+
+#######################################
+# SERVICE-SPECIFIC VERBOSE INFO
+#######################################
+
+show_verbose_info() {
+    echo
+    echo "SearXNG Information:"
+    echo "  Web Interface: $BASE_URL"
+    echo "  Search API: $BASE_URL/search?q=QUERY&format=json"
+    echo "  Key Endpoints:"
+    echo "    - Stats: GET $BASE_URL/stats"
+    echo "    - Config: GET $BASE_URL/config"
+    echo "    - OpenSearch: GET $BASE_URL/opensearch.xml"
+    echo "  Configuration:"
+    echo "    Instance: ${SEARXNG_INSTANCE_NAME}"
+    echo "    Default Engines: ${SEARXNG_DEFAULT_ENGINES}"
+    echo "    Safe Search: ${SEARXNG_SAFE_SEARCH}"
+    echo "    Rate Limiting: ${SEARXNG_LIMITER_ENABLED}"
+    echo "  Container: ${SEARXNG_CONTAINER_NAME}"
+}
+
+#######################################
+# TEST REGISTRATION AND EXECUTION
+#######################################
+
+# Register standard interface tests first (CLI validation, config checks, etc.)
+register_standard_interface_tests
+
+# Register SearXNG-specific tests
+register_tests \
+    "test_web_interface" \
+    "test_stats_endpoint" \
+    "test_config_endpoint" \
+    "test_search_api_basic" \
+    "test_search_categories" \
+    "test_search_engines" \
+    "test_opensearch_descriptor" \
+    "test_rate_limiting" \
+    "test_container_health" \
+    "test_privacy_features" \
+    "test_log_output"
+
+# Execute main test framework if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    integration_test_main "$@"
+fi

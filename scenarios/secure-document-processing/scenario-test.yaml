@@ -1,0 +1,119 @@
+version: 1.0
+scenario: secure-document-processing
+
+# Structure validation
+structure:
+  required_files:
+    - .vrooli/service.json
+    - api/main.go
+    - api/go.mod
+    - cli/secure-document-processing
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - initialization/automation/n8n/document-intake.json
+    - initialization/automation/n8n/process-orchestrator.json
+    - initialization/automation/n8n/prompt-processor.json
+    - initialization/automation/n8n/workflow-executor.json
+    - initialization/automation/n8n/semantic-indexer.json
+    - initialization/automation/windmill/document-portal.json
+    - initialization/configuration/encryption-config.json
+    - initialization/configuration/security-policies.json
+    - test.sh
+    - custom-tests.sh
+  
+  required_dirs:
+    - .vrooli
+    - api
+    - cli
+    - initialization/storage
+    - initialization/automation
+    - initialization/configuration
+
+# Resource requirements
+resources:
+  required: [postgres, unstructured-io, vault, minio, ollama, n8n, windmill]
+  optional: [qdrant]
+  health_timeout: 50
+
+# Declarative tests
+tests:
+  - name: "API Health Check"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Document Processing Engine Ready"
+    type: http
+    service: unstructured-io
+    endpoint: /general/v0/general
+    method: GET
+    expect:
+      status: 200
+        
+  - name: "Secrets Manager Ready"
+    type: http
+    service: vault
+    endpoint: /v1/sys/health
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Encrypted Storage Ready"
+    type: http
+    service: minio
+    endpoint: /minio/health/ready
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Database Connection"
+    type: tcp
+    service: postgres
+    port: 5432
+      
+  - name: "Documents API Endpoint"
+    type: http
+    service: api
+    endpoint: /api/documents
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Jobs API Endpoint"
+    type: http
+    service: api
+    endpoint: /api/jobs
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Workflows API Endpoint"
+    type: http
+    service: api
+    endpoint: /api/workflows
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Secure Document Processing Pipeline"
+    type: custom
+    script: custom-tests.sh
+    function: test_secure_document_processing_workflow
+
+# Validation criteria
+validation:
+  success_rate: 95        # Very high success rate for security-focused platform
+  response_time: 15000    # 15 seconds max for secure processing operations
+  revenue_potential: 160000  # Total estimate from service.json
+  business_criteria:
+    - "Zero-trust document processing pipeline operational"
+    - "Military-grade encryption and security validated"
+    - "Automated compliance reporting (HIPAA, GDPR, SOX) functional"
+    - "Complete audit trail and forensic capabilities verified"
+    - "Enterprise security standards compliance confirmed"

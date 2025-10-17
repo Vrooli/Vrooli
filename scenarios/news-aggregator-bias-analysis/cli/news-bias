@@ -1,0 +1,257 @@
+#!/bin/bash
+
+# News Aggregator & Bias Analysis CLI
+# A command-line interface for analyzing news bias and fetching articles
+
+set -e
+
+# Configuration
+API_URL="${NEWS_AGGREGATOR_API:-http://localhost:9300}"
+COMMAND="${1:-help}"
+shift 2>/dev/null || true
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Display help
+show_help() {
+    echo "📰 News Aggregator & Bias Analysis CLI"
+    echo ""
+    echo "Usage: news-bias <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  articles [limit]     List recent articles with bias analysis"
+    echo "  feeds               List configured RSS feeds"
+    echo "  add-feed <name> <url> <category> <bias>  Add a new RSS feed"
+    echo "  refresh             Refresh all RSS feeds"
+    echo "  analyze <url>       Analyze bias of a specific article"
+    echo "  stats              Show bias distribution statistics"
+    echo "  search <query>      Search articles by keyword"
+    echo "  health              Check service health status"
+    echo "  help               Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  news-bias articles 10"
+    echo "  news-bias add-feed \"BBC News\" \"http://feeds.bbci.co.uk/news/rss.xml\" general center"
+    echo "  news-bias analyze \"https://example.com/article\""
+    echo "  news-bias search \"climate change\""
+}
+
+# List articles
+list_articles() {
+    local limit="${1:-20}"
+    echo -e "${BLUE}📰 Fetching recent articles...${NC}"
+    
+    response=$(curl -sf "${API_URL}/articles?limit=${limit}" 2>/dev/null || echo '[]')
+    
+    if [ "$response" = "[]" ]; then
+        echo -e "${YELLOW}No articles found. Try running 'news-bias refresh' first.${NC}"
+        exit 0
+    fi
+    
+    echo "$response" | jq -r '.[] | 
+        "---\n" +
+        "Title: \(.title)\n" +
+        "Source: \(.source // "Unknown")\n" +
+        "Bias: \(.bias_rating // "Unknown") (Score: \(.bias_score // "N/A"))\n" +
+        "Category: \(.category // "General")\n" +
+        "Published: \(.published_at // "Unknown")\n" +
+        "URL: \(.url // "#")\n" +
+        if .summary then "Summary: \(.summary)" else "" end'
+}
+
+# List feeds
+list_feeds() {
+    echo -e "${BLUE}📡 Configured RSS Feeds:${NC}"
+    
+    response=$(curl -sf "${API_URL}/feeds" 2>/dev/null || echo '[]')
+    
+    if [ "$response" = "[]" ]; then
+        echo -e "${YELLOW}No feeds configured. Use 'news-bias add-feed' to add sources.${NC}"
+        exit 0
+    fi
+    
+    echo "$response" | jq -r '.[] | 
+        "• \(.name) [\(.bias_rating // "unknown")] - \(.category // "general") - \(if .active then "✓ Active" else "✗ Inactive" end)"'
+}
+
+# Add a new feed
+add_feed() {
+    local name="$1"
+    local url="$2"
+    local category="${3:-general}"
+    local bias="${4:-center}"
+    
+    if [ -z "$name" ] || [ -z "$url" ]; then
+        echo -e "${RED}Error: Feed name and URL are required${NC}"
+        echo "Usage: news-bias add-feed <name> <url> [category] [bias]"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Adding new feed: $name${NC}"
+    
+    response=$(curl -sf -X POST "${API_URL}/feeds" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"name\": \"$name\",
+            \"url\": \"$url\",
+            \"category\": \"$category\",
+            \"bias_rating\": \"$bias\"
+        }" 2>/dev/null)
+    
+    if [ -n "$response" ]; then
+        echo -e "${GREEN}✓ Feed added successfully!${NC}"
+    else
+        echo -e "${RED}✗ Failed to add feed${NC}"
+        exit 1
+    fi
+}
+
+# Refresh feeds
+refresh_feeds() {
+    echo -e "${BLUE}🔄 Refreshing RSS feeds...${NC}"
+    
+    response=$(curl -sf -X POST "${API_URL}/refresh" 2>/dev/null)
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Feeds refreshed successfully!${NC}"
+        echo "Run 'news-bias articles' to see new articles."
+    else
+        echo -e "${RED}✗ Failed to refresh feeds${NC}"
+        exit 1
+    fi
+}
+
+# Analyze article bias
+analyze_article() {
+    local url="$1"
+    
+    if [ -z "$url" ]; then
+        echo -e "${RED}Error: Article URL is required${NC}"
+        echo "Usage: news-bias analyze <url>"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}🔍 Analyzing article bias...${NC}"
+    
+    response=$(curl -sf -X POST "${API_URL}/analyze" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\": \"$url\"}" 2>/dev/null)
+    
+    if [ -n "$response" ]; then
+        echo "$response" | jq -r '
+            "Bias Score: \(.bias_score)\n" +
+            "Bias Rating: \(.bias_rating)\n" +
+            "Analysis: \(.analysis)\n" +
+            "Perspectives Found: \(.perspective_count)"'
+    else
+        echo -e "${RED}✗ Failed to analyze article${NC}"
+        exit 1
+    fi
+}
+
+# Show statistics
+show_stats() {
+    echo -e "${BLUE}📊 Bias Distribution Statistics:${NC}"
+    
+    response=$(curl -sf "${API_URL}/stats" 2>/dev/null)
+    
+    if [ -n "$response" ]; then
+        echo "$response" | jq -r '
+            "Total Articles: \(.total_articles // 0)\n" +
+            "Left-leaning: \(.left_count // 0) (\(.left_percentage // 0)%)\n" +
+            "Center: \(.center_count // 0) (\(.center_percentage // 0)%)\n" +
+            "Right-leaning: \(.right_count // 0) (\(.right_percentage // 0)%)\n" +
+            "Average Bias Score: \(.average_bias_score // 0)\n" +
+            "Most Common Source: \(.most_common_source // "N/A")"'
+    else
+        echo -e "${YELLOW}No statistics available. Try refreshing feeds first.${NC}"
+    fi
+}
+
+# Search articles
+search_articles() {
+    local query="$1"
+    
+    if [ -z "$query" ]; then
+        echo -e "${RED}Error: Search query is required${NC}"
+        echo "Usage: news-bias search <query>"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}🔎 Searching for: $query${NC}"
+    
+    response=$(curl -sf "${API_URL}/search?q=${query}" 2>/dev/null || echo '[]')
+    
+    if [ "$response" = "[]" ]; then
+        echo -e "${YELLOW}No articles found matching your search.${NC}"
+        exit 0
+    fi
+    
+    echo "$response" | jq -r '.[] | 
+        "---\n" +
+        "Title: \(.title)\n" +
+        "Source: \(.source // "Unknown")\n" +
+        "Bias: \(.bias_rating // "Unknown")\n" +
+        "URL: \(.url // "#")"'
+}
+
+# Check health status
+check_health() {
+    echo -e "${BLUE}🏥 Checking service health...${NC}"
+    
+    response=$(curl -sf "${API_URL}/health" 2>/dev/null)
+    
+    if [ $? -eq 0 ]; then
+        status=$(echo "$response" | jq -r '.status // "unknown"')
+        service=$(echo "$response" | jq -r '.service // "news-aggregator"')
+        
+        if [ "$status" = "healthy" ]; then
+            echo -e "${GREEN}✓ Service is healthy${NC}"
+            echo "Service: $service"
+        else
+            echo -e "${YELLOW}⚠ Service status: $status${NC}"
+        fi
+    else
+        echo -e "${RED}✗ Service is not responding${NC}"
+        exit 1
+    fi
+}
+
+# Main command router
+case "$COMMAND" in
+    articles)
+        list_articles "$@"
+        ;;
+    feeds)
+        list_feeds
+        ;;
+    add-feed)
+        add_feed "$@"
+        ;;
+    refresh)
+        refresh_feeds
+        ;;
+    analyze)
+        analyze_article "$@"
+        ;;
+    stats)
+        show_stats
+        ;;
+    search)
+        search_articles "$@"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $COMMAND${NC}"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

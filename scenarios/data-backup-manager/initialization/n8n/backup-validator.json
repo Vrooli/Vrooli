@@ -1,0 +1,220 @@
+{
+  "name": "Backup Validator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "backup/validate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "backup-validator"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract validation parameters\nconst backupJobId = $json.backup_job_id;\nconst verificationType = $json.verification_type || 'full';\nconst validationId = `validation-${Date.now()}`;\n\nif (!backupJobId) {\n  throw new Error('backup_job_id is required');\n}\n\nreturn [{\n  json: {\n    validation_id: validationId,\n    backup_job_id: backupJobId,\n    verification_type: verificationType,\n    started_at: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Process Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM backup_jobs WHERE id = '{{$json.backup_job_id}}' AND status = 'completed'",
+        "additionalFields": {}
+      },
+      "name": "Get Backup Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-main",
+          "name": "PostgreSQL Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$input.all().length}}",
+              "operation": "equal",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Check Backup Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"error\": \"Backup job not found or not completed\",\n  \"backup_job_id\": \"{{$json.backup_job_id}}\"\n}",
+        "responseCode": 404
+      },
+      "name": "Backup Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Download backup files from MinIO for validation\nconst MinIO = require('minio');\nconst crypto = require('crypto');\nconst fs = require('fs');\nconst path = require('path');\n\nconst minioClient = new MinIO.Client({\n  endPoint: process.env.MINIO_ENDPOINT || 'localhost',\n  port: parseInt(process.env.MINIO_PORT) || 9000,\n  useSSL: false,\n  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',\n  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'\n});\n\nconst backupJob = $input.all()[0].json;\nconst storagePath = backupJob.storage_path;\nconst originalChecksum = backupJob.checksum;\nconst validationId = $json.validation_id;\nconst verificationType = $json.verification_type;\n\nconst validationResults = {\n  validation_id: validationId,\n  backup_job_id: backupJob.id,\n  verification_type: verificationType,\n  tests: [],\n  overall_status: 'passed',\n  verified_at: new Date().toISOString()\n};\n\ntry {\n  // Parse storage path (format: bucket/path)\n  const [bucketName, objectPath] = storagePath.split('/', 2);\n  const tempFile = `/tmp/validation_${validationId}_${path.basename(objectPath)}`;\n  \n  // Download file from MinIO\n  await minioClient.fGetObject(bucketName, objectPath, tempFile);\n  \n  // Test 1: File size verification\n  const fileStats = fs.statSync(tempFile);\n  const sizeTest = {\n    test: 'file_size',\n    expected: backupJob.size_bytes,\n    actual: fileStats.size,\n    status: fileStats.size === backupJob.size_bytes ? 'passed' : 'failed'\n  };\n  validationResults.tests.push(sizeTest);\n  \n  if (sizeTest.status === 'failed') {\n    validationResults.overall_status = 'failed';\n  }\n  \n  // Test 2: Checksum verification\n  if (verificationType === 'full' || verificationType === 'checksum') {\n    const hash = crypto.createHash('sha256');\n    const fileData = fs.readFileSync(tempFile);\n    hash.update(fileData);\n    const actualChecksum = hash.digest('hex');\n    \n    const checksumTest = {\n      test: 'checksum',\n      expected: originalChecksum,\n      actual: actualChecksum,\n      status: actualChecksum === originalChecksum ? 'passed' : 'failed'\n    };\n    validationResults.tests.push(checksumTest);\n    \n    if (checksumTest.status === 'failed') {\n      validationResults.overall_status = 'failed';\n    }\n  }\n  \n  // Test 3: Archive integrity check (for compressed files)\n  if (verificationType === 'full' && objectPath.endsWith('.gz')) {\n    try {\n      const { exec } = require('child_process');\n      const { promisify } = require('util');\n      const execAsync = promisify(exec);\n      \n      const command = objectPath.endsWith('.tar.gz') \n        ? `tar -tzf ${tempFile} > /dev/null`\n        : `gzip -t ${tempFile}`;\n        \n      await execAsync(command);\n      \n      validationResults.tests.push({\n        test: 'archive_integrity',\n        status: 'passed',\n        message: 'Archive structure is valid'\n      });\n    } catch (error) {\n      validationResults.tests.push({\n        test: 'archive_integrity',\n        status: 'failed',\n        error: error.message\n      });\n      validationResults.overall_status = 'failed';\n    }\n  }\n  \n  // Clean up temp file\n  fs.unlinkSync(tempFile);\n  \n} catch (error) {\n  validationResults.overall_status = 'failed';\n  validationResults.error = error.message;\n}\n\nreturn [{ json: validationResults }];"
+      },
+      "name": "Validate Backup",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "backup_verifications",
+        "columns": "backup_job_id,verification_type,status,details,verified_at",
+        "additionalFields": {},
+        "options": {}
+      },
+      "name": "Save Validation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1340, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-main",
+          "name": "PostgreSQL Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.overall_status}}",
+              "operation": "equal",
+              "value2": "passed"
+            }
+          ]
+        }
+      },
+      "name": "Check Validation Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"validation_id\": \"{{$json.validation_id}}\",\n  \"backup_job_id\": \"{{$json.backup_job_id}}\",\n  \"verification_type\": \"{{$json.verification_type}}\",\n  \"status\": \"{{$json.overall_status}}\",\n  \"tests\": {{JSON.stringify($json.tests)}},\n  \"verified_at\": \"{{$json.verified_at}}\"\n}"
+      },
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"validation_id\": \"{{$json.validation_id}}\",\n  \"backup_job_id\": \"{{$json.backup_job_id}}\",\n  \"verification_type\": \"{{$json.verification_type}}\",\n  \"status\": \"{{$json.overall_status}}\",\n  \"tests\": {{JSON.stringify($json.tests)}},\n  \"error\": \"{{$json.error}}\",\n  \"verified_at\": \"{{$json.verified_at}}\"\n}",
+        "responseCode": 422
+      },
+      "name": "Failure Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle validation errors\nconst error = $json.error || 'Validation process failed';\nconst validationId = $json.validation_id;\nconst backupJobId = $json.backup_job_id;\n\nconsole.error(`Backup validation ${validationId} failed:`, error);\n\nreturn [{\n  json: {\n    validation_id: validationId,\n    backup_job_id: backupJobId,\n    status: 'failed',\n    error_message: error.toString(),\n    verified_at: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 600]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "backup_verifications",
+        "columns": "backup_job_id,verification_type,status,error_message,verified_at",
+        "additionalFields": {},
+        "options": {}
+      },
+      "name": "Save Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1560, 600],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-main",
+          "name": "PostgreSQL Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"validation_id\": \"{{$json.validation_id}}\",\n  \"backup_job_id\": \"{{$json.backup_job_id}}\",\n  \"status\": \"failed\",\n  \"error\": \"{{$json.error_message}}\",\n  \"verified_at\": \"{{$json.verified_at}}\"\n}",
+        "responseCode": 500
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 600]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Process Request", "type": "main", "index": 0}]]
+    },
+    "Process Request": {
+      "main": [[{"node": "Get Backup Info", "type": "main", "index": 0}]]
+    },
+    "Get Backup Info": {
+      "main": [[{"node": "Check Backup Exists", "type": "main", "index": 0}]]
+    },
+    "Check Backup Exists": {
+      "main": [
+        [{"node": "Backup Not Found", "type": "main", "index": 0}],
+        [{"node": "Validate Backup", "type": "main", "index": 0}]
+      ]
+    },
+    "Validate Backup": {
+      "main": [
+        [{"node": "Save Validation", "type": "main", "index": 0}],
+        [{"node": "Handle Error", "type": "main", "index": 0}]
+      ]
+    },
+    "Save Validation": {
+      "main": [[{"node": "Check Validation Status", "type": "main", "index": 0}]]
+    },
+    "Check Validation Status": {
+      "main": [
+        [{"node": "Success Response", "type": "main", "index": 0}],
+        [{"node": "Failure Response", "type": "main", "index": 0}]
+      ]
+    },
+    "Handle Error": {
+      "main": [[{"node": "Save Error", "type": "main", "index": 0}]]
+    },
+    "Save Error": {
+      "main": [[{"node": "Error Response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "id": "backup-validator"
+}

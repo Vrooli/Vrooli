@@ -1,0 +1,78 @@
+{
+  "resource_name": "freecad",
+  "description": "Parametric 3D CAD modeler with Python API",
+  "category": "engineering",
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 60,
+  "startup_time_estimate": "20-40s",
+  "stop_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "health_check": {
+    "type": "http",
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "resource_requirements": {
+    "minimum": {
+      "cpu": "1.0",
+      "memory": "2048m",
+      "disk": "4GB"
+    },
+    "recommended": {
+      "cpu": "2.0",
+      "memory": "4096m",
+      "disk": "10GB"
+    }
+  },
+  "capabilities": [
+    "parametric-modeling",
+    "assembly-design",
+    "fem-analysis",
+    "cam-toolpath",
+    "python-scripting",
+    "step-export",
+    "iges-export",
+    "stl-export"
+  ],
+  "interfaces": {
+    "cli": "resource-freecad",
+    "api": "http://localhost:${PORT}",
+    "health": "http://localhost:${PORT}/health"
+  },
+  "configuration": {
+    "environment_variables": [
+      "FREECAD_PORT",
+      "FREECAD_DISPLAY",
+      "FREECAD_MEMORY_LIMIT",
+      "FREECAD_THREAD_COUNT",
+      "FREECAD_DEBUG"
+    ],
+    "volumes": [
+      "${FREECAD_DATA_DIR}:/data",
+      "${FREECAD_PROJECTS_DIR}:/projects",
+      "${FREECAD_SCRIPTS_DIR}:/scripts",
+      "${FREECAD_EXPORTS_DIR}:/exports"
+    ],
+    "networks": [
+      "vrooli-network"
+    ]
+  },
+  "validation": {
+    "startup_validation": [
+      "Service responds to health checks",
+      "Python API is accessible",
+      "Export capabilities verified",
+      "Virtual display initialized"
+    ],
+    "integration_tests": [
+      "Generate parametric model",
+      "Export to STEP format",
+      "Run Python script",
+      "Perform boolean operations"
+    ]
+  }
+}

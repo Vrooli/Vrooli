@@ -1,0 +1,61 @@
+name: roi-fit-analysis
+description: Tests for ROI Fit Analysis scenario
+version: 1.0.0
+
+tests:
+  - name: API Health Check
+    type: http
+    endpoint: http://localhost:3000/health
+    method: GET
+    expected:
+      status: 200
+      body:
+        status: healthy
+        service: roi-fit-analysis
+
+  - name: Analyze ROI Endpoint
+    type: http
+    endpoint: http://localhost:3000/analyze
+    method: POST
+    payload:
+      idea: "SaaS productivity tool"
+      budget: 50000
+      timeline: "12 months"
+      skills: ["development", "marketing"]
+    expected:
+      status: 200
+      body:
+        status: success
+
+  - name: List Opportunities
+    type: http
+    endpoint: http://localhost:3000/opportunities
+    method: GET
+    expected:
+      status: 200
+      
+  - name: Generate Report
+    type: http
+    endpoint: http://localhost:3000/reports
+    method: GET
+    expected:
+      status: 200
+
+  - name: CLI Analysis
+    type: cli
+    command: "./cli/roi-fit analyze 'AI chatbot' 75000"
+    expected:
+      contains: "ROI Analysis Results"
+
+  - name: CLI List
+    type: cli
+    command: "./cli/roi-fit list"
+    expected:
+      contains: "Investment Opportunities"
+
+  - name: UI Availability
+    type: http
+    endpoint: http://localhost:5173
+    method: GET
+    expected:
+      status: 200

@@ -1,0 +1,67 @@
+name: picker-wheel
+description: Test suite for Picker Wheel scenario
+version: 1.0.0
+
+setup:
+  timeout: 30
+  steps:
+    - name: Check required files
+      command: |
+        test -f .vrooli/service.json && \
+        test -f initialization/postgres/schema.sql && \
+        test -f initialization/n8n/wheel-spinner.json && \
+        test -f ui/index.html && \
+        test -f api/main.go && \
+        test -f cli/picker-wheel
+      expect:
+        exit_code: 0
+
+tests:
+  - name: Service configuration validation
+    command: jq -e '.service.name == "picker-wheel"' .vrooli/service.json
+    expect:
+      exit_code: 0
+
+  - name: PostgreSQL schema validation
+    command: grep -q "CREATE TABLE IF NOT EXISTS wheels" initialization/postgres/schema.sql
+    expect:
+      exit_code: 0
+
+  - name: N8N workflow validation
+    command: jq -e '.name == "picker-wheel-spinner"' initialization/n8n/wheel-spinner.json
+    expect:
+      exit_code: 0
+
+  - name: UI files validation
+    command: |
+      test -f ui/index.html && \
+      test -f ui/script.js && \
+      test -f ui/styles.css && \
+      test -f ui/server.js && \
+      test -f ui/package.json
+    expect:
+      exit_code: 0
+
+  - name: API source validation
+    command: grep -q "func main()" api/main.go
+    expect:
+      exit_code: 0
+
+  - name: CLI executable check
+    command: test -x cli/picker-wheel
+    expect:
+      exit_code: 0
+
+  - name: CLI help command
+    command: ./cli/picker-wheel help
+    expect:
+      exit_code: 0
+      stdout_contains: "Picker Wheel CLI"
+
+teardown:
+  timeout: 10
+  steps:
+    - name: Cleanup
+      command: echo "Test completed"
+      expect:
+        exit_code: 0

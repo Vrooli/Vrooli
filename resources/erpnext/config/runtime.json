@@ -1,0 +1,8 @@
+{
+  "startup_order": 580,
+  "startup_timeout": 90,
+  "startup_time_estimate": "30-60s",
+  "dependencies": ["postgres", "redis"],
+  "recovery_attempts": 2,
+  "priority": "medium"
+}

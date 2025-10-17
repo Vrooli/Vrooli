@@ -1,0 +1,398 @@
+{
+  "collections": {
+    "documentation_embeddings": {
+      "description": "Vector embeddings of documentation content for semantic search and similarity analysis",
+      "config": {
+        "vectors": {
+          "size": 768,
+          "distance": "Cosine"
+        },
+        "shard_number": 2,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true,
+        "hnsw_config": {
+          "m": 16,
+          "ef_construct": 100,
+          "full_scan_threshold": 10000,
+          "max_indexing_threads": 2
+        },
+        "optimizer_config": {
+          "deleted_threshold": 0.2,
+          "vacuum_min_vector_number": 1000,
+          "default_segment_number": 2,
+          "max_segment_size": 200000,
+          "memmap_threshold": 50000,
+          "indexing_threshold": 20000,
+          "flush_interval_sec": 5,
+          "max_optimization_threads": 1
+        },
+        "wal_config": {
+          "wal_capacity_mb": 32,
+          "wal_segments_ahead": 0
+        }
+      },
+      "payload_schema": {
+        "application_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "document_type": {
+          "type": "keyword", 
+          "indexed": true
+        },
+        "file_path": {
+          "type": "text",
+          "indexed": true
+        },
+        "section_title": {
+          "type": "text",
+          "indexed": false
+        },
+        "content_hash": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "last_updated": {
+          "type": "datetime",
+          "indexed": true
+        },
+        "word_count": {
+          "type": "integer",
+          "indexed": false
+        },
+        "language": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "tags": {
+          "type": "text",
+          "indexed": true
+        }
+      },
+      "index_configuration": {
+        "text_index": {
+          "type": "text",
+          "tokenizer": "word",
+          "min_token_len": 2,
+          "max_token_len": 20,
+          "lowercase": true
+        },
+        "field_indexes": [
+          "application_id",
+          "document_type", 
+          "file_path",
+          "content_hash",
+          "last_updated",
+          "language"
+        ]
+      }
+    },
+    "agent_memory": {
+      "description": "Memory storage for agents to remember past analysis patterns and improvements",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine"
+        },
+        "shard_number": 1,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true,
+        "hnsw_config": {
+          "m": 12,
+          "ef_construct": 80,
+          "full_scan_threshold": 5000,
+          "max_indexing_threads": 1
+        },
+        "optimizer_config": {
+          "deleted_threshold": 0.3,
+          "vacuum_min_vector_number": 500,
+          "default_segment_number": 1,
+          "max_segment_size": 100000,
+          "memmap_threshold": 25000,
+          "indexing_threshold": 10000,
+          "flush_interval_sec": 10,
+          "max_optimization_threads": 1
+        }
+      },
+      "payload_schema": {
+        "agent_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "agent_type": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "application_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "memory_type": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "pattern_description": {
+          "type": "text",
+          "indexed": false
+        },
+        "success_rate": {
+          "type": "float",
+          "indexed": true
+        },
+        "usage_count": {
+          "type": "integer",
+          "indexed": false
+        },
+        "created_at": {
+          "type": "datetime",
+          "indexed": true
+        },
+        "last_used": {
+          "type": "datetime",
+          "indexed": true
+        },
+        "relevance_score": {
+          "type": "float",
+          "indexed": true
+        }
+      },
+      "index_configuration": {
+        "field_indexes": [
+          "agent_id",
+          "agent_type",
+          "application_id",
+          "memory_type",
+          "success_rate",
+          "created_at",
+          "last_used",
+          "relevance_score"
+        ]
+      }
+    },
+    "similarity_patterns": {
+      "description": "Patterns of similar documentation issues and their solutions for better recommendations",
+      "config": {
+        "vectors": {
+          "size": 512,
+          "distance": "Cosine"
+        },
+        "shard_number": 1,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true,
+        "hnsw_config": {
+          "m": 14,
+          "ef_construct": 90,
+          "full_scan_threshold": 8000,
+          "max_indexing_threads": 1
+        }
+      },
+      "payload_schema": {
+        "issue_type": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "severity": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "solution_type": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "effectiveness_score": {
+          "type": "float",
+          "indexed": true
+        },
+        "application_context": {
+          "type": "text",
+          "indexed": true
+        },
+        "pattern_signature": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "frequency": {
+          "type": "integer",
+          "indexed": false
+        },
+        "last_seen": {
+          "type": "datetime",
+          "indexed": true
+        }
+      },
+      "index_configuration": {
+        "field_indexes": [
+          "issue_type",
+          "severity",
+          "solution_type",
+          "effectiveness_score",
+          "pattern_signature",
+          "last_seen"
+        ]
+      }
+    }
+  },
+  "search_configurations": {
+    "semantic_document_search": {
+      "collection": "documentation_embeddings",
+      "default_limit": 10,
+      "score_threshold": 0.7,
+      "search_params": {
+        "hnsw_ef": 128,
+        "exact": false
+      },
+      "filter_templates": {
+        "by_application": {
+          "must": [
+            {
+              "key": "application_id",
+              "match": {
+                "value": "{{application_id}}"
+              }
+            }
+          ]
+        },
+        "by_document_type": {
+          "must": [
+            {
+              "key": "document_type",
+              "match": {
+                "value": "{{document_type}}"
+              }
+            }
+          ]
+        },
+        "recent_documents": {
+          "must": [
+            {
+              "key": "last_updated",
+              "range": {
+                "gte": "{{from_date}}"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "agent_memory_retrieval": {
+      "collection": "agent_memory",
+      "default_limit": 5,
+      "score_threshold": 0.6,
+      "search_params": {
+        "hnsw_ef": 64,
+        "exact": false
+      },
+      "filter_templates": {
+        "by_agent": {
+          "must": [
+            {
+              "key": "agent_id",
+              "match": {
+                "value": "{{agent_id}}"
+              }
+            }
+          ]
+        },
+        "by_success_rate": {
+          "must": [
+            {
+              "key": "success_rate",
+              "range": {
+                "gte": 0.7
+              }
+            }
+          ]
+        },
+        "recently_used": {
+          "must": [
+            {
+              "key": "last_used",
+              "range": {
+                "gte": "{{cutoff_date}}"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pattern_matching": {
+      "collection": "similarity_patterns",
+      "default_limit": 8,
+      "score_threshold": 0.65,
+      "search_params": {
+        "hnsw_ef": 96,
+        "exact": false
+      },
+      "filter_templates": {
+        "by_severity": {
+          "must": [
+            {
+              "key": "severity",
+              "match": {
+                "value": "{{severity}}"
+              }
+            }
+          ]
+        },
+        "high_effectiveness": {
+          "must": [
+            {
+              "key": "effectiveness_score",
+              "range": {
+                "gte": 0.8
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "maintenance_settings": {
+    "auto_optimization": {
+      "enabled": true,
+      "schedule": "0 2 * * *",
+      "conditions": {
+        "max_deleted_ratio": 0.1,
+        "min_vectors_for_optimization": 1000
+      }
+    },
+    "backup": {
+      "enabled": true,
+      "schedule": "0 3 * * 0",
+      "retention_days": 30,
+      "compression": true
+    },
+    "monitoring": {
+      "metrics_collection": true,
+      "performance_tracking": true,
+      "alert_thresholds": {
+        "memory_usage_mb": 2048,
+        "search_latency_ms": 1000,
+        "indexing_queue_size": 10000
+      }
+    }
+  },
+  "initialization_scripts": [
+    {
+      "name": "create_collections",
+      "description": "Create all required collections with proper configuration",
+      "order": 1,
+      "script": "create_collections.py"
+    },
+    {
+      "name": "setup_indexes",
+      "description": "Set up payload indexes for efficient filtering",
+      "order": 2,
+      "script": "setup_indexes.py"
+    },
+    {
+      "name": "load_sample_data",
+      "description": "Load sample embeddings for testing",
+      "order": 3,
+      "script": "load_sample_data.py"
+    }
+  ]
+}

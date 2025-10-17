@@ -1,0 +1,616 @@
+#!/bin/bash
+
+# Contact Book CLI - Interface for managing contacts and social intelligence
+# This CLI enables other scenarios to interact with the contact book API
+
+set -e
+
+# Configuration
+# Try to detect the API port dynamically
+if [ -z "${CONTACT_BOOK_API_URL}" ]; then
+    # First try to get port from running process
+    PID=$(ps aux | grep -E "contact-book-api" | grep -v grep | head -1 | awk '{print $2}')
+    if [ -n "$PID" ]; then
+        API_PORT=$(cat /proc/$PID/environ 2>/dev/null | tr '\0' '\n' | grep "^API_PORT=" | cut -d= -f2)
+    fi
+
+    # Fall back to default if not found
+    if [ -z "$API_PORT" ]; then
+        API_PORT="8080"
+    fi
+
+    API_BASE_URL="http://localhost:${API_PORT}"
+else
+    API_BASE_URL="${CONTACT_BOOK_API_URL}"
+fi
+
+CONFIG_DIR="${HOME}/.vrooli/contact-book"
+CONFIG_FILE="${CONFIG_DIR}/config.json"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+# Check if API is available
+check_api() {
+    if ! curl -sf "${API_BASE_URL}/health" >/dev/null 2>&1; then
+        log_error "Contact Book API is not available at ${API_BASE_URL}"
+        log_error "Please ensure the contact-book scenario is running: vrooli scenario run contact-book"
+        exit 1
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    local output_file="$4"
+    
+    local url="${API_BASE_URL}${endpoint}"
+    local curl_args=(-s -X "${method}")
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    if [[ -n "$output_file" ]]; then
+        curl_args+=(-o "$output_file")
+    fi
+    
+    curl "${curl_args[@]}" "$url"
+}
+
+# Parse JSON using basic tools (fallback if jq not available)
+parse_json() {
+    local json="$1"
+    local key="$2"
+    
+    if command -v jq >/dev/null 2>&1; then
+        echo "$json" | jq -r ".$key // empty"
+    else
+        # Basic parsing without jq
+        echo "$json" | sed -n "s/.*\"$key\":\s*\"\([^\"]*\)\".*/\1/p"
+    fi
+}
+
+# =============================================================================
+# CORE COMMANDS
+# =============================================================================
+
+show_help() {
+    cat << EOF
+Contact Book CLI - Social Intelligence Engine
+
+USAGE:
+    contact-book <command> [options]
+
+COMMANDS:
+    Core Operations:
+        list                    List all contacts
+        get <id>                Get contact details by ID
+        add                     Add a new contact (interactive)
+        search <query>          Search contacts by name, email, or content
+        
+    Relationship Management:
+        relationships [id]      List relationships (optionally for specific contact)
+        connect <from> <to>     Create relationship between contacts
+        
+    Analytics:
+        analytics [id]          Show social analytics (optionally for specific contact)
+        closeness [id]          Show closeness scores
+        maintenance             Show contacts needing relationship maintenance
+        
+    Integration:
+        status                  Show API status and health
+        version                 Show CLI and API version
+        config                  Show configuration
+        
+    Advanced:
+        export [format]         Export contacts (json, csv)
+        import <file>           Import contacts from file
+        graph                   Generate relationship graph visualization
+
+OPTIONS:
+    --json                      Output in JSON format
+    --limit <n>                 Limit results (default: 50)
+    --help, -h                  Show this help message
+
+EXAMPLES:
+    contact-book list --limit 10
+    contact-book search "sarah"
+    contact-book add --name "John Doe" --email "john@example.com"
+    contact-book connect alice-id bob-id --type friend --strength 0.8
+    contact-book analytics --json
+    contact-book maintenance --limit 5
+
+INTEGRATION EXAMPLES (for other scenarios):
+    # Wedding planner getting guest list
+    contact-book search "wedding" --json | jq '.results[].id'
+    
+    # Personal digital twin getting close contacts
+    contact-book closeness --json | jq '.[] | select(.closeness_score > 0.7)'
+    
+    # Birthday reminders finding people with upcoming birthdays
+    contact-book list --json | jq '.persons[] | select(.metadata.birthday)'
+
+For more information, see: https://vrooli.com/scenarios/contact-book
+EOF
+}
+
+show_version() {
+    echo "Contact Book CLI v1.0.0"
+
+    # Try to get API version, but don't fail if API is not available
+    # Use || true to prevent script exit on failure with set -e
+    if curl -sf "${API_BASE_URL}/health" >/dev/null 2>&1; then
+        local api_version
+        api_version=$(api_request GET "/health" 2>/dev/null | parse_json "version" 2>/dev/null || echo "")
+        if [[ -n "$api_version" && "$api_version" != "null" && "$api_version" != "" ]]; then
+            echo "API Version: $api_version"
+        else
+            echo "API Version: Available but version unknown"
+        fi
+    else
+        echo "API Version: Not available (API not running)"
+    fi
+
+    # Ensure we exit with code 0
+    exit 0
+}
+
+show_status() {
+    local json_output=false
+    if [[ "$1" == "--json" ]]; then
+        json_output=true
+    fi
+    
+    if $json_output; then
+        api_request GET "/health"
+    else
+        local health_data
+        health_data=$(api_request GET "/health")
+        
+        log_info "Contact Book Status:"
+        echo "  API Status: $(parse_json "$health_data" "status")"
+        echo "  Database: $(parse_json "$health_data" "database")"
+        echo "  API URL: ${API_BASE_URL}"
+        echo "  Timestamp: $(parse_json "$health_data" "timestamp")"
+    fi
+}
+
+# =============================================================================
+# CONTACT OPERATIONS
+# =============================================================================
+
+list_contacts() {
+    local json_output=false
+    local limit=50
+    local search=""
+    local tags=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json) json_output=true ;;
+            --limit) limit="$2"; shift ;;
+            --search) search="$2"; shift ;;
+            --tags) tags="$2"; shift ;;
+        esac
+        shift
+    done
+    
+    local url="/api/v1/contacts?limit=${limit}"
+    [[ -n "$search" ]] && url="${url}&search=${search}"
+    [[ -n "$tags" ]] && url="${url}&tags=${tags}"
+    
+    local response
+    response=$(api_request GET "$url")
+    
+    if $json_output; then
+        echo "$response"
+    else
+        if command -v jq >/dev/null 2>&1; then
+            echo "$response" | jq -r '.persons[] | "\(.id): \(.full_name) (\(.emails[0] // "no email"))"'
+        else
+            echo "$response"
+        fi
+    fi
+}
+
+get_contact() {
+    local contact_id="$1"
+    local json_output=false
+    
+    if [[ "$2" == "--json" ]]; then
+        json_output=true
+    fi
+    
+    if [[ -z "$contact_id" ]]; then
+        log_error "Contact ID is required"
+        exit 1
+    fi
+    
+    local response
+    response=$(api_request GET "/api/v1/contacts/${contact_id}")
+    
+    if $json_output; then
+        echo "$response"
+    else
+        if command -v jq >/dev/null 2>&1; then
+            echo "$response" | jq -r '
+                "Name: \(.full_name)",
+                "Display: \(.display_name // "N/A")",
+                "Emails: \(.emails | join(", "))",
+                "Phones: \(.phones | join(", "))",
+                "Tags: \(.tags | join(", "))",
+                "Notes: \(.notes // "N/A")"
+            '
+        else
+            echo "$response"
+        fi
+    fi
+}
+
+add_contact() {
+    local name=""
+    local email=""
+    local phone=""
+    local tags=""
+    local notes=""
+    local interactive=true
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name) name="$2"; interactive=false; shift ;;
+            --email) email="$2"; shift ;;
+            --phone) phone="$2"; shift ;;
+            --tags) tags="$2"; shift ;;
+            --notes) notes="$2"; shift ;;
+        esac
+        shift
+    done
+    
+    # Interactive mode if no name provided
+    if $interactive && [[ -z "$name" ]]; then
+        echo "Adding new contact (press Ctrl+C to cancel):"
+        read -p "Full name: " name
+        read -p "Email (optional): " email
+        read -p "Phone (optional): " phone
+        read -p "Tags (comma-separated, optional): " tags
+        read -p "Notes (optional): " notes
+    fi
+    
+    if [[ -z "$name" ]]; then
+        log_error "Name is required"
+        exit 1
+    fi
+    
+    # Build JSON payload
+    local payload="{\"full_name\": \"$name\""
+    [[ -n "$email" ]] && payload="${payload}, \"emails\": [\"$email\"]"
+    [[ -n "$phone" ]] && payload="${payload}, \"phones\": [\"$phone\"]"
+    if [[ -n "$tags" ]]; then
+        local tags_json
+        tags_json=$(echo "$tags" | tr ',' '\n' | sed 's/^/"/;s/$/"/' | tr '\n' ',' | sed 's/,$//')
+        payload="${payload}, \"tags\": [$tags_json]"
+    fi
+    [[ -n "$notes" ]] && payload="${payload}, \"notes\": \"$notes\""
+    payload="${payload}}"
+    
+    local response
+    response=$(api_request POST "/api/v1/contacts" "$payload")
+    
+    local contact_id
+    contact_id=$(parse_json "$response" "id")
+    
+    if [[ -n "$contact_id" ]]; then
+        log_success "Contact created with ID: $contact_id"
+    else
+        log_error "Failed to create contact"
+        echo "$response"
+        exit 1
+    fi
+}
+
+search_contacts() {
+    local query="$1"
+    local json_output=false
+    local limit=20
+    
+    if [[ -z "$query" ]]; then
+        log_error "Search query is required"
+        exit 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json) json_output=true ;;
+            --limit) limit="$2"; shift ;;
+        esac
+        shift
+    done
+    
+    local payload="{\"query\": \"$query\", \"limit\": $limit}"
+    local response
+    response=$(api_request POST "/api/v1/search" "$payload")
+    
+    if $json_output; then
+        echo "$response"
+    else
+        if command -v jq >/dev/null 2>&1; then
+            echo "$response" | jq -r '.results[] | "\(.id): \(.full_name) (\(.emails[0] // "no email"))"'
+        else
+            echo "$response"
+        fi
+    fi
+}
+
+# =============================================================================
+# RELATIONSHIP OPERATIONS  
+# =============================================================================
+
+list_relationships() {
+    local person_id="$1"
+    local json_output=false
+    local rel_type=""
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json) json_output=true ;;
+            --type) rel_type="$2"; shift ;;
+        esac
+        shift
+    done
+    
+    local url="/api/v1/relationships"
+    [[ -n "$person_id" ]] && url="${url}?person_id=${person_id}"
+    [[ -n "$rel_type" ]] && url="${url}&type=${rel_type}"
+    
+    local response
+    response=$(api_request GET "$url")
+    
+    if $json_output; then
+        echo "$response"
+    else
+        if command -v jq >/dev/null 2>&1; then
+            echo "$response" | jq -r '.relationships[] | "\(.from_person_id) -> \(.to_person_id): \(.relationship_type) (strength: \(.strength // "N/A"))"'
+        else
+            echo "$response"
+        fi
+    fi
+}
+
+create_relationship() {
+    local from_id="$1"
+    local to_id="$2"
+    local rel_type="friend"
+    local strength=""
+    local notes=""
+    
+    if [[ -z "$from_id" || -z "$to_id" ]]; then
+        log_error "Both from and to person IDs are required"
+        exit 1
+    fi
+    
+    shift 2
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type) rel_type="$2"; shift ;;
+            --strength) strength="$2"; shift ;;
+            --notes) notes="$2"; shift ;;
+        esac
+        shift
+    done
+    
+    local payload="{\"from_person_id\": \"$from_id\", \"to_person_id\": \"$to_id\", \"relationship_type\": \"$rel_type\""
+    [[ -n "$strength" ]] && payload="${payload}, \"strength\": $strength"
+    [[ -n "$notes" ]] && payload="${payload}, \"notes\": \"$notes\""
+    payload="${payload}}"
+    
+    local response
+    response=$(api_request POST "/api/v1/relationships" "$payload")
+    
+    local rel_id
+    rel_id=$(parse_json "$response" "id")
+    
+    if [[ -n "$rel_id" ]]; then
+        log_success "Relationship created with ID: $rel_id"
+    else
+        log_error "Failed to create relationship"
+        echo "$response"
+        exit 1
+    fi
+}
+
+# =============================================================================
+# ANALYTICS OPERATIONS
+# =============================================================================
+
+show_analytics() {
+    local person_id="$1"
+    local json_output=false
+    
+    if [[ "$2" == "--json" || "$1" == "--json" ]]; then
+        json_output=true
+        [[ "$1" == "--json" ]] && person_id=""
+    fi
+    
+    local url="/api/v1/analytics"
+    [[ -n "$person_id" ]] && url="${url}?person_id=${person_id}"
+    
+    local response
+    response=$(api_request GET "$url")
+    
+    if $json_output; then
+        echo "$response"
+    else
+        if command -v jq >/dev/null 2>&1; then
+            echo "$response" | jq -r '.analytics[] | "Person: \(.person_id), Closeness: \(.overall_closeness_score // "N/A"), Maintenance Priority: \(.maintenance_priority_score // "N/A")"'
+        else
+            echo "$response"
+        fi
+    fi
+}
+
+show_maintenance() {
+    local limit=10
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json) json_output=true ;;
+            --limit) limit="$2"; shift ;;
+        esac
+        shift
+    done
+
+    local response
+    response=$(api_request GET "/api/v1/analytics")
+
+    if $json_output; then
+        # Return structured JSON output for maintenance contacts
+        if command -v jq >/dev/null 2>&1; then
+            # Check if analytics field exists and has content
+            if echo "$response" | jq -e '.analytics' >/dev/null 2>&1; then
+                echo "$response" | jq --argjson limit "$limit" '{
+                    contacts: [
+                        .analytics[]
+                        | select(.maintenance_priority_score > 0.3)
+                        | {
+                            person_id: .person_id,
+                            priority_score: .maintenance_priority_score,
+                            closeness_score: .overall_closeness_score,
+                            last_interaction_days: .last_interaction_days
+                        }
+                    ] | sort_by(-.priority_score) | limit($limit; .[])
+                }'
+            else
+                # Return empty array if no analytics data
+                echo '{"contacts": []}'
+            fi
+        else
+            echo "$response"
+        fi
+    else
+        log_info "Contacts needing relationship maintenance:"
+        if command -v jq >/dev/null 2>&1; then
+            # Check if analytics exists before processing
+            if echo "$response" | jq -e '.analytics' >/dev/null 2>&1; then
+                echo "$response" | jq -r --argjson limit "$limit" '
+                    .analytics[]
+                    | select(.maintenance_priority_score > 0.3)
+                    | {person_id, priority: .maintenance_priority_score, last_days: .last_interaction_days}
+                ' | head -n "$limit" | while IFS= read -r line; do
+                    if [ -n "$line" ]; then
+                        person_id=$(echo "$line" | jq -r '.person_id')
+                        priority=$(echo "$line" | jq -r '.priority')
+                        days=$(echo "$line" | jq -r '.last_days // "unknown"')
+                        echo "  $person_id: Priority $priority (last interaction: $days days ago)"
+                    fi
+                done
+            else
+                echo "  No contacts currently need maintenance"
+            fi
+        else
+            echo "$response"
+        fi
+    fi
+}
+
+# =============================================================================
+# MAIN COMMAND DISPATCHER
+# =============================================================================
+
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        "help" | "-h" | "--help")
+            show_help
+            ;;
+        "version" | "--version")
+            show_version
+            ;;
+        "status")
+            check_api
+            show_status "$@"
+            ;;
+        "list")
+            check_api
+            list_contacts "$@"
+            ;;
+        "get")
+            check_api
+            get_contact "$@"
+            ;;
+        "add")
+            check_api
+            add_contact "$@"
+            ;;
+        "search")
+            check_api
+            search_contacts "$@"
+            ;;
+        "relationships")
+            check_api
+            list_relationships "$@"
+            ;;
+        "connect")
+            check_api
+            create_relationship "$@"
+            ;;
+        "analytics")
+            check_api
+            show_analytics "$@"
+            ;;
+        "closeness")
+            check_api
+            show_analytics "$@"
+            ;;
+        "maintenance")
+            check_api
+            show_maintenance "$@"
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

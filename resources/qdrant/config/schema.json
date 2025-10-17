@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "resource:qdrant",
+  "title": "Qdrant Resource Configuration",
+  "description": "High-performance vector database for similarity search and AI applications",
+  "type": "object",
+  "extends": "baseResource",
+  "properties": {
+  },
+  "examples": [
+    {
+      "title": "Minimal",
+      "config": {
+        "enabled": true
+      }
+    },
+    {
+      "title": "Development",
+      "config": {
+        "enabled": true,
+        "purpose": "Development vector database"
+      }
+    },
+    {
+      "title": "Production",
+      "config": {
+        "enabled": true,
+        "required": true,
+        "purpose": "Production vector search"
+      }
+    },
+    {
+      "title": "RAG System",
+      "config": {
+        "enabled": true,
+        "purpose": "Vector store for RAG document retrieval"
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "status": "healthy",
+  "service": "calendar-ui",
+  "timestamp": "2025-09-13T00:00:00Z",
+  "readiness": true,
+  "api_connectivity": {
+    "connected": false,
+    "api_url": "http://localhost:${API_PORT}",
+    "last_check": "2025-09-13T00:00:00Z",
+    "error": {
+      "code": "STATIC_UI_VITE_CHECK",
+      "message": "Static health check served by Vite dev server - live connectivity cannot be tested from static JSON",
+      "category": "configuration",
+      "retryable": false
+    },
+    "latency_ms": null
+  },
+  "static_files": {
+    "available": true,
+    "files": {
+      "index_html": true,
+      "app_tsx": true,
+      "styles_css": true,
+      "calendar_js": true
+    }
+  },
+  "calendar_features": {
+    "event_management": true,
+    "recurring_events": true,
+    "reminder_system": true,
+    "multi_user_support": true,
+    "natural_language_scheduling": true,
+    "semantic_search": true,
+    "automation_triggers": true
+  },
+  "ui_framework": {
+    "type": "vite_react",
+    "version": "5.0.11",
+    "typescript": true,
+    "hot_reload": true
+  },
+  "metrics": {
+    "deployment_mode": "development",
+    "server_type": "vite_dev_server",
+    "requires_api": true
+  }
+}

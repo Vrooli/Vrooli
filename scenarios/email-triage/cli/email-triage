@@ -1,0 +1,506 @@
+#!/bin/bash
+
+# Email Triage CLI
+# Multi-tenant AI-powered email management CLI tool
+
+set -euo pipefail
+
+CLI_VERSION="1.0.0"
+
+# Detect API port from scenario status if vrooli CLI is available
+# Only run detection if EMAIL_TRIAGE_API_URL is not already set
+if [[ -z "${EMAIL_TRIAGE_API_URL:-}" ]]; then
+    detect_api_port() {
+        if command -v vrooli &> /dev/null; then
+            local detected_port=$(vrooli scenario status email-triage 2>/dev/null | grep "API_PORT:" | awk '{print $2}')
+            if [[ -n "$detected_port" ]]; then
+                echo "$detected_port"
+                return
+            fi
+        fi
+        echo "${API_PORT:-19548}"
+    }
+
+    DETECTED_API_PORT=$(detect_api_port)
+    API_BASE_URL="http://localhost:${DETECTED_API_PORT}"
+else
+    API_BASE_URL="${EMAIL_TRIAGE_API_URL}"
+fi
+CONFIG_DIR="${HOME}/.vrooli/email-triage"
+CONFIG_FILE="${CONFIG_DIR}/config.yaml"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Initialize configuration directory
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" << EOF
+api_url: ${API_BASE_URL}
+auth_token: ""
+default_account: ""
+verbose: false
+EOF
+    fi
+}
+
+# Load configuration
+# Only load from config file if not already set via environment
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # Simple YAML parsing for basic config
+        # Only override API_BASE_URL if EMAIL_TRIAGE_API_URL wasn't explicitly set
+        if [[ -z "${EMAIL_TRIAGE_API_URL:-}" ]]; then
+            local config_url=$(grep "api_url:" "$CONFIG_FILE" | awk '{print $2}' || echo "")
+            if [[ -n "$config_url" ]]; then
+                API_BASE_URL="$config_url"
+            fi
+        fi
+        AUTH_TOKEN=$(grep "auth_token:" "$CONFIG_FILE" | awk '{print $2}' || echo "")
+    fi
+}
+
+# Make authenticated API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local content_type="${4:-application/json}"
+
+    local curl_args=()
+    curl_args+=(-s -f -X "$method")  # -f fails on HTTP errors
+    curl_args+=(-H "Content-Type: $content_type")
+
+    if [[ -n "$AUTH_TOKEN" ]]; then
+        curl_args+=(-H "Authorization: Bearer $AUTH_TOKEN")
+    fi
+
+    if [[ -n "$data" ]]; then
+        curl_args+=(-d "$data")
+    fi
+
+    curl_args+=("${API_BASE_URL}${endpoint}")
+
+    if ! curl "${curl_args[@]}" 2>/dev/null; then
+        return 1
+    fi
+}
+
+# Display help information
+show_help() {
+    cat << EOF
+Email Triage CLI v${CLI_VERSION}
+AI-powered multi-tenant email management system
+
+USAGE:
+    email-triage [COMMAND] [OPTIONS]
+
+COMMANDS:
+    account         Manage email accounts
+    rule            Manage triage rules  
+    search          Search emails semantically
+    sync            Force email synchronization
+    status          Show system status
+    help            Show this help message
+    version         Show version information
+
+ACCOUNT COMMANDS:
+    account add <email> <password>     Add new email account
+    account list                       List all email accounts
+    account remove <account-id>        Remove email account
+    account sync <account-id>          Sync specific account
+
+RULE COMMANDS:
+    rule create <description>          Create new AI-powered rule
+    rule list                         List all triage rules
+    rule test <rule-id> <email-data>  Test rule against email
+    rule delete <rule-id>             Delete triage rule
+
+SEARCH COMMANDS:
+    search <query>                    Search emails by meaning
+    search <query> --account <id>     Search within specific account
+    search <query> --limit <num>      Limit number of results
+
+SYNC COMMANDS:
+    sync                              Sync all email accounts
+    sync --account <id>               Sync specific account
+    sync --full                       Perform full resync
+
+GLOBAL OPTIONS:
+    --json                           Output in JSON format
+    --verbose                        Enable verbose output
+    --help                           Show help for command
+
+CONFIGURATION:
+    Configuration is stored in: ${CONFIG_FILE}
+    Set EMAIL_TRIAGE_API_URL environment variable to override API URL
+    Set EMAIL_TRIAGE_AUTH_TOKEN to provide authentication token
+
+EXAMPLES:
+    email-triage account add work@company.com YOUR_PASSWORD_HERE
+    email-triage rule create "Archive all newsletters and promotional emails"
+    email-triage search "urgent meeting about quarterly budget"
+    email-triage status --json
+
+For more information, visit: https://github.com/vrooli/scenarios/email-triage
+EOF
+}
+
+# Display version information
+show_version() {
+    if [[ "${1:-}" == "--json" ]]; then
+        echo "{\"version\":\"${CLI_VERSION}\",\"api_url\":\"${API_BASE_URL}\"}"
+    else
+        echo "Email Triage CLI version ${CLI_VERSION}"
+        echo "API URL: ${API_BASE_URL}"
+        echo "Auth Token: ${AUTH_TOKEN:+Set}"
+    fi
+}
+
+# Check system status
+show_status() {
+    local json_output=false
+    if [[ "${1:-}" == "--json" ]]; then
+        json_output=true
+    fi
+
+    local status_response
+    if ! status_response=$(api_request GET "/health" 2>&1); then
+        status_response='{"error":"API unavailable"}'
+    fi
+
+    if [[ "$json_output" == "true" ]]; then
+        echo "$status_response"
+        if echo "$status_response" | grep -q '"error"'; then
+            return 1
+        fi
+    else
+        local status=$(echo "$status_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+
+        if [[ "$status" == "healthy" ]]; then
+            echo -e "${GREEN}✓${NC} Email Triage API is ${GREEN}healthy${NC}"
+        else
+            echo -e "${RED}✗${NC} Email Triage API is ${RED}unhealthy${NC}"
+            echo "API URL: ${API_BASE_URL}"
+            echo "Configuration: ${CONFIG_FILE}"
+            return 1
+        fi
+
+        echo "API URL: ${API_BASE_URL}"
+        echo "Configuration: ${CONFIG_FILE}"
+    fi
+}
+
+# Account management commands
+cmd_account() {
+    local subcmd="${1:-list}"
+    shift || true
+    
+    case "$subcmd" in
+        "add")
+            if [[ $# -lt 2 ]]; then
+                echo -e "${RED}Error:${NC} email and password are required"
+                echo "Usage: email-triage account add <email> <password>"
+                exit 1
+            fi
+            
+            local email="$1"
+            local password="$2"
+            local imap_server="${3:-localhost}"
+            local smtp_server="${4:-localhost}"
+            
+            local data
+            data=$(cat << EOF
+{
+  "email_address": "$email",
+  "password": "$password",
+  "imap_server": "$imap_server",
+  "imap_port": 143,
+  "smtp_server": "$smtp_server",
+  "smtp_port": 25,
+  "use_tls": false
+}
+EOF
+)
+            
+            local response
+            response=$(api_request POST "/api/v1/accounts" "$data")
+            
+            if echo "$response" | grep -q '"success":true'; then
+                local account_id=$(echo "$response" | grep -o '"account_id":"[^"]*"' | cut -d'"' -f4)
+                echo -e "${GREEN}✓${NC} Email account connected successfully"
+                echo "Account ID: $account_id"
+            else
+                local error=$(echo "$response" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 || echo "Unknown error")
+                echo -e "${RED}✗${NC} Failed to add account: $error"
+                exit 1
+            fi
+            ;;
+            
+        "list")
+            local response
+            response=$(api_request GET "/api/v1/accounts")
+
+            if [[ "${1:-}" == "--json" ]]; then
+                echo "$response"
+            else
+                echo "Email Accounts:"
+                local emails=$(echo "$response" | grep -o '"email_address":"[^"]*"' | cut -d'"' -f4 || true)
+                if [[ -n "$emails" ]]; then
+                    echo "$emails" | while read -r email; do
+                        echo "  • $email"
+                    done
+                else
+                    echo "  (No accounts configured)"
+                fi
+            fi
+            ;;
+            
+        "remove"|"delete")
+            if [[ $# -lt 1 ]]; then
+                echo -e "${RED}Error:${NC} account ID is required"
+                echo "Usage: email-triage account remove <account-id>"
+                exit 1
+            fi
+            
+            local account_id="$1"
+            local response
+            response=$(api_request DELETE "/api/v1/accounts/$account_id")
+            
+            if echo "$response" | grep -q '"success":true'; then
+                echo -e "${GREEN}✓${NC} Email account removed successfully"
+            else
+                echo -e "${RED}✗${NC} Failed to remove account"
+                exit 1
+            fi
+            ;;
+            
+        *)
+            echo -e "${RED}Error:${NC} Unknown account command: $subcmd"
+            echo "Use: email-triage account --help"
+            exit 1
+            ;;
+    esac
+}
+
+# Rule management commands
+cmd_rule() {
+    local subcmd="${1:-list}"
+    shift || true
+    
+    case "$subcmd" in
+        "create")
+            if [[ $# -lt 1 ]]; then
+                echo -e "${RED}Error:${NC} rule description is required"
+                echo "Usage: email-triage rule create <description>"
+                exit 1
+            fi
+            
+            local description="$*"
+            local data
+            data=$(cat << EOF
+{
+  "description": "$description",
+  "use_ai_generation": true,
+  "actions": [
+    {"type": "archive", "parameters": {}}
+  ]
+}
+EOF
+)
+            
+            local response
+            response=$(api_request POST "/api/v1/rules" "$data")
+            
+            if echo "$response" | grep -q '"success":true'; then
+                local rule_id=$(echo "$response" | grep -o '"rule_id":"[^"]*"' | cut -d'"' -f4)
+                local confidence=$(echo "$response" | grep -o '"ai_confidence":[0-9.]*' | cut -d':' -f2)
+                echo -e "${GREEN}✓${NC} Triage rule created successfully"
+                echo "Rule ID: $rule_id"
+                echo "AI Confidence: ${confidence:-N/A}"
+            else
+                local error=$(echo "$response" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 || echo "Unknown error")
+                echo -e "${RED}✗${NC} Failed to create rule: $error"
+                exit 1
+            fi
+            ;;
+            
+        "list")
+            local response
+            response=$(api_request GET "/api/v1/rules")
+
+            if [[ "${1:-}" == "--json" ]]; then
+                echo "$response"
+            else
+                echo "Triage Rules:"
+                # Simplified parsing for display
+                local names=$(echo "$response" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 || true)
+                if [[ -n "$names" ]]; then
+                    echo "$names" | while read -r name; do
+                        echo "  • $name"
+                    done
+                else
+                    echo "  (No rules configured)"
+                fi
+            fi
+            ;;
+            
+        *)
+            echo -e "${RED}Error:${NC} Unknown rule command: $subcmd"
+            echo "Use: email-triage rule --help"
+            exit 1
+            ;;
+    esac
+}
+
+# Email search commands
+cmd_search() {
+    if [[ $# -lt 1 ]]; then
+        echo -e "${RED}Error:${NC} search query is required"
+        echo "Usage: email-triage search <query> [--limit <num>] [--account <id>]"
+        exit 1
+    fi
+    
+    local query="$1"
+    shift
+    
+    local limit="20"
+    local account_id=""
+    
+    # Parse options
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--limit")
+                limit="$2"
+                shift 2
+                ;;
+            "--account")
+                account_id="$2"
+                shift 2
+                ;;
+            *)
+                echo -e "${YELLOW}Warning:${NC} Unknown option: $1"
+                shift
+                ;;
+        esac
+    done
+    
+    local endpoint="/api/v1/emails/search?q=$(printf '%s' "$query" | sed 's/ /%20/g')&limit=$limit"
+    if [[ -n "$account_id" ]]; then
+        endpoint="${endpoint}&account_id=$account_id"
+    fi
+    
+    local response
+    response=$(api_request GET "$endpoint")
+    
+    if [[ "${1:-}" == "--json" ]]; then
+        echo "$response"
+    else
+        local total=$(echo "$response" | grep -o '"total":[0-9]*' | cut -d':' -f2 || echo "0")
+        echo "Search Results ($total found):"
+        
+        # Simplified display of results
+        echo "$response" | grep -o '"subject":"[^"]*"' | cut -d'"' -f4 | while read -r subject; do
+            echo "  • $subject"
+        done
+    fi
+}
+
+# Email synchronization commands
+cmd_sync() {
+    local account_id=""
+    local full_sync=false
+    
+    # Parse options
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--account")
+                account_id="$2"
+                shift 2
+                ;;
+            "--full")
+                full_sync=true
+                shift
+                ;;
+            *)
+                echo -e "${YELLOW}Warning:${NC} Unknown option: $1"
+                shift
+                ;;
+        esac
+    done
+    
+    local data="{}"
+    if [[ -n "$account_id" ]]; then
+        data="{\"account_id\":\"$account_id\"}"
+    fi
+    
+    if [[ "$full_sync" == "true" ]]; then
+        data="${data::-1}, \"full_sync\": true}"
+    fi
+    
+    local response
+    response=$(api_request POST "/api/v1/emails/sync" "$data")
+    
+    if echo "$response" | grep -q '"success":true'; then
+        echo -e "${GREEN}✓${NC} Email synchronization started"
+        local message=$(echo "$response" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
+        echo "$message"
+    else
+        echo -e "${RED}✗${NC} Failed to start email sync"
+        exit 1
+    fi
+}
+
+# Main command dispatcher
+main() {
+    init_config
+    load_config
+    
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        "account")
+            cmd_account "$@"
+            ;;
+        "rule")
+            cmd_rule "$@"
+            ;;
+        "search")
+            cmd_search "$@"
+            ;;
+        "sync")
+            cmd_sync "$@"
+            ;;
+        "status")
+            show_status "$@"
+            ;;
+        "version"|"--version")
+            show_version "$@"
+            ;;
+        "help"|"--help"|"-h")
+            show_help
+            ;;
+        *)
+            echo -e "${RED}Error:${NC} Unknown command: $command"
+            echo "Use: email-triage --help"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

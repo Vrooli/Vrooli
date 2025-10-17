@@ -1,0 +1,136 @@
+{
+  "name": "Complete Monitoring Suite",
+  "description": "A comprehensive monitoring system for websites, RSS feeds, and APIs",
+  "guid": "monitoring_suite_scenario",
+  "tag_fg_color": "#ffffff",
+  "tag_bg_color": "#5bc0de",
+  "agents": [
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "Status Page Monitor",
+      "disabled": false,
+      "guid": "status_monitor_001",
+      "options": {
+        "expected_update_period_in_days": "1",
+        "url": "https://status.github.com",
+        "type": "html",
+        "mode": "on_change",
+        "extract": {
+          "status": {
+            "css": ".page-status span",
+            "value": "string(.)"
+          },
+          "indicator": {
+            "css": ".page-status",
+            "value": "@class"
+          },
+          "last_updated": {
+            "css": ".page-footer span",
+            "value": "string(.)"
+          }
+        }
+      },
+      "schedule": "every_5m",
+      "keep_events_for": 604800
+    },
+    {
+      "type": "Agents::RssAgent",
+      "name": "Security Feed Monitor",
+      "disabled": false,
+      "guid": "security_rss_001",
+      "options": {
+        "expected_update_period_in_days": "1",
+        "clean": true,
+        "url": "https://nvd.nist.gov/feeds/xml/cve/misc/nvd-rss.xml"
+      },
+      "schedule": "every_1h",
+      "keep_events_for": 604800
+    },
+    {
+      "type": "Agents::HttpStatusAgent",
+      "name": "API Health Check",
+      "disabled": false,
+      "guid": "api_health_001",
+      "options": {
+        "url": "https://api.github.com",
+        "headers_to_save": "x-ratelimit-remaining",
+        "expected_receive_period_in_days": "1"
+      },
+      "schedule": "every_10m",
+      "keep_events_for": 86400
+    },
+    {
+      "type": "Agents::JavaScriptAgent",
+      "name": "Alert Aggregator",
+      "disabled": false,
+      "guid": "alert_aggregator_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "language": "JavaScript",
+        "code": "// Aggregate and prioritize alerts\nconst alertType = event.type || 'unknown';\nlet priority = 'normal';\nlet shouldAlert = false;\n\n// Determine priority based on alert type and content\nif (alertType === 'status_change') {\n  if (event.indicator && event.indicator.includes('major')) {\n    priority = 'critical';\n    shouldAlert = true;\n  } else if (event.indicator && event.indicator.includes('minor')) {\n    priority = 'high';\n    shouldAlert = true;\n  }\n} else if (alertType === 'security_alert') {\n  if (event.title && event.title.includes('CRITICAL')) {\n    priority = 'critical';\n    shouldAlert = true;\n  }\n} else if (alertType === 'api_failure') {\n  if (event.status >= 500) {\n    priority = 'high';\n    shouldAlert = true;\n  }\n}\n\n// Store in memory for rate limiting\nmemory.alertCount = (memory.alertCount || 0) + 1;\nmemory.lastAlert = Date.now();\n\n// Rate limit: max 10 alerts per hour\nconst hourAgo = Date.now() - (60 * 60 * 1000);\nif (memory.lastAlert > hourAgo && memory.alertCount > 10) {\n  shouldAlert = false;\n}\n\n// Create aggregated event\nif (shouldAlert) {\n  createEvent({\n    alert_type: alertType,\n    priority: priority,\n    source: event.source || 'monitoring_suite',\n    message: event.message || event.title || 'Alert triggered',\n    details: event,\n    timestamp: new Date().toISOString(),\n    alert_count: memory.alertCount\n  });\n}"
+      },
+      "sources": ["status_monitor_001", "security_rss_001", "api_health_001"],
+      "keep_events_for": 86400
+    },
+    {
+      "type": "Agents::SlackAgent",
+      "name": "Critical Alert Notifier",
+      "disabled": false,
+      "guid": "slack_notifier_001",
+      "options": {
+        "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+        "channel": "#alerts",
+        "username": "Huginn Monitor",
+        "icon": ":warning:",
+        "message": "🚨 {{priority | upcase}} Alert: {{alert_type}}\n\n{{message}}\n\nSource: {{source}}\nTime: {{timestamp}}",
+        "expected_receive_period_in_days": "1"
+      },
+      "sources": ["alert_aggregator_001"],
+      "filters": [
+        {
+          "type": "field==value",
+          "value": "critical",
+          "path": "$.priority"
+        }
+      ],
+      "keep_events_for": 86400
+    },
+    {
+      "type": "Agents::EmailDigestAgent",
+      "name": "Daily Monitoring Report",
+      "disabled": false,
+      "guid": "daily_report_001",
+      "options": {
+        "subject": "Daily Monitoring Report - {{date}}",
+        "headline": "Monitoring Summary for {{date}}",
+        "expected_receive_period_in_days": "1",
+        "message": "Alert Type: {{alert_type}}\nPriority: {{priority}}\nMessage: {{message}}\nTime: {{timestamp}}\n---"
+      },
+      "schedule": "9am",
+      "sources": ["alert_aggregator_001"],
+      "keep_events_for": 604800
+    }
+  ],
+  "links": [
+    {
+      "source": "status_monitor_001",
+      "receiver": "alert_aggregator_001"
+    },
+    {
+      "source": "security_rss_001",
+      "receiver": "alert_aggregator_001"
+    },
+    {
+      "source": "api_health_001",
+      "receiver": "alert_aggregator_001"
+    },
+    {
+      "source": "alert_aggregator_001",
+      "receiver": "slack_notifier_001"
+    },
+    {
+      "source": "alert_aggregator_001",
+      "receiver": "daily_report_001"
+    }
+  ]
+}

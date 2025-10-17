@@ -1,0 +1,250 @@
+{
+  "collections": [
+    {
+      "name": "file_embeddings",
+      "description": "General file content embeddings for semantic search across all file types",
+      "config": {
+        "vectors": {
+          "size": 1536,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_optimization_threads": 2
+        },
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "indexes": [
+        {
+          "field_name": "file_id",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "file_type", 
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "folder_path",
+          "field_schema": "text"
+        },
+        {
+          "field_name": "tags",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "upload_date",
+          "field_schema": "datetime"
+        }
+      ],
+      "aliases": ["files", "content"],
+      "example_point": {
+        "id": 1,
+        "vector": [0.1, 0.2, 0.3],
+        "payload": {
+          "file_id": "uuid-example",
+          "file_type": "document",
+          "folder_path": "/Documents/Reports",
+          "tags": ["report", "quarterly", "business"],
+          "filename": "Q4_Report_2024.pdf",
+          "upload_date": "2024-01-15T10:30:00Z",
+          "content_preview": "This quarterly report shows..."
+        }
+      }
+    },
+    
+    {
+      "name": "image_embeddings",
+      "description": "Visual embeddings for image similarity, object detection, and visual search",
+      "config": {
+        "vectors": {
+          "size": 1536,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_optimization_threads": 2
+        },
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "indexes": [
+        {
+          "field_name": "file_id",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "detected_objects",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "scene_type",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "width",
+          "field_schema": "integer"
+        },
+        {
+          "field_name": "height", 
+          "field_schema": "integer"
+        },
+        {
+          "field_name": "has_faces",
+          "field_schema": "bool"
+        },
+        {
+          "field_name": "upload_date",
+          "field_schema": "datetime"
+        }
+      ],
+      "aliases": ["images", "visual"],
+      "example_point": {
+        "id": 1,
+        "vector": [0.4, 0.5, 0.6],
+        "payload": {
+          "file_id": "uuid-example",
+          "detected_objects": ["person", "car", "building"],
+          "scene_type": "outdoor",
+          "width": 1920,
+          "height": 1080,
+          "has_faces": true,
+          "filename": "vacation_photo.jpg",
+          "description": "A person standing next to a car in front of a building",
+          "upload_date": "2024-01-15T14:22:00Z"
+        }
+      }
+    },
+    
+    {
+      "name": "content_chunks",
+      "description": "Document chunk embeddings for detailed search within large documents",
+      "config": {
+        "vectors": {
+          "size": 1536,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 4,
+          "max_optimization_threads": 2
+        },
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "indexes": [
+        {
+          "field_name": "file_id",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "chunk_type",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "page_number",
+          "field_schema": "integer"
+        },
+        {
+          "field_name": "chunk_index",
+          "field_schema": "integer"
+        },
+        {
+          "field_name": "language",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "document_type",
+          "field_schema": "keyword"
+        }
+      ],
+      "aliases": ["chunks", "documents"],
+      "example_point": {
+        "id": 1,
+        "vector": [0.7, 0.8, 0.9],
+        "payload": {
+          "file_id": "uuid-example",
+          "chunk_index": 0,
+          "chunk_type": "paragraph",
+          "page_number": 1,
+          "content": "This section discusses the quarterly financial results...",
+          "language": "en",
+          "document_type": "report",
+          "start_char": 0,
+          "end_char": 150,
+          "filename": "Q4_Report_2024.pdf"
+        }
+      }
+    }
+  ],
+  
+  "search_templates": {
+    "semantic_file_search": {
+      "description": "Template for semantic search across all files",
+      "collection": "file_embeddings",
+      "default_params": {
+        "limit": 20,
+        "score_threshold": 0.6,
+        "with_payload": true,
+        "with_vectors": false
+      }
+    },
+    
+    "image_similarity": {
+      "description": "Template for finding similar images",
+      "collection": "image_embeddings", 
+      "default_params": {
+        "limit": 10,
+        "score_threshold": 0.7,
+        "with_payload": true,
+        "with_vectors": false
+      }
+    },
+    
+    "document_search": {
+      "description": "Template for searching within document content",
+      "collection": "content_chunks",
+      "default_params": {
+        "limit": 50,
+        "score_threshold": 0.6,
+        "with_payload": true,
+        "with_vectors": false
+      }
+    },
+    
+    "duplicate_detection": {
+      "description": "Template for finding potential duplicates",
+      "collection": "file_embeddings",
+      "default_params": {
+        "limit": 5,
+        "score_threshold": 0.85,
+        "with_payload": true,
+        "with_vectors": false
+      }
+    }
+  },
+  
+  "backup_config": {
+    "enabled": true,
+    "schedule": "0 2 * * *",
+    "retention": "30d",
+    "compression": true
+  },
+  
+  "performance_config": {
+    "indexing": {
+      "segment_size": 100000,
+      "optimizers": {
+        "deleted_threshold": 0.2,
+        "vacuum_min_vector_number": 1000,
+        "default_segment_number": 2
+      }
+    },
+    "search": {
+      "hnsw_ef": 128,
+      "exact_search_threshold": 20000
+    }
+  }
+}

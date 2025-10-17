@@ -1,0 +1,513 @@
+#!/usr/bin/env bash
+# Prompt Manager CLI
+# Command-line interface for managing prompts organized by campaigns
+
+set -eo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/prompt-manager/cli"
+CLI_NAME="prompt-manager"
+VERSION="1.0.0"
+
+# API URL Discovery
+# 1. First check environment variable
+API_URL="${PROMPT_MANAGER_API_URL}"
+
+# 2. If not set, try to discover from lifecycle system
+if [[ -z "$API_URL" ]]; then
+    # Check if API_PORT is set (indicates we're running via lifecycle)
+    if [[ -n "${API_PORT}" ]]; then
+        API_URL="http://localhost:${API_PORT}"
+    fi
+fi
+
+# 3. Try to read from running resources file
+if [[ -z "$API_URL" ]] && [[ -f "${APP_ROOT}/.vrooli/running-resources.json" ]]; then
+    # Try to extract prompt-manager API port from running resources
+    API_PORT_FROM_FILE=$(jq -r '.scenarios["prompt-manager"].ports.api // empty' "${APP_ROOT}/.vrooli/running-resources.json" 2>/dev/null)
+    if [[ -n "$API_PORT_FROM_FILE" ]]; then
+        API_URL="http://localhost:${API_PORT_FROM_FILE}"
+    fi
+fi
+
+# Color codes for better UX
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+MAGENTA='\033[1;35m'
+CYAN='\033[1;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Banner
+show_banner() {
+    echo -e "${CYAN}"
+    cat << 'EOF'
+    ██████╗ ██████╗  ██████╗ ███╗   ███╗██████╗ ████████╗
+    ██╔══██╗██╔══██╗██╔═══██╗████╗ ████║██╔══██╗╚══██╔══╝
+    ██████╔╝██████╔╝██║   ██║██╔████╔██║██████╔╝   ██║   
+    ██╔═══╝ ██╔══██╗██║   ██║██║╚██╔╝██║██╔═══╝    ██║   
+    ██║     ██║  ██║╚██████╔╝██║ ╚═╝ ██║██║        ██║   
+    ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═╝        ╚═╝   
+                                                          
+    ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗██████╗ 
+    ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
+    ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██████╔╝
+    ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██╔══██╗
+    ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║  ██║
+    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
+                                                                   
+          📝 Personal Prompt Storage & Management v${VERSION} 📝
+EOF
+    echo -e "${NC}"
+}
+
+# Utility functions
+error() {
+    echo -e "${RED}❌ Error: $1${NC}" >&2
+    exit 1
+}
+
+success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+info() {
+    echo -e "${CYAN}ℹ️  $1${NC}"
+}
+
+warn() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# API helper functions
+api_get() {
+    local endpoint="$1"
+    curl -sf "${API_URL}${endpoint}" 2>/dev/null || {
+        echo -e "${RED}Failed to connect to API at ${API_URL}${NC}" >&2
+        return 1
+    }
+}
+
+api_post() {
+    local endpoint="$1"
+    local data="$2"
+    curl -sf -X POST -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" 2>/dev/null || {
+        echo -e "${RED}Failed to post to API${NC}" >&2
+        return 1
+    }
+}
+
+api_put() {
+    local endpoint="$1"
+    local data="$2"
+    curl -sf -X PUT -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" 2>/dev/null || {
+        echo -e "${RED}Failed to update via API${NC}" >&2
+        return 1
+    }
+}
+
+api_delete() {
+    local endpoint="$1"
+    curl -sf -X DELETE "${API_URL}${endpoint}" 2>/dev/null || {
+        echo -e "${RED}Failed to delete via API${NC}" >&2
+        return 1
+    }
+}
+
+# Check if API is available
+check_api() {
+    if [[ -z "$API_URL" ]]; then
+        echo -e "${RED}❌ Cannot find Prompt Manager API${NC}" >&2
+        echo -e "${YELLOW}Please ensure the scenario is running:${NC}" >&2
+        echo -e "  ${WHITE}vrooli scenario start prompt-manager${NC}" >&2
+        echo -e "${YELLOW}Or set the API URL manually:${NC}" >&2
+        echo -e "  ${WHITE}export PROMPT_MANAGER_API_URL=http://localhost:<port>${NC}" >&2
+        exit 1
+    fi
+    
+    if ! curl -s "${API_URL}/health" > /dev/null 2>&1; then
+        echo -e "${RED}❌ Prompt Manager API is not responding at ${API_URL}${NC}" >&2
+        echo -e "${YELLOW}Please ensure the scenario is running:${NC}" >&2
+        echo -e "  ${WHITE}vrooli scenario start prompt-manager${NC}" >&2
+        exit 1
+    fi
+}
+
+# Command implementations
+cmd_status() {
+    info "Checking Prompt Manager status..."
+    
+    local health
+    health=$(api_get "/health")
+    
+    if [[ -n "$health" ]]; then
+        success "API is running at ${API_URL}"
+        echo -e "${WHITE}Health Status:${NC}"
+        echo "$health" | jq '.'
+    else
+        error "API is not responding"
+    fi
+}
+
+cmd_campaigns() {
+    local action="${1:-list}"
+    
+    case "$action" in
+        "list"|"ls")
+            info "Fetching campaigns..."
+            check_api
+            
+            local campaigns
+            campaigns=$(api_get "/api/v1/campaigns")
+            
+            if [[ "$campaigns" == "[]" ]]; then
+                warn "No campaigns found"
+                return 0
+            fi
+            
+            echo -e "${WHITE}📁 Your Campaigns:${NC}"
+            echo "$campaigns" | jq -r '.[] | "\(.name) (\(.prompt_count) prompts) - \(.color) \(.icon) - ID: \(.id)"' | while read -r line; do
+                echo -e "${BLUE}  • ${NC}$line"
+            done
+            ;;
+        "create")
+            local name="$2"
+            local description="${3:-}"
+            local color="${4:-#6366f1}"
+            local icon="${5:-folder}"
+            
+            [[ -z "$name" ]] && error "Campaign name required"
+            
+            info "Creating campaign: $name"
+            check_api
+            
+            local request
+            request=$(jq -n --arg name "$name" --arg desc "$description" --arg color "$color" --arg icon "$icon" '{
+                name: $name,
+                description: (if $desc == "" then null else $desc end),
+                color: $color,
+                icon: $icon,
+                is_favorite: false
+            }')
+            
+            local response
+            response=$(api_post "/api/v1/campaigns" "$request")
+            
+            if [[ -n "$response" ]]; then
+                success "Campaign created!"
+                echo "$response" | jq '.'
+            else
+                error "Failed to create campaign"
+            fi
+            ;;
+        *)
+            error "Unknown campaign action: $action. Use 'list' or 'create'"
+            ;;
+    esac
+}
+
+cmd_add() {
+    local title="$1"
+    local campaign="${2:-}"
+    
+    [[ -z "$title" ]] && error "Prompt title required"
+    
+    info "Adding new prompt: $title"
+    
+    # If campaign not specified, show available campaigns
+    if [[ -z "$campaign" ]]; then
+        echo -e "${YELLOW}Available campaigns:${NC}"
+        local campaigns
+        campaigns=$(api_get "/api/v1/campaigns")
+        echo "$campaigns" | jq -r '.[] | "  \(.name) - \(.id)"'
+        read -p "Enter campaign name or ID: " campaign
+    fi
+    
+    # Get campaign ID if name was provided
+    local campaign_id="$campaign"
+    if [[ ! "$campaign" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+        campaign_id=$(api_get "/api/v1/campaigns" | jq -r ".[] | select(.name | test(\"$campaign\"; \"i\")) | .id" | head -1)
+        [[ -z "$campaign_id" ]] && error "Campaign not found: $campaign"
+    fi
+    
+    # Prompt for content
+    echo -e "${CYAN}Enter prompt content (end with Ctrl+D):${NC}"
+    local content
+    content=$(cat)
+    
+    [[ -z "$content" ]] && error "Prompt content required"
+    
+    local request
+    request=$(jq -n --arg title "$title" --arg campaign_id "$campaign_id" --arg content "$content" '{
+        title: $title,
+        campaign_id: $campaign_id,
+        content: $content,
+        variables: [],
+        tags: []
+    }')
+    
+    local response
+    response=$(api_post "/api/v1/prompts" "$request")
+    
+    if [[ -n "$response" ]]; then
+        success "Prompt added!"
+        local prompt_id
+        prompt_id=$(echo "$response" | jq -r '.id')
+        info "Prompt ID: $prompt_id"
+    else
+        error "Failed to add prompt"
+    fi
+}
+
+cmd_list() {
+    local campaign="${1:-}"
+    local filter="${2:-}"
+    
+    check_api
+    
+    local endpoint="/api/v1/prompts"
+    local query_params=""
+    
+    case "$filter" in
+        "favorites"|"fav")
+            query_params="?favorites=true"
+            ;;
+        "recent")
+            query_params="?limit=10"
+            ;;
+    esac
+    
+    if [[ -n "$campaign" ]]; then
+        # Get campaign ID
+        local campaign_id="$campaign"
+        if [[ ! "$campaign" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+            campaign_id=$(api_get "/api/v1/campaigns" | jq -r ".[] | select(.name | test(\"$campaign\"; \"i\")) | .id" | head -1)
+            [[ -z "$campaign_id" ]] && error "Campaign not found: $campaign"
+        fi
+        endpoint="/api/v1/campaigns/$campaign_id/prompts"
+    fi
+    
+    info "Fetching prompts..."
+    local prompts
+    prompts=$(api_get "$endpoint$query_params")
+    
+    if [[ "$prompts" == "[]" ]]; then
+        warn "No prompts found"
+        return 0
+    fi
+    
+    echo -e "${WHITE}📝 Your Prompts:${NC}"
+    echo "$prompts" | jq -r '.[] | "\(.title) - \(.campaign_name // "No Campaign") - Used \(.usage_count) times - ID: \(.id)"' | while read -r line; do
+        echo -e "${GREEN}  • ${NC}$line"
+    done
+}
+
+cmd_search() {
+    local query="$1"
+    [[ -z "$query" ]] && error "Search query required"
+    
+    info "Searching for: $query"
+    check_api
+    
+    local results
+    results=$(api_get "/api/v1/search/prompts?q=$(echo "$query" | jq -R -r @uri)")
+    
+    if [[ "$results" == "[]" ]]; then
+        warn "No prompts found matching: $query"
+        return 0
+    fi
+    
+    echo -e "${WHITE}🔍 Search Results:${NC}"
+    echo "$results" | jq -r '.[] | "\(.title) - \(.campaign_name // "No Campaign") - ID: \(.id)"' | while read -r line; do
+        echo -e "${GREEN}  • ${NC}$line"
+    done
+}
+
+cmd_show() {
+    local prompt_id="$1"
+    [[ -z "$prompt_id" ]] && error "Prompt ID required"
+    
+    info "Fetching prompt details..."
+    check_api
+    
+    local prompt
+    prompt=$(api_get "/api/v1/prompts/$prompt_id")
+    
+    if [[ -z "$prompt" ]] || [[ "$prompt" == "null" ]]; then
+        error "Prompt not found: $prompt_id"
+    fi
+    
+    echo -e "${WHITE}📝 Prompt Details:${NC}"
+    echo -e "${CYAN}Title:${NC} $(echo "$prompt" | jq -r '.title')"
+    echo -e "${CYAN}Campaign:${NC} $(echo "$prompt" | jq -r '.campaign_name // "No Campaign"')"
+    echo -e "${CYAN}Description:${NC} $(echo "$prompt" | jq -r '.description // "No description"')"
+    echo -e "${CYAN}Usage Count:${NC} $(echo "$prompt" | jq -r '.usage_count')"
+    echo -e "${CYAN}Rating:${NC} $(echo "$prompt" | jq -r '.effectiveness_rating // "No rating"')/5"
+    echo -e "${CYAN}Word Count:${NC} $(echo "$prompt" | jq -r '.word_count // "Unknown"')"
+    echo -e "${CYAN}Est. Tokens:${NC} $(echo "$prompt" | jq -r '.estimated_tokens // "Unknown"')"
+    echo -e "${CYAN}Favorite:${NC} $(echo "$prompt" | jq -r '.is_favorite')"
+    echo -e "${CYAN}Created:${NC} $(echo "$prompt" | jq -r '.created_at')"
+    echo -e "${CYAN}Last Used:${NC} $(echo "$prompt" | jq -r '.last_used // "Never"')"
+    echo -e "${CYAN}ID:${NC} $(echo "$prompt" | jq -r '.id')"
+    
+    local tags
+    tags=$(echo "$prompt" | jq -r '.tags // [] | join(", ")')
+    if [[ -n "$tags" ]]; then
+        echo -e "${CYAN}Tags:${NC} $tags"
+    fi
+    
+    local content
+    content=$(echo "$prompt" | jq -r '.content')
+    if [[ "$content" != "null" ]] && [[ -n "$content" ]]; then
+        echo -e "\n${YELLOW}Content:${NC}"
+        echo "$content"
+    fi
+    
+    local notes
+    notes=$(echo "$prompt" | jq -r '.notes // empty')
+    if [[ -n "$notes" ]]; then
+        echo -e "\n${YELLOW}Notes:${NC}"
+        echo "$notes"
+    fi
+}
+
+cmd_use() {
+    local prompt_id="$1"
+    [[ -z "$prompt_id" ]] && error "Prompt ID required"
+    
+    info "Recording usage for prompt: $prompt_id"
+    check_api
+    
+    # Record usage
+    api_post "/api/v1/prompts/$prompt_id/use" "{}" > /dev/null
+    
+    # Get and display the prompt
+    local prompt
+    prompt=$(api_get "/api/v1/prompts/$prompt_id")
+    
+    if [[ -n "$prompt" ]]; then
+        success "Usage recorded!"
+        echo -e "\n${YELLOW}Prompt Content:${NC}"
+        echo "$prompt" | jq -r '.content'
+        
+        # Copy to clipboard if available
+        if command -v pbcopy >/dev/null 2>&1; then
+            echo "$prompt" | jq -r '.content' | pbcopy
+            info "Content copied to clipboard (macOS)"
+        elif command -v xclip >/dev/null 2>&1; then
+            echo "$prompt" | jq -r '.content' | xclip -selection clipboard
+            info "Content copied to clipboard (Linux)"
+        elif command -v wl-copy >/dev/null 2>&1; then
+            echo "$prompt" | jq -r '.content' | wl-copy
+            info "Content copied to clipboard (Wayland)"
+        fi
+    else
+        error "Failed to retrieve prompt"
+    fi
+}
+
+cmd_favorite() {
+    local prompt_id="$1"
+    local action="${2:-toggle}"
+    
+    [[ -z "$prompt_id" ]] && error "Prompt ID required"
+    
+    # This would require implementing the update endpoint
+    warn "Favorite functionality requires API update endpoint (not yet implemented)"
+}
+
+cmd_quick() {
+    local key="$1"
+    [[ -z "$key" ]] && error "Quick access key required"
+    
+    info "Fetching prompt by quick key: $key"
+    check_api
+    
+    local prompt
+    prompt=$(api_get "/api/v1/prompts/quick/$key")
+    
+    if [[ -n "$prompt" ]] && [[ "$prompt" != "null" ]]; then
+        echo -e "${YELLOW}Quick Prompt:${NC}"
+        echo "$prompt" | jq -r '.content'
+    else
+        error "No prompt found with quick key: $key"
+    fi
+}
+
+cmd_help() {
+    show_banner
+    echo -e "${WHITE}Usage: $CLI_NAME <command> [arguments]${NC}"
+    echo
+    echo -e "${CYAN}Commands:${NC}"
+    echo -e "  ${GREEN}status${NC}                         Check API and service status"
+    echo -e "  ${GREEN}campaigns${NC} [list|create]        Manage campaigns"
+    echo -e "  ${GREEN}add${NC} <title> [campaign]         Add new prompt"
+    echo -e "  ${GREEN}list${NC} [campaign] [filter]       List prompts (filter: favorites, recent)"
+    echo -e "  ${GREEN}search${NC} <query>                 Search prompts by content/title"
+    echo -e "  ${GREEN}show${NC} <prompt-id>               Show detailed prompt information"
+    echo -e "  ${GREEN}use${NC} <prompt-id>                Record usage and display prompt"
+    echo -e "  ${GREEN}quick${NC} <key>                     Get prompt by quick access key"
+    echo -e "  ${GREEN}favorite${NC} <prompt-id>            Toggle prompt favorite status"
+    echo -e "  ${GREEN}help${NC}                           Show this help message"
+    echo
+    echo -e "${CYAN}Examples:${NC}"
+    echo -e "  $CLI_NAME campaigns create \"Debugging\" \"SQL and code debugging prompts\""
+    echo -e "  $CLI_NAME add \"Debug SQL Performance\" debugging"
+    echo -e "  $CLI_NAME list debugging favorites"
+    echo -e "  $CLI_NAME search \"user interface\""
+    echo -e "  $CLI_NAME use 123e4567-e89b-12d3-a456-426614174000"
+    echo
+    echo -e "${CYAN}Environment Variables:${NC}"
+    echo -e "  ${YELLOW}PROMPT_MANAGER_API_URL${NC}    API base URL (required)"
+    echo
+    echo -e "${MAGENTA}📝 Happy Prompting! 📝${NC}"
+}
+
+# Main command dispatch
+main() {
+    local command="${1:-help}"
+    
+    case "$command" in
+        "status")
+            cmd_status
+            ;;
+        "campaigns"|"camp")
+            cmd_campaigns "${2:-list}" "${3:-}" "${4:-}" "${5:-}" "${6:-}"
+            ;;
+        "add"|"create")
+            cmd_add "${2:-}" "${3:-}"
+            ;;
+        "list"|"ls")
+            cmd_list "${2:-}" "${3:-}"
+            ;;
+        "search"|"find")
+            cmd_search "${2:-}"
+            ;;
+        "show"|"details"|"get")
+            cmd_show "${2:-}"
+            ;;
+        "use"|"copy")
+            cmd_use "${2:-}"
+            ;;
+        "quick"|"q")
+            cmd_quick "${2:-}"
+            ;;
+        "favorite"|"fav")
+            cmd_favorite "${2:-}" "${3:-}"
+            ;;
+        "help"|"--help"|"-h")
+            cmd_help
+            ;;
+        "version"|"--version")
+            echo "$CLI_NAME version $VERSION"
+            ;;
+        *)
+            error "Unknown command: $command. Run '$CLI_NAME help' for usage."
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

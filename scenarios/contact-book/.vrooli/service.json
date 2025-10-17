@@ -1,0 +1,218 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "contact-book",
+    "displayName": "Contact Book",
+    "description": "Social intelligence engine that stores and queries contact information, relationships, and social context for use by other scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "social-intelligence",
+      "contact-management",
+      "relationship-graph",
+      "cross-scenario-foundation",
+      "social-orchestration",
+      "relationship-analytics",
+      "go-api",
+      "postgres-storage",
+      "qdrant-vectors",
+      "minio-storage",
+      "redis-cache",
+      "graph-analysis",
+      "privacy-first",
+      "consent-management",
+      "compound-intelligence"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Contact Book API port for social intelligence services",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Primary storage for persons, relationships, organizations, consent flags, and communication metadata",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for semantic search of contacts, affinity matching, and interest-based relationship discovery"
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": false,
+      "purpose": "Storage for contact photos, documents, and attachment files"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Caching for frequently accessed contacts, computed closeness scores, and session data"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Contact Book health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "query": "SELECT COUNT(*) FROM persons",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Contact Book with database schema and embeddings",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "contact-book-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["contact-book"]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o contact-book-api .",
+          "description": "Build Go API server binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize PostgreSQL schema and seed data"
+        },
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate embeddings for semantic contact search"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Contact Book initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: contact-book --help\\n  Database: PostgreSQL ready\\n  Search: Qdrant ready'",
+          "description": "Display service access information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Contact Book API server",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./contact-book-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/contact-book-api"
+           }
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Contact Book running:\\n  API: http://localhost:$API_PORT\\n  CLI: contact-book --help\\n  Health: http://localhost:$API_PORT/health'",
+           "description": "Display running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Contact Book API, CLI, and database integration",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-contacts-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/contacts",
+          "description": "Test contacts API endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats contact-book.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/contact-book.bats"
+          }
+        },
+        {
+          "name": "test-database-integration",
+          "run": "bash test/test-database-integration.sh",
+          "description": "Test database schema and operations"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Contact Book services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"contact-book-api\" || true; sleep 1; pkill -9 -f \"contact-book-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

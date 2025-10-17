@@ -1,0 +1,66 @@
+{
+  "name": "virustotal",
+  "version": "1.0.0",
+  "description": "Multi-engine threat intelligence and malware scanning service",
+  "category": "security",
+  "startup_order": 800,
+  "dependencies": [],
+  "optional_dependencies": ["redis", "postgres"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "10-30s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "stability": "stable",
+  "resource_requirements": {
+    "cpu": "0.5",
+    "memory": "512Mi",
+    "disk": "1Gi"
+  },
+  "health_check": {
+    "endpoint": "/api/health",
+    "interval": 30,
+    "timeout": 3,
+    "retries": 3
+  },
+  "capabilities": [
+    "file-scanning",
+    "url-analysis",
+    "hash-lookup",
+    "threat-intelligence",
+    "malware-detection",
+    "reputation-checking"
+  ],
+  "configuration": {
+    "required": ["VIRUSTOTAL_API_KEY"],
+    "optional": [
+      "VIRUSTOTAL_PORT",
+      "VIRUSTOTAL_API_TIER",
+      "VIRUSTOTAL_CACHE_ENABLED",
+      "VIRUSTOTAL_WEBHOOK_URL"
+    ]
+  },
+  "api": {
+    "type": "rest",
+    "port": 8290,
+    "authentication": "api-key",
+    "rate_limiting": true,
+    "documentation": "/api/docs"
+  },
+  "integration_points": [
+    "scenarios/secure-document-processing",
+    "scenarios/threat-analyzer",
+    "scenarios/incident-response",
+    "resources/owasp-zap"
+  ],
+  "monitoring": {
+    "metrics_enabled": true,
+    "metrics_port": 9290,
+    "log_level": "INFO"
+  },
+  "lifecycle_hooks": {
+    "pre_start": null,
+    "post_start": "wait_for_health",
+    "pre_stop": "graceful_shutdown",
+    "post_stop": null
+  }
+}

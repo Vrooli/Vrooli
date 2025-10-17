@@ -1,0 +1,485 @@
+{
+  "name": "ReAct Loop Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent/react",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for ReAct Loop\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.task) {\n  throw new Error('Missing required field: task');\n}\n\n// Extract and validate inputs\nconst task = input.task.trim();\nif (task.length === 0) {\n  throw new Error('Task field cannot be empty');\n}\n\nif (task.length > 10000) {\n  throw new Error('Task exceeds maximum length of 10000 characters');\n}\n\n// Configuration with defaults\nconst toolsAvailable = input.tools_available || [];\nconst toolDefinitions = input.tool_definitions || {};\nconst maxIterations = Math.min(Math.max(input.max_iterations || 5, 1), 15);\nconst model = input.model || 'llama3.2';\nconst temperature = Math.min(Math.max(input.temperature || 0.7, 0.0), 2.0);\n\n// Validate tools\nif (toolsAvailable.length === 0) {\n  throw new Error('At least one tool must be available');\n}\n\n// Prepare tool registry - map tool names to their definitions\nconst toolRegistry = {};\nfor (const toolName of toolsAvailable) {\n  if (toolDefinitions[toolName]) {\n    toolRegistry[toolName] = toolDefinitions[toolName];\n  } else {\n    // Default tool definitions for common tools\n    switch(toolName) {\n      case 'web_search':\n        toolRegistry[toolName] = {\n          description: 'Search the web for information',\n          parameters: {\n            query: 'string - search query',\n            max_results: 'number - maximum results to return (default: 5)'\n          }\n        };\n        break;\n      case 'calculator':\n        toolRegistry[toolName] = {\n          description: 'Perform mathematical calculations',\n          parameters: {\n            expression: 'string - mathematical expression to evaluate'\n          }\n        };\n        break;\n      case 'file_reader':\n        toolRegistry[toolName] = {\n          description: 'Read contents of a file',\n          parameters: {\n            file_path: 'string - path to the file to read'\n          }\n        };\n        break;\n      case 'code_executor':\n        toolRegistry[toolName] = {\n          description: 'Execute code in various languages',\n          parameters: {\n            language: 'string - programming language (python, javascript, bash)',\n            code: 'string - code to execute'\n          }\n        };\n        break;\n      case 'data_analyzer':\n        toolRegistry[toolName] = {\n          description: 'Analyze structured data and generate insights',\n          parameters: {\n            data: 'object - data to analyze',\n            analysis_type: 'string - type of analysis (statistical, trend, pattern)'\n          }\n        };\n        break;\n      case 'text_processor':\n        toolRegistry[toolName] = {\n          description: 'Process and transform text content',\n          parameters: {\n            text: 'string - text to process',\n            operation: 'string - operation (summarize, extract, translate, format)'\n          }\n        };\n        break;\n      default:\n        toolRegistry[toolName] = {\n          description: `Generic tool: ${toolName}`,\n          parameters: {\n            input: 'any - tool input data'\n          }\n        };\n    }\n  }\n}\n\n// Prepare initial state\nconst initialState = {\n  task: task,\n  tool_registry: toolRegistry,\n  max_iterations: maxIterations,\n  model: model,\n  temperature: temperature,\n  iteration_count: 0,\n  reasoning_trace: [],\n  tool_calls: [],\n  observations: [],\n  task_complete: false,\n  final_result: null,\n  processing_start: new Date().toISOString()\n};\n\nreturn initialState;"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if we should continue the ReAct loop\nconst state = $input.item.json;\n\n// Continue if:\n// 1. Task is not complete\n// 2. Haven't exceeded max iterations\n// 3. No fatal errors occurred\nconst shouldContinue = !state.task_complete && \n                      state.iteration_count < state.max_iterations &&\n                      !state.fatal_error;\n\nif (shouldContinue) {\n  // Increment iteration count\n  state.iteration_count += 1;\n  \n  // Prepare reasoning prompt\n  const toolDescriptions = Object.entries(state.tool_registry)\n    .map(([name, def]) => `${name}: ${def.description}\\n  Parameters: ${JSON.stringify(def.parameters, null, 2)}`)\n    .join('\\n\\n');\n  \n  const previousContext = state.iteration_count > 1 ? \n    `\\n\\nPrevious reasoning and observations:\\n${state.reasoning_trace.slice(-3).join('\\n\\n')}\\n\\nPrevious tool calls:\\n${state.tool_calls.slice(-3).map(tc => `${tc.tool}: ${JSON.stringify(tc.parameters)}`).join('\\n')}\\n\\nPrevious observations:\\n${state.observations.slice(-3).join('\\n\\n')}` : '';\n  \n  const reasoningPrompt = `You are an AI agent following the ReAct (Reasoning + Acting) pattern. Your task is to complete the following objective by reasoning about what to do next and then taking actions using available tools.\n\nTask: ${state.task}\n\nIteration: ${state.iteration_count}/${state.max_iterations}\n\nAvailable Tools:\n${toolDescriptions}\n\n${previousContext}\n\nInstructions:\n1. Think step-by-step about what you need to do to complete the task\n2. Decide if you need to use a tool or if you can provide a final answer\n3. If using a tool, choose the most appropriate one and specify the parameters\n4. If the task is complete, provide a final answer\n\nRespond in the following JSON format:\n{\n  \"reasoning\": \"Your step-by-step reasoning about what to do next\",\n  \"action_type\": \"tool_use\" or \"final_answer\",\n  \"tool_name\": \"name_of_tool_to_use\" (if action_type is \"tool_use\"),\n  \"tool_parameters\": {\"param1\": \"value1\"} (if action_type is \"tool_use\"),\n  \"final_answer\": \"Your final answer\" (if action_type is \"final_answer\"),\n  \"confidence\": 0.85\n}`;\n  \n  state.current_reasoning_prompt = reasoningPrompt;\n  return state;\n} else {\n  // Loop should end\n  state.should_end_loop = true;\n  return state;\n}"
+      },
+      "id": "check_loop_condition",
+      "name": "Check Loop Condition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.should_end_loop }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "continue_loop_check",
+      "name": "Continue Loop?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.current_reasoning_prompt) }},\n  \"model\": {{ JSON.stringify($json.model) }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 60\n}",
+        "options": {
+          "timeout": 65000
+        }
+      },
+      "id": "llm_reasoning",
+      "name": "LLM Reasoning",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process LLM reasoning response from Universal Ollama Executor\nconst llmResponse = $input.item.json;\nconst state = $('Check Loop Condition').item.json;\n\nlet reasoningResult;\ntry {\n  // Extract response text\n  const responseText = llmResponse.response || llmResponse.text || '';\n  \n  // Try to parse JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    reasoningResult = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('No JSON found in LLM response');\n  }\n} catch (error) {\n  // Fallback parsing if JSON extraction fails\n  console.warn('LLM response parsing failed:', error.message);\n  const responseText = llmResponse.response || llmResponse.text || '';\n  \n  // Try to extract action from text\n  if (responseText.toLowerCase().includes('final answer') || responseText.toLowerCase().includes('task complete')) {\n    reasoningResult = {\n      reasoning: responseText,\n      action_type: 'final_answer',\n      final_answer: responseText,\n      confidence: 0.5\n    };\n  } else {\n    reasoningResult = {\n      reasoning: responseText,\n      action_type: 'tool_use',\n      tool_name: 'text_processor',\n      tool_parameters: { text: responseText, operation: 'process' },\n      confidence: 0.3\n    };\n  }\n}\n\n// Validate reasoning result\nif (!reasoningResult.reasoning) {\n  reasoningResult.reasoning = 'LLM reasoning not available';\n}\nif (!reasoningResult.action_type) {\n  reasoningResult.action_type = 'final_answer';\n  reasoningResult.final_answer = 'Unable to determine next action';\n}\nif (typeof reasoningResult.confidence !== 'number') {\n  reasoningResult.confidence = 0.5;\n}\n\n// Add reasoning to trace\nstate.reasoning_trace.push(`Iteration ${state.iteration_count}: ${reasoningResult.reasoning}`);\n\n// Update state with reasoning result\nstate.current_reasoning = reasoningResult;\n\nreturn state;"
+      },
+      "id": "process_reasoning",
+      "name": "Process Reasoning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.current_reasoning.action_type }}",
+              "value2": "tool_use"
+            }
+          ]
+        }
+      },
+      "id": "action_type_check",
+      "name": "Action Type Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Execute the chosen tool\nconst state = $input.item.json;\nconst reasoning = state.current_reasoning;\n\nconst toolName = reasoning.tool_name;\nconst toolParams = reasoning.tool_parameters || {};\n\n// Simulate tool execution based on tool type\n// In a real implementation, these would call actual tool APIs\nlet toolResult;\nlet executionTime = Math.floor(Math.random() * 2000) + 500; // 500-2500ms\n\ntry {\n  switch(toolName) {\n    case 'web_search':\n      toolResult = {\n        success: true,\n        results: [\n          {\n            title: `Search result for: ${toolParams.query || 'default query'}`,\n            url: 'https://example.com/result1',\n            snippet: `This is a simulated search result for the query: ${toolParams.query || 'default query'}. In a real implementation, this would be actual web search results.`\n          },\n          {\n            title: `Related information about: ${toolParams.query || 'default query'}`,\n            url: 'https://example.com/result2', \n            snippet: 'Additional context and information relevant to the search query would appear here.'\n          }\n        ],\n        query: toolParams.query,\n        total_results: toolParams.max_results || 5\n      };\n      break;\n      \n    case 'calculator':\n      try {\n        // Simple expression evaluation (limited for security)\n        const expr = toolParams.expression || '0';\n        const sanitized = expr.replace(/[^0-9+\\-*/()\\s.]/g, '');\n        const result = Function('\"use strict\"; return (' + sanitized + ')')();\n        toolResult = {\n          success: true,\n          expression: expr,\n          result: result,\n          type: 'number'\n        };\n      } catch (calcError) {\n        toolResult = {\n          success: false,\n          error: 'Invalid mathematical expression',\n          expression: toolParams.expression\n        };\n      }\n      break;\n      \n    case 'file_reader':\n      toolResult = {\n        success: true,\n        file_path: toolParams.file_path || '/default/path',\n        content: `Simulated file content for: ${toolParams.file_path || '/default/path'}\\n\\nThis would contain the actual file contents in a real implementation.`,\n        size_bytes: 1024,\n        last_modified: new Date().toISOString()\n      };\n      break;\n      \n    case 'code_executor':\n      toolResult = {\n        success: true,\n        language: toolParams.language || 'python',\n        code: toolParams.code || 'print(\"Hello World\")',\n        output: `Simulated execution output for ${toolParams.language || 'python'} code.\\nIn a real implementation, this would execute the code safely.`,\n        execution_time_ms: executionTime\n      };\n      break;\n      \n    case 'data_analyzer':\n      toolResult = {\n        success: true,\n        analysis_type: toolParams.analysis_type || 'statistical',\n        insights: [\n          'Key insight 1: Data shows positive trend',\n          'Key insight 2: Notable pattern detected',\n          'Key insight 3: Anomaly identified in subset'\n        ],\n        metrics: {\n          data_points: 150,\n          confidence: 0.87,\n          accuracy: 0.92\n        }\n      };\n      break;\n      \n    case 'text_processor':\n      const operation = toolParams.operation || 'process';\n      const text = toolParams.text || 'default text';\n      toolResult = {\n        success: true,\n        operation: operation,\n        input_text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),\n        processed_text: `Processed result for ${operation} operation on provided text.`,\n        word_count: text.split(' ').length,\n        processing_time_ms: executionTime\n      };\n      break;\n      \n    default:\n      // Generic tool execution\n      toolResult = {\n        success: true,\n        tool: toolName,\n        parameters: toolParams,\n        result: `Simulated execution of ${toolName} with provided parameters.`,\n        execution_time_ms: executionTime\n      };\n  }\n  \n  // Record the tool call\n  state.tool_calls.push({\n    iteration: state.iteration_count,\n    tool: toolName,\n    parameters: toolParams,\n    result: toolResult,\n    timestamp: new Date().toISOString(),\n    execution_time_ms: executionTime\n  });\n  \n  // Create observation from tool result\n  const observation = `Tool ${toolName} executed successfully. Result: ${JSON.stringify(toolResult, null, 2)}`;\n  state.observations.push(observation);\n  \n  state.current_tool_result = toolResult;\n  state.current_observation = observation;\n  \n} catch (error) {\n  // Handle tool execution error\n  const errorResult = {\n    success: false,\n    error: error.message,\n    tool: toolName,\n    parameters: toolParams\n  };\n  \n  state.tool_calls.push({\n    iteration: state.iteration_count,\n    tool: toolName,\n    parameters: toolParams,\n    result: errorResult,\n    timestamp: new Date().toISOString(),\n    error: true\n  });\n  \n  const observation = `Tool ${toolName} failed with error: ${error.message}`;\n  state.observations.push(observation);\n  \n  state.current_tool_result = errorResult;\n  state.current_observation = observation;\n}\n\nreturn state;"
+      },
+      "id": "execute_tool",
+      "name": "Execute Tool",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle final answer case\nconst state = $input.item.json;\nconst reasoning = state.current_reasoning;\n\n// Mark task as complete\nstate.task_complete = true;\nstate.final_result = reasoning.final_answer || 'Task completed';\n\n// Add final reasoning to trace\nstate.reasoning_trace.push(`Final Answer (Iteration ${state.iteration_count}): ${reasoning.final_answer || 'Task completed'}`);\n\n// Create final observation\nconst finalObservation = `Task completed with final answer: ${state.final_result}`;\nstate.observations.push(finalObservation);\n\nreturn state;"
+      },
+      "id": "handle_final_answer",
+      "name": "Handle Final Answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Merge paths and continue loop or finalize\nconst state = $input.item.json;\n\n// If we just executed a tool, continue the loop\nif (state.current_tool_result) {\n  // Reset the should_end_loop flag to continue\n  state.should_end_loop = false;\n}\n\n// Check if we should end based on task completion or max iterations\nif (state.task_complete || state.iteration_count >= state.max_iterations) {\n  state.should_end_loop = true;\n}\n\nreturn state;"
+      },
+      "id": "merge_paths",
+      "name": "Merge Paths",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.should_end_loop }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "loop_back_check",
+      "name": "Loop Back?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build final response\nconst state = $input.item.json;\n\n// Calculate total processing time\nconst processingEnd = new Date();\nconst processingStart = new Date(state.processing_start);\nconst totalProcessingTime = processingEnd - processingStart;\n\n// Determine success status\nconst success = state.task_complete || state.final_result;\nconst completionReason = state.task_complete ? 'task_completed' : \n                        state.iteration_count >= state.max_iterations ? 'max_iterations_reached' : \n                        'unknown';\n\n// Build comprehensive response\nconst response = {\n  meta: {\n    success: success,\n    task: state.task,\n    completion_reason: completionReason,\n    iterations_completed: state.iteration_count,\n    max_iterations: state.max_iterations,\n    processing_time_ms: totalProcessingTime,\n    tools_available: Object.keys(state.tool_registry),\n    model_used: state.model,\n    temperature: state.temperature\n  },\n  \n  result: {\n    final_answer: state.final_result || (state.reasoning_trace.length > 0 ? \n      state.reasoning_trace[state.reasoning_trace.length - 1] : \n      'No result available'),\n    confidence: state.current_reasoning?.confidence || 0.5,\n    reasoning_complete: state.task_complete\n  },\n  \n  execution_trace: {\n    reasoning_steps: state.reasoning_trace,\n    tool_calls: state.tool_calls.map(tc => ({\n      iteration: tc.iteration,\n      tool: tc.tool,\n      parameters: tc.parameters,\n      success: tc.result?.success !== false,\n      execution_time_ms: tc.execution_time_ms || 0,\n      timestamp: tc.timestamp\n    })),\n    observations: state.observations,\n    total_tool_calls: state.tool_calls.length\n  },\n  \n  performance_metrics: {\n    avg_iteration_time_ms: state.iteration_count > 0 ? Math.round(totalProcessingTime / state.iteration_count) : 0,\n    tool_success_rate: state.tool_calls.length > 0 ? \n      state.tool_calls.filter(tc => tc.result?.success !== false).length / state.tool_calls.length : 1.0,\n    reasoning_depth: state.reasoning_trace.length,\n    efficiency_score: state.task_complete ? \n      Math.max(0.1, Math.min(1.0, (state.max_iterations - state.iteration_count + 1) / state.max_iterations)) : \n      0.5\n  },\n  \n  debug_info: {\n    iteration_breakdown: state.tool_calls.map(tc => ({\n      iteration: tc.iteration,\n      tool: tc.tool,\n      duration_ms: tc.execution_time_ms,\n      result_summary: tc.result?.success ? 'success' : 'failed'\n    })),\n    reasoning_quality: {\n      avg_confidence: state.reasoning_trace.length > 0 ? \n        (state.current_reasoning?.confidence || 0.5) : 0.5,\n      reasoning_coherence: state.reasoning_trace.length >= 2 ? 0.8 : 0.6\n    },\n    resource_usage: {\n      memory_efficient: true,\n      api_calls_made: state.iteration_count + state.tool_calls.length,\n      cache_hits: 0\n    }\n  }\n};\n\nreturn response;"
+      },
+      "id": "build_final_response",
+      "name": "Build Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'ReAct Loop Engine failed' }}\",\n  \"meta\": {\n    \"task\": \"{{ $json.task || 'unknown' }}\",\n    \"iterations_completed\": \"={{ $json.iteration_count || 0 }}\",\n    \"processing_time_ms\": \"={{ Date.now() }}\",\n    \"failure_point\": \"preprocessing\"\n  },\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 500]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.task) {\n  return {\n    task: \"Research the top 3 programming languages for web development in 2024\",\n    max_iterations: 5,\n    tools: [\"web_search\", \"reasoning\"],\n    verbose: true\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "ReAct Loop Engine Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2650, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Check Loop Condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Loop Condition": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop?": {
+      "main": [
+        [
+          {
+            "node": "LLM Reasoning",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Reasoning": {
+      "main": [
+        [
+          {
+            "node": "Process Reasoning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Reasoning": {
+      "main": [
+        [
+          {
+            "node": "Action Type Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Type Check": {
+      "main": [
+        [
+          {
+            "node": "Execute Tool",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Final Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Tool": {
+      "main": [
+        [
+          {
+            "node": "Merge Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Final Answer": {
+      "main": [
+        [
+          {
+            "node": "Merge Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Paths": {
+      "main": [
+        [
+          {
+            "node": "Loop Back?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Back?": {
+      "main": [
+        [
+          {
+            "node": "Check Loop Condition",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Response": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "react-loop-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "react-loop-engine",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "ai-agents",
+      "name": "ai-agents"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "react-pattern",
+      "name": "react-pattern"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "autonomous-agents",
+      "name": "autonomous-agents"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    }
+  ]
+}

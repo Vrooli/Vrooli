@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  vault:
+    image: hashicorp/vault:1.17
+    container_name: vault
+    restart: unless-stopped
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    environment:
+      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_API_ADDR: "http://localhost:${VAULT_PORT:-8200}"
+      VAULT_DEV_ROOT_TOKEN_ID: "${VAULT_DEV_ROOT_TOKEN_ID:-myroot}"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    volumes:
+      - vault_data:/vault/data:Z
+      - vault_config:/vault/config:Z
+      - vault_logs:/vault/logs:Z
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - vault-network
+    command: >
+      sh -c '
+        if [ "${VAULT_MODE:-dev}" = "dev" ]; then
+          vault server -dev -config=/vault/config
+        else
+          vault server -config=/vault/config
+        fi
+      '
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8200/v1/sys/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  vault_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${VAULT_DATA_DIR:-$HOME/.vault/data}"
+  vault_config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${VAULT_CONFIG_DIR:-$HOME/.vault/config}"
+  vault_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${VAULT_LOGS_DIR:-$HOME/.vault/logs}"
+
+networks:
+  vault-network:
+    driver: bridge

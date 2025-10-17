@@ -1,0 +1,218 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "app-personalizer",
+    "displayName": "App Personalizer",
+    "description": "Customize generated apps using prompts or digital twins for personalized experiences",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "business",
+      "personalization",
+      "customization",
+      "app-modification",
+      "digital-twin",
+      "branding",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "minio-storage",
+      "ollama-ai"
+    ]
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/personalization-pipeline.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "codellama"
+      ]
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": false,
+      "purpose": "modify app code based on personalization requirements"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "app personalization metadata and configurations",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": false,
+      "purpose": "app versions and modification history storage"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Personalization API port",
+      "range": "15000-19999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "App Personalizer health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize App Personalizer",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "app-personalizer-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "app-personalizer"
+             ]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o app-personalizer-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start App Personalizer with Go API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./app-personalizer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-personalizer-api"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
+           "description": "Display service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test App Personalizer Go API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-apps-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/apps",
+          "description": "Test API apps endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats app-personalizer.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/app-personalizer.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"app-personalizer-api\" || true; sleep 1; pkill -9 -f \"app-personalizer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

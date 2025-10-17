@@ -1,0 +1,168 @@
+{
+  "agent_presets": {
+    "drift_detector": {
+      "name": "Documentation Drift Detector",
+      "description": "Detects when documentation diverges from code implementation using semantic analysis",
+      "default_schedule": "0 */6 * * *",
+      "estimated_execution_time": "5-15 minutes",
+      "resource_requirements": ["ollama", "qdrant", "postgres"],
+      "config": {
+        "scan_patterns": ["*.md", "*.mdx", "*.rst", "docs/**/*"],
+        "code_patterns": ["*.ts", "*.tsx", "*.js", "*.jsx", "*.py", "*.java"],
+        "drift_threshold": 0.3,
+        "semantic_analysis": true,
+        "ignore_patterns": ["node_modules/**", "dist/**", "build/**"],
+        "api_endpoint_check": true,
+        "function_signature_check": true,
+        "confidence_threshold": 0.7
+      }
+    },
+    "link_validator": {
+      "name": "Link Validator",
+      "description": "Comprehensive link validation with retry logic and detailed reporting",
+      "default_schedule": "0 2 * * *",
+      "estimated_execution_time": "10-30 minutes",
+      "resource_requirements": ["postgres"],
+      "config": {
+        "check_external": true,
+        "check_internal": true,
+        "check_anchors": true,
+        "check_images": true,
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_delay_ms": 1000,
+        "ignore_patterns": ["localhost", "127.0.0.1", "example.com", "test.com"],
+        "follow_redirects": true,
+        "max_redirects": 5,
+        "user_agent": "Documentation-Manager-Bot/1.0",
+        "parallel_checks": 10
+      }
+    },
+    "organization_analyzer": {
+      "name": "Documentation Organization Analyzer",
+      "description": "Analyzes and suggests improvements to documentation structure and organization",
+      "default_schedule": "0 0 * * 1",
+      "estimated_execution_time": "15-45 minutes",
+      "resource_requirements": ["ollama", "qdrant", "postgres"],
+      "config": {
+        "max_depth": 5,
+        "ideal_sections": ["Overview", "Installation", "Quick Start", "Usage", "API Reference", "Examples", "FAQ", "Troubleshooting"],
+        "check_navigation": true,
+        "suggest_toc": true,
+        "detect_duplicates": true,
+        "cross_reference_check": true,
+        "heading_consistency_check": true,
+        "min_section_length": 50
+      }
+    },
+    "coverage_checker": {
+      "name": "Documentation Coverage Checker",
+      "description": "Identifies undocumented code, missing examples, and coverage gaps",
+      "default_schedule": "0 0 * * *",
+      "estimated_execution_time": "20-60 minutes",
+      "resource_requirements": ["ollama", "unstructured_io", "postgres"],
+      "config": {
+        "min_coverage": 80,
+        "check_functions": true,
+        "check_classes": true,
+        "check_modules": true,
+        "check_exports": true,
+        "ignore_private": true,
+        "ignore_test_files": true,
+        "generate_stubs": false,
+        "check_examples": true,
+        "check_config_docs": true
+      }
+    },
+    "meta_optimizer": {
+      "name": "Meta Agent Optimizer",
+      "description": "Monitors other agents and suggests system-wide optimizations",
+      "default_schedule": "0 0 * * 0",
+      "estimated_execution_time": "30-90 minutes",
+      "resource_requirements": ["ollama", "postgres", "redis"],
+      "config": {
+        "analyze_performance": true,
+        "suggest_new_agents": true,
+        "remove_inactive": true,
+        "performance_window_days": 30,
+        "min_suggestion_threshold": 0.7,
+        "schedule_optimization": true,
+        "resource_usage_analysis": true,
+        "cost_benefit_analysis": true
+      }
+    },
+    "style_consistency": {
+      "name": "Style Consistency Checker",
+      "description": "Ensures consistent writing style, tone, and formatting across documentation",
+      "default_schedule": "0 4 * * 2",
+      "estimated_execution_time": "10-30 minutes",
+      "resource_requirements": ["ollama", "postgres"],
+      "config": {
+        "check_tone": true,
+        "check_terminology": true,
+        "check_formatting": true,
+        "style_guide_url": null,
+        "brand_terms": [],
+        "preferred_spellings": {},
+        "max_sentence_length": 25,
+        "readability_target": "grade_8"
+      }
+    },
+    "accessibility_checker": {
+      "name": "Accessibility Validator",
+      "description": "Validates documentation accessibility and suggests improvements",
+      "default_schedule": "0 6 * * 3",
+      "estimated_execution_time": "15-45 minutes",
+      "resource_requirements": ["browserless", "postgres"],
+      "config": {
+        "check_alt_text": true,
+        "check_heading_structure": true,
+        "check_color_contrast": true,
+        "check_focus_indicators": true,
+        "wcag_level": "AA",
+        "contrast_ratio_threshold": 4.5
+      }
+    }
+  },
+  "severity_rules": {
+    "broken_link": "high",
+    "missing_documentation": "medium",
+    "outdated_content": "medium",
+    "poor_organization": "low",
+    "style_inconsistency": "low",
+    "accessibility_issue": "high",
+    "security_concern": "critical",
+    "performance_issue": "medium",
+    "translation_gap": "low",
+    "duplicate_content": "low",
+    "missing_examples": "medium",
+    "configuration_error": "high"
+  },
+  "auto_approve_rules": {
+    "enabled": false,
+    "max_severity": "low",
+    "require_review_after": 10,
+    "confidence_threshold": 0.9,
+    "whitelist_types": ["style_inconsistency", "minor_formatting"],
+    "blacklist_types": ["security_concern", "broken_link", "missing_documentation"]
+  },
+  "performance_settings": {
+    "max_concurrent_agents": 3,
+    "agent_timeout_minutes": 120,
+    "retry_failed_agents": true,
+    "max_retries": 2,
+    "backoff_multiplier": 1.5
+  },
+  "notification_settings": {
+    "notify_on_completion": true,
+    "notify_on_failure": true,
+    "batch_notifications": true,
+    "batch_interval_minutes": 15,
+    "quiet_hours": {
+      "enabled": true,
+      "start": "22:00",
+      "end": "08:00",
+      "timezone": "UTC"
+    }
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Haystack Resource Configuration Schema",
+  "description": "Configuration schema for Haystack AI framework resource",
+  "type": "object",
+  "properties": {
+    "service": {
+      "type": "object",
+      "description": "Service configuration",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "description": "Port number for Haystack API",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8075
+        },
+        "host": {
+          "type": "string",
+          "description": "Host to bind the service to",
+          "default": "0.0.0.0"
+        },
+        "workers": {
+          "type": "integer",
+          "description": "Number of worker processes",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 2
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "description": "Model configuration",
+      "properties": {
+        "embedding_model": {
+          "type": "string",
+          "description": "Sentence transformer model for embeddings",
+          "default": "sentence-transformers/all-MiniLM-L6-v2"
+        },
+        "embedding_dim": {
+          "type": "integer",
+          "description": "Embedding dimension size",
+          "default": 384
+        },
+        "max_seq_length": {
+          "type": "integer",
+          "description": "Maximum sequence length for text processing",
+          "default": 512
+        }
+      }
+    },
+    "document_store": {
+      "type": "object",
+      "description": "Document store configuration",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["inmemory", "qdrant", "elasticsearch", "faiss"],
+          "description": "Type of document store to use",
+          "default": "inmemory"
+        },
+        "similarity": {
+          "type": "string",
+          "enum": ["cosine", "dot_product", "l2"],
+          "description": "Similarity metric for vector search",
+          "default": "cosine"
+        },
+        "index_name": {
+          "type": "string",
+          "description": "Name of the document index",
+          "default": "documents"
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "description": "Query configuration",
+      "properties": {
+        "top_k": {
+          "type": "integer",
+          "description": "Number of results to return",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10
+        },
+        "max_query_length": {
+          "type": "integer",
+          "description": "Maximum query length in characters",
+          "default": 200
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance settings",
+      "properties": {
+        "batch_size": {
+          "type": "integer",
+          "description": "Batch size for processing",
+          "minimum": 1,
+          "maximum": 256,
+          "default": 32
+        },
+        "use_gpu": {
+          "type": "boolean",
+          "description": "Use GPU if available",
+          "default": false
+        },
+        "cache_dir": {
+          "type": "string",
+          "description": "Directory for caching models and data",
+          "default": "${HOME}/.cache/haystack"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "description": "Logging level",
+          "default": "INFO"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text"],
+          "description": "Log output format",
+          "default": "json"
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "description": "Resource limits",
+      "properties": {
+        "max_memory": {
+          "type": "string",
+          "description": "Maximum memory usage (e.g., 2G, 512M)",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "2G"
+        },
+        "max_documents": {
+          "type": "integer",
+          "description": "Maximum number of documents to store",
+          "minimum": 100,
+          "default": 100000
+        },
+        "max_upload_size": {
+          "type": "string",
+          "description": "Maximum file upload size",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "10M"
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "Integration settings",
+      "properties": {
+        "enable_ollama": {
+          "type": "boolean",
+          "description": "Enable Ollama integration for LLMs",
+          "default": true
+        },
+        "enable_qdrant": {
+          "type": "boolean",
+          "description": "Enable Qdrant vector database integration",
+          "default": true
+        },
+        "enable_unstructured": {
+          "type": "boolean",
+          "description": "Enable unstructured-io for document parsing",
+          "default": true
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "description": "API configuration",
+      "properties": {
+        "api_key": {
+          "type": "string",
+          "description": "Optional API key for authentication",
+          "default": ""
+        },
+        "cors_origins": {
+          "type": "string",
+          "description": "CORS allowed origins",
+          "default": "*"
+        },
+        "max_connections": {
+          "type": "integer",
+          "description": "Maximum concurrent connections",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        }
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

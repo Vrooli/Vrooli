@@ -1,0 +1,106 @@
+(kicad_sch (version 20211123) (generator eeschema)
+  (uuid 83b1ef0e-6180-45ef-bb9c-7ec2e25e3c3a)
+  (paper "A4")
+  
+  (lib_symbols
+    (symbol "Device:LED" (pin_numbers hide) (pin_names (offset 1.016) hide) (in_bom yes) (on_board yes)
+      (property "Reference" "D" (id 0) (at 0 2.54 0)
+        (effects (font (size 1.27 1.27))))
+      (property "Value" "LED" (id 1) (at 0 -2.54 0)
+        (effects (font (size 1.27 1.27))))
+      (symbol "LED_0_1"
+        (polyline
+          (pts
+            (xy -1.27 -1.27)
+            (xy -1.27 1.27))
+          (stroke (width 0.254) (type default) (color 0 0 0 0))
+          (fill (type none)))
+        (polyline
+          (pts
+            (xy -1.27 0)
+            (xy 1.27 0))
+          (stroke (width 0) (type default) (color 0 0 0 0))
+          (fill (type none)))
+        (polyline
+          (pts
+            (xy 1.27 -1.27)
+            (xy 1.27 1.27)
+            (xy -1.27 0)
+            (xy 1.27 -1.27))
+          (stroke (width 0.254) (type default) (color 0 0 0 0))
+          (fill (type none))))
+      (symbol "LED_1_1"
+        (pin passive line (at -3.81 0 0) (length 2.54)
+          (name "K" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 3.81 0 180) (length 2.54)
+          (name "A" (effects (font (size 1.27 1.27))))
+          (number "2" (effects (font (size 1.27 1.27)))))))
+    
+    (symbol "Device:R" (pin_numbers hide) (pin_names (offset 0) hide) (in_bom yes) (on_board yes)
+      (property "Reference" "R" (id 0) (at 2.032 0 90)
+        (effects (font (size 1.27 1.27))))
+      (property "Value" "R" (id 1) (at 0 0 90)
+        (effects (font (size 1.27 1.27))))
+      (symbol "R_0_1"
+        (rectangle (start -1.016 -2.54) (end 1.016 2.54)
+          (stroke (width 0.254) (type default) (color 0 0 0 0))
+          (fill (type none))))
+      (symbol "R_1_1"
+        (pin passive line (at 0 3.81 270) (length 1.27)
+          (name "~" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 0 -3.81 90) (length 1.27)
+          (name "~" (effects (font (size 1.27 1.27))))
+          (number "2" (effects (font (size 1.27 1.27)))))))
+    
+    (symbol "MCU_Module:Arduino_Nano_v3.x" (in_bom yes) (on_board yes)
+      (property "Reference" "A" (id 0) (at -10.16 23.495 0)
+        (effects (font (size 1.27 1.27)) (justify left bottom)))
+      (property "Value" "Arduino_Nano_v3.x" (id 1) (at 5.08 -24.13 0)
+        (effects (font (size 1.27 1.27)) (justify left top)))))
+  
+  (junction (at 127 88.9) (diameter 0) (color 0 0 0 0)
+    (uuid 2c5b88dc-c4ba-45d6-b9ae-cd36ee8f1e10))
+  
+  (wire (pts (xy 100.33 88.9) (xy 110.49 88.9))
+    (stroke (width 0) (type default) (color 0 0 0 0))
+    (uuid 4e87c98e-785d-4dfb-a9c9-5ef98c8f6b13))
+  
+  (wire (pts (xy 118.11 88.9) (xy 127 88.9))
+    (stroke (width 0) (type default) (color 0 0 0 0))
+    (uuid 82907d2e-4560-49c2-9cfc-01b127317195))
+  
+  (wire (pts (xy 127 88.9) (xy 127 96.52))
+    (stroke (width 0) (type default) (color 0 0 0 0))
+    (uuid a6738c3d-462f-4a22-b5ce-04c0c67977ca))
+  
+  (wire (pts (xy 127 88.9) (xy 135.89 88.9))
+    (stroke (width 0) (type default) (color 0 0 0 0))
+    (uuid f8e9ac00-5b66-4fe2-a21e-952bb5a1cb52))
+  
+  (symbol (lib_id "Device:R") (at 114.3 88.9 90) (unit 1)
+    (in_bom yes) (on_board yes) (fields_autoplaced)
+    (uuid 8d66c9aa-e716-444d-a61f-ae455a3c3b51)
+    (property "Reference" "R1" (id 0) (at 114.3 82.55 90))
+    (property "Value" "220" (id 1) (at 114.3 85.09 90))
+    (property "Footprint" "" (id 2) (at 114.3 90.678 90)
+      (effects (font (size 1.27 1.27)) hide)))
+  
+  (symbol (lib_id "Device:LED") (at 139.7 88.9 180) (unit 1)
+    (in_bom yes) (on_board yes) (fields_autoplaced)
+    (uuid d24a9074-c0df-4724-938a-47a92c3b3d0a)
+    (property "Reference" "D1" (id 0) (at 141.2875 81.28 0))
+    (property "Value" "LED" (id 1) (at 141.2875 83.82 0))
+    (property "Footprint" "" (id 2) (at 139.7 88.9 0)
+      (effects (font (size 1.27 1.27)) hide)))
+  
+  (sheet_instances
+    (path "/" (page "1")))
+  
+  (symbol_instances
+    (path "/8d66c9aa-e716-444d-a61f-ae455a3c3b51"
+      (reference "R1") (unit 1) (value "220") (footprint ""))
+    (path "/d24a9074-c0df-4724-938a-47a92c3b3d0a"
+      (reference "D1") (unit 1) (value "LED") (footprint "")))
+)

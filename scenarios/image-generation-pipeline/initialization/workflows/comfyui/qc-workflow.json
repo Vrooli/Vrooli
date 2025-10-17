@@ -1,0 +1,82 @@
+{
+  "workflow_name": "Quality Control Pipeline",
+  "version": "1.0", 
+  "description": "Automated quality control and validation workflow for generated images",
+  "nodes": {
+    "1": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "input_image.png"
+      }
+    },
+    "2": {
+      "class_type": "CLIPVision",
+      "inputs": {
+        "image": ["1", 0]
+      }
+    },
+    "3": {
+      "class_type": "QualityCheck",
+      "inputs": {
+        "image": ["1", 0],
+        "min_resolution": [1024, 1024],
+        "blur_threshold": 0.1,
+        "noise_threshold": 0.05
+      }
+    },
+    "4": {
+      "class_type": "BrandComplianceCheck",
+      "inputs": {
+        "image": ["1", 0],
+        "brand_colors": ["{brand_colors}"],
+        "logo_required": true,
+        "style_compliance": 0.8
+      }
+    },
+    "5": {
+      "class_type": "QualityScore", 
+      "inputs": {
+        "technical_score": ["3", 0],
+        "brand_score": ["4", 0],
+        "weights": {
+          "technical": 0.4,
+          "brand": 0.6
+        }
+      }
+    },
+    "6": {
+      "class_type": "ConditionalSave",
+      "inputs": {
+        "image": ["1", 0],
+        "quality_score": ["5", 0],
+        "min_threshold": 0.7,
+        "approved_prefix": "qc_approved_",
+        "rejected_prefix": "qc_rejected_"
+      }
+    },
+    "7": {
+      "class_type": "QualityReport",
+      "inputs": {
+        "quality_score": ["5", 0],
+        "technical_details": ["3", 1],
+        "brand_details": ["4", 1],
+        "output_format": "json"
+      }
+    }
+  },
+  "metadata": {
+    "quality_thresholds": {
+      "minimum_score": 0.7,
+      "preferred_score": 0.85,
+      "technical_weight": 0.4,
+      "brand_weight": 0.6
+    },
+    "validation_criteria": [
+      "resolution >= 1024x1024",
+      "blur_factor < 0.1",
+      "brand_colors_present",
+      "logo_placement_correct",
+      "style_consistency > 0.8"
+    ]
+  }
+}

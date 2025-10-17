@@ -1,0 +1,306 @@
+{
+  "version": "1.0.0",
+  "description": "Automated WCAG compliance testing, remediation, and monitoring for all Vrooli scenarios",
+  "category": "compliance",
+  "status": "development",
+  "service": {
+    "name": "accessibility-compliance-hub"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Accessibility compliance hub API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Accessibility compliance hub UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Database for storing audit reports and compliance data"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "description": "Workflow automation for compliance orchestration"
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": true,
+      "description": "DOM analysis and visual regression testing"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "description": "AI analysis of accessibility issues"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "description": "Cache audit results and pattern matching"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "description": "Vector storage for accessibility pattern matching"
+    }
+  },
+  "api": {
+    "enabled": true,
+    "endpoints": [
+      {
+        "path": "/api/v1/accessibility/audit",
+        "method": "POST",
+        "description": "Trigger accessibility audit for a scenario"
+      },
+      {
+        "path": "/api/v1/accessibility/dashboard",
+        "method": "GET",
+        "description": "Get compliance overview for all scenarios"
+      },
+      {
+        "path": "/api/v1/accessibility/fix",
+        "method": "POST",
+        "description": "Apply specific accessibility fixes"
+      },
+      {
+        "path": "/api/v1/accessibility/report",
+        "method": "POST",
+        "description": "Generate compliance documentation"
+      },
+      {
+        "path": "/api/v1/accessibility/patterns",
+        "method": "GET",
+        "description": "Get accessible UI pattern library"
+      }
+    ],
+    "healthCheck": "/health"
+  },
+  "cli": {
+    "enabled": true,
+    "commands": [
+      "audit",
+      "fix",
+      "dashboard",
+      "report",
+      "status",
+      "help",
+      "version"
+    ],
+    "binary": "accessibility-compliance-hub"
+  },
+  "ui": {
+    "enabled": true,
+    "type": "react",
+    "features": [
+      "compliance-dashboard",
+      "audit-history",
+      "issue-tracker",
+      "pattern-library",
+      "report-generator"
+    ]
+  },
+  "workflows": {
+    "n8n": [
+      {
+        "name": "accessibility-audit",
+        "description": "Orchestrates accessibility audits across scenarios",
+        "triggers": [
+          "webhook",
+          "schedule",
+          "manual"
+        ],
+        "schedule": "0 2 * * *"
+      },
+      {
+        "name": "auto-remediate",
+        "description": "Applies automatic fixes for common accessibility issues",
+        "triggers": [
+          "webhook",
+          "manual"
+        ]
+      },
+      {
+        "name": "compliance-report",
+        "description": "Generates VPAT and compliance documentation",
+        "triggers": [
+          "webhook",
+          "manual"
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "postgres": {
+      "database": "accessibility_hub",
+      "tables": [
+        "audit_reports",
+        "accessibility_issues",
+        "remediation_history",
+        "accessible_patterns",
+        "compliance_metrics"
+      ]
+    },
+    "redis": {
+      "purpose": "Cache audit results and pattern matching",
+      "ttl": 3600
+    },
+    "qdrant": {
+      "purpose": "Vector storage for accessibility pattern matching",
+      "collections": [
+        "accessible_patterns",
+        "issue_embeddings"
+      ]
+    }
+  },
+  "integrations": {
+    "ollama": {
+      "model": "llama3.2",
+      "purpose": "Analyze complex accessibility issues and suggest fixes"
+    },
+    "browserless": {
+      "purpose": "DOM analysis and visual regression testing"
+    }
+  },
+  "events": {
+    "publishes": [
+      "accessibility.audit.completed",
+      "accessibility.fix.applied",
+      "accessibility.report.generated"
+    ],
+    "subscribes": [
+      "scenario.deployed",
+      "scenario.updated",
+      "ui.changed"
+    ]
+  },
+  "metadata": {
+    "author": "Vrooli AI",
+    "tags": [
+      "accessibility",
+      "compliance",
+      "wcag",
+      "ada",
+      "a11y",
+      "audit"
+    ],
+    "capabilities": [
+      "wcag-compliance-testing",
+      "auto-remediation",
+      "pattern-learning",
+      "compliance-reporting"
+    ],
+    "businessValue": {
+      "revenueRange": "$25K-$75K per enterprise",
+      "costSavings": "Prevents $50K-$500K ADA lawsuits",
+      "marketExpansion": "15% (users with disabilities)"
+    }
+  },
+  "lifecycle": {
+    "setup": {
+      "description": "Install accessibility compliance hub CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/accessibility-compliance-hub-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "accessibility-compliance-hub"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI binary to ~/.vrooli/bin"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start accessibility compliance hub services",
+      "steps": [
+        {
+          "name": "start-ui",
+          "run": "cd ui && python3 -m http.server ${UI_PORT} &",
+          "description": "Start simple UI server for static files"
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo -e '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  Note: This is a UI prototype, full API not yet implemented'",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"accessibility-compliance-hub-api\" || true; sleep 1; pkill -9 -f \"accessibility-compliance-hub-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'python3 -m http.server.*35[0-9][0-9][0-9]' || true; pkill -f 'python3 -m http.server.*40[0-9][0-9][0-9]' || true; sleep 1",
+          "description": "Stop UI process (kills any python http.server in UI port ranges)"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run accessibility compliance hub test suite",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "cd api && go test -v ./... -race -coverprofile=coverage.out",
+          "description": "Run Go API tests with race detection and coverage"
+        }
+      ]
+    },
+    "health": {
+      "description": "Accessibility compliance hub health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    }
+  }
+}

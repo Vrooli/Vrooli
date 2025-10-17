@@ -1,0 +1,118 @@
+{
+  "name": "prometheus-grafana",
+  "version": "1.0.0",
+  "description": "Complete monitoring and observability stack with Prometheus and Grafana",
+  "category": "monitoring",
+  "startup_order": 200,
+  "dependencies": [],
+  "optional_dependencies": [
+    "postgres",
+    "redis",
+    "n8n",
+    "minio"
+  ],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "shutdown_timeout": 30,
+  "health_check_timeout": 5,
+  "recovery_attempts": 3,
+  "recovery_delay": 10,
+  "priority": "high",
+  "ports": {
+    "prometheus": 9090,
+    "grafana": 3030,
+    "alertmanager": 9093,
+    "node_exporter": 9100
+  },
+  "memory_requirements": {
+    "minimum": "1GB",
+    "recommended": "2GB",
+    "maximum": "4GB"
+  },
+  "disk_requirements": {
+    "minimum": "5GB",
+    "recommended": "10GB",
+    "notes": "Depends on retention period and metric volume"
+  },
+  "capabilities": [
+    "metrics_collection",
+    "visualization",
+    "alerting",
+    "service_discovery",
+    "time_series_storage"
+  ],
+  "integrations": [
+    "docker",
+    "kubernetes",
+    "postgres",
+    "redis",
+    "custom_exporters"
+  ],
+  "api_endpoints": {
+    "prometheus_query": "http://localhost:9090/api/v1/query",
+    "prometheus_health": "http://localhost:9090/-/healthy",
+    "grafana_health": "http://localhost:3030/api/health",
+    "grafana_dashboards": "http://localhost:3030/api/dashboards",
+    "alertmanager_alerts": "http://localhost:9093/api/v1/alerts"
+  },
+  "configuration_files": [
+    "prometheus.yml",
+    "grafana.ini",
+    "alertmanager.yml",
+    "rules.yml"
+  ],
+  "volumes": [
+    "./data/prometheus:/prometheus",
+    "./data/grafana:/var/lib/grafana",
+    "./data/alertmanager:/alertmanager",
+    "./config:/etc/prometheus"
+  ],
+  "environment_variables": {
+    "PROMETHEUS_PORT": "9090",
+    "GRAFANA_PORT": "3030",
+    "ALERTMANAGER_PORT": "9093",
+    "PROMETHEUS_RETENTION": "15d",
+    "GRAFANA_ADMIN_USER": "admin"
+  },
+  "health_checks": {
+    "prometheus": {
+      "endpoint": "http://localhost:9090/-/healthy",
+      "interval": "10s",
+      "timeout": "5s",
+      "retries": 3
+    },
+    "grafana": {
+      "endpoint": "http://localhost:3030/api/health",
+      "interval": "10s",
+      "timeout": "5s",
+      "retries": 3
+    }
+  },
+  "lifecycle_hooks": {
+    "pre_install": [],
+    "post_install": [
+      "create_directories",
+      "generate_configs"
+    ],
+    "pre_start": [
+      "validate_config",
+      "check_ports"
+    ],
+    "post_start": [
+      "wait_for_health",
+      "import_dashboards"
+    ],
+    "pre_stop": [],
+    "post_stop": [
+      "cleanup_temp_files"
+    ]
+  },
+  "tags": [
+    "monitoring",
+    "observability",
+    "metrics",
+    "visualization",
+    "alerting",
+    "infrastructure"
+  ]
+}

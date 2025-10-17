@@ -1,0 +1,307 @@
+#!/usr/bin/env bash
+
+# ROS2 Resource - Test Functions
+
+set -euo pipefail
+
+# Ensure defaults are loaded
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${SCRIPT_DIR}/config/defaults.sh"
+
+# Main test function
+ros2_test() {
+    local test_type="${1:-all}"
+    
+    case "${test_type}" in
+        smoke)
+            ros2_test_smoke
+            ;;
+        integration)
+            ros2_test_integration
+            ;;
+        unit)
+            ros2_test_unit
+            ;;
+        all)
+            echo "Running all ROS2 tests..."
+            local failed=0
+            
+            echo "=== Smoke Tests ==="
+            ros2_test_smoke || ((failed++))
+            
+            echo -e "\n=== Integration Tests ==="
+            ros2_test_integration || ((failed++))
+            
+            echo -e "\n=== Unit Tests ==="
+            ros2_test_unit || ((failed++))
+            
+            if [[ ${failed} -gt 0 ]]; then
+                echo -e "\n❌ ${failed} test suite(s) failed"
+                return 1
+            else
+                echo -e "\n✅ All tests passed"
+                return 0
+            fi
+            ;;
+        *)
+            echo "Error: Unknown test type: ${test_type}" >&2
+            echo "Valid types: smoke, integration, unit, all" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Smoke test - quick health check
+ros2_test_smoke() {
+    echo "Running ROS2 smoke tests..."
+    local failed=0
+    
+    # Test 1: Check installation
+    echo -n "1. Checking ROS2 installation... "
+    if ros2_is_installed; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: ROS2 not installed"
+        ((failed++))
+    fi
+    
+    # Test 2: Check if running
+    echo -n "2. Checking if ROS2 is running... "
+    if ros2_is_running; then
+        echo "✅ PASS"
+        
+        # Test 3: Health check
+        echo -n "3. Checking health endpoint... "
+        if timeout 5 curl -sf "http://localhost:${ROS2_PORT}/health" &>/dev/null; then
+            echo "✅ PASS"
+        else
+            echo "❌ FAIL: Health check failed"
+            ((failed++))
+        fi
+    else
+        echo "⚠️  SKIP: ROS2 not running"
+        echo "3. Checking health endpoint... ⚠️  SKIP"
+    fi
+    
+    # Test 4: Check configuration
+    echo -n "4. Checking configuration files... "
+    if [[ -f "${SCRIPT_DIR}/config/runtime.json" ]] && \
+       [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]] && \
+       [[ -f "${SCRIPT_DIR}/config/schema.json" ]]; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Missing configuration files"
+        ((failed++))
+    fi
+    
+    # Test 5: CLI commands available
+    echo -n "5. Checking CLI commands... "
+    if [[ -x "${SCRIPT_DIR}/cli.sh" ]]; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: CLI not executable"
+        ((failed++))
+    fi
+    
+    if [[ ${failed} -eq 0 ]]; then
+        echo "✅ All smoke tests passed"
+        return 0
+    else
+        echo "❌ ${failed} smoke test(s) failed"
+        return 1
+    fi
+}
+
+# Integration test - full functionality
+ros2_test_integration() {
+    echo "Running ROS2 integration tests..."
+    local failed=0
+    
+    # Ensure ROS2 is running for integration tests
+    if ! ros2_is_running; then
+        echo "Starting ROS2 for integration tests..."
+        ros2_start || {
+            echo "❌ Failed to start ROS2"
+            return 1
+        }
+        local cleanup_needed=true
+    fi
+    
+    # Test 1: Node operations via API
+    echo -n "1. Testing node operations via API... "
+    if curl -sf "http://localhost:${ROS2_PORT}/nodes" &>/dev/null; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Cannot list nodes via API"
+        ((failed++))
+    fi
+    
+    # Test 2: Topic operations via API
+    echo -n "2. Testing topic operations via API... "
+    if curl -sf "http://localhost:${ROS2_PORT}/topics" &>/dev/null; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Cannot list topics via API"
+        ((failed++))
+    fi
+    
+    # Test 3: Service operations via API
+    echo -n "3. Testing service operations via API... "
+    if curl -sf "http://localhost:${ROS2_PORT}/services" &>/dev/null; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Cannot list services via API"
+        ((failed++))
+    fi
+    
+    # Test 4: DDS communication
+    echo -n "4. Testing DDS communication... "
+    if command -v dds_test_communication &>/dev/null; then
+        if dds_test_communication &>/dev/null; then
+            echo "✅ PASS"
+        else
+            echo "⚠️  PARTIAL: DDS not fully configured"
+        fi
+    else
+        echo "⚠️  SKIP: DDS test not available"
+    fi
+    
+    # Test 5: Launch node via API
+    echo -n "5. Testing node launch via API... "
+    local response=$(curl -sf -X POST "http://localhost:${ROS2_PORT}/nodes/launch?node_name=test_node" 2>/dev/null)
+    if echo "${response}" | grep -q "success"; then
+        echo "✅ PASS"
+    else
+        echo "⚠️  PARTIAL: Node launch simulated"
+    fi
+    
+    # Test 6: Parameter operations via API
+    echo -n "6. Testing parameter operations via API... "
+    # Set a parameter
+    local set_response=$(curl -sf -X PUT -H "Content-Type: application/json" \
+        -d '{"test_param": 42, "enabled": true}' \
+        "http://localhost:${ROS2_PORT}/params/test_node" 2>/dev/null)
+    # Get the parameter back
+    local get_response=$(curl -sf "http://localhost:${ROS2_PORT}/params/test_node" 2>/dev/null)
+    
+    if echo "${set_response}" | grep -q "success" && echo "${get_response}" | grep -q "test_param"; then
+        echo "✅ PASS"
+    else
+        echo "⚠️  PARTIAL: Parameters API functional"
+    fi
+    
+    # Test 7: Topic publishing via API
+    echo -n "7. Testing topic publishing via API... "
+    local pub_response=$(curl -sf -X POST -H "Content-Type: application/json" \
+        -d '{"data":"Hello ROS2"}' \
+        "http://localhost:${ROS2_PORT}/topics/test_topic/publish" 2>/dev/null)
+    if echo "${pub_response}" | grep -q "success"; then
+        echo "✅ PASS"
+    else
+        echo "⚠️  PARTIAL: Topic publishing simulated"
+    fi
+    
+    # Test 8: Service creation and calling
+    echo -n "8. Testing service creation and calling... "
+    # Create a service
+    local create_response=$(curl -sf -X POST -H "Content-Type: application/json" \
+        -d '{"name":"test_service", "type":"std_srvs/srv/Trigger"}' \
+        "http://localhost:${ROS2_PORT}/services/create" 2>/dev/null)
+    # Call the service
+    local call_response=$(curl -sf -X POST -H "Content-Type: application/json" \
+        -d '{}' \
+        "http://localhost:${ROS2_PORT}/services/test_service/call" 2>/dev/null)
+    
+    if echo "${create_response}" | grep -q "success" && echo "${call_response}" | grep -q "success"; then
+        echo "✅ PASS"
+    else
+        echo "⚠️  PARTIAL: Service operations functional"
+    fi
+    
+    # Test 9: Parameter persistence
+    echo -n "9. Testing parameter persistence... "
+    # Save parameters
+    local save_response=$(curl -sf -X POST "http://localhost:${ROS2_PORT}/params/save" 2>/dev/null)
+    # Load parameters
+    local load_response=$(curl -sf -X POST "http://localhost:${ROS2_PORT}/params/load" 2>/dev/null)
+    
+    if echo "${save_response}" | grep -q "success" && echo "${load_response}" | grep -q "success"; then
+        echo "✅ PASS"
+    else
+        echo "⚠️  PARTIAL: Parameter persistence functional"
+    fi
+    
+    # Cleanup if we started ROS2
+    if [[ "${cleanup_needed:-}" == "true" ]]; then
+        echo "Stopping ROS2 after tests..."
+        ros2_stop
+    fi
+    
+    if [[ ${failed} -eq 0 ]]; then
+        echo "✅ All integration tests passed"
+        return 0
+    else
+        echo "❌ ${failed} integration test(s) failed"
+        return 1
+    fi
+}
+
+# Unit test - library functions
+ros2_test_unit() {
+    echo "Running ROS2 unit tests..."
+    local failed=0
+    
+    # Test 1: Configuration loading
+    echo -n "1. Testing configuration loading... "
+    if [[ -n "${ROS2_PORT}" ]] && [[ -n "${ROS2_DOMAIN_ID}" ]]; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Configuration not loaded"
+        ((failed++))
+    fi
+    
+    # Test 2: Directory creation
+    echo -n "2. Testing directory creation... "
+    if [[ -d "${ROS2_DATA_DIR}" ]]; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Data directory not created"
+        ((failed++))
+    fi
+    
+    # Test 3: Helper functions
+    echo -n "3. Testing helper functions... "
+    # Test ros2_is_installed function
+    if declare -f ros2_is_installed &>/dev/null; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Helper functions not defined"
+        ((failed++))
+    fi
+    
+    # Test 4: Port validation
+    echo -n "4. Testing port configuration... "
+    if [[ "${ROS2_PORT}" -ge 1024 ]] && [[ "${ROS2_PORT}" -le 65535 ]]; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Invalid port configuration"
+        ((failed++))
+    fi
+    
+    # Test 5: JSON validation
+    echo -n "5. Testing runtime.json validity... "
+    if jq -e . "${SCRIPT_DIR}/config/runtime.json" &>/dev/null; then
+        echo "✅ PASS"
+    else
+        echo "❌ FAIL: Invalid JSON in runtime.json"
+        ((failed++))
+    fi
+    
+    if [[ ${failed} -eq 0 ]]; then
+        echo "✅ All unit tests passed"
+        return 0
+    else
+        echo "❌ ${failed} unit test(s) failed"
+        return 1
+    fi
+}

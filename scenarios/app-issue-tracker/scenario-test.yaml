@@ -1,0 +1,90 @@
+name: app-issue-tracker
+description: Issue tracking system with AI investigation and fixes
+version: 1.0.0
+
+resources:
+  required:
+    - postgres
+    - qdrant
+    - redis
+    - codex
+    - ollama
+    - agent-s2
+
+tests:
+  - name: Database Connection
+    type: connectivity
+    target: postgres
+    config:
+      database: issue_tracker
+      timeout: 30
+    
+  - name: Vector Database Health
+    type: http
+    method: GET
+    url: http://localhost:6333/health
+    expected:
+      status: 200
+      
+  
+  - name: Create Test Issue
+    type: postgres
+    operation: INSERT
+    query: |
+      INSERT INTO issues (title, description, type, priority)
+      VALUES ('Test Issue', 'This is a test issue for validation', 'bug', 'low')
+      RETURNING id
+    expected:
+      rows: 1
+      
+  - name: Semantic Search API
+    type: http
+    method: GET
+    url: http://localhost:8090/api/v1/issues/search?q=authentication%20error&limit=10
+    expected:
+      status: 200
+      
+  - name: Agent Management API
+    type: http
+    method: GET
+    url: http://localhost:8090/api/v1/agents
+    expected:
+      status: 200
+        
+  - name: Unified Agent Script
+    type: command
+    command: bash scripts/claude-investigator.sh resolve "${TEST_ISSUE_ID}" "unified-resolver"
+    expected:
+      exit_code: 0
+      output:
+        contains: '"status":"completed"'
+          
+  - name: CLI Issue Creation
+    type: command
+    command: vrooli-tracker create --title "CLI Test" --type bug --priority medium
+    expected:
+      exit_code: 0
+      output:
+        contains: "Issue created successfully"
+
+validation:
+  startup:
+    timeout: 120
+    health_checks:
+      - service: postgres
+        port: 5432
+      - service: qdrant
+        port: 6333
+      - service: redis
+        port: 6379
+      - service: api
+        port: 8090
+        
+  runtime:
+    monitoring:
+      - metric: issue_processing_time
+        threshold: 30000
+      - metric: agent_success_rate
+        threshold: 0.7
+      - metric: vector_search_latency
+        threshold: 500

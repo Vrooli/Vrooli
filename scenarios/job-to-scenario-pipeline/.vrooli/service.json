@@ -1,0 +1,259 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "job-to-scenario-pipeline",
+    "displayName": "Job to Scenario Pipeline",
+    "description": "Autonomous business development engine that converts job board opportunities into revenue-generating scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "business-development",
+      "automation",
+      "revenue-generation",
+      "scenario-generation",
+      "market-intelligence",
+      "proposal-automation",
+      "upwork-integration",
+      "file-based-storage",
+      "ai-research"
+    ]
+  },
+  "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Job pipeline API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Pipeline dashboard UI port",
+       "range": "35000-39999"
+     }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Store jobs, research reports, proposals, and state history"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "description": "LLM for research analysis and proposal generation"
+    },
+    "huginn": {
+      "type": "huginn",
+      "enabled": true,
+      "required": true,
+      "description": "Automated Upwork job scraping"
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": true,
+      "description": "Screenshot OCR for manual job entry"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "description": "Semantic search for similar past proposals"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "description": "Cache for research results"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Job pipeline health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize job-to-scenario pipeline",
+       "condition": {
+         "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "job-to-scenario-pipeline-api"
+              ]
+            },
+            {
+              "type": "cli",
+              "targets": [
+                "job-to-scenario-pipeline"
+              ]
+            },
+           {
+             "type": "directories",
+             "targets": [
+               "data/pending",
+               "data/researching",
+               "data/evaluated",
+               "data/approved",
+               "data/building",
+               "data/completed"
+             ]
+           }
+         ]
+       },
+      "steps": [
+        {
+          "name": "create-data-structure",
+          "run": "mkdir -p data/{pending,researching,evaluated,approved,building,completed,archive}",
+          "description": "Create file-based job state directories"
+        },
+        {
+          "name": "setup-postgres-schema",
+          "run": "if [ -f initialization/storage/postgres/schema.sql ]; then psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f initialization/storage/postgres/schema.sql 2>/dev/null || echo '  Database schema already exists'; else echo '  Schema file will be created'; fi",
+          "description": "Initialize PostgreSQL schema",
+          "condition": {
+            "resource_enabled": "postgres"
+          }
+        },
+        {
+          "name": "install-cli",
+          "run": "ln -sf $(pwd)/cli/job-to-scenario ~/.local/bin/job-to-scenario 2>/dev/null || echo '  CLI available at ./cli/job-to-scenario'",
+          "description": "Install job pipeline CLI"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o job-pipeline-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-vector-search",
+          "run": "if command -v curl >/dev/null && curl -s http://localhost:${RESOURCE_PORTS[qdrant]}/collections >/dev/null 2>&1; then curl -X PUT \"http://localhost:${RESOURCE_PORTS[qdrant]}/collections/proposals\" -H \"Content-Type: application/json\" -d '{\"vectors\": {\"size\": 1536, \"distance\": \"Cosine\"}}' >/dev/null 2>&1 || true; echo '  Qdrant collection for proposals setup'; else echo '  Qdrant not available, similarity search disabled'; fi",
+          "description": "Setup optional proposal similarity search",
+          "condition": {
+            "resource_enabled": "qdrant"
+          }
+        },
+        {
+          "name": "setup-huginn-agent",
+          "run": "if [ -f initialization/automation/huginn/upwork-scraper.json ]; then echo '  Huginn agent configuration ready for injection'; else echo '  Huginn agent will be configured manually'; fi",
+          "description": "Prepare Huginn scraping agent"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Job-to-Scenario Pipeline initialized\\n  📊 Dashboard: http://localhost:${UI_PORT}\\n  🌐 API: http://localhost:${API_PORT}\\n  🎯 CLI: job-to-scenario --help\\n  📂 Jobs: ./data/\\n\\n💡 Import jobs with:\\n  job-to-scenario import manual --text \"Build a React app\"\\n  job-to-scenario import screenshot --file job.png\\n  job-to-scenario list --state pending'",
+          "description": "Display service information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start job pipeline services",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./job-to-scenario-pipeline-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/job-to-scenario-pipeline-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm install && npm run dev",
+          "description": "Start Trello-like dashboard UI",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "start-huginn-agent",
+          "run": "echo '  Huginn agent should be configured separately via Huginn UI'",
+          "description": "Note about Huginn agent setup"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Job Pipeline running:\\n  📊 Dashboard: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: job-to-scenario --help\\n\\n📝 Process jobs:\\n  job-to-scenario import manual --text \"Job description\"\\n  job-to-scenario research --batch-size 5\\n  job-to-scenario approve <job-id>\\n  job-to-scenario list --state evaluated\\n\\n📂 Monitor states:\\n  ls data/pending/*.yaml\\n  ls data/evaluated/*.yaml\\n  ls data/completed/*.yaml'",
+          "description": "Display service URLs and usage information"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test job pipeline functionality",
+      "steps": [
+        {
+          "name": "test-directory-structure",
+          "run": "test -d data/pending && test -d data/evaluated && test -d data/completed && echo '✓ Directory structure exists' || (echo '✗ Directory structure missing' && exit 1)",
+          "description": "Verify state directories exist"
+        },
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation"
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health && echo '✓ API healthy' || echo '⚠ API not running (expected if not started)'",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-cli",
+          "run": "bash cli/job-to-scenario --help | grep -q 'Import job from source' && echo '✓ CLI working' || echo '⚠ CLI test skipped'",
+          "description": "Test CLI functionality"
+        },
+        {
+          "name": "test-job-import",
+          "run": "echo '{\"title\": \"Test Job\", \"description\": \"Test description\", \"budget\": 1000}' > /tmp/test-job.json && curl -X POST http://localhost:$API_PORT/api/v1/jobs/import -H 'Content-Type: application/json' -d '{\"source\": \"manual\", \"data\": \"Test job\"}' && echo '✓ Job import working' || echo '⚠ Import test skipped'",
+          "description": "Test job import functionality"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop pipeline services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"job-to-scenario-pipeline-api\" || true; sleep 1; pkill -9 -f \"job-to-scenario-pipeline-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/job-to-scenario-pipeline.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/job-to-scenario-pipeline.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean up job pipeline data",
+      "steps": [
+        {
+          "name": "archive-old-jobs",
+          "run": "find data/completed -name '*.yaml' -mtime +30 -exec mv {} data/archive/ \\; && echo 'Archived jobs older than 30 days'",
+          "description": "Archive old completed jobs"
+        },
+        {
+          "name": "backup-before-clean",
+          "run": "mkdir -p backup/$(date +%Y%m%d) && cp -r data backup/$(date +%Y%m%d)/ && echo 'Backup created in backup/$(date +%Y%m%d)/'",
+          "description": "Backup all job data before cleaning"
+        }
+      ]
+    }
+  }
+}

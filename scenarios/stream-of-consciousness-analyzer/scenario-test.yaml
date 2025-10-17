@@ -1,0 +1,109 @@
+name: stream-of-consciousness-analyzer
+description: Transform unstructured text/voice into organized notes with AI-powered analysis
+version: 1.0.0
+
+tests:
+  - name: API Health Check
+    type: http
+    endpoint: http://localhost:8080/health
+    method: GET
+    expected_status: 200
+    timeout: 10000
+
+  - name: Process Stream Endpoint
+    type: http
+    endpoint: http://localhost:8080/api/process-stream
+    method: POST
+    body:
+      text: "I've been thinking about how to improve our product onboarding. Users seem confused about the initial setup. Maybe we need better tutorials or a guided tour. Also need to remember to schedule that meeting with the design team."
+      campaign: "work"
+    expected_status: 200
+    expected_response:
+      success: true
+    timeout: 30000
+
+  - name: Organize Thoughts Endpoint
+    type: http
+    endpoint: http://localhost:8080/api/organize  
+    method: POST
+    body:
+      thoughts:
+        - "Need to improve product onboarding"
+        - "Users confused about initial setup"
+        - "Consider adding tutorials"
+        - "Schedule design team meeting"
+      campaign: "work"
+    expected_status: 200
+    timeout: 20000
+
+  - name: Extract Insights Endpoint
+    type: http
+    endpoint: http://localhost:8080/api/insights
+    method: POST
+    body:
+      text: "Multiple customers mentioned the onboarding issue this week. The new feature is getting positive feedback but people want more customization options."
+      campaign: "product-feedback"
+    expected_status: 200
+    expected_response:
+      insights:
+        action_items: true
+        patterns: true
+        key_ideas: true
+    timeout: 25000
+
+  - name: Search Notes Endpoint
+    type: http
+    endpoint: http://localhost:8080/api/search
+    method: GET
+    query:
+      q: "onboarding"
+      campaign: "work"
+    expected_status: 200
+    timeout: 10000
+
+  - name: Campaign Context Endpoint
+    type: http
+    endpoint: http://localhost:8080/api/campaigns
+    method: GET
+    expected_status: 200
+    expected_response:
+      campaigns: true
+    timeout: 10000
+
+  - name: UI Server Health Check
+    type: http
+    endpoint: http://localhost:8091
+    method: GET
+    expected_status: 200
+    timeout: 10000
+
+  - name: UI API Process Stream
+    type: http
+    endpoint: http://localhost:8091/api/process-stream
+    method: POST
+    body:
+      text: "Test stream of consciousness input"
+      campaign: "general"
+    expected_status: 200
+    timeout: 20000
+
+dependencies:
+  - postgres
+  - n8n
+  - ollama
+
+ports:
+  api: 8080
+  ui: 8091
+
+validation:
+  required_files:
+    - api/main.go
+    - cli/soc-analyzer
+    - ui/index.html
+    - ui/server.js
+    - ui/package.json
+    - initialization/n8n/process-stream.json
+    - initialization/n8n/organize-thoughts.json
+    - initialization/n8n/extract-insights.json
+    - initialization/postgres/schema.sql

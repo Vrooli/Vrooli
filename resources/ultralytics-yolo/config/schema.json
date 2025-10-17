@@ -1,0 +1,266 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Ultralytics YOLO Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "default": 11455,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "host": {
+      "type": "string",
+      "description": "API server host",
+      "default": "0.0.0.0"
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "variant": {
+          "type": "string",
+          "description": "Model variant",
+          "enum": ["yolov8n", "yolov8s", "yolov8m", "yolov8l", "yolov8x"],
+          "default": "yolov8m"
+        },
+        "task": {
+          "type": "string",
+          "description": "YOLO task type",
+          "enum": ["detect", "segment", "classify", "pose", "obb"],
+          "default": "detect"
+        },
+        "path": {
+          "type": "string",
+          "description": "Model storage path",
+          "default": "/models"
+        }
+      }
+    },
+    "device": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Device type for inference",
+          "enum": ["auto", "cpu", "cuda", "mps"],
+          "default": "auto"
+        },
+        "cuda_device": {
+          "type": "integer",
+          "description": "CUDA device index",
+          "default": 0,
+          "minimum": 0
+        },
+        "gpu_memory_fraction": {
+          "type": "number",
+          "description": "GPU memory fraction to use",
+          "default": 0.8,
+          "minimum": 0.1,
+          "maximum": 1.0
+        }
+      }
+    },
+    "inference": {
+      "type": "object",
+      "properties": {
+        "confidence": {
+          "type": "number",
+          "description": "Detection confidence threshold",
+          "default": 0.25,
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "iou_threshold": {
+          "type": "number",
+          "description": "NMS IOU threshold",
+          "default": 0.45,
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "max_detections": {
+          "type": "integer",
+          "description": "Maximum detections per image",
+          "default": 300,
+          "minimum": 1
+        },
+        "image_size": {
+          "type": "integer",
+          "description": "Input image size",
+          "default": 640,
+          "minimum": 32,
+          "maximum": 1280
+        },
+        "batch_size": {
+          "type": "integer",
+          "description": "Batch processing size",
+          "default": 1,
+          "minimum": 1,
+          "maximum": 32
+        },
+        "augment": {
+          "type": "boolean",
+          "description": "Enable test time augmentation",
+          "default": false
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "description": "Output format",
+          "enum": ["json", "csv", "txt"],
+          "default": "json"
+        },
+        "save_images": {
+          "type": "boolean",
+          "description": "Save annotated images",
+          "default": false
+        },
+        "save_embeddings": {
+          "type": "boolean",
+          "description": "Store embeddings in Qdrant",
+          "default": true
+        },
+        "save_metadata": {
+          "type": "boolean",
+          "description": "Store metadata in Postgres",
+          "default": true
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "properties": {
+        "qdrant": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 6333
+            },
+            "collection": {
+              "type": "string",
+              "default": "yolo_detections"
+            }
+          }
+        },
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 5433
+            },
+            "database": {
+              "type": "string",
+              "default": "yolo"
+            }
+          }
+        },
+        "minio": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "endpoint": {
+              "type": "string",
+              "default": "localhost:9000"
+            },
+            "bucket": {
+              "type": "string",
+              "default": "yolo-artifacts"
+            }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 6380
+            },
+            "ttl": {
+              "type": "integer",
+              "description": "Cache TTL in seconds",
+              "default": 3600
+            }
+          }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "max_workers": {
+          "type": "integer",
+          "description": "Maximum worker processes",
+          "default": 4,
+          "minimum": 1
+        },
+        "request_timeout": {
+          "type": "integer",
+          "description": "Request timeout in seconds",
+          "default": 30,
+          "minimum": 1
+        },
+        "startup_timeout": {
+          "type": "integer",
+          "description": "Startup timeout in seconds",
+          "default": 60,
+          "minimum": 10
+        },
+        "health_check_interval": {
+          "type": "integer",
+          "description": "Health check interval in seconds",
+          "default": 30,
+          "minimum": 5
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Docker image to use",
+          "default": "ultralytics/ultralytics:latest"
+        },
+        "gpu": {
+          "type": "string",
+          "description": "GPU device allocation",
+          "default": "all"
+        }
+      }
+    }
+  },
+  "required": ["port", "model", "device", "inference"]
+}

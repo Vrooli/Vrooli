@@ -1,0 +1,900 @@
+package main
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"math"
+	"math/rand"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
+	"github.com/rs/cors"
+)
+
+type Algorithm struct {
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	DisplayName      string   `json:"display_name"`
+	Category         string   `json:"category"`
+	Description      string   `json:"description"`
+	ComplexityTime   string   `json:"complexity_time"`
+	ComplexitySpace  string   `json:"complexity_space"`
+	Difficulty       string   `json:"difficulty"`
+	Tags             []string `json:"tags"`
+	LanguageCount    int      `json:"language_count"`
+	TestCaseCount    int      `json:"test_case_count"`
+	HasValidatedImpl bool     `json:"has_validated_impl"`
+}
+
+type Implementation struct {
+	ID               string  `json:"id"`
+	AlgorithmID      string  `json:"algorithm_id"`
+	Language         string  `json:"language"`
+	Code             string  `json:"code"`
+	Version          string  `json:"version"`
+	IsPrimary        bool    `json:"is_primary"`
+	Validated        bool    `json:"validated"`
+	ValidationCount  int     `json:"validation_count"`
+	PerformanceScore float64 `json:"performance_score"`
+}
+
+type ValidationRequest struct {
+	AlgorithmID string `json:"algorithm_id"`
+	Language    string `json:"language"`
+	Code        string `json:"code"`
+}
+
+type ValidationResult struct {
+	Valid       bool                   `json:"valid"`
+	TestResults []TestResult           `json:"test_results"`
+	Performance map[string]interface{} `json:"performance"`
+}
+
+type TestResult struct {
+	TestCaseID     string `json:"test_case_id"`
+	Passed         bool   `json:"passed"`
+	ExecutionTime  int    `json:"execution_time_ms"`
+	ActualOutput   string `json:"actual_output"`
+	ExpectedOutput string `json:"expected_output"`
+	ErrorMessage   string `json:"error_message,omitempty"`
+}
+
+var db *sql.DB
+var algorithmProcessor *AlgorithmProcessor
+
+func main() {
+	// Protect against direct execution - must be run through lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start algorithm-library
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
+	// Initialize database connection with exponential backoff
+	// ALL database configuration MUST come from environment - no defaults for security
+	dbHost := os.Getenv("POSTGRES_HOST")
+	dbPort := os.Getenv("POSTGRES_PORT")
+	dbUser := os.Getenv("POSTGRES_USER")
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	dbName := os.Getenv("POSTGRES_DB")
+
+	// Validate required environment variables
+	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+	}
+
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, dbName)
+
+	// Open database connection (doesn't actually connect yet)
+	var err error
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal("Failed to open database connection:", err)
+	}
+	defer db.Close()
+
+	// Configure connection pool
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+
+	log.Println("🔄 Attempting to connect to database with exponential backoff...")
+	log.Printf("📊 Connection details: host=%s port=%s db=%s user=%s", dbHost, dbPort, dbName, dbUser)
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Try to ping the database
+		err = db.Ping()
+		if err == nil {
+			log.Printf("✅ Successfully connected to database on attempt %d", attempt+1)
+			break
+		}
+
+		// Calculate delay with exponential backoff
+		// Formula: min(baseDelay * 2^attempt, maxDelay)
+		delay := time.Duration(math.Min(
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+
+		// Add random jitter to prevent thundering herd (random 0-25% additional delay)
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * rand.Float64())
+		actualDelay := delay + jitter
+
+		log.Printf("⚠️  Attempt %d/%d failed: %v", attempt+1, maxRetries, err)
+		log.Printf("⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, jitter)
+
+		// Show connection status details every 3 attempts
+		if attempt > 0 && attempt%3 == 0 {
+			log.Printf("📈 Connection retry statistics:")
+			log.Printf("   - Total time elapsed: %v", time.Duration(attempt)*baseDelay)
+			log.Printf("   - Next delay will be: %v", actualDelay)
+			log.Printf("   - Max delay cap: %v", maxDelay)
+		}
+
+		time.Sleep(actualDelay)
+	}
+
+	// Final check - if still not connected, exit
+	if err != nil {
+		log.Printf("❌ Failed to connect to database after %d attempts", maxRetries)
+		log.Printf("💡 Troubleshooting tips:")
+		log.Printf("   1. Check if PostgreSQL is running: docker ps | grep postgres")
+		log.Printf("   2. Verify port %s is accessible: nc -zv localhost %s", dbPort, dbPort)
+		log.Printf("   3. Check credentials are correct")
+		log.Printf("   4. Ensure database '%s' exists", dbName)
+		log.Fatal("Exiting due to database connection failure: ", err)
+	}
+
+	log.Println("🎉 Database connection established and verified!")
+
+	// Initialize Algorithm Processor
+	judge0URL := os.Getenv("JUDGE0_URL")
+	if judge0URL == "" {
+		judge0URL = "http://localhost:2358" // Default Judge0 port
+	}
+	algorithmProcessor = NewAlgorithmProcessor(judge0URL)
+	log.Printf("🔧 Algorithm processor initialized with Judge0 at %s", judge0URL)
+
+	// Set up routes
+	router := mux.NewRouter()
+
+	// Health check
+	router.HandleFunc("/health", healthHandler).Methods("GET")
+
+	// Algorithm routes - Specific routes MUST come before parameterized routes
+	router.HandleFunc("/api/v1/algorithms/search", searchAlgorithmsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/algorithms/categories", getCategoriesHandler).Methods("GET")
+	router.HandleFunc("/api/v1/algorithms/stats", getStatsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/algorithms/validate", validateAlgorithmHandler).Methods("POST")
+	router.HandleFunc("/api/v1/algorithms/{id}", getAlgorithmHandler).Methods("GET")
+	router.HandleFunc("/api/v1/algorithms/{id}/implementations", getImplementationsHandler).Methods("GET")
+
+	// Algorithm execution endpoints (replaces n8n workflows)
+	router.HandleFunc("/api/algorithm/execute", algorithmExecuteHandler).Methods("POST")
+	router.HandleFunc("/api/algorithm/validate-batch", algorithmValidateBatchHandler).Methods("POST")
+	router.HandleFunc("/api/v1/algorithms/benchmark", benchmarkHandler).Methods("POST")
+
+	// Algorithm comparison endpoints
+	router.HandleFunc("/api/v1/algorithms/compare", compareAlgorithmsHandler).Methods("POST")
+	router.HandleFunc("/api/v1/algorithms/{id}/compare", compareVisualizationHandler).Methods("GET")
+
+	// Execution trace endpoint
+	router.HandleFunc("/api/v1/algorithms/trace", executionTraceHandler).Methods("POST")
+
+	// Contribution endpoints
+	router.HandleFunc("/api/v1/contributions/algorithm", submitAlgorithmHandler).Methods("POST")
+	router.HandleFunc("/api/v1/contributions/implementation", submitImplementationHandler).Methods("POST")
+	router.HandleFunc("/api/v1/contributions", listContributionsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/contributions/{id}/review", reviewContributionHandler).Methods("POST")
+
+	// Performance history endpoints
+	router.HandleFunc("/api/v1/algorithms/{id}/performance-history", getPerformanceHistoryHandler).Methods("GET")
+	router.HandleFunc("/api/v1/algorithms/{id}/performance-trends", getPerformanceTrendsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/performance/record", recordPerformanceHandler).Methods("POST")
+
+	// AI-powered suggestion endpoint
+	router.HandleFunc("/api/v1/algorithms/suggest", algorithmSuggestHandler).Methods("POST")
+
+	// Problem mapping endpoints (LeetCode/HackerRank)
+	router.HandleFunc("/api/v1/algorithms/{id}/problems", getAlgorithmProblemsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/problems/search", searchProblemMappingsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/problems/stats", getPlatformStatsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/problems/recommend", getRecommendedProblemsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/problems", addProblemMappingHandler).Methods("POST")
+
+	// Enable CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"*"},
+	})
+
+	handler := c.Handler(router)
+
+	// Get port from environment - required, no default
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ Missing required API_PORT environment variable")
+	}
+
+	log.Printf("Algorithm Library API starting on port %s", port)
+	log.Fatal(http.ListenAndServe(":"+port, handler))
+}
+
+// healthHandler returns the health status of the API and its dependencies.
+// Returns 200 OK if healthy, 503 Service Unavailable if database is down.
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	// Check database connection
+	err := db.Ping()
+	status := "healthy"
+	if err != nil {
+		status = "unhealthy"
+		log.Printf("Health check failed - database ping error: %v", err)
+	}
+
+	response := map[string]interface{}{
+		"status":   status,
+		"service":  "algorithm-library-api",
+		"database": err == nil,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+// searchAlgorithmsHandler searches for algorithms based on query parameters.
+// Supports filtering by query text, category, complexity, language, and difficulty.
+// Query parameters: q/query (search text), category, complexity, language, difficulty.
+func searchAlgorithmsHandler(w http.ResponseWriter, r *http.Request) {
+	// Support both 'q' and 'query' parameters for flexibility
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		query = r.URL.Query().Get("query")
+	}
+	category := r.URL.Query().Get("category")
+	complexity := r.URL.Query().Get("complexity")
+	language := r.URL.Query().Get("language")
+	difficulty := r.URL.Query().Get("difficulty")
+
+	// Validate difficulty parameter if provided
+	if difficulty != "" && difficulty != "easy" && difficulty != "medium" && difficulty != "hard" {
+		http.Error(w, fmt.Sprintf("Invalid difficulty level: %s. Must be 'easy', 'medium', or 'hard'", difficulty), http.StatusBadRequest)
+		return
+	}
+
+	// Build SQL query
+	sqlQuery := `
+		SELECT 
+			a.id, a.name, a.display_name, a.category, a.description,
+			a.complexity_time, a.complexity_space, a.difficulty,
+			array_to_json(a.tags) as tags,
+			COUNT(DISTINCT i.language) as language_count,
+			COUNT(DISTINCT tc.id) as test_case_count,
+			BOOL_OR(i.validated) as has_validated_impl
+		FROM algorithms a
+		LEFT JOIN implementations i ON a.id = i.algorithm_id
+		LEFT JOIN test_cases tc ON a.id = tc.algorithm_id
+		WHERE 1=1
+	`
+
+	args := []interface{}{}
+	argCount := 0
+
+	if query != "" {
+		argCount++
+		sqlQuery += fmt.Sprintf(" AND (LOWER(a.name) LIKE LOWER($%d) OR LOWER(a.description) LIKE LOWER($%d))", argCount, argCount)
+		args = append(args, "%"+query+"%")
+	}
+
+	if category != "" {
+		argCount++
+		sqlQuery += fmt.Sprintf(" AND a.category = $%d", argCount)
+		args = append(args, category)
+	}
+
+	if complexity != "" {
+		argCount++
+		sqlQuery += fmt.Sprintf(" AND (a.complexity_time = $%d OR a.complexity_space = $%d)", argCount, argCount)
+		args = append(args, complexity)
+	}
+
+	if difficulty != "" {
+		argCount++
+		sqlQuery += fmt.Sprintf(" AND a.difficulty = $%d", argCount)
+		args = append(args, difficulty)
+	}
+
+	sqlQuery += " GROUP BY a.id ORDER BY a.name"
+
+	// Execute query
+	rows, err := db.Query(sqlQuery, args...)
+	if err != nil {
+		log.Printf("Search query error: %v | Query: %s | Args: %v", err, sqlQuery, args)
+		http.Error(w, "Failed to search algorithms. Please try again or contact support if the problem persists.", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	algorithms := []Algorithm{}
+	for rows.Next() {
+		var algo Algorithm
+		var tagsJSON []byte
+		var hasValidatedImpl sql.NullBool
+
+		err := rows.Scan(
+			&algo.ID, &algo.Name, &algo.DisplayName, &algo.Category,
+			&algo.Description, &algo.ComplexityTime, &algo.ComplexitySpace,
+			&algo.Difficulty, &tagsJSON, &algo.LanguageCount,
+			&algo.TestCaseCount, &hasValidatedImpl,
+		)
+		if err != nil {
+			log.Printf("Row scan error: %v", err)
+			continue
+		}
+
+		// Handle nullable boolean
+		algo.HasValidatedImpl = hasValidatedImpl.Valid && hasValidatedImpl.Bool
+
+		// Parse tags JSON
+		if tagsJSON != nil {
+			json.Unmarshal(tagsJSON, &algo.Tags)
+		}
+
+		// Filter by language if specified
+		if language != "" {
+			var hasLanguage bool
+			err = db.QueryRow(`
+				SELECT EXISTS(
+					SELECT 1 FROM implementations 
+					WHERE algorithm_id = $1 AND language = $2
+				)`, algo.ID, language).Scan(&hasLanguage)
+
+			if err != nil || !hasLanguage {
+				continue
+			}
+		}
+
+		algorithms = append(algorithms, algo)
+	}
+
+	response := map[string]interface{}{
+		"algorithms": algorithms,
+		"total":      len(algorithms),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func executionTraceHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse request body
+	var req struct {
+		AlgorithmID string      `json:"algorithm_id"`
+		Language    string      `json:"language"`
+		Code        string      `json:"code,omitempty"`
+		Input       interface{} `json:"input"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// If no custom code provided, fetch from database
+	if req.Code == "" {
+		var impl Implementation
+		err := db.QueryRow(`
+			SELECT code FROM implementations
+			WHERE algorithm_id = $1 AND language = $2 AND is_primary = true
+			LIMIT 1
+		`, req.AlgorithmID, req.Language).Scan(&impl.Code)
+
+		if err != nil {
+			// Try without is_primary constraint
+			err = db.QueryRow(`
+				SELECT code FROM implementations
+				WHERE algorithm_id = $1 AND language = $2
+				LIMIT 1
+			`, req.AlgorithmID, req.Language).Scan(&impl.Code)
+
+			if err != nil {
+				http.Error(w, fmt.Sprintf("No implementation found for algorithm %s in %s", req.AlgorithmID, req.Language), http.StatusNotFound)
+				return
+			}
+		}
+		req.Code = impl.Code
+	}
+
+	// Create execution tracer
+	tracer := NewExecutionTracer()
+
+	// Generate execution trace
+	trace, err := tracer.TraceExecution(req.AlgorithmID, req.Language, req.Code, req.Input)
+	if err != nil {
+		log.Printf("Failed to generate execution trace: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to trace execution: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Generate visualization
+	visualization := tracer.GenerateVisualization(trace)
+
+	// Return trace and visualization
+	response := map[string]interface{}{
+		"trace":         trace,
+		"visualization": visualization,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func getAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var algo Algorithm
+	var tagsJSON []byte
+
+	err := db.QueryRow(`
+		SELECT 
+			a.id, a.name, a.display_name, a.category, a.description,
+			a.complexity_time, a.complexity_space, a.difficulty,
+			array_to_json(a.tags) as tags
+		FROM algorithms a
+		WHERE a.id::text = $1 OR a.name = $1
+	`, id).Scan(
+		&algo.ID, &algo.Name, &algo.DisplayName, &algo.Category,
+		&algo.Description, &algo.ComplexityTime, &algo.ComplexitySpace,
+		&algo.Difficulty, &tagsJSON,
+	)
+
+	if err == sql.ErrNoRows {
+		http.Error(w, "Algorithm not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		log.Printf("Get algorithm error: %v", err)
+		return
+	}
+
+	// Parse tags
+	if tagsJSON != nil {
+		json.Unmarshal(tagsJSON, &algo.Tags)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(algo)
+}
+
+func getImplementationsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	language := r.URL.Query().Get("language")
+
+	// Get algorithm info
+	var algo Algorithm
+	var tagsJSON []byte
+
+	err := db.QueryRow(`
+		SELECT 
+			a.id, a.name, a.display_name, a.category, a.description,
+			a.complexity_time, a.complexity_space, a.difficulty,
+			array_to_json(a.tags) as tags
+		FROM algorithms a
+		WHERE a.id::text = $1 OR a.name = $1
+	`, id).Scan(
+		&algo.ID, &algo.Name, &algo.DisplayName, &algo.Category,
+		&algo.Description, &algo.ComplexityTime, &algo.ComplexitySpace,
+		&algo.Difficulty, &tagsJSON,
+	)
+
+	if err == sql.ErrNoRows {
+		http.Error(w, fmt.Sprintf("Algorithm not found: %s", id), http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("Get algorithm error for ID %s: %v", id, err)
+		http.Error(w, "Failed to retrieve algorithm. Please check the algorithm ID and try again.", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse tags
+	if tagsJSON != nil {
+		json.Unmarshal(tagsJSON, &algo.Tags)
+	}
+
+	// Get implementations
+	query := `
+		SELECT 
+			id, algorithm_id, language, code, version, 
+			is_primary, validated, validation_count, 
+			COALESCE(performance_score, 0)
+		FROM implementations
+		WHERE algorithm_id = $1
+	`
+
+	args := []interface{}{algo.ID}
+	if language != "" {
+		query += " AND language = $2"
+		args = append(args, language)
+	}
+	query += " ORDER BY is_primary DESC, validated DESC, language"
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		log.Printf("Get implementations error for algorithm %s: %v", algo.ID, err)
+		http.Error(w, "Failed to retrieve algorithm implementations. Please try again.", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	implementations := []Implementation{}
+	for rows.Next() {
+		var impl Implementation
+		err := rows.Scan(
+			&impl.ID, &impl.AlgorithmID, &impl.Language, &impl.Code,
+			&impl.Version, &impl.IsPrimary, &impl.Validated,
+			&impl.ValidationCount, &impl.PerformanceScore,
+		)
+		if err != nil {
+			log.Printf("Implementation scan error: %v", err)
+			continue
+		}
+		implementations = append(implementations, impl)
+	}
+
+	response := map[string]interface{}{
+		"algorithm":       algo,
+		"implementations": implementations,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// validateAlgorithmHandler validates user code against algorithm test cases.
+// Accepts algorithm_id (name or UUID), language, and code.
+// Wraps code with test harness and executes against all test cases for the algorithm.
+// Returns validation results with pass/fail status and execution metrics.
+func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
+	var req ValidationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v. Expected JSON with algorithm_id, language, and code fields.", err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.AlgorithmID == "" {
+		http.Error(w, "Missing required field: algorithm_id", http.StatusBadRequest)
+		return
+	}
+	if req.Language == "" {
+		http.Error(w, "Missing required field: language", http.StatusBadRequest)
+		return
+	}
+	if req.Code == "" {
+		http.Error(w, "Missing required field: code", http.StatusBadRequest)
+		return
+	}
+
+	// Validate language is supported
+	supportedLanguages := map[string]bool{
+		"python":     true,
+		"javascript": true,
+		"go":         true,
+		"java":       true,
+		"cpp":        true,
+		"c":          true,
+	}
+	if !supportedLanguages[strings.ToLower(req.Language)] {
+		http.Error(w, fmt.Sprintf("Unsupported language: %s. Supported languages: python, javascript, go, java, cpp, c", req.Language), http.StatusBadRequest)
+		return
+	}
+
+	// Try to parse as UUID first, if that fails, look up by name
+	algorithmID := req.AlgorithmID
+	var algorithmName string
+	if _, err := uuid.Parse(algorithmID); err != nil {
+		// Not a UUID, try to look up by name (use name or display_name)
+		var foundID string
+		err := db.QueryRow(`
+			SELECT id, name FROM algorithms
+			WHERE LOWER(name) = LOWER($1) OR LOWER(display_name) = LOWER($1)
+			LIMIT 1
+		`, algorithmID).Scan(&foundID, &algorithmName)
+
+		if err != nil {
+			log.Printf("Failed to find algorithm by name: %v", err)
+			http.Error(w, fmt.Sprintf("Algorithm not found: %s", algorithmID), http.StatusNotFound)
+			return
+		}
+		algorithmID = foundID
+	} else {
+		// We have a UUID, get the algorithm name
+		err := db.QueryRow(`SELECT name FROM algorithms WHERE id = $1`, algorithmID).Scan(&algorithmName)
+		if err != nil {
+			log.Printf("Failed to find algorithm by ID: %v", err)
+			http.Error(w, fmt.Sprintf("Algorithm not found: %s", algorithmID), http.StatusNotFound)
+			return
+		}
+	}
+
+	// Get test cases for the algorithm
+	rows, err := db.Query(`
+		SELECT id, name, input, expected_output 
+		FROM test_cases 
+		WHERE algorithm_id = $1
+		ORDER BY sequence_order
+		LIMIT 10
+	`, algorithmID)
+
+	if err != nil {
+		log.Printf("Failed to get test cases: %v", err)
+		http.Error(w, "Failed to retrieve test cases", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var testResults []TestResult
+	allPassed := true
+	totalTime := 0
+
+	// Run tests
+	for rows.Next() {
+		var testID, testName, inputJSON, expectedJSON string
+		if err := rows.Scan(&testID, &testName, &inputJSON, &expectedJSON); err != nil {
+			log.Printf("Failed to scan test case: %v", err)
+			continue
+		}
+
+		// Wrap user code with test harness that calls the function with test input
+		wrappedCode := WrapCodeWithTestHarness(req.Language, req.Code, algorithmName, inputJSON)
+
+		// Execute using n8n workflow with fallback to local execution
+		execResult, execErr := ExecuteWithFallback(req.Language, wrappedCode, "", 5*time.Second)
+
+		if execErr != nil && strings.Contains(execErr.Error(), "unsupported language") {
+			// For unsupported languages
+			testResults = append(testResults, TestResult{
+				TestCaseID:     testID,
+				Passed:         false,
+				ExecutionTime:  0,
+				ActualOutput:   "",
+				ExpectedOutput: expectedJSON,
+				ErrorMessage:   fmt.Sprintf("Language %s not supported", req.Language),
+			})
+			allPassed = false
+			continue
+		}
+
+		// Process execution result
+		if execErr != nil {
+			testResults = append(testResults, TestResult{
+				TestCaseID:     testID,
+				Passed:         false,
+				ExecutionTime:  0,
+				ActualOutput:   "",
+				ExpectedOutput: expectedJSON,
+				ErrorMessage:   execErr.Error(),
+			})
+			allPassed = false
+		} else {
+			// Compare output (normalize JSON for comparison)
+			actualOutput := strings.TrimSpace(execResult.Output)
+			expectedOutput := strings.TrimSpace(expectedJSON)
+
+			// Try to normalize JSON (parse and re-serialize to handle formatting differences)
+			passed := actualOutput == expectedOutput
+			if !passed {
+				// Try JSON normalization - parse both and compare
+				var actualJSON, expectedJSONParsed interface{}
+				if json.Unmarshal([]byte(actualOutput), &actualJSON) == nil &&
+					json.Unmarshal([]byte(expectedOutput), &expectedJSONParsed) == nil {
+					// Compare the parsed JSON structures
+					actualNormalized, _ := json.Marshal(actualJSON)
+					expectedNormalized, _ := json.Marshal(expectedJSONParsed)
+					passed = string(actualNormalized) == string(expectedNormalized)
+				}
+			}
+
+			if !passed {
+				allPassed = false
+			}
+
+			execTimeMs := int(execResult.ExecutionTime * 1000)
+			totalTime += execTimeMs
+
+			testResults = append(testResults, TestResult{
+				TestCaseID:     testID,
+				Passed:         passed,
+				ExecutionTime:  execTimeMs,
+				ActualOutput:   actualOutput,
+				ExpectedOutput: expectedOutput,
+				ErrorMessage:   execResult.Error,
+			})
+		}
+	}
+
+	// If no test cases found, return a meaningful response
+	if len(testResults) == 0 {
+		testResults = []TestResult{
+			{
+				TestCaseID:     "no_tests",
+				Passed:         false,
+				ExecutionTime:  0,
+				ActualOutput:   "",
+				ExpectedOutput: "",
+				ErrorMessage:   "No test cases available for this algorithm",
+			},
+		}
+		allPassed = false
+	}
+
+	result := ValidationResult{
+		Valid:       allPassed,
+		TestResults: testResults,
+		Performance: map[string]interface{}{
+			"execution_time_ms": totalTime,
+			"memory_used_kb":    0, // Local execution doesn't provide memory stats
+			"language":          req.Language,
+			"test_count":        len(testResults),
+		},
+	}
+
+	// Log usage (use resolved algorithmID UUID, not req.AlgorithmID which may be a name)
+	// Convert metadata map to JSON for storage
+	metadataJSON, _ := json.Marshal(map[string]string{"language": req.Language})
+	_, err = db.Exec(`
+		INSERT INTO usage_stats (algorithm_id, action, caller, metadata)
+		VALUES ($1, 'validate', 'api', $2)
+	`, algorithmID, metadataJSON)
+
+	if err != nil {
+		log.Printf("Failed to log usage: %v", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func getCategoriesHandler(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query(`
+		SELECT DISTINCT category, COUNT(*) as count
+		FROM algorithms
+		GROUP BY category
+		ORDER BY category
+	`)
+	if err != nil {
+		log.Printf("Get categories error: %v", err)
+		http.Error(w, "Failed to retrieve algorithm categories. Please try again.", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	categories := []map[string]interface{}{}
+	for rows.Next() {
+		var category string
+		var count int
+		if err := rows.Scan(&category, &count); err != nil {
+			continue
+		}
+		categories = append(categories, map[string]interface{}{
+			"name":  category,
+			"count": count,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(categories)
+}
+
+func getStatsHandler(w http.ResponseWriter, r *http.Request) {
+	var stats struct {
+		TotalAlgorithms      int `json:"total_algorithms"`
+		TotalImplementations int `json:"total_implementations"`
+		TotalTestCases       int `json:"total_test_cases"`
+		ValidatedCount       int `json:"validated_implementations"`
+	}
+
+	// Get statistics
+	db.QueryRow("SELECT COUNT(*) FROM algorithms").Scan(&stats.TotalAlgorithms)
+	db.QueryRow("SELECT COUNT(*) FROM implementations").Scan(&stats.TotalImplementations)
+	db.QueryRow("SELECT COUNT(*) FROM test_cases").Scan(&stats.TotalTestCases)
+	db.QueryRow("SELECT COUNT(*) FROM implementations WHERE validated = true").Scan(&stats.ValidatedCount)
+
+	// Get language distribution
+	languageRows, err := db.Query(`
+		SELECT language, COUNT(*) as count
+		FROM implementations
+		GROUP BY language
+		ORDER BY count DESC
+	`)
+	languages := map[string]int{}
+	if err == nil && languageRows != nil {
+		defer languageRows.Close()
+		for languageRows.Next() {
+			var lang string
+			var count int
+			if err := languageRows.Scan(&lang, &count); err == nil {
+				languages[lang] = count
+			}
+		}
+	}
+
+	response := map[string]interface{}{
+		"statistics": stats,
+		"languages":  languages,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// Algorithm execution handlers (replaces n8n workflows)
+
+func algorithmExecuteHandler(w http.ResponseWriter, r *http.Request) {
+	var req AlgorithmExecutionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	result, err := algorithmProcessor.ExecuteAlgorithm(ctx, req)
+	if err != nil {
+		log.Printf("Algorithm execution error: %v", err)
+		http.Error(w, "Algorithm execution failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// Return 202 if execution not complete, 200 if complete
+	if !result.ExecutionComplete {
+		w.WriteHeader(http.StatusAccepted)
+	}
+
+	json.NewEncoder(w).Encode(result)
+}
+
+func algorithmValidateBatchHandler(w http.ResponseWriter, r *http.Request) {
+	var req BatchValidationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	result, err := algorithmProcessor.ValidateBatch(ctx, req)
+	if err != nil {
+		log.Printf("Batch validation error: %v", err)
+		http.Error(w, fmt.Sprintf("Batch validation failed: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}

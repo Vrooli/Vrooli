@@ -1,0 +1,194 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "resource-experimenter",
+    "displayName": "Resource Experimenter",
+    "description": "Ultra-simple resource experimentation platform using Claude Code to copy and modify existing scenarios with new resources",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "ai-development",
+      "resource-experimentation",
+      "claude-code",
+      "scenario-modification",
+      "nodejs-ui",
+      "go-api",
+      "postgres-storage"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Resource experimenter API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Resource Experimenter UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI-powered scenario copying and resource integration"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "experiment tracking and results storage"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Resource Experimenter health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },\n        {\n          \"type\": \"binaries\",\n          \"targets\": [\n            \"api/resource-experimenter-api\"\n          ]\n        },\n        {\n          \"type\": \"cli\",\n          \"targets\": [\n            \"resource-experimenter\"\n          ]\n        }\n      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Resource Experimenter",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api/resource-experimenter-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["resource-experimenter"]
+           },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "initialize-database",
+          "run": "cd initialization && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f postgres/schema.sql || echo 'Database schema initialization completed'",
+          "description": "Initialize PostgreSQL database schema"
+        },
+        {
+          "name": "seed-database",
+          "run": "cd initialization && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f postgres/seed.sql || echo 'Database seed data loaded'",
+          "description": "Load experiment templates and sample data"
+        },
+        {
+          "name": "check-claude-code",
+          "run": "resource-claude-code status >/dev/null 2>&1 || echo 'Claude Code not available - experiment features will be limited'",
+          "description": "Verify Claude Code availability for AI experimentation"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install resource experimenter CLI globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o resource-experimenter-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
+          "description": "Display service access information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start resource experimenter services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./resource-experimenter-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/resource-experimenter-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start React UI in development mode",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run resource experimenter tests",
+      "steps": [
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-claude-code",
+          "run": "resource-claude-code status >/dev/null 2>&1",
+          "description": "Test Claude Code availability"
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "./test.sh",
+          "description": "Execute integration test suite",
+          "condition": {
+            "file_exists": "test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"resource-experimenter-api\" || true; sleep 1; pkill -9 -f \"resource-experimenter-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/resource-experimenter.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/resource-experimenter.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

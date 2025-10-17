@@ -1,0 +1,273 @@
+=== RUN   TestListExperimentsEdgeCases
+=== RUN   TestListExperimentsEdgeCases/InvalidLimitParameter
+=== RUN   TestListExperimentsEdgeCases/NegativeLimit
+=== RUN   TestListExperimentsEdgeCases/ZeroLimit
+--- PASS: TestListExperimentsEdgeCases (0.07s)
+    --- PASS: TestListExperimentsEdgeCases/InvalidLimitParameter (0.00s)
+    --- PASS: TestListExperimentsEdgeCases/NegativeLimit (0.00s)
+    --- PASS: TestListExperimentsEdgeCases/ZeroLimit (0.00s)
+=== RUN   TestListTemplatesEdgeCases
+=== RUN   TestListTemplatesEdgeCases/WithNullFields
+--- PASS: TestListTemplatesEdgeCases (0.08s)
+    --- PASS: TestListTemplatesEdgeCases/WithNullFields (0.00s)
+=== RUN   TestListScenariosEdgeCases
+=== RUN   TestListScenariosEdgeCases/WithNullJSONArrays
+--- PASS: TestListScenariosEdgeCases (0.07s)
+    --- PASS: TestListScenariosEdgeCases/WithNullJSONArrays (0.00s)
+=== RUN   TestGetExperimentEdgeCases
+=== RUN   TestGetExperimentEdgeCases/WithNullJSONFields
+=== RUN   TestGetExperimentEdgeCases/EmptyStringID
+--- PASS: TestGetExperimentEdgeCases (0.10s)
+    --- PASS: TestGetExperimentEdgeCases/WithNullJSONFields (0.00s)
+    --- PASS: TestGetExperimentEdgeCases/EmptyStringID (0.00s)
+=== RUN   TestUpdateExperimentEdgeCases
+=== RUN   TestUpdateExperimentEdgeCases/UpdateToInvalidStatus
+=== RUN   TestUpdateExperimentEdgeCases/UpdateModificationsMade
+--- PASS: TestUpdateExperimentEdgeCases (0.10s)
+    --- PASS: TestUpdateExperimentEdgeCases/UpdateToInvalidStatus (0.01s)
+    --- PASS: TestUpdateExperimentEdgeCases/UpdateModificationsMade (0.00s)
+=== RUN   TestDeleteExperimentEdgeCases
+=== RUN   TestDeleteExperimentEdgeCases/DeleteWithLogs
+--- PASS: TestDeleteExperimentEdgeCases (0.10s)
+    --- PASS: TestDeleteExperimentEdgeCases/DeleteWithLogs (0.01s)
+=== RUN   TestGetExperimentLogsEdgeCases
+=== RUN   TestGetExperimentLogsEdgeCases/WithNullFields
+=== RUN   TestGetExperimentLogsEdgeCases/NonExistentExperiment
+--- PASS: TestGetExperimentLogsEdgeCases (0.07s)
+    --- PASS: TestGetExperimentLogsEdgeCases/WithNullFields (0.01s)
+    --- PASS: TestGetExperimentLogsEdgeCases/NonExistentExperiment (0.00s)
+=== RUN   TestPromptTemplateProcessing
+=== RUN   TestPromptTemplateProcessing/ValidTemplateReplacement
+=== RUN   TestPromptTemplateProcessing/SpecialCharactersInTemplate
+=== RUN   TestPromptTemplateProcessing/EmptyFieldsInTemplate
+--- PASS: TestPromptTemplateProcessing (0.00s)
+    --- PASS: TestPromptTemplateProcessing/ValidTemplateReplacement (0.00s)
+    --- PASS: TestPromptTemplateProcessing/SpecialCharactersInTemplate (0.00s)
+    --- PASS: TestPromptTemplateProcessing/EmptyFieldsInTemplate (0.00s)
+=== RUN   TestDatabaseConnectionPooling
+=== RUN   TestDatabaseConnectionPooling/ConnectionPoolSettings
+    business_test.go:155: Max open connections: 0
+    business_test.go:156: Open connections: 1
+    business_test.go:157: In use: 0
+    business_test.go:158: Idle: 1
+    business_test.go:161: Expected max open connections 25, got 0
+=== RUN   TestDatabaseConnectionPooling/ConnectionReuse
+--- FAIL: TestDatabaseConnectionPooling (0.07s)
+    --- FAIL: TestDatabaseConnectionPooling/ConnectionPoolSettings (0.00s)
+    --- PASS: TestDatabaseConnectionPooling/ConnectionReuse (0.00s)
+=== RUN   TestExperimentValidation
+=== RUN   TestExperimentValidation/MissingRequiredFields
+=== RUN   TestExperimentValidation/MissingRequiredFields/MissingName
+=== RUN   TestExperimentValidation/MissingRequiredFields/MissingTargetScenario
+=== RUN   TestExperimentValidation/MissingRequiredFields/MissingNewResource
+=== RUN   TestExperimentValidation/ValidRequest
+--- PASS: TestExperimentValidation (0.07s)
+    --- PASS: TestExperimentValidation/MissingRequiredFields (0.00s)
+        --- PASS: TestExperimentValidation/MissingRequiredFields/MissingName (0.00s)
+        --- PASS: TestExperimentValidation/MissingRequiredFields/MissingTargetScenario (0.00s)
+        --- PASS: TestExperimentValidation/MissingRequiredFields/MissingNewResource (0.00s)
+    --- PASS: TestExperimentValidation/ValidRequest (0.00s)
+=== RUN   TestExperimentStatusLogic
+=== RUN   TestExperimentStatusLogic/DefaultStatusOnCreation
+=== RUN   TestExperimentStatusLogic/StatusTransitionTracking
+=== RUN   TestExperimentStatusLogic/CompletedAtTracking
+--- PASS: TestExperimentStatusLogic (0.18s)
+    --- PASS: TestExperimentStatusLogic/DefaultStatusOnCreation (0.00s)
+    --- PASS: TestExperimentStatusLogic/StatusTransitionTracking (0.10s)
+    --- PASS: TestExperimentStatusLogic/CompletedAtTracking (0.00s)
+=== RUN   TestJSONFieldHandling
+=== RUN   TestJSONFieldHandling/EmptyJSONArrays
+=== RUN   TestJSONFieldHandling/NullJSONFields
+    business_test.go:393: ExistingResources: []
+    business_test.go:394: FilesGenerated: map[]
+--- PASS: TestJSONFieldHandling (0.08s)
+    --- PASS: TestJSONFieldHandling/EmptyJSONArrays (0.00s)
+    --- PASS: TestJSONFieldHandling/NullJSONFields (0.00s)
+=== RUN   TestTemplateBusinessLogic
+=== RUN   TestTemplateBusinessLogic/ActiveTemplateFiltering
+=== RUN   TestTemplateBusinessLogic/TemplateUsageTracking
+=== RUN   TestTemplateBusinessLogic/SuccessRateCalculation
+--- PASS: TestTemplateBusinessLogic (0.09s)
+    --- PASS: TestTemplateBusinessLogic/ActiveTemplateFiltering (0.02s)
+    --- PASS: TestTemplateBusinessLogic/TemplateUsageTracking (0.00s)
+    --- PASS: TestTemplateBusinessLogic/SuccessRateCalculation (0.00s)
+=== RUN   TestScenarioBusinessLogic
+=== RUN   TestScenarioBusinessLogic/ExperimentationFriendlyFiltering
+=== RUN   TestScenarioBusinessLogic/ComplexityLevelClassification
+=== RUN   TestScenarioBusinessLogic/LastExperimentDateTracking
+--- PASS: TestScenarioBusinessLogic (0.10s)
+    --- PASS: TestScenarioBusinessLogic/ExperimentationFriendlyFiltering (0.02s)
+    --- PASS: TestScenarioBusinessLogic/ComplexityLevelClassification (0.01s)
+    --- PASS: TestScenarioBusinessLogic/LastExperimentDateTracking (0.00s)
+=== RUN   TestExperimentLogBusinessLogic
+=== RUN   TestExperimentLogBusinessLogic/LogOrdering
+=== RUN   TestExperimentLogBusinessLogic/DurationCalculation
+=== RUN   TestExperimentLogBusinessLogic/SuccessFailureTracking
+--- PASS: TestExperimentLogBusinessLogic (0.08s)
+    --- PASS: TestExperimentLogBusinessLogic/LogOrdering (0.01s)
+    --- PASS: TestExperimentLogBusinessLogic/DurationCalculation (0.00s)
+    --- PASS: TestExperimentLogBusinessLogic/SuccessFailureTracking (0.01s)
+=== RUN   TestExperimentWorkflow
+=== RUN   TestExperimentWorkflow/CompleteExperimentLifecycle
+=== RUN   TestExperimentWorkflow/TemplateUsageWorkflow
+=== RUN   TestExperimentWorkflow/ScenarioDiscoveryWorkflow
+--- PASS: TestExperimentWorkflow (0.09s)
+    --- PASS: TestExperimentWorkflow/CompleteExperimentLifecycle (0.01s)
+    --- PASS: TestExperimentWorkflow/TemplateUsageWorkflow (0.00s)
+    --- PASS: TestExperimentWorkflow/ScenarioDiscoveryWorkflow (0.01s)
+=== RUN   TestExperimentStatusTransitions
+=== RUN   TestExperimentStatusTransitions/ValidStatusTransitions
+=== RUN   TestExperimentStatusTransitions/FailedStatusTransition
+--- PASS: TestExperimentStatusTransitions (0.07s)
+    --- PASS: TestExperimentStatusTransitions/ValidStatusTransitions (0.01s)
+    --- PASS: TestExperimentStatusTransitions/FailedStatusTransition (0.00s)
+=== RUN   TestMultipleExperimentsManagement
+=== RUN   TestMultipleExperimentsManagement/CreateMultipleExperiments
+=== RUN   TestMultipleExperimentsManagement/FilterByStatus
+    integration_test.go:418: Expected 2 completed experiments, got 1
+=== RUN   TestMultipleExperimentsManagement/LimitResults
+--- FAIL: TestMultipleExperimentsManagement (0.17s)
+    --- PASS: TestMultipleExperimentsManagement/CreateMultipleExperiments (0.02s)
+    --- FAIL: TestMultipleExperimentsManagement/FilterByStatus (0.04s)
+    --- PASS: TestMultipleExperimentsManagement/LimitResults (0.05s)
+=== RUN   TestCascadingDeletes
+=== RUN   TestCascadingDeletes/ExperimentWithLogs
+--- PASS: TestCascadingDeletes (0.08s)
+    --- PASS: TestCascadingDeletes/ExperimentWithLogs (0.01s)
+=== RUN   TestDatabaseTransactions
+=== RUN   TestDatabaseTransactions/ConcurrentUpdates
+--- PASS: TestDatabaseTransactions (0.07s)
+    --- PASS: TestDatabaseTransactions/ConcurrentUpdates (0.01s)
+=== RUN   TestDataIntegrity
+=== RUN   TestDataIntegrity/ExperimentIDUniqueness
+=== RUN   TestDataIntegrity/LogForeignKeyConstraint
+--- PASS: TestDataIntegrity (0.07s)
+    --- PASS: TestDataIntegrity/ExperimentIDUniqueness (0.00s)
+    --- PASS: TestDataIntegrity/LogForeignKeyConstraint (0.00s)
+=== RUN   TestHealthCheck
+=== RUN   TestHealthCheck/Success
+=== RUN   TestHealthCheck/DatabaseDown
+--- PASS: TestHealthCheck (0.01s)
+    --- PASS: TestHealthCheck/Success (0.00s)
+    --- PASS: TestHealthCheck/DatabaseDown (0.00s)
+=== RUN   TestListExperiments
+=== RUN   TestListExperiments/Success_EmptyList
+=== RUN   TestListExperiments/Success_WithExperiments
+=== RUN   TestListExperiments/Success_FilterByStatus
+=== RUN   TestListExperiments/Success_WithLimit
+--- PASS: TestListExperiments (0.13s)
+    --- PASS: TestListExperiments/Success_EmptyList (0.00s)
+    --- PASS: TestListExperiments/Success_WithExperiments (0.00s)
+    --- PASS: TestListExperiments/Success_FilterByStatus (0.03s)
+    --- PASS: TestListExperiments/Success_WithLimit (0.03s)
+=== RUN   TestCreateExperiment
+=== RUN   TestCreateExperiment/Success
+=== RUN   TestCreateExperiment/InvalidJSON
+=== RUN   TestCreateExperiment/MissingRequiredFields
+=== RUN   TestCreateExperiment/EmptyBody
+--- PASS: TestCreateExperiment (0.07s)
+    --- PASS: TestCreateExperiment/Success (0.00s)
+    --- PASS: TestCreateExperiment/InvalidJSON (0.00s)
+    --- PASS: TestCreateExperiment/MissingRequiredFields (0.00s)
+    --- PASS: TestCreateExperiment/EmptyBody (0.00s)
+=== RUN   TestGetExperiment
+=== RUN   TestGetExperiment/Success
+=== RUN   TestGetExperiment/InvalidUUID
+=== RUN   TestGetExperiment/NonExistentExperiment
+--- PASS: TestGetExperiment (0.07s)
+    --- PASS: TestGetExperiment/Success (0.00s)
+    --- PASS: TestGetExperiment/InvalidUUID (0.00s)
+    --- PASS: TestGetExperiment/NonExistentExperiment (0.00s)
+=== RUN   TestUpdateExperiment
+=== RUN   TestUpdateExperiment/Success_UpdateStatus
+=== RUN   TestUpdateExperiment/Success_UpdateFilesGenerated
+=== RUN   TestUpdateExperiment/Error_NoValidFields
+=== RUN   TestUpdateExperiment/InvalidJSON
+--- PASS: TestUpdateExperiment (0.08s)
+    --- PASS: TestUpdateExperiment/Success_UpdateStatus (0.01s)
+    --- PASS: TestUpdateExperiment/Success_UpdateFilesGenerated (0.00s)
+    --- PASS: TestUpdateExperiment/Error_NoValidFields (0.00s)
+    --- PASS: TestUpdateExperiment/InvalidJSON (0.00s)
+=== RUN   TestDeleteExperiment
+=== RUN   TestDeleteExperiment/Success
+=== RUN   TestDeleteExperiment/Success_IdempotentDelete
+--- PASS: TestDeleteExperiment (0.08s)
+    --- PASS: TestDeleteExperiment/Success (0.01s)
+    --- PASS: TestDeleteExperiment/Success_IdempotentDelete (0.00s)
+=== RUN   TestGetExperimentLogs
+=== RUN   TestGetExperimentLogs/Success_EmptyLogs
+=== RUN   TestGetExperimentLogs/Success_WithLogs
+--- PASS: TestGetExperimentLogs (0.08s)
+    --- PASS: TestGetExperimentLogs/Success_EmptyLogs (0.00s)
+    --- PASS: TestGetExperimentLogs/Success_WithLogs (0.00s)
+=== RUN   TestListTemplates
+=== RUN   TestListTemplates/Success_EmptyList
+=== RUN   TestListTemplates/Success_WithTemplates
+=== RUN   TestListTemplates/Success_OnlyActiveTemplates
+--- PASS: TestListTemplates (0.09s)
+    --- PASS: TestListTemplates/Success_EmptyList (0.00s)
+    --- PASS: TestListTemplates/Success_WithTemplates (0.00s)
+    --- PASS: TestListTemplates/Success_OnlyActiveTemplates (0.02s)
+=== RUN   TestListScenarios
+=== RUN   TestListScenarios/Success_EmptyList
+=== RUN   TestListScenarios/Success_WithScenarios
+=== RUN   TestListScenarios/Success_OnlyExperimentationFriendly
+--- PASS: TestListScenarios (0.10s)
+    --- PASS: TestListScenarios/Success_EmptyList (0.00s)
+    --- PASS: TestListScenarios/Success_WithScenarios (0.00s)
+    --- PASS: TestListScenarios/Success_OnlyExperimentationFriendly (0.02s)
+=== RUN   TestAPIServer_InitDB
+=== RUN   TestAPIServer_InitDB/Success_WithPostgresURL
+=== RUN   TestAPIServer_InitDB/Error_MissingConfiguration
+--- PASS: TestAPIServer_InitDB (209.81s)
+    --- PASS: TestAPIServer_InitDB/Success_WithPostgresURL (209.81s)
+    --- PASS: TestAPIServer_InitDB/Error_MissingConfiguration (0.00s)
+=== RUN   TestLoadPromptTemplate
+=== RUN   TestLoadPromptTemplate/Error_FileNotFound
+--- PASS: TestLoadPromptTemplate (0.00s)
+    --- PASS: TestLoadPromptTemplate/Error_FileNotFound (0.00s)
+=== RUN   TestEdgeCases
+=== RUN   TestEdgeCases/EmptyStringFields
+=== RUN   TestEdgeCases/VeryLongStrings
+=== RUN   TestEdgeCases/SpecialCharactersInJSON
+--- PASS: TestEdgeCases (0.10s)
+    --- PASS: TestEdgeCases/EmptyStringFields (0.00s)
+    --- PASS: TestEdgeCases/VeryLongStrings (0.01s)
+    --- PASS: TestEdgeCases/SpecialCharactersInJSON (0.00s)
+=== RUN   TestConcurrentRequests
+=== RUN   TestConcurrentRequests/ConcurrentReads
+--- PASS: TestConcurrentRequests (0.18s)
+    --- PASS: TestConcurrentRequests/ConcurrentReads (0.01s)
+=== RUN   TestAPIServerPerformance
+=== RUN   TestAPIServerPerformance/ConcurrentExperimentCreation
+    performance_test.go:67: Created 50 experiments in 25.563851ms (avg: 511.277µs per request)
+=== RUN   TestAPIServerPerformance/ConcurrentReads
+    performance_test.go:112: Completed 100 read requests in 38.612722ms (avg: 386.127µs per request)
+=== RUN   TestAPIServerPerformance/LargeDatasetRetrieval
+    performance_test.go:144: Retrieved 151 experiments in 1.23867ms
+=== RUN   TestAPIServerPerformance/DatabaseConnectionPool
+    performance_test.go:207: Connection pool handled 30 concurrent requests in 22.293071ms (0 failures)
+=== RUN   TestAPIServerPerformance/MemoryUsageUnderLoad
+    performance_test.go:232: Created and deleted 50 experiments in 533.110207ms
+=== RUN   TestAPIServerPerformance/TemplateQueryPerformance
+    performance_test.go:275: Average template query time over 10 iterations: 346.975µs
+=== RUN   TestAPIServerPerformance/ScenarioQueryPerformance
+    performance_test.go:315: Average scenario query time over 10 iterations: 313.151µs
+=== RUN   TestAPIServerPerformance/ExperimentLogPerformance
+    performance_test.go:354: Retrieved 100 logs in 857.65µs
+=== RUN   TestAPIServerPerformance/UpdateOperationPerformance
+    performance_test.go:394: Updated 20 experiments concurrently in 12.536511ms
+--- PASS: TestAPIServerPerformance (2.24s)
+    --- PASS: TestAPIServerPerformance/ConcurrentExperimentCreation (0.03s)
+    --- PASS: TestAPIServerPerformance/ConcurrentReads (0.05s)
+    --- PASS: TestAPIServerPerformance/LargeDatasetRetrieval (0.48s)
+    --- PASS: TestAPIServerPerformance/DatabaseConnectionPool (0.02s)
+    --- PASS: TestAPIServerPerformance/MemoryUsageUnderLoad (0.53s)
+    --- PASS: TestAPIServerPerformance/TemplateQueryPerformance (0.29s)
+    --- PASS: TestAPIServerPerformance/ScenarioQueryPerformance (0.24s)
+    --- PASS: TestAPIServerPerformance/ExperimentLogPerformance (0.44s)
+    --- PASS: TestAPIServerPerformance/UpdateOperationPerformance (0.06s)
+FAIL
+coverage: 75.5% of statements
+FAIL	resource-experimenter-api	214.847s
+FAIL

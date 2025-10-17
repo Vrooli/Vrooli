@@ -1,0 +1,25 @@
+{
+  "name": "period-tracker-ui",
+  "version": "1.0.0",
+  "description": "Privacy-first menstrual health tracking UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "menstrual-health",
+    "period-tracking",
+    "privacy",
+    "health",
+    "women"
+  ],
+  "author": "Vrooli AI Agent",
+  "license": "MIT",
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}

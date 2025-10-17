@@ -1,0 +1,196 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "maintenance-orchestrator",
+    "displayName": "Maintenance Orchestrator",
+    "description": "Centralized control plane for all maintenance-related scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "system",
+      "orchestration",
+      "maintenance",
+      "control",
+      "go-api",
+      "nodejs-ui"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Maintenance Orchestrator API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 36222,
+      "description": "Web UI dashboard port"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": false,
+      "required": false,
+      "purpose": "Execute maintenance workflows when scenarios are activated"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": false,
+      "required": false,
+      "purpose": "Store preset configurations and activity logs"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Pub/sub for real-time state updates across instances"
+    }
+  },
+  "components": {
+    "api": {
+      "enabled": true,
+      "language": "go",
+      "path": "api",
+      "main": "main.go"
+    },
+    "ui": {
+      "enabled": true,
+      "framework": "javascript",
+      "path": "ui",
+      "main": "server.js"
+    },
+    "cli": {
+      "enabled": true,
+      "language": "bash",
+      "path": "cli",
+      "command": "maintenance-orchestrator"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Maintenance Orchestrator health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health",
+        "status": "/api/v1/status"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Maintenance Orchestrator",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api/maintenance-orchestrator-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "maintenance-orchestrator"
+             ]
+           }
+         ]
+       },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o maintenance-orchestrator-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Maintenance Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start maintenance orchestrator with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./maintenance-orchestrator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/maintenance-orchestrator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
+           "description": "Display service URLs and usage information"
+         }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing using modern testing architecture",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased testing"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"maintenance-orchestrator-api\" || true; sleep 1; pkill -9 -f \"maintenance-orchestrator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/maintenance-orchestrator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/maintenance-orchestrator.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

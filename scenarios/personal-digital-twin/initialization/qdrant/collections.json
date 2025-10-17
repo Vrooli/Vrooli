@@ -1,0 +1,100 @@
+{
+  "collections": [
+    {
+      "name": "memories",
+      "vectors": {
+        "size": 768,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "persona_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "source_type": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "timestamp": {
+          "type": "datetime",
+          "indexed": true
+        },
+        "importance_score": {
+          "type": "float",
+          "indexed": true
+        },
+        "text": {
+          "type": "text"
+        },
+        "metadata": {
+          "type": "json"
+        }
+      },
+      "optimizers_config": {
+        "memmap_threshold": 20000,
+        "indexing_threshold": 10000
+      }
+    },
+    {
+      "name": "documents",
+      "vectors": {
+        "size": 768,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "persona_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "document_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "chunk_index": {
+          "type": "integer",
+          "indexed": true
+        },
+        "content": {
+          "type": "text"
+        },
+        "file_type": {
+          "type": "keyword",
+          "indexed": true
+        }
+      }
+    },
+    {
+      "name": "conversations",
+      "vectors": {
+        "size": 768,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "persona_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "conversation_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "role": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "message": {
+          "type": "text"
+        },
+        "timestamp": {
+          "type": "datetime",
+          "indexed": true
+        }
+      }
+    }
+  ],
+  "initialization": {
+    "recreate_on_start": false,
+    "create_snapshots": true,
+    "snapshot_interval": "daily"
+  }
+}

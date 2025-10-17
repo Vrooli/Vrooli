@@ -1,0 +1,569 @@
+#!/bin/bash
+# file-tools - Command-line interface for File Tools
+# Comprehensive file operations and management CLI
+
+set -euo pipefail
+
+# Configuration
+readonly CLI_NAME="file-tools"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+readonly DEFAULT_API_BASE="http://localhost:${API_PORT:-8080}"
+# Default token for local development only - override via FILE_TOOLS_API_TOKEN env var or config file
+readonly DEFAULT_TOKEN="${FILE_TOOLS_API_TOKEN:-file-tools-token}"
+
+# Colors for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Initialize configuration
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<EOF
+{
+    "api_base": "$DEFAULT_API_BASE",
+    "api_token": "$DEFAULT_TOKEN",
+    "output_format": "table",
+    "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+        echo -e "${GREEN}✓${NC} Configuration initialized at $CONFIG_FILE"
+    fi
+}
+
+# Load configuration
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
+        API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
+        OUTPUT_FORMAT=$(jq -r '.output_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
+    else
+        API_BASE="$DEFAULT_API_BASE"
+        API_TOKEN="$DEFAULT_TOKEN"
+        OUTPUT_FORMAT="table"
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    
+    local url="${API_BASE}${endpoint}"
+    local curl_opts=(-s -X "$method")
+    
+    # Skip auth for health check
+    if [[ "$endpoint" != "/health" ]]; then
+        curl_opts+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_opts+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null)
+    exit_code=$?
+    
+    if [[ $exit_code -ne 0 ]]; then
+        echo -e "${RED}✗${NC} Failed to connect to API at $url" >&2
+        return 1
+    fi
+    
+    echo "$response"
+}
+
+# Format output
+format_output() {
+    local data="$1"
+    local format="${2:-$OUTPUT_FORMAT}"
+    
+    case "$format" in
+        json)
+            echo "$data" | jq '.' 2>/dev/null || echo "$data"
+            ;;
+        table)
+            # Convert JSON to simple table format
+            echo "$data" | jq -r '
+                if type == "array" then
+                    .[] | [.id, .name, .status // .description // ""] | @tsv
+                elif type == "object" then
+                    to_entries | .[] | [.key, .value] | @tsv
+                else
+                    .
+                end
+            ' 2>/dev/null || echo "$data"
+            ;;
+        raw)
+            echo "$data"
+            ;;
+        *)
+            echo "$data"
+            ;;
+    esac
+}
+
+# Command: status
+cmd_status() {
+    echo -e "${BLUE}File Tools Status${NC}"
+    echo "===================="
+    
+    response=$(api_request GET "/health")
+    if [[ $? -eq 0 ]]; then
+        status=$(echo "$response" | jq -r '.status // "unknown"')
+        version=$(echo "$response" | jq -r '.version // "unknown"')
+        database=$(echo "$response" | jq -r '.database // "unknown"')
+        
+        if [[ "$status" == "healthy" ]]; then
+            echo -e "Status:   ${GREEN}●${NC} $status"
+        else
+            echo -e "Status:   ${RED}●${NC} $status"
+        fi
+        echo "Version:  $version"
+        echo "Database: $database"
+        echo ""
+        echo "API Base: $API_BASE"
+    else
+        echo -e "${RED}✗${NC} API is not accessible"
+    fi
+}
+
+# Command: compress
+cmd_compress() {
+    local files=()
+    local output=""
+    local format="zip"
+    local level=6
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -o|--output)
+                output="$2"
+                shift 2
+                ;;
+            -f|--format)
+                format="$2"
+                shift 2
+                ;;
+            -l|--level)
+                level="$2"
+                shift 2
+                ;;
+            *)
+                files+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo -e "${RED}✗${NC} No files specified"
+        return 1
+    fi
+    
+    if [[ -z "$output" ]]; then
+        output="archive.${format}"
+    fi
+    
+    local data=$(jq -n \
+        --arg fmt "$format" \
+        --arg out "$output" \
+        --arg lvl "$level" \
+        --argjson files "$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)" \
+        '{
+            files: $files,
+            archive_format: $fmt,
+            output_path: $out,
+            compression_level: ($lvl | tonumber)
+        }')
+    
+    response=$(api_request POST "/api/v1/files/compress" "$data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Compression completed"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Compression failed"
+    fi
+}
+
+# Command: extract
+cmd_extract() {
+    local archive="$1"
+    local destination="${2:-.}"
+    
+    if [[ -z "$archive" ]]; then
+        echo -e "${RED}✗${NC} Archive path required"
+        return 1
+    fi
+    
+    local data=$(jq -n \
+        --arg arch "$archive" \
+        --arg dest "$destination" \
+        '{
+            archive_path: $arch,
+            destination_path: $dest
+        }')
+    
+    response=$(api_request POST "/api/v1/files/extract" "$data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Extraction completed"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Extraction failed"
+    fi
+}
+
+# Command: checksum
+cmd_checksum() {
+    local files=()
+    local algorithm="sha256"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -a|--algorithm)
+                algorithm="$2"
+                shift 2
+                ;;
+            *)
+                files+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo -e "${RED}✗${NC} No files specified"
+        return 1
+    fi
+    
+    local data=$(jq -n \
+        --arg alg "$algorithm" \
+        --argjson files "$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)" \
+        '{
+            files: $files,
+            algorithm: $alg
+        }')
+    
+    response=$(api_request POST "/api/v1/files/checksum" "$data")
+    if [[ $? -eq 0 ]]; then
+        echo "$response" | jq -r '.results[] | "\(.file): \(.checksum)"'
+    else
+        echo -e "${RED}✗${NC} Checksum calculation failed"
+    fi
+}
+
+# Command: metadata
+cmd_metadata() {
+    local file="$1"
+    
+    if [[ -z "$file" ]]; then
+        echo -e "${RED}✗${NC} File path required"
+        return 1
+    fi
+    
+    # URL encode the file path
+    encoded_file=$(echo -n "$file" | jq -sRr @uri)
+    
+    response=$(api_request GET "/api/v1/files/metadata/${encoded_file}")
+    if [[ $? -eq 0 ]]; then
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Failed to get metadata"
+    fi
+}
+
+# Command: split
+cmd_split() {
+    local file=""
+    local size=""
+    local parts=""
+    local pattern=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -s|--size)
+                size="$2"
+                shift 2
+                ;;
+            -p|--parts)
+                parts="$2"
+                shift 2
+                ;;
+            -o|--output-pattern)
+                pattern="$2"
+                shift 2
+                ;;
+            *)
+                file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$file" ]]; then
+        echo -e "${RED}✗${NC} File path required"
+        return 1
+    fi
+    
+    # Convert size string (e.g., "100M", "1G") to bytes
+    local size_bytes=0
+    if [[ -n "$size" ]]; then
+        case "${size: -1}" in
+            K|k) size_bytes=$((${size:0:-1} * 1024)) ;;
+            M|m) size_bytes=$((${size:0:-1} * 1024 * 1024)) ;;
+            G|g) size_bytes=$((${size:0:-1} * 1024 * 1024 * 1024)) ;;
+            *) size_bytes=$size ;;
+        esac
+    fi
+    
+    local data=$(jq -n \
+        --arg f "$file" \
+        --arg s "$size_bytes" \
+        --arg p "${parts:-0}" \
+        --arg pat "$pattern" \
+        '{
+            file: $f,
+            size: ($s | tonumber),
+            parts: ($p | tonumber),
+            output_pattern: $pat
+        }')
+    
+    response=$(api_request POST "/api/v1/files/split" "$data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} File split successfully"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Split failed"
+    fi
+}
+
+# Command: merge
+cmd_merge() {
+    local pattern="$1"
+    local output="$2"
+    
+    if [[ -z "$pattern" || -z "$output" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME merge <pattern> <output>"
+        return 1
+    fi
+    
+    local data=$(jq -n \
+        --arg p "$pattern" \
+        --arg o "$output" \
+        '{
+            pattern: $p,
+            output: $o
+        }')
+    
+    response=$(api_request POST "/api/v1/files/merge" "$data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Files merged successfully"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Merge failed"
+    fi
+}
+
+# Command: help
+cmd_help() {
+    cat <<EOF
+${BLUE}File Tools CLI v${CLI_VERSION}${NC}
+Comprehensive file operations and management
+
+${YELLOW}Usage:${NC}
+  $CLI_NAME <command> [options] [arguments]
+
+${YELLOW}Commands:${NC}
+  status              Show API and service status
+  compress            Compress files into archive
+  extract             Extract files from archive
+  checksum            Calculate file checksums
+  metadata            Get file metadata and properties
+  split               Split large files into parts
+  merge               Merge file parts back together
+  config              Manage CLI configuration
+  help                Show this help message
+  version             Show CLI version
+
+${YELLOW}File Operations:${NC}
+  $CLI_NAME compress file1 file2 -o archive.zip
+  $CLI_NAME compress *.txt -f tar -o backup.tar
+  $CLI_NAME extract archive.zip destination/
+  $CLI_NAME checksum file.txt -a sha256
+  $CLI_NAME metadata /path/to/file
+  $CLI_NAME split largefile.dat -s 100M
+  $CLI_NAME merge "file.part.*" output.dat
+
+${YELLOW}Options:${NC}
+  Compress:
+    -o, --output        Output archive path
+    -f, --format        Archive format (zip, tar, gzip)
+    -l, --level         Compression level (0-9)
+  
+  Extract:
+    First argument:     Archive path
+    Second argument:    Destination directory (optional)
+  
+  Checksum:
+    -a, --algorithm     Hash algorithm (md5, sha1, sha256)
+  
+  Split:
+    -s, --size          Chunk size (e.g., 100M, 1G)
+    -p, --parts         Number of parts
+    -o, --output-pattern Output file pattern
+  
+  Global:
+    --json              Output in JSON format
+    --table             Output in table format (default)
+
+${YELLOW}Configuration:${NC}
+  Config file: $CONFIG_FILE
+  
+  $CLI_NAME config set api_base http://localhost:8080
+  $CLI_NAME config set api_token your-token
+  $CLI_NAME config get api_base
+  $CLI_NAME config list
+
+${YELLOW}Examples:${NC}
+  # Compress multiple files
+  $CLI_NAME compress doc1.pdf doc2.pdf images/ -o backup.zip
+  
+  # Extract archive
+  $CLI_NAME extract backup.tar.gz /tmp/extracted/
+  
+  # Calculate checksums
+  $CLI_NAME checksum *.txt -a sha256
+  
+  # Split large file
+  $CLI_NAME split video.mp4 -s 100M
+  
+  # Merge parts
+  $CLI_NAME merge "video.mp4.part.*" reconstructed.mp4
+
+For more information, visit: ${BLUE}https://github.com/Vrooli/file-tools${NC}
+EOF
+}
+
+# Command: version
+cmd_version() {
+    echo "$CLI_NAME v$CLI_VERSION"
+}
+
+# Command: config
+cmd_config() {
+    local action="${1:-list}"
+    local key="${2:-}"
+    local value="${3:-}"
+    
+    case "$action" in
+        get)
+            if [[ -z "$key" ]]; then
+                echo -e "${RED}✗${NC} Key required"
+                return 1
+            fi
+            jq -r ".$key // \"Not set\"" "$CONFIG_FILE" 2>/dev/null || echo "Not set"
+            ;;
+        set)
+            if [[ -z "$key" || -z "$value" ]]; then
+                echo -e "${RED}✗${NC} Key and value required"
+                return 1
+            fi
+            tmp=$(mktemp)
+            jq ".$key = \"$value\"" "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} $key set to $value"
+            ;;
+        list)
+            if [[ -f "$CONFIG_FILE" ]]; then
+                jq '.' "$CONFIG_FILE"
+            else
+                echo "No configuration found"
+            fi
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown config action: $action"
+            echo "Available actions: get, set, list"
+            return 1
+            ;;
+    esac
+}
+
+# Main
+main() {
+    init_config
+    load_config
+    
+    # Parse global flags
+    while [[ $# -gt 0 ]] && [[ "$1" == --* ]]; do
+        case "$1" in
+            --json)
+                OUTPUT_FORMAT="json"
+                shift
+                ;;
+            --table)
+                OUTPUT_FORMAT="table"
+                shift
+                ;;
+            --raw)
+                OUTPUT_FORMAT="raw"
+                shift
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    
+    # Get command
+    local command="${1:-help}"
+    shift || true
+    
+    # Route to command handler
+    case "$command" in
+        status)
+            cmd_status "$@"
+            ;;
+        compress)
+            cmd_compress "$@"
+            ;;
+        extract)
+            cmd_extract "$@"
+            ;;
+        checksum)
+            cmd_checksum "$@"
+            ;;
+        metadata)
+            cmd_metadata "$@"
+            ;;
+        split)
+            cmd_split "$@"
+            ;;
+        merge)
+            cmd_merge "$@"
+            ;;
+        config)
+            cmd_config "$@"
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown command: $command"
+            echo "Run '$CLI_NAME help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main with all arguments
+main "$@"

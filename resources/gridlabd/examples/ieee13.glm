@@ -1,0 +1,31 @@
+// IEEE 13 Node Test Feeder - Simplified version
+clock {
+    timezone EST+5EDT;
+    starttime '2024-01-01 00:00:00';
+    stoptime '2024-01-02 00:00:00';
+}
+
+module powerflow {
+    solver_method NR;
+}
+
+object node {
+    name node_650;
+    bustype SWING;
+    phases ABCN;
+    voltage_A 2401.7771+0j;
+    voltage_B -1200.8886-2080.776j;
+    voltage_C -1200.8886+2080.776j;
+    nominal_voltage 2401.7771;
+}
+
+object load {
+    name load_634;
+    parent node_650;
+    phases ABCN;
+    constant_power_A 160000+110000j;
+    constant_power_B 120000+90000j;
+    constant_power_C 120000+90000j;
+    nominal_voltage 2401.7771;
+}
+EOF < /dev/null

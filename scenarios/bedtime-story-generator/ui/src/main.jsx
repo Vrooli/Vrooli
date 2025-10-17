@@ -1,0 +1,25 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+import App from "./App";
+import "./index.css";
+
+if (typeof window !== 'undefined' && window.parent !== window && !window.__bedtimeStoryBridgeInitialized) {
+  let parentOrigin;
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch (error) {
+    console.warn('[BedtimeStoryGenerator] Unable to parse parent origin for iframe bridge', error);
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: 'bedtime-story-generator' });
+  window.__bedtimeStoryBridgeInitialized = true;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);

@@ -1,0 +1,158 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "agent-dashboard",
+    "displayName": "Agent Dashboard",
+    "description": "Cyberpunk-themed monitoring dashboard for AI agents within Vrooli resources",
+    "version": "1.0.0",
+    "tags": [
+      "monitoring",
+      "agents",
+      "dashboard",
+      "cyberpunk",
+      "logs",
+      "development",
+      "real-time",
+      "developer-tools",
+      "go-api",
+      "lifecycle-management"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Agent Dashboard API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Agent monitoring dashboard port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {},
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Agent Dashboard health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Agent Dashboard",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/agent-dashboard-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "agent-dashboard"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o agent-dashboard-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo -e \"🚀 Agent Dashboard initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start agent dashboard with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./agent-dashboard-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/agent-dashboard-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo -e \"🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for agent-dashboard using the new testing architecture",
+      "steps": [
+        {
+          "name": "run-comprehensive-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop agent dashboard services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"agent-dashboard-api\" || true; sleep 1; pkill -9 -f \"agent-dashboard-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/agent-dashboard.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/agent-dashboard.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

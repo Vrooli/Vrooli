@@ -1,0 +1,144 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "simple-test",
+    "displayName": "Simple Test App",
+    "description": "Minimal test app for lifecycle validation",
+    "version": "1.0.0",
+    "tags": [
+      "application",
+      "testing",
+      "test",
+      "minimal",
+      "framework-validation",
+      "nodejs-ui",
+      "postgres-storage"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Main application port",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "test data storage"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Simple Test health check configuration",
+      "endpoints": {
+        "app": "/health"
+      },
+      "checks": [
+        {
+          "name": "app_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Simple Test App",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "simple-test-api"
+             ]
+           },
+             {
+               "type": "cli",
+               "targets": [
+                 "simple-test"
+               ]
+             }
+         ]
+       },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Simple Test App initialized\\n  Application: http://localhost:${API_PORT}\\n  Health: http://localhost:${API_PORT}/health'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+     "develop": {
+       "description": "Start development server",
+       "steps": [
+          {
+            "name": "start-api",
+            "run": "cd api && ./simple-test-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+              "file_exists": "api/simple-test-api"
+            }
+          },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Application: http://localhost:${API_PORT}'",
+           "description": "Display running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Run application tests",
+      "steps": [
+        {
+          "name": "test-app-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test application health endpoint"
+        },
+        {
+          "name": "run-unit-tests",
+          "run": "npm test",
+          "description": "Run unit test suite",
+          "condition": {
+            "file_exists": "package.json"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"simple-test-api\" || true; sleep 1; pkill -9 -f \"simple-test-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

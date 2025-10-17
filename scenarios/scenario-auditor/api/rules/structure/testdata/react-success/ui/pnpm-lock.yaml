@@ -1,0 +1,13 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@vrooli/iframe-bridge':
+        specifier: workspace:*
+        version: link:../../../../../../../../packages/iframe-bridge

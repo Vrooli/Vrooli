@@ -1,0 +1,233 @@
+{
+  "name": "Expense Approval Workflow",
+  "description": "Multi-level approval workflow for expense requests with automatic routing based on amount",
+  "flow_structure": {
+    "nodes": [
+      {
+        "id": "validate_request",
+        "type": "script",
+        "path": "f/approvals/validate_expense",
+        "summary": "Validate expense request",
+        "inputs": {
+          "expense_data": "${flow.input}",
+          "validation_rules": {
+            "max_amount": 10000,
+            "required_fields": ["amount", "description", "category", "receipts"],
+            "allowed_categories": ["travel", "equipment", "training", "software", "other"]
+          }
+        }
+      },
+      {
+        "id": "determine_approvers",
+        "type": "script",
+        "path": "f/approvals/get_approvers",
+        "summary": "Determine approval chain based on amount",
+        "inputs": {
+          "amount": "${flow.input.amount}",
+          "department": "${flow.input.department}",
+          "rules": {
+            "under_500": ["direct_manager"],
+            "under_2000": ["direct_manager", "department_head"],
+            "over_2000": ["direct_manager", "department_head", "finance_director"]
+          }
+        }
+      },
+      {
+        "id": "manager_approval",
+        "type": "approval",
+        "path": "f/approvals/request_approval",
+        "summary": "Request manager approval",
+        "inputs": {
+          "approver": "${nodes.determine_approvers.output.approvers[0]}",
+          "expense_details": "${flow.input}",
+          "timeout_hours": 48,
+          "reminder_after_hours": 24
+        },
+        "outputs": {
+          "approved": "boolean",
+          "comments": "string",
+          "approved_by": "string",
+          "approved_at": "datetime"
+        }
+      },
+      {
+        "id": "check_manager_approval",
+        "type": "branch",
+        "condition": "${nodes.manager_approval.output.approved}",
+        "true_branch": "department_head_approval",
+        "false_branch": "notify_rejection"
+      },
+      {
+        "id": "department_head_approval",
+        "type": "approval",
+        "path": "f/approvals/request_approval",
+        "summary": "Request department head approval",
+        "inputs": {
+          "approver": "${nodes.determine_approvers.output.approvers[1]}",
+          "expense_details": "${flow.input}",
+          "previous_approval": "${nodes.manager_approval.output}",
+          "timeout_hours": 48
+        },
+        "condition": "${nodes.determine_approvers.output.approvers.length > 1}"
+      },
+      {
+        "id": "check_dept_approval",
+        "type": "branch",
+        "condition": "${nodes.department_head_approval.output.approved}",
+        "true_branch": "finance_approval",
+        "false_branch": "notify_rejection"
+      },
+      {
+        "id": "finance_approval",
+        "type": "approval",
+        "path": "f/approvals/request_approval",
+        "summary": "Request finance director approval",
+        "inputs": {
+          "approver": "${nodes.determine_approvers.output.approvers[2]}",
+          "expense_details": "${flow.input}",
+          "previous_approvals": [
+            "${nodes.manager_approval.output}",
+            "${nodes.department_head_approval.output}"
+          ],
+          "timeout_hours": 72
+        },
+        "condition": "${nodes.determine_approvers.output.approvers.length > 2 && flow.input.amount > 2000}"
+      },
+      {
+        "id": "check_final_approval",
+        "type": "branch",
+        "condition": "${nodes.finance_approval.output.approved || (nodes.determine_approvers.output.approvers.length <= 2 && nodes.department_head_approval.output.approved)}",
+        "true_branch": "process_expense",
+        "false_branch": "notify_rejection"
+      },
+      {
+        "id": "process_expense",
+        "type": "script",
+        "path": "f/finance/process_expense",
+        "summary": "Process approved expense",
+        "inputs": {
+          "expense": "${flow.input}",
+          "approvals": {
+            "manager": "${nodes.manager_approval.output}",
+            "department_head": "${nodes.department_head_approval.output}",
+            "finance": "${nodes.finance_approval.output}"
+          }
+        }
+      },
+      {
+        "id": "notify_approval",
+        "type": "script",
+        "path": "f/notifications/send_approval_email",
+        "summary": "Notify requester of approval",
+        "inputs": {
+          "to": "${flow.input.requester_email}",
+          "expense_id": "${nodes.process_expense.output.expense_id}",
+          "approval_chain": "${nodes.process_expense.output.approval_chain}",
+          "next_steps": "Your expense will be reimbursed within 5-7 business days"
+        }
+      },
+      {
+        "id": "notify_rejection",
+        "type": "script",
+        "path": "f/notifications/send_rejection_email",
+        "summary": "Notify requester of rejection",
+        "inputs": {
+          "to": "${flow.input.requester_email}",
+          "rejected_by": "${flow.last_rejection.rejected_by}",
+          "reason": "${flow.last_rejection.comments}",
+          "can_resubmit": true
+        }
+      }
+    ],
+    "approval_settings": {
+      "parallel_approvals": false,
+      "allow_delegation": true,
+      "escalation_enabled": true,
+      "audit_trail": true
+    }
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "amount": {
+        "type": "number",
+        "description": "Expense amount in USD"
+      },
+      "description": {
+        "type": "string",
+        "description": "Detailed description of the expense"
+      },
+      "category": {
+        "type": "string",
+        "enum": ["travel", "equipment", "training", "software", "other"],
+        "description": "Expense category"
+      },
+      "department": {
+        "type": "string",
+        "description": "Requester's department"
+      },
+      "requester_email": {
+        "type": "string",
+        "format": "email",
+        "description": "Email of the person requesting the expense"
+      },
+      "receipts": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "description": "URLs to receipt images/PDFs"
+      },
+      "justification": {
+        "type": "string",
+        "description": "Business justification for the expense"
+      }
+    },
+    "required": ["amount", "description", "category", "department", "requester_email", "receipts"]
+  },
+  "required_scripts": [
+    {
+      "path": "f/approvals/validate_expense",
+      "language": "typescript",
+      "description": "Validates expense request data"
+    },
+    {
+      "path": "f/approvals/get_approvers",
+      "language": "typescript",
+      "description": "Determines approval chain based on business rules"
+    },
+    {
+      "path": "f/approvals/request_approval",
+      "language": "typescript",
+      "description": "Sends approval request and waits for response"
+    },
+    {
+      "path": "f/finance/process_expense",
+      "language": "typescript",
+      "description": "Records approved expense in finance system"
+    },
+    {
+      "path": "f/notifications/send_approval_email",
+      "language": "typescript",
+      "description": "Sends approval notification"
+    },
+    {
+      "path": "f/notifications/send_rejection_email",
+      "language": "typescript",
+      "description": "Sends rejection notification"
+    }
+  ],
+  "usage_example": {
+    "trigger": "manual",
+    "input": {
+      "amount": 1500,
+      "description": "New laptop for development work",
+      "category": "equipment",
+      "department": "engineering",
+      "requester_email": "developer@company.com",
+      "receipts": ["https://receipts.company.com/laptop-receipt.pdf"],
+      "justification": "Current laptop is 5 years old and failing"
+    }
+  }
+}

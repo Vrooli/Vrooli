@@ -1,0 +1,314 @@
+{
+  "engines": {
+    "google": {
+      "engine": "google",
+      "shortcut": "go",
+      "timeout": 3.0,
+      "disabled": false,
+      "weight": 1.0,
+      "categories": ["general", "web"],
+      "safe_search": 1
+    },
+    "bing": {
+      "engine": "bing",
+      "shortcut": "bi",
+      "timeout": 3.0,
+      "disabled": false,
+      "weight": 0.9,
+      "categories": ["general", "web"],
+      "safe_search": 1
+    },
+    "duckduckgo": {
+      "engine": "duckduckgo",
+      "shortcut": "ddg",
+      "timeout": 3.0,
+      "disabled": false,
+      "weight": 0.8,
+      "categories": ["general", "web"],
+      "safe_search": 1
+    },
+    "startpage": {
+      "engine": "startpage",
+      "shortcut": "sp",
+      "timeout": 4.0,
+      "disabled": false,
+      "weight": 0.7,
+      "categories": ["general", "web"],
+      "safe_search": 1
+    },
+    "arxiv": {
+      "engine": "arxiv",
+      "shortcut": "arx",
+      "timeout": 4.0,
+      "disabled": false,
+      "weight": 1.2,
+      "categories": ["science", "research"],
+      "priority": "high"
+    },
+    "google_scholar": {
+      "engine": "google_scholar",
+      "shortcut": "gsc",
+      "timeout": 5.0,
+      "disabled": false,
+      "weight": 1.3,
+      "categories": ["science", "research"],
+      "priority": "high"
+    },
+    "semantic_scholar": {
+      "engine": "semantic_scholar", 
+      "shortcut": "ss",
+      "timeout": 5.0,
+      "disabled": false,
+      "weight": 1.2,
+      "categories": ["science", "research"],
+      "priority": "high"
+    },
+    "pubmed": {
+      "engine": "pubmed",
+      "shortcut": "pub",
+      "timeout": 4.0,
+      "disabled": false,
+      "weight": 1.1,
+      "categories": ["science", "medical", "research"],
+      "priority": "high"
+    },
+    "wikipedia": {
+      "engine": "wikipedia",
+      "shortcut": "wp",
+      "timeout": 3.0,
+      "disabled": false,
+      "weight": 0.6,
+      "categories": ["general"],
+      "priority": "medium"
+    },
+    "reddit": {
+      "engine": "reddit",
+      "shortcut": "re",
+      "timeout": 3.0,
+      "disabled": false,
+      "weight": 0.4,
+      "categories": ["social"],
+      "priority": "low"
+    },
+    "github": {
+      "engine": "github",
+      "shortcut": "gh",
+      "timeout": 3.0,
+      "disabled": false,
+      "weight": 0.8,
+      "categories": ["it", "software"],
+      "priority": "medium"
+    },
+    "stackoverflow": {
+      "engine": "stackoverflow",
+      "shortcut": "so",
+      "timeout": 3.0,
+      "disabled": false,
+      "weight": 0.7,
+      "categories": ["it", "software"],
+      "priority": "medium"
+    },
+    "hackernews": {
+      "engine": "hackernews",
+      "shortcut": "hn",
+      "timeout": 3.0,
+      "disabled": false,
+      "weight": 0.5,
+      "categories": ["it", "news"],
+      "priority": "medium"
+    },
+    "reuters": {
+      "engine": "reuters",
+      "shortcut": "rt",
+      "timeout": 4.0,
+      "disabled": false,
+      "weight": 0.9,
+      "categories": ["news"],
+      "priority": "high"
+    },
+    "bbc": {
+      "engine": "bbc",
+      "shortcut": "bbc",
+      "timeout": 4.0,
+      "disabled": false,
+      "weight": 0.8,
+      "categories": ["news"],
+      "priority": "high"
+    },
+    "wikidata": {
+      "engine": "wikidata",
+      "shortcut": "wd",
+      "timeout": 4.0,
+      "disabled": false,
+      "weight": 0.6,
+      "categories": ["general"],
+      "priority": "medium"
+    },
+    "wolframalpha": {
+      "engine": "wolframalpha",
+      "shortcut": "wa",
+      "timeout": 6.0,
+      "disabled": false,
+      "weight": 1.1,
+      "categories": ["science", "math"],
+      "priority": "high"
+    }
+  },
+  "default_engines": {
+    "general": ["google", "bing", "duckduckgo", "startpage"],
+    "academic": ["google_scholar", "arxiv", "semantic_scholar", "pubmed"],
+    "news": ["reuters", "bbc", "google", "bing"],
+    "technology": ["github", "stackoverflow", "hackernews", "google"],
+    "comprehensive": ["google", "bing", "google_scholar", "arxiv", "reuters", "wikipedia"]
+  },
+  "search_settings": {
+    "default_timeout": 3.0,
+    "max_concurrent": 8,
+    "safe_search": 1,
+    "time_range": null,
+    "language": "en",
+    "result_count": 20,
+    "categories": ["general"],
+    "engines": []
+  },
+  "quality_filters": {
+    "min_content_length": 100,
+    "excluded_domains": [
+      "pinterest.com",
+      "instagram.com", 
+      "tiktok.com",
+      "facebook.com",
+      "twitter.com",
+      "x.com",
+      "linkedin.com",
+      "youtube.com",
+      "blogspot.com",
+      "wordpress.com",
+      "medium.com",
+      "quora.com"
+    ],
+    "preferred_domains": [
+      "arxiv.org",
+      "scholar.google.com", 
+      "pubmed.ncbi.nlm.nih.gov",
+      "nature.com",
+      "science.org",
+      "ieee.org",
+      "acm.org",
+      "springer.com",
+      "sciencedirect.com",
+      "jstor.org",
+      "reuters.com",
+      "bbc.com",
+      "gov",
+      "edu",
+      "org"
+    ],
+    "credibility_scoring": {
+      "high_credibility": {
+        "domains": ["arxiv.org", "nature.com", "science.org", "ieee.org", "gov", "edu"],
+        "score_multiplier": 1.5
+      },
+      "medium_credibility": {
+        "domains": ["reuters.com", "bbc.com", "wikipedia.org", "org"],
+        "score_multiplier": 1.2
+      },
+      "low_credibility": {
+        "domains": ["blogspot.com", "medium.com", "quora.com"],
+        "score_multiplier": 0.5
+      }
+    }
+  },
+  "research_profiles": {
+    "academic_research": {
+      "engines": ["google_scholar", "arxiv", "semantic_scholar", "pubmed", "google"],
+      "weights": {
+        "google_scholar": 1.5,
+        "arxiv": 1.4,
+        "semantic_scholar": 1.3,
+        "pubmed": 1.2,
+        "google": 0.8
+      },
+      "result_count": 30,
+      "timeout": 6.0
+    },
+    "business_intelligence": {
+      "engines": ["google", "bing", "reuters", "bbc", "wikipedia"],
+      "weights": {
+        "google": 1.2,
+        "bing": 1.1,
+        "reuters": 1.3,
+        "bbc": 1.2,
+        "wikipedia": 0.7
+      },
+      "result_count": 25,
+      "timeout": 4.0
+    },
+    "technology_trends": {
+      "engines": ["google", "github", "stackoverflow", "hackernews", "arxiv"],
+      "weights": {
+        "google": 1.0,
+        "github": 1.2,
+        "stackoverflow": 1.1,
+        "hackernews": 0.9,
+        "arxiv": 1.3
+      },
+      "result_count": 25,
+      "timeout": 4.0
+    },
+    "general_research": {
+      "engines": ["google", "bing", "duckduckgo", "wikipedia", "google_scholar"],
+      "weights": {
+        "google": 1.0,
+        "bing": 0.9,
+        "duckduckgo": 0.8,
+        "wikipedia": 0.6,
+        "google_scholar": 1.1
+      },
+      "result_count": 20,
+      "timeout": 3.0
+    },
+    "deep_research": {
+      "engines": ["google", "bing", "google_scholar", "arxiv", "semantic_scholar", "pubmed", "reuters", "wikipedia"],
+      "weights": {
+        "google": 1.0,
+        "bing": 0.9,
+        "google_scholar": 1.4,
+        "arxiv": 1.3,
+        "semantic_scholar": 1.2,
+        "pubmed": 1.1,
+        "reuters": 1.0,
+        "wikipedia": 0.6
+      },
+      "result_count": 40,
+      "timeout": 8.0
+    }
+  },
+  "rate_limiting": {
+    "requests_per_minute": 60,
+    "requests_per_hour": 2000,
+    "burst_limit": 10,
+    "backoff_strategy": "exponential"
+  },
+  "privacy_settings": {
+    "disable_autocomplete": true,
+    "disable_search_history": true,
+    "disable_cookies": false,
+    "user_agent_rotation": true,
+    "proxy_support": false
+  },
+  "output_format": {
+    "default_format": "json",
+    "include_metadata": true,
+    "include_images": false,
+    "include_snippets": true,
+    "max_snippet_length": 300,
+    "deduplicate_results": true
+  },
+  "locale_settings": {
+    "default_language": "en",
+    "default_country": "US",
+    "supported_languages": ["en", "es", "fr", "de", "it", "pt", "zh", "ja", "ko"],
+    "language_detection": true
+  }
+}

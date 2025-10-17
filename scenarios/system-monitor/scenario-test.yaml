@@ -1,0 +1,110 @@
+name: system-monitor
+description: Server monitoring with AI-driven anomaly investigation
+version: 1.0.0
+
+tests:
+  - name: PostgreSQL Database
+    type: database
+    service: postgres
+    database: system_monitor
+    query: "SELECT COUNT(*) FROM thresholds"
+    expected: 
+      min_rows: 4
+
+  - name: QuestDB Time Series
+    type: connectivity
+    service: questdb
+    endpoint: http://localhost:9000/exec
+    method: GET
+    expected: 200
+
+  - name: Redis Alerts
+    type: connectivity
+    service: redis
+    command: PING
+    expected: PONG
+
+  - name: Node-RED Anomaly Detector
+    type: automation
+    service: node-red
+    flow: anomaly-detection-flow
+    expected: deployed
+
+  - name: Codex Investigation Endpoint
+    type: connectivity
+    service: codex
+    endpoint: /api/investigations/trigger
+    method: OPTIONS
+    expected: 200
+
+  - name: Grafana Dashboard
+    type: http
+    endpoint: http://localhost:3004
+    expected: 200
+
+  - name: UI Dashboard
+    type: http
+    endpoint: http://localhost:3003
+    expected: 200
+
+  - name: API Health
+    type: http
+    endpoint: http://localhost:8083/health
+    expected:
+      status: 200
+      body:
+        status: healthy
+
+  - name: Metric Collection
+    type: functional
+    description: Verify metric collection
+    steps:
+      - action: collect_metrics
+        endpoint: /api/metrics/current
+        expected:
+          cpu_usage: number
+          memory_usage: number
+          tcp_connections: number
+
+  - name: Anomaly Detection
+    type: functional
+    description: Test anomaly detection rules
+    steps:
+      - action: simulate_high_cpu
+        endpoint: /api/test/anomaly/cpu
+        expected: 
+          anomaly_detected: true
+      - action: check_investigation
+        endpoint: /api/investigations/latest
+        expected:
+          status: completed
+
+  - name: Report Generation
+    type: functional
+    description: Test report generation
+    steps:
+      - action: generate_report
+        endpoint: /api/reports/generate
+        method: POST
+        body:
+          type: daily
+        expected: 200
+
+validation:
+  required_services:
+    - postgres
+    - questdb
+    - redis
+    - node-red
+    - n8n
+    - codex
+    - grafana
+  required_ports:
+    - 3003
+    - 8083
+    - 3004
+    - 9000
+  system_access:
+    - netstat
+    - ps
+    - top

@@ -1,0 +1,290 @@
+#!/bin/bash
+
+# Scenario Surfer CLI
+# Provides command-line interface for scenario discovery and browsing
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
+API_PORT="${API_PORT:-27000}"
+UI_PORT="${UI_PORT:-34100}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+usage() {
+    cat << EOF
+🌊 Scenario Surfer - Discover and browse Vrooli scenarios
+
+USAGE:
+    scenario-surfer <command> [options]
+
+COMMANDS:
+    status                    Show service health and available scenarios
+    discover                  List all discoverable scenarios
+    open [category]          Open browser interface (optionally in category mode)
+    help                     Show this help message
+    version                  Show version information
+
+OPTIONS:
+    --json                   Output in JSON format (where applicable)
+    --verbose                Show detailed output
+    --category <name>        Filter by category
+    --status <health>        Filter by health status
+
+EXAMPLES:
+    scenario-surfer status --json
+    scenario-surfer discover --category work
+    scenario-surfer open fun
+    scenario-surfer status --verbose
+
+KEYBOARD SHORTCUTS (in browser):
+    Space                    Random scenario
+    Escape                   Go back
+    R                        Report issue
+
+EOF
+}
+
+version() {
+    echo "Scenario Surfer v1.0.0"
+    echo "Part of the Vrooli ecosystem"
+}
+
+status() {
+    local json_output=false
+    local verbose=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Check if API is running
+    if ! curl -s "http://localhost:$API_PORT/health" > /dev/null 2>&1; then
+        if $json_output; then
+            echo '{"status": "error", "message": "API not running", "api_port": "'$API_PORT'"}'
+        else
+            echo -e "${RED}❌ Scenario Surfer API not running on port $API_PORT${NC}"
+            echo "Run 'vrooli scenario run scenario-surfer' to start the service"
+        fi
+        exit 1
+    fi
+    
+    # Check if UI is running
+    local ui_status="stopped"
+    if curl -s "http://localhost:$UI_PORT/" > /dev/null 2>&1; then
+        ui_status="running"
+    fi
+    
+    if $json_output; then
+        # Get scenario data from API
+        local scenarios_data=""
+        if scenarios_data=$(curl -s "http://localhost:$API_PORT/api/v1/scenarios/healthy" 2>/dev/null); then
+            echo "$scenarios_data" | jq --arg api_port "$API_PORT" --arg ui_port "$UI_PORT" --arg ui_status "$ui_status" \
+                '{
+                    status: "healthy",
+                    api_port: $api_port,
+                    ui_port: $ui_port,
+                    ui_status: $ui_status,
+                    scenarios: .scenarios,
+                    categories: .categories,
+                    scenario_count: (.scenarios | length),
+                    category_count: (.categories | length)
+                }'
+        else
+            echo '{"status": "error", "message": "Failed to fetch scenario data"}'
+        fi
+    else
+        echo -e "${GREEN}🌊 Scenario Surfer Status${NC}"
+        echo -e "  API:  ${GREEN}✓${NC} Running on port $API_PORT"
+        echo -e "  UI:   $([ "$ui_status" = "running" ] && echo -e "${GREEN}✓${NC} Running on port $UI_PORT" || echo -e "${YELLOW}○${NC} Stopped")"
+        
+        # Get scenario count
+        local scenario_count=0
+        local category_count=0
+        if scenarios_data=$(curl -s "http://localhost:$API_PORT/api/v1/scenarios/healthy" 2>/dev/null); then
+            scenario_count=$(echo "$scenarios_data" | jq '.scenarios | length' 2>/dev/null || echo "0")
+            category_count=$(echo "$scenarios_data" | jq '.categories | length' 2>/dev/null || echo "0")
+        fi
+        
+        echo "  Scenarios: $scenario_count available"
+        echo "  Categories: $category_count available"
+        
+        if $verbose && [ "$scenario_count" -gt 0 ]; then
+            echo -e "\n${BLUE}Available Scenarios:${NC}"
+            echo "$scenarios_data" | jq -r '.scenarios[] | "  • \(.name) (\(.health))"' 2>/dev/null || echo "  Failed to list scenarios"
+            
+            echo -e "\n${BLUE}Available Categories:${NC}"
+            echo "$scenarios_data" | jq -r '.categories[] | "  • \(.)"' 2>/dev/null || echo "  Failed to list categories"
+        fi
+        
+        echo -e "\n${BLUE}URLs:${NC}"
+        echo "  Web Interface: http://localhost:$UI_PORT"
+        echo "  API: http://localhost:$API_PORT"
+    fi
+}
+
+discover() {
+    local category=""
+    local health_filter=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --category)
+                category="$2"
+                shift 2
+                ;;
+            --status)
+                health_filter="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Check if API is running
+    if ! curl -s "http://localhost:$API_PORT/health" > /dev/null 2>&1; then
+        echo -e "${RED}❌ API not running. Start with 'vrooli scenario run scenario-surfer'${NC}" >&2
+        exit 1
+    fi
+    
+    # Fetch scenarios
+    local scenarios_data
+    if ! scenarios_data=$(curl -s "http://localhost:$API_PORT/api/v1/scenarios/healthy" 2>/dev/null); then
+        echo -e "${RED}❌ Failed to fetch scenario data${NC}" >&2
+        exit 1
+    fi
+    
+    if $json_output; then
+        if [ -n "$category" ] || [ -n "$health_filter" ]; then
+            # Apply filters
+            local filter=""
+            if [ -n "$category" ]; then
+                filter="$filter | map(select(.tags[]? | test(\"$category\"; \"i\")))"
+            fi
+            if [ -n "$health_filter" ]; then
+                filter="$filter | map(select(.health == \"$health_filter\"))"
+            fi
+            echo "$scenarios_data" | jq "{scenarios: (.scenarios $filter), categories: .categories}"
+        else
+            echo "$scenarios_data"
+        fi
+    else
+        echo -e "${GREEN}🔍 Discoverable Scenarios${NC}"
+        
+        local scenario_list
+        if [ -n "$category" ]; then
+            scenario_list=$(echo "$scenarios_data" | jq -r --arg cat "$category" '.scenarios[] | select(.tags[]? | test($cat; "i")) | "\(.name)|\(.health)|\(.url)"' 2>/dev/null)
+            echo -e "  Filtered by category: ${BLUE}$category${NC}"
+        elif [ -n "$health_filter" ]; then
+            scenario_list=$(echo "$scenarios_data" | jq -r --arg health "$health_filter" '.scenarios[] | select(.health == $health) | "\(.name)|\(.health)|\(.url)"' 2>/dev/null)
+            echo -e "  Filtered by health: ${BLUE}$health_filter${NC}"
+        else
+            scenario_list=$(echo "$scenarios_data" | jq -r '.scenarios[] | "\(.name)|\(.health)|\(.url)"' 2>/dev/null)
+        fi
+        
+        if [ -z "$scenario_list" ]; then
+            echo "  No scenarios found matching criteria"
+            exit 0
+        fi
+        
+        echo ""
+        while IFS='|' read -r name health url; do
+            local health_icon
+            case "$health" in
+                "healthy") health_icon="${GREEN}●${NC}" ;;
+                "degraded") health_icon="${YELLOW}●${NC}" ;;
+                *) health_icon="${RED}●${NC}" ;;
+            esac
+            
+            echo -e "  $health_icon $(echo "$name" | sed 's/-/ /g' | sed 's/\b\w/\U&/g') - $url"
+        done <<< "$scenario_list"
+        
+        local count=$(echo "$scenario_list" | wc -l)
+        echo -e "\n  Found $count scenarios"
+    fi
+}
+
+open_browser() {
+    local category="$1"
+    local url="http://localhost:$UI_PORT"
+    
+    # Check if UI is running
+    if ! curl -s "$url" > /dev/null 2>&1; then
+        echo -e "${YELLOW}⚠️  UI not running. Starting services...${NC}"
+        echo "Run: vrooli scenario run scenario-surfer"
+        echo "Then try: scenario-surfer open"
+        exit 1
+    fi
+    
+    # Add category parameter if specified
+    if [ -n "$category" ]; then
+        url="$url#category=$category"
+    fi
+    
+    echo -e "${GREEN}🌊 Opening Scenario Surfer in browser...${NC}"
+    echo "URL: $url"
+    
+    # Try to open in browser
+    if command -v xdg-open > /dev/null 2>&1; then
+        xdg-open "$url" 2>/dev/null &
+    elif command -v open > /dev/null 2>&1; then
+        open "$url" 2>/dev/null &
+    else
+        echo -e "${BLUE}💡 Copy and paste this URL into your browser:${NC}"
+        echo "$url"
+    fi
+}
+
+# Main command handler
+case "${1:-help}" in
+    status)
+        shift
+        status "$@"
+        ;;
+    discover)
+        shift
+        discover "$@"
+        ;;
+    open)
+        shift
+        open_browser "$@"
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    version|--version|-v)
+        version
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}" >&2
+        echo "Run 'scenario-surfer help' for usage information"
+        exit 1
+        ;;
+esac

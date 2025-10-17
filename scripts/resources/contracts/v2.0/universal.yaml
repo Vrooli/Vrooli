@@ -1,0 +1,659 @@
+# Vrooli Universal Resource Contract v2.0
+# ============================================================================
+# This contract defines the standard interface that ALL resources must implement.
+# It replaces the category-based contracts (ai.yaml, storage.yaml, etc.) with
+# a single, unified specification that ensures consistency across all resources.
+#
+# Migration Status: Active (v1.0 contracts are deprecated)
+#
+# CRITICAL SEMANTIC DISTINCTION:
+# ==============================
+# - 'test' commands: Validate the RESOURCE itself (health, connectivity, lib functions)
+# - 'content' commands: Use the resource's BUSINESS FUNCTIONALITY  
+#
+# Example - K6 Resource:
+# - resource-k6 test smoke      → Test if K6 service is healthy
+# - resource-k6 content execute → Use K6 to run performance tests
+#
+# Example - Database Resource:
+# - resource-postgres test smoke      → Test if DB is accessible  
+# - resource-postgres content execute → Use DB to run queries
+#
+# This prevents confusion between "testing the tool" vs "using the tool for testing"
+# ============================================================================
+
+version: "2.0"
+contract_type: "universal"
+description: "Universal interface requirements for all Vrooli resources"
+migration_from: "1.0"
+
+# Core command structure - ALL resources MUST implement these
+commands:
+  # ==================== Help & Information ====================
+  help:
+    description: "Show comprehensive help with examples"
+    required: true
+    subcommands: []
+    exit_codes:
+      0: "Help displayed successfully"
+    output:
+      must_include:
+        - "Usage examples"
+        - "Available commands"
+        - "Default configuration"
+    
+  info:
+    description: "Show structured resource information from runtime.json"
+    required: true
+    subcommands: []
+    flags:
+      --json:
+        type: "boolean"
+        description: "Output in JSON format"
+    exit_codes:
+      0: "Info displayed successfully"
+    output:
+      must_include:
+        - "startup_order"
+        - "dependencies"
+        - "startup_time_estimate"
+        - "startup_timeout"
+        - "recovery_attempts"
+        - "priority"
+    implementation_note: "Reads from config/runtime.json file"
+    
+  # ==================== Management Commands ====================
+  manage:
+    description: "Resource lifecycle management"
+    required: true
+    subcommands:
+      install:
+        description: "Install resource and its dependencies"
+        required: true
+        flags:
+          --force:
+            type: "boolean"
+            description: "Skip confirmation prompts"
+          --skip-validation:
+            type: "boolean"
+            description: "Skip post-install validation"
+        exit_codes:
+          0: "Successfully installed"
+          1: "Installation failed"
+          2: "Already installed (skipped)"
+        timeout_seconds: 600
+        
+      uninstall:
+        description: "Remove resource completely"
+        required: true
+        flags:
+          --force:
+            type: "boolean"
+            description: "Skip confirmation prompts"
+          --keep-data:
+            type: "boolean"
+            description: "Preserve user data/content"
+        exit_codes:
+          0: "Successfully uninstalled"
+          1: "Uninstall failed"
+          2: "Not installed (skipped)"
+        timeout_seconds: 300
+        
+      start:
+        description: "Start resource service"
+        required: true
+        flags:
+          --wait:
+            type: "boolean"
+            description: "Wait for service to be ready"
+          --timeout:
+            type: "integer"
+            description: "Startup timeout in seconds"
+            default: 60
+        exit_codes:
+          0: "Service started successfully"
+          1: "Start failed"
+          2: "Already running"
+        timeout_seconds: 120
+        
+      stop:
+        description: "Stop resource service"
+        required: true
+        flags:
+          --force:
+            type: "boolean"
+            description: "Force stop without graceful shutdown"
+          --timeout:
+            type: "integer"
+            description: "Stop timeout in seconds"
+            default: 30
+        exit_codes:
+          0: "Service stopped successfully"
+          1: "Stop failed"
+          2: "Not running"
+        timeout_seconds: 60
+        
+      restart:
+        description: "Restart resource service"
+        required: true
+        flags:
+          --force:
+            type: "boolean"
+            description: "Force restart"
+        exit_codes:
+          0: "Service restarted successfully"
+          1: "Restart failed"
+        timeout_seconds: 180
+  
+  # ==================== Testing Commands ====================
+  # NOTE: These commands test the RESOURCE itself (health, connectivity, functions)
+  # NOT the business functionality the resource provides
+  # For example: K6 test commands validate K6 service health, not performance testing
+  test:
+    description: "Run resource validation tests"
+    required: true
+    subcommands:
+      all:
+        description: "Run all test suites"
+        required: true
+        exit_codes:
+          0: "All tests passed"
+          1: "One or more tests failed"
+          2: "Tests skipped or not available"
+        timeout_seconds: 600
+        implementation_requirement: "Must delegate to test/run-tests.sh all"
+        
+      integration:
+        description: "Run integration tests"
+        required: true
+        exit_codes:
+          0: "Integration tests passed"
+          1: "Integration tests failed"
+          2: "No integration tests available"
+        timeout_seconds: 300
+        implementation_requirement: "Must delegate to test/phases/test-integration.sh"
+        
+      unit:
+        description: "Run unit tests"
+        required: false  # Some resources may not have unit tests
+        exit_codes:
+          0: "Unit tests passed"
+          1: "Unit tests failed"
+          2: "No unit tests available"
+        timeout_seconds: 180
+        implementation_requirement: "Must delegate to test/phases/test-unit.sh"
+        
+      smoke:
+        description: "Quick health validation"
+        required: true
+        exit_codes:
+          0: "Smoke test passed"
+          1: "Smoke test failed"
+        timeout_seconds: 30
+        implementation_requirement: "Must delegate to test/phases/test-smoke.sh"
+        
+      # Resources can add custom test subcommands
+      # e.g., performance, load, security, etc.
+      # NOTE: These test RESOURCE health, not business functionality
+  
+  # ==================== Content Management ====================
+  content:
+    description: "Manage resource content/data"
+    required: true
+    subcommands:
+      add:
+        description: "Add content to resource"
+        required: true
+        flags:
+          --file:
+            type: "string"
+            description: "Path to content file"
+          --type:
+            type: "string"
+            description: "Content type"
+          --name:
+            type: "string"
+            description: "Content identifier"
+        exit_codes:
+          0: "Content added successfully"
+          1: "Failed to add content"
+          2: "Content already exists"
+          
+      list:
+        description: "List available content"
+        required: true
+        flags:
+          --format:
+            type: "string"
+            values: ["text", "json", "yaml"]
+            default: "text"
+          --filter:
+            type: "string"
+            description: "Filter content by pattern"
+        exit_codes:
+          0: "Content listed successfully"
+          1: "Failed to list content"
+          
+      get:
+        description: "Retrieve specific content"
+        required: true
+        flags:
+          --name:
+            type: "string"
+            description: "Content identifier"
+            required: true
+          --output:
+            type: "string"
+            description: "Output file path"
+        exit_codes:
+          0: "Content retrieved successfully"
+          1: "Failed to retrieve content"
+          2: "Content not found"
+          
+      remove:
+        description: "Remove content"
+        required: true
+        flags:
+          --name:
+            type: "string"
+            description: "Content identifier"
+            required: true
+          --force:
+            type: "boolean"
+            description: "Skip confirmation"
+        exit_codes:
+          0: "Content removed successfully"
+          1: "Failed to remove content"
+          2: "Content not found"
+          
+      execute:
+        description: "Execute/process content"
+        required: false  # Not all resources execute content
+        flags:
+          --name:
+            type: "string"
+            description: "Content identifier"
+          --options:
+            type: "string"
+            description: "Execution options"
+        exit_codes:
+          0: "Content executed successfully"
+          1: "Execution failed"
+          2: "Content not executable"
+  
+  # ==================== Monitoring Commands ====================
+  status:
+    description: "Show detailed resource status"
+    required: true
+    flags:
+      --format:
+        type: "string"
+        values: ["text", "json", "yaml"]
+        default: "text"
+      --verbose:
+        type: "boolean"
+        description: "Include detailed diagnostics"
+    exit_codes:
+      0: "Service running and healthy"
+      1: "Service error or unhealthy"
+      2: "Service not running"
+    timeout_seconds: 10
+    output:
+      must_include:
+        - "Service state (running/stopped)"
+        - "Health status"
+        - "Port/endpoint information"
+    
+  logs:
+    description: "View resource logs"
+    required: true
+    flags:
+      --tail:
+        type: "integer"
+        default: 50
+        description: "Number of lines to show"
+      --follow:
+        type: "boolean"
+        description: "Follow log output"
+      --since:
+        type: "string"
+        description: "Show logs since timestamp"
+    exit_codes:
+      0: "Logs displayed successfully"
+      1: "Error retrieving logs"
+      2: "No logs available"
+    timeout_seconds: 15
+    
+  credentials:
+    description: "Display integration credentials"
+    required: false  # Not all resources have credentials
+    flags:
+      --format:
+        type: "string"
+        values: ["text", "json", "env"]
+        default: "text"
+      --show-secrets:
+        type: "boolean"
+        description: "Show sensitive values"
+        default: false
+    exit_codes:
+      0: "Credentials displayed successfully"
+      1: "Error retrieving credentials"
+      2: "No credentials configured"
+
+# Runtime configuration requirements (v2.0)
+runtime_configuration:
+  description: "Resource runtime behavior and dependencies"
+  file_path: "config/runtime.json"
+  required: true
+  schema:
+    startup_order:
+      type: "integer"
+      required: true
+      range: [0, 1000]
+      description: "Priority for startup sequence (1000=highest)"
+      guidelines:
+        - "1000: Critical foundation (databases, cache)"
+        - "800-999: Core infrastructure (secrets, storage)"
+        - "600-799: Platform services (automation, workflows)"
+        - "400-599: Application services"
+        - "200-399: Optional services"
+        - "0-199: Low-priority/experimental"
+    startup_timeout:
+      type: "integer"
+      required: true
+      unit: "seconds"
+      description: "Maximum time to wait for resource to become healthy"
+    startup_time_estimate:
+      type: "string"
+      required: true
+      format: "{min}-{max}s"
+      description: "Human-readable startup time estimate"
+      examples: ["5-15s", "30-60s"]
+    dependencies:
+      type: "array<string>"
+      required: true
+      description: "Resources that must be running before this one"
+      notes: 
+        - "Empty array [] for foundational resources"
+        - "List direct dependencies only (not transitive)"
+    recovery_attempts:
+      type: "integer"
+      required: true
+      range: [1, 5]
+      description: "Number of recovery attempts before marking as failed"
+    priority:
+      type: "string"
+      required: true
+      enum: ["critical", "high", "medium", "low"]
+      description: "Business priority for monitoring/alerting"
+      guidelines:
+        - "critical: System cannot function without"
+        - "high: Major functionality degraded"
+        - "medium: Some features unavailable"
+        - "low: Nice-to-have services"
+
+# File structure requirements
+file_structure:
+  required:
+    cli.sh:
+      description: "Primary CLI entrypoint"
+      must_support:
+        - "Command routing"
+        - "Help display"
+        - "Error handling"
+    lib/:
+      description: "Library functions directory"
+      required_files:
+        - "core.sh"      # Core functionality
+        - "test.sh"      # Test implementations
+    config/:
+      description: "Configuration directory"
+      required_files:
+        - "defaults.sh"  # Default configuration
+        - "schema.json"  # Resource configuration schema
+        - "runtime.json" # Runtime behavior and dependencies (v2.0 required)
+  
+  optional:
+    lib/:
+      optional_files:
+        - "install.sh"   # Installation logic
+        - "status.sh"    # Status checking
+        - "content.sh"   # Content management
+        - "inject.sh"    # Injection support
+    config/:
+      optional_files:
+        - "exports.sh"   # Environment variable exports
+        - "messages.sh"  # User messages
+        - "capabilities.yaml"  # Resource capabilities
+    docs/:
+      description: "Resource documentation - flat structure"
+      recommended_files:
+        # Strategic hub + navigation
+        - README.md           # Already handled at root level
+        
+        # Core documentation files
+        - CAPABILITIES.md     # What can this resource do?
+        - PATTERNS.md         # How is this typically used?
+        - INTEGRATION.md      # How does this connect to other resources?
+        - ARCHITECTURE.md     # How does this work internally?
+        - PROBLEMS.md         # Active issues and unresolved problems (for task generation)
+        - TROUBLESHOOTING.md  # Known issues with proven solutions
+        - LESSONS_LEARNED.md  # What have we learned over time?
+        
+        # Implementation guidance
+        - INSTALLATION.md     # Setup instructions
+        - CONFIGURATION.md    # Config options and tuning
+        - USAGE.md           # Practical examples and workflows
+        - API_REFERENCE.md   # Complete API documentation
+        - EXAMPLES.md        # Working code samples
+        - SECURITY.md        # Security considerations
+        - PERFORMANCE.md     # Optimization guides and benchmarks
+        - FAQ.md             # Common questions and answers
+        
+        # Development and maintenance
+        - CHANGELOG.md       # Version history
+        - CONTRIBUTING.md    # Development guidelines
+        - TESTING.md         # Test procedures
+        - DEPLOYMENT.md      # Production deployment
+        - MONITORING.md      # Observability setup
+        - MIGRATION.md       # Version upgrade guides
+      
+      file_purposes:
+        # Note: How these files are processed by semantic extraction is an
+        # implementation detail of the knowledge system, not the resource contract
+        core_decision_making:
+          - CAPABILITIES.md
+          - PATTERNS.md
+          - INTEGRATION.md
+          - PROBLEMS.md
+        deep_understanding:
+          - ARCHITECTURE.md
+          - TROUBLESHOOTING.md
+          - LESSONS_LEARNED.md
+        practical_implementation:
+          - INSTALLATION.md
+          - CONFIGURATION.md
+          - USAGE.md
+          - API_REFERENCE.md
+          - EXAMPLES.md
+          - SECURITY.md
+          - PERFORMANCE.md
+          - FAQ.md
+        development_maintenance:
+          - CHANGELOG.md
+          - CONTRIBUTING.md
+          - TESTING.md
+          - DEPLOYMENT.md
+          - MONITORING.md
+          - MIGRATION.md
+    test/:
+      description: "Resource validation tests (not business functionality tests)"
+      required_structure:
+        run-tests.sh:
+          description: "Main test runner entry point"
+          executable: true
+          must_support:
+            - "Smoke tests (quick health check)"
+            - "Integration tests (full functionality)" 
+            - "Unit tests (library validation)"
+            - "Phase selection (--smoke, --integration, --unit, --all)"
+            - "Standard exit codes (0=pass, 1=fail)"
+        phases/:
+          description: "Test phase implementations"
+          required_files:
+            - "test-smoke.sh"      # Quick health validation (30s max)
+            - "test-integration.sh" # End-to-end functionality (120s max)
+            - "test-unit.sh"       # Library function validation (60s max)
+      optional_structure:
+        fixtures/:
+          description: "Test data and sample files"
+        helpers/:
+          description: "Test utility functions"
+        mocks/:
+          description: "Mock services and data"
+        config/:
+          description: "Test-specific configuration"
+      validation_requirements:
+        smoke_test:
+          max_duration: 30
+          exit_codes: [0, 1]
+          purpose: "Validate service health and basic connectivity"
+        integration_test:
+          max_duration: 120
+          exit_codes: [0, 1]  
+          purpose: "Validate end-to-end resource functionality"
+        unit_test:
+          max_duration: 60
+          exit_codes: [0, 1]
+          purpose: "Validate individual library functions"
+    
+  deprecated:
+    manage.sh:
+      description: "Legacy management script"
+      migration_to: "cli.sh"
+      removal_target: "v3.0"
+    manage.bats:
+      description: "Legacy test file"
+      migration_to: "lib/test.sh"
+      removal_target: "v3.0"
+    inject.sh:
+      description: "Legacy injection script"
+      migration_to: "content add command"
+      removal_target: "v3.0"
+
+# Deprecated patterns to detect and track
+deprecated_patterns:
+  commands:
+    inject:
+      description: "Legacy content injection"
+      replacement: "content add"
+      detection: "cli::register_command.*inject"
+    test-api:
+      description: "API-specific test command"
+      replacement: "test integration"
+      detection: "cli::register_command.*test-api"
+  
+  flags:
+    "--action":
+      description: "Old action flag pattern"
+      replacement: "Direct command"
+      detection: "--action\s+\w+"
+  
+  functions:
+    "main()":
+      description: "Old main function pattern"
+      replacement: "CLI framework dispatch"
+      detection: "^main\(\)\s*{"
+    "::info::startup_order":
+      description: "Legacy info function for startup order"
+      replacement: "config/runtime.json"
+      detection: "::info::startup_order"
+    "::info::dependencies":
+      description: "Legacy info function for dependencies"
+      replacement: "config/runtime.json"
+      detection: "::info::dependencies"
+    "::info::startup_time":
+      description: "Legacy info function for startup time"
+      replacement: "config/runtime.json"
+      detection: "::info::startup_time"
+  
+  environment_variables:
+    "VROOLI_RESOURCE_*":
+      description: "Old environment variable pattern"
+      replacement: "Resource-specific prefix"
+      detection: "VROOLI_RESOURCE_"
+
+# Validation layers
+validation:
+  layer1_syntax:
+    description: "Basic syntax and structure validation"
+    checks:
+      - "Required files exist"
+      - "Shell syntax is valid"
+      - "Required commands are registered"
+    implementation_status: "complete"
+    
+  layer2_behavioral:
+    description: "Command behavior validation"
+    checks:
+      - "Commands execute without error"
+      - "Exit codes match specification"
+      - "Output format is correct"
+      - "Flags are handled properly"
+    implementation_status: "planned"
+    
+  layer3_integration:
+    description: "Full integration validation"
+    checks:
+      - "Complete lifecycle works (install→start→stop→uninstall)"
+      - "Content management flow works"
+      - "Resource can be injected into"
+      - "Performance meets requirements"
+    implementation_status: "planned"
+
+# Performance requirements
+performance:
+  command_response_time:
+    help: 2
+    status: 10
+    logs: 15
+    other: 60
+  startup_time_max: 120
+  shutdown_time_max: 60
+
+# Security requirements
+security:
+  input_validation: "required"
+  sensitive_data_handling:
+    - "Never log secrets"
+    - "Mask credentials in output"
+    - "Use secure storage for keys"
+  file_permissions:
+    cli.sh: "755"
+    lib/*.sh: "644"
+    config/*.sh: "644"
+
+# Compatibility
+compatibility:
+  bash_version_min: "4.0"
+  required_commands:
+    - "bash"
+    - "grep"
+    - "sed"
+    - "awk"
+  framework_integration:
+    cli_command_framework: "required"
+    resource_common: "required"
+    
+# Migration support
+migration:
+  from_version: "1.0"
+  breaking_changes:
+    - "Commands now grouped under manage/ and test/"
+    - "Category-specific contracts replaced with universal"
+    - "manage.sh deprecated in favor of cli.sh"
+  timeline:
+    v2.0_release: "2025-01"
+    v1.0_deprecated: "2025-06"
+    v1.0_removed: "2025-12"

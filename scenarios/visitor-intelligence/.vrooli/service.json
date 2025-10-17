@@ -1,0 +1,225 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "visitor-intelligence",
+    "displayName": "Visitor Intelligence",
+    "description": "Real-time website visitor identification, behavioral tracking, and retention marketing automation for all Vrooli scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "analytics",
+      "tracking",
+      "visitor-identification",
+      "behavioral-analysis",
+      "retention-marketing",
+      "privacy-compliant",
+      "real-time",
+      "cross-scenario",
+      "go-api",
+      "postgres-storage",
+      "redis-cache",
+      "javascript-tracking"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Visitor tracking and analytics API port",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Visitor profiles, events, and behavioral data storage",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Session caching, rate limiting, and real-time data processing"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "purpose": "Visitor behavioral analysis and intent prediction",
+      "models": [
+        "llama3.2",
+        "mistral"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Visitor Intelligence health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "target": "postgres://postgres:${POSTGRES_PASSWORD}@localhost:${RESOURCE_PORTS[postgres]}/postgres",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "redis_connection",
+          "type": "tcp",
+          "target": "localhost:${RESOURCE_PORTS[redis]}",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Visitor Intelligence system",
+       "condition": {
+         "checks": [
+            {
+               "type": "binaries",
+               "targets": [
+                  "visitor-intelligence-api"
+               ]
+            },
+              {
+                 "type": "cli",
+                 "targets": [
+                   "visitor-intelligence"
+                 ]
+              },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o visitor-intelligence-api .",
+          "description": "Build Go tracking API binary"
+        },
+        {
+          "name": "initialize-database",
+          "run": "cd initialization/storage/postgres && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f schema.sql",
+          "description": "Initialize PostgreSQL schema",
+          "env": {
+            "PGPASSWORD": "${POSTGRES_PASSWORD}"
+          }
+        },
+        {
+          "name": "build-tracking-script",
+          "run": "cd ui && npm install && npm run build",
+          "description": "Build tracking JavaScript library",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start visitor intelligence with Go API server",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./visitor-intelligence-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/visitor-intelligence-api"
+           }
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
+           "description": "Display all running service URLs and integration example"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test visitor intelligence API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-tracking-endpoint",
+          "run": "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"fingerprint\":\"test\",\"event_type\":\"pageview\",\"scenario\":\"test\"}' http://localhost:${API_PORT}/api/v1/visitor/track",
+          "description": "Test visitor tracking endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats visitor-intelligence.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/visitor-intelligence.bats"
+          }
+        },
+        {
+          "name": "test-database-connection",
+          "run": "visitor-intelligence status --json",
+          "description": "Test database connectivity via CLI"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop visitor intelligence services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"visitor-intelligence-api\" || true; sleep 1; pkill -9 -f \"visitor-intelligence-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/visitor-intelligence/ui\" || true; sleep 1; pkill -9 -f \"scenarios/visitor-intelligence/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,297 @@
+{
+  "notification_rules": {
+    "channels": {
+      "slack": {
+        "enabled": true,
+        "webhook_url": "${SLACK_WEBHOOK_URL}",
+        "channel": "#documentation-alerts",
+        "username": "Doc Manager Bot",
+        "icon_emoji": ":robot_face:",
+        "mention_users": {
+          "critical": ["@channel"],
+          "high": ["@here"],
+          "medium": [],
+          "low": []
+        },
+        "rate_limiting": {
+          "max_messages_per_hour": 50,
+          "burst_limit": 10,
+          "cooldown_minutes": 5
+        },
+        "message_formatting": {
+          "include_severity_color": true,
+          "include_action_buttons": true,
+          "max_message_length": 3000,
+          "truncate_description": true
+        }
+      },
+      "email": {
+        "enabled": true,
+        "smtp_server": "${SMTP_SERVER}",
+        "smtp_port": 587,
+        "smtp_user": "${SMTP_USER}",
+        "smtp_password": "${SMTP_PASSWORD}",
+        "from_email": "alerts@documentmanager.com",
+        "from_name": "Documentation Manager",
+        "rate_limiting": {
+          "max_emails_per_hour": 20,
+          "burst_limit": 5,
+          "cooldown_minutes": 10
+        },
+        "message_formatting": {
+          "html_enabled": true,
+          "include_dashboard_links": true,
+          "include_unsubscribe_link": true,
+          "template": "professional"
+        }
+      },
+      "webhook": {
+        "enabled": true,
+        "endpoints": [
+          {
+            "name": "primary",
+            "url": "${WEBHOOK_PRIMARY_URL}",
+            "auth_header": "Authorization: Bearer ${WEBHOOK_TOKEN}",
+            "timeout_ms": 10000,
+            "retry_attempts": 3
+          },
+          {
+            "name": "backup", 
+            "url": "${WEBHOOK_BACKUP_URL}",
+            "auth_header": "X-API-Key: ${WEBHOOK_API_KEY}",
+            "timeout_ms": 5000,
+            "retry_attempts": 1
+          }
+        ],
+        "payload_format": "json",
+        "include_metadata": true,
+        "rate_limiting": {
+          "max_requests_per_minute": 100,
+          "burst_limit": 20
+        }
+      },
+      "ui": {
+        "enabled": true,
+        "real_time_updates": true,
+        "notification_persistence": "24h",
+        "max_notifications": 100,
+        "auto_dismiss": {
+          "low_severity_minutes": 60,
+          "medium_severity_minutes": 240,
+          "high_severity_minutes": 720,
+          "critical_severity_never": true
+        }
+      }
+    },
+    "severity_routing": {
+      "critical": {
+        "channels": ["slack", "email", "webhook", "ui"],
+        "immediate": true,
+        "escalation": {
+          "enabled": true,
+          "delay_minutes": 15,
+          "escalation_channels": ["email"],
+          "max_escalations": 2
+        }
+      },
+      "high": {
+        "channels": ["slack", "email", "ui"],
+        "immediate": true,
+        "batch_window_minutes": 0
+      },
+      "medium": {
+        "channels": ["slack", "ui"],
+        "immediate": false,
+        "batch_window_minutes": 15
+      },
+      "low": {
+        "channels": ["ui"],
+        "immediate": false,
+        "batch_window_minutes": 60
+      }
+    },
+    "event_type_rules": {
+      "agent_execution": {
+        "success": {
+          "severity": "low",
+          "enabled": true,
+          "summary_only": true
+        },
+        "failure": {
+          "severity": "high",
+          "enabled": true,
+          "include_error_details": true
+        },
+        "timeout": {
+          "severity": "medium",
+          "enabled": true,
+          "include_performance_data": true
+        }
+      },
+      "improvement_suggestion": {
+        "new": {
+          "severity": "medium",
+          "enabled": true,
+          "group_by_application": true
+        },
+        "approved": {
+          "severity": "low",
+          "enabled": true,
+          "notify_submitter": true
+        },
+        "denied": {
+          "severity": "low",
+          "enabled": true,
+          "notify_submitter": true
+        },
+        "applied": {
+          "severity": "medium", 
+          "enabled": true,
+          "include_change_summary": true
+        }
+      },
+      "system_health": {
+        "resource_unavailable": {
+          "severity": "critical",
+          "enabled": true,
+          "escalation_required": true
+        },
+        "performance_degradation": {
+          "severity": "high",
+          "enabled": true,
+          "include_metrics": true
+        },
+        "scheduled_maintenance": {
+          "severity": "low",
+          "enabled": true,
+          "advance_notice_hours": 24
+        }
+      },
+      "application_health": {
+        "health_score_drop": {
+          "severity": "medium",
+          "enabled": true,
+          "threshold_percentage": 10
+        },
+        "coverage_drop": {
+          "severity": "medium",
+          "enabled": true,
+          "threshold_percentage": 5
+        },
+        "link_failures_spike": {
+          "severity": "high",
+          "enabled": true,
+          "threshold_count": 10
+        }
+      }
+    },
+    "user_preferences": {
+      "default_channels": ["ui", "slack"],
+      "default_severity_threshold": "medium",
+      "allow_user_overrides": true,
+      "schedule_windows": {
+        "business_hours": {
+          "start": "09:00",
+          "end": "17:00",
+          "timezone": "UTC",
+          "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        },
+        "emergency_only": {
+          "start": "22:00",
+          "end": "08:00",
+          "timezone": "UTC",
+          "severity_override": "critical"
+        }
+      }
+    },
+    "batching": {
+      "enabled": true,
+      "group_by": ["application_id", "severity", "agent_type"],
+      "max_batch_size": 10,
+      "max_wait_minutes": 15,
+      "immediate_severities": ["critical", "high"],
+      "summary_template": "{{count}} new {{severity}} issues detected across {{application_count}} applications"
+    },
+    "templates": {
+      "slack": {
+        "agent_execution_success": "✅ Agent `{{agent_name}}` completed successfully for {{application_name}} ({{suggestions_count}} suggestions)",
+        "agent_execution_failure": "❌ Agent `{{agent_name}}` failed for {{application_name}}: {{error_message}}",
+        "improvement_batch": "📝 {{count}} new improvement suggestions:\n{{#each items}}• {{title}} ({{severity}})\n{{/each}}",
+        "system_alert": "🚨 System Alert: {{message}}"
+      },
+      "email": {
+        "subject_templates": {
+          "critical": "[CRITICAL] Documentation Manager Alert: {{title}}",
+          "high": "[HIGH] Documentation Manager: {{title}}",
+          "medium": "Documentation Manager: {{title}}",
+          "low": "Documentation Manager Update: {{title}}"
+        },
+        "body_template": "html_professional",
+        "include_dashboard_link": true,
+        "include_action_buttons": true
+      },
+      "webhook": {
+        "payload_structure": "json_standard",
+        "include_metadata": true,
+        "include_context": true,
+        "custom_headers": {
+          "X-Event-Source": "documentation-manager",
+          "X-Event-Version": "v2.0"
+        }
+      }
+    },
+    "filtering": {
+      "duplicate_detection": {
+        "enabled": true,
+        "time_window_minutes": 60,
+        "similarity_threshold": 0.8,
+        "deduplication_fields": ["title", "application_id", "type"]
+      },
+      "noise_reduction": {
+        "enabled": true,
+        "suppress_consecutive": {
+          "enabled": true,
+          "max_consecutive": 3,
+          "reset_after_minutes": 30
+        },
+        "rate_limiting": {
+          "per_application_per_hour": 20,
+          "per_agent_per_hour": 10
+        }
+      },
+      "blacklist": {
+        "applications": [],
+        "agents": [],
+        "improvement_types": []
+      },
+      "whitelist": {
+        "always_notify": {
+          "severities": ["critical"],
+          "types": ["security_concern", "broken_link"],
+          "applications": []
+        }
+      }
+    },
+    "analytics": {
+      "track_delivery": true,
+      "track_engagement": true,
+      "track_response_times": true,
+      "retention_days": 90,
+      "metrics": {
+        "delivery_rate": true,
+        "open_rate": true,
+        "click_rate": true,
+        "response_rate": true
+      }
+    },
+    "testing": {
+      "test_mode": false,
+      "test_recipients": {
+        "slack": "#testing-alerts",
+        "email": "test@example.com"
+      },
+      "override_all_channels": false,
+      "include_test_prefix": true
+    }
+  }
+}

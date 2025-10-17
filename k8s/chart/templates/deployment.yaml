@@ -1,0 +1,249 @@
+{{- range $name, $svc := .Values.services }}
+{{- $serviceEnabled := true -}}
+{{- if hasKey $svc "enabled" -}}
+  {{- $serviceEnabled = $svc.enabled -}}
+{{- end -}}
+{{- if $serviceEnabled -}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vrooli.fullname" $ }}-{{ include "vrooli.componentName" $name }}
+  labels:
+    {{- include "vrooli.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ include "vrooli.componentName" $name }}
+spec:
+  replicas: {{ $svc.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "vrooli.name" $ }}
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: {{ include "vrooli.componentName" $name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "vrooli.name" $ }}
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: {{ include "vrooli.componentName" $name }}
+    spec:
+      serviceAccountName: {{ include "vrooli.serviceAccountName" $ }}
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "vrooli.componentName" $name }}
+          image: {{ if $.Values.image.registry }}{{ $.Values.image.registry }}/{{ $svc.repository }}{{ else }}{{ $svc.repository }}{{ end }}:{{ $svc.tag | default $.Chart.AppVersion }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $svc.port }}
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: {{ $.Values.config.env | quote }}
+            {{- if or (eq $name "server") (eq $name "jobs") }}
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.postgres.k8sSecretName }}
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.postgres.k8sSecretName }}
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.postgres.k8sSecretName }}
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.redis.k8sSecretName }}
+                  key: REDIS_PASSWORD
+            {{- end }}
+            {{- if eq $name "ui" }}
+            - name: VITE_GOOGLE_ADSENSE_PUBLISHER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.sharedConfigAll.k8sSecretName }}
+                  key: VITE_GOOGLE_ADSENSE_PUBLISHER_ID
+                  optional: true
+            - name: VITE_GOOGLE_TRACKING_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.sharedConfigAll.k8sSecretName }}
+                  key: VITE_GOOGLE_TRACKING_ID
+                  optional: true
+            - name: VITE_STRIPE_PUBLISHABLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.sharedConfigAll.k8sSecretName }}
+                  key: VITE_STRIPE_PUBLISHABLE_KEY
+                  optional: true
+            {{- end }}
+            {{- if or (eq $name "server") (eq $name "jobs") }}
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.sharedSecretsServerJobs.k8sSecretName }}
+                  key: STRIPE_SECRET_KEY
+                  optional: true
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.sharedSecretsServerJobs.k8sSecretName }}
+                  key: OPENAI_API_KEY
+                  optional: true
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.vso.secrets.sharedSecretsServerJobs.k8sSecretName }}
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            {{- end }}
+            {{- if eq $name "server" }}
+            - name: PORT_SERVER
+              value: {{ $svc.port | quote }}
+            {{- end }}
+            {{- if eq $name "jobs" }}
+            - name: PORT_JOBS
+              value: {{ $svc.port | quote }}
+            - name: JOBS_HEALTH_PORT
+              value: {{ $svc.port | quote }}
+            {{- end }}
+            {{- if eq $name "ui" }}
+            - name: PORT_UI
+              value: {{ $svc.port | quote }}
+            {{- end }}
+          {{- if $svc.probes }}
+          {{- if not $svc.probes.useTcpSocket }}
+          livenessProbe:
+            httpGet:
+              path: {{ $svc.probes.livenessPath }}
+              port: {{ $svc.probes.port | default $svc.port }}
+            initialDelaySeconds: {{ $svc.probes.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ $svc.probes.periodSeconds | default 10 }}
+            timeoutSeconds: {{ $svc.probes.timeoutSeconds | default 5 }}
+            failureThreshold: {{ $svc.probes.failureThreshold | default 3 }}
+          readinessProbe:
+            httpGet:
+              path: {{ $svc.probes.readinessPath }}
+              port: {{ $svc.probes.port | default $svc.port }}
+            initialDelaySeconds: {{ $svc.probes.readinessInitialDelaySeconds | default 10 }}
+            periodSeconds: {{ $svc.probes.periodSeconds | default 10 }}
+            timeoutSeconds: {{ $svc.probes.timeoutSeconds | default 5 }}
+            failureThreshold: {{ $svc.probes.failureThreshold | default 3 }}
+          {{- else }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ $svc.probes.port | default $svc.port }}
+            initialDelaySeconds: {{ $svc.probes.initialDelaySeconds | default 60 }}
+            periodSeconds: {{ $svc.probes.periodSeconds | default 30 }}
+            timeoutSeconds: {{ $svc.probes.timeoutSeconds | default 10 }}
+            failureThreshold: {{ $svc.probes.failureThreshold | default 3 }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ $svc.probes.port | default $svc.port }}
+            initialDelaySeconds: {{ $svc.probes.readinessInitialDelaySeconds | default 10 }}
+            periodSeconds: {{ $svc.probes.periodSeconds | default 30 }}
+            timeoutSeconds: {{ $svc.probes.timeoutSeconds | default 10 }}
+            failureThreshold: {{ $svc.probes.failureThreshold | default 3 }}
+          {{- end }}
+          {{- end }}
+          {{- if $svc.resources }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}{{/* range services */}}
+
+{{- if .Values.adminer.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vrooli.fullname" . }}-adminer
+  labels:
+    {{- include "vrooli.labels" . | nindent 4 }}
+    app.kubernetes.io/component: adminer
+spec:
+  replicas: {{ .Values.adminer.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "vrooli.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: adminer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "vrooli.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: adminer
+    spec:
+      serviceAccountName: {{ include "vrooli.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: adminer
+          image: {{ if contains "/" .Values.adminer.image.repository }}{{ .Values.adminer.image.repository }}{{ else }}{{ tpl .Values.image.registry . }}/{{ .Values.adminer.image.repository }}{{ end }}:{{ .Values.adminer.image.tag | default "latest" }}
+          imagePullPolicy: {{ .Values.adminer.image.pullPolicy | default .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.adminer.port | default 8080 }}
+              protocol: TCP
+          {{- if .Values.adminer.env }}
+          env:
+            {{- range $key, $value := .Values.adminer.env }}
+            - name: {{ $key }}
+              value: {{ tpl (toString $value) $ | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if .Values.adminer.probes.enabled }}
+          {{- if or .Values.adminer.probes.livenessPath .Values.adminer.probes.readinessPath }}
+          {{- if .Values.adminer.probes.livenessPath }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.adminer.probes.livenessPath }}
+              port: {{ .Values.adminer.port | default 8080 }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- end }}
+          {{- if .Values.adminer.probes.readinessPath }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.adminer.probes.readinessPath }}
+              port: {{ .Values.adminer.port | default 8080 }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- end }}
+          {{- else }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.adminer.port | default 8080 }}
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.adminer.port | default 8080 }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          {{- end }}
+          {{- end }}
+          {{- if .Values.adminer.resources }}
+          resources:
+            {{- toYaml .Values.adminer.resources | nindent 12 }}
+          {{- end }}
+{{- end }}

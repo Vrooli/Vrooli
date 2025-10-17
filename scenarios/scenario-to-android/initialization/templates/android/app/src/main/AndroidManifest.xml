@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.vrooli.scenario.{{SCENARIO_NAME_PACKAGE}}">
+
+    <!-- Basic permissions for WebView functionality -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    
+    <!-- Storage permissions for caching and offline mode -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    
+    <!-- Optional permissions based on scenario requirements -->
+    {{#if CAMERA_PERMISSION}}
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    {{/if}}
+    
+    {{#if LOCATION_PERMISSION}}
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    {{/if}}
+    
+    {{#if NOTIFICATION_PERMISSION}}
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    {{/if}}
+    
+    {{#if VIBRATION_PERMISSION}}
+    <uses-permission android:name="android.permission.VIBRATE" />
+    {{/if}}
+    
+    {{#if BIOMETRIC_PERMISSION}}
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    {{/if}}
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="{{APP_NAME}}"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.VrooliApp"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config">
+        
+        <!-- Main Activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            
+            <!-- Deep linking support -->
+            {{#if DEEP_LINKING}}
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                
+                <data
+                    android:scheme="vrooli"
+                    android:host="{{SCENARIO_NAME}}" />
+            </intent-filter>
+            {{/if}}
+            
+            <!-- File association (if needed) -->
+            {{#if FILE_ASSOCIATION}}
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            {{/if}}
+        </activity>
+        
+        <!-- Service for background tasks (optional) -->
+        {{#if BACKGROUND_SERVICE}}
+        <service
+            android:name=".VrooliBackgroundService"
+            android:enabled="true"
+            android:exported="false" />
+        {{/if}}
+        
+        <!-- Push notifications (optional) -->
+        {{#if PUSH_NOTIFICATIONS}}
+        <service
+            android:name=".VrooliMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/colorAccent" />
+        {{/if}}
+        
+        <!-- File provider for sharing files -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        
+        <!-- Android Auto support (if applicable) -->
+        {{#if ANDROID_AUTO}}
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        {{/if}}
+        
+        <!-- App metadata -->
+        <meta-data
+            android:name="vrooli.scenario.name"
+            android:value="{{SCENARIO_NAME}}" />
+        <meta-data
+            android:name="vrooli.scenario.version"
+            android:value="{{SCENARIO_VERSION}}" />
+            
+    </application>
+
+</manifest>

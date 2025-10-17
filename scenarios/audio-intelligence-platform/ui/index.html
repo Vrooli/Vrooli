@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Intelligence Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="app-title">
+                    <span class="icon-audio">🎙️</span>
+                    Audio Intelligence Platform
+                </h1>
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="total-transcriptions">0</span>
+                        <span class="stat-label">Transcriptions</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="total-hours">0h</span>
+                        <span class="stat-label">Audio Processed</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="control-panel">
+                <div class="upload-section">
+                    <h2>Upload Audio</h2>
+                    <div class="drop-zone" id="drop-zone">
+                        <div class="drop-zone-content">
+                            <svg class="upload-icon" viewBox="0 0 24 24" width="48" height="48">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="none" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <p>Drop audio files here or click to browse</p>
+                            <p class="file-types">MP3, WAV, M4A, OGG, FLAC, MP4</p>
+                            <input type="file" id="file-input" accept="audio/*,.mp4" multiple hidden>
+                        </div>
+                    </div>
+                    <div id="upload-progress" class="upload-progress hidden">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <p class="progress-text" id="progress-text">Uploading...</p>
+                    </div>
+                </div>
+
+                <div class="waveform-section">
+                    <h2>Audio Waveform</h2>
+                    <div class="waveform-container" id="waveform">
+                        <canvas id="waveform-canvas" width="800" height="150"></canvas>
+                    </div>
+                    <div class="audio-controls">
+                        <button class="control-btn" id="play-btn">▶️</button>
+                        <button class="control-btn" id="pause-btn" style="display:none;">⏸️</button>
+                        <span class="time-display" id="time-display">00:00 / 00:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-panel">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="transcription">Transcription</button>
+                    <button class="tab-btn" data-tab="analysis">AI Analysis</button>
+                    <button class="tab-btn" data-tab="search">Search</button>
+                </div>
+
+                <div class="tab-content active" id="transcription-tab">
+                    <div class="transcription-header">
+                        <h3>Transcription</h3>
+                        <button class="action-btn" id="copy-transcript">📋 Copy</button>
+                    </div>
+                    <div class="transcription-text" id="transcription-text">
+                        <p class="placeholder-text">Upload an audio file to see the transcription</p>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="analysis-tab">
+                    <div class="analysis-options">
+                        <select id="analysis-type" class="analysis-select">
+                            <option value="summary">Summary</option>
+                            <option value="key_insights">Key Insights</option>
+                            <option value="custom">Custom Analysis</option>
+                        </select>
+                        <button class="action-btn" id="analyze-btn">🤖 Analyze</button>
+                    </div>
+                    <textarea id="custom-prompt" class="custom-prompt hidden" placeholder="Enter your custom analysis prompt..."></textarea>
+                    <div class="analysis-result" id="analysis-result">
+                        <p class="placeholder-text">Select an analysis type and click Analyze</p>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="search-tab">
+                    <div class="search-container">
+                        <input type="text" id="search-input" class="search-input" placeholder="Search across all transcriptions...">
+                        <button class="action-btn" id="search-btn">🔍 Search</button>
+                    </div>
+                    <div class="search-results" id="search-results">
+                        <p class="placeholder-text">Enter a search query to find relevant content</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="transcriptions-list">
+            <h2>Recent Transcriptions</h2>
+            <div class="list-container" id="transcriptions-list">
+                <p class="placeholder-text">No transcriptions yet</p>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audio-player" style="display: none;"></audio>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

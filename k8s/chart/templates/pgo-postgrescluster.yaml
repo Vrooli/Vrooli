@@ -1,0 +1,101 @@
+{{- /* templates/pgo-postgrescluster.yaml */ -}}
+{{- /* This template defines a PostgresCluster custom resource for the CrunchyData PostgreSQL Operator (PGO). */ -}}
+{{- /* It allows for declarative management of PostgreSQL clusters within Kubernetes. */ -}}
+{{- if .Values.pgoPostgresql.enabled }}
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: {{ .Values.pgoPostgresql.clusterName }}
+  namespace: {{ .Release.Namespace }} # Deploy cluster in the same namespace as the app
+  labels:
+    {{- /* Standard labels for identifying and organizing resources. Includes common Vrooli labels. */ -}}
+    {{- include "vrooli.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql-cluster
+spec:
+  postgresVersion: {{ .Values.pgoPostgresql.postgresVersion }}
+  instances:
+    - name: instance1
+      replicas: {{ .Values.pgoPostgresql.instances.count }}
+      {{- with .Values.pgoPostgresql.instances.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      dataVolumeClaimSpec:
+        accessModes:
+        - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: {{ .Values.pgoPostgresql.instances.storage.size }}
+        {{- if .Values.pgoPostgresql.instances.storage.storageClass }}
+        storageClassName: {{ .Values.pgoPostgresql.instances.storage.storageClass }}
+        {{- else }}
+        storageClassName: ""
+        {{- end }}
+  
+  # Database creation and user management
+  {{- with .Values.pgoPostgresql.users }}
+  users:
+    {{- range . }}
+    - name: {{ .name }}
+      databases:
+        {{- toYaml .databases | nindent 8 }}
+      {{- if .options }}
+      options: {{ .options | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  
+  {{- with .Values.pgoPostgresql.databases }}
+  # Additional databases to create
+  databases:
+    {{- range . }}
+    - name: {{ .name }}
+      {{- if .owner }}
+      owner: {{ .owner }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  
+  # Connection pooling with pgBouncer for better performance
+  {{- if .Values.pgoPostgresql.pgBouncer.enabled }}
+  proxy:
+    pgBouncer:
+      replicas: {{ .Values.pgoPostgresql.pgBouncer.replicas | default 1 }}
+      {{- with .Values.pgoPostgresql.pgBouncer.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      config:
+        global:
+          # Connection pool settings
+          pool_mode: "transaction"
+          max_client_conn: {{ .Values.pgoPostgresql.pgBouncer.maxClientConnections | default 100 }}
+          default_pool_size: {{ .Values.pgoPostgresql.pgBouncer.defaultPoolSize | default 25 }}
+  {{- end }}
+  
+  # Backup configuration for data safety
+  {{- if .Values.pgoPostgresql.backups.enabled }}
+  backups:
+    pgbackrest:
+      {{- with .Values.pgoPostgresql.backups.pgBackRest.repos }}
+      repos:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      global:
+        # Backup retention - keep backups for this long
+        repo1-retention-full: {{ .Values.pgoPostgresql.backups.pgBackRest.retentionFullCount | default "3" }}
+        repo1-retention-full-type: {{ .Values.pgoPostgresql.backups.pgBackRest.retentionFullType | default "count" }}
+  {{- end }}
+  
+  # Monitoring with pgMonitor for observability
+  {{- if .Values.pgoPostgresql.monitoring.enabled }}
+  monitoring:
+    pgmonitor:
+      exporter:
+        {{- with .Values.pgoPostgresql.monitoring.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+  {{- end }}
+
+{{- end }}

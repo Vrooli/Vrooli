@@ -1,0 +1,199 @@
+version: 1.0
+scenario: scenario-dependency-analyzer
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/scenario-dependency-analyzer
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - ui/index.html
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+    - ui
+    - test
+
+# Resource validation
+resources:
+  required: [postgres, claude-code, qdrant]
+  optional: [redis]
+  health_timeout: 120  # Seconds to wait for resources to be healthy
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Claude Code resource is available"
+    type: exec
+    command: resource-claude-code --version
+    expect:
+      exit_code: 0
+      
+  - name: "Qdrant resource is accessible" 
+    type: exec
+    command: resource-qdrant status
+    expect:
+      exit_code: 0
+
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+
+  - name: "Dependency analysis endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/scenarios/chart-generator/dependencies
+    method: GET
+    expect:
+      status: 200
+      body:
+        scenario: "chart-generator"
+        
+  - name: "Graph generation endpoint works"
+    type: http  
+    service: api
+    endpoint: /api/v1/graph/combined
+    method: GET
+    expect:
+      status: 200
+      body:
+        nodes: []
+        edges: []
+
+  - name: "Proposed scenario analysis endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/analyze/proposed
+    method: POST
+    body:
+      name: "test-scenario"
+      description: "A test scenario for validating API"
+      requirements: ["postgres", "redis"]
+    expect:
+      status: 200
+      body:
+        predicted_resources: []
+
+  # CLI command tests
+  - name: "CLI analyze command executes"
+    type: exec
+    command: ./cli/scenario-dependency-analyzer analyze chart-generator --output json
+    expect:
+      exit_code: 0
+      output_contains: ["dependencies", "resources"]
+      
+  - name: "CLI graph command executes"  
+    type: exec
+    command: ./cli/scenario-dependency-analyzer graph resources --format json
+    expect:
+      exit_code: 0
+      output_contains: ["nodes", "edges"]
+      
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/scenario-dependency-analyzer status --json
+    expect:
+      exit_code: 0
+      output_contains: ["healthy"]
+
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/scenario-dependency-analyzer help
+    expect:
+      exit_code: 0
+      output_contains: ["analyze", "graph", "optimize", "propose"]
+
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('scenario_dependencies', 'dependency_graphs', 'optimization_recommendations', 'analysis_runs', 'scenario_metadata')"
+    expect:
+      rows:
+        - count: 5
+        
+  - name: "Seed data is present"
+    type: sql  
+    service: postgres
+    query: "SELECT COUNT(*) FROM scenario_dependencies WHERE scenario_name = 'scenario-dependency-analyzer'"
+    expect:
+      rows:
+        - count: 4
+
+  - name: "Database views are created"
+    type: sql
+    service: postgres  
+    query: "SELECT COUNT(*) FROM information_schema.views WHERE table_name IN ('scenario_dependency_summary', 'optimization_recommendations_prioritized')"
+    expect:
+      rows:
+        - count: 2
+
+# Performance validation
+performance:
+  - name: "Full system analysis completes within timeout"
+    type: exec
+    command: timeout 60 ./cli/scenario-dependency-analyzer analyze all --output json
+    expect:
+      exit_code: 0
+      max_duration: 60000  # 60 seconds in milliseconds
+      
+  - name: "Graph generation is performant"
+    type: http
+    service: api
+    endpoint: /api/v1/graph/combined
+    method: GET
+    expect:
+      status: 200
+      max_response_time: 3000  # 3 seconds in milliseconds
+
+# Integration validation  
+integration:
+  - name: "Can analyze real scenario dependencies"
+    type: exec
+    command: ./cli/scenario-dependency-analyzer analyze chart-generator
+    expect:
+      exit_code: 0
+      output_contains: ["postgres", "dependencies found"]
+      
+  - name: "Can generate meaningful optimization recommendations"
+    type: http
+    service: api
+    endpoint: /api/v1/optimize/chart-generator
+    method: GET  
+    expect:
+      status: 200
+      # Should return some optimization data even if empty
+
+  - name: "UI can load and display data"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      output_contains: ["Scenario Dependency Analyzer", "graph", "visualization"]

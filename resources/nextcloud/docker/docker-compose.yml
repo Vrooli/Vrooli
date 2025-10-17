@@ -1,0 +1,101 @@
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: nextcloud_postgres
+    restart: unless-stopped
+    networks:
+      - nextcloud_network
+    volumes:
+      - nextcloud_db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=nextcloud_db_pass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nextcloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nextcloud_redis
+    restart: unless-stopped
+    networks:
+      - nextcloud_network
+    volumes:
+      - nextcloud_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nextcloud:
+    image: nextcloud:stable
+    container_name: nextcloud_nextcloud_1
+    restart: unless-stopped
+    networks:
+      - nextcloud_network
+    ports:
+      - "8086:80"
+    volumes:
+      - nextcloud_data:/var/www/html
+    environment:
+      - POSTGRES_HOST=nextcloud_postgres
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=nextcloud_db_pass
+      - REDIS_HOST=nextcloud_redis
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=changeme
+      - NEXTCLOUD_TRUSTED_DOMAINS=localhost
+      - OVERWRITEPROTOCOL=http
+      - OVERWRITEHOST=localhost:8086
+      - PHP_MEMORY_LIMIT=512M
+      - PHP_UPLOAD_LIMIT=10G
+      - PHP_MAX_EXECUTION_TIME=3600
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  collabora:
+    image: collabora/code:latest
+    container_name: nextcloud_collabora
+    restart: unless-stopped
+    networks:
+      - nextcloud_network
+    ports:
+      - "9980:9980"
+    environment:
+      - domain=localhost:8086
+      - username=admin
+      - password=changeme
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=false
+      - dictionaries=en_US
+    cap_add:
+      - MKNOD
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9980/hosting/discovery"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  nextcloud_network:
+    external: true
+
+volumes:
+  nextcloud_data:
+    external: true
+  nextcloud_db:
+    external: true
+  nextcloud_redis:
+    external: true

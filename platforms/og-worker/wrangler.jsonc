@@ -1,0 +1,145 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    
+    // CUSTOMIZE: Change this to match your app name
+    "name": "your-app-og-worker",
+    
+    "main": "src/index.ts",
+    "compatibility_date": "2025-04-30",
+    
+    // Set to false to use custom domain routes (recommended)
+    // Set to true if you want to use workers.dev subdomain for testing
+    "workers_dev": false,
+    
+    // CUSTOMIZE: Replace with your domain(s)
+    // These routes determine which URLs trigger the worker
+    "routes": [
+        {
+            // Primary domain (e.g., yourapp.com/*)
+            "pattern": "YOUR_DOMAIN.com/*",
+            "zone_name": "YOUR_DOMAIN.com"
+        },
+        {
+            // Subdomains (e.g., www.yourapp.com/*, app.yourapp.com/*)
+            "pattern": "*.YOUR_DOMAIN.com/*",
+            "zone_name": "YOUR_DOMAIN.com"
+        }
+        // Add more routes as needed for staging/dev environments:
+        // {
+        //     "pattern": "staging.YOUR_DOMAIN.com/*",
+        //     "zone_name": "YOUR_DOMAIN.com"
+        // }
+    ],
+    
+    // CUSTOMIZE: Environment variables for your worker
+    "vars": {
+        // REQUIRED: The actual hostname where your app is hosted
+        // This should be different from your public domain to avoid loops
+        // Example: "origin.yourapp.com" or "do-origin.yourapp.com"
+        "ORIGIN_HOST": "origin.YOUR_DOMAIN.com",
+        
+        // OPTIONAL: Add more environment variables as needed
+        // "API_URL": "https://api.yourapp.com",
+        // "SITE_URL": "https://yourapp.com",
+        // "DEFAULT_IMAGE": "https://yourapp.com/og-image.jpg",
+        
+        // Bot user agent pattern (can override the default)
+        // "BOT_UA": "(googlebot|bingbot|facebookexternalhit|twitterbot|linkedinbot)"
+    },
+    
+    // OPTIONAL: KV namespace bindings for caching
+    // Uncomment and configure if you want to use Workers KV for caching
+    // "kv_namespaces": [
+    //     {
+    //         "binding": "OG_CACHE",
+    //         "id": "YOUR_KV_NAMESPACE_ID"
+    //     }
+    // ],
+    
+    // OPTIONAL: Durable Objects bindings
+    // Uncomment if you need stateful storage
+    // "durable_objects": {
+    //     "bindings": []
+    // },
+    
+    // OPTIONAL: R2 bucket bindings for image storage
+    // Uncomment if you want to serve OG images from R2
+    // "r2_buckets": [
+    //     {
+    //         "binding": "OG_IMAGES",
+    //         "bucket_name": "your-og-images-bucket"
+    //     }
+    // ],
+    
+    // OPTIONAL: Service bindings to other Workers
+    // Uncomment if you have other Workers this one needs to call
+    // "services": [
+    //     {
+    //         "binding": "IMAGE_GENERATOR",
+    //         "service": "og-image-generator"
+    //     }
+    // ],
+    
+    // Performance limits (only available on paid plans)
+    // Free plan defaults: 10ms CPU time, 50 subrequests
+    // "limits": {
+    //     "cpu_ms": 50
+    // },
+    
+    // OPTIONAL: Tail consumers for logging
+    // "tail_consumers": [
+    //     {
+    //         "service": "log-worker"
+    //     }
+    // ],
+    
+    // Build configuration
+    "build": {
+        "command": "npm run build",
+        "watch_paths": ["src/**/*.ts"]
+    },
+    
+    // Development settings
+    "dev": {
+        "port": 8787,
+        "local_protocol": "http"
+    }
+}
+
+/**
+ * ============================================================================
+ * CONFIGURATION GUIDE FOR AI AGENTS
+ * ============================================================================
+ * 
+ * REQUIRED CHANGES:
+ * 1. Replace "your-app-og-worker" with a descriptive name
+ * 2. Replace "YOUR_DOMAIN.com" with the actual domain
+ * 3. Set "ORIGIN_HOST" to your app's actual host (must be different from public domain)
+ * 
+ * DNS SETUP REQUIREMENTS:
+ * - Main domain (@) must be proxied (orange cloud) in Cloudflare
+ * - Origin host must be DNS-only (grey cloud) to avoid loops
+ * 
+ * Example DNS configuration:
+ * | Record | Type | Value | Proxy |
+ * |--------|------|-------|-------|
+ * | @           | A | YOUR_SERVER_IP | Proxied (orange) |
+ * | origin      | A | YOUR_SERVER_IP | DNS-only (grey) |
+ * | www         | CNAME | @ | Proxied (orange) |
+ * 
+ * DEPLOYMENT COMMANDS:
+ * - Test locally: npx wrangler dev
+ * - Deploy: npx wrangler deploy
+ * - View logs: npx wrangler tail
+ * - Delete: npx wrangler delete
+ * 
+ * ENVIRONMENT-SPECIFIC CONFIGS:
+ * You can create multiple config files:
+ * - wrangler.dev.jsonc (development)
+ * - wrangler.staging.jsonc (staging)
+ * - wrangler.production.jsonc (production)
+ * 
+ * Then deploy with: npx wrangler deploy -c wrangler.production.jsonc
+ * 
+ * ============================================================================
+ */

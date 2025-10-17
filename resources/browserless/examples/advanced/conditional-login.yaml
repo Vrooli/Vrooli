@@ -1,0 +1,239 @@
+workflow:
+  name: "conditional-login"
+  description: "Navigate to a protected page with automatic login detection and handling"
+  version: "2.0.0"
+  
+  parameters:
+    base_url:
+      type: string
+      required: true
+      description: "Base URL of the application"
+      default: "http://localhost:3000"
+    protected_path:
+      type: string
+      required: true
+      description: "Protected page path"
+      default: "/dashboard"
+    username:
+      type: string
+      required: true
+      description: "Login username"
+    password:
+      type: string
+      required: true
+      description: "Login password"
+      sensitive: true
+    output_dir:
+      type: string
+      required: false
+      description: "Directory for outputs"
+      default: "./workflow-output"
+  
+  # Define reusable sub-workflows
+  sub_workflows:
+    perform_login:
+      steps:
+        - name: "fill-username"
+          action: "fill"
+          selector: "input[name='username'], input[name='email'], #username, #email"
+          text: "${params.username}"
+          
+        - name: "fill-password"
+          action: "fill"
+          selector: "input[name='password'], #password"
+          text: "${params.password}"
+          
+        - name: "submit-form"
+          action: "click"
+          selector: "button[type='submit'], input[type='submit'], button:contains('Login'), button:contains('Sign In')"
+          
+        - name: "wait-for-redirect"
+          action: "wait_for_url_change"
+          pattern: "${params.protected_path}"
+          timeout: 10
+  
+  steps:
+    # Step 1: Navigate to the protected page
+    - name: "navigate-to-protected"
+      action: "navigate"
+      url: "${params.base_url}${params.protected_path}"
+      label: "start"
+      
+    # Step 2: Wait for page load
+    - name: "wait-for-load"
+      action: "wait"
+      duration: 2000
+      
+    # Step 3: Check if we're on the login page
+    - name: "check-login-redirect"
+      action: "condition"
+      condition_type: "url"
+      url_pattern: "/login"
+      then_steps:
+        - name: "log-login-detected"
+          action: "log"
+          message: "Login page detected, attempting automatic login"
+          
+        - name: "perform-auto-login"
+          action: "call_sub_workflow"
+          sub_workflow: "perform_login"
+          
+        - name: "verify-login-success"
+          action: "condition"
+          condition_type: "url"
+          url_pattern: "${params.protected_path}"
+          then_steps:
+            - action: "log"
+              message: "Login successful, now on protected page"
+          else_steps:
+            - action: "log"
+              message: "Login may have failed, checking for errors"
+            - action: "jump"
+              label: "error_check"
+      else_steps:
+        - name: "log-already-authenticated"
+          action: "log"
+          message: "Already authenticated, proceeding with protected page"
+    
+    # Step 4: Check for session expiry message
+    - name: "check-session-expired"
+      action: "condition"
+      condition_type: "element_text"
+      selector: ".alert, .notification, .message"
+      text: "session expired"
+      match_type: "contains"
+      then_steps:
+        - name: "log-session-expired"
+          action: "log"
+          message: "Session expired detected, re-authenticating"
+        - action: "jump"
+          label: "start"  # Go back to beginning
+      
+    # Step 5: Error checking
+    - name: "error-check"
+      label: "error_check"
+      action: "condition"
+      condition_type: "has_errors"
+      error_patterns: "Invalid credentials,Authentication failed,Login failed,Access denied"
+      then_steps:
+        - name: "capture-error-screenshot"
+          action: "screenshot"
+          path: "${params.output_dir}/login-error-${context.timestamp}.png"
+          
+        - name: "extract-error-message"
+          action: "extract_text"
+          selector: ".error, .alert-danger, [role='alert']"
+          variable: "error_message"
+          
+        - name: "log-error"
+          action: "log"
+          message: "Login failed with error: {{error_message}}"
+          
+        - name: "fail-workflow"
+          action: "evaluate"
+          script: "throw new Error('Login failed: {{error_message}}')"
+      
+    # Step 6: Verify we're on the protected page
+    - name: "verify-protected-page"
+      action: "condition"
+      condition_type: "url"
+      url_pattern: "${params.protected_path}"
+      then_steps:
+        - name: "capture-success-screenshot"
+          action: "screenshot"
+          path: "${params.output_dir}/protected-page-${context.timestamp}.png"
+          
+        - name: "extract-user-info"
+          action: "evaluate"
+          script: |
+            const userInfo = {};
+            
+            // Try different selectors for user information
+            const userSelectors = ['.username', '.user-name', '#username', '[data-user]'];
+            for (const selector of userSelectors) {
+              const element = document.querySelector(selector);
+              if (element) {
+                userInfo.username = element.textContent.trim();
+                break;
+              }
+            }
+            
+            // Check if we have admin/role indicators
+            const roleSelectors = ['.user-role', '.role', '[data-role]'];
+            for (const selector of roleSelectors) {
+              const element = document.querySelector(selector);
+              if (element) {
+                userInfo.role = element.textContent.trim();
+                break;
+              }
+            }
+            
+            return userInfo;
+          output: "${params.output_dir}/user-info.json"
+          
+        - name: "log-success"
+          action: "log"
+          message: "Successfully accessed protected page"
+      else_steps:
+        - name: "unexpected-page"
+          action: "log"
+          message: "Warning: Not on expected protected page"
+          
+        - name: "capture-current-state"
+          action: "screenshot"
+          path: "${params.output_dir}/unexpected-page-${context.timestamp}.png"
+    
+    # Step 7: Perform actions on protected page
+    - name: "interact-with-page"
+      action: "condition"
+      condition_type: "element_visible"
+      selector: ".dashboard-content, #dashboard, main"
+      then_steps:
+        - name: "extract-dashboard-data"
+          action: "evaluate"
+          script: |
+            // Extract relevant dashboard information
+            const stats = {};
+            
+            // Look for common dashboard elements
+            const statCards = document.querySelectorAll('.stat-card, .metric, .kpi');
+            statCards.forEach((card, index) => {
+              const label = card.querySelector('.label, .title, h3, h4')?.textContent || `Stat ${index + 1}`;
+              const value = card.querySelector('.value, .number, .count')?.textContent || 'N/A';
+              stats[label.trim()] = value.trim();
+            });
+            
+            return {
+              url: window.location.href,
+              title: document.title,
+              timestamp: new Date().toISOString(),
+              stats: stats
+            };
+          output: "${params.output_dir}/dashboard-data.json"
+    
+    # Step 8: Check for timeout/redirect
+    - name: "check-timeout"
+      action: "condition" 
+      condition_type: "element_visible"
+      selector: ".session-timeout, .timeout-warning"
+      then_steps:
+        - name: "handle-timeout"
+          action: "click"
+          selector: "button:contains('Continue'), button:contains('Stay Logged In')"
+          
+        - name: "log-timeout-handled"
+          action: "log"
+          message: "Session timeout warning handled"
+    
+    # Step 9: Final verification
+    - name: "final-check"
+      action: "evaluate"
+      script: |
+        return {
+          success: true,
+          url: window.location.href,
+          title: document.title,
+          authenticated: !window.location.href.includes('/login'),
+          hasContent: document.body.textContent.length > 100
+        };
+      output: "${params.output_dir}/final-status.json"

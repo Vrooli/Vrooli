@@ -1,0 +1,93 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation - not needed in Docker image
+docs/
+*.md
+README*
+CHANGELOG*
+LICENSE*
+
+# Development and testing files
+examples/
+tests/
+testing/
+**/test-outputs/
+**/*test-outputs/
+test-reports/
+test-logs/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Python cache and build files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+.env
+.venv
+ENV/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+logs/
+*.backup*
+
+# Local configuration overrides
+config/local.sh
+
+# Docker files (to avoid recursive inclusion)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Package management
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Screenshots and test artifacts
+**/screenshots/*.png
+**/screenshots/*.jpg
+**/screenshots/*.jpeg
+
+# BATS testing files
+*.bats

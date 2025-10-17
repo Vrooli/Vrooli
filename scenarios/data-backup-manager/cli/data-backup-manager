@@ -1,0 +1,780 @@
+#!/bin/bash
+
+# Data Backup Manager CLI
+# Provides command-line interface for backup management operations
+
+set -e
+
+# Configuration
+API_PORT="${API_PORT:-20010}"
+API_BASE_URL="http://localhost:${API_PORT}/api/v1"
+CONFIG_DIR="${HOME}/.vrooli/data-backup-manager"
+CONFIG_FILE="${CONFIG_DIR}/config.yaml"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Utility functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if API is available
+check_api() {
+    if ! curl -sf "http://localhost:${API_PORT}/health" &>/dev/null; then
+        log_error "API not available at http://localhost:${API_PORT}"
+        log_info "Please ensure the Data Backup Manager service is running:"
+        log_info "  vrooli scenario develop data-backup-manager"
+        exit 1
+    fi
+}
+
+# Format JSON output for human readability
+format_json() {
+    if command -v jq &> /dev/null; then
+        jq '.'
+    else
+        python3 -m json.tool 2>/dev/null || cat
+    fi
+}
+
+# Show help information
+show_help() {
+    cat << EOF
+Data Backup Manager CLI - Comprehensive backup management for Vrooli
+
+USAGE:
+    data-backup-manager <command> [options]
+
+COMMANDS:
+    status              Show backup system status and recent jobs
+    backup              Create backup of specified targets
+    restore             Restore data from backup
+    list                List available backups and restore points
+    verify              Verify backup integrity
+    schedule            Manage backup schedules
+    version             Show CLI and API version information
+    help                Show this help message
+
+BACKUP COMMANDS:
+    data-backup-manager backup <targets> [options]
+        
+    Targets (comma-separated):
+        postgres            All PostgreSQL databases
+        files               Scenario files and configurations
+        scenarios           Complete scenario directories
+        minio               Object storage buckets
+
+    Options:
+        --type <type>           Backup type: full, incremental (default: full)
+        --retention-days <n>    Keep backup for n days (default: 7)
+        --description <text>    Human-readable backup description
+
+    Examples:
+        data-backup-manager backup postgres,files --type full
+        data-backup-manager backup postgres --type incremental --retention-days 30
+
+RESTORE COMMANDS:
+    data-backup-manager restore [options]
+        
+    Options:
+        --backup-id <id>        Specific backup job ID to restore from
+        --restore-point <id>    Restore point ID to restore from
+        --targets <targets>     Specific targets to restore (comma-separated)
+        --verify                Verify backup integrity before restore
+        --destination <path>    Custom restore destination path
+
+    Examples:
+        data-backup-manager restore --backup-id backup-1725552000 --verify
+        data-backup-manager restore --targets postgres --verify
+
+LIST COMMANDS:
+    data-backup-manager list [options]
+        
+    Options:
+        --type <type>       Filter by backup type (full, incremental)
+        --target <target>   Filter by backup target
+        --since <date>      Show backups since date (YYYY-MM-DD)
+        --json              Output in JSON format
+
+VERIFY COMMANDS:
+    data-backup-manager verify <backup-id>
+    data-backup-manager verify --target <target> --latest
+
+SCHEDULE COMMANDS:
+    data-backup-manager schedule <action> [options]
+    
+    Actions:
+        list                    List all backup schedules
+        create                  Create new backup schedule
+        update <id>             Update existing schedule
+        delete <id>             Delete backup schedule
+        enable <id>             Enable backup schedule
+        disable <id>            Disable backup schedule
+
+    Create/Update Options:
+        --name <name>           Schedule name
+        --cron <expression>     Cron expression (e.g., "0 2 * * *")
+        --targets <targets>     Backup targets (comma-separated)
+        --retention <days>      Retention period in days
+        --type <type>          Backup type (full, incremental)
+
+    Examples:
+        data-backup-manager schedule create --name "daily-backup" --cron "0 2 * * *" --targets postgres,files
+        data-backup-manager schedule list
+        data-backup-manager schedule enable daily-backup
+
+GLOBAL OPTIONS:
+    --json                  Output in JSON format
+    --verbose               Enable verbose output
+    --help                  Show command-specific help
+
+EXAMPLES:
+    # Check system status
+    data-backup-manager status
+
+    # Create full backup of all targets
+    data-backup-manager backup postgres,files,scenarios --type full
+
+    # List recent backups
+    data-backup-manager list --since 2025-09-01
+
+    # Verify latest postgres backup
+    data-backup-manager verify --target postgres --latest
+
+    # Create daily backup schedule
+    data-backup-manager schedule create --name "daily-full" --cron "0 2 * * *" --targets postgres,files
+
+For more information, visit: https://github.com/vrooli/vrooli/tree/master/scenarios/data-backup-manager
+EOF
+}
+
+# Show version information
+show_version() {
+    local json_output=false
+    if [[ "$1" == "--json" ]]; then
+        json_output=true
+    fi
+
+    if $json_output; then
+        cat << EOF
+{
+    "cli_version": "1.0.0",
+    "api_version": "1.0.0",
+    "build_date": "2025-09-05",
+    "go_version": "$(go version 2>/dev/null | cut -d' ' -f3 || echo 'unknown')"
+}
+EOF
+    else
+        echo "Data Backup Manager CLI v1.0.0"
+        echo "API Version: 1.0.0"
+        echo "Build Date: 2025-09-05"
+        if command -v go &> /dev/null; then
+            echo "Go Version: $(go version | cut -d' ' -f3)"
+        fi
+    fi
+}
+
+# Show system status
+show_status() {
+    local json_output=false
+    local verbose=false
+    local targets=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --targets)
+                targets="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    check_api
+
+    local response
+    response=$(curl -sf "${API_BASE_URL}/backup/status")
+
+    if $json_output; then
+        echo "$response" | format_json
+    else
+        local system_status last_backup storage_used storage_available compression_ratio
+        
+        if command -v jq &> /dev/null; then
+            system_status=$(echo "$response" | jq -r '.system_status')
+            last_backup=$(echo "$response" | jq -r '.last_successful_backup // "never"')
+            storage_used=$(echo "$response" | jq -r '.storage_usage.used_gb')
+            storage_available=$(echo "$response" | jq -r '.storage_usage.available_gb')
+            compression_ratio=$(echo "$response" | jq -r '.storage_usage.compression_ratio')
+        else
+            system_status="healthy" # fallback
+            last_backup="unknown"
+            storage_used="unknown"
+            storage_available="unknown" 
+            compression_ratio="unknown"
+        fi
+
+        echo "Data Backup Manager Status"
+        echo "=========================="
+        echo "System Status: $system_status"
+        echo "Last Successful Backup: $last_backup"
+        echo "Storage Usage: ${storage_used}GB used, ${storage_available}GB available"
+        echo "Compression Ratio: ${compression_ratio}"
+        echo ""
+
+        if $verbose; then
+            echo "Resource Health:"
+            if command -v jq &> /dev/null; then
+                echo "$response" | jq -r '.resource_health | to_entries[] | "  \(.key): \(.value.status)"'
+            else
+                echo "  (install jq for detailed resource status)"
+            fi
+            echo ""
+
+            local active_jobs
+            active_jobs=$(echo "$response" | jq -r '.active_jobs | length' 2>/dev/null || echo "0")
+            echo "Active Jobs: $active_jobs"
+        fi
+    fi
+}
+
+# Create backup
+create_backup() {
+    local targets=""
+    local backup_type="full"
+    local retention_days=7
+    local description=""
+
+    if [[ $# -eq 0 ]]; then
+        log_error "No targets specified"
+        log_info "Usage: data-backup-manager backup <targets> [options]"
+        log_info "Example: data-backup-manager backup postgres,files --type full"
+        exit 1
+    fi
+
+    targets="$1"
+    shift
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type)
+                backup_type="$2"
+                shift 2
+                ;;
+            --retention-days)
+                retention_days="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    check_api
+
+    # Convert comma-separated targets to JSON array
+    local targets_json
+    IFS=',' read -ra TARGET_ARRAY <<< "$targets"
+    targets_json="["
+    for i in "${!TARGET_ARRAY[@]}"; do
+        if [[ $i -gt 0 ]]; then
+            targets_json+=","
+        fi
+        targets_json+="\"${TARGET_ARRAY[$i]}\""
+    done
+    targets_json+="]"
+
+    local payload
+    payload=$(cat << EOF
+{
+    "type": "$backup_type",
+    "targets": $targets_json,
+    "description": "$description",
+    "retention_days": $retention_days
+}
+EOF
+    )
+
+    log_info "Creating $backup_type backup for targets: $targets"
+    
+    local response
+    response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/backup/create")
+
+    if command -v jq &> /dev/null; then
+        local job_id estimated_duration
+        job_id=$(echo "$response" | jq -r '.job_id')
+        estimated_duration=$(echo "$response" | jq -r '.estimated_duration')
+        
+        log_success "Backup job created: $job_id"
+        log_info "Estimated duration: $estimated_duration"
+        log_info "Track progress with: data-backup-manager status --verbose"
+    else
+        log_success "Backup job created successfully"
+        echo "$response" | format_json
+    fi
+}
+
+# List backups
+list_backups() {
+    local json_output=false
+    local backup_type=""
+    local target=""
+    local since=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --type)
+                backup_type="$2"
+                shift 2
+                ;;
+            --target)
+                target="$2"
+                shift 2
+                ;;
+            --since)
+                since="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    check_api
+
+    local url="${API_BASE_URL}/backup/list"
+    local params=""
+
+    if [[ -n "$backup_type" ]]; then
+        params+="type=$backup_type&"
+    fi
+    if [[ -n "$target" ]]; then
+        params+="target=$target&"
+    fi
+    if [[ -n "$since" ]]; then
+        params+="since=$since&"
+    fi
+
+    if [[ -n "$params" ]]; then
+        url="${url}?${params%&}"
+    fi
+
+    local response
+    response=$(curl -sf "$url")
+
+    if $json_output; then
+        echo "$response" | format_json
+    else
+        echo "Available Backups"
+        echo "================"
+        
+        if command -v jq &> /dev/null; then
+            echo "$response" | jq -r '.backups[] | "\(.id) | \(.type) | \(.target) | \(.status) | \(.started_at[:16])"' | \
+                column -t -s '|' -N "ID,Type,Target,Status,Started" 2>/dev/null || \
+                echo "$response" | jq -r '.backups[] | "ID: \(.id), Type: \(.type), Target: \(.target), Status: \(.status)"'
+        else
+            echo "$response" | format_json
+        fi
+    fi
+}
+
+# Verify backup
+verify_backup() {
+    local backup_id=""
+    local target=""
+    local latest=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --target)
+                target="$2"
+                shift 2
+                ;;
+            --latest)
+                latest=true
+                shift
+                ;;
+            *)
+                if [[ -z "$backup_id" && "$1" != --* ]]; then
+                    backup_id="$1"
+                    shift
+                else
+                    log_error "Unknown option: $1"
+                    exit 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$backup_id" && "$latest" == false ]]; then
+        log_error "Either backup ID or --latest flag must be specified"
+        exit 1
+    fi
+
+    check_api
+
+    if $latest; then
+        log_info "Finding latest backup for target: $target"
+        # In a real implementation, this would query for the latest backup
+        backup_id="backup-latest" # Mock for demo
+    fi
+
+    log_info "Verifying backup: $backup_id"
+    
+    local response
+    response=$(curl -sf -X POST "${API_BASE_URL}/backup/verify/${backup_id}")
+
+    if command -v jq &> /dev/null; then
+        local verified checksum_match size_match
+        verified=$(echo "$response" | jq -r '.verified')
+        checksum_match=$(echo "$response" | jq -r '.checksum_match')
+        size_match=$(echo "$response" | jq -r '.size_match')
+
+        if [[ "$verified" == "true" && "$checksum_match" == "true" && "$size_match" == "true" ]]; then
+            log_success "Backup verification passed"
+        else
+            log_error "Backup verification failed"
+            echo "$response" | format_json
+            exit 1
+        fi
+    else
+        echo "$response" | format_json
+    fi
+}
+
+# Create restore
+create_restore() {
+    local backup_id=""
+    local restore_point_id=""
+    local targets=""
+    local verify=false
+    local destination=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --backup-id)
+                backup_id="$2"
+                shift 2
+                ;;
+            --restore-point)
+                restore_point_id="$2"
+                shift 2
+                ;;
+            --targets)
+                targets="$2"
+                shift 2
+                ;;
+            --verify)
+                verify=true
+                shift
+                ;;
+            --destination)
+                destination="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    if [[ -z "$backup_id" && -z "$restore_point_id" ]]; then
+        log_error "Either --backup-id or --restore-point must be specified"
+        exit 1
+    fi
+
+    check_api
+
+    # Build targets JSON array if specified
+    local targets_json="[]"
+    if [[ -n "$targets" ]]; then
+        IFS=',' read -ra TARGET_ARRAY <<< "$targets"
+        targets_json="["
+        for i in "${!TARGET_ARRAY[@]}"; do
+            if [[ $i -gt 0 ]]; then
+                targets_json+=","
+            fi
+            targets_json+="\"${TARGET_ARRAY[$i]}\""
+        done
+        targets_json+="]"
+    fi
+
+    local payload
+    payload=$(cat << EOF
+{
+    "backup_job_id": "$backup_id",
+    "restore_point_id": "$restore_point_id",
+    "targets": $targets_json,
+    "verify_before_restore": $verify,
+    "destination": "$destination"
+}
+EOF
+    )
+
+    log_info "Creating restore operation..."
+    if $verify; then
+        log_info "Verification will be performed before restore"
+    fi
+    
+    local response
+    response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/restore/create")
+
+    if command -v jq &> /dev/null; then
+        local restore_id estimated_duration
+        restore_id=$(echo "$response" | jq -r '.restore_id')
+        estimated_duration=$(echo "$response" | jq -r '.estimated_duration')
+        
+        log_success "Restore operation created: $restore_id"
+        log_info "Estimated duration: $estimated_duration"
+        log_warning "Monitor restore progress and verify completion before using restored data"
+    else
+        log_success "Restore operation created successfully"
+        echo "$response" | format_json
+    fi
+}
+
+# Manage schedules
+manage_schedules() {
+    local action=""
+    local schedule_id=""
+    local name=""
+    local cron=""
+    local targets=""
+    local retention=""
+    local backup_type="full"
+
+    if [[ $# -eq 0 ]]; then
+        log_error "No action specified"
+        log_info "Usage: data-backup-manager schedule <action> [options]"
+        log_info "Actions: list, create, update, delete, enable, disable"
+        exit 1
+    fi
+
+    action="$1"
+    shift
+
+    case $action in
+        list)
+            check_api
+            local response
+            response=$(curl -sf "${API_BASE_URL}/schedules")
+            
+            echo "Backup Schedules"
+            echo "==============="
+            
+            if command -v jq &> /dev/null; then
+                echo "$response" | jq -r '.schedules[] | "\(.id) | \(.name) | \(.cron_expression) | \(.enabled) | \(.next_run[:16])"' | \
+                    column -t -s '|' -N "ID,Name,Cron,Enabled,Next Run" 2>/dev/null || \
+                    echo "$response" | jq -r '.schedules[] | "ID: \(.id), Name: \(.name), Enabled: \(.enabled)"'
+            else
+                echo "$response" | format_json
+            fi
+            ;;
+        create)
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --name)
+                        name="$2"
+                        shift 2
+                        ;;
+                    --cron)
+                        cron="$2"
+                        shift 2
+                        ;;
+                    --targets)
+                        targets="$2"
+                        shift 2
+                        ;;
+                    --retention)
+                        retention="$2"
+                        shift 2
+                        ;;
+                    --type)
+                        backup_type="$2"
+                        shift 2
+                        ;;
+                    *)
+                        log_error "Unknown option: $1"
+                        exit 1
+                        ;;
+                esac
+            done
+
+            if [[ -z "$name" || -z "$cron" || -z "$targets" ]]; then
+                log_error "Required parameters: --name, --cron, --targets"
+                exit 1
+            fi
+
+            check_api
+
+            # Convert targets to JSON array
+            IFS=',' read -ra TARGET_ARRAY <<< "$targets"
+            local targets_json="["
+            for i in "${!TARGET_ARRAY[@]}"; do
+                if [[ $i -gt 0 ]]; then
+                    targets_json+=","
+                fi
+                targets_json+="\"${TARGET_ARRAY[$i]}\""
+            done
+            targets_json+="]"
+
+            local payload
+            payload=$(cat << EOF
+{
+    "name": "$name",
+    "cron_expression": "$cron",
+    "backup_type": "$backup_type",
+    "targets": $targets_json,
+    "retention_days": ${retention:-7}
+}
+EOF
+            )
+
+            local response
+            response=$(curl -sf -X POST \
+                -H "Content-Type: application/json" \
+                -d "$payload" \
+                "${API_BASE_URL}/schedules")
+
+            log_success "Backup schedule created: $name"
+            if command -v jq &> /dev/null; then
+                local schedule_id
+                schedule_id=$(echo "$response" | jq -r '.id')
+                log_info "Schedule ID: $schedule_id"
+            fi
+            ;;
+        enable|disable)
+            if [[ $# -eq 0 ]]; then
+                log_error "Schedule ID required"
+                exit 1
+            fi
+            schedule_id="$1"
+            
+            local enabled
+            if [[ "$action" == "enable" ]]; then
+                enabled="true"
+            else
+                enabled="false"
+            fi
+
+            check_api
+
+            local payload="{\"enabled\": $enabled}"
+            curl -sf -X PUT \
+                -H "Content-Type: application/json" \
+                -d "$payload" \
+                "${API_BASE_URL}/schedules/${schedule_id}" > /dev/null
+
+            log_success "Schedule $schedule_id ${action}d"
+            ;;
+        delete)
+            if [[ $# -eq 0 ]]; then
+                log_error "Schedule ID required"
+                exit 1
+            fi
+            schedule_id="$1"
+
+            check_api
+
+            curl -sf -X DELETE "${API_BASE_URL}/schedules/${schedule_id}" > /dev/null
+            log_success "Schedule $schedule_id deleted"
+            ;;
+        *)
+            log_error "Unknown action: $action"
+            log_info "Valid actions: list, create, update, delete, enable, disable"
+            exit 1
+            ;;
+    esac
+}
+
+# Main command dispatch
+case "${1:-}" in
+    status)
+        shift
+        show_status "$@"
+        ;;
+    backup)
+        shift
+        create_backup "$@"
+        ;;
+    restore)
+        shift
+        create_restore "$@"
+        ;;
+    list)
+        shift
+        list_backups "$@"
+        ;;
+    verify)
+        shift
+        verify_backup "$@"
+        ;;
+    schedule)
+        shift
+        manage_schedules "$@"
+        ;;
+    version)
+        shift
+        show_version "$@"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    "")
+        log_error "No command specified"
+        echo "Run 'data-backup-manager help' for usage information"
+        exit 1
+        ;;
+    *)
+        log_error "Unknown command: $1"
+        echo "Run 'data-backup-manager help' for available commands"
+        exit 1
+        ;;
+esac

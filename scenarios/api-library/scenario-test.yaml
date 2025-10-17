@@ -1,0 +1,330 @@
+version: 1.0
+scenario: api-library
+description: API Library - Semantic API discovery and knowledge management
+
+# Structure validation - required files and directories
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/api-library
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - initialization/qdrant/config.json
+    - ui/package.json
+    - ui/public/index.html
+    - ui/src/App.js
+    - ui/src/App.css
+    - ui/src/index.js
+    - scenario-test.yaml
+    
+  required_dirs:
+    - .vrooli
+    - api
+    - cli
+    - initialization
+    - initialization/postgres
+    - initialization/qdrant
+    - ui
+    - ui/public
+    - ui/src
+
+# Resource validation
+resources:
+  required:
+    - postgres
+    - qdrant
+  optional:
+    - redis
+    - ollama
+    - research-assistant
+  health_timeout: 60
+
+# Service configuration validation
+services:
+  - name: api
+    port: ${API_PORT}
+    health_endpoint: /health
+    startup_timeout: 60
+    
+  - name: ui
+    port: ${UI_PORT}
+    health_endpoint: /
+    startup_timeout: 60
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: resource_health
+    service: postgres
+    expect:
+      status: healthy
+      
+  - name: "Qdrant is accessible"
+    type: resource_health
+    service: qdrant
+    required: false
+    expect:
+      status: healthy
+      
+  # Database validation
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    database: api_library
+    query: "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public'"
+    expect:
+      rows:
+        - count: 10  # Expected number of tables
+        
+  - name: "Seed data is loaded"
+    type: sql
+    service: postgres
+    database: api_library
+    query: "SELECT COUNT(*) as count FROM apis"
+    expect:
+      min_rows: 5  # At least some APIs should be seeded
+      
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    timeout: 10
+    expect:
+      status: 200
+      body:
+        status: healthy
+        service: api-library
+        
+  - name: "API search endpoint responds"
+    type: http
+    service: api
+    endpoint: /api/v1/search
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      query: "email"
+      limit: 10
+    timeout: 10
+    expect:
+      status: 200
+      body_contains:
+        - results
+        - count
+        
+  - name: "API list endpoint responds"
+    type: http
+    service: api
+    endpoint: /api/v1/apis
+    method: GET
+    timeout: 10
+    expect:
+      status: 200
+      response_type: array
+      
+  - name: "Configured APIs endpoint responds"
+    type: http
+    service: api
+    endpoint: /api/v1/configured
+    method: GET
+    timeout: 10
+    expect:
+      status: 200
+      response_type: array
+      
+  - name: "Research request endpoint accepts requests"
+    type: http
+    service: api
+    endpoint: /api/v1/request-research
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      capability: "test capability"
+    timeout: 10
+    expect:
+      status: 201
+      body_contains:
+        - research_id
+        - status
+        - estimated_time
+        
+  # CLI command tests
+  - name: "CLI is executable"
+    type: file
+    path: cli/api-library
+    expect:
+      exists: true
+      executable: true
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/api-library help
+    timeout: 5
+    expect:
+      exit_code: 0
+      output_contains:
+        - "API Library CLI"
+        - "Commands:"
+        - "search"
+        
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/api-library version
+    timeout: 5
+    expect:
+      exit_code: 0
+      output_contains:
+        - "API Library CLI"
+        - "1.0.0"
+        
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/api-library status
+    timeout: 10
+    expect:
+      exit_code: 0
+      output_contains:
+        - "healthy"
+        
+  # UI validation
+  - name: "UI package.json is valid"
+    type: file
+    path: ui/package.json
+    expect:
+      exists: true
+      json_valid: true
+      json_contains:
+        name: api-library-ui
+        version: "1.0.0"
+        
+  - name: "UI responds on configured port"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    timeout: 30
+    expect:
+      status: 200
+      headers_contain:
+        content-type: text/html
+        
+  # Integration tests
+  - name: "Can create and retrieve API"
+    type: integration
+    steps:
+      - action: http_post
+        service: api
+        endpoint: /api/v1/apis
+        body:
+          name: "Test API"
+          provider: "Test Provider"
+          description: "Test description"
+          category: "test"
+        save_response: created_api
+        
+      - action: http_get
+        service: api
+        endpoint: "/api/v1/apis/${created_api.id}"
+        expect:
+          body:
+            api:
+              name: "Test API"
+              provider: "Test Provider"
+              
+  - name: "Can add and retrieve notes"
+    type: integration
+    steps:
+      - action: sql
+        service: postgres
+        database: api_library
+        query: "SELECT id FROM apis LIMIT 1"
+        save_result: api_id
+        
+      - action: http_post
+        service: api
+        endpoint: "/api/v1/apis/${api_id}/notes"
+        body:
+          content: "Test note"
+          type: "tip"
+        expect:
+          status: 201
+          
+      - action: http_get
+        service: api
+        endpoint: "/api/v1/apis/${api_id}/notes"
+        expect:
+          status: 200
+          response_type: array
+          
+  # Performance tests
+  - name: "Search performance is acceptable"
+    type: performance
+    service: api
+    endpoint: /api/v1/search
+    method: POST
+    body:
+      query: "payment"
+      limit: 20
+    iterations: 10
+    expect:
+      p95_response_time: 200  # milliseconds
+      success_rate: 100
+      
+  # Semantic search validation (if Qdrant is available)
+  - name: "Semantic search returns relevant results"
+    type: semantic_search
+    required: false  # Only run if Qdrant is available
+    service: api
+    endpoint: /api/v1/search
+    test_cases:
+      - query: "send text messages"
+        expected_contains: ["SMS", "Twilio"]
+      - query: "process credit cards"
+        expected_contains: ["Stripe", "PayPal"]
+      - query: "analyze user behavior"
+        expected_contains: ["Analytics", "Mixpanel"]
+
+# Validation gates
+gates:
+  - name: "All P0 requirements implemented"
+    type: prd_validation
+    requirements:
+      - "Store and retrieve API metadata"
+      - "Semantic search across API descriptions"
+      - "Track configured credentials"
+      - "Store and display notes/gotchas"
+      - "RESTful API for programmatic access"
+      - "Web UI for browsing and searching"
+      
+  - name: "Performance requirements met"
+    type: performance
+    requirements:
+      - "Search response time < 100ms for 95% of requests"
+      - "Can handle 1000 searches/second"
+      - "Memory usage < 2GB"
+      
+  - name: "Integration points functional"
+    type: integration
+    requirements:
+      - "CLI commands mirror API endpoints"
+      - "UI can perform all CRUD operations"
+      - "Database indexes are optimized"
+
+# Success criteria
+success_criteria:
+  - All required structure validation passes
+  - All required resources are healthy
+  - All P0 functionality tests pass
+  - API endpoints respond correctly
+  - CLI commands execute successfully
+  - UI is accessible and functional
+  - Performance targets are met

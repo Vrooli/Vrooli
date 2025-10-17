@@ -1,0 +1,241 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: vault
+  category: storage
+  subcategory: secrets
+  description: "Enterprise-grade secret management with encrypted storage and dynamic credentials"
+  maturity: stable
+  complexity: advanced
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - secret-management
+      - encrypted-storage
+      - dynamic-secrets
+      - authentication-backends
+    secondary:
+      - audit-logging
+      - policy-management
+      - secret-rotation
+      - certificate-management
+    specialized:
+      - multi-tenant-namespacing
+      - client-credential-isolation
+      - enterprise-compliance
+      - api-driven-security
+  
+  # API interfaces available
+  interfaces:
+    - name: secrets-api
+      endpoint: "/v1/secret/data/{path}"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "Key-value secrets engine for storing sensitive data"
+    - name: auth-api
+      endpoint: "/v1/auth/{method}/login"
+      method: [POST]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "Authentication methods and token generation"
+    - name: sys-api
+      endpoint: "/v1/sys/"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "System configuration and administrative operations"
+    - name: health-check
+      endpoint: "/v1/sys/health"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "Health status and cluster information"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - docker
+    optional:
+      - tls-certificates
+      - external-storage
+      - consul
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - secure-document-processing
+      - brand-manager
+      - campaign-content-studio
+    secondary:
+      - workflow-scheduler
+      - research-assistant
+      - document-manager
+    optimal_combinations:
+      - [vault, n8n, postgres]              # Secure workflow automation
+      - [vault, windmill, minio]            # Enterprise automation platform
+      - [vault, claude-code, agent-s2]      # Secure development workflows
+      - [vault, ollama, qdrant]             # Secure AI processing pipeline
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 10000
+      max: 50000
+      currency: USD
+    complexity_score: 9  # 1-10 scale
+    implementation_time: "3-8 days"
+    upwork_demand: very-high
+    target_industries:
+      - enterprise-security
+      - fintech
+      - healthcare
+      - government
+      - compliance-heavy-industries
+      - devops-automation
+    common_project_types:
+      - "Enterprise secret management platform"
+      - "Compliance and audit system"
+      - "DevOps security automation"
+      - "Multi-tenant credential isolation"
+      - "Certificate and key management"
+  
+  # Technical specifications
+  technical:
+    ports: [8200]
+    protocols: [https, http, grpc]
+    data_formats: [json, pem, x509]
+    resource_requirements:
+      memory:
+        minimum: "512MB"
+        recommended: "2GB"
+        optimal: "8GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "4+ cores"
+      storage:
+        minimum: "1GB"
+        recommended: "20GB"
+        optimal: "100GB+"
+      database:
+        required: false
+        recommended: true
+        supported: [consul, etcd, dynamodb]
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_requests: 1000
+      execution_modes: [dev, production, ha-cluster]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - secure-credential-management
+      - enterprise-security-automation
+      - compliance-and-auditing
+      - multi-tenant-isolation
+    integration_targets:
+      preferred: [n8n, windmill, postgres, claude-code]
+      compatible: [ollama, minio, agent-s2, qdrant]
+      avoid: [public-data-storage, non-sensitive-operations]
+    workflow_templates:
+      credential_management: "Create secret → Set policies → Generate token → Access secret → Audit access"
+      rotation: "Monitor expiry → Generate new secret → Update applications → Revoke old secret → Log rotation"
+      compliance: "Define policies → Encrypt data → Control access → Log operations → Generate reports"
+    complexity_indicators:
+      simple: ["basic secret storage", "static credentials", "single tenant"]
+      intermediate: ["dynamic secrets", "policy management", "multiple auth methods"]
+      advanced: ["enterprise clustering", "compliance automation", "advanced encryption", "multi-datacenter"]
+  
+  # Specialized features
+  features:
+    secret_engines:
+      enabled: true
+      description: "Multiple secret engines for different data types"
+      engines: ["kv", "database", "pki", "transit", "aws", "azure", "gcp"]
+    dynamic_secrets:
+      enabled: true
+      description: "Generate credentials on-demand with automatic rotation"
+      types: ["database-credentials", "cloud-credentials", "certificates"]
+    policy_management:
+      enabled: true
+      description: "Fine-grained access control with HCL policies"
+      features: ["path-based-access", "conditional-logic", "time-based-access"]
+    audit_logging:
+      enabled: true
+      description: "Comprehensive audit logs for compliance and security"
+      formats: ["json", "syslog", "file"]
+  
+  # Integration capabilities
+  integrations:
+    auth_methods:
+      - userpass
+      - ldap
+      - jwt
+      - kubernetes
+      - aws_iam
+      - azure_ad
+      - github
+    secret_engines:
+      - key_value_v2
+      - database
+      - pki
+      - transit
+      - totp
+      - ssh
+    storage_backends:
+      - file
+      - consul
+      - etcd
+      - s3
+      - azure_storage
+      - gcs
+  
+  # Testing and validation
+  testing:
+    test_file: "resources/vault/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - secret_operations
+      - authentication_methods
+      - policy_enforcement
+      - audit_logging
+    fixtures:
+      - test_policies
+      - sample_secrets
+      - auth_configurations
+    integration_tests:
+      - vault_n8n_integration
+      - vault_postgres_secrets
+      - multi_tenant_isolation
+  
+  # Documentation and examples
+  documentation:
+    readme: "resources/vault/README.md"
+    api_reference: "resources/vault/docs/API.md"
+    examples_dir: "resources/vault/examples/"
+    configuration: "resources/vault/docs/CONFIGURATION.md"
+    quickstart: "resources/vault/docs/QUICKSTART.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "1.15.0"
+    tested_version: "latest"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      vault: ">=1.15.0"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "storage"
+  resource.vrooli.com/type: "secrets"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "very-high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/enterprise-grade: "true"

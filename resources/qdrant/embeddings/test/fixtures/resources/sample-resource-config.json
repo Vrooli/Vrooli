@@ -1,0 +1,319 @@
+{
+  "name": "email-processor-resource",
+  "version": "1.2.0",
+  "description": "Email processing and categorization resource with AI integration",
+  "type": "processing",
+  "category": "automation",
+  
+  "capabilities": {
+    "email_processing": {
+      "description": "Process and categorize incoming emails",
+      "operations": [
+        "categorize_email",
+        "extract_metadata",
+        "spam_detection",
+        "priority_scoring"
+      ],
+      "throughput": "500 emails/second",
+      "latency": "150ms average"
+    },
+    
+    "ai_integration": {
+      "description": "AI-powered email analysis and response generation", 
+      "models_supported": [
+        "gpt-3.5-turbo",
+        "gpt-4",
+        "claude-3-sonnet"
+      ],
+      "operations": [
+        "smart_categorization",
+        "response_suggestions",
+        "sentiment_analysis",
+        "intent_detection"
+      ]
+    },
+    
+    "provider_integration": {
+      "description": "Multi-provider email API integration",
+      "supported_providers": [
+        "gmail",
+        "outlook",
+        "yahoo",
+        "imap_generic"
+      ],
+      "authentication": [
+        "oauth2",
+        "api_key",
+        "basic_auth"
+      ]
+    }
+  },
+  
+  "cli_commands": {
+    "process": {
+      "description": "Process email batch with AI categorization",
+      "usage": "email-processor process --batch <file> --model <model>",
+      "parameters": [
+        {
+          "name": "batch",
+          "type": "file",
+          "required": true,
+          "description": "JSON file containing email batch"
+        },
+        {
+          "name": "model", 
+          "type": "string",
+          "required": false,
+          "default": "gpt-3.5-turbo",
+          "description": "AI model for categorization"
+        },
+        {
+          "name": "confidence",
+          "type": "float",
+          "required": false,
+          "default": 0.8,
+          "description": "Minimum confidence threshold"
+        }
+      ]
+    },
+    
+    "categorize": {
+      "description": "Categorize individual email",
+      "usage": "email-processor categorize --email <id> --override",
+      "parameters": [
+        {
+          "name": "email",
+          "type": "uuid",
+          "required": true,
+          "description": "Email ID to categorize"
+        },
+        {
+          "name": "override",
+          "type": "boolean",
+          "required": false,
+          "description": "Override existing category"
+        }
+      ]
+    },
+    
+    "analytics": {
+      "description": "Generate email analytics report",
+      "usage": "email-processor analytics --user <id> --period <timespan>",
+      "parameters": [
+        {
+          "name": "user",
+          "type": "uuid", 
+          "required": true,
+          "description": "User ID for analytics"
+        },
+        {
+          "name": "period",
+          "type": "enum",
+          "values": ["day", "week", "month", "year"],
+          "required": false,
+          "default": "week",
+          "description": "Analytics time period"
+        }
+      ]
+    }
+  },
+  
+  "api_endpoints": {
+    "base_url": "http://localhost:8080/api/v1",
+    "authentication": "bearer_token",
+    
+    "endpoints": [
+      {
+        "path": "/emails",
+        "method": "GET",
+        "description": "Fetch user emails with pagination",
+        "parameters": {
+          "user_id": "UUID (required)",
+          "page": "integer (optional, default: 1)",
+          "limit": "integer (optional, default: 20)",
+          "category": "string (optional filter)"
+        },
+        "response": "Paginated email list with metadata"
+      },
+      
+      {
+        "path": "/emails/{id}/categorize",
+        "method": "POST",
+        "description": "Categorize email using AI",
+        "parameters": {
+          "id": "UUID (path parameter)",
+          "use_ai": "boolean (body, default: true)",
+          "override": "boolean (body, default: false)"
+        },
+        "response": "Updated email with new category"
+      },
+      
+      {
+        "path": "/emails/batch/process",
+        "method": "POST", 
+        "description": "Process multiple emails in batch",
+        "parameters": {
+          "email_ids": "UUID[] (body, required)",
+          "operations": "string[] (body, required)"
+        },
+        "response": "Batch processing results"
+      },
+      
+      {
+        "path": "/analytics/{user_id}",
+        "method": "GET",
+        "description": "Get email analytics for user",
+        "parameters": {
+          "user_id": "UUID (path parameter)",
+          "period": "string (query, optional)",
+          "timezone": "string (query, optional)"
+        },
+        "response": "Analytics data with charts and metrics"
+      }
+    ]
+  },
+  
+  "dependencies": {
+    "system": [
+      "node >= 18.0.0",
+      "postgresql >= 14.0",
+      "redis >= 6.0"
+    ],
+    
+    "npm_packages": [
+      "express ^4.18.0",
+      "jsonwebtoken ^9.0.0", 
+      "bcrypt ^5.1.0",
+      "joi ^17.9.0",
+      "ioredis ^5.3.0",
+      "pg ^8.11.0"
+    ],
+    
+    "external_apis": [
+      "Gmail API v1",
+      "Microsoft Graph API v1.0",
+      "OpenAI API v1"
+    ]
+  },
+  
+  "configuration": {
+    "environment_variables": {
+      "EMAIL_API_TOKEN": {
+        "description": "Authentication token for email provider APIs",
+        "required": true,
+        "sensitive": true
+      },
+      "AI_API_TOKEN": {
+        "description": "OpenAI API key for AI processing",
+        "required": true,
+        "sensitive": true
+      },
+      "DATABASE_URL": {
+        "description": "PostgreSQL connection string",
+        "required": true,
+        "default": "postgresql://localhost:5432/email_db"
+      },
+      "REDIS_URL": {
+        "description": "Redis connection URL for caching",
+        "required": false,
+        "default": "redis://localhost:6379"
+      },
+      "LOG_LEVEL": {
+        "description": "Application log level",
+        "required": false,
+        "default": "info",
+        "values": ["debug", "info", "warn", "error"]
+      }
+    },
+    
+    "config_files": [
+      {
+        "path": "config/email-providers.json",
+        "description": "Email provider configurations and credentials"
+      },
+      {
+        "path": "config/ai-models.json", 
+        "description": "AI model settings and parameters"
+      },
+      {
+        "path": "config/rate-limits.json",
+        "description": "API rate limiting configuration"
+      }
+    ]
+  },
+  
+  "docker": {
+    "image": "email-processor:1.2.0",
+    "ports": [
+      "8080:8080"
+    ],
+    "volumes": [
+      "email_data:/app/data",
+      "email_logs:/app/logs"
+    ],
+    "environment": [
+      "NODE_ENV=production",
+      "PORT=8080"
+    ]
+  },
+  
+  "monitoring": {
+    "health_check": {
+      "endpoint": "/",
+      "interval": "30s",
+      "timeout": "5s"
+    },
+    
+    "metrics": [
+      "emails_processed_total",
+      "categorization_accuracy",
+      "api_response_time",
+      "error_rate"
+    ],
+    
+    "alerts": [
+      {
+        "name": "High Error Rate",
+        "condition": "error_rate > 5%",
+        "severity": "warning"
+      },
+      {
+        "name": "Processing Backlog",
+        "condition": "queue_size > 1000",
+        "severity": "critical"
+      }
+    ]
+  },
+  
+  "integrations": {
+    "n8n": {
+      "nodes_available": [
+        "email-processor-categorize",
+        "email-processor-analytics",
+        "email-processor-batch"
+      ],
+      "webhook_endpoints": [
+        "/webhook/email-received",
+        "/webhook/categorization-complete"
+      ]
+    },
+    
+    "zapier": {
+      "triggers": [
+        "new-email-categorized",
+        "high-priority-email-detected"
+      ],
+      "actions": [
+        "categorize-email",
+        "generate-response"
+      ]
+    }
+  },
+  
+  "documentation": {
+    "readme": "docs/README.md",
+    "api_docs": "docs/api.md",
+    "setup_guide": "docs/setup.md",
+    "troubleshooting": "docs/troubleshooting.md"
+  }
+}

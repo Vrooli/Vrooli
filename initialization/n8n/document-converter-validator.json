@@ -1,0 +1,496 @@
+{
+  "name": "Document Converter & Validator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "convert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for document conversion\nconst input = $input.item.json;\n\n// Validate required fields\nif (!input.source || !input.source.type || !input.source.data) {\n  throw new Error('Missing required fields: source.type and source.data');\n}\n\n// Validate source type\nconst validSourceTypes = ['file', 'url', 'minio', 'content'];\nif (!validSourceTypes.includes(input.source.type)) {\n  throw new Error(`Invalid source.type: ${input.source.type}. Must be one of: ${validSourceTypes.join(', ')}`);\n}\n\n// Set comprehensive defaults\nconst config = {\n  source: {\n    type: input.source.type,\n    data: input.source.data,\n    filename: input.source.filename || 'document.txt',\n    mime_type: input.source.mime_type || null\n  },\n  conversion: {\n    target_format: input.conversion?.target_format || 'text',\n    options: {\n      preserve_formatting: input.conversion?.options?.preserve_formatting ?? true,\n      extract_images: input.conversion?.options?.extract_images ?? false,\n      chunk_size: input.conversion?.options?.chunk_size || 1000,\n      language: input.conversion?.options?.language || 'auto',\n      table_strategy: input.conversion?.options?.table_strategy || 'preserve'\n    }\n  },\n  validation: {\n    check_content_quality: input.validation?.check_content_quality ?? true,\n    min_content_length: input.validation?.min_content_length || 10,\n    max_file_size_mb: input.validation?.max_file_size_mb || 50,\n    allowed_formats: input.validation?.allowed_formats || ['pdf', 'docx', 'txt', 'html', 'md'],\n    security_scan: input.validation?.security_scan ?? true\n  },\n  output: {\n    include_metadata: input.output?.include_metadata ?? true,\n    cache_result: input.output?.cache_result ?? true,\n    cache_ttl_hours: input.output?.cache_ttl_hours || 24,\n    return_format: input.output?.return_format || 'inline'\n  }\n};\n\n// Validate target format\nconst validFormats = ['text', 'markdown', 'json', 'html', 'structured'];\nif (!validFormats.includes(config.conversion.target_format)) {\n  throw new Error(`Invalid target_format: ${config.conversion.target_format}. Must be one of: ${validFormats.join(', ')}`);\n}\n\n// Generate processing ID for tracking\nconfig.processing_id = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\nconfig.processing_start = new Date().toISOString();\n\nreturn config;"
+      },
+      "id": "input_validator",
+      "name": "Input Validator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle different source types and prepare file data\nconst config = $input.item.json;\nlet fileContent, contentType, filename, sourceMetadata = {};\n\nswitch (config.source.type) {\n  case 'file':\n    // Base64 content is already provided\n    fileContent = config.source.data;\n    contentType = config.source.mime_type || 'application/octet-stream';\n    filename = config.source.filename;\n    sourceMetadata = { source_type: 'direct_upload' };\n    break;\n    \n  case 'content':\n    // Raw text content provided\n    fileContent = Buffer.from(config.source.data, 'utf8').toString('base64');\n    contentType = config.source.mime_type || 'text/plain';\n    filename = config.source.filename || 'content.txt';\n    sourceMetadata = { source_type: 'raw_content', original_encoding: 'utf8' };\n    break;\n    \n  case 'url':\n    // For URL, we'll need to fetch it - mark for HTTP request\n    return {\n      ...config,\n      requires_fetch: true,\n      fetch_url: config.source.data,\n      fetch_type: 'url'\n    };\n    \n  case 'minio':\n    // For MinIO, we'll need to fetch it - mark for HTTP request  \n    return {\n      ...config,\n      requires_fetch: true,\n      fetch_url: `${process.env.MINIO_URL || 'http://localhost:9000'}/${config.source.data}`,\n      fetch_type: 'minio'\n    };\n    \n  default:\n    throw new Error(`Unsupported source type: ${config.source.type}`);\n}\n\n// Calculate file size\nconst fileBuffer = Buffer.from(fileContent, 'base64');\nconst fileSizeBytes = fileBuffer.length;\n\n// Validate file size\nconst maxSizeBytes = config.validation.max_file_size_mb * 1024 * 1024;\nif (fileSizeBytes > maxSizeBytes) {\n  throw new Error(`File size ${fileSizeBytes} bytes exceeds limit of ${config.validation.max_file_size_mb}MB`);\n}\n\nreturn {\n  ...config,\n  file: {\n    content: fileContent,\n    content_type: contentType,\n    filename: filename,\n    size_bytes: fileSizeBytes\n  },\n  source_metadata: sourceMetadata,\n  requires_fetch: false\n};"
+      },
+      "id": "file_retriever",
+      "name": "File Retriever", 
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.requires_fetch }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "fetch_check",
+      "name": "Needs Fetch?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.fetch_url }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "fetch_file",
+      "name": "Fetch File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem", 
+        "jsCode": "// Process fetched file and continue with format detection\nconst config = $input.item.json;\nconst fileData = $input.item.binary?.data;\n\nif (!fileData) {\n  throw new Error(`Failed to fetch file from: ${config.fetch_url}`);\n}\n\n// Convert binary data to base64\nconst fileContent = fileData.data.toString('base64');\nconst contentType = fileData.mimeType || 'application/octet-stream';\nconst filename = config.source.filename || config.fetch_url.split('/').pop() || 'fetched_file';\n\n// Calculate file size and validate\nconst fileSizeBytes = fileData.data.length;\nconst maxSizeBytes = config.validation.max_file_size_mb * 1024 * 1024;\nif (fileSizeBytes > maxSizeBytes) {\n  throw new Error(`Fetched file size ${fileSizeBytes} bytes exceeds limit of ${config.validation.max_file_size_mb}MB`);\n}\n\nreturn {\n  ...config,\n  file: {\n    content: fileContent,\n    content_type: contentType,\n    filename: filename,\n    size_bytes: fileSizeBytes\n  },\n  source_metadata: {\n    source_type: config.fetch_type,\n    fetch_url: config.fetch_url,\n    fetched_at: new Date().toISOString()\n  },\n  requires_fetch: false\n};"
+      },
+      "id": "process_fetched",
+      "name": "Process Fetched",
+      "type": "n8n-nodes-base.code", 
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Detect file format using magic numbers and content analysis\nconst data = $input.item.json;\nconst fileBuffer = Buffer.from(data.file.content, 'base64');\n\n// Magic number signatures for common formats\nconst magicNumbers = {\n  pdf: [0x25, 0x50, 0x44, 0x46],       // %PDF\n  docx: [0x50, 0x4B, 0x03, 0x04],      // ZIP signature (DOCX is ZIP)\n  doc: [0xD0, 0xCF, 0x11, 0xE0],       // MS Office legacy\n  html: [0x3C, 0x68, 0x74, 0x6D],      // <htm\n  xml: [0x3C, 0x3F, 0x78, 0x6D],       // <?xm\n  png: [0x89, 0x50, 0x4E, 0x47],       // PNG\n  jpg: [0xFF, 0xD8, 0xFF],             // JPEG\n  zip: [0x50, 0x4B, 0x03, 0x04],       // ZIP\n  txt: null  // No magic number, detected by content\n};\n\nfunction detectFormat(buffer) {\n  // Check magic numbers first\n  for (const [format, signature] of Object.entries(magicNumbers)) {\n    if (signature && signature.every((byte, i) => buffer[i] === byte)) {\n      // Special case: DOCX files are ZIP files, check for specific structure\n      if (format === 'docx' || format === 'zip') {\n        try {\n          const content = buffer.toString('utf8', 0, 500);\n          if (content.includes('word/') || content.includes('document.xml')) {\n            return 'docx';\n          }\n        } catch (e) {\n          // Continue with ZIP detection\n        }\n        return buffer.length > 1000 ? 'docx' : 'zip';  // Assume DOCX for larger ZIP files\n      }\n      return format;\n    }\n  }\n  \n  // Content-based detection for text formats\n  try {\n    const content = buffer.toString('utf8', 0, 1000);\n    \n    // HTML detection\n    if (content.includes('<!DOCTYPE html') || content.includes('<html') || \n        /<[a-z][\\s\\S]*>/i.test(content)) {\n      return 'html';\n    }\n    \n    // Markdown detection\n    if (/^#+\\s|\\*\\*.*\\*\\*|__.*__|\\[.*\\]\\(.*\\)/m.test(content)) {\n      return 'md';\n    }\n    \n    // JSON detection\n    if ((content.trim().startsWith('{') && content.includes('\"')) || \n        (content.trim().startsWith('[') && content.includes('{'))) {\n      try {\n        JSON.parse(content);\n        return 'json';\n      } catch (e) {\n        // Not valid JSON, continue\n      }\n    }\n    \n    // XML detection\n    if (content.includes('<?xml') || /<[a-zA-Z][^>]*>/g.test(content)) {\n      return 'xml';\n    }\n    \n    // Default to text if printable\n    if (/^[\\x20-\\x7E\\s]*$/.test(content)) {\n      return 'txt';\n    }\n  } catch (e) {\n    // Binary content, return unknown\n  }\n  \n  return 'unknown';\n}\n\nconst detectedFormat = detectFormat(fileBuffer);\nconst fileExtension = data.file.filename.split('.').pop()?.toLowerCase() || '';\n\n// Enhanced validation results\nconst validationResults = {\n  format_detected: detectedFormat,\n  format_expected: fileExtension,\n  format_match: detectedFormat === fileExtension || \n                (detectedFormat === 'txt' && ['txt', 'text', 'md'].includes(fileExtension)) ||\n                (detectedFormat === 'md' && ['md', 'markdown'].includes(fileExtension)),\n  file_size_valid: data.file.size_bytes <= (data.validation.max_file_size_mb * 1024 * 1024),\n  format_allowed: data.validation.allowed_formats.includes(detectedFormat),\n  is_text_based: ['txt', 'html', 'xml', 'json', 'md'].includes(detectedFormat),\n  requires_processing: ['pdf', 'docx', 'doc'].includes(detectedFormat)\n};\n\n// Validation checks\nif (detectedFormat === 'unknown') {\n  throw new Error(`Could not detect file format for: ${data.file.filename}`);\n}\n\nif (!validationResults.format_allowed) {\n  throw new Error(`Format '${detectedFormat}' not in allowed formats: ${data.validation.allowed_formats.join(', ')}`);\n}\n\nif (!validationResults.file_size_valid) {\n  throw new Error(`File size ${data.file.size_bytes} exceeds limit of ${data.validation.max_file_size_mb}MB`);\n}\n\nreturn {\n  ...data,\n  detected_format: detectedFormat,\n  validation_results: validationResults,\n  conversion_strategy: validationResults.requires_processing ? 'unstructured_io' : 'direct_processing'\n};"
+      },
+      "id": "format_detector",
+      "name": "Format Detector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.conversion_strategy }}",
+              "operation": "equal",
+              "value2": "unstructured_io"
+            }
+          ]
+        }
+      },
+      "id": "conversion_router",
+      "name": "Conversion Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.unstructured-io.url}/general/v0/general",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "multipart/form-data"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "multipartBody": {
+          "values": [
+            {
+              "name": "files",
+              "value": "={{ $binary.data || Buffer.from($json.file.content, 'base64') }}"
+            },
+            {
+              "name": "strategy",
+              "value": "auto"
+            },
+            {
+              "name": "output_format",
+              "value": "={{ $json.conversion.target_format === 'structured' ? 'application/json' : 'text/plain' }}"
+            },
+            {
+              "name": "chunking_strategy", 
+              "value": "={{ $json.conversion.target_format === 'structured' ? 'by_title' : 'none' }}"
+            },
+            {
+              "name": "max_characters",
+              "value": "={{ $json.conversion.options.chunk_size }}"
+            },
+            {
+              "name": "include_page_breaks",
+              "value": "={{ $json.conversion.options.preserve_formatting }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "unstructured_processor",
+      "name": "Unstructured Processor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1850, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process text-based formats directly\nconst data = $input.item.json;\nconst fileBuffer = Buffer.from(data.file.content, 'base64');\nlet convertedContent;\n\ntry {\n  const originalContent = fileBuffer.toString('utf8');\n  \n  switch (data.conversion.target_format) {\n    case 'text':\n      // Convert HTML/XML to plain text\n      if (data.detected_format === 'html' || data.detected_format === 'xml') {\n        convertedContent = originalContent\n          .replace(/<script[^>]*>.*?<\\/script>/gis, '')  // Remove scripts\n          .replace(/<style[^>]*>.*?<\\/style>/gis, '')   // Remove styles\n          .replace(/<[^>]+>/g, ' ')                      // Remove HTML tags\n          .replace(/\\s+/g, ' ')                          // Normalize whitespace\n          .trim();\n      } else {\n        convertedContent = originalContent;\n      }\n      break;\n      \n    case 'markdown':\n      if (data.detected_format === 'html') {\n        // Basic HTML to Markdown conversion\n        convertedContent = originalContent\n          .replace(/<h([1-6])[^>]*>(.*?)<\\/h[1-6]>/gi, (match, level, text) => {\n            return '#'.repeat(parseInt(level)) + ' ' + text.trim() + '\\n\\n';\n          })\n          .replace(/<p[^>]*>(.*?)<\\/p>/gi, '$1\\n\\n')\n          .replace(/<strong[^>]*>(.*?)<\\/strong>/gi, '**$1**')\n          .replace(/<em[^>]*>(.*?)<\\/em>/gi, '*$1*')\n          .replace(/<a[^>]*href=[\"']([^\"']*)[\"'][^>]*>(.*?)<\\/a>/gi, '[$2]($1)')\n          .replace(/<[^>]+>/g, '')  // Remove remaining tags\n          .replace(/\\s+/g, ' ')\n          .trim();\n      } else {\n        convertedContent = originalContent;\n      }\n      break;\n      \n    case 'json':\n      // Structure content as JSON\n      const lines = originalContent.split('\\n').filter(line => line.trim());\n      convertedContent = JSON.stringify({\n        content: originalContent,\n        metadata: {\n          line_count: lines.length,\n          character_count: originalContent.length,\n          detected_format: data.detected_format\n        },\n        lines: lines.slice(0, 100)  // First 100 lines\n      }, null, 2);\n      break;\n      \n    case 'structured':\n      // Create structured representation\n      const paragraphs = originalContent.split(/\\n\\s*\\n/).filter(p => p.trim());\n      convertedContent = JSON.stringify({\n        type: 'document',\n        elements: paragraphs.map((para, index) => ({\n          type: para.startsWith('#') ? 'heading' : 'paragraph',\n          content: para.trim(),\n          position: index\n        }))\n      }, null, 2);\n      break;\n      \n    default:\n      convertedContent = originalContent;\n  }\n  \n} catch (error) {\n  throw new Error(`Failed to process ${data.detected_format} content: ${error.message}`);\n}\n\nreturn {\n  ...data,\n  converted_content: convertedContent,\n  conversion_method: 'direct_processing',\n  processing_notes: `Processed ${data.detected_format} content directly`\n};"
+      },
+      "id": "direct_processor",
+      "name": "Direct Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process Unstructured.io response and prepare for validation\nconst data = $input.item.json;\nconst unstructuredResponse = $input.item.json;\n\n// Extract converted content from Unstructured.io response\nlet convertedContent;\n\nif (typeof unstructuredResponse === 'string') {\n  // Direct text response\n  convertedContent = unstructuredResponse;\n} else if (unstructuredResponse.content) {\n  // Wrapped response\n  convertedContent = unstructuredResponse.content;\n} else if (Array.isArray(unstructuredResponse)) {\n  // Array of elements (structured output)\n  if (data.conversion.target_format === 'structured') {\n    convertedContent = JSON.stringify(unstructuredResponse, null, 2);\n  } else {\n    convertedContent = unstructuredResponse.map(item => \n      typeof item === 'string' ? item : (item.text || item.content || JSON.stringify(item))\n    ).join('\\n');\n  }\n} else {\n  // Fallback\n  convertedContent = JSON.stringify(unstructuredResponse, null, 2);\n}\n\n// Post-process based on target format\nswitch (data.conversion.target_format) {\n  case 'markdown':\n    // Ensure markdown formatting\n    if (!convertedContent.includes('#') && !convertedContent.includes('**')) {\n      // Add basic markdown structure\n      const lines = convertedContent.split('\\n');\n      const title = lines.find(line => line.trim().length > 0) || 'Document';\n      convertedContent = `# ${title}\\n\\n${convertedContent}`;\n    }\n    break;\n    \n  case 'json':\n    // Ensure valid JSON output\n    try {\n      JSON.parse(convertedContent);\n    } catch (e) {\n      convertedContent = JSON.stringify({\n        content: convertedContent,\n        extracted_at: new Date().toISOString(),\n        source_format: data.detected_format\n      }, null, 2);\n    }\n    break;\n}\n\nreturn {\n  ...data,\n  converted_content: convertedContent,\n  conversion_method: 'unstructured_io',\n  processing_notes: 'Processed using Unstructured.io service'\n};"
+      },
+      "id": "process_unstructured_response",
+      "name": "Process Unstructured Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate converted content quality and prepare final response\nconst data = $input.item.json;\nconst convertedContent = data.converted_content;\n\nif (!convertedContent) {\n  throw new Error('No converted content available');\n}\n\n// Content quality validation\nfunction calculateReadabilityScore(text) {\n  const sentences = (text.match(/[.!?]+/g) || []).length;\n  const words = (text.match(/\\b\\w+\\b/g) || []).length;\n  const avgWordsPerSentence = words / Math.max(sentences, 1);\n  \n  // Simple readability score (0-100, higher = more readable)\n  return Math.max(0, Math.min(100, 100 - (avgWordsPerSentence * 1.5)));\n}\n\nfunction detectLanguage(text) {\n  // Simple language detection based on character patterns\n  if (/[а-яё]/i.test(text)) return 'ru';\n  if (/[一-龯]/.test(text)) return 'zh';\n  if (/[ひらがなカタカナ]/.test(text)) return 'ja';\n  if (/[à-ÿ]/i.test(text)) return 'fr';\n  if (/[ñáéíóúü]/i.test(text)) return 'es';\n  return 'en';\n}\n\nfunction scanForSecurity(text) {\n  const issues = [];\n  if (/<script[^>]*>/i.test(text)) issues.push('potential_xss');\n  if (/javascript:/i.test(text)) issues.push('javascript_protocol');\n  if (/(eval|exec)\\s*\\(/i.test(text)) issues.push('code_injection_risk');\n  if (/\\b(password|secret|key|token)\\s*[:=]/i.test(text)) issues.push('potential_credentials');\n  return issues;\n}\n\nconst contentValidation = {\n  content_length: convertedContent.length,\n  min_length_met: convertedContent.length >= data.validation.min_content_length,\n  has_meaningful_content: /\\b[a-zA-Z]{3,}\\b/.test(convertedContent), // Has words\n  estimated_readability: calculateReadabilityScore(convertedContent),\n  detected_language: detectLanguage(convertedContent),\n  security_issues: data.validation.security_scan ? scanForSecurity(convertedContent) : [],\n  word_count: (convertedContent.match(/\\b\\w+\\b/g) || []).length,\n  line_count: convertedContent.split('\\n').length\n};\n\n// Validation checks\nif (!contentValidation.min_length_met) {\n  throw new Error(`Converted content too short: ${contentValidation.content_length} < ${data.validation.min_content_length}`);\n}\n\nif (!contentValidation.has_meaningful_content) {\n  throw new Error('Converted content does not contain meaningful text');\n}\n\nif (contentValidation.security_issues.length > 0) {\n  console.warn(`Security issues detected: ${contentValidation.security_issues.join(', ')}`);\n}\n\n// Calculate processing metrics\nconst processingEndTime = new Date();\nconst processingStartTime = new Date(data.processing_start);\nconst processingTimeMs = processingEndTime - processingStartTime;\n\n// Prepare metadata\nconst metadata = {\n  original_filename: data.file.filename,\n  file_size_bytes: data.file.size_bytes,\n  content_length: contentValidation.content_length,\n  word_count: contentValidation.word_count,\n  line_count: contentValidation.line_count,\n  detected_language: contentValidation.detected_language,\n  readability_score: contentValidation.estimated_readability,\n  extraction_confidence: contentValidation.has_meaningful_content ? 0.95 : 0.7,\n  conversion_method: data.conversion_method,\n  processing_notes: data.processing_notes\n};\n\n// Add format-specific metadata\nif (data.detected_format === 'pdf') {\n  // Estimate page count (rough approximation)\n  metadata.estimated_page_count = Math.ceil(contentValidation.word_count / 250);\n}\n\nreturn {\n  success: true,\n  processing_id: data.processing_id,\n  conversion: {\n    source_format: data.detected_format,\n    target_format: data.conversion.target_format,\n    converted_content: convertedContent,\n    content_preview: convertedContent.substring(0, 200) + (convertedContent.length > 200 ? '...' : ''),\n    processing_time_ms: processingTimeMs\n  },\n  metadata: metadata,\n  validation: {\n    format_validation: data.validation_results,\n    content_validation: contentValidation\n  },\n  storage: {\n    cached: data.output.cache_result,\n    cache_key: `conv_${data.processing_id}`,\n    cache_expires_at: data.output.cache_result ? \n      new Date(Date.now() + (data.output.cache_ttl_hours * 3600000)).toISOString() : null,\n    return_format: data.output.return_format\n  }\n};"
+      },
+      "id": "content_validator",
+      "name": "Content Validator", 
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"processing_id\": \"={{ $json.processing_id || 'unknown' }}\",\n  \"error\": {\n    \"type\": \"processing_error\",\n    \"message\": \"={{ $json.error?.message || 'Document conversion failed' }}\",\n    \"details\": {\n      \"detected_format\": \"={{ $json.detected_format }}\",\n      \"target_format\": \"={{ $json.conversion?.target_format }}\",\n      \"file_size_bytes\": \"={{ $json.file?.size_bytes }}\"\n    }\n  },\n  \"processing_time_ms\": \"={{ Date.now() - new Date($json.processing_start || Date.now()).getTime() }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook", 
+      "typeVersion": 1,
+      "position": [2450, 500]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.source) {\n  return {\n    source: \"content\",\n    content: \"# Sample Document\\n\\nThis is a test document for conversion and validation.\",\n    output_format: \"markdown\",\n    validate: true\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Document Converter & Validator Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2650, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Input Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validator": {
+      "main": [
+        [
+          {
+            "node": "File Retriever",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Retriever": {
+      "main": [
+        [
+          {
+            "node": "Needs Fetch?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Fetch?": {
+      "main": [
+        [
+          {
+            "node": "Fetch File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Detector", 
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch File": {
+      "main": [
+        [
+          {
+            "node": "Process Fetched",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Fetched": {
+      "main": [
+        [
+          {
+            "node": "Format Detector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Detector": {
+      "main": [
+        [
+          {
+            "node": "Conversion Router",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversion Router": {
+      "main": [
+        [
+          {
+            "node": "Unstructured Processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Direct Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unstructured Processor": {
+      "main": [
+        [
+          {
+            "node": "Process Unstructured Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Unstructured Response": {
+      "main": [
+        [
+          {
+            "node": "Content Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Direct Processor": {
+      "main": [
+        [
+          {
+            "node": "Content Validator", 
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Validator": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "shared-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "document-converter-validator",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z", 
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "document-processing", 
+      "name": "document-processing"
+    }
+  ]
+}

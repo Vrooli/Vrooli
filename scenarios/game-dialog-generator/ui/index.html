@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌿 Game Dialog Generator - Jungle Adventure 🎮</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One:wght@400&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+    <style>
+        /* 🌿 Jungle Platformer Adventure Theme 🎮 */
+        :root {
+            --jungle-primary: #2F5233;
+            --jungle-secondary: #4A7C59;
+            --jungle-tertiary: #7BA35C;
+            --jungle-light: #B8D67A;
+            --jungle-accent: #FF6B35;
+            --jungle-bright: #F7931E;
+            --jungle-gold: #FFD23F;
+            --jungle-dark: #1A2E1C;
+            --jungle-shadow: rgba(47, 82, 51, 0.3);
+            --vine-green: #228B22;
+            --leaf-green: #32CD32;
+            --monkey-brown: #8B4513;
+            --stone-gray: #696969;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(180deg, #87CEEB 0%, #7BA35C 50%, #2F5233 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated jungle background */
+        .jungle-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-image: 
+                url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800"><defs><radialGradient id="sun"><stop offset="0%" stop-color="%23FFD700"/><stop offset="100%" stop-color="%23FF8C00"/></radialGradient></defs><circle cx="900" cy="100" r="60" fill="url(%23sun)"/></svg>'),
+                url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800"><path d="M0,600 Q250,400 500,600 T1000,600 L1000,800 L0,800 Z" fill="%232F5233"/></svg>'),
+                url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800"><path d="M0,500 Q200,300 400,500 T800,500 L800,800 L0,800 Z" fill="%234A7C59"/></svg>');
+            background-position: top right, bottom, bottom;
+            background-repeat: no-repeat, no-repeat, no-repeat;
+            background-size: 200px 200px, 100% 300px, 100% 400px;
+            animation: parallaxMove 20s ease-in-out infinite alternate;
+        }
+
+        @keyframes parallaxMove {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-20px); }
+        }
+
+        /* Floating leaves animation */
+        .floating-leaves {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .leaf {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: var(--leaf-green);
+            border-radius: 0 100% 0 100%;
+            transform: rotate(45deg);
+            animation: floatDown 8s linear infinite;
+            opacity: 0.7;
+        }
+
+        @keyframes floatDown {
+            0% {
+                transform: translateY(-100px) rotate(45deg) translateX(0);
+                opacity: 0;
+            }
+            10% { opacity: 0.7; }
+            90% { opacity: 0.7; }
+            100% {
+                transform: translateY(100vh) rotate(405deg) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Header */
+        .jungle-header {
+            background: linear-gradient(135deg, var(--jungle-primary), var(--jungle-secondary));
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 20px var(--jungle-shadow);
+            position: relative;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.8rem;
+            color: var(--jungle-gold);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.5rem 1.2rem;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--jungle-accent), var(--jungle-bright));
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--jungle-tertiary), var(--jungle-light));
+            color: var(--jungle-dark);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--vine-green), var(--leaf-green));
+            color: white;
+        }
+
+        /* Main content */
+        .main-content {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Cards with jungle theme */
+        .jungle-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 
+                0 10px 30px rgba(47, 82, 51, 0.2),
+                inset 0 1px 0 rgba(255,255,255,0.8);
+            border: 3px solid var(--jungle-tertiary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .jungle-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(123, 163, 92, 0.1), transparent);
+            transform: rotate(45deg);
+            pointer-events: none;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--jungle-light);
+        }
+
+        .card-title {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.8rem;
+            color: var(--jungle-primary);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        /* Form styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: var(--jungle-primary);
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 2px solid var(--jungle-tertiary);
+            border-radius: 12px;
+            font-size: 1rem;
+            background: rgba(255,255,255,0.9);
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--jungle-accent);
+            box-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+            background: white;
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        /* Character grid */
+        .character-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .character-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(184, 214, 122, 0.1));
+            border: 2px solid var(--jungle-tertiary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .character-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(47, 82, 51, 0.3);
+            border-color: var(--jungle-accent);
+        }
+
+        .character-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--jungle-light), var(--vine-green));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin: 0 auto 1rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .character-name {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.2rem;
+            color: var(--jungle-primary);
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .character-traits {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            margin-top: 1rem;
+        }
+
+        .trait-badge {
+            background: linear-gradient(135deg, var(--jungle-tertiary), var(--jungle-light));
+            color: var(--jungle-dark);
+            padding: 0.2rem 0.6rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* Dialog generation interface */
+        .dialog-interface {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .dialog-input-section {
+            background: rgba(184, 214, 122, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 2px dashed var(--jungle-tertiary);
+        }
+
+        .dialog-output-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 2px solid var(--jungle-tertiary);
+            position: relative;
+        }
+
+        .dialog-bubble {
+            background: linear-gradient(135deg, var(--jungle-light), rgba(255,255,255,0.9));
+            border: 2px solid var(--jungle-tertiary);
+            border-radius: 20px 20px 20px 5px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+        }
+
+        .dialog-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 20px;
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 15px solid var(--jungle-tertiary);
+        }
+
+        .dialog-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 22px;
+            width: 0;
+            height: 0;
+            border-left: 13px solid transparent;
+            border-right: 13px solid transparent;
+            border-top: 13px solid var(--jungle-light);
+        }
+
+        .dialog-text {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: var(--jungle-dark);
+            text-align: center;
+            width: 100%;
+        }
+
+        .dialog-placeholder {
+            color: var(--jungle-secondary);
+            font-style: italic;
+            opacity: 0.7;
+        }
+
+        /* Loading animations */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--jungle-light);
+            border-radius: 50%;
+            border-top-color: var(--jungle-accent);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .generating-text {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .dialog-interface {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .character-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .main-content {
+                padding: 0 1rem;
+            }
+        }
+
+        /* Utility classes */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .mt-2 { margin-top: 1rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        
+        /* Success/Error messages */
+        .message {
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            font-weight: 600;
+        }
+        
+        .message-success {
+            background: linear-gradient(135deg, rgba(34, 139, 34, 0.1), rgba(50, 205, 50, 0.1));
+            border: 2px solid var(--vine-green);
+            color: var(--jungle-dark);
+        }
+        
+        .message-error {
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(247, 147, 30, 0.1));
+            border: 2px solid var(--jungle-accent);
+            color: var(--jungle-dark);
+        }
+
+        /* Vine decorations */
+        .vine-decoration {
+            position: absolute;
+            width: 100px;
+            height: 20px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><path d="M0,10 Q25,0 50,10 T100,10" stroke="%23228B22" stroke-width="3" fill="none"/></svg>');
+            background-repeat: no-repeat;
+            background-size: contain;
+        }
+
+        .vine-decoration.top-left {
+            top: -10px;
+            left: 20px;
+        }
+
+        .vine-decoration.top-right {
+            top: -10px;
+            right: 20px;
+            transform: scaleX(-1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Jungle background with animated elements -->
+    <div class="jungle-background"></div>
+    <div class="floating-leaves" id="floatingLeaves"></div>
+
+    <!-- Header -->
+    <header class="jungle-header">
+        <div class="header-content">
+            <div class="logo">🌿 Game Dialog Generator 🎮</div>
+            <nav class="nav-buttons">
+                <button class="btn btn-primary" onclick="showSection('characters')">
+                    🐒 Characters
+                </button>
+                <button class="btn btn-secondary" onclick="showSection('dialog')">
+                    💬 Dialog Generator
+                </button>
+                <button class="btn btn-success" onclick="showSection('projects')">
+                    🎮 Projects
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Welcome Section -->
+        <section id="welcome-section" class="jungle-card">
+            <div class="card-header">
+                <span class="card-icon">🌿</span>
+                <h1 class="card-title">Welcome to the Jungle Adventure!</h1>
+            </div>
+            <div class="vine-decoration top-left"></div>
+            <div class="vine-decoration top-right"></div>
+            
+            <p style="font-size: 1.1rem; line-height: 1.6; color: var(--jungle-primary); text-align: center; margin-bottom: 2rem;">
+                Create memorable game characters with AI-powered personality modeling and generate dynamic dialog for your jungle platformer adventures! 🎮
+            </p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+                <div style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🐒</div>
+                    <h3 style="color: var(--jungle-primary); margin-bottom: 0.5rem;">Character Creation</h3>
+                    <p style="color: var(--jungle-secondary);">Design unique characters with personality traits, backgrounds, and speech patterns</p>
+                </div>
+                <div style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
+                    <h3 style="color: var(--jungle-primary); margin-bottom: 0.5rem;">AI Dialog Generation</h3>
+                    <p style="color: var(--jungle-secondary);">Generate contextual dialog that stays true to each character's personality</p>
+                </div>
+                <div style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🎮</div>
+                    <h3 style="color: var(--jungle-primary); margin-bottom: 0.5rem;">Game Integration</h3>
+                    <p style="color: var(--jungle-secondary);">Export dialog for Unity, Unreal Engine, and other game development platforms</p>
+                </div>
+            </div>
+            
+            <div class="text-center mt-2">
+                <button class="btn btn-primary" onclick="showSection('characters')" style="font-size: 1.1rem; padding: 0.8rem 2rem;">
+                    🌿 Start Your Adventure! 🎮
+                </button>
+            </div>
+        </section>
+
+        <!-- Characters Section -->
+        <section id="characters-section" class="jungle-card hidden">
+            <div class="card-header">
+                <span class="card-icon">🐒</span>
+                <h2 class="card-title">Character Management</h2>
+                <button class="btn btn-primary" onclick="showCharacterCreation()">
+                    ➕ Create New Character
+                </button>
+            </div>
+            
+            <div id="characters-list">
+                <div class="character-grid" id="character-grid">
+                    <!-- Characters will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Character Creation Form -->
+            <div id="character-creation-form" class="hidden">
+                <h3 style="color: var(--jungle-primary); margin-bottom: 1rem;">🌿 Create Your Jungle Character 🎮</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Character Name</label>
+                    <input type="text" id="character-name" class="form-input" placeholder="e.g., Kiko the Brave Monkey">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Background Story</label>
+                    <textarea id="character-background" class="form-input form-textarea" placeholder="Tell us about your character's history and role in the jungle adventure..."></textarea>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Brave (0.0 - 1.0)</label>
+                        <input type="range" id="trait-brave" class="form-input" min="0" max="1" step="0.1" value="0.5">
+                        <span id="brave-value">0.5</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Humorous (0.0 - 1.0)</label>
+                        <input type="range" id="trait-humorous" class="form-input" min="0" max="1" step="0.1" value="0.5">
+                        <span id="humorous-value">0.5</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Loyal (0.0 - 1.0)</label>
+                        <input type="range" id="trait-loyal" class="form-input" min="0" max="1" step="0.1" value="0.5">
+                        <span id="loyal-value">0.5</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Voice Pitch</label>
+                    <select id="voice-pitch" class="form-input">
+                        <option value="low">Low (Rhino, Bear)</option>
+                        <option value="medium" selected>Medium (Monkey, Human)</option>
+                        <option value="high">High (Toucan, Chipmunk)</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button class="btn btn-success" onclick="createCharacter()">
+                        🌿 Create Character
+                    </button>
+                    <button class="btn btn-secondary" onclick="hideCharacterCreation()">
+                        ❌ Cancel
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dialog Generation Section -->
+        <section id="dialog-section" class="jungle-card hidden">
+            <div class="card-header">
+                <span class="card-icon">💬</span>
+                <h2 class="card-title">Dialog Generator</h2>
+            </div>
+            
+            <div class="dialog-interface">
+                <div class="dialog-input-section">
+                    <h3 style="color: var(--jungle-primary); margin-bottom: 1rem;">🎭 Scene Setup</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Select Character</label>
+                        <select id="dialog-character" class="form-input">
+                            <option value="">Choose a character...</option>
+                            <!-- Characters will be loaded here -->
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Scene Context</label>
+                        <textarea id="scene-context" class="form-input form-textarea" placeholder="Describe the scene: location, situation, mood...&#10;e.g., 'A peaceful jungle clearing at dawn, character feels hopeful'"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Character Emotion</label>
+                        <select id="character-emotion" class="form-input">
+                            <option value="neutral">Neutral</option>
+                            <option value="happy">Happy</option>
+                            <option value="excited">Excited</option>
+                            <option value="worried">Worried</option>
+                            <option value="angry">Angry</option>
+                            <option value="sad">Sad</option>
+                            <option value="mysterious">Mysterious</option>
+                            <option value="brave">Brave</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="generateDialog()" style="width: 100%;">
+                        🌿 Generate Dialog 🎮
+                    </button>
+                </div>
+                
+                <div class="dialog-output-section">
+                    <h3 style="color: var(--jungle-primary); margin-bottom: 1rem;">🗣️ Generated Dialog</h3>
+                    
+                    <div class="dialog-bubble" id="dialog-output">
+                        <div class="dialog-text dialog-placeholder">
+                            🌿 Select a character and describe the scene to generate jungle adventure dialog! 🎮
+                        </div>
+                    </div>
+                    
+                    <div id="dialog-metadata" class="hidden">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                            <div>
+                                <strong>Emotion:</strong> <span id="generated-emotion">-</span>
+                            </div>
+                            <div>
+                                <strong>Consistency Score:</strong> <span id="consistency-score">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Projects Section -->
+        <section id="projects-section" class="jungle-card hidden">
+            <div class="card-header">
+                <span class="card-icon">🎮</span>
+                <h2 class="card-title">Game Projects</h2>
+                <button class="btn btn-primary" onclick="showProjectCreation()">
+                    ➕ New Project
+                </button>
+            </div>
+            
+            <div id="projects-list">
+                <div id="projects-grid" class="character-grid">
+                    <!-- Projects will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Project Creation Form -->
+            <div id="project-creation-form" class="hidden">
+                <h3 style="color: var(--jungle-primary); margin-bottom: 1rem;">🌿 Create Game Project 🎮</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Project Name</label>
+                    <input type="text" id="project-name" class="form-input" placeholder="e.g., Jungle Adventure Quest">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Project Description</label>
+                    <textarea id="project-description" class="form-input form-textarea" placeholder="Describe your jungle adventure game..."></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button class="btn btn-success" onclick="createProject()">
+                        🌿 Create Project
+                    </button>
+                    <button class="btn btn-secondary" onclick="hideProjectCreation()">
+                        ❌ Cancel
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Messages container -->
+    <div id="messages-container" style="position: fixed; top: 100px; right: 20px; z-index: 1000; max-width: 400px;"></div>
+
+        <script type="module" src="app.js"></script>
+
+</body>
+</html>

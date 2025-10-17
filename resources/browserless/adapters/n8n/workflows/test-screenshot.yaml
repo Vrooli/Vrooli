@@ -1,0 +1,45 @@
+workflow:
+  name: "test-screenshot"
+  description: "Test screenshot functionality"
+  version: "1.0.0"
+  debug_level: "steps"
+  enabled: true
+    
+  parameters:
+    test_url:
+      type: string
+      default: "http://localhost:5678"
+
+  steps:
+    - name: "screenshot-test"
+      action: "browser_script"
+      script: |
+        console.log('Starting screenshot test');
+        
+        // Navigate to the page
+        await page.goto('${params.test_url}', { 
+          waitUntil: 'networkidle2',
+          timeout: 30000 
+        });
+        
+        console.log('Current URL:', page.url());
+        console.log('Page title:', await page.title());
+        
+        // Take screenshot
+        const screenshotData = await page.screenshot({ 
+          fullPage: true, 
+          encoding: 'base64' 
+        });
+        
+        console.log('Screenshot captured, length:', screenshotData.length);
+        
+        return {
+          success: true,
+          url: page.url(),
+          title: await page.title(),
+          screenshotPath: '${context.outputDir}/test-screenshot.png',
+          screenshotData: screenshotData
+        };
+      output: "${context.outputDir}/test-results.json"
+      debug:
+        console: true

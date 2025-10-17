@@ -1,0 +1,175 @@
+{
+  "name": "picker-wheel-history",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "wheel/history",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "session_id",
+              "name": "session_id",
+              "value": "={{ $json.session_id || 'all' }}",
+              "type": "string"
+            },
+            {
+              "id": "limit",
+              "name": "limit",
+              "value": "={{ $json.limit || 50 }}",
+              "type": "number"
+            },
+            {
+              "id": "include_stats",
+              "name": "include_stats",
+              "value": "={{ $json.include_stats || true }}",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "id": "set_params",
+      "name": "Set Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "command": "=bash -c \"PGPASSWORD=postgres psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d picker_wheel -t -A -c \\\"SELECT json_agg(row_to_json(t)) FROM (SELECT h.*, w.name as wheel_name FROM spin_history h LEFT JOIN wheels w ON h.wheel_id = w.id WHERE ('{{ $json.session_id }}' = 'all' OR h.session_id = '{{ $json.session_id }}') ORDER BY h.timestamp DESC LIMIT {{ $json.limit }}) t\\\" || echo '[]'\"",
+        "options": {}
+      },
+      "id": "get_history",
+      "name": "Get History",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "command": "=bash -c \"PGPASSWORD=postgres psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d picker_wheel -t -A -c \\\"SELECT json_build_object('total_spins', COUNT(*), 'days_active', COUNT(DISTINCT DATE(timestamp)), 'most_common', (SELECT result FROM spin_history WHERE ('{{ $json.session_id }}' = 'all' OR session_id = '{{ $json.session_id }}') GROUP BY result ORDER BY COUNT(*) DESC LIMIT 1), 'frequency', (SELECT COUNT(*) FROM spin_history WHERE ('{{ $json.session_id }}' = 'all' OR session_id = '{{ $json.session_id }}') GROUP BY result ORDER BY COUNT(*) DESC LIMIT 1)) FROM spin_history WHERE ('{{ $json.session_id }}' = 'all' OR session_id = '{{ $json.session_id }}')\\\" || echo '{}'\"",
+        "options": {}
+      },
+      "id": "get_stats",
+      "name": "Get Statistics",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse JSON output from psql command\nconst output = $input.item.json.stdout || '[]';\ntry {\n  const data = JSON.parse(output);\n  return { json: data };\n} catch (e) {\n  console.error('Failed to parse history data:', e);\n  return { json: [] };\n}"
+      },
+      "id": "parse_history",
+      "name": "Parse History",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse JSON output from psql command\nconst output = $input.item.json.stdout || '{}';\ntry {\n  const data = JSON.parse(output);\n  return { json: data };\n} catch (e) {\n  console.error('Failed to parse stats data:', e);\n  return { json: {} };\n}"
+      },
+      "id": "parse_stats",
+      "name": "Parse Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge_data",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const history = $input.all()[0].json;\nconst stats = $input.all()[1]?.json || {};\n\nreturn [{\n  json: {\n    history: history,\n    statistics: {\n      total_spins: stats.total_spins || 0,\n      days_active: stats.days_active || 0,\n      most_common: stats.most_common || 'N/A',\n      frequency: stats.frequency || 0\n    },\n    session_id: $node[\"set_params\"].json.session_id,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{ "node": "set_params", "type": "main", "index": 0 }]]
+    },
+    "manual_trigger": {
+      "main": [[{ "node": "set_params", "type": "main", "index": 0 }]]
+    },
+    "set_params": {
+      "main": [[
+        { "node": "get_history", "type": "main", "index": 0 },
+        { "node": "get_stats", "type": "main", "index": 0 }
+      ]]
+    },
+    "get_history": {
+      "main": [[{ "node": "parse_history", "type": "main", "index": 0 }]]
+    },
+    "get_stats": {
+      "main": [[{ "node": "parse_stats", "type": "main", "index": 0 }]]
+    },
+    "parse_history": {
+      "main": [[{ "node": "merge_data", "type": "main", "index": 0 }]]
+    },
+    "parse_stats": {
+      "main": [[{ "node": "merge_data", "type": "main", "index": 1 }]]
+    },
+    "merge_data": {
+      "main": [[{ "node": "format_response", "type": "main", "index": 0 }]]
+    },
+    "format_response": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "picker-wheel-history"
+  },
+  "tags": []
+}

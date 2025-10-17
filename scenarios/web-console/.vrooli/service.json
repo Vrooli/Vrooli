@@ -1,0 +1,143 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "web-console",
+    "displayName": "Web Console",
+    "description": "Remote-first terminal console with quick command shortcuts",
+    "version": "0.2.0",
+    "tags": [
+      "terminal",
+      "shortcuts",
+      "iframe",
+      "go-api",
+      "vanilla-js"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Web Console API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 36233,
+      "description": "Web Console UI port"
+    }
+  },
+  "resources": {},
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Web Console health check",
+      "endpoints": {
+        "api": "/healthz"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/healthz",
+          "critical": true,
+          "timeout": 8000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 8000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Web Console services and dependencies",
+      "steps": [
+        {
+          "name": "prepare-storage",
+          "run": "mkdir -p data/sessions",
+          "description": "Create storage directory for transcript archives"
+        },
+    {
+      "name": "build-api",
+      "run": "cd api && go mod tidy && go build -o web-console-api .",
+      "description": "Build Go API server"
+    },
+    {
+      "name": "build-ui",
+      "run": "cd ui && if [ ! -d node_modules ]; then echo 'WARNING: Web Console UI dependencies missing. Run `pnpm install --filter web-console-ui` before setup.' >&2; exit 1; fi && pnpm run build",
+      "description": "Build Vite bundle for the Web Console UI"
+    },
+        {
+          "name": "show-next-steps",
+          "run": "echo 'Web Console ready. Use make run to launch services.'",
+          "description": "Display next-step guidance"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Run Web Console API and UI servers via lifecycle",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o web-console-api .",
+          "description": "Build Go API server binary"
+        },
+    {
+      "name": "start-api",
+      "run": "cd api && ./web-console-api",
+      "description": "Start Go API server",
+      "background": true,
+      "condition": {
+        "file_exists": "api/web-console-api"
+      }
+    },
+    {
+      "name": "build-ui",
+      "run": "cd ui && if [ ! -d node_modules ]; then echo 'WARNING: Web Console UI dependencies missing. Run `pnpm install --filter web-console-ui` before start.' >&2; exit 1; fi && pnpm run build",
+      "description": "Ensure Web Console UI bundle is up to date",
+      "condition": {
+        "file_exists": "ui/package.json"
+      }
+    },
+    {
+      "name": "start-ui",
+      "run": "cd ui && node server.js",
+      "description": "Start UI proxy server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"UI: http://localhost:${UI_PORT}  |  API: http://localhost:${API_PORT}\"",
+          "description": "Display local access URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Placeholder tests for Web Console",
+      "steps": [
+        {
+          "name": "lint-and-build",
+          "run": "cd api && go vet ./...",
+          "description": "Run Go vet checks"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Web Console services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"web-console-api\" || true; sleep 1; pkill -9 -f \"web-console-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/web-console/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/web-console/ui/server.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "collection_name": "recipes",
+  "vectors": {
+    "size": 768,
+    "distance": "Cosine"
+  },
+  "optimizers_config": {
+    "default_segment_number": 2,
+    "indexing_threshold": 10000,
+    "memmap_threshold": 20000
+  },
+  "wal_config": {
+    "wal_capacity_mb": 32,
+    "wal_segments_ahead": 0
+  },
+  "hnsw_config": {
+    "m": 16,
+    "ef_construct": 100,
+    "full_scan_threshold": 10000,
+    "max_indexing_threads": 0
+  },
+  "quantization_config": null,
+  "on_disk_payload": false,
+  "payload_schema": {
+    "recipe_id": {
+      "type": "keyword",
+      "indexed": true
+    },
+    "title": {
+      "type": "text",
+      "indexed": true
+    },
+    "description": {
+      "type": "text",
+      "indexed": false
+    },
+    "cuisine": {
+      "type": "keyword",
+      "indexed": true
+    },
+    "tags": {
+      "type": "keyword[]",
+      "indexed": true
+    },
+    "dietary_info": {
+      "type": "keyword[]",
+      "indexed": true
+    },
+    "prep_time": {
+      "type": "integer",
+      "indexed": true,
+      "range": true
+    },
+    "cook_time": {
+      "type": "integer",
+      "indexed": true,
+      "range": true
+    },
+    "total_time": {
+      "type": "integer",
+      "indexed": true,
+      "range": true
+    },
+    "servings": {
+      "type": "integer",
+      "indexed": true
+    },
+    "rating": {
+      "type": "float",
+      "indexed": true,
+      "range": true
+    },
+    "popularity": {
+      "type": "integer",
+      "indexed": true,
+      "range": true
+    },
+    "created_by": {
+      "type": "keyword",
+      "indexed": true
+    },
+    "visibility": {
+      "type": "keyword",
+      "indexed": true
+    },
+    "created_at": {
+      "type": "datetime",
+      "indexed": true
+    }
+  },
+  "init_from": null,
+  "write_consistency_factor": 1,
+  "replication_factor": 1,
+  "shard_number": 1
+}

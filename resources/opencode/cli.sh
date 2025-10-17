@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+################################################################################
+# OpenCode Resource CLI - v2.0 Universal Contract Compliant
+#
+# Terminal-first AI assistant powered by the OpenCode CLI
+################################################################################
+
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    OPENCODE_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${OPENCODE_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
+OPENCODE_CLI_DIR="${APP_ROOT}/resources/opencode"
+
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${var_LOG_FILE}"
+source "${var_RESOURCES_COMMON_FILE}"
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+
+for lib in common install status docker content models test info usage; do
+    lib_file="${OPENCODE_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "${lib_file}" ]]; then
+        # shellcheck disable=SC1090
+        source "${lib_file}" 2>/dev/null || true
+    fi
+done
+
+# Agent management integration (shared framework)
+if [[ -f "${OPENCODE_CLI_DIR}/config/agents.conf" ]]; then
+    # shellcheck disable=SC1091
+    source "${OPENCODE_CLI_DIR}/config/agents.conf"
+    if [[ -f "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+        if type -t agent_manager::load_config &>/dev/null; then
+            agent_manager::load_config "opencode" >/dev/null 2>&1 || true
+            agent_manager::init_registry >/dev/null 2>&1 || true
+        fi
+    fi
+fi
+
+cli::init "opencode" "OpenCode AI CLI" "v2"
+
+CLI_COMMAND_HANDLERS["manage::install"]="opencode::install::execute"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="opencode::install::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="opencode::docker::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="opencode::docker::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="opencode::docker::restart"
+
+CLI_COMMAND_HANDLERS["test::smoke"]="opencode::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="opencode::test::integration"
+CLI_COMMAND_HANDLERS["test::all"]="opencode::test::all"
+
+CLI_COMMAND_HANDLERS["content::add"]="opencode::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="opencode::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="opencode::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="opencode::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="opencode::content::activate"
+
+opencode::cli::dispatch() {
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: resource-opencode run <args>"
+        echo "Try 'resource-opencode run --help' for CLI options."
+        return 1
+    fi
+    if type -t agents::track_operation &>/dev/null; then
+        agents::track_operation "run" opencode::run_cli "$@"
+    else
+        opencode::run_cli "$@"
+    fi
+}
+
+cli::register_command "status" "Show OpenCode status" "opencode::status"
+cli::register_command "models" "List available models" "opencode::models::list"
+cli::register_command "run" "Execute raw OpenCode CLI commands" "opencode::cli::dispatch"
+cli::register_command "logs" "Show log directory" "opencode::docker::logs"
+
+opencode::agents::delegate() {
+    "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="opencode" "$@"
+}
+
+opencode::agents::command() {
+    if ! type -t agent_manager::load_config &>/dev/null; then
+        log::error "Agent management not available"
+        return 1
+    fi
+
+    if [[ $# -eq 0 ]]; then
+        opencode::agents::delegate list
+        return $?
+    fi
+
+    local subcommand="${1}"
+    shift
+
+    case "${subcommand}" in
+        run)
+            opencode::agents::run "$@"
+            ;;
+        session)
+            opencode::agents::session_command "$@"
+            ;;
+        help|-h|--help)
+            opencode::agents::usage
+            ;;
+        *)
+            opencode::agents::delegate "${subcommand}" "$@"
+            ;;
+    esac
+}
+export -f opencode::agents::command
+
+cli::register_command "agents" "Manage running OpenCode agents" "opencode::agents::command"
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

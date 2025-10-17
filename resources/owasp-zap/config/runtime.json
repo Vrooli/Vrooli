@@ -1,0 +1,71 @@
+{
+  "name": "owasp-zap",
+  "description": "OWASP ZAP Security Scanner - Web application vulnerability detection",
+  "version": "2.0.0",
+  "startup_order": 800,
+  "startup_timeout": 30,
+  "startup_time_estimate": "10-20s",
+  "shutdown_timeout": 10,
+  "recovery_attempts": 3,
+  "priority": "high",
+  "dependencies": [],
+  "required_resources": [
+    "docker"
+  ],
+  "optional_resources": [
+    "vault"
+  ],
+  "ports": {
+    "api": 8180,
+    "proxy": 8181
+  },
+  "health_check": {
+    "endpoint": "http://localhost:8180/JSON/core/view/version",
+    "timeout": 5,
+    "interval": 30,
+    "retries": 3
+  },
+  "resource_limits": {
+    "memory": "1GB",
+    "cpu": "1.0"
+  },
+  "capabilities": [
+    "security-scanning",
+    "vulnerability-detection",
+    "api-testing",
+    "compliance-validation",
+    "penetration-testing"
+  ],
+  "integration_points": [
+    {
+      "type": "rest_api",
+      "port": 8180,
+      "protocol": "http",
+      "authentication": "api_key"
+    },
+    {
+      "type": "proxy",
+      "port": 8181,
+      "protocol": "http/https"
+    }
+  ],
+  "configuration": {
+    "environment_variables": [
+      "ZAP_API_PORT",
+      "ZAP_PROXY_PORT",
+      "ZAP_API_KEY",
+      "ZAP_ATTACK_STRENGTH",
+      "ZAP_ALERT_THRESHOLD"
+    ],
+    "config_files": [
+      "config/defaults.sh",
+      "config/scan-policies.xml"
+    ]
+  },
+  "documentation": {
+    "readme": "README.md",
+    "prd": "PRD.md",
+    "api_reference": "https://www.zaproxy.org/docs/api/",
+    "user_guide": "https://www.zaproxy.org/docs/"
+  }
+}

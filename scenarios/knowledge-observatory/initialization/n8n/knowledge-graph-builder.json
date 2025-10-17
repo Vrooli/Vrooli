@@ -1,0 +1,123 @@
+{
+  "name": "Knowledge Graph Builder",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "knowledge-graph-builder"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "center_concept",
+              "value": "={{ $json[\"center_concept\"] || \"\" }}"
+            },
+            {
+              "name": "depth",
+              "value": "={{ $json[\"depth\"] || 2 }}"
+            },
+            {
+              "name": "max_nodes",
+              "value": "={{ $json[\"max_nodes\"] || 50 }}"
+            }
+          ]
+        }
+      },
+      "id": "set-params",
+      "name": "Set Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM knowledge_observatory.knowledge_relationships LIMIT $1;",
+        "additionalFields": {
+          "queryParams": "={{ $json[\"max_nodes\"] }}"
+        }
+      },
+      "id": "fetch-relationships",
+      "name": "Fetch Relationships",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://localhost:{{ $env.RESOURCE_PORTS.qdrant }}/collections",
+        "options": {}
+      },
+      "id": "get-collections",
+      "name": "Get Collections",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build knowledge graph from relationships and collections\nconst relationships = $input.all()[0].json || [];\nconst collections = $input.all()[1].json.result?.collections || [];\nconst params = items[0].json;\n\n// Create nodes from relationships\nconst nodeMap = new Map();\nconst edges = [];\n\n// Add nodes from relationships\nrelationships.forEach(rel => {\n  // Add source node\n  if (!nodeMap.has(rel.source_id)) {\n    nodeMap.set(rel.source_id, {\n      id: rel.source_id,\n      label: rel.source_id.replace(/-/g, ' ').replace(/_/g, ' '),\n      type: 'concept',\n      metadata: {\n        connections: 1,\n        importance: 0.5\n      }\n    });\n  } else {\n    nodeMap.get(rel.source_id).metadata.connections++;\n  }\n  \n  // Add target node\n  if (!nodeMap.has(rel.target_id)) {\n    nodeMap.set(rel.target_id, {\n      id: rel.target_id,\n      label: rel.target_id.replace(/-/g, ' ').replace(/_/g, ' '),\n      type: 'concept',\n      metadata: {\n        connections: 1,\n        importance: 0.5\n      }\n    });\n  } else {\n    nodeMap.get(rel.target_id).metadata.connections++;\n  }\n  \n  // Add edge\n  edges.push({\n    source: rel.source_id,\n    target: rel.target_id,\n    weight: rel.weight || 0.5,\n    relationship: rel.relationship_type\n  });\n});\n\n// Add collection nodes if no relationships exist\nif (nodeMap.size === 0) {\n  collections.forEach((col, idx) => {\n    const colName = col.name || `collection-${idx}`;\n    nodeMap.set(colName, {\n      id: colName,\n      label: colName.replace(/_/g, ' '),\n      type: 'collection',\n      metadata: {\n        vectors_count: col.vectors_count || 0,\n        importance: 1.0\n      }\n    });\n  });\n}\n\n// Calculate importance scores based on connections\nconst maxConnections = Math.max(...Array.from(nodeMap.values()).map(n => n.metadata.connections || 1));\nnodeMap.forEach(node => {\n  node.metadata.importance = (node.metadata.connections || 1) / maxConnections;\n});\n\n// Convert to array and limit nodes\nlet nodes = Array.from(nodeMap.values());\n\n// If center concept specified, filter to connected nodes\nif (params.center_concept) {\n  const center = params.center_concept;\n  const connected = new Set([center]);\n  \n  // Find nodes within specified depth\n  for (let d = 0; d < params.depth; d++) {\n    const newConnected = new Set(connected);\n    edges.forEach(edge => {\n      if (connected.has(edge.source)) newConnected.add(edge.target);\n      if (connected.has(edge.target)) newConnected.add(edge.source);\n    });\n    connected.clear();\n    newConnected.forEach(n => connected.add(n));\n  }\n  \n  nodes = nodes.filter(n => connected.has(n.id));\n  edges = edges.filter(e => connected.has(e.source) && connected.has(e.target));\n}\n\n// Limit to max nodes\nif (nodes.length > params.max_nodes) {\n  // Sort by importance and keep most important\n  nodes.sort((a, b) => b.metadata.importance - a.metadata.importance);\n  nodes = nodes.slice(0, params.max_nodes);\n  \n  const nodeIds = new Set(nodes.map(n => n.id));\n  edges = edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));\n}\n\nreturn [{\n  json: {\n    nodes: nodes,\n    edges: edges,\n    metadata: {\n      total_nodes: nodes.length,\n      total_edges: edges.length,\n      center_concept: params.center_concept || 'none',\n      depth: params.depth,\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "build-graph",
+      "name": "Build Graph",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{"node": "set-params", "type": "main", "index": 0}]]
+    },
+    "set-params": {
+      "main": [[
+        {"node": "fetch-relationships", "type": "main", "index": 0},
+        {"node": "get-collections", "type": "main", "index": 0}
+      ]]
+    },
+    "fetch-relationships": {
+      "main": [[{"node": "build-graph", "type": "main", "index": 0}]]
+    },
+    "get-collections": {
+      "main": [[{"node": "build-graph", "type": "main", "index": 1}]]
+    },
+    "build-graph": {
+      "main": [[{"node": "format-response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "knowledge-graph-builder"
+}

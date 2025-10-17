@@ -1,0 +1,466 @@
+{
+  "description": "Qdrant vector database collections configuration for Task Planner semantic search",
+  "version": "1.0.0",
+  "qdrant_version": "1.7.0",
+  "updated_at": "2024-01-01T00:00:00.000Z",
+  
+  "connection": {
+    "host": "localhost",
+    "port": 6334,
+    "timeout_seconds": 30,
+    "retries": 3
+  },
+  
+  "collections": {
+    "task_embeddings": {
+      "description": "Vector embeddings for tasks to enable semantic similarity search and duplicate detection",
+      "config": {
+        "vectors": {
+          "size": 1536,
+          "distance": "Cosine",
+          "on_disk": true
+        },
+        "shard_number": 1,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true,
+        "hnsw_config": {
+          "m": 16,
+          "ef_construct": 100,
+          "full_scan_threshold": 10000,
+          "max_indexing_threads": 4,
+          "on_disk": false,
+          "payload_m": 16
+        },
+        "optimizer_config": {
+          "deleted_threshold": 0.2,
+          "vacuum_min_vector_number": 1000,
+          "default_segment_number": 2,
+          "max_segment_size": 200000,
+          "memmap_threshold": 50000,
+          "indexing_threshold": 20000,
+          "flush_interval_sec": 30,
+          "max_optimization_threads": 2
+        },
+        "wal_config": {
+          "wal_capacity_mb": 32,
+          "wal_segments_ahead": 2
+        }
+      },
+      "payload_schema": {
+        "task_id": {
+          "type": "keyword",
+          "description": "Unique task identifier from PostgreSQL"
+        },
+        "app_id": {
+          "type": "keyword",
+          "description": "Application/project identifier"
+        },
+        "title": {
+          "type": "text",
+          "description": "Task title for display purposes"
+        },
+        "description": {
+          "type": "text",
+          "description": "Detailed task description"
+        },
+        "status": {
+          "type": "keyword",
+          "description": "Current task status"
+        },
+        "priority": {
+          "type": "keyword",
+          "description": "Task priority level"
+        },
+        "tags": {
+          "type": "keyword",
+          "description": "Task categorization tags"
+        },
+        "created_at": {
+          "type": "datetime",
+          "description": "Task creation timestamp"
+        },
+        "updated_at": {
+          "type": "datetime", 
+          "description": "Last update timestamp"
+        },
+        "embedding_model": {
+          "type": "keyword",
+          "description": "Model used to generate embedding"
+        },
+        "embedding_version": {
+          "type": "integer",
+          "description": "Version of embedding generation"
+        }
+      },
+      "indexing": {
+        "create_indexes": [
+          {
+            "field": "app_id",
+            "type": "keyword"
+          },
+          {
+            "field": "status", 
+            "type": "keyword"
+          },
+          {
+            "field": "priority",
+            "type": "keyword"
+          },
+          {
+            "field": "tags",
+            "type": "keyword"
+          },
+          {
+            "field": "created_at",
+            "type": "range"
+          }
+        ]
+      },
+      "aliases": [
+        "tasks",
+        "task_vectors"
+      ]
+    },
+
+    "research_embeddings": {
+      "description": "Vector embeddings for research artifacts to enable semantic search and relevance scoring",
+      "config": {
+        "vectors": {
+          "size": 1536,
+          "distance": "Cosine", 
+          "on_disk": true
+        },
+        "shard_number": 1,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true,
+        "hnsw_config": {
+          "m": 16,
+          "ef_construct": 100,
+          "full_scan_threshold": 10000,
+          "max_indexing_threads": 4,
+          "on_disk": false,
+          "payload_m": 16
+        },
+        "optimizer_config": {
+          "deleted_threshold": 0.2,
+          "vacuum_min_vector_number": 1000,
+          "default_segment_number": 2,
+          "max_segment_size": 200000,
+          "memmap_threshold": 50000,
+          "indexing_threshold": 20000,
+          "flush_interval_sec": 30,
+          "max_optimization_threads": 2
+        }
+      },
+      "payload_schema": {
+        "artifact_id": {
+          "type": "keyword",
+          "description": "Unique research artifact identifier"
+        },
+        "task_id": {
+          "type": "keyword",
+          "description": "Associated task identifier"
+        },
+        "app_id": {
+          "type": "keyword",
+          "description": "Application/project identifier"
+        },
+        "type": {
+          "type": "keyword",
+          "description": "Type of research artifact (documentation, code_example, tutorial, etc.)"
+        },
+        "title": {
+          "type": "text",
+          "description": "Artifact title"
+        },
+        "content": {
+          "type": "text",
+          "description": "Artifact content or summary"
+        },
+        "source_url": {
+          "type": "keyword",
+          "description": "Original source URL"
+        },
+        "relevance_score": {
+          "type": "float",
+          "description": "Relevance score to associated task (0.0-1.0)"
+        },
+        "quality_score": {
+          "type": "float", 
+          "description": "Content quality assessment (0.0-1.0)"
+        },
+        "created_at": {
+          "type": "datetime",
+          "description": "Artifact creation timestamp"
+        },
+        "embedding_model": {
+          "type": "keyword",
+          "description": "Model used to generate embedding"
+        },
+        "domain": {
+          "type": "keyword",
+          "description": "Source domain (github.com, stackoverflow.com, etc.)"
+        },
+        "language": {
+          "type": "keyword",
+          "description": "Programming language if code example"
+        }
+      },
+      "indexing": {
+        "create_indexes": [
+          {
+            "field": "task_id",
+            "type": "keyword"
+          },
+          {
+            "field": "app_id",
+            "type": "keyword"
+          },
+          {
+            "field": "type",
+            "type": "keyword"
+          },
+          {
+            "field": "relevance_score",
+            "type": "range"
+          },
+          {
+            "field": "quality_score",
+            "type": "range"
+          },
+          {
+            "field": "domain",
+            "type": "keyword"
+          },
+          {
+            "field": "language",
+            "type": "keyword"
+          }
+        ]
+      },
+      "aliases": [
+        "research",
+        "artifacts"
+      ]
+    }
+  },
+
+  "search_configurations": {
+    "task_similarity": {
+      "description": "Find similar tasks within the same app or across apps",
+      "collection": "task_embeddings",
+      "default_params": {
+        "limit": 10,
+        "score_threshold": 0.7,
+        "exact": false,
+        "with_payload": true,
+        "with_vectors": false
+      },
+      "filters": {
+        "same_app_only": {
+          "must": [
+            {
+              "key": "app_id",
+              "match": {
+                "value": "{app_id}"
+              }
+            }
+          ]
+        },
+        "exclude_same_task": {
+          "must_not": [
+            {
+              "key": "task_id",
+              "match": {
+                "value": "{task_id}"
+              }
+            }
+          ]
+        },
+        "status_filter": {
+          "must": [
+            {
+              "key": "status",
+              "match": {
+                "any": ["{status_list}"]
+              }
+            }
+          ]
+        },
+        "priority_filter": {
+          "must": [
+            {
+              "key": "priority",
+              "match": {
+                "any": ["{priority_list}"]
+              }
+            }
+          ]
+        }
+      }
+    },
+
+    "research_retrieval": {
+      "description": "Retrieve relevant research artifacts for a task",
+      "collection": "research_embeddings",
+      "default_params": {
+        "limit": 15,
+        "score_threshold": 0.6,
+        "exact": false,
+        "with_payload": true,
+        "with_vectors": false
+      },
+      "filters": {
+        "high_quality_only": {
+          "must": [
+            {
+              "key": "quality_score",
+              "range": {
+                "gte": 0.6
+              }
+            }
+          ]
+        },
+        "by_artifact_type": {
+          "must": [
+            {
+              "key": "type",
+              "match": {
+                "any": ["{artifact_types}"]
+              }
+            }
+          ]
+        },
+        "by_domain": {
+          "must": [
+            {
+              "key": "domain",
+              "match": {
+                "any": ["{domains}"]
+              }
+            }
+          ]
+        },
+        "recent_artifacts": {
+          "must": [
+            {
+              "key": "created_at",
+              "range": {
+                "gte": "{start_date}",
+                "lte": "{end_date}"
+              }
+            }
+          ]
+        }
+      }
+    },
+
+    "duplicate_detection": {
+      "description": "Detect potential duplicate or very similar tasks",
+      "collection": "task_embeddings",
+      "default_params": {
+        "limit": 5,
+        "score_threshold": 0.9,
+        "exact": false,
+        "with_payload": true,
+        "with_vectors": false
+      },
+      "filters": {
+        "same_app_recent": {
+          "must": [
+            {
+              "key": "app_id", 
+              "match": {
+                "value": "{app_id}"
+              }
+            },
+            {
+              "key": "created_at",
+              "range": {
+                "gte": "{recent_threshold}"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+
+  "maintenance": {
+    "cleanup_policies": {
+      "old_embeddings": {
+        "enabled": true,
+        "retain_days": 365,
+        "cleanup_interval_hours": 24,
+        "description": "Remove embeddings for deleted tasks older than 1 year"
+      },
+      "low_quality_artifacts": {
+        "enabled": true,
+        "quality_threshold": 0.3,
+        "age_threshold_days": 30,
+        "cleanup_interval_hours": 168,
+        "description": "Remove low quality research artifacts older than 30 days"
+      }
+    },
+    "optimization": {
+      "reindex_schedule": "weekly",
+      "vacuum_threshold": 0.1,
+      "segment_optimization": true,
+      "memory_optimization": true
+    },
+    "backup": {
+      "enabled": true,
+      "backup_interval_hours": 24,
+      "retention_days": 30,
+      "backup_location": "/var/backups/qdrant/task-planner"
+    }
+  },
+
+  "monitoring": {
+    "metrics": {
+      "collection_sizes": true,
+      "search_latency": true,
+      "indexing_performance": true,
+      "memory_usage": true,
+      "disk_usage": true
+    },
+    "alerts": {
+      "collection_size_threshold": 1000000,
+      "search_latency_ms": 1000,
+      "memory_usage_percent": 90,
+      "disk_usage_percent": 85,
+      "indexing_lag_minutes": 30
+    },
+    "health_checks": {
+      "interval_seconds": 30,
+      "timeout_seconds": 10,
+      "endpoints": [
+        "http://localhost:6334/health",
+        "http://localhost:6334/metrics"
+      ]
+    }
+  },
+
+  "development": {
+    "test_collections": {
+      "task_embeddings_test": {
+        "based_on": "task_embeddings",
+        "size_limit": 1000,
+        "auto_cleanup": true
+      },
+      "research_embeddings_test": {
+        "based_on": "research_embeddings", 
+        "size_limit": 1000,
+        "auto_cleanup": true
+      }
+    },
+    "sample_data": {
+      "enabled": false,
+      "sample_vectors": 100,
+      "vector_dimensions": 1536,
+      "random_seed": 42
+    }
+  }
+}

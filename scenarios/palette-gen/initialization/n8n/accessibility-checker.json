@@ -1,0 +1,252 @@
+{
+  "name": "accessibility-checker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "accessibility-checker",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "foreground",
+              "value": "#1E40AF"
+            },
+            {
+              "name": "background",
+              "value": "#FFFFFF"
+            },
+            {
+              "name": "check_type",
+              "value": "all"
+            }
+          ]
+        }
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node['Manual Trigger'].json ? 'manual' : 'webhook' }}",
+              "value2": "manual"
+            }
+          ]
+        }
+      },
+      "id": "input-router",
+      "name": "Input Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate WCAG contrast ratios\nfunction hexToRgb(hex) {\n  const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);\n  return result ? {\n    r: parseInt(result[1], 16),\n    g: parseInt(result[2], 16),\n    b: parseInt(result[3], 16)\n  } : null;\n}\n\nfunction getLuminance(r, g, b) {\n  const [rs, gs, bs] = [r, g, b].map(c => {\n    c = c / 255;\n    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);\n  });\n  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;\n}\n\nfunction getContrastRatio(fg, bg) {\n  const fgRgb = hexToRgb(fg);\n  const bgRgb = hexToRgb(bg);\n  \n  if (!fgRgb || !bgRgb) return 1;\n  \n  const fgLum = getLuminance(fgRgb.r, fgRgb.g, fgRgb.b);\n  const bgLum = getLuminance(bgRgb.r, bgRgb.g, bgRgb.b);\n  \n  const lighter = Math.max(fgLum, bgLum);\n  const darker = Math.min(fgLum, bgLum);\n  \n  return (lighter + 0.05) / (darker + 0.05);\n}\n\nconst foreground = $input.item.json.foreground;\nconst background = $input.item.json.background;\nconst checkType = $input.item.json.check_type || 'all';\nconst palette = $input.item.json.palette || [];\n\n// Calculate contrast ratio\nconst contrastRatio = getContrastRatio(foreground, background);\n\n// WCAG levels\nconst wcagResults = {\n  AA_normal: contrastRatio >= 4.5,\n  AA_large: contrastRatio >= 3,\n  AAA_normal: contrastRatio >= 7,\n  AAA_large: contrastRatio >= 4.5\n};\n\n// Check palette combinations if provided\nlet paletteChecks = [];\nif (palette.length > 0) {\n  for (let i = 0; i < palette.length; i++) {\n    for (let j = i + 1; j < palette.length; j++) {\n      const ratio = getContrastRatio(palette[i], palette[j]);\n      paletteChecks.push({\n        color1: palette[i],\n        color2: palette[j],\n        ratio: Math.round(ratio * 100) / 100,\n        passes_AA: ratio >= 4.5,\n        passes_AAA: ratio >= 7\n      });\n    }\n  }\n}\n\n// Color blindness simulation\nfunction simulateColorBlindness(hex, type) {\n  const rgb = hexToRgb(hex);\n  if (!rgb) return hex;\n  \n  // Simplified simulation matrices\n  const matrices = {\n    protanopia: [0.567, 0.433, 0, 0.558, 0.442, 0, 0, 0.242, 0.758],\n    deuteranopia: [0.625, 0.375, 0, 0.7, 0.3, 0, 0, 0.3, 0.7],\n    tritanopia: [0.95, 0.05, 0, 0, 0.433, 0.567, 0, 0.475, 0.525]\n  };\n  \n  const m = matrices[type] || matrices.protanopia;\n  \n  const newR = Math.round(rgb.r * m[0] + rgb.g * m[1] + rgb.b * m[2]);\n  const newG = Math.round(rgb.r * m[3] + rgb.g * m[4] + rgb.b * m[5]);\n  const newB = Math.round(rgb.r * m[6] + rgb.g * m[7] + rgb.b * m[8]);\n  \n  return '#' + [newR, newG, newB].map(x => {\n    const hex = Math.min(255, Math.max(0, x)).toString(16);\n    return hex.length === 1 ? '0' + hex : hex;\n  }).join('');\n}\n\nconst colorBlindnessChecks = {};\nif (checkType === 'all' || checkType === 'colorblind') {\n  ['protanopia', 'deuteranopia', 'tritanopia'].forEach(type => {\n    const simFg = simulateColorBlindness(foreground, type);\n    const simBg = simulateColorBlindness(background, type);\n    const simRatio = getContrastRatio(simFg, simBg);\n    \n    colorBlindnessChecks[type] = {\n      foreground_sim: simFg,\n      background_sim: simBg,\n      contrast_ratio: Math.round(simRatio * 100) / 100,\n      passes_AA: simRatio >= 4.5\n    };\n  });\n}\n\nreturn {\n  foreground: foreground,\n  background: background,\n  contrast_ratio: Math.round(contrastRatio * 100) / 100,\n  wcag_compliance: wcagResults,\n  recommendations: [],\n  palette_combinations: paletteChecks,\n  colorblind_simulation: colorBlindnessChecks,\n  check_type: checkType\n};"
+      },
+      "id": "contrast-calculator",
+      "name": "Contrast Calculator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare prompt for AI accessibility recommendations\nconst data = $json;\nconst prompt = `Analyze these accessibility results for the color combination:\n\nForeground: ${data.foreground}\nBackground: ${data.background}\nContrast Ratio: ${data.contrast_ratio}\nWCAG Compliance: ${JSON.stringify(data.wcag_compliance, null, 2)}\n\nProvide specific recommendations for:\n1. Improving contrast if needed\n2. Best use cases for this combination\n3. Alternative color suggestions if it fails WCAG\n4. Specific UI elements this combination works for\n\nReturn as JSON with keys: recommendations (array of strings), use_cases (array of strings), alternatives (array of strings), suitable_elements (array of strings)`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2:3b',\n  type: 'reasoning',\n  quiet: true,\n  original_data: data\n};"
+      },
+      "id": "prepare-ai-prompt",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "model",
+              "value": "={{ $json.model }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $json.type }}"
+            },
+            {
+              "name": "quiet",
+              "value": "={{ $json.quiet }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "call-shared-ollama",
+      "name": "Call Shared Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1150, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the final accessibility report\ntry {\n  const ollamaResponse = $input.item.json;\n  const preparedData = $node['Prepare AI Prompt'].json;\n  const data = preparedData.original_data;\n  \n  // Check if the Ollama workflow was successful\n  let aiRecs = {};\n  \n  if (ollamaResponse.success && ollamaResponse.response) {\n    // Extract JSON from the response\n    const responseText = ollamaResponse.response;\n    const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/g);\n    \n    if (jsonMatch) {\n      try {\n        aiRecs = JSON.parse(jsonMatch[jsonMatch.length - 1]); // Get the last JSON match\n      } catch (e) {\n        aiRecs = {\n          recommendations: [],\n          use_cases: [],\n          alternatives: [],\n          suitable_elements: []\n        };\n      }\n    }\n  } else {\n    // Fallback if Ollama doesn't respond\n    aiRecs = {\n      recommendations: [],\n      use_cases: [],\n      alternatives: [],\n      suitable_elements: []\n    };\n  }\n  \n  // Generate automatic recommendations based on contrast ratio\n  const autoRecs = [];\n  if (data.contrast_ratio < 3) {\n    autoRecs.push('Critical: Contrast ratio is too low for any WCAG compliance');\n    autoRecs.push('Increase contrast by darkening foreground or lightening background');\n  } else if (data.contrast_ratio < 4.5) {\n    autoRecs.push('Passes WCAG AA for large text only (18pt+ or 14pt+ bold)');\n    autoRecs.push('Consider increasing contrast for normal text usage');\n  } else if (data.contrast_ratio < 7) {\n    autoRecs.push('Passes WCAG AA for all text sizes');\n    autoRecs.push('Consider increasing contrast to meet AAA standards');\n  } else {\n    autoRecs.push('Excellent! Passes WCAG AAA for all text sizes');\n  }\n  \n  // Compile best palette combinations\n  const bestCombinations = (data.palette_combinations || [])\n    .filter(combo => combo.passes_AA)\n    .sort((a, b) => b.ratio - a.ratio)\n    .slice(0, 5);\n  \n  // Compile colorblind-safe combinations\n  const colorblindSafe = Object.entries(data.colorblind_simulation || {})\n    .every(([type, check]) => check.passes_AA);\n  \n  return {\n    success: true,\n    accessibility_report: {\n      primary_check: {\n        foreground: data.foreground,\n        background: data.background,\n        contrast_ratio: data.contrast_ratio,\n        wcag_levels: data.wcag_compliance\n      },\n      recommendations: [...autoRecs, ...(aiRecs.recommendations || [])],\n      use_cases: aiRecs.use_cases || [\n        data.wcag_compliance.AAA_normal ? 'Body text' : '',\n        data.wcag_compliance.AA_normal ? 'Headers and UI text' : '',\n        data.wcag_compliance.AA_large ? 'Large headlines' : '',\n        'Decorative elements'\n      ].filter(Boolean),\n      alternatives: aiRecs.alternatives || [],\n      suitable_elements: aiRecs.suitable_elements || [\n        data.wcag_compliance.AAA_normal ? 'Body paragraphs' : '',\n        data.wcag_compliance.AA_normal ? 'Navigation links' : '',\n        data.wcag_compliance.AA_large ? 'Hero text' : '',\n        'Icons and graphics'\n      ].filter(Boolean),\n      best_combinations: bestCombinations,\n      colorblind_safe: colorblindSafe,\n      colorblind_details: data.colorblind_simulation\n    },\n    summary: {\n      passes_AA: data.wcag_compliance.AA_normal,\n      passes_AAA: data.wcag_compliance.AAA_normal,\n      colorblind_safe: colorblindSafe,\n      overall_score: Math.min(100, Math.round((data.contrast_ratio / 21) * 100))\n    },\n    timestamp: new Date().toISOString()\n  };\n} catch (error) {\n  const fallbackData = $node['Contrast Calculator'].json || {};\n  return {\n    success: false,\n    error: 'Failed to generate accessibility report: ' + error.message,\n    basic_results: {\n      contrast_ratio: fallbackData.contrast_ratio || 0,\n      wcag_compliance: fallbackData.wcag_compliance || {}\n    }\n  };\n}"
+      },
+      "id": "format-report",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Input Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Default Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Values": {
+      "main": [
+        [
+          {
+            "node": "Input Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Router": {
+      "main": [
+        [
+          {
+            "node": "Contrast Calculator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Contrast Calculator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contrast Calculator": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama Workflow": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

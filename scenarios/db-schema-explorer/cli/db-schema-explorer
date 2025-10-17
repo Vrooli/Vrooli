@@ -1,0 +1,446 @@
+#!/bin/bash
+
+# Database Schema Explorer CLI
+# Visual database exploration with AI-powered queries
+
+set -euo pipefail
+
+# Configuration
+API_HOST="${DB_SCHEMA_EXPLORER_API_HOST:-localhost}"
+API_PORT="${API_PORT:-15000}"
+API_BASE_URL="http://${API_HOST}:${API_PORT}/api/v1"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Help function
+show_help() {
+    cat << EOF
+Database Schema Explorer CLI - Visual database exploration with AI-powered queries
+
+USAGE:
+    db-schema-explorer <command> [options]
+
+COMMANDS:
+    connect <database>           Connect to a database and visualize schema
+    query <prompt>              Generate SQL from natural language
+    diff <source> <target>      Compare schemas between databases
+    export <database>           Export schema documentation
+    history                     Show query history
+    optimize <sql>              Get optimization suggestions for SQL
+    status                      Show service status
+    help                        Show this help message
+    version                     Show version information
+
+OPTIONS:
+    --database <name>           Target database (default: main)
+    --schema <name>             Schema name (default: public)
+    --format <type>             Output format (json|table|markdown)
+    --output <file>             Save output to file
+    --execute                   Execute generated SQL
+    --explain                   Include query explanation
+    --json                      Output in JSON format
+
+EXAMPLES:
+    # Connect to database and show schema
+    db-schema-explorer connect main
+
+    # Generate SQL from natural language
+    db-schema-explorer query "show all tables with more than 10 columns"
+
+    # Compare two database schemas
+    db-schema-explorer diff production staging
+
+    # Export schema as markdown
+    db-schema-explorer export main --format markdown --output schema.md
+
+    # Show query history
+    db-schema-explorer history --database main
+
+    # Optimize a SQL query
+    db-schema-explorer optimize "SELECT * FROM large_table"
+
+EOF
+}
+
+# Version function
+show_version() {
+    echo "Database Schema Explorer CLI v1.0.0"
+    echo "API: ${API_BASE_URL}"
+}
+
+# Status function
+check_status() {
+    echo -e "${BLUE}Checking Database Schema Explorer status...${NC}"
+    
+    response=$(curl -s "${API_BASE_URL%/api/v1}/health" 2>/dev/null || echo '{"error": "Connection failed"}')
+    
+    if echo "$response" | grep -q '"status":"healthy"'; then
+        echo -e "${GREEN}✓ API is healthy${NC}"
+        echo "$response" | jq -r '.services | to_entries[] | "  \(.key): \(.value)"' 2>/dev/null || echo "$response"
+    else
+        echo -e "${RED}✗ API is not responding${NC}"
+        echo "  Check if the service is running: vrooli scenario run db-schema-explorer"
+        exit 1
+    fi
+}
+
+# Connect to database
+connect_database() {
+    local database="${1:-main}"
+    
+    echo -e "${BLUE}Connecting to database: ${database}${NC}"
+    
+    payload=$(jq -n \
+        --arg db "$database" \
+        '{database_name: $db}')
+    
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/schema/connect" 2>/dev/null)
+    
+    if echo "$response" | grep -q '"success":true'; then
+        echo -e "${GREEN}✓ Connected successfully${NC}"
+        echo
+        echo "Database: $(echo "$response" | jq -r '.database_name')"
+        echo "Schema: $(echo "$response" | jq -r '.schema_name')"
+        echo
+        echo "Statistics:"
+        echo "$response" | jq -r '.statistics | "  Tables: \(.total_tables)\n  Columns: \(.total_columns)\n  Relationships: \(.total_relationships)"'
+        echo
+        echo "Tables:"
+        echo "$response" | jq -r '.tables[] | "  - \(.name) (\(.columns_count) columns)"' 2>/dev/null || echo "  No tables found"
+    else
+        echo -e "${RED}✗ Connection failed${NC}"
+        echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+        exit 1
+    fi
+}
+
+# Generate SQL from natural language
+generate_query() {
+    local prompt="$1"
+    local database="${DATABASE:-main}"
+    local explain="${EXPLAIN:-true}"
+    local execute="${EXECUTE:-false}"
+    
+    echo -e "${BLUE}Generating SQL for: \"${prompt}\"${NC}"
+    
+    payload=$(jq -n \
+        --arg prompt "$prompt" \
+        --arg db "$database" \
+        --argjson explain "$explain" \
+        '{natural_language: $prompt, database_context: $db, include_explanation: $explain}')
+    
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/query/generate" 2>/dev/null)
+    
+    if echo "$response" | grep -q '"success":true'; then
+        echo -e "${GREEN}✓ SQL generated successfully${NC}"
+        echo
+        echo "Generated SQL:"
+        echo -e "${YELLOW}$(echo "$response" | jq -r '.sql')${NC}"
+        
+        if [ "$explain" = "true" ]; then
+            echo
+            echo "Explanation:"
+            echo "$response" | jq -r '.explanation // "No explanation available"'
+        fi
+        
+        echo
+        echo "Confidence: $(echo "$response" | jq -r '.confidence')%"
+        echo "Query Type: $(echo "$response" | jq -r '.query_type')"
+        echo "Tables Used: $(echo "$response" | jq -r '.tables_used | join(", ")')"
+        
+        if [ "$execute" = "true" ]; then
+            echo
+            echo -e "${BLUE}Executing query...${NC}"
+            sql=$(echo "$response" | jq -r '.sql')
+            execute_query "$sql" "$database"
+        fi
+    else
+        echo -e "${RED}✗ Query generation failed${NC}"
+        echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+        exit 1
+    fi
+}
+
+# Execute SQL query
+execute_query() {
+    local sql="$1"
+    local database="${2:-main}"
+    local limit="${LIMIT:-100}"
+    
+    payload=$(jq -n \
+        --arg sql "$sql" \
+        --arg db "$database" \
+        --argjson limit "$limit" \
+        '{sql: $sql, database_name: $db, limit: $limit}')
+    
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/query/execute" 2>/dev/null)
+    
+    if echo "$response" | grep -q '"success":true'; then
+        echo -e "${GREEN}✓ Query executed successfully${NC}"
+        echo
+        echo "Rows returned: $(echo "$response" | jq -r '.row_count')"
+        echo "Execution time: $(echo "$response" | jq -r '.execution_time_ms')ms"
+        echo
+        echo "Results:"
+        # Simple table output (would need better formatting in production)
+        echo "$response" | jq -r '.columns | join(" | ")'
+        echo "$response" | jq -r '.rows[] | join(" | ")' 2>/dev/null | head -20
+    else
+        echo -e "${RED}✗ Query execution failed${NC}"
+        echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+    fi
+}
+
+# Compare schemas
+diff_schemas() {
+    local source="$1"
+    local target="$2"
+    
+    echo -e "${BLUE}Comparing schemas: ${source} vs ${target}${NC}"
+    
+    payload=$(jq -n \
+        --arg src "$source" \
+        --arg tgt "$target" \
+        '{source: $src, target: $tgt}')
+    
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/schema/diff" 2>/dev/null)
+    
+    if echo "$response" | grep -q '"success":true'; then
+        echo -e "${GREEN}✓ Schema comparison complete${NC}"
+        echo
+        echo "Summary: $(echo "$response" | jq -r '.summary')"
+        echo
+        echo "Tables Added:"
+        echo "$response" | jq -r '.differences.tables_added[] | "  + \(.)"' 2>/dev/null || echo "  None"
+        echo
+        echo "Tables Removed:"
+        echo "$response" | jq -r '.differences.tables_removed[] | "  - \(.)"' 2>/dev/null || echo "  None"
+        echo
+        echo "Tables Modified:"
+        echo "$response" | jq -r '.differences.tables_modified[] | "  ~ \(.table)"' 2>/dev/null || echo "  None"
+    else
+        echo -e "${RED}✗ Schema comparison failed${NC}"
+        echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+        exit 1
+    fi
+}
+
+# Export schema
+export_schema() {
+    local database="${1:-main}"
+    local format="${FORMAT:-json}"
+    local output="${OUTPUT:-}"
+    
+    echo -e "${BLUE}Exporting schema for database: ${database}${NC}"
+    
+    payload=$(jq -n \
+        --arg db "$database" \
+        --arg fmt "$format" \
+        '{database_name: $db, format: $fmt}')
+    
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/schema/export" 2>/dev/null)
+    
+    if [ -n "$output" ]; then
+        echo "$response" > "$output"
+        echo -e "${GREEN}✓ Schema exported to ${output}${NC}"
+    else
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    fi
+}
+
+# Show query history
+show_history() {
+    local database="${DATABASE:-main}"
+    
+    echo -e "${BLUE}Query history for database: ${database}${NC}"
+    echo
+    
+    response=$(curl -s "${API_BASE_URL}/query/history?database=${database}" 2>/dev/null)
+    
+    if echo "$response" | grep -q '"success":true'; then
+        echo "$response" | jq -r '.history[] | "[\(.created_at | split("T")[0])] \(.natural_language)\n  SQL: \(.sql)\n  Type: \(.query_type) | Time: \(.execution_time_ms // "N/A")ms | Feedback: \(.user_feedback // "none")\n"' 2>/dev/null || echo "No history found"
+    else
+        echo -e "${RED}✗ Failed to retrieve history${NC}"
+        exit 1
+    fi
+}
+
+# Optimize query
+optimize_query() {
+    local sql="$1"
+    local database="${DATABASE:-main}"
+    
+    echo -e "${BLUE}Optimizing query...${NC}"
+    
+    payload=$(jq -n \
+        --arg sql "$sql" \
+        --arg db "$database" \
+        '{sql: $sql, database_name: $db}')
+    
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/query/optimize" 2>/dev/null)
+    
+    if echo "$response" | grep -q '"success":true'; then
+        echo -e "${GREEN}✓ Optimization analysis complete${NC}"
+        echo
+        echo "Original SQL:"
+        echo -e "${YELLOW}$(echo "$response" | jq -r '.original_sql')${NC}"
+        echo
+        echo "Optimizations:"
+        echo "$response" | jq -r '.optimizations[] | "  [\(.severity)] \(.description)\n    → \(.suggestion)"' 2>/dev/null || echo "  No optimizations suggested"
+        
+        if echo "$response" | jq -e '.optimized_sql' > /dev/null 2>&1; then
+            echo
+            echo "Optimized SQL:"
+            echo -e "${GREEN}$(echo "$response" | jq -r '.optimized_sql')${NC}"
+        fi
+    else
+        echo -e "${RED}✗ Optimization failed${NC}"
+        echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+        exit 1
+    fi
+}
+
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --database)
+                DATABASE="$2"
+                shift 2
+                ;;
+            --schema)
+                SCHEMA="$2"
+                shift 2
+                ;;
+            --format)
+                FORMAT="$2"
+                shift 2
+                ;;
+            --output)
+                OUTPUT="$2"
+                shift 2
+                ;;
+            --execute)
+                EXECUTE=true
+                shift
+                ;;
+            --explain)
+                EXPLAIN=true
+                shift
+                ;;
+            --json)
+                JSON_OUTPUT=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+}
+
+# Main command routing
+main() {
+    if [ $# -eq 0 ]; then
+        show_help
+        exit 0
+    fi
+    
+    command="$1"
+    shift
+    
+    # Parse remaining arguments
+    parse_args "$@"
+    
+    # Reset to get positional args
+    set -- "${@}"
+    
+    case "$command" in
+        connect)
+            connect_database "$@"
+            ;;
+        query)
+            if [ $# -eq 0 ]; then
+                echo -e "${RED}Error: Query prompt required${NC}"
+                echo "Usage: db-schema-explorer query \"your natural language query\""
+                exit 1
+            fi
+            generate_query "$@"
+            ;;
+        diff)
+            if [ $# -lt 2 ]; then
+                echo -e "${RED}Error: Source and target databases required${NC}"
+                echo "Usage: db-schema-explorer diff <source> <target>"
+                exit 1
+            fi
+            diff_schemas "$1" "$2"
+            ;;
+        export)
+            export_schema "$@"
+            ;;
+        history)
+            show_history
+            ;;
+        optimize)
+            if [ $# -eq 0 ]; then
+                echo -e "${RED}Error: SQL query required${NC}"
+                echo "Usage: db-schema-explorer optimize \"SELECT * FROM table\""
+                exit 1
+            fi
+            optimize_query "$@"
+            ;;
+        status)
+            check_status
+            ;;
+        version)
+            show_version
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            echo -e "${RED}Unknown command: ${command}${NC}"
+            echo "Run 'db-schema-explorer help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Check for required tools
+check_requirements() {
+    if ! command -v jq &> /dev/null; then
+        echo -e "${YELLOW}Warning: jq is not installed. JSON output may not be formatted correctly.${NC}"
+    fi
+    
+    if ! command -v curl &> /dev/null; then
+        echo -e "${RED}Error: curl is required but not installed.${NC}"
+        exit 1
+    fi
+}
+
+# Run checks and main
+check_requirements
+main "$@"

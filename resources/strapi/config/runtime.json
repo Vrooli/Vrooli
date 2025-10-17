@@ -1,0 +1,30 @@
+{
+  "startup_order": 600,
+  "dependencies": ["postgres"],
+  "optional_dependencies": ["redis", "minio"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "20-30s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "resource_type": "content",
+  "requires_network": true,
+  "requires_persistence": true,
+  "memory_requirement": "512MB",
+  "cpu_requirement": "1 core",
+  "health_check_endpoint": "/health",
+  "health_check_interval": 30,
+  "api_endpoints": {
+    "admin": "/admin",
+    "api": "/api",
+    "graphql": "/graphql",
+    "health": "/health"
+  },
+  "configuration": {
+    "port": 1337,
+    "database": "postgresql",
+    "file_storage": "local or s3",
+    "authentication": "jwt",
+    "api_type": "rest and graphql"
+  }
+}

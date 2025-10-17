@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "Audio Intelligence Platform CLI v1.0.0"
+case "$1" in
+  "start")
+    echo "Starting Audio Intelligence Platform..."
+    cd "$SCRIPT_DIR/.." && make run
+    ;;
+  "stop")
+    echo "Stopping Audio Intelligence Platform..."
+    cd "$SCRIPT_DIR/.." && make stop
+    ;;
+  "status")
+    echo "Checking status of Audio Intelligence Platform..."
+    cd "$SCRIPT_DIR/.." && make status || echo "Platform not running"
+    ;;
+  "logs")
+    echo "Showing logs for Audio Intelligence Platform..."
+    cd "$SCRIPT_DIR/.." && make logs
+    ;;
+  "test")
+    echo "Running tests for Audio Intelligence Platform..."
+    cd "$SCRIPT_DIR/.." && make test
+    ;;
+  "help"|"-h"|"--help")
+    echo "Usage: $0 [command]"
+    echo "Commands:"
+    echo "  start   Start the platform"
+    echo "  stop    Stop the platform"
+    echo "  status  Check platform status"
+    echo "  logs    View platform logs"
+    echo "  test    Run platform tests"
+    echo "  help    Show this help"
+    ;;
+  *)
+    echo "Unknown command: $1"
+    echo "Use '$0 help' for usage."
+    exit 1
+    ;;
+esac

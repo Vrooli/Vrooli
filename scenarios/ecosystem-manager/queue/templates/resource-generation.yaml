@@ -1,0 +1,63 @@
+# Resource Generation Task Template
+id: "resource-generator-CHANGEME-{{ timestamp }}"
+title: "Generate [RESOURCE_NAME] resource for [PURPOSE]"
+
+# Core classification
+type: "resource"
+operation: "generator"  
+category: "CHANGEME"  # ai-ml | communication | data | security | automation | monitoring
+
+# Priority and scheduling
+priority: "medium"
+effort_estimate: "4h"
+urgency: "normal"
+
+# Dependencies and relationships  
+dependencies: []
+blocks: []
+related_scenarios: []  # scenarios that would benefit from this resource
+related_resources: []  # resources this depends on
+
+# Progress tracking
+status: "pending"
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 0
+last_completed_at: ""
+
+# Quality gates for resource generation
+validation_criteria:
+  - "PRD.md is comprehensive and accurate"
+  - "All v2.0 contract files present"
+  - "Health checks implemented and working"
+  - "CLI commands functional"
+  - "Port allocation successful"
+  - "Documentation complete with examples"
+  - "No conflicts with existing resources"
+
+# Metadata
+created_by: "user"
+created_at: "{{ timestamp }}"
+updated_at: "{{ timestamp }}"
+tags: ["new-resource", "generation"]
+notes: |
+  Template guidance for new resource generation. Before execution define:
+    • Base template (basic, ai-ml, communication, data, security)
+    • Research focus (similar resources, contract requirements, port planning, integration points)
+    • Deliverables (comprehensive PRD.md, full v2.0 contract file set, health checks, CLI integration, Docker config, documentation)
+    • Specific needs or constraints, including fixed ports when required (use "auto" when flexible)
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    test_coverage_percentage: 0
+    documentation_score: 0
+  artifacts:
+    prd_location: ""
+    readme_location: ""
+    resource_directory: ""

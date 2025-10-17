@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 97%;
+    --foreground: 224 71% 4%;
+    --muted: 222 47% 91%;
+    --muted-foreground: 215 16% 47%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 4%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 262 83% 58%;
+    --radius: 0.8rem;
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 160 84% 39%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --muted: 215 27% 17%;
+    --muted-foreground: 217 15% 65%;
+    --popover: 215 27% 12%;
+    --popover-foreground: 210 20% 98%;
+    --card: 215 27% 12%;
+    --card-foreground: 210 20% 98%;
+    --border: 215 27% 23%;
+    --input: 215 27% 23%;
+    --ring: 262 100% 77%;
+    --radius: 0.8rem;
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 20% 96%;
+    --secondary: 215 27% 17%;
+    --secondary-foreground: 210 20% 96%;
+    --accent: 200 98% 39%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 210 20% 96%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply min-h-screen bg-background font-sans text-foreground antialiased;
+    background-image: radial-gradient(circle at 20% 20%, hsla(262, 83%, 94%, 0.5), transparent 55%),
+      radial-gradient(circle at 80% 0%, hsla(160, 84%, 90%, 0.4), transparent 60%);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight text-foreground;
+  }
+
+  ::selection {
+    @apply bg-primary/20;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-card/75 backdrop-blur-md border border-white/40 shadow-glow;
+  }
+
+  .gradient-accent {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  }
+}

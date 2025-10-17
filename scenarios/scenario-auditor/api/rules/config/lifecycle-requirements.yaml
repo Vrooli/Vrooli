@@ -1,0 +1,216 @@
+---
+- id: config-lifecycle-condition-checks
+  name: "Lifecycle Setup Condition Checks"
+  description: "Ensures lifecycle.setup.condition.checks array contains required binary and CLI checks"
+  category: config
+  severity: high
+  enabled: true
+  condition:
+    type: lifecycle_completeness
+    target: ".vrooli/service.json"
+    properties:
+      required_checks:
+        - type: "binaries"
+          target_pattern: "${SCENARIO_NAME}-api"
+        - type: "cli"
+          target_pattern: "${SCENARIO_NAME}"
+  message: "lifecycle.setup.condition.checks must contain 'binaries' check for '<scenario>-api' and 'cli' check for '<scenario>'"
+  fix:
+    type: json_update
+    action: add_to_array
+    target: ".vrooli/service.json"
+    path: "lifecycle.setup.condition.checks"
+    value:
+      - type: "binaries"
+        targets: ["${SCENARIO_NAME}-api"]
+      - type: "cli"
+        targets: ["${SCENARIO_NAME}"]
+    description: "Add required condition checks for binaries and CLI"
+  tags:
+    - lifecycle
+    - setup
+    - validation
+  version: "1.0.0"
+
+- id: config-lifecycle-health-endpoints
+  name: "Lifecycle Health Endpoints"
+  description: "Ensures lifecycle.health.endpoints contains both api and ui endpoints (unless headless)"
+  category: config
+  severity: high
+  enabled: true
+  condition:
+    type: lifecycle_completeness
+    target: ".vrooli/service.json"
+    properties:
+      required_endpoints:
+        - "api"
+        - "ui" # Optional if scenario has 'headless' tag
+  message: "lifecycle.health.endpoints must contain 'api' and 'ui' endpoints (unless scenario is tagged as 'headless')"
+  fix:
+    type: json_update
+    action: update
+    target: ".vrooli/service.json"
+    path: "lifecycle.health.endpoints"
+    value:
+      api: "/api/v1/health"
+      ui: "/"
+    description: "Add required health endpoints"
+  tags:
+    - lifecycle
+    - health
+    - endpoints
+  version: "1.0.0"
+
+- id: config-lifecycle-health-checks
+  name: "Lifecycle Health Checks"
+  description: "Ensures lifecycle.health.checks contains properly formed API and UI health checks"
+  category: config
+  severity: high
+  enabled: true
+  condition:
+    type: lifecycle_completeness
+    target: ".vrooli/service.json"
+    properties:
+      required_health_checks:
+        - name: "api_endpoint"
+          type: "http"
+          target_pattern: "http://localhost:${API_PORT}/api/v1/health"
+          critical: true
+        - name: "ui_endpoint"
+          type: "http"
+          target_pattern: "http://localhost:${UI_PORT}"
+          critical: false
+  message: "lifecycle.health.checks must contain properly formed API and UI health checks"
+  fix:
+    type: json_update
+    action: update
+    target: ".vrooli/service.json"
+    path: "lifecycle.health.checks"
+    template: "health-checks-template"
+    description: "Add standard health check configuration"
+  tags:
+    - lifecycle
+    - health
+    - monitoring
+  version: "1.0.0"
+
+- id: config-lifecycle-setup-steps-order
+  name: "Lifecycle Setup Steps Order"
+  description: "Ensures lifecycle.setup.steps contains required steps in correct order"
+  category: config
+  severity: medium
+  enabled: true
+  condition:
+    type: lifecycle_completeness
+    target: ".vrooli/service.json"
+    properties:
+      required_steps:
+        - name: "install-cli"
+          order: 1
+        - name: "build-api"
+          order: 2
+        - name: "install-ui-deps"
+          order: 3
+          condition: "has_react_ui"
+        - name: "show-urls"
+          order: -1 # Must be last
+  message: "lifecycle.setup.steps must contain 'install-cli', 'build-api', 'install-ui-deps' (for React apps), and 'show-urls' in correct order"
+  fix:
+    type: json_update
+    action: reorder_array
+    target: ".vrooli/service.json"
+    path: "lifecycle.setup.steps"
+    template: "setup-steps-template"
+    description: "Reorder setup steps to match required sequence"
+  tags:
+    - lifecycle
+    - setup
+    - ordering
+  version: "1.0.0"
+
+- id: config-lifecycle-develop-steps
+  name: "Lifecycle Develop Steps"
+  description: "Ensures lifecycle.develop.steps contains 'start-api', 'start-ui', and 'show-urls' in correct order"
+  category: config
+  severity: medium
+  enabled: true
+  condition:
+    type: lifecycle_completeness
+    target: ".vrooli/service.json"
+    properties:
+      required_develop_steps:
+        - name: "start-api"
+          order: 1
+        - name: "start-ui"
+          order: 2
+        - name: "show-urls"
+          order: -1 # Must be last
+  message: "lifecycle.develop.steps must contain 'start-api', 'start-ui', and 'show-urls' in correct order"
+  fix:
+    type: json_update
+    action: reorder_array
+    target: ".vrooli/service.json"
+    path: "lifecycle.develop.steps"
+    template: "develop-steps-template"
+    description: "Add and order develop steps correctly"
+  tags:
+    - lifecycle
+    - develop
+    - ordering
+  version: "1.0.0"
+
+- id: config-lifecycle-test-structure
+  name: "Lifecycle Test Structure"
+  description: "Ensures lifecycle.test is properly formed with appropriate test steps"
+  category: config
+  severity: medium
+  enabled: true
+  condition:
+    type: lifecycle_completeness
+    target: ".vrooli/service.json"
+    properties:
+      test_structure:
+        required: true
+        description_required: true
+        steps_required: true
+  message: "lifecycle.test must be properly formed with description and steps"
+  fix:
+    type: json_update
+    action: update
+    target: ".vrooli/service.json"
+    path: "lifecycle.test"
+    template: "test-lifecycle-template"
+    description: "Add proper test lifecycle structure"
+  tags:
+    - lifecycle
+    - testing
+    - structure
+  version: "1.0.0"
+
+- id: config-lifecycle-stop-structure
+  name: "Lifecycle Stop Structure"
+  description: "Ensures lifecycle.stop is properly formed with graceful shutdown steps"
+  category: config
+  severity: medium
+  enabled: true
+  condition:
+    type: lifecycle_completeness
+    target: ".vrooli/service.json"
+    properties:
+      stop_structure:
+        required: true
+        graceful_shutdown: true
+        cleanup_steps: true
+  message: "lifecycle.stop must be properly formed with graceful shutdown steps"
+  fix:
+    type: json_update
+    action: update
+    target: ".vrooli/service.json"
+    path: "lifecycle.stop"
+    template: "stop-lifecycle-template"
+    description: "Add proper stop lifecycle structure"
+  tags:
+    - lifecycle
+    - stop
+    - cleanup
+  version: "1.0.0"

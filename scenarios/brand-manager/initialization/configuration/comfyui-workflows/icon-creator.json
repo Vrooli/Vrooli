@@ -1,0 +1,85 @@
+{
+  "workflow_name": "Icon Creator",
+  "description": "Generate app icons and UI icons based on brand identity",
+  "version": "1.0.0",
+  "nodes": {
+    "text_input": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "mobile app icon, {brand_concept}, {color_scheme}, simple geometric design, flat design, centered composition, high contrast, recognizable at small sizes",
+        "clip": ["clip_loader", 0]
+      }
+    },
+    "negative_prompt": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "text, letters, words, complex details, gradients, shadows, 3d effects, realistic, photographic, cluttered, low contrast",
+        "clip": ["clip_loader", 0]
+      }
+    },
+    "clip_loader": {
+      "class_type": "CheckpointLoaderSimple", 
+      "inputs": {
+        "ckpt_name": "sd_xl_base_1.0.safetensors"
+      }
+    },
+    "empty_latent": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 512,
+        "height": 512,
+        "batch_size": 4
+      }
+    },
+    "sampler": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["clip_loader", 0],
+        "positive": ["text_input", 0],
+        "negative": ["negative_prompt", 0],
+        "latent_image": ["empty_latent", 0],
+        "seed": 123,
+        "steps": 25,
+        "cfg": 8.0,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "denoise": 1.0
+      }
+    },
+    "vae_decode": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["sampler", 0],
+        "vae": ["clip_loader", 2]
+      }
+    },
+    "save_image": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["vae_decode", 0],
+        "filename_prefix": "brand_icon_"
+      }
+    }
+  },
+  "parameters": {
+    "brand_concept": {
+      "type": "string",
+      "required": true,
+      "description": "Core brand concept for icon"
+    },
+    "color_scheme": {
+      "type": "string",
+      "default": "blue gradient",
+      "description": "Icon color scheme"
+    }
+  },
+  "output_format": {
+    "type": "image",
+    "dimensions": {
+      "width": 512,
+      "height": 512
+    },
+    "format": "png",
+    "variations": 4
+  }
+}

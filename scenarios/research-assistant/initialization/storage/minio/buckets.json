@@ -1,0 +1,417 @@
+{
+  "buckets": [
+    {
+      "name": "research-pdfs",
+      "description": "Storage for generated research report PDFs",
+      "versioning": "Enabled",
+      "access_policy": "private",
+      "lifecycle_rules": [
+        {
+          "id": "archive_old_pdfs",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "reports/"
+          },
+          "transitions": [
+            {
+              "days": 90,
+              "storage_class": "STANDARD_IA"
+            },
+            {
+              "days": 365,
+              "storage_class": "ARCHIVE"
+            }
+          ]
+        },
+        {
+          "id": "delete_temp_files",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "temp/"
+          },
+          "expiration": {
+            "days": 7
+          }
+        }
+      ],
+      "notification_config": {
+        "queue_configurations": [
+          {
+            "id": "pdf_upload_notification",
+            "queue_arn": "arn:minio:sqs::research-assistant:webhook",
+            "events": ["s3:ObjectCreated:*"],
+            "filter": {
+              "key": {
+                "filter_rules": [
+                  {
+                    "name": "suffix",
+                    "value": ".pdf"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "cors_configuration": {
+        "cors_rules": [
+          {
+            "id": "research_dashboard_access",
+            "allowed_headers": ["*"],
+            "allowed_methods": ["GET", "PUT", "POST", "DELETE"],
+            "allowed_origins": ["http://localhost:5681", "http://localhost:3000"],
+            "expose_headers": ["ETag", "Content-Length"],
+            "max_age_seconds": 3600
+          }
+        ]
+      },
+      "directory_structure": {
+        "reports/": {
+          "description": "Final research report PDFs",
+          "naming_convention": "{report_id}.pdf",
+          "retention_policy": "permanent"
+        },
+        "temp/": {
+          "description": "Temporary files during processing",
+          "naming_convention": "temp_{timestamp}_{random}.pdf",
+          "retention_policy": "7_days"
+        },
+        "archives/": {
+          "description": "Archived reports older than 1 year",
+          "naming_convention": "{year}/{month}/{report_id}.pdf",
+          "retention_policy": "3_years"
+        }
+      },
+      "access_controls": [
+        {
+          "principal": "research-assistant-service",
+          "actions": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+          "resources": ["research-pdfs/*"]
+        },
+        {
+          "principal": "windmill-dashboard",
+          "actions": ["s3:GetObject"],
+          "resources": ["research-pdfs/reports/*"]
+        },
+        {
+          "principal": "public",
+          "actions": [],
+          "resources": []
+        }
+      ]
+    },
+    {
+      "name": "report-assets",
+      "description": "Storage for report assets like images, charts, and supplementary files",
+      "versioning": "Enabled",
+      "access_policy": "private",
+      "lifecycle_rules": [
+        {
+          "id": "cleanup_temp_assets",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "temp/"
+          },
+          "expiration": {
+            "days": 3
+          }
+        },
+        {
+          "id": "archive_old_assets",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "assets/"
+          },
+          "transitions": [
+            {
+              "days": 180,
+              "storage_class": "STANDARD_IA"
+            }
+          ]
+        }
+      ],
+      "cors_configuration": {
+        "cors_rules": [
+          {
+            "id": "dashboard_asset_access",
+            "allowed_headers": ["*"],
+            "allowed_methods": ["GET", "PUT", "POST"],
+            "allowed_origins": ["http://localhost:5681", "http://localhost:3000"],
+            "max_age_seconds": 86400
+          }
+        ]
+      },
+      "directory_structure": {
+        "assets/{report_id}/": {
+          "description": "Assets for specific reports",
+          "file_types": ["png", "jpg", "jpeg", "gif", "svg", "csv", "json"],
+          "max_file_size": "50MB"
+        },
+        "charts/{report_id}/": {
+          "description": "Generated charts and visualizations",
+          "file_types": ["png", "svg", "pdf"],
+          "auto_generated": true
+        },
+        "temp/": {
+          "description": "Temporary asset processing",
+          "retention_policy": "3_days"
+        },
+        "templates/": {
+          "description": "Report templates and branding assets",
+          "file_types": ["png", "svg", "css", "html"],
+          "versioned": true
+        }
+      },
+      "compression": {
+        "enabled": true,
+        "algorithms": ["gzip", "brotli"],
+        "file_types": ["css", "js", "html", "json", "xml", "svg"]
+      }
+    },
+    {
+      "name": "source-cache",
+      "description": "Cache of original source documents and web pages",
+      "versioning": "Suspended",
+      "access_policy": "private",
+      "lifecycle_rules": [
+        {
+          "id": "expire_cached_sources",
+          "status": "Enabled",
+          "expiration": {
+            "days": 30
+          }
+        },
+        {
+          "id": "abort_incomplete_uploads",
+          "status": "Enabled",
+          "abort_incomplete_multipart_upload": {
+            "days_after_initiation": 1
+          }
+        }
+      ],
+      "directory_structure": {
+        "web-pages/{domain}/": {
+          "description": "Cached web page content",
+          "file_types": ["html", "txt", "json"],
+          "compression": "gzip"
+        },
+        "documents/{source_type}/": {
+          "description": "Cached source documents",
+          "file_types": ["pdf", "doc", "docx", "txt"],
+          "max_file_size": "100MB"
+        },
+        "api-responses/": {
+          "description": "Cached API responses",
+          "file_types": ["json", "xml"],
+          "retention": "7_days"
+        },
+        "search-results/": {
+          "description": "Cached search engine results",
+          "file_types": ["json"],
+          "retention": "14_days"
+        }
+      },
+      "deduplication": {
+        "enabled": true,
+        "hash_algorithm": "sha256",
+        "chunk_size": "1MB"
+      }
+    },
+    {
+      "name": "system-backups",
+      "description": "System backups and configuration snapshots",
+      "versioning": "Enabled",
+      "access_policy": "private",
+      "lifecycle_rules": [
+        {
+          "id": "retain_daily_backups",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "daily/"
+          },
+          "expiration": {
+            "days": 30
+          }
+        },
+        {
+          "id": "retain_weekly_backups",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "weekly/"
+          },
+          "expiration": {
+            "days": 90
+          }
+        },
+        {
+          "id": "retain_monthly_backups",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "monthly/"
+          },
+          "transitions": [
+            {
+              "days": 90,
+              "storage_class": "ARCHIVE"
+            }
+          ],
+          "expiration": {
+            "days": 2555
+          }
+        }
+      ],
+      "directory_structure": {
+        "database/": {
+          "description": "PostgreSQL database backups",
+          "encryption": "AES256"
+        },
+        "vector-db/": {
+          "description": "Qdrant collection backups",
+          "encryption": "AES256"
+        },
+        "configs/": {
+          "description": "System configuration backups",
+          "versioned": true
+        },
+        "logs/": {
+          "description": "System logs archive",
+          "compression": "gzip"
+        }
+      },
+      "encryption": {
+        "server_side_encryption": "AES256",
+        "kms_key_id": "research-assistant-backup-key"
+      }
+    }
+  ],
+  "global_settings": {
+    "region": "us-east-1",
+    "storage_class_defaults": {
+      "STANDARD": {
+        "description": "Frequently accessed data",
+        "availability": "99.99%"
+      },
+      "STANDARD_IA": {
+        "description": "Infrequently accessed data",
+        "availability": "99.9%",
+        "minimum_storage_duration": 30
+      },
+      "ARCHIVE": {
+        "description": "Long-term archival",
+        "availability": "99.9%",
+        "minimum_storage_duration": 90,
+        "retrieval_time": "3-5 hours"
+      }
+    },
+    "security": {
+      "default_encryption": "AES256",
+      "public_access_block": {
+        "block_public_acls": true,
+        "ignore_public_acls": true,
+        "block_public_policy": true,
+        "restrict_public_buckets": true
+      },
+      "mfa_delete": false,
+      "logging": {
+        "enabled": true,
+        "target_bucket": "system-backups",
+        "target_prefix": "access-logs/"
+      }
+    },
+    "monitoring": {
+      "cloudwatch_metrics": true,
+      "event_notifications": true,
+      "request_payment": "BucketOwner"
+    },
+    "performance": {
+      "transfer_acceleration": false,
+      "multipart_threshold": "64MB",
+      "multipart_chunksize": "16MB",
+      "max_concurrency": 10
+    }
+  },
+  "access_policies": [
+    {
+      "name": "research-assistant-full-access",
+      "description": "Full access for the research assistant service",
+      "statements": [
+        {
+          "effect": "Allow",
+          "actions": [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ],
+          "resources": [
+            "arn:aws:s3:::research-pdfs/*",
+            "arn:aws:s3:::report-assets/*",
+            "arn:aws:s3:::source-cache/*"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dashboard-read-access",
+      "description": "Read-only access for dashboard users",
+      "statements": [
+        {
+          "effect": "Allow",
+          "actions": [
+            "s3:GetObject",
+            "s3:ListBucket"
+          ],
+          "resources": [
+            "arn:aws:s3:::research-pdfs/reports/*",
+            "arn:aws:s3:::report-assets/assets/*"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "backup-service-access",
+      "description": "Access for backup operations",
+      "statements": [
+        {
+          "effect": "Allow",
+          "actions": [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:ListBucket"
+          ],
+          "resources": [
+            "arn:aws:s3:::system-backups/*"
+          ]
+        }
+      ]
+    }
+  ],
+  "initialization": {
+    "create_sample_objects": true,
+    "sample_objects": [
+      {
+        "bucket": "research-pdfs",
+        "key": "reports/sample-report.pdf",
+        "content": "sample_pdf_content",
+        "metadata": {
+          "report-id": "sample-001",
+          "generated-by": "research-assistant",
+          "version": "1.0"
+        }
+      },
+      {
+        "bucket": "report-assets",
+        "key": "templates/default-header.png",
+        "content": "sample_image_content",
+        "metadata": {
+          "asset-type": "template",
+          "usage": "report-header"
+        }
+      }
+    ],
+    "setup_webhooks": true,
+    "webhook_endpoints": [
+      "http://localhost:5678/webhook/minio-events"
+    ]
+  }
+}

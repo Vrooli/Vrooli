@@ -1,0 +1,10 @@
+{
+  "claude_code_api_key": "sk-claude-code-demo-key-replace-in-production",
+  "comfyui_api_key": "comfyui-demo-key-replace-in-production",
+  "ollama_api_key": "ollama-demo-key-not-typically-required",
+  "n8n_webhook_secret": "n8n-webhook-secret-replace-in-production",
+  "windmill_token": "windmill-admin-token-replace-in-production",
+  "minio_access_key": "brand-manager-minio-access-key",
+  "minio_secret_key": "brand-manager-minio-secret-key-replace-in-production",
+  "integration_signing_key": "brand-integration-signing-key-replace-in-production"
+}

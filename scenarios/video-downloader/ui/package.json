@@ -1,0 +1,19 @@
+{
+  "name": "video-downloader-ui",
+  "version": "1.0.0",
+  "description": "Video Downloader UI - Smart media retrieval interface",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'"
+  },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}

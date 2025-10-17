@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Book - Social Intelligence Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #1e293b;
+            font-weight: 600;
+        }
+        
+        .header .subtitle {
+            color: #64748b;
+            font-size: 0.9em;
+            margin-left: 0.5rem;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        
+        .status-indicator.healthy {
+            background: #10b981;
+        }
+        
+        .main {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .contact-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .contact-item {
+            padding: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .contact-item:hover {
+            background: #f8fafc;
+        }
+        
+        .contact-item.selected {
+            background: #eff6ff;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .contact-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .contact-email {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .contact-tags {
+            display: flex;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .tag {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .contact-detail {
+            padding: 0;
+        }
+        
+        .detail-section {
+            padding: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .detail-section:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.75rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .detail-label {
+            color: #6b7280;
+            font-weight: 500;
+            min-width: 100px;
+        }
+        
+        .detail-value {
+            color: #374151;
+            font-weight: 400;
+            text-align: right;
+            max-width: 200px;
+        }
+        
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .btn:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #64748b;
+            padding: 2rem;
+        }
+        
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .stat-label {
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        .analytics-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .analytics-item:last-child {
+            border-bottom: none;
+        }
+        
+        .analytics-name {
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .analytics-score {
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        
+        .score-high {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .score-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .score-low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        @media (max-width: 768px) {
+            .main {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 0 1rem;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.25rem;
+            }
+            
+            .header .subtitle {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div>
+            <h1>Contact Book<span class="subtitle">Social Intelligence Engine</span></h1>
+        </div>
+        <div class="status">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <span id="statusText">Checking...</span>
+        </div>
+    </header>
+    
+    <main class="main">
+        <div class="card">
+            <div class="card-header">
+                <h2>Contacts</h2>
+                <button class="btn" onclick="addContact()">Add Contact</button>
+            </div>
+            <div class="card-body">
+                <input type="text" class="search-box" placeholder="Search contacts by name, email, or tag..." 
+                       id="searchInput" onkeyup="searchContacts()">
+                <div id="contactList" class="contact-list">
+                    <div class="loading">Loading contacts...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div>
+            <div class="card" style="margin-bottom: 1rem;">
+                <div class="card-header">
+                    <h2>Social Analytics</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalContacts">-</div>
+                            <div class="stat-label">Total Contacts</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalRelationships">-</div>
+                            <div class="stat-label">Relationships</div>
+                        </div>
+                    </div>
+                    <div id="analyticsData">
+                        <div class="loading">Loading analytics...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" id="contactDetail" style="display: none;">
+                <div class="card-header">
+                    <h2>Contact Details</h2>
+                </div>
+                <div class="contact-detail" id="contactDetailContent">
+                    <!-- Contact details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '/api/v1';
+        let contacts = [];
+        let selectedContact = null;
+        let analytics = [];
+        
+        // Initialize the app
+        async function init() {
+            await checkStatus();
+            await loadContacts();
+            await loadAnalytics();
+        }
+        
+        // Check API status
+        async function checkStatus() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                const indicator = document.getElementById('statusIndicator');
+                const text = document.getElementById('statusText');
+                
+                if (data.status === 'healthy') {
+                    indicator.className = 'status-indicator healthy';
+                    text.textContent = 'Healthy';
+                } else {
+                    indicator.className = 'status-indicator';
+                    text.textContent = 'Unhealthy';
+                }
+            } catch (error) {
+                document.getElementById('statusText').textContent = 'Offline';
+                console.error('Status check failed:', error);
+            }
+        }
+        
+        // Load contacts from API
+        async function loadContacts() {
+            try {
+                const response = await fetch(`${API_BASE}/contacts?limit=100`);
+                const data = await response.json();
+                contacts = data.persons || [];
+                renderContacts();
+                updateStats();
+            } catch (error) {
+                console.error('Failed to load contacts:', error);
+                document.getElementById('contactList').innerHTML = 
+                    '<div class="error">Failed to load contacts. Please check the API connection.</div>';
+            }
+        }
+        
+        // Load analytics data
+        async function loadAnalytics() {
+            try {
+                const response = await fetch(`${API_BASE}/analytics`);
+                const data = await response.json();
+                analytics = data.analytics || [];
+                renderAnalytics();
+                
+                // Also load relationships count
+                const relResponse = await fetch(`${API_BASE}/relationships`);
+                const relData = await relResponse.json();
+                document.getElementById('totalRelationships').textContent = relData.count || 0;
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+                document.getElementById('analyticsData').innerHTML = 
+                    '<div class="error">Analytics unavailable</div>';
+            }
+        }
+        
+        // Render contacts list
+        function renderContacts(filteredContacts = null) {
+            const contactList = document.getElementById('contactList');
+            const contactsToRender = filteredContacts || contacts;
+            
+            if (contactsToRender.length === 0) {
+                contactList.innerHTML = '<div class="loading">No contacts found</div>';
+                return;
+            }
+            
+            contactList.innerHTML = contactsToRender.map(contact => `
+                <div class="contact-item" onclick="selectContact('${contact.id}')" id="contact-${contact.id}">
+                    <div class="contact-name">${contact.full_name}</div>
+                    <div class="contact-email">${contact.emails?.[0] || 'No email'}</div>
+                    <div class="contact-tags">
+                        ${(contact.tags || []).map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Render analytics
+        function renderAnalytics() {
+            const analyticsContainer = document.getElementById('analyticsData');
+            
+            if (analytics.length === 0) {
+                analyticsContainer.innerHTML = '<div class="loading">No analytics available</div>';
+                return;
+            }
+            
+            // Sort by maintenance priority and show top 5
+            const priorityContacts = analytics
+                .filter(a => a.maintenance_priority_score > 0)
+                .sort((a, b) => (b.maintenance_priority_score || 0) - (a.maintenance_priority_score || 0))
+                .slice(0, 5);
+            
+            analyticsContainer.innerHTML = `
+                <h3 style="margin-bottom: 1rem; color: #374151; font-size: 0.9rem;">Needs Attention</h3>
+                ${priorityContacts.map(item => {
+                    const contact = contacts.find(c => c.id === item.person_id);
+                    const score = item.maintenance_priority_score || 0;
+                    const scoreClass = score > 0.7 ? 'score-high' : score > 0.4 ? 'score-medium' : 'score-low';
+                    
+                    return `
+                        <div class="analytics-item">
+                            <div class="analytics-name">${contact?.full_name || 'Unknown'}</div>
+                            <div class="analytics-score ${scoreClass}">${score.toFixed(2)}</div>
+                        </div>
+                    `;
+                }).join('')}
+            `;
+        }
+        
+        // Update stats
+        function updateStats() {
+            document.getElementById('totalContacts').textContent = contacts.length;
+        }
+        
+        // Search contacts
+        function searchContacts() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (!query) {
+                renderContacts();
+                return;
+            }
+            
+            const filtered = contacts.filter(contact => 
+                contact.full_name.toLowerCase().includes(query) ||
+                (contact.display_name && contact.display_name.toLowerCase().includes(query)) ||
+                (contact.emails && contact.emails.some(email => email.toLowerCase().includes(query))) ||
+                (contact.tags && contact.tags.some(tag => tag.toLowerCase().includes(query))) ||
+                (contact.notes && contact.notes.toLowerCase().includes(query))
+            );
+            
+            renderContacts(filtered);
+        }
+        
+        // Select a contact
+        async function selectContact(contactId) {
+            // Remove previous selection
+            document.querySelectorAll('.contact-item.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Add selection to current contact
+            const contactElement = document.getElementById(`contact-${contactId}`);
+            if (contactElement) {
+                contactElement.classList.add('selected');
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/contacts/${contactId}`);
+                const contact = await response.json();
+                selectedContact = contact;
+                renderContactDetails(contact);
+            } catch (error) {
+                console.error('Failed to load contact details:', error);
+            }
+        }
+        
+        // Render contact details
+        function renderContactDetails(contact) {
+            const detailCard = document.getElementById('contactDetail');
+            const content = document.getElementById('contactDetailContent');
+            
+            const metadata = contact.metadata || {};
+            const analytics_data = analytics.find(a => a.person_id === contact.id);
+            
+            content.innerHTML = `
+                <div class="detail-section">
+                    <h3>Basic Information</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">Full Name:</span>
+                        <span class="detail-value">${contact.full_name}</span>
+                    </div>
+                    ${contact.display_name ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Display Name:</span>
+                            <span class="detail-value">${contact.display_name}</span>
+                        </div>
+                    ` : ''}
+                    ${contact.pronouns ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Pronouns:</span>
+                            <span class="detail-value">${contact.pronouns}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Contact Information</h3>
+                    ${(contact.emails || []).map(email => `
+                        <div class="detail-item">
+                            <span class="detail-label">Email:</span>
+                            <span class="detail-value">${email}</span>
+                        </div>
+                    `).join('')}
+                    ${(contact.phones || []).map(phone => `
+                        <div class="detail-item">
+                            <span class="detail-label">Phone:</span>
+                            <span class="detail-value">${phone}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                ${analytics_data ? `
+                    <div class="detail-section">
+                        <h3>Social Analytics</h3>
+                        ${analytics_data.overall_closeness_score ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Closeness:</span>
+                                <span class="detail-value">${(analytics_data.overall_closeness_score * 100).toFixed(0)}%</span>
+                            </div>
+                        ` : ''}
+                        ${analytics_data.maintenance_priority_score ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Needs Attention:</span>
+                                <span class="detail-value">${(analytics_data.maintenance_priority_score * 100).toFixed(0)}%</span>
+                            </div>
+                        ` : ''}
+                        ${analytics_data.last_interaction_days ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Last Contact:</span>
+                                <span class="detail-value">${analytics_data.last_interaction_days} days ago</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                
+                ${metadata.birthday || metadata.timezone ? `
+                    <div class="detail-section">
+                        <h3>Personal Details</h3>
+                        ${metadata.birthday ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Birthday:</span>
+                                <span class="detail-value">${metadata.birthday}</span>
+                            </div>
+                        ` : ''}
+                        ${metadata.timezone ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Timezone:</span>
+                                <span class="detail-value">${metadata.timezone}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                
+                ${(contact.tags && contact.tags.length > 0) ? `
+                    <div class="detail-section">
+                        <h3>Tags</h3>
+                        <div class="contact-tags">
+                            ${contact.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${contact.notes ? `
+                    <div class="detail-section">
+                        <h3>Notes</h3>
+                        <p style="color: #374151; line-height: 1.6;">${contact.notes}</p>
+                    </div>
+                ` : ''}
+            `;
+            
+            detailCard.style.display = 'block';
+        }
+        
+        // Add new contact (placeholder)
+        function addContact() {
+            const name = prompt('Enter contact name:');
+            const email = prompt('Enter email (optional):');
+            
+            if (!name) return;
+            
+            const contactData = {
+                full_name: name,
+                emails: email ? [email] : [],
+                tags: ['new']
+            };
+            
+            fetch(`${API_BASE}/contacts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(contactData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.id) {
+                    alert('Contact added successfully!');
+                    loadContacts(); // Reload the list
+                } else {
+                    alert('Failed to add contact: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Failed to add contact:', error);
+                alert('Failed to add contact. Please try again.');
+            });
+        }
+        
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', init);
+        
+        // Refresh data every 30 seconds
+        setInterval(() => {
+            checkStatus();
+            loadAnalytics(); // Refresh analytics more frequently
+        }, 30000);
+    </script>
+</body>
+</html>

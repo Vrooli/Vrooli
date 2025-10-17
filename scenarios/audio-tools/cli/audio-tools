@@ -1,0 +1,678 @@
+#!/bin/bash
+# audio-tools - Command-line interface for Audio Tools
+# Comprehensive audio processing and analysis utility
+
+set -euo pipefail
+
+# Configuration
+readonly CLI_NAME="audio-tools"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.audio-tools"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+# Use environment variable or default port
+readonly DEFAULT_API_PORT="${API_PORT:-19605}"
+readonly DEFAULT_API_BASE="http://localhost:${DEFAULT_API_PORT}"
+readonly DEFAULT_TOKEN=""
+
+# Colors for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Initialize configuration
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<EOF
+{
+    "api_base": "$DEFAULT_API_BASE",
+    "api_token": "$DEFAULT_TOKEN",
+    "output_format": "json",
+    "default_quality": "high",
+    "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+        echo -e "${GREEN}✓${NC} Configuration initialized at $CONFIG_FILE"
+    fi
+}
+
+# Load configuration
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
+        API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
+        OUTPUT_FORMAT=$(jq -r '.output_format // "json"' "$CONFIG_FILE" 2>/dev/null || echo "json")
+    else
+        API_BASE="$DEFAULT_API_BASE"
+        API_TOKEN="$DEFAULT_TOKEN"
+        OUTPUT_FORMAT="json"
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    
+    local url="${API_BASE}${endpoint}"
+    local curl_opts=(-s -X "$method")
+    
+    if [[ -n "$API_TOKEN" ]]; then
+        curl_opts+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_opts+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null)
+    exit_code=$?
+    
+    if [[ $exit_code -ne 0 ]]; then
+        echo -e "${RED}✗${NC} Failed to connect to API at $url" >&2
+        return 1
+    fi
+    
+    echo "$response"
+}
+
+# Upload file for processing
+upload_file() {
+    local file="$1"
+    local endpoint="$2"
+    shift 2
+    local extra_fields=("$@")
+    
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}✗${NC} File not found: $file" >&2
+        return 1
+    fi
+    
+    local url="${API_BASE}${endpoint}"
+    local curl_opts=(-s -X POST)
+    
+    if [[ -n "$API_TOKEN" ]]; then
+        curl_opts+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
+    
+    curl_opts+=(-F "audio=@$file")
+    
+    for field in "${extra_fields[@]}"; do
+        curl_opts+=(-F "$field")
+    done
+    
+    response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null)
+    exit_code=$?
+    
+    if [[ $exit_code -ne 0 ]]; then
+        echo -e "${RED}✗${NC} Failed to upload file to $url" >&2
+        return 1
+    fi
+    
+    echo "$response"
+}
+
+# Format output
+format_output() {
+    local data="$1"
+    local format="${2:-$OUTPUT_FORMAT}"
+    
+    case "$format" in
+        json)
+            echo "$data" | jq '.' 2>/dev/null || echo "$data"
+            ;;
+        simple)
+            echo "$data" | jq -r '
+                if .file_path then
+                    "Output: \(.file_path)"
+                elif .metadata then
+                    "Duration: \(.metadata.duration)s\nFormat: \(.metadata.format)\nBitrate: \(.metadata.bitrate)"
+                elif .analysis_results then
+                    "Analysis complete: \(.analysis_id)"
+                else
+                    .
+                end
+            ' 2>/dev/null || echo "$data"
+            ;;
+        raw)
+            echo "$data"
+            ;;
+        *)
+            echo "$data"
+            ;;
+    esac
+}
+
+# Command: Convert audio format
+cmd_convert() {
+    local input_file=""
+    local output_format=""
+    local bitrate=""
+    local sample_rate=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -f|--format)
+                output_format="$2"
+                shift 2
+                ;;
+            -b|--bitrate)
+                bitrate="$2"
+                shift 2
+                ;;
+            -s|--sample-rate)
+                sample_rate="$2"
+                shift 2
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" || -z "$output_format" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME convert -i <input_file> -f <format> [-b <bitrate>] [-s <sample_rate>]" >&2
+        return 1
+    fi
+    
+    local extra_fields=("format=$output_format")
+    [[ -n "$bitrate" ]] && extra_fields+=("bitrate=$bitrate")
+    [[ -n "$sample_rate" ]] && extra_fields+=("sample_rate=$sample_rate")
+    
+    echo -e "${BLUE}→${NC} Converting $input_file to $output_format..."
+    response=$(upload_file "$input_file" "/api/v1/audio/convert" "${extra_fields[@]}")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Conversion complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Trim audio
+cmd_trim() {
+    local input_file=""
+    local start_time=""
+    local end_time=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -s|--start)
+                start_time="$2"
+                shift 2
+                ;;
+            -e|--end)
+                end_time="$2"
+                shift 2
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" || -z "$start_time" || -z "$end_time" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME trim -i <input_file> -s <start_time> -e <end_time>" >&2
+        return 1
+    fi
+    
+    local data=$(cat <<EOF
+{
+    "audio_file": "$input_file",
+    "operations": [
+        {
+            "type": "trim",
+            "parameters": {
+                "start_time": $start_time,
+                "end_time": $end_time
+            }
+        }
+    ]
+}
+EOF
+    )
+    
+    echo -e "${BLUE}→${NC} Trimming $input_file from ${start_time}s to ${end_time}s..."
+    response=$(api_request POST "/api/v1/audio/edit" "$data")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Trim complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Normalize audio
+cmd_normalize() {
+    local input_file=""
+    local target_level="-16"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -l|--level)
+                target_level="$2"
+                shift 2
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME normalize -i <input_file> [-l <target_level>]" >&2
+        return 1
+    fi
+    
+    local data=$(cat <<EOF
+{
+    "audio_file": "$input_file",
+    "operations": [
+        {
+            "type": "normalize",
+            "parameters": {
+                "target_level": $target_level
+            }
+        }
+    ]
+}
+EOF
+    )
+    
+    echo -e "${BLUE}→${NC} Normalizing $input_file to ${target_level} LUFS..."
+    response=$(api_request POST "/api/v1/audio/edit" "$data")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Normalization complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Extract metadata
+cmd_metadata() {
+    local input_file="$1"
+    
+    if [[ -z "$input_file" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME metadata <input_file>" >&2
+        return 1
+    fi
+    
+    echo -e "${BLUE}→${NC} Extracting metadata from $input_file..."
+    
+    # Try file upload method first
+    response=$(upload_file "$input_file" "/api/v1/audio/metadata")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Metadata extracted"
+        format_output "$response" "simple"
+    fi
+}
+
+# Command: Enhance audio
+cmd_enhance() {
+    local input_file=""
+    local environment="general"
+    local noise_reduction="0.5"
+    local auto_level="true"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -e|--environment)
+                environment="$2"
+                shift 2
+                ;;
+            -n|--noise-reduction)
+                noise_reduction="$2"
+                shift 2
+                ;;
+            --no-auto-level)
+                auto_level="false"
+                shift
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME enhance -i <input_file> [-e <environment>] [-n <intensity>]" >&2
+        echo "  Environments: general, podcast, music, voice, conference" >&2
+        return 1
+    fi
+    
+    local enhancements='[{"type":"noise_reduction","intensity":'$noise_reduction'}'
+    if [[ "$auto_level" == "true" ]]; then
+        enhancements+=',{"type":"auto_level"}'
+    fi
+    enhancements+=']'
+    
+    local data=$(cat <<EOF
+{
+    "audio_file": "$input_file",
+    "enhancements": $enhancements,
+    "target_environment": "$environment"
+}
+EOF
+    )
+    
+    echo -e "${BLUE}→${NC} Enhancing $input_file for $environment environment..."
+    response=$(api_request POST "/api/v1/audio/enhance" "$data")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Enhancement complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Analyze audio
+cmd_analyze() {
+    local input_file=""
+    local analyses="all"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -a|--analyses)
+                analyses="$2"
+                shift 2
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME analyze -i <input_file> [-a <analyses>]" >&2
+        echo "  Analyses: spectrum, loudness, silence, all" >&2
+        return 1
+    fi
+    
+    local analyses_array='["spectrum","loudness","silence","peaks","frequency"]'
+    if [[ "$analyses" != "all" ]]; then
+        analyses_array="[\"$analyses\"]"
+    fi
+    
+    local data=$(cat <<EOF
+{
+    "audio_file": "$input_file",
+    "analyses": $analyses_array
+}
+EOF
+    )
+    
+    echo -e "${BLUE}→${NC} Analyzing $input_file..."
+    response=$(api_request POST "/api/v1/audio/analyze" "$data")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Analysis complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Batch process
+cmd_batch() {
+    local operation="$1"
+    shift
+    local files=("$@")
+    
+    if [[ -z "$operation" || ${#files[@]} -eq 0 ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME batch <operation> <file1> <file2> ..." >&2
+        echo "  Operations: normalize, enhance, convert:mp3, convert:wav" >&2
+        return 1
+    fi
+    
+    echo -e "${BLUE}→${NC} Batch processing ${#files[@]} files..."
+    
+    local success=0
+    local failed=0
+    
+    for file in "${files[@]}"; do
+        echo -e "\n${YELLOW}Processing:${NC} $file"
+        
+        case "$operation" in
+            normalize)
+                cmd_normalize "$file"
+                ;;
+            enhance)
+                cmd_enhance "$file"
+                ;;
+            convert:*)
+                format="${operation#convert:}"
+                cmd_convert -i "$file" -f "$format"
+                ;;
+            *)
+                echo -e "${RED}✗${NC} Unknown operation: $operation"
+                ((failed++))
+                continue
+                ;;
+        esac
+        
+        if [[ $? -eq 0 ]]; then
+            ((success++))
+        else
+            ((failed++))
+        fi
+    done
+    
+    echo -e "\n${GREEN}✓${NC} Batch complete: $success succeeded, $failed failed"
+}
+
+# Command: Show status
+cmd_status() {
+    echo -e "${BLUE}→${NC} Checking audio-tools status..."
+    response=$(api_request GET "/health")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Service is healthy"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Service is not responding"
+        return 1
+    fi
+}
+
+# Help message
+show_help() {
+    cat <<EOF
+${GREEN}audio-tools${NC} v${CLI_VERSION}
+Comprehensive audio processing and analysis CLI
+
+${YELLOW}USAGE:${NC}
+    $CLI_NAME <command> [options]
+
+${YELLOW}COMMANDS:${NC}
+    ${BLUE}convert${NC}    Convert audio format
+                -i <file> -f <format> [-b <bitrate>] [-s <sample_rate>]
+                Formats: mp3, wav, flac, ogg, aac, m4a
+    
+    ${BLUE}trim${NC}       Trim audio file
+                -i <file> -s <start_time> -e <end_time>
+    
+    ${BLUE}normalize${NC}  Normalize audio levels
+                -i <file> [-l <target_level>]
+                Default level: -16 LUFS
+    
+    ${BLUE}enhance${NC}    Enhance audio quality
+                -i <file> [-e <environment>] [-n <noise_reduction>]
+                Environments: general, podcast, music, voice, conference
+    
+    ${BLUE}metadata${NC}   Extract audio metadata
+                <file>
+    
+    ${BLUE}analyze${NC}    Analyze audio characteristics
+                -i <file> [-a <analyses>]
+                Analyses: spectrum, loudness, silence, all
+    
+    ${BLUE}batch${NC}      Process multiple files
+                <operation> <file1> <file2> ...
+                Operations: normalize, enhance, convert:mp3, convert:wav
+    
+    ${BLUE}status${NC}     Check service status
+    
+    ${BLUE}config${NC}     Show/set configuration
+                get [key] | set <key> <value>
+    
+    ${BLUE}help${NC}       Show this help message
+
+${YELLOW}EXAMPLES:${NC}
+    # Convert WAV to MP3 with 192k bitrate
+    $CLI_NAME convert -i input.wav -f mp3 -b 192000
+    
+    # Trim audio from 10s to 30s
+    $CLI_NAME trim -i song.mp3 -s 10 -e 30
+    
+    # Normalize multiple files
+    $CLI_NAME batch normalize *.wav
+    
+    # Enhance podcast audio
+    $CLI_NAME enhance -i recording.wav -e podcast -n 0.7
+    
+    # Extract metadata
+    $CLI_NAME metadata audio.mp3
+
+${YELLOW}CONFIGURATION:${NC}
+    Config file: $CONFIG_FILE
+    API endpoint: $DEFAULT_API_BASE
+
+For more information, visit: https://github.com/vrooli/audio-tools
+EOF
+}
+
+# Command: Config management
+cmd_config() {
+    local action="${1:-get}"
+    local key="${2:-}"
+    local value="${3:-}"
+    
+    case "$action" in
+        get)
+            if [[ -z "$key" ]]; then
+                cat "$CONFIG_FILE" | jq '.'
+            else
+                jq -r ".$key // \"not set\"" "$CONFIG_FILE"
+            fi
+            ;;
+        set)
+            if [[ -z "$key" || -z "$value" ]]; then
+                echo -e "${RED}✗${NC} Usage: $CLI_NAME config set <key> <value>" >&2
+                return 1
+            fi
+            
+            # Update config file
+            jq ".$key = \"$value\"" "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && \
+                mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} Configuration updated: $key = $value"
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown config action: $action" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Main entry point
+main() {
+    init_config
+    load_config
+    
+    # Parse global options
+    while [[ $# -gt 0 ]] && [[ "$1" =~ ^- ]]; do
+        case "$1" in
+            -v|--version)
+                echo "$CLI_NAME v$CLI_VERSION"
+                exit 0
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            --api-base)
+                API_BASE="$2"
+                shift 2
+                ;;
+            --format)
+                OUTPUT_FORMAT="$2"
+                shift 2
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    
+    # Get command
+    local command="${1:-help}"
+    shift || true
+    
+    # Execute command
+    case "$command" in
+        convert)
+            cmd_convert "$@"
+            ;;
+        trim)
+            cmd_trim "$@"
+            ;;
+        normalize)
+            cmd_normalize "$@"
+            ;;
+        enhance)
+            cmd_enhance "$@"
+            ;;
+        metadata)
+            cmd_metadata "$@"
+            ;;
+        analyze)
+            cmd_analyze "$@"
+            ;;
+        batch)
+            cmd_batch "$@"
+            ;;
+        status)
+            cmd_status
+            ;;
+        config)
+            cmd_config "$@"
+            ;;
+        help)
+            show_help
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown command: $command" >&2
+            echo "Run '$CLI_NAME help' for usage information" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

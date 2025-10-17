@@ -1,0 +1,197 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Browserless Resource Configuration Schema",
+  "description": "Configuration options for the Browserless headless Chrome automation service",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "Port for the Browserless service",
+      "default": 4110,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "max_concurrent_sessions": {
+      "type": "integer",
+      "description": "Maximum number of concurrent browser sessions",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 50
+    },
+    "max_queue_length": {
+      "type": "integer",
+      "description": "Maximum number of queued browser requests",
+      "default": 10,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "connection_timeout": {
+      "type": "integer",
+      "description": "Browser connection timeout in milliseconds",
+      "default": 60000,
+      "minimum": 10000,
+      "maximum": 300000
+    },
+    "default_block_ads": {
+      "type": "boolean",
+      "description": "Block ads by default in browser sessions",
+      "default": false
+    },
+    "default_stealth": {
+      "type": "boolean",
+      "description": "Use stealth mode by default to avoid detection",
+      "default": false
+    },
+    "preboot": {
+      "type": "boolean",
+      "description": "Pre-boot Chrome instances for faster response times",
+      "default": true
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "description": "Enable demo mode with dashboard",
+      "default": true
+    },
+    "enable_cors": {
+      "type": "boolean",
+      "description": "Enable CORS for cross-origin requests",
+      "default": true
+    },
+    "enable_xvfb": {
+      "type": "boolean",
+      "description": "Enable X virtual framebuffer for true headless mode",
+      "default": true
+    },
+    "health_check_rate": {
+      "type": "integer",
+      "description": "Health check interval in milliseconds",
+      "default": 10000,
+      "minimum": 5000,
+      "maximum": 60000
+    },
+    "cpu_limit": {
+      "type": "number",
+      "description": "CPU usage percentage limit before rejecting new sessions",
+      "default": 90,
+      "minimum": 50,
+      "maximum": 100
+    },
+    "memory_limit": {
+      "type": "number",
+      "description": "Memory usage percentage limit before rejecting new sessions",
+      "default": 90,
+      "minimum": 50,
+      "maximum": 100
+    },
+    "pool_auto_scaling": {
+      "type": "object",
+      "description": "Auto-scaling configuration for browser pool",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable automatic pool scaling",
+          "default": false
+        },
+        "min_browsers": {
+          "type": "integer",
+          "description": "Minimum number of browser instances",
+          "default": 1,
+          "minimum": 1
+        },
+        "max_browsers": {
+          "type": "integer",
+          "description": "Maximum number of browser instances",
+          "default": 10,
+          "minimum": 1
+        },
+        "scale_up_threshold": {
+          "type": "number",
+          "description": "CPU/memory threshold to scale up",
+          "default": 70,
+          "minimum": 50,
+          "maximum": 95
+        },
+        "scale_down_threshold": {
+          "type": "number",
+          "description": "CPU/memory threshold to scale down",
+          "default": 30,
+          "minimum": 10,
+          "maximum": 50
+        },
+        "cooldown_period": {
+          "type": "integer",
+          "description": "Seconds to wait between scaling operations",
+          "default": 60,
+          "minimum": 30,
+          "maximum": 300
+        }
+      }
+    },
+    "session_options": {
+      "type": "object",
+      "description": "Default options for browser sessions",
+      "properties": {
+        "default_viewport_width": {
+          "type": "integer",
+          "description": "Default viewport width in pixels",
+          "default": 1920,
+          "minimum": 320,
+          "maximum": 3840
+        },
+        "default_viewport_height": {
+          "type": "integer",
+          "description": "Default viewport height in pixels",
+          "default": 1080,
+          "minimum": 240,
+          "maximum": 2160
+        },
+        "default_timeout": {
+          "type": "integer",
+          "description": "Default navigation timeout in milliseconds",
+          "default": 30000,
+          "minimum": 5000,
+          "maximum": 120000
+        },
+        "ignore_https_errors": {
+          "type": "boolean",
+          "description": "Ignore HTTPS certificate errors",
+          "default": false
+        },
+        "disable_gpu": {
+          "type": "boolean",
+          "description": "Disable GPU acceleration",
+          "default": true
+        },
+        "disable_dev_shm_usage": {
+          "type": "boolean",
+          "description": "Disable /dev/shm usage to prevent crashes",
+          "default": true
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["error", "warn", "info", "debug"],
+          "description": "Logging level",
+          "default": "info"
+        },
+        "enable_request_logging": {
+          "type": "boolean",
+          "description": "Log all incoming requests",
+          "default": false
+        },
+        "enable_browser_console": {
+          "type": "boolean",
+          "description": "Capture browser console logs",
+          "default": false
+        }
+      }
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

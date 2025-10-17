@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFmpeg Web Interface</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 16px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        .file-input-button {
+            display: block;
+            padding: 12px;
+            background: #f5f5f5;
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .file-input-wrapper:hover .file-input-button {
+            background: #efefef;
+            border-color: #667eea;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress {
+            display: none;
+            margin-top: 20px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 15px;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            display: none;
+        }
+        .output h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .output pre {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.success {
+            background: #4caf50;
+            color: white;
+        }
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+        .status.processing {
+            background: #ff9800;
+            color: white;
+        }
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .preset-card {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .preset-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+        .preset-card.selected {
+            background: #f0f4ff;
+            border-color: #667eea;
+        }
+        .preset-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .preset-desc {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 FFmpeg Web Interface</h1>
+        
+        <div class="card">
+            <div class="tab-container">
+                <button class="tab active" onclick="switchTab('convert')">Convert</button>
+                <button class="tab" onclick="switchTab('extract')">Extract</button>
+                <button class="tab" onclick="switchTab('info')">Media Info</button>
+                <button class="tab" onclick="switchTab('stream')">Stream</button>
+                <button class="tab" onclick="switchTab('monitor')">Monitor</button>
+            </div>
+
+            <!-- Convert Tab -->
+            <div id="convert" class="tab-content active">
+                <h2>Media Conversion</h2>
+                <form id="convertForm">
+                    <div class="form-group">
+                        <label>Select File</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="convertFile" accept="video/*,audio/*">
+                            <div class="file-input-button">
+                                <span id="convertFileName">Choose file or drag and drop</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Select Preset</label>
+                        <div class="preset-grid" id="presetGrid"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Custom Options (optional)</label>
+                        <input type="text" id="customOptions" placeholder="e.g., -b:v 2M -preset fast">
+                    </div>
+
+                    <button type="submit" class="btn">Start Conversion</button>
+                </form>
+            </div>
+
+            <!-- Extract Tab -->
+            <div id="extract" class="tab-content">
+                <h2>Extract Audio/Frames</h2>
+                <form id="extractForm">
+                    <div class="form-group">
+                        <label>Select Video File</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="extractFile" accept="video/*">
+                            <div class="file-input-button">
+                                <span id="extractFileName">Choose video file</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Extract Type</label>
+                        <select id="extractType">
+                            <option value="audio">Audio (MP3)</option>
+                            <option value="audio-wav">Audio (WAV)</option>
+                            <option value="frames">Frames (JPG)</option>
+                            <option value="thumbnail">Thumbnail</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn">Extract</button>
+                </form>
+            </div>
+
+            <!-- Info Tab -->
+            <div id="info" class="tab-content">
+                <h2>Media Information</h2>
+                <form id="infoForm">
+                    <div class="form-group">
+                        <label>Select Media File</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="infoFile" accept="video/*,audio/*,image/*">
+                            <div class="file-input-button">
+                                <span id="infoFileName">Choose media file</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn">Get Info</button>
+                </form>
+            </div>
+
+            <!-- Stream Tab -->
+            <div id="stream" class="tab-content">
+                <h2>Stream Processing</h2>
+                <form id="streamForm">
+                    <div class="form-group">
+                        <label>Stream URL</label>
+                        <input type="url" id="streamUrl" placeholder="https://example.com/stream.m3u8" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Action</label>
+                        <select id="streamAction">
+                            <option value="info">Get Stream Info</option>
+                            <option value="capture">Capture Stream</option>
+                            <option value="transcode">Transcode Stream</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="streamDuration" style="display:none;">
+                        <label>Duration (seconds)</label>
+                        <input type="number" id="duration" min="1" max="3600" value="60">
+                    </div>
+
+                    <button type="submit" class="btn">Process Stream</button>
+                </form>
+            </div>
+
+            <!-- Monitor Tab -->
+            <div id="monitor" class="tab-content">
+                <h2>Performance Monitoring</h2>
+                <div id="monitorContent">
+                    <div class="form-group">
+                        <button onclick="fetchStats()" class="btn">Refresh Stats</button>
+                    </div>
+                    <div id="stats"></div>
+                </div>
+            </div>
+
+            <div class="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill">0%</div>
+                </div>
+            </div>
+
+            <div class="output" id="output">
+                <h3>Output <span id="status" class="status"></span></h3>
+                <pre id="outputContent"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+        
+        // Load presets
+        const presets = [
+            { id: 'mp4-h264', title: 'MP4 (H.264)', desc: 'Universal compatibility' },
+            { id: 'webm-vp9', title: 'WebM (VP9)', desc: 'Web optimized' },
+            { id: 'mp3-320', title: 'MP3 320kbps', desc: 'High quality audio' },
+            { id: 'gif', title: 'Animated GIF', desc: 'From video' },
+            { id: 'thumbnail', title: 'Thumbnail', desc: 'Video preview' }
+        ];
+
+        function loadPresets() {
+            const grid = document.getElementById('presetGrid');
+            grid.innerHTML = presets.map(p => `
+                <div class="preset-card" data-preset="${p.id}" onclick="selectPreset('${p.id}')">
+                    <div class="preset-title">${p.title}</div>
+                    <div class="preset-desc">${p.desc}</div>
+                </div>
+            `).join('');
+        }
+
+        function selectPreset(id) {
+            document.querySelectorAll('.preset-card').forEach(card => {
+                card.classList.toggle('selected', card.dataset.preset === id);
+            });
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.textContent.toLowerCase() === tabName);
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === tabName);
+            });
+        }
+
+        // File input handlers
+        ['convert', 'extract', 'info'].forEach(type => {
+            const input = document.getElementById(type + 'File');
+            const label = document.getElementById(type + 'FileName');
+            
+            input.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    label.textContent = file.name;
+                }
+            });
+        });
+
+        // Stream action handler
+        document.getElementById('streamAction').addEventListener('change', (e) => {
+            const durationDiv = document.getElementById('streamDuration');
+            durationDiv.style.display = e.target.value !== 'info' ? 'block' : 'none';
+        });
+
+        // Form handlers
+        document.getElementById('convertForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('convertFile').files[0];
+            const preset = document.querySelector('.preset-card.selected')?.dataset.preset;
+            const options = document.getElementById('customOptions').value;
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+            
+            await processFile('/api/convert', file, { preset, options });
+        });
+
+        document.getElementById('extractForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('extractFile').files[0];
+            const type = document.getElementById('extractType').value;
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+            
+            await processFile('/api/extract', file, { type });
+        });
+
+        document.getElementById('infoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('infoFile').files[0];
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+            
+            await processFile('/api/info', file, {});
+        });
+
+        document.getElementById('streamForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = document.getElementById('streamUrl').value;
+            const action = document.getElementById('streamAction').value;
+            const duration = document.getElementById('duration').value;
+            
+            showProgress();
+            try {
+                const response = await fetch('/api/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, action, duration })
+                });
+                
+                const result = await response.json();
+                showOutput(result);
+            } catch (error) {
+                showOutput({ error: error.message }, true);
+            }
+            hideProgress();
+        });
+
+        async function processFile(endpoint, file, params) {
+            const formData = new FormData();
+            formData.append('file', file);
+            Object.keys(params).forEach(key => {
+                if (params[key]) formData.append(key, params[key]);
+            });
+            
+            showProgress();
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                showOutput(result);
+            } catch (error) {
+                showOutput({ error: error.message }, true);
+            }
+            hideProgress();
+        }
+
+        function showProgress() {
+            document.querySelector('.progress').style.display = 'block';
+            document.getElementById('output').style.display = 'none';
+            updateProgress(0);
+        }
+
+        function hideProgress() {
+            document.querySelector('.progress').style.display = 'none';
+        }
+
+        function updateProgress(percent) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+            fill.textContent = percent + '%';
+        }
+
+        function showOutput(data, isError = false) {
+            const output = document.getElementById('output');
+            const content = document.getElementById('outputContent');
+            const status = document.getElementById('status');
+            
+            output.style.display = 'block';
+            
+            if (isError || data.error) {
+                status.className = 'status error';
+                status.textContent = 'Error';
+                content.textContent = data.error || 'An error occurred';
+            } else {
+                status.className = 'status success';
+                status.textContent = 'Success';
+                content.textContent = JSON.stringify(data, null, 2);
+            }
+        }
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                document.getElementById('stats').innerHTML = `
+                    <div class="card" style="background: #f8f9fa;">
+                        <h3>System Stats</h3>
+                        <p><strong>Active Jobs:</strong> ${stats.activeJobs || 0}</p>
+                        <p><strong>Completed Jobs:</strong> ${stats.completedJobs || 0}</p>
+                        <p><strong>CPU Usage:</strong> ${stats.cpuUsage || 'N/A'}%</p>
+                        <p><strong>Memory Usage:</strong> ${stats.memoryUsage || 'N/A'}MB</p>
+                        <p><strong>GPU Available:</strong> ${stats.gpuAvailable ? 'Yes' : 'No'}</p>
+                        <p><strong>Average Processing Time:</strong> ${stats.avgProcessingTime || 'N/A'}s</p>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('stats').innerHTML = '<p>Error loading stats</p>';
+            }
+        }
+
+        // Initialize
+        loadPresets();
+    </script>
+</body>
+</html>

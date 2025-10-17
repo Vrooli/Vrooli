@@ -1,0 +1,571 @@
+#!/bin/bash
+
+# Text Tools CLI
+# Comprehensive text processing and analysis platform
+
+set -euo pipefail
+
+# Configuration
+API_HOST="${API_HOST:-localhost}"
+API_PORT="${API_PORT}"
+
+if [ -z "$API_PORT" ]; then
+    echo -e "${RED}Error: API_PORT environment variable is required${NC}" >&2
+    echo "Start the service with: vrooli scenario run text-tools" >&2
+    exit 1
+fi
+
+API_URL="http://${API_HOST}:${API_PORT}/api/v1/text"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to display help
+show_help() {
+    cat << EOF
+Text Tools CLI - Comprehensive text processing platform
+
+USAGE:
+    text-tools <command> [options] [arguments]
+
+COMMANDS:
+    diff <file1> <file2>           Compare two text files
+    search <pattern> [files...]    Search for patterns in text
+    transform <input>              Transform text format or encoding
+    extract <source>               Extract text from various formats
+    analyze <input>                Perform NLP analysis on text
+    status                         Show service status
+    help                          Show this help message
+    version                       Show version information
+
+DIFF OPTIONS:
+    --type <line|word|char>       Diff algorithm (default: line)
+    --ignore-whitespace           Ignore whitespace differences
+    --ignore-case                 Ignore case differences
+    --output <format>             Output format (unified|json)
+
+SEARCH OPTIONS:
+    --regex                       Use regex pattern matching
+    --case-sensitive              Case sensitive search
+    --whole-word                  Match whole words only
+    --fuzzy                       Enable fuzzy matching
+    --semantic                    Use semantic search (requires Ollama)
+
+TRANSFORM OPTIONS:
+    --upper                       Convert to uppercase
+    --lower                       Convert to lowercase
+    --title                       Convert to title case
+    --base64                      Encode/decode base64
+    --format <json|xml|yaml>      Format structured data
+    --sanitize                    Remove HTML and normalize whitespace
+
+EXTRACT OPTIONS:
+    --format <pdf|html|docx|auto> Source format (default: auto)
+    --ocr                         Use OCR for images
+    --metadata                    Extract metadata
+
+ANALYZE OPTIONS:
+    --entities                    Extract named entities
+    --sentiment                   Analyze sentiment
+    --summary [length]            Generate summary
+    --keywords                    Extract keywords
+    --language                    Detect language
+
+EXAMPLES:
+    # Compare two files
+    text-tools diff file1.txt file2.txt --type word
+
+    # Search for pattern
+    text-tools search "TODO" *.js --regex
+
+    # Transform text
+    text-tools transform input.txt --lower --sanitize
+
+    # Extract from PDF
+    text-tools extract document.pdf --ocr
+
+    # Analyze text
+    text-tools analyze article.txt --summary 200 --keywords
+
+EOF
+}
+
+# Function to check if API is available
+check_api() {
+    if ! curl -sf "${API_URL%/text}/health" > /dev/null 2>&1; then
+        echo -e "${RED}Error: Text Tools API is not running on ${API_HOST}:${API_PORT}${NC}" >&2
+        echo "Start it with: vrooli scenario run text-tools" >&2
+        exit 1
+    fi
+}
+
+# Function to read file or stdin
+read_input() {
+    local input="$1"
+    if [[ "$input" == "-" ]]; then
+        cat
+    elif [[ -f "$input" ]]; then
+        cat "$input"
+    else
+        echo "$input"
+    fi
+}
+
+# Diff command
+cmd_diff() {
+    local file1=""
+    local file2=""
+    local type="line"
+    local ignore_whitespace=false
+    local ignore_case=false
+    local output_format="unified"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --type)
+                type="$2"
+                shift 2
+                ;;
+            --ignore-whitespace)
+                ignore_whitespace=true
+                shift
+                ;;
+            --ignore-case)
+                ignore_case=true
+                shift
+                ;;
+            --output)
+                output_format="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$file1" ]]; then
+                    file1="$1"
+                elif [[ -z "$file2" ]]; then
+                    file2="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$file1" ]] || [[ -z "$file2" ]]; then
+        echo -e "${RED}Error: Two files required for diff${NC}" >&2
+        exit 1
+    fi
+    
+    local text1=$(read_input "$file1")
+    local text2=$(read_input "$file2")
+    
+    local json_payload=$(jq -n \
+        --arg text1 "$text1" \
+        --arg text2 "$text2" \
+        --arg type "$type" \
+        --argjson ignore_ws "$ignore_whitespace" \
+        --argjson ignore_case "$ignore_case" \
+        '{
+            text1: $text1,
+            text2: $text2,
+            options: {
+                type: $type,
+                ignore_whitespace: $ignore_ws,
+                ignore_case: $ignore_case
+            }
+        }')
+    
+    local response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$json_payload" \
+        "${API_URL}/diff")
+    
+    if [[ "$output_format" == "json" ]]; then
+        echo "$response" | jq '.'
+    else
+        # Format as unified diff
+        echo "$response" | jq -r '.summary'
+        echo "$response" | jq -r '.changes[] | "[\(.type)] Line \(.line_start): \(.content)"'
+    fi
+}
+
+# Search command
+cmd_search() {
+    local pattern=""
+    local text=""
+    local regex=false
+    local case_sensitive=false
+    local whole_word=false
+    local fuzzy=false
+    local semantic=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --regex)
+                regex=true
+                shift
+                ;;
+            --case-sensitive)
+                case_sensitive=true
+                shift
+                ;;
+            --whole-word)
+                whole_word=true
+                shift
+                ;;
+            --fuzzy)
+                fuzzy=true
+                shift
+                ;;
+            --semantic)
+                semantic=true
+                shift
+                ;;
+            *)
+                if [[ -z "$pattern" ]]; then
+                    pattern="$1"
+                else
+                    # Remaining args are files to search
+                    text="${text}$(read_input "$1")\n"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$pattern" ]]; then
+        echo -e "${RED}Error: Search pattern required${NC}" >&2
+        exit 1
+    fi
+    
+    # If no text provided, read from stdin
+    if [[ -z "$text" ]]; then
+        text=$(cat)
+    fi
+    
+    local json_payload=$(jq -n \
+        --arg text "$text" \
+        --arg pattern "$pattern" \
+        --argjson regex "$regex" \
+        --argjson case_sensitive "$case_sensitive" \
+        --argjson whole_word "$whole_word" \
+        --argjson fuzzy "$fuzzy" \
+        --argjson semantic "$semantic" \
+        '{
+            text: $text,
+            pattern: $pattern,
+            options: {
+                regex: $regex,
+                case_sensitive: $case_sensitive,
+                whole_word: $whole_word,
+                fuzzy: $fuzzy,
+                semantic: $semantic
+            }
+        }')
+    
+    local response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$json_payload" \
+        "${API_URL}/search")
+    
+    echo "$response" | jq -r '
+        "Found \(.total_matches) matches",
+        (.matches[] | "Line \(.line): \(.context)")
+    '
+}
+
+# Transform command
+cmd_transform() {
+    local input=""
+    local transformations=()
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --upper)
+                transformations+=('{"type":"case","parameters":{"type":"upper"}}')
+                shift
+                ;;
+            --lower)
+                transformations+=('{"type":"case","parameters":{"type":"lower"}}')
+                shift
+                ;;
+            --title)
+                transformations+=('{"type":"case","parameters":{"type":"title"}}')
+                shift
+                ;;
+            --base64)
+                transformations+=('{"type":"encode","parameters":{"type":"base64"}}')
+                shift
+                ;;
+            --format)
+                transformations+=("{\"type\":\"format\",\"parameters\":{\"type\":\"$2\"}}")
+                shift 2
+                ;;
+            --sanitize)
+                transformations+=('{"type":"sanitize","parameters":{}}')
+                shift
+                ;;
+            *)
+                input="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input" ]]; then
+        input="-"
+    fi
+    
+    local text=$(read_input "$input")
+    
+    # Build transformations array
+    local trans_json="["
+    for i in "${!transformations[@]}"; do
+        if [[ $i -gt 0 ]]; then
+            trans_json+=","
+        fi
+        trans_json+="${transformations[$i]}"
+    done
+    trans_json+="]"
+    
+    local json_payload=$(jq -n \
+        --arg text "$text" \
+        --argjson transformations "$trans_json" \
+        '{
+            text: $text,
+            transformations: $transformations
+        }')
+    
+    local response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$json_payload" \
+        "${API_URL}/transform")
+    
+    echo "$response" | jq -r '.result'
+}
+
+# Extract command
+cmd_extract() {
+    local source=""
+    local format="auto"
+    local ocr=false
+    local metadata=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --ocr)
+                ocr=true
+                shift
+                ;;
+            --metadata)
+                metadata=true
+                shift
+                ;;
+            *)
+                source="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$source" ]]; then
+        echo -e "${RED}Error: Source file required${NC}" >&2
+        exit 1
+    fi
+    
+    local json_payload
+    if [[ "$source" =~ ^https?:// ]]; then
+        json_payload=$(jq -n \
+            --arg url "$source" \
+            --arg format "$format" \
+            --argjson ocr "$ocr" \
+            --argjson metadata "$metadata" \
+            '{
+                source: {url: $url},
+                format: $format,
+                options: {
+                    ocr: $ocr,
+                    extract_metadata: $metadata
+                }
+            }')
+    else
+        # For file input, encode as base64
+        local content=$(base64 < "$source")
+        json_payload=$(jq -n \
+            --arg file "$content" \
+            --arg format "$format" \
+            --argjson ocr "$ocr" \
+            --argjson metadata "$metadata" \
+            '{
+                source: {file: $file},
+                format: $format,
+                options: {
+                    ocr: $ocr,
+                    extract_metadata: $metadata
+                }
+            }')
+    fi
+    
+    local response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$json_payload" \
+        "${API_URL}/extract")
+    
+    if [[ "$metadata" == "true" ]]; then
+        echo "$response" | jq '.'
+    else
+        echo "$response" | jq -r '.text'
+    fi
+}
+
+# Analyze command
+cmd_analyze() {
+    local input=""
+    local analyses=()
+    local summary_length=0
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --entities)
+                analyses+=("entities")
+                shift
+                ;;
+            --sentiment)
+                analyses+=("sentiment")
+                shift
+                ;;
+            --summary)
+                analyses+=("summary")
+                if [[ $# -gt 1 ]] && [[ "$2" =~ ^[0-9]+$ ]]; then
+                    summary_length=$2
+                    shift
+                fi
+                shift
+                ;;
+            --keywords)
+                analyses+=("keywords")
+                shift
+                ;;
+            --language)
+                analyses+=("language")
+                shift
+                ;;
+            *)
+                input="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input" ]]; then
+        input="-"
+    fi
+    
+    local text=$(read_input "$input")
+    
+    # Build analyses array
+    local analyses_json=$(printf '%s\n' "${analyses[@]}" | jq -R . | jq -s .)
+    
+    local json_payload=$(jq -n \
+        --arg text "$text" \
+        --argjson analyses "$analyses_json" \
+        --argjson summary_length "$summary_length" \
+        '{
+            text: $text,
+            analyses: $analyses,
+            options: {
+                summary_length: $summary_length
+            }
+        }')
+    
+    local response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$json_payload" \
+        "${API_URL}/analyze")
+    
+    echo "$response" | jq '.'
+}
+
+# Status command
+cmd_status() {
+    local response=$(curl -sf "${API_URL%/text}/health")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}Text Tools Status${NC}"
+        echo "$response" | jq '.'
+    else
+        echo -e "${RED}Text Tools API is not responding${NC}"
+        exit 1
+    fi
+}
+
+# Version command
+cmd_version() {
+    echo "Text Tools CLI v1.0.0"
+    echo "API: ${API_URL}"
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        diff)
+            check_api
+            cmd_diff "$@"
+            ;;
+        search)
+            check_api
+            cmd_search "$@"
+            ;;
+        transform)
+            check_api
+            cmd_transform "$@"
+            ;;
+        extract)
+            check_api
+            cmd_extract "$@"
+            ;;
+        analyze)
+            check_api
+            cmd_analyze "$@"
+            ;;
+        status)
+            cmd_status
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            echo -e "${RED}Unknown command: $command${NC}" >&2
+            echo "Run 'text-tools help' for usage information" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Check for jq dependency
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}Error: jq is required but not installed${NC}" >&2
+    echo "Install with: apt-get install jq (Ubuntu) or brew install jq (Mac)" >&2
+    exit 1
+fi
+
+# Run main function
+main "$@"

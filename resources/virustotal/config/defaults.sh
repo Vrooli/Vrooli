@@ -1,0 +1,74 @@
+#!/bin/bash
+# VirusTotal Resource Default Configuration
+# v2.0 Contract Compliant
+
+# Service configuration
+export VIRUSTOTAL_PORT="${VIRUSTOTAL_PORT:-8290}"
+export VIRUSTOTAL_HOST="${VIRUSTOTAL_HOST:-localhost}"
+export VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY:-}"
+export VIRUSTOTAL_API_TIER="${VIRUSTOTAL_API_TIER:-free}"  # free or premium
+
+# API limits based on tier
+if [[ "${VIRUSTOTAL_API_TIER}" == "premium" ]]; then
+    export VIRUSTOTAL_RATE_LIMIT="${VIRUSTOTAL_RATE_LIMIT:-1000}"  # per minute
+    export VIRUSTOTAL_DAILY_LIMIT="${VIRUSTOTAL_DAILY_LIMIT:-999999}"  # effectively unlimited
+else
+    export VIRUSTOTAL_RATE_LIMIT="${VIRUSTOTAL_RATE_LIMIT:-4}"  # per minute
+    export VIRUSTOTAL_DAILY_LIMIT="${VIRUSTOTAL_DAILY_LIMIT:-500}"  # per day
+fi
+
+# Paths and storage
+export VIRUSTOTAL_DATA_DIR="${VIRUSTOTAL_DATA_DIR:-${HOME}/.vrooli/resources/virustotal}"
+export VIRUSTOTAL_CACHE_DIR="${VIRUSTOTAL_CACHE_DIR:-${VIRUSTOTAL_DATA_DIR}/cache}"
+export VIRUSTOTAL_LOG_DIR="${VIRUSTOTAL_LOG_DIR:-${VIRUSTOTAL_DATA_DIR}/logs}"
+
+# Docker configuration
+export VIRUSTOTAL_CONTAINER_NAME="${VIRUSTOTAL_CONTAINER_NAME:-vrooli-virustotal}"
+export VIRUSTOTAL_IMAGE_NAME="${VIRUSTOTAL_IMAGE_NAME:-vrooli/virustotal:latest}"
+
+# Behavior configuration
+export VIRUSTOTAL_CACHE_ENABLED="${VIRUSTOTAL_CACHE_ENABLED:-true}"
+export VIRUSTOTAL_CACHE_TTL="${VIRUSTOTAL_CACHE_TTL:-86400}"  # 24 hours in seconds
+export VIRUSTOTAL_AUTO_RETRY="${VIRUSTOTAL_AUTO_RETRY:-true}"
+export VIRUSTOTAL_MAX_RETRIES="${VIRUSTOTAL_MAX_RETRIES:-3}"
+export VIRUSTOTAL_RETRY_DELAY="${VIRUSTOTAL_RETRY_DELAY:-60}"  # seconds
+
+# Redis cache configuration (optional)
+export VIRUSTOTAL_USE_REDIS="${VIRUSTOTAL_USE_REDIS:-false}"
+export VIRUSTOTAL_REDIS_DB="${VIRUSTOTAL_REDIS_DB:-0}"
+export VIRUSTOTAL_REDIS_TTL="${VIRUSTOTAL_REDIS_TTL:-86400}"  # 24 hours
+# Redis connection details (shared with other resources)
+# Note: Vrooli's Redis resource uses port 6380 by default
+export REDIS_HOST="${REDIS_HOST:-localhost}"
+export REDIS_PORT="${REDIS_PORT:-6380}"
+
+# Scan configuration
+export VIRUSTOTAL_MAX_FILE_SIZE="${VIRUSTOTAL_MAX_FILE_SIZE:-650000000}"  # 650MB for premium, 32MB for free
+export VIRUSTOTAL_SCAN_TIMEOUT="${VIRUSTOTAL_SCAN_TIMEOUT:-300}"  # 5 minutes
+export VIRUSTOTAL_BATCH_SIZE="${VIRUSTOTAL_BATCH_SIZE:-10}"  # files per batch
+
+# Security configuration
+export VIRUSTOTAL_SHARE_SAMPLES="${VIRUSTOTAL_SHARE_SAMPLES:-false}"  # privacy by default
+export VIRUSTOTAL_LOG_SENSITIVE="${VIRUSTOTAL_LOG_SENSITIVE:-false}"  # don't log file contents
+
+# Performance tuning
+export VIRUSTOTAL_WORKER_THREADS="${VIRUSTOTAL_WORKER_THREADS:-2}"
+export VIRUSTOTAL_CONNECTION_TIMEOUT="${VIRUSTOTAL_CONNECTION_TIMEOUT:-30}"
+export VIRUSTOTAL_READ_TIMEOUT="${VIRUSTOTAL_READ_TIMEOUT:-120}"
+
+# Health check configuration
+export VIRUSTOTAL_HEALTH_CHECK_INTERVAL="${VIRUSTOTAL_HEALTH_CHECK_INTERVAL:-30}"
+export VIRUSTOTAL_HEALTH_CHECK_TIMEOUT="${VIRUSTOTAL_HEALTH_CHECK_TIMEOUT:-3}"
+export VIRUSTOTAL_HEALTH_CHECK_RETRIES="${VIRUSTOTAL_HEALTH_CHECK_RETRIES:-3}"
+
+# Integration settings
+export VIRUSTOTAL_WEBHOOK_ENABLED="${VIRUSTOTAL_WEBHOOK_ENABLED:-false}"
+export VIRUSTOTAL_WEBHOOK_URL="${VIRUSTOTAL_WEBHOOK_URL:-}"
+export VIRUSTOTAL_WEBHOOK_SECRET="${VIRUSTOTAL_WEBHOOK_SECRET:-}"
+
+# Logging configuration
+export VIRUSTOTAL_LOG_LEVEL="${VIRUSTOTAL_LOG_LEVEL:-INFO}"
+export VIRUSTOTAL_LOG_FORMAT="${VIRUSTOTAL_LOG_FORMAT:-json}"
+export VIRUSTOTAL_LOG_ROTATE="${VIRUSTOTAL_LOG_ROTATE:-true}"
+export VIRUSTOTAL_LOG_MAX_SIZE="${VIRUSTOTAL_LOG_MAX_SIZE:-100M}"
+export VIRUSTOTAL_LOG_MAX_FILES="${VIRUSTOTAL_LOG_MAX_FILES:-10}"

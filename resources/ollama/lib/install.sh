@@ -1,0 +1,669 @@
+#!/usr/bin/env bash
+
+# Ollama Installation Functions
+# This file contains all installation, uninstallation, and verification functions
+
+# Source sudo utilities if not already available
+if ! command -v sudo::exec_with_fallback &>/dev/null; then
+    # shellcheck disable=SC1091
+    source "${var_LIB_UTILS_DIR}/sudo.sh"
+fi
+
+# Source system commands if not already available
+if ! command -v system::is_command &>/dev/null; then
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+fi
+
+#######################################
+# Install Ollama binary with rollback support
+#######################################
+ollama::install_binary() {
+    if ollama::is_installed && [[ "$FORCE" != "yes" ]]; then
+        log::info "$MSG_OLLAMA_ALREADY_INSTALLED"
+        return 0
+    fi
+    
+    log::info "$MSG_OLLAMA_INSTALLING"
+    
+    # Download and install using official installer
+    local install_script
+    install_script=$(mktemp) || {
+        log::error "$MSG_DOWNLOAD_FAILED"
+        return 1
+    }
+    
+    # Add rollback action for cleanup
+    resources::add_rollback_action \
+        "Clean up Ollama installer script" \
+        "rm -f \"$install_script\"" \
+        1
+    
+    if ! resources::download_file "https://ollama.com/install.sh" "$install_script"; then
+        log::error "$MSG_DOWNLOAD_FAILED"
+        return 1
+    fi
+    
+    # Verify the installer is valid
+    if [[ ! -s "$install_script" ]]; then
+        log::error "$MSG_INSTALLER_EMPTY"
+        return 1
+    fi
+    
+    # Make executable and run non-interactively with specific version
+    chmod +x "$install_script"
+    
+    if sudo::can_use_sudo; then
+        # Run installer non-interactively with specific version
+        # OLLAMA_VERSION environment variable is respected by the official installer
+        if sudo::exec_with_fallback "OLLAMA_VERSION='$OLLAMA_VERSION' yes | bash '$install_script' 2>&1"; then
+            log::success "$MSG_INSTALLER_SUCCESS"
+        else
+            log::error "$MSG_INSTALLER_FAILED"
+            return 1
+        fi
+    else
+        log::error "$MSG_SUDO_REQUIRED"
+        return 1
+    fi
+    
+    # Clean up installer
+    rm -f "$install_script"
+    
+    # Verify installation
+    if ollama::is_installed; then
+        log::success "$MSG_BINARY_INSTALL_SUCCESS"
+        
+        # Add rollback action for binary removal
+        resources::add_rollback_action \
+            "Remove Ollama binary" \
+            "sudo::exec_with_fallback 'rm -f /usr/local/bin/ollama' 2>/dev/null || true" \
+            20
+        
+        return 0
+    else
+        log::error "$MSG_BINARY_INSTALL_FAILED"
+        return 1
+    fi
+}
+
+#######################################
+# Check if existing Ollama service needs parallel processing configuration update
+# Returns: 0 if update needed, 1 if not
+#######################################
+ollama::needs_parallel_config_update() {
+    if [[ ! -f "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" ]]; then
+        return 1  # No service file exists
+    fi
+    
+    # Check if service already has parallel processing environment variables
+    if grep -q "OLLAMA_NUM_PARALLEL" "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" 2>/dev/null; then
+        local current_parallel
+        current_parallel=$(grep "OLLAMA_NUM_PARALLEL" "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" | sed 's/.*OLLAMA_NUM_PARALLEL=\([0-9]*\).*/\1/')
+        
+        # If current setting is less than our optimized value, update needed
+        if [[ "${current_parallel:-1}" -lt "$OLLAMA_NUM_PARALLEL" ]]; then
+            log::debug "Current OLLAMA_NUM_PARALLEL ($current_parallel) is less than optimized ($OLLAMA_NUM_PARALLEL)"
+            return 0  # Update needed
+        else
+            log::debug "Service already has optimal or better parallel configuration"
+            return 1  # No update needed
+        fi
+    else
+        log::debug "Service missing parallel processing configuration"
+        return 0  # Update needed
+    fi
+}
+
+#######################################
+# Update existing Ollama service with parallel processing configuration
+# Returns: 0 on success, 1 on failure
+#######################################
+ollama::update_service_config() {
+    if ! sudo::can_use_sudo; then
+        log::warn "Cannot update service configuration - sudo access required"
+        log::info "Service will work but with reduced performance (sequential processing)"
+        return 1
+    fi
+    
+    local service_file="/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service"
+    local backup_file="${service_file}.backup-$(date +%Y%m%d-%H%M%S)"
+    
+    # Create backup of existing service file
+    if ! sudo::exec_with_fallback "cp '$service_file' '$backup_file'"; then
+        log::error "Failed to create backup of service file"
+        return 1
+    fi
+    
+    # Generate updated service content with parallel processing configuration
+    local updated_service_content="[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ollama serve
+User=$OLLAMA_USER
+Group=$OLLAMA_USER
+Restart=always
+RestartSec=3
+Environment=\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"
+Environment=\"OLLAMA_HOST=0.0.0.0:$OLLAMA_PORT\"
+Environment=\"OLLAMA_NUM_PARALLEL=$OLLAMA_NUM_PARALLEL\"
+Environment=\"OLLAMA_MAX_LOADED_MODELS=$OLLAMA_MAX_LOADED_MODELS\"
+Environment=\"OLLAMA_FLASH_ATTENTION=$OLLAMA_FLASH_ATTENTION\"
+Environment=\"OLLAMA_ORIGINS=$OLLAMA_ORIGINS\"
+
+[Install]
+WantedBy=default.target"
+    
+    # Write updated service content
+    if sudo::exec_with_fallback "echo '$updated_service_content' > '$service_file'"; then
+        log::success "Updated service configuration with parallel processing optimizations"
+        
+        # Reload systemd configuration
+        if sudo::exec_with_fallback "systemctl daemon-reload"; then
+            log::info "SystemD configuration reloaded successfully"
+            
+            # Add rollback action
+            resources::add_rollback_action \
+                "Restore original Ollama service configuration" \
+                "sudo::exec_with_fallback 'cp $backup_file $service_file' 2>/dev/null && sudo::exec_with_fallback 'systemctl daemon-reload' 2>/dev/null" \
+                15
+                
+            return 0
+        else
+            log::error "Failed to reload systemd configuration"
+            # Restore backup
+            sudo::exec_with_fallback "cp '$backup_file' '$service_file'" 2>/dev/null || true
+            return 1
+        fi
+    else
+        log::error "Failed to update service configuration"
+        return 1
+    fi
+}
+
+#######################################
+# Create Ollama user if it doesn't exist
+#######################################
+ollama::create_user() {
+    if id "$OLLAMA_USER" &>/dev/null; then
+        log::info "User $OLLAMA_USER already exists"
+        return 0
+    fi
+    
+    if ! sudo::can_use_sudo; then
+        log::error "$MSG_USER_SUDO_REQUIRED"
+        return 1
+    fi
+    
+    log::info "Creating $OLLAMA_USER user..."
+    
+    if sudo::exec_with_fallback "useradd -r -s /bin/false -d /usr/share/ollama -c 'Ollama service user' '$OLLAMA_USER'"; then
+        log::success "$MSG_USER_CREATE_SUCCESS"
+        
+        # Add rollback action for user removal
+        resources::add_rollback_action \
+            "Remove Ollama user" \
+            "sudo::exec_with_fallback 'userdel $OLLAMA_USER' 2>/dev/null || true" \
+            15
+        
+        return 0
+    else
+        log::error "$MSG_USER_CREATE_FAILED"
+        return 1
+    fi
+}
+
+#######################################
+# Setup sudo permissions for Ollama service management
+#######################################
+ollama::setup_sudo_permissions() {
+    log::info "Setting up sudo permissions for Ollama service management..."
+    
+    # Get the actual user (not root if running with sudo)
+    local actual_user
+    actual_user=$(sudo::get_actual_user)
+    
+    if [[ -z "$actual_user" || "$actual_user" == "root" ]]; then
+        log::warn "Cannot determine actual user or user is root, skipping sudo permissions setup"
+        return 0
+    fi
+    
+    local sudoers_file="/etc/sudoers.d/ollama-service"
+    local sudoers_content="# Ollama service management permissions
+# Generated by Vrooli Ollama installation
+$actual_user ALL=(ALL) NOPASSWD: /usr/bin/systemctl start ollama, /usr/bin/systemctl stop ollama, /usr/bin/systemctl restart ollama, /usr/bin/systemctl status ollama, /usr/bin/systemctl is-active ollama"
+    
+    # Create the sudoers file
+    if sudo::exec_with_fallback "echo '$sudoers_content' > '$sudoers_file'"; then
+        # Set correct permissions
+        if sudo::exec_with_fallback "chmod 0440 '$sudoers_file'"; then
+            log::success "Sudo permissions configured for user '$actual_user'"
+            
+            # Add rollback action
+            resources::add_rollback_action \
+                "Remove Ollama sudo permissions" \
+                "sudo::exec_with_fallback 'rm -f $sudoers_file' 2>/dev/null || true" \
+                25
+            
+            return 0
+        else
+            log::error "Failed to set permissions on sudoers file"
+            sudo::exec_with_fallback "rm -f '$sudoers_file'" 2>/dev/null || true
+            return 1
+        fi
+    else
+        log::error "Failed to create sudoers file"
+        return 1
+    fi
+}
+
+#######################################
+# Install Ollama systemd service with rollback support
+#######################################
+ollama::install_service() {
+    # Check if systemd service already exists (installed by official installer)
+    if systemctl list-unit-files | grep -q "^${OLLAMA_SERVICE_NAME}.service"; then
+        log::info "Ollama systemd service already exists (installed by official installer)"
+        
+        # Check if service needs parallel processing configuration update
+        if ollama::needs_parallel_config_update; then
+            log::info "Updating service configuration with parallel processing optimizations..."
+            if ollama::update_service_config; then
+                log::success "Service configuration updated with parallel processing support"
+            else
+                log::warn "Failed to update service configuration, but service exists"
+            fi
+        else
+            log::info "Service already has optimal parallel processing configuration"
+        fi
+        
+        # Ensure service is enabled
+        if sudo::can_use_sudo; then
+            sudo::exec_with_fallback "systemctl enable '$OLLAMA_SERVICE_NAME'" 2>/dev/null || true
+        fi
+        
+        return 0
+    fi
+    
+    # Only create service if it doesn't exist
+    local service_content="[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ollama serve
+User=$OLLAMA_USER
+Group=$OLLAMA_USER
+Restart=always
+RestartSec=3
+Environment=\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"
+Environment=\"OLLAMA_HOST=0.0.0.0:$OLLAMA_PORT\"
+Environment=\"OLLAMA_NUM_PARALLEL=$OLLAMA_NUM_PARALLEL\"
+Environment=\"OLLAMA_MAX_LOADED_MODELS=$OLLAMA_MAX_LOADED_MODELS\"
+Environment=\"OLLAMA_FLASH_ATTENTION=$OLLAMA_FLASH_ATTENTION\"
+Environment=\"OLLAMA_ORIGINS=$OLLAMA_ORIGINS\"
+
+[Install]
+WantedBy=default.target"
+    
+    log::info "Installing Ollama systemd service..."
+    
+    if ! sudo::can_use_sudo; then
+        resources::handle_error \
+            "Sudo privileges required to install systemd service" \
+            "permission" \
+            "Run 'sudo -v' to authenticate and retry"
+        return 1
+    fi
+    
+    if resources::install_systemd_service "$OLLAMA_SERVICE_NAME" "$service_content"; then
+        log::success "$MSG_SERVICE_INSTALL_SUCCESS"
+        
+        # Add rollback action for service removal
+        resources::add_rollback_action \
+            "Remove Ollama systemd service" \
+            "sudo::exec_with_fallback 'systemctl stop $OLLAMA_SERVICE_NAME' 2>/dev/null || true; sudo::exec_with_fallback 'systemctl disable $OLLAMA_SERVICE_NAME' 2>/dev/null || true; sudo::exec_with_fallback 'rm -f /etc/systemd/system/${OLLAMA_SERVICE_NAME}.service' 2>/dev/null || true; sudo::exec_with_fallback 'systemctl daemon-reload' 2>/dev/null || true" \
+            18
+        
+        return 0
+    else
+        resources::handle_error \
+            "Failed to install Ollama systemd service" \
+            "system" \
+            "Check systemd status and permissions: systemctl status systemd"
+        return 1
+    fi
+}
+
+#######################################
+# Complete Ollama installation with comprehensive error handling
+#######################################
+ollama::install() {
+    log::header "🤖 Installing Ollama"
+    
+    # Start rollback context
+    resources::start_rollback_context "install_ollama"
+    
+    # Check if already installed and running
+    if ollama::is_installed && ollama::is_running && [[ "$FORCE" != "yes" ]]; then
+        log::info "Ollama is already installed and running"
+        log::info "Use --force yes to reinstall, or --action status to check current state"
+        return 0
+    fi
+    
+    # Validate prerequisites
+    if ! sudo::can_use_sudo; then
+        resources::handle_error \
+            "Ollama installation requires sudo privileges for system service management" \
+            "permission" \
+            "Run 'sudo -v' to authenticate, then retry installation"
+        return 1
+    fi
+    
+    # Validate port assignment
+    local port_validation_result
+    resources::validate_port "ollama" "$OLLAMA_PORT" "$FORCE"
+    port_validation_result=$?
+    
+    case "$port_validation_result" in
+        0)
+            log::info "Port $OLLAMA_PORT validated successfully for Ollama"
+            ;;
+        1)
+            log::error "$MSG_PORT_CONFLICT"
+            log::info "You can set a custom port with: export OLLAMA_CUSTOM_PORT=<port>"
+            return 1
+            ;;
+        2)
+            log::warn "$MSG_PORT_WARNING"
+            log::info "Installation may succeed if the existing service is compatible"
+            ;;
+        *)
+            log::warn "$MSG_PORT_UNEXPECTED"
+            ;;
+    esac
+    
+    # Check network connectivity
+    if ! curl -s --max-time 5 https://ollama.com > /dev/null; then
+        resources::handle_error \
+            "Cannot connect to ollama.com for installation" \
+            "network" \
+            "Check internet connection and firewall settings"
+        return 1
+    fi
+    
+    # Install binary with error handling
+    if ! ollama::install_binary; then
+        resources::handle_error \
+            "Failed to install Ollama binary" \
+            "system" \
+            "Check system requirements and available disk space"
+        return 1
+    fi
+    
+    # Create user with rollback
+    if ! ollama::create_user; then
+        resources::handle_error \
+            "Failed to create ollama user" \
+            "system" \
+            "Check user creation permissions and existing user conflicts"
+        return 1
+    fi
+    
+    # Install service with rollback
+    if ! ollama::install_service; then
+        resources::handle_error \
+            "Failed to install Ollama systemd service" \
+            "system" \
+            "Check systemd status and service file permissions"
+        return 1
+    fi
+    
+    # Setup sudo permissions for service management
+    if ! ollama::setup_sudo_permissions; then
+        log::warn "Failed to setup sudo permissions - you may need to manually run systemctl commands with sudo"
+        log::info "This won't prevent Ollama from working, but agents won't be able to manage the service"
+    fi
+    
+    # Start service with error handling
+    if ! ollama::start; then
+        resources::handle_error \
+            "Failed to start Ollama service" \
+            "system" \
+            "Check service logs: journalctl -u ollama -n 20"
+        return 1
+    fi
+    
+    # Install models with error handling
+    if ! ollama::install_models; then
+        log::warn "$MSG_MODELS_INSTALL_FAILED"
+        log::info "You can install models manually later with: ollama pull <model-name>"
+    fi
+    
+    # At this point, Ollama is successfully installed
+    # Clear rollback context to prevent removing it if config update fails
+    log::info "Ollama core installation completed successfully"
+    ROLLBACK_ACTIONS=()
+    OPERATION_ID=""
+    
+    # Update Vrooli configuration (non-critical)
+    if ! ollama::update_config; then
+        log::warn "$MSG_CONFIG_UPDATE_FAILED"
+        log::info "You may need to configure Vrooli manually to use this Ollama instance"
+    fi
+    
+    # Validate installation (informational only, don't fail)
+    if ! ollama::verify_installation; then
+        log::warn "$MSG_VERIFICATION_FAILED"
+        log::info "Check service status with: systemctl status ollama"
+    else
+        log::success "$MSG_OLLAMA_INSTALL_SUCCESS"
+    fi
+    
+    # Show status
+    echo
+    ollama::status
+}
+
+#######################################
+# Verify Ollama installation is complete and functional
+#######################################
+ollama::verify_installation() {
+    log::info "Verifying Ollama installation..."
+    
+    local verification_errors=()
+    local verification_warnings=()
+    
+    # Check binary installation
+    if ! ollama::is_installed; then
+        verification_errors+=("Ollama binary not found in PATH")
+    else
+        log::success "$MSG_STATUS_BINARY_OK"
+    fi
+    
+    # Check user exists
+    if ! id "$OLLAMA_USER" &>/dev/null; then
+        verification_errors+=("Ollama user '$OLLAMA_USER' does not exist")
+    else
+        log::success "$MSG_STATUS_USER_OK"
+    fi
+    
+    # Check systemd service (check if service exists anywhere in systemd)
+    if ! systemctl status "$OLLAMA_SERVICE_NAME" &>/dev/null && ! systemctl list-unit-files | grep -q "^${OLLAMA_SERVICE_NAME}.service"; then
+        verification_errors+=("Ollama systemd service not found")
+    else
+        log::success "$MSG_STATUS_SERVICE_OK"
+        
+        # Check if service is enabled
+        if ! systemctl is-enabled "$OLLAMA_SERVICE_NAME" &>/dev/null; then
+            verification_warnings+=("Ollama service is not enabled for auto-start")
+        else
+            log::success "$MSG_STATUS_SERVICE_ENABLED"
+        fi
+    fi
+    
+    # Check service is running
+    if ! resources::is_service_active "$OLLAMA_SERVICE_NAME"; then
+        verification_errors+=("Ollama service is not running")
+    else
+        log::success "$MSG_STATUS_SERVICE_ACTIVE"
+    fi
+    
+    # Check port accessibility
+    if ! resources::is_service_running "$OLLAMA_PORT"; then
+        verification_errors+=("Ollama is not listening on port $OLLAMA_PORT")
+    else
+        log::success "$MSG_STATUS_PORT_OK"
+    fi
+    
+    # Check API health
+    if ! ollama::is_healthy; then
+        verification_warnings+=("Ollama API is not responding to health checks")
+    else
+        log::success "$MSG_STATUS_API_OK"
+    fi
+    
+    # Check models are available
+    local model_count=0
+    if system::is_command "ollama"; then
+        # Count lines that contain model names (skip header)
+        model_count=$(ollama list 2>/dev/null | tail -n +2 | wc -l || echo "0")
+        if [[ "$model_count" =~ ^[0-9]+$ ]] && [[ $model_count -gt 0 ]]; then
+            log::success "$MSG_MODELS_COUNT"
+        else
+            verification_warnings+=("No models are installed")
+        fi
+    fi
+    
+    # Check configuration
+    if [[ -f "$VROOLI_RESOURCES_CONFIG" ]]; then
+        if system::is_command "jq"; then
+            local config_exists
+            config_exists=$(jq -r '.services.ai.ollama // empty' "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
+            if [[ -n "$config_exists" && "$config_exists" != "null" ]]; then
+                log::success "✅ Ollama configured in Vrooli resources"
+            else
+                verification_warnings+=("Ollama not found in Vrooli resource configuration")
+            fi
+        fi
+    else
+        verification_warnings+=("Vrooli resource configuration file not found")
+    fi
+    
+    # Print verification summary
+    echo
+    log::header "🔍 Installation Verification Summary"
+    
+    if [[ ${#verification_errors[@]} -eq 0 ]]; then
+        log::success "✅ Ollama installation verification passed!"
+        
+        if [[ ${#verification_warnings[@]} -gt 0 ]]; then
+            echo
+            log::warn "⚠️  Warnings found:"
+            for warning in "${verification_warnings[@]}"; do
+                log::warn "  • $warning"
+            done
+            
+            echo
+            log::info "💡 These warnings don't prevent Ollama from working but may affect functionality"
+        fi
+        
+        echo
+        log::info "🚀 Ollama is ready to use!"
+        log::info "   Base URL: $OLLAMA_BASE_URL"
+        log::info "   Test API: curl $OLLAMA_BASE_URL/api/tags"
+        if [[ $model_count -gt 0 ]]; then
+            log::info "   Chat with a model: ollama run llama3.1:8b"
+        else
+            log::info "   Install a model: ollama pull llama3.1:8b"
+        fi
+        
+        return 0
+    else
+        log::error "❌ Ollama installation verification failed!"
+        echo
+        log::error "Errors found:"
+        for error in "${verification_errors[@]}"; do
+            log::error "  • $error"
+        done
+        
+        if [[ ${#verification_warnings[@]} -gt 0 ]]; then
+            echo
+            log::warn "Additional warnings:"
+            for warning in "${verification_warnings[@]}"; do
+                log::warn "  • $warning"
+            done
+        fi
+        
+        echo
+        log::info "💡 Try reinstalling with: $0 --action install --force yes"
+        
+        return 1
+    fi
+}
+
+#######################################
+# Uninstall Ollama
+#######################################
+ollama::uninstall() {
+    log::header "🗑️  Uninstalling Ollama"
+    
+    if ! flow::is_yes "$YES"; then
+        log::warn "This will completely remove Ollama, including all models and data"
+        read -p "Are you sure you want to continue? (y/N): " -r
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log::info "Uninstall cancelled"
+            return 0
+        fi
+    fi
+    
+    # Stop service
+    if resources::is_service_active "$OLLAMA_SERVICE_NAME"; then
+        ollama::stop
+    fi
+    
+    # Remove systemd service
+    if sudo::can_use_sudo && [[ -f "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" ]]; then
+        sudo::exec_with_fallback "systemctl disable '$OLLAMA_SERVICE_NAME'" 2>/dev/null || true
+        sudo::exec_with_fallback "rm -f '/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service'"
+        sudo::exec_with_fallback "systemctl daemon-reload"
+        log::info "Systemd service removed"
+    fi
+    
+    # Remove sudo permissions
+    if sudo::can_use_sudo && [[ -f "/etc/sudoers.d/ollama-service" ]]; then
+        sudo::exec_with_fallback "rm -f '/etc/sudoers.d/ollama-service'"
+        log::info "Sudo permissions removed"
+    fi
+    
+    # Remove binary
+    if sudo::can_use_sudo && [[ -f "${OLLAMA_INSTALL_DIR}/ollama" ]]; then
+        sudo::exec_with_fallback "rm -f '${OLLAMA_INSTALL_DIR}/ollama'"
+        log::info "Ollama binary removed"
+    fi
+    
+    # Remove user (optional - may have other uses)
+    if id "$OLLAMA_USER" &>/dev/null && sudo::can_use_sudo; then
+        read -p "Remove $OLLAMA_USER user? (y/N): " -r
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            sudo::exec_with_fallback "userdel '$OLLAMA_USER'" 2>/dev/null || true
+            log::info "User $OLLAMA_USER removed"
+        fi
+    fi
+    
+    # Remove from Vrooli config
+    resources::remove_config "ai" "ollama"
+    
+    log::success "✅ Ollama uninstalled successfully"
+}
+
+# Export functions for subshell availability
+export -f ollama::install_binary
+export -f ollama::create_user
+export -f ollama::setup_sudo_permissions
+export -f ollama::install_service
+export -f ollama::install
+export -f ollama::verify_installation
+export -f ollama::uninstall

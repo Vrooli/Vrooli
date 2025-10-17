@@ -1,0 +1,21 @@
+# Ecommerce Template Network Profile
+# Networks optimized for ecommerce automation workflows  
+# One network per line, comments start with #
+
+# Core business process automation
+n8n-network
+
+# Real-time inventory and order monitoring
+node-red-network
+
+# Product data scraping and price monitoring
+browserless-network
+
+# File storage for product images and documents
+minio-network
+
+# Vector search for product recommendations
+qdrant-network
+
+# Market research and competitor analysis
+searxng-network

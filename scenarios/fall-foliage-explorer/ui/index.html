@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall Foliage Explorer - Track Autumn's Beauty</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header with autumn theme -->
+        <header class="autumn-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <svg class="leaf-icon" viewBox="0 0 24 24" width="32" height="32">
+                        <path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z" />
+                    </svg>
+                    <h1>Fall Foliage Explorer</h1>
+                </div>
+                <nav class="nav-menu">
+                    <button class="nav-btn active" data-view="map">Map View</button>
+                    <button class="nav-btn" data-view="timeline">Timeline</button>
+                    <button class="nav-btn" data-view="regions">Regions</button>
+                    <button class="nav-btn" data-view="planner">Trip Planner</button>
+                    <button class="nav-btn" data-view="gallery">Photo Gallery</button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main content area -->
+        <main class="main-content">
+            <!-- Map View -->
+            <div id="map-view" class="view-panel active">
+                <div class="map-controls">
+                    <div class="time-slider-container">
+                        <label for="time-slider">
+                            <span class="slider-label">Foliage Timeline</span>
+                            <span id="selected-date" class="selected-date">October 15, 2025</span>
+                        </label>
+                        <input type="range" id="time-slider" min="0" max="60" value="30" class="autumn-slider">
+                        <div class="slider-labels">
+                            <span>Sep 1</span>
+                            <span>Oct 1</span>
+                            <span>Nov 1</span>
+                        </div>
+                    </div>
+                    <div class="legend">
+                        <h3>Foliage Status</h3>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #2d5a2d;"></span>
+                            <span>Not Started</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #8b7355;"></span>
+                            <span>Progressing</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #ff8c00;"></span>
+                            <span>Near Peak</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #dc143c;"></span>
+                            <span>Peak</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #8b4513;"></span>
+                            <span>Past Peak</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="map" class="foliage-map"></div>
+            </div>
+
+            <!-- Timeline View -->
+            <div id="timeline-view" class="view-panel">
+                <div class="timeline-container">
+                    <h2>Foliage Progression Timeline</h2>
+                    <div class="timeline-grid" id="timeline-grid">
+                        <!-- Timeline will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regions View -->
+            <div id="regions-view" class="view-panel">
+                <div class="regions-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h2 style="margin: 0;">Popular Foliage Destinations</h2>
+                        <div class="export-buttons">
+                            <button onclick="exportPredictionsCSV()" class="export-btn">Export CSV</button>
+                            <button onclick="exportPredictionsJSON()" class="export-btn">Export JSON</button>
+                        </div>
+                    </div>
+                    <div class="regions-grid" id="regions-grid">
+                        <!-- Regions will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trip Planner View -->
+            <div id="planner-view" class="view-panel">
+                <div class="planner-container">
+                    <h2>Plan Your Foliage Trip</h2>
+                    <div class="planner-form">
+                        <div class="form-group">
+                            <label for="trip-name">Trip Name</label>
+                            <input type="text" id="trip-name" placeholder="Autumn Adventure 2025">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="start-date">Start Date</label>
+                                <input type="date" id="start-date">
+                            </div>
+                            <div class="form-group">
+                                <label for="end-date">End Date</label>
+                                <input type="date" id="end-date">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Select Regions</label>
+                            <div id="region-selector" class="region-selector">
+                                <!-- Regions will be populated -->
+                            </div>
+                        </div>
+                        <button class="save-trip-btn">Save Trip Plan</button>
+                    </div>
+                    <div class="saved-trips">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0;">Saved Trips</h3>
+                            <div class="export-buttons">
+                                <button onclick="exportTripsCSV()" class="export-btn">Export CSV</button>
+                                <button onclick="exportTripsJSON()" class="export-btn">Export JSON</button>
+                            </div>
+                        </div>
+                        <div id="saved-trips-list">
+                            <!-- Saved trips will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photo Gallery View -->
+            <div id="gallery-view" class="view-panel">
+                <div class="gallery-container">
+                    <h2>Foliage Photo Gallery</h2>
+                    <div class="gallery-filters">
+                        <div class="filter-group">
+                            <label for="gallery-region-filter">Filter by Region:</label>
+                            <select id="gallery-region-filter" class="gallery-select">
+                                <option value="">All Regions</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="gallery-date-filter">Filter by Date:</label>
+                            <input type="date" id="gallery-date-filter" class="gallery-date-input">
+                        </div>
+                    </div>
+                    <div class="photo-upload-section">
+                        <h3>Share Your Foliage Photo</h3>
+                        <form id="photo-upload-form" class="upload-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="upload-region">Region</label>
+                                    <select id="upload-region" class="gallery-select" required>
+                                        <option value="">Select a region</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="upload-status">Foliage Status</label>
+                                    <select id="upload-status" class="gallery-select" required>
+                                        <option value="not_started">Not Started</option>
+                                        <option value="progressing">Progressing</option>
+                                        <option value="near_peak">Near Peak</option>
+                                        <option value="peak">Peak</option>
+                                        <option value="past_peak">Past Peak</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="upload-photo-url">Photo URL</label>
+                                <input type="url" id="upload-photo-url" placeholder="https://example.com/photo.jpg" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="upload-description">Description</label>
+                                <textarea id="upload-description" rows="3" placeholder="Describe the foliage conditions..."></textarea>
+                            </div>
+                            <button type="submit" class="submit-photo-btn">Share Photo</button>
+                        </form>
+                    </div>
+                    <div class="photo-grid" id="photo-grid">
+                        <!-- Photos will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Floating info panel -->
+        <div id="info-panel" class="info-panel">
+            <button class="close-btn" onclick="closeInfoPanel()">×</button>
+            <h3 id="info-title">Region Details</h3>
+            <div id="info-content">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+#!/usr/bin/env bash
+
+# Scenario to MCP CLI
+# Manages Model Context Protocol support for Vrooli scenarios
+
+set -euo pipefail
+
+# Resolve symlinks to get the actual script location
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+    [[ $SCRIPT_PATH != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+SCENARIO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+LIB_DIR="$SCENARIO_DIR/lib"
+API_PORT="${API_PORT:-17961}"
+API_BASE="http://localhost:${API_PORT}/api/v1"
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_success() { echo -e "${GREEN}✓${NC} $1"; }
+print_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+print_error() { echo -e "${RED}✗${NC} $1"; }
+print_info() { echo -e "${BLUE}ℹ${NC} $1"; }
+
+# Show help
+show_help() {
+    cat << EOF
+Scenario to MCP - Model Context Protocol Management for Vrooli
+
+Usage: scenario-to-mcp <command> [options]
+
+Commands:
+  status              Show MCP endpoint status across all scenarios
+  list                List all scenarios and their MCP status
+  add <scenario>      Add MCP support to a scenario
+  test <scenario>     Test MCP endpoint functionality
+  registry            Show MCP registry for service discovery
+  detect              Scan scenarios for existing MCP implementations
+  candidates          Find scenarios that are good candidates for MCP
+  help                Show this help message
+  version             Show version information
+
+Options:
+  --json              Output in JSON format
+  --verbose           Show detailed output
+  --filter <status>   Filter by status (active|inactive|no-mcp)
+  --template <name>   MCP server template to use (basic-api|data-processor)
+  --auto              Auto-detect and generate optimal MCP config
+  --tool <name>       Specific tool to test (with test command)
+  --format <fmt>      Output format (json|yaml|table)
+
+Examples:
+  scenario-to-mcp list                    # List all scenarios with MCP status
+  scenario-to-mcp add my-scenario --auto   # Add MCP with auto-detection
+  scenario-to-mcp test my-scenario        # Test MCP endpoint
+  scenario-to-mcp registry --format json  # Get registry in JSON
+
+EOF
+}
+
+# Check if API is available
+check_api() {
+    if ! curl -sf "${API_BASE}/health" > /dev/null 2>&1; then
+        print_error "API server is not running on port ${API_PORT}"
+        print_info "Start it with: cd ${SCENARIO_DIR} && npm run develop"
+        exit 1
+    fi
+}
+
+# Status command
+cmd_status() {
+    check_api
+    
+    local verbose=""
+    local json_output=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --verbose) verbose="true"; shift ;;
+            --json) json_output="true"; shift ;;
+            *) shift ;;
+        esac
+    done
+    
+    response=$(curl -sf "${API_BASE}/mcp/endpoints")
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response"
+    else
+        # Parse and display in table format
+        echo -e "${GREEN}MCP Endpoint Status${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        printf "%-30s %-10s %-8s %-10s\n" "SCENARIO" "STATUS" "PORT" "TOOLS"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        echo "$response" | jq -r '.scenarios[] | "\(.name)|\(.status // "no-mcp")|\(.port // "-")|\(.tools // 0)"' | while IFS='|' read -r name status port tools; do
+            case $status in
+                active)
+                    status_color="${GREEN}${status}${NC}"
+                    ;;
+                inactive)
+                    status_color="${YELLOW}${status}${NC}"
+                    ;;
+                error)
+                    status_color="${RED}${status}${NC}"
+                    ;;
+                *)
+                    status_color="${status}"
+                    ;;
+            esac
+            printf "%-30s %-20b %-8s %-10s\n" "$name" "$status_color" "$port" "$tools"
+        done
+        
+        if [[ "$verbose" == "true" ]]; then
+            echo ""
+            echo "$response" | jq -r '.summary'
+        fi
+    fi
+}
+
+# List command
+cmd_list() {
+    local filter=""
+    local json_output=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --filter)
+                filter="$2"
+                shift 2
+                ;;
+            --json)
+                json_output="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Use detector.js for scanning
+    cd "$SCENARIO_DIR/lib"
+    result=$(node detector.js scan)
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$result"
+    else
+        echo -e "${GREEN}Scenario MCP Status${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        printf "%-30s %-10s %-12s %-8s\n" "SCENARIO" "HAS MCP" "CONFIDENCE" "PORT"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        echo "$result" | jq -r '.[] | "\(.name)|\(.hasMCP)|\(.confidence // "none")|\(.port // "-")"' | while IFS='|' read -r name has_mcp confidence port; do
+            if [[ -n "$filter" ]]; then
+                case $filter in
+                    no-mcp)
+                        [[ "$has_mcp" == "true" ]] && continue
+                        ;;
+                    with-mcp)
+                        [[ "$has_mcp" == "false" ]] && continue
+                        ;;
+                esac
+            fi
+            
+            if [[ "$has_mcp" == "true" ]]; then
+                has_mcp_color="${GREEN}Yes${NC}"
+            else
+                has_mcp_color="${RED}No${NC}"
+            fi
+            
+            case $confidence in
+                high)
+                    conf_color="${GREEN}${confidence}${NC}"
+                    ;;
+                medium)
+                    conf_color="${YELLOW}${confidence}${NC}"
+                    ;;
+                low)
+                    conf_color="${RED}${confidence}${NC}"
+                    ;;
+                *)
+                    conf_color="${confidence}"
+                    ;;
+            esac
+            
+            printf "%-30s %-20b %-22b %-8s\n" "$name" "$has_mcp_color" "$conf_color" "$port"
+        done
+    fi
+}
+
+# Add MCP command
+cmd_add() {
+    local scenario="$1"
+    shift
+    
+    if [[ -z "$scenario" ]]; then
+        print_error "Scenario name required"
+        echo "Usage: scenario-to-mcp add <scenario> [options]"
+        exit 1
+    fi
+    
+    check_api
+    
+    local template=""
+    local auto_detect="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --template)
+                template="$2"
+                shift 2
+                ;;
+            --auto)
+                auto_detect="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    print_info "Adding MCP support to scenario: $scenario"
+    
+    # Prepare request body
+    local request_body="{\"scenario_name\": \"$scenario\", \"agent_config\": {"
+    if [[ -n "$template" ]]; then
+        request_body="${request_body}\"template\": \"$template\","
+    fi
+    request_body="${request_body}\"auto_detect\": $auto_detect}}"
+    
+    response=$(curl -sf -X POST "${API_BASE}/mcp/add" \
+        -H "Content-Type: application/json" \
+        -d "$request_body")
+    
+    if [[ $(echo "$response" | jq -r '.success') == "true" ]]; then
+        print_success "Claude-code agent spawned successfully"
+        session_id=$(echo "$response" | jq -r '.agent_session_id')
+        print_info "Session ID: $session_id"
+        print_info "Monitor progress at: ${API_BASE}/mcp/sessions/$session_id"
+    else
+        print_error "Failed to add MCP support"
+        echo "$response" | jq -r '.error // "Unknown error"'
+        exit 1
+    fi
+}
+
+# Test command
+cmd_test() {
+    local scenario="$1"
+    shift
+    
+    if [[ -z "$scenario" ]]; then
+        print_error "Scenario name required"
+        echo "Usage: scenario-to-mcp test <scenario> [--tool <name>]"
+        exit 1
+    fi
+    
+    local tool=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --tool)
+                tool="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    print_info "Testing MCP endpoint for scenario: $scenario"
+    
+    # Get scenario MCP details
+    cd "$SCENARIO_DIR/lib"
+    details=$(node detector.js check "$scenario")
+    
+    if [[ $(echo "$details" | jq -r '.hasMCP') != "true" ]]; then
+        print_error "Scenario does not have MCP support"
+        exit 1
+    fi
+    
+    port=$(echo "$details" | jq -r '.port // empty')
+    if [[ -z "$port" ]]; then
+        print_warning "No port found, using default allocation"
+        port=4000
+    fi
+    
+    print_info "Testing MCP server on port $port"
+    
+    # Test health endpoint
+    if curl -sf "http://localhost:$port/health" > /dev/null 2>&1; then
+        print_success "Health check passed"
+    else
+        print_error "Health check failed"
+        exit 1
+    fi
+    
+    # Test specific tool if requested
+    if [[ -n "$tool" ]]; then
+        print_info "Testing tool: $tool"
+        # Tool testing would require MCP client implementation
+        print_warning "Tool testing requires MCP client (not yet implemented)"
+    fi
+    
+    print_success "MCP endpoint test completed"
+}
+
+# Registry command
+cmd_registry() {
+    check_api
+    
+    local format="table"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    response=$(curl -sf "${API_BASE}/mcp/registry")
+    
+    case $format in
+        json)
+            echo "$response"
+            ;;
+        yaml)
+            echo "$response" | jq -r 'to_entries | map("\(.key): \(.value)") | .[]'
+            ;;
+        table|*)
+            echo -e "${GREEN}MCP Registry${NC}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            printf "%-30s %-40s\n" "SCENARIO" "MCP URL"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            echo "$response" | jq -r '.endpoints[] | "\(.name)|\(.url)"' | while IFS='|' read -r name url; do
+                printf "%-30s %-40s\n" "$name" "$url"
+            done
+            ;;
+    esac
+}
+
+# Detect command
+cmd_detect() {
+    print_info "Scanning scenarios for MCP implementations..."
+    
+    cd "$SCENARIO_DIR/lib"
+    result=$(node detector.js report)
+    
+    echo "$result" | jq -r '
+        "Summary:",
+        "  Total scenarios: \(.summary.total)",
+        "  With MCP: \(.summary.withMCP)",
+        "  Without MCP: \(.summary.withoutMCP)",
+        "",
+        "Confidence breakdown:",
+        "  High: \(.byConfidence.high)",
+        "  Medium: \(.byConfidence.medium)",
+        "  Low: \(.byConfidence.low)",
+        "  None: \(.byConfidence.none)"'
+    
+    if [[ $(echo "$result" | jq -r '.summary.withErrors') -gt 0 ]]; then
+        print_warning "Some scenarios had errors during scanning"
+    fi
+}
+
+# Candidates command
+cmd_candidates() {
+    print_info "Finding scenarios that are good candidates for MCP..."
+    
+    cd "$SCENARIO_DIR/lib"
+    result=$(node detector.js candidates)
+    
+    if [[ $(echo "$result" | jq '. | length') -eq 0 ]]; then
+        print_info "No good candidates found (all scenarios may already have MCP)"
+    else
+        echo -e "${GREEN}MCP Candidates (ranked by score)${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        printf "%-30s %-8s %s\n" "SCENARIO" "SCORE" "REASONS"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        echo "$result" | jq -r '.[] | "\(.name)|\(.score)|\(.reasons | join(", "))"' | while IFS='|' read -r name score reasons; do
+            printf "%-30s %-8s %s\n" "$name" "$score" "$reasons"
+        done
+    fi
+}
+
+# Version command
+cmd_version() {
+    echo "Scenario to MCP CLI v1.0.0"
+    echo "Model Context Protocol Management for Vrooli"
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+    
+    command="$1"
+    shift
+    
+    case "$command" in
+        status)
+            cmd_status "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        add)
+            cmd_add "$@"
+            ;;
+        test)
+            cmd_test "$@"
+            ;;
+        registry)
+            cmd_registry "$@"
+            ;;
+        detect)
+            cmd_detect "$@"
+            ;;
+        candidates)
+            cmd_candidates "$@"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo "Run 'scenario-to-mcp help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

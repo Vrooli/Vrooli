@@ -1,0 +1,203 @@
+# GitLab CI Pipeline - Earthly Optimized for Vrooli
+
+variables:
+  EARTHLY_VERSION: "v0.8.15"
+  EARTHLY_USE_INLINE_CACHE: "true"
+  EARTHLY_CACHE_SIZE_MB: "20480"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  FF_USE_FASTZIP: "true"
+  ARTIFACT_COMPRESSION_LEVEL: "fast"
+
+stages:
+  - build
+  - test
+  - benchmark
+  - deploy
+
+default:
+  image: earthly/earthly:${EARTHLY_VERSION}
+  services:
+    - docker:dind
+  before_script:
+    - earthly bootstrap
+    - |
+      cat > ~/.earthly/config.yml << EOF
+      global:
+        disable_analytics: true
+        cache_size_mb: 20480
+        conversion_parallelism: $(nproc)
+      buildkit:
+        max_parallelism: $(nproc)
+        cache_inline_size_mb: 500
+      cache:
+        mode: "max"
+      EOF
+  cache:
+    key: earthly-${CI_COMMIT_REF_SLUG}
+    paths:
+      - .earthly-cache/
+    policy: pull-push
+
+# Template for scenario builds
+.scenario_template:
+  parallel:
+    matrix:
+      - SCENARIO: [ecosystem-manager, resource-generator, api-manager]
+        PLATFORM: [linux/amd64, linux/arm64]
+  artifacts:
+    paths:
+      - build/
+      - dist/
+    reports:
+      dotenv: build.env
+    expire_in: 1 week
+
+build:scenario:
+  extends: .scenario_template
+  stage: build
+  script:
+    - |
+      earthly --ci \
+        --platform=${PLATFORM} \
+        --use-inline-cache \
+        --save-inline-cache \
+        --max-remote-cache \
+        +build-scenario \
+        --SCENARIO_NAME=${SCENARIO}
+    - echo "BUILD_STATUS=success" >> build.env
+    - echo "BUILD_TIME=$(date +%s)" >> build.env
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+test:scenario:
+  extends: .scenario_template
+  stage: test
+  needs: ["build:scenario"]
+  script:
+    - |
+      earthly --ci \
+        --platform=${PLATFORM} \
+        +test-scenario \
+        --SCENARIO_NAME=${SCENARIO}
+  coverage: '/Coverage: \d+\.\d+%/'
+
+benchmark:performance:
+  stage: benchmark
+  needs: ["test:scenario"]
+  only:
+    - main
+    - develop
+    - schedules
+  script:
+    - |
+      # Run performance benchmarks
+      earthly --ci +benchmark-all
+      
+      # Generate performance report
+      echo "## Performance Report" > performance.md
+      echo "Date: $(date)" >> performance.md
+      echo "" >> performance.md
+      
+      # Extract metrics
+      if [ -f ~/.earthly/logs/benchmarks.csv ]; then
+        echo "### Build Performance" >> performance.md
+        echo '```' >> performance.md
+        tail -5 ~/.earthly/logs/benchmarks.csv | column -t -s, >> performance.md
+        echo '```' >> performance.md
+      fi
+      
+      # Cache statistics
+      echo "### Cache Statistics" >> performance.md
+      echo "- Cache Size: $(du -sh .earthly-cache | cut -f1)" >> performance.md
+      echo "- Cache Hit Rate: $(earthly --ci +cache-stats | grep 'Hit Rate' | cut -d: -f2)" >> performance.md
+  artifacts:
+    paths:
+      - performance.md
+    reports:
+      performance: performance.json
+    expire_in: 30 days
+
+# Resource builds
+build:resources:
+  stage: build
+  script:
+    - earthly --ci +build-resources
+  artifacts:
+    paths:
+      - resources/build/
+    expire_in: 1 week
+
+# Multi-platform builds
+build:multiplatform:
+  stage: build
+  only:
+    - tags
+    - main
+  script:
+    - |
+      earthly --ci \
+        --platform=linux/amd64,linux/arm64,darwin/amd64,darwin/arm64 \
+        +multi-platform \
+        --VERSION=${CI_COMMIT_TAG:-latest}
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 month
+
+# Deploy stage
+deploy:production:
+  stage: deploy
+  only:
+    - main
+  needs:
+    - build:scenario
+    - test:scenario
+  environment:
+    name: production
+    url: https://vrooli.com
+  script:
+    - echo "Deploying to production..."
+    - |
+      # Package all artifacts
+      earthly --ci +package-all \
+        --VERSION=${CI_COMMIT_SHA:0:8}
+      
+      # Deploy logic here
+      echo "Deployment complete"
+  when: manual
+
+# Nightly builds with extended tests
+nightly:extended:
+  stage: test
+  only:
+    - schedules
+  script:
+    - |
+      # Run extended test suite
+      earthly --ci +test-extended \
+        --COVERAGE=true \
+        --BENCHMARK=true
+      
+      # Generate comprehensive report
+      earthly --ci +generate-report \
+        --OUTPUT=nightly-report.html
+  artifacts:
+    paths:
+      - nightly-report.html
+      - coverage/
+      - benchmarks/
+    expire_in: 30 days
+
+# Cache cleanup job
+cleanup:cache:
+  stage: .post
+  only:
+    - schedules
+  script:
+    - earthly prune --all
+    - rm -rf .earthly-cache/
+  when: manual

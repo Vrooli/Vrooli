@@ -1,0 +1,169 @@
+{
+    "name": "openfoam",
+    "version": "1.0.0",
+    "description": "OpenFOAM CFD Simulation Platform - computational fluid dynamics for engineering analysis",
+    "category": "simulation",
+    "tags": ["cfd", "simulation", "fluid-dynamics", "physics", "engineering"],
+    
+    "lifecycle": {
+        "startup_order": 500,
+        "startup_time_estimate": "10-30s",
+        "startup_timeout": 60,
+        "shutdown_timeout": 30,
+        "health_check_interval": 30,
+        "recovery_attempts": 3,
+        "priority": "medium"
+    },
+    
+    "dependencies": {
+        "required": [],
+        "optional": ["postgres", "qdrant", "minio"],
+        "conflicts": []
+    },
+    
+    "resources": {
+        "memory": {
+            "min": "2GB",
+            "recommended": "4GB",
+            "max": "16GB"
+        },
+        "cpu": {
+            "min": 1,
+            "recommended": 2,
+            "max": 8
+        },
+        "storage": {
+            "min": "5GB",
+            "recommended": "20GB",
+            "max": "100GB"
+        },
+        "gpu": {
+            "required": false,
+            "recommended": false
+        }
+    },
+    
+    "networking": {
+        "ports": {
+            "api": "${OPENFOAM_PORT:-8090}",
+            "paraview": "${OPENFOAM_PARAVIEW_PORT:-11111}"
+        },
+        "protocols": ["http", "tcp"],
+        "external_access": false,
+        "docker_network": "openfoam-net"
+    },
+    
+    "capabilities": {
+        "features": [
+            "steady-state-flow",
+            "transient-flow",
+            "heat-transfer",
+            "multiphase-flow",
+            "mesh-generation",
+            "parallel-processing",
+            "result-visualization"
+        ],
+        "solvers": [
+            "simpleFoam",
+            "pimpleFoam",
+            "buoyantFoam",
+            "interFoam",
+            "reactingFoam"
+        ],
+        "mesh_tools": [
+            "blockMesh",
+            "snappyHexMesh",
+            "foamyHexMesh"
+        ],
+        "export_formats": [
+            "vtk",
+            "ensight",
+            "csv",
+            "stl"
+        ],
+        "api_endpoints": [
+            "/health",
+            "/api/status",
+            "/api/case/create",
+            "/api/mesh/generate",
+            "/api/solver/run",
+            "/api/results/export"
+        ]
+    },
+    
+    "configuration": {
+        "environment_variables": {
+            "OPENFOAM_PORT": "8090",
+            "OPENFOAM_MEMORY_LIMIT": "4g",
+            "OPENFOAM_CPU_LIMIT": "2",
+            "OPENFOAM_DEFAULT_SOLVER": "simpleFoam",
+            "OPENFOAM_PARALLEL_CORES": "4"
+        },
+        "volumes": [
+            "${HOME}/.vrooli/openfoam/cases:/cases",
+            "${HOME}/.vrooli/openfoam/data:/data",
+            "${HOME}/.vrooli/openfoam/results:/results"
+        ],
+        "config_files": []
+    },
+    
+    "monitoring": {
+        "health_endpoint": "/health",
+        "metrics_endpoint": "/api/metrics",
+        "log_level": "INFO",
+        "log_location": "${HOME}/.vrooli/openfoam/logs"
+    },
+    
+    "security": {
+        "authentication": false,
+        "encryption": false,
+        "rate_limiting": true,
+        "max_concurrent_simulations": 5,
+        "resource_quotas": true
+    },
+    
+    "integration_points": [
+        {
+            "resource": "blender",
+            "purpose": "3D geometry import/export",
+            "protocol": "file"
+        },
+        {
+            "resource": "freecad",
+            "purpose": "CAD model integration",
+            "protocol": "file"
+        },
+        {
+            "resource": "qdrant",
+            "purpose": "Simulation result indexing",
+            "protocol": "http"
+        },
+        {
+            "resource": "minio",
+            "purpose": "Large result storage",
+            "protocol": "s3"
+        }
+    ],
+    
+    "troubleshooting": {
+        "common_issues": [
+            {
+                "issue": "Container fails to start",
+                "solution": "Check Docker daemon is running and ports are available"
+            },
+            {
+                "issue": "Solver convergence failure",
+                "solution": "Adjust relaxation factors or mesh quality"
+            },
+            {
+                "issue": "Out of memory during simulation",
+                "solution": "Increase memory limit or reduce mesh size"
+            }
+        ],
+        "debug_commands": [
+            "docker logs openfoam",
+            "docker exec openfoam foamVersion",
+            "curl http://localhost:8090/health"
+        ]
+    }
+}

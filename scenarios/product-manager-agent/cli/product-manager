@@ -1,0 +1,106 @@
+#!/bin/bash
+
+# Product Manager CLI
+API_URL="${API_URL:-http://localhost:9200}"
+
+show_help() {
+    cat << EOF
+Product Manager Agent CLI
+
+Usage: product-manager [command] [options]
+
+Commands:
+    features        List all features
+    prioritize      Prioritize features using RICE scoring
+    dashboard       Show dashboard metrics
+    add-feature     Add a new feature for prioritization
+    help           Show this help message
+
+Examples:
+    product-manager features
+    product-manager prioritize --method RICE
+    product-manager add-feature "Dark Mode" --reach 5000 --impact 4
+
+EOF
+}
+
+list_features() {
+    echo "📊 Fetching features..."
+    curl -s "$API_URL/api/features" | jq '.' 2>/dev/null || echo "Failed to fetch features"
+}
+
+show_dashboard() {
+    echo "📈 Dashboard Metrics"
+    echo "==================="
+    curl -s "$API_URL/api/dashboard" | jq '.' 2>/dev/null || echo "Failed to fetch dashboard"
+}
+
+prioritize_features() {
+    local method="${1:-RICE}"
+    echo "🎯 Prioritizing features using $method method..."
+    
+    # This would call the n8n workflow in a real implementation
+    curl -s -X POST "http://localhost:5678/webhook/feature-prioritizer" \
+        -H "Content-Type: application/json" \
+        -d "{\"method\": \"$method\"}" | jq '.' 2>/dev/null || echo "Failed to prioritize"
+}
+
+add_feature() {
+    local name="$1"
+    local reach="${2:-1000}"
+    local impact="${3:-3}"
+    local confidence="${4:-0.8}"
+    local effort="${5:-5}"
+    
+    if [ -z "$name" ]; then
+        echo "Error: Feature name is required"
+        echo "Usage: product-manager add-feature <name> [reach] [impact] [confidence] [effort]"
+        exit 1
+    fi
+    
+    echo "➕ Adding feature: $name"
+    
+    local data=$(cat <<EOF
+{
+    "features": [{
+        "name": "$name",
+        "description": "Feature added via CLI",
+        "reach": $reach,
+        "impact": $impact,
+        "confidence": $confidence,
+        "effort": $effort
+    }],
+    "method": "RICE"
+}
+EOF
+)
+    
+    curl -s -X POST "http://localhost:5678/webhook/feature-prioritizer" \
+        -H "Content-Type: application/json" \
+        -d "$data" | jq '.' 2>/dev/null || echo "Failed to add feature"
+}
+
+# Main command processing
+case "$1" in
+    features)
+        list_features
+        ;;
+    dashboard)
+        show_dashboard
+        ;;
+    prioritize)
+        prioritize_features "$2"
+        ;;
+    add-feature)
+        shift
+        add_feature "$@"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac

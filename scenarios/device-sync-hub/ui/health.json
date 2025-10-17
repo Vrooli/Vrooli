@@ -1,0 +1,44 @@
+{
+  "status": "healthy",
+  "service": "device-sync-hub-ui",
+  "timestamp": "2025-09-14T00:00:00Z",
+  "readiness": true,
+  "deployment": {
+    "type": "static",
+    "mode": "production",
+    "version": "1.0.0"
+  },
+  "static_files": {
+    "available": true,
+    "files": {
+      "index_html": true,
+      "style_css": true,
+      "javascript_modules": true,
+      "assets": true
+    }
+  },
+  "configuration": {
+    "api_url_source": "meta_tag_injection",
+    "auth_url_source": "meta_tag_injection",
+    "responsive_design": true,
+    "progressive_web_app": true
+  },
+  "features": {
+    "mobile_first": true,
+    "real_time_sync": true,
+    "drag_drop_upload": true,
+    "clipboard_integration": true,
+    "offline_capable": false
+  },
+  "security": {
+    "content_security_headers": true,
+    "xss_protection": true,
+    "frame_options": "DENY",
+    "requires_authentication": true
+  },
+  "metrics": {
+    "deployment_mode": "static",
+    "requires_auth": true,
+    "api_connectivity": "runtime_determined"
+  }
+}

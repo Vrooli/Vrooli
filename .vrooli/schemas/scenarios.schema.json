@@ -1,0 +1,217 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/scenarios.schema.json",
+  "title": "Scenario Configuration",
+  "description": "Configuration for Vrooli scenarios that run directly from source",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration version"
+    },
+    "execution": {
+      "$ref": "#/definitions/executionConfig",
+      "description": "Scenario execution settings"
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/scenarioEntry"
+      },
+      "description": "List of available scenarios"
+    }
+  },
+  "definitions": {
+    "executionConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable scenario execution"
+        },
+        "scenarios_directory": {
+          "type": "string",
+          "default": "${VROOLI_ROOT}/scenarios",
+          "description": "Directory containing scenarios"
+        },
+        "watch": {
+          "type": "boolean",
+          "default": false,
+          "description": "Watch for scenario changes and auto-reload"
+        },
+        "filters": {
+          "$ref": "#/definitions/executionFilters",
+          "description": "Filters for scenario execution"
+        },
+        "options": {
+          "$ref": "#/definitions/executionOptions",
+          "description": "Execution options"
+        }
+      }
+    },
+    "executionFilters": {
+      "type": "object",
+      "properties": {
+        "whitelist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Only execute these scenarios (empty = no whitelist)"
+        },
+        "blacklist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Never execute these scenarios"
+        },
+        "categories": {
+          "$ref": "#/definitions/categoryFilter",
+          "description": "Category-based filtering"
+        },
+        "tags": {
+          "$ref": "#/definitions/tagFilter",
+          "description": "Tag-based filtering"
+        },
+        "validated_only": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only execute validated scenarios"
+        }
+      }
+    },
+    "categoryFilter": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["vrooli-helpers", "saas-applications", "development-tools", "ai-applications", "utilities"]
+          },
+          "description": "Include these categories"
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["vrooli-helpers", "saas-applications", "development-tools", "ai-applications", "utilities"]
+          },
+          "description": "Exclude these categories"
+        }
+      }
+    },
+    "tagFilter": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Include scenarios with any of these tags"
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Exclude scenarios with any of these tags"
+        },
+        "require_all": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Only include scenarios with all of these tags"
+        }
+      }
+    },
+    "executionOptions": {
+      "type": "object",
+      "properties": {
+        "process_isolation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run each scenario with isolated PM_HOME and PM_LOG_DIR"
+        },
+        "resource_sharing": {
+          "type": "boolean",
+          "default": true,
+          "description": "Share Vrooli's resources (scripts, libraries) with scenarios"
+        },
+        "auto_restart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically restart scenarios on failure"
+        },
+        "include_tests": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include test files when running scenarios"
+        },
+        "log_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warning", "error"],
+          "default": "info",
+          "description": "Logging level for scenario execution"
+        }
+      }
+    },
+    "scenarioEntry": {
+      "type": "object",
+      "required": ["name", "location"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+          "description": "Scenario identifier"
+        },
+        "description": {
+          "type": "string",
+          "description": "Scenario description"
+        },
+        "location": {
+          "type": "string",
+          "description": "Path to scenario directory (relative to scenarios_directory)"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["vrooli-helpers", "saas-applications", "development-tools", "ai-applications", "utilities"],
+          "description": "Scenario category"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Scenario tags"
+        },
+        "validated": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether scenario has been validated"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether scenario is enabled for execution"
+        },
+        "ui": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether scenario has a UI component"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Other scenarios this depends on"
+        }
+      }
+    }
+  }
+}

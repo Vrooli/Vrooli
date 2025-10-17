@@ -1,0 +1,807 @@
+# Document Test Fixture Metadata
+# This file provides metadata for document test files to enable data-driven testing
+
+version: 1.0
+type: documents
+description: "Test documents for document processing and text extraction tests"
+
+# Metadata schema
+schema:
+  commonProperties:
+    - path           # Relative path from documents directory
+    - tags           # Test categories this document is suitable for
+    - testData       # Test-specific configuration and expectations
+  typeProperties:
+    - format         # File format (pdf, docx, txt, json, csv, html, etc.)
+    - fileSize       # Size in bytes
+    - pageCount      # Number of pages/sheets (for paginated documents)
+    - language       # Primary language(s) of content
+    - encoding       # Text encoding (utf-8, ascii, etc.)
+
+# Document entries organized by category
+documents:
+  # Structured data documents
+  structured:
+    - path: structured/customers.csv
+      format: csv
+      fileSize: 2048
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [structured-data, csv, tabular, data-processing]
+      testData:
+        hasHeaders: true
+        rowCount: 100
+        columnCount: 5
+        delimiter: ","
+        expectedColumns: ["id", "name", "email", "age", "country"]
+
+    - path: structured/database_export.json
+      format: json
+      fileSize: 5120
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [structured-data, json, database, export]
+      testData:
+        recordCount: 50
+        hasNestedObjects: true
+        encoding: "utf-8"
+        expectedRootKeys: ["users", "metadata", "timestamp"]
+
+    - path: structured/config.xml
+      format: xml
+      fileSize: 1024
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [structured-data, xml, configuration, parsing]
+      testData:
+        hasNamespaces: false
+        rootElement: "configuration"
+        nestedLevels: 3
+
+    - path: structured/settings.yaml
+      format: yaml
+      fileSize: 512
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [structured-data, yaml, configuration, parsing]
+      testData:
+        hasArrays: true
+        hasObjects: true
+        expectedKeys: ["database", "server", "logging"]
+
+    - path: structured/inventory.tsv
+      format: tsv
+      fileSize: 1536
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [structured-data, tsv, tabular, tab-separated]
+      testData:
+        hasHeaders: true
+        delimiter: "\t"
+        columnCount: 4
+        rowCount: 25
+
+  # Code documents
+  code:
+    python:
+      - path: code/python/data_analysis.py
+        format: py
+        fileSize: 2048
+        pageCount: 1
+        language: "python"
+        encoding: "utf-8"
+        tags: [code, python, data-analysis, programming]
+        testData:
+          syntaxValid: true
+          hasImports: true
+          functionCount: 5
+          classCount: 2
+          expectedImports: ["pandas", "numpy", "matplotlib"]
+
+      - path: code/python/web_scraper.py
+        format: py
+        fileSize: 1792
+        pageCount: 1
+        language: "python"
+        encoding: "utf-8"
+        tags: [code, python, web-scraping, programming]
+        testData:
+          syntaxValid: true
+          hasRequests: true
+          functionCount: 3
+          expectedImports: ["requests", "beautifulsoup4"]
+
+    javascript:
+      - path: code/javascript/frontend.js
+        format: js
+        fileSize: 1536
+        pageCount: 1
+        language: "javascript"
+        encoding: "utf-8"
+        tags: [code, javascript, frontend, programming]
+        testData:
+          syntaxValid: true
+          hasDOM: true
+          functionCount: 4
+          usesES6: true
+
+      - path: code/javascript/api_client.ts
+        format: ts
+        fileSize: 1280
+        pageCount: 1
+        language: "typescript"
+        encoding: "utf-8"
+        tags: [code, typescript, api-client, programming]
+        testData:
+          syntaxValid: true
+          hasInterfaces: true
+          hasTypes: true
+          functionCount: 3
+
+    configs:
+      - path: code/configs/docker-compose.yml
+        format: yml
+        fileSize: 1024
+        pageCount: 1
+        language: "yaml"
+        encoding: "utf-8"
+        tags: [code, configuration, docker, infrastructure]
+        testData:
+          hasServices: true
+          serviceCount: 3
+          hasVolumes: true
+          hasNetworks: false
+
+      - path: code/configs/package.json
+        format: json
+        fileSize: 768
+        pageCount: 1
+        language: "json"
+        encoding: "utf-8"
+        tags: [code, configuration, nodejs, dependencies]
+        testData:
+          hasScripts: true
+          hasDependencies: true
+          dependencyCount: 15
+          hasDevDependencies: true
+
+      - path: code/configs/requirements.txt
+        format: txt
+        fileSize: 512
+        pageCount: 1
+        language: "plain"
+        encoding: "utf-8"
+        tags: [code, configuration, python, dependencies]
+        testData:
+          packageCount: 10
+          hasVersions: true
+          format: "pip"
+
+    documentation:
+      - path: code/documentation/API.md
+        format: md
+        fileSize: 3072
+        pageCount: 1
+        language: "markdown"
+        encoding: "utf-8"
+        tags: [code, documentation, api, markdown]
+        testData:
+          hasHeaders: true
+          hasCodeBlocks: true
+          headerCount: 8
+          codeBlockCount: 15
+
+      - path: code/documentation/README.rst
+        format: rst
+        fileSize: 2048
+        pageCount: 1
+        language: "restructuredtext"
+        encoding: "utf-8"
+        tags: [code, documentation, readme, restructuredtext]
+        testData:
+          hasHeaders: true
+          hasDirectives: true
+          hasLinks: true
+
+  # Web documents
+  web:
+    - path: web/article.html
+      format: html
+      fileSize: 4096
+      pageCount: 1
+      language: "html"
+      encoding: "utf-8"
+      tags: [web, html, content, article]
+      testData:
+        hasDoctype: true
+        hasTitle: true
+        hasImages: true
+        hasLinks: true
+        elementCount: 50
+
+    - path: web/dashboard.html
+      format: html
+      fileSize: 6144
+      pageCount: 1
+      language: "html"
+      encoding: "utf-8"
+      tags: [web, html, dashboard, interactive]
+      testData:
+        hasJavaScript: true
+        hasCSS: true
+        hasCharts: true
+        formCount: 2
+
+    - path: web/form.html
+      format: html
+      fileSize: 2048
+      pageCount: 1
+      language: "html"
+      encoding: "utf-8"
+      tags: [web, html, form, input]
+      testData:
+        hasForm: true
+        inputCount: 8
+        hasValidation: true
+        submitButton: true
+
+    - path: web/broken.html
+      format: html
+      fileSize: 1024
+      pageCount: 1
+      language: "html"
+      encoding: "utf-8"
+      tags: [web, html, broken, edge-case, error-handling]
+      testData:
+        isValid: false
+        hasUnclosedTags: true
+        expectedErrors: ["missing closing tag", "invalid attribute"]
+
+  # Rich text documents
+  rich_text:
+    - path: rich_text/academic_paper.rtf
+      format: rtf
+      fileSize: 8192
+      pageCount: 12
+      language: "en"
+      encoding: "utf-8"
+      tags: [rich-text, academic, research, formatted]
+      testData:
+        hasFormatting: true
+        hasCitations: true
+        wordCount: 2500
+        sectionCount: 6
+
+    - path: rich_text/formatted_letter.rtf
+      format: rtf
+      fileSize: 2048
+      pageCount: 2
+      language: "en"
+      encoding: "utf-8"
+      tags: [rich-text, business, letter, formatted]
+      testData:
+        hasFormatting: true
+        hasLetterhead: true
+        wordCount: 400
+
+    - path: rich_text/thesis.tex
+      format: tex
+      fileSize: 12288
+      pageCount: 45
+      language: "latex"
+      encoding: "utf-8"
+      tags: [rich-text, academic, thesis, latex]
+      testData:
+        hasFormatting: true
+        hasBibliography: true
+        chapterCount: 5
+        figureCount: 12
+
+  # Office documents
+  office:
+    pdf:
+      government:
+        - path: office/pdf/government/constitution_annotated.pdf
+          format: pdf
+          fileSize: 19839427
+          pageCount: 2187
+          language: "en"
+          encoding: "pdf"
+          tags: [office, pdf, government, legal, large-document]
+          testData:
+            isScanned: false
+            hasBookmarks: true
+            hasAnnotations: true
+            wordCount: 500000
+            isSearchable: true
+
+      corporate:
+        - path: office/pdf/corporate/berkshire_hathaway_annual_letter.pdf
+          format: pdf
+          fileSize: 122415
+          pageCount: 28
+          language: "en"
+          encoding: "pdf"
+          tags: [office, pdf, corporate, annual-report, financial]
+          testData:
+            isScanned: false
+            hasImages: true
+            hasCharts: true
+            wordCount: 12000
+            isSearchable: true
+
+      international:
+        - path: office/pdf/international/un_sustainable_development_goals.pdf
+          format: pdf
+          fileSize: 377812
+          pageCount: 41
+          language: "en"
+          encoding: "pdf"
+          tags: [office, pdf, international, policy, development]
+          testData:
+            isScanned: false
+            hasImages: true
+            hasCharts: true
+            wordCount: 15000
+            isSearchable: true
+
+    excel:
+      educational:
+        - path: office/excel/educational/usc_sample_data.xls
+          format: xls
+          fileSize: 353792
+          pageCount: 3
+          language: "en"
+          encoding: "binary"
+          tags: [office, excel, educational, data, spreadsheet]
+          testData:
+            sheetCount: 3
+            hasFormulas: true
+            hasCharts: false
+            rowCount: 500
+            columnCount: 15
+
+        - path: office/excel/educational/ou_sample_data.xlsx
+          format: xlsx
+          fileSize: 89652
+          pageCount: 2
+          language: "en"
+          encoding: "xml"
+          tags: [office, excel, educational, data, spreadsheet]
+          testData:
+            sheetCount: 2
+            hasFormulas: true
+            hasCharts: true
+            rowCount: 200
+            columnCount: 10
+
+        - path: office/excel/educational/cmu_test_data.xls
+          format: xls
+          fileSize: 125440
+          pageCount: 1
+          language: "en"
+          encoding: "binary"
+          tags: [office, excel, educational, test-data, simple]
+          testData:
+            sheetCount: 1
+            hasFormulas: false
+            hasCharts: false
+            rowCount: 100
+            columnCount: 8
+
+    word:
+      educational:
+        - path: office/word/educational/ceu_sample.doc
+          format: doc
+          fileSize: 86528
+          pageCount: 5
+          language: "en"
+          encoding: "binary"
+          tags: [office, word, educational, document, legacy]
+          testData:
+            hasImages: false
+            hasFormatting: true
+            wordCount: 1200
+            sectionCount: 4
+
+        - path: office/word/educational/iup_test_document.docx
+          format: docx
+          fileSize: 45231
+          pageCount: 3
+          language: "en"
+          encoding: "xml"
+          tags: [office, word, educational, document, modern]
+          testData:
+            hasImages: true
+            hasFormatting: true
+            wordCount: 800
+            sectionCount: 3
+
+        - path: office/word/educational/mtsac_word_template.docx
+          format: docx
+          fileSize: 67892
+          pageCount: 4
+          language: "en"
+          encoding: "xml"
+          tags: [office, word, educational, template, formatted]
+          testData:
+            hasImages: false
+            hasFormatting: true
+            hasHeaders: true
+            wordCount: 600
+
+    powerpoint:
+      corporate:
+        - path: office/powerpoint/corporate/nasa_spinoff_2017_corporate.pptx
+          format: pptx
+          fileSize: 8745216
+          pageCount: 42
+          language: "en"
+          encoding: "xml"
+          tags: [office, powerpoint, corporate, presentation, nasa]
+          testData:
+            slideCount: 42
+            hasImages: true
+            hasCharts: true
+            hasAnimations: false
+            wordCount: 2000
+
+      government:
+        - path: office/powerpoint/government/epa_cercla_introduction_government.pptx
+          format: pptx
+          fileSize: 1876543
+          pageCount: 18
+          language: "en"
+          encoding: "xml"
+          tags: [office, powerpoint, government, training, epa]
+          testData:
+            slideCount: 18
+            hasImages: true
+            hasCharts: false
+            hasAnimations: false
+            wordCount: 800
+
+      educational:
+        - path: office/powerpoint/educational/noaa_bioluminescent_creatures_educational.pptx
+          format: pptx
+          fileSize: 3234567
+          pageCount: 25
+          language: "en"
+          encoding: "xml"
+          tags: [office, powerpoint, educational, science, noaa]
+          testData:
+            slideCount: 25
+            hasImages: true
+            hasCharts: false
+            hasAnimations: true
+            wordCount: 1200
+
+      international:
+        - path: office/powerpoint/international/un_sdg_integration_international.pptx
+          format: pptx
+          fileSize: 2987654
+          pageCount: 31
+          language: "en"
+          encoding: "xml"
+          tags: [office, powerpoint, international, policy, un]
+          testData:
+            slideCount: 31
+            hasImages: true
+            hasCharts: true
+            hasAnimations: false
+            wordCount: 1500
+
+  # International/multilingual documents
+  international:
+    - path: international/arabic_document.txt
+      format: txt
+      fileSize: 3372
+      pageCount: 1
+      language: "ar"
+      encoding: "utf-8"
+      tags: [international, arabic, rtl, multilingual, text]
+      testData:
+        isRTL: true
+        hasUnicode: true
+        wordCount: 200
+        characterSet: "arabic"
+
+    - path: international/chinese_technical.txt
+      format: txt
+      fileSize: 2423
+      pageCount: 1
+      language: "zh"
+      encoding: "utf-8"
+      tags: [international, chinese, technical, multilingual, text]
+      testData:
+        hasUnicode: true
+        hasTechnicalTerms: true
+        wordCount: 150
+        characterSet: "chinese"
+
+    - path: international/mixed_languages.json
+      format: json
+      fileSize: 4423
+      pageCount: 1
+      language: "mixed"
+      encoding: "utf-8"
+      tags: [international, multilingual, json, mixed-languages]
+      testData:
+        languageCount: 5
+        hasUnicode: true
+        languages: ["en", "es", "fr", "de", "ja"]
+        recordCount: 20
+
+    - path: international/unicode_stress_test.txt
+      format: txt
+      fileSize: 5988
+      pageCount: 1
+      language: "mixed"
+      encoding: "utf-8"
+      tags: [international, unicode, stress-test, edge-case]
+      testData:
+        hasEmojis: true
+        hasSpecialChars: true
+        hasAccents: true
+        characterSetCount: 10
+
+  # Edge cases and error handling
+  edge_cases:
+    - path: edge_cases/empty.pdf
+      format: pdf
+      fileSize: 0
+      pageCount: 0
+      language: "none"
+      encoding: "none"
+      tags: [edge-case, empty, error-handling, invalid]
+      testData:
+        isValid: false
+        expectedError: "empty file"
+        canProcess: false
+
+    - path: edge_cases/corrupted.json
+      format: json
+      fileSize: 256
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [edge-case, corrupted, error-handling, invalid-json]
+      testData:
+        isValid: false
+        expectedError: "malformed JSON"
+        syntaxErrors: true
+
+    - path: edge_cases/binary_disguised.pdf
+      format: pdf
+      fileSize: 1024
+      pageCount: 0
+      language: "none"
+      encoding: "binary"
+      tags: [edge-case, disguised, error-handling, security]
+      testData:
+        isValid: false
+        actualFormat: "binary"
+        expectedError: "not a PDF"
+
+    - path: edge_cases/malformed.csv
+      format: csv
+      fileSize: 512
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [edge-case, malformed, csv, error-handling]
+      testData:
+        isValid: false
+        hasInconsistentColumns: true
+        expectedError: "inconsistent column count"
+
+    - path: edge_cases/huge_text.txt
+      format: txt
+      fileSize: 1048576  # 1MB
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [edge-case, large-file, performance, text]
+      testData:
+        isValid: true
+        wordCount: 150000
+        lineCount: 10000
+        performanceTest: true
+
+    - path: edge_cases/invalid_xml.xml
+      format: xml
+      fileSize: 384
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [edge-case, invalid, xml, error-handling]
+      testData:
+        isValid: false
+        hasUnclosedTags: true
+        expectedError: "XML syntax error"
+
+    - path: edge_cases/network_timeout.url
+      format: url
+      fileSize: 64
+      pageCount: 0
+      language: "none"
+      encoding: "ascii"
+      tags: [edge-case, network, timeout, error-handling]
+      testData:
+        isValid: false
+        expectedError: "network timeout"
+        url: "http://timeout.example.com"
+
+  # Sample documents for basic testing
+  samples:
+    - path: samples/test-readme.md
+      format: md
+      fileSize: 1536
+      pageCount: 1
+      language: "markdown"
+      encoding: "utf-8"
+      tags: [sample, readme, markdown, basic]
+      testData:
+        hasHeaders: true
+        hasLinks: true
+        headerCount: 5
+        linkCount: 3
+
+    - path: samples/census_income_report.pdf
+      format: pdf
+      fileSize: 25813
+      pageCount: 8
+      language: "en"
+      encoding: "pdf"
+      tags: [sample, government, statistics, report]
+      testData:
+        isSearchable: true
+        hasCharts: true
+        wordCount: 3500
+        isScanned: false
+
+    - path: samples/energy_annual_report.pdf
+      format: pdf
+      fileSize: 53779
+      pageCount: 16
+      language: "en"
+      encoding: "pdf"
+      tags: [sample, energy, annual-report, corporate]
+      testData:
+        isSearchable: true
+        hasImages: true
+        hasCharts: true
+        wordCount: 7000
+
+    - path: samples/gao_report_sample.pdf
+      format: pdf
+      fileSize: 18626
+      pageCount: 6
+      language: "en"
+      encoding: "pdf"
+      tags: [sample, government, audit, report]
+      testData:
+        isSearchable: true
+        hasCharts: false
+        wordCount: 2800
+        isScanned: false
+
+  # Root-level utility documents
+  utility:
+    - path: meeting-notes.txt
+      format: txt
+      fileSize: 2048
+      pageCount: 1
+      language: "en"
+      encoding: "utf-8"
+      tags: [utility, notes, planning, text]
+      testData:
+        hasTimestamps: true
+        hasActionItems: true
+        wordCount: 400
+        lineCount: 50
+
+    - path: test-data.json
+      format: json
+      fileSize: 1024
+      pageCount: 1
+      language: "json"
+      encoding: "utf-8"
+      tags: [utility, test-data, json, configuration]
+      testData:
+        recordCount: 10
+        hasNestedObjects: false
+        expectedKeys: ["id", "name", "value", "timestamp"]
+
+    - path: llm-prompt.json
+      format: json
+      fileSize: 768
+      pageCount: 1
+      language: "json"
+      encoding: "utf-8"
+      tags: [utility, ai, prompt, configuration]
+      testData:
+        hasPrompts: true
+        promptCount: 5
+        hasSystemMessages: true
+        expectedKeys: ["system", "user", "assistant"]
+
+    - path: workflow-data.json
+      format: json
+      fileSize: 1536
+      pageCount: 1
+      language: "json"
+      encoding: "utf-8"
+      tags: [utility, workflow, automation, configuration]
+      testData:
+        hasSteps: true
+        stepCount: 8
+        hasConditions: true
+        expectedKeys: ["name", "steps", "conditions", "outputs"]
+
+# Test suite mappings - which documents to use for specific test types
+testSuites:
+  textExtraction:
+    - office/pdf/corporate/berkshire_hathaway_annual_letter.pdf
+    - office/word/educational/iup_test_document.docx
+    - rich_text/academic_paper.rtf
+    - samples/test-readme.md
+
+  structuredData:
+    - structured/customers.csv
+    - structured/database_export.json
+    - structured/config.xml
+    - structured/settings.yaml
+
+  codeAnalysis:
+    - code/python/data_analysis.py
+    - code/javascript/frontend.js
+    - code/configs/package.json
+    - code/documentation/API.md
+
+  webContent:
+    - web/article.html
+    - web/dashboard.html
+    - web/form.html
+
+  multilingualTest:
+    - international/arabic_document.txt
+    - international/chinese_technical.txt
+    - international/mixed_languages.json
+    - international/unicode_stress_test.txt
+
+  edgeCases:
+    - edge_cases/empty.pdf
+    - edge_cases/corrupted.json
+    - edge_cases/binary_disguised.pdf
+    - edge_cases/malformed.csv
+    - edge_cases/huge_text.txt
+
+  performanceTest:
+    - office/pdf/government/constitution_annotated.pdf  # Large PDF
+    - edge_cases/huge_text.txt                          # Large text
+    - office/excel/educational/usc_sample_data.xls      # Large Excel
+
+  formatSupport:
+    - office/word/educational/ceu_sample.doc      # Legacy Word
+    - office/word/educational/iup_test_document.docx  # Modern Word
+    - office/excel/educational/cmu_test_data.xls      # Legacy Excel
+    - office/excel/educational/ou_sample_data.xlsx    # Modern Excel
+    - office/powerpoint/corporate/nasa_spinoff_2017_corporate.pptx  # PowerPoint
+
+  basicValidation:
+    - samples/test-readme.md
+    - meeting-notes.txt
+    - structured/customers.csv
+    - code/python/data_analysis.py
+
+  aiProcessing:
+    - samples/census_income_report.pdf
+    - rich_text/academic_paper.rtf
+    - llm-prompt.json
+    - office/pdf/international/un_sustainable_development_goals.pdf

@@ -1,0 +1,41 @@
+workflow:
+  name: "test-simple-navigation"
+  description: "Test simple navigation"
+  version: "1.0.0"
+  debug_level: "steps"
+  enabled: true
+    
+  parameters:
+    test_url:
+      type: string
+      default: "http://localhost:5678"
+
+  steps:
+    - name: "simple-nav"
+      action: "browser_script"
+      script: |
+        console.log('Starting simple navigation test');
+        console.log('Target URL parameter:', '${params.test_url}');
+        
+        // Test basic navigation
+        const url = '${params.test_url}';
+        console.log('Navigating to:', url);
+        
+        await page.goto(url, { 
+          waitUntil: 'networkidle2',
+          timeout: 10000 
+        });
+        
+        console.log('Navigation completed');
+        console.log('Current URL:', page.url());
+        console.log('Page title:', await page.title());
+        
+        return {
+          success: true,
+          url: page.url(),
+          title: await page.title()
+        };
+      output: "${context.outputDir}/simple-results.json"
+      debug:
+        screenshot: true
+        console: true

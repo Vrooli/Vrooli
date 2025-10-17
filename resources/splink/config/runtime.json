@@ -1,0 +1,38 @@
+{
+  "startup_order": 400,
+  "startup_timeout": 30,
+  "startup_time_estimate": "10-20s",
+  "dependencies": [],
+  "optional_dependencies": ["postgres", "redis", "minio"],
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "resource_limits": {
+    "memory": "4GB",
+    "cpu": "2.0"
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "capabilities": [
+    "record_linkage",
+    "deduplication",
+    "entity_resolution",
+    "probabilistic_matching",
+    "unsupervised_learning"
+  ],
+  "supported_formats": [
+    "csv",
+    "json",
+    "parquet",
+    "postgresql",
+    "duckdb"
+  ],
+  "performance": {
+    "max_dataset_size": "10M records",
+    "processing_speed": "1M records/minute",
+    "scalability": "100M+ with Spark backend"
+  }
+}

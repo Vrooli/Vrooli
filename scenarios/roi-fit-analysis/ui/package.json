@@ -1,0 +1,18 @@
+{
+  "name": "roi-fit-analysis-ui",
+  "version": "1.0.0",
+  "description": "Professional ROI analysis and investment intelligence platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -1,0 +1,288 @@
+{
+  "name": "Transcript Processor - Whisper Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-transcript",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Test defaults for manual trigger\nreturn {\n  download_id: 1,\n  audio_path: '/tmp/audio-extracts/test.mp3',\n  whisper_model: 'base',\n  target_language: 'en'\n};"
+      },
+      "id": "test_defaults",
+      "name": "Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\n\n// Validate required fields\nif (!input.download_id) {\n  throw new Error('Download ID is required');\n}\n\nif (!input.audio_path) {\n  throw new Error('Audio path is required');\n}\n\n// Set defaults\nconst whisperModel = input.whisper_model || 'base';\nconst targetLanguage = input.target_language || 'auto';\n\n// Whisper model size mapping\nconst modelSizeMap = {\n  'tiny': 39,\n  'base': 74,\n  'small': 244,\n  'medium': 769,\n  'large': 1550\n};\n\nconst estimatedSizeMB = modelSizeMap[whisperModel] || 74;\n\nreturn {\n  download_id: input.download_id,\n  audio_path: input.audio_path,\n  whisper_model: whisperModel,\n  target_language: targetLanguage,\n  estimated_model_size_mb: estimatedSizeMB,\n  processing_start_time: new Date().toISOString()\n};"
+      },
+      "id": "prepare_transcript",
+      "name": "Prepare Transcript Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE downloads SET transcript_status = 'processing', transcript_started_at = NOW() WHERE id = {{ $json.download_id }}",
+        "options": {}
+      },
+      "id": "update_transcript_status",
+      "name": "Update Transcript Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1000, 300],
+      "credentials": {
+        "postgres": {
+          "id": "${service.postgres.credentialId}",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8090/transcribe",
+        "method": "POST",
+        "options": {
+          "timeout": 600000
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Content-Type",
+              "value": "multipart/form-data"
+            }
+          ]
+        },
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "audio_file",
+              "value": "={{ $json.audio_path }}"
+            },
+            {
+              "name": "model",
+              "value": "={{ $json.whisper_model }}"
+            },
+            {
+              "name": "language",
+              "value": "={{ $json.target_language !== 'auto' ? $json.target_language : '' }}"
+            },
+            {
+              "name": "response_format",
+              "value": "verbose_json"
+            }
+          ]
+        }
+      },
+      "id": "whisper_transcription",
+      "name": "Whisper Transcription",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const response = $input.item.json;\nconst requestData = $node[\"prepare_transcript\"].json;\n\n// Check if transcription was successful\nif (!response.text) {\n  throw new Error('No transcript text received from Whisper');\n}\n\n// Process Whisper response\nconst transcriptText = response.text;\nconst language = response.language || requestData.target_language || 'unknown';\nconst segments = response.segments || [];\n\n// Calculate processing metrics\nconst processingEndTime = new Date();\nconst processingStartTime = new Date(requestData.processing_start_time);\nconst processingTimeMs = processingEndTime.getTime() - processingStartTime.getTime();\n\n// Count words\nconst wordCount = transcriptText.split(/\\s+/).filter(word => word.length > 0).length;\n\n// Calculate confidence score (average of segment confidences)\nlet avgConfidence = 0.0;\nif (segments.length > 0) {\n  const confidenceSum = segments.reduce((sum, seg) => sum + (seg.avg_logprob || 0), 0);\n  // Convert log probability to confidence percentage (approximate)\n  avgConfidence = Math.max(0, Math.min(1, (confidenceSum / segments.length + 5) / 5));\n}\n\nreturn {\n  download_id: requestData.download_id,\n  transcript_text: transcriptText,\n  language: language,\n  detected_language: response.language || language,\n  confidence_score: avgConfidence,\n  model_used: requestData.whisper_model,\n  word_count: wordCount,\n  processing_time_ms: processingTimeMs,\n  audio_duration_seconds: response.duration || 0,\n  whisper_version: '1.0', // Would be dynamically determined\n  segments: segments,\n  success: true\n};"
+      },
+      "id": "process_whisper_response",
+      "name": "Process Whisper Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO transcripts (\n  download_id, language, detected_language, confidence_score,\n  model_used, full_text, word_count, processing_time_ms,\n  audio_duration_seconds, whisper_version\n) VALUES (\n  {{ $json.download_id }},\n  '{{ $json.language }}',\n  '{{ $json.detected_language }}',\n  {{ $json.confidence_score }},\n  '{{ $json.model_used }}',\n  '{{ $json.transcript_text.replace(/'/g, \"''\") }}',\n  {{ $json.word_count }},\n  {{ $json.processing_time_ms }},\n  {{ $json.audio_duration_seconds }},\n  '{{ $json.whisper_version }}'\n) RETURNING id",
+        "options": {}
+      },
+      "id": "insert_transcript",
+      "name": "Insert Transcript",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1600, 400],
+      "credentials": {
+        "postgres": {
+          "id": "${service.postgres.credentialId}",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const segments = $node[\"process_whisper_response\"].json.segments || [];\nconst transcriptId = $input.item.json.id;\n\n// Prepare segments for batch insertion\nif (segments.length === 0) {\n  return {\n    transcript_id: transcriptId,\n    segments_inserted: 0,\n    skip_segments: true\n  };\n}\n\nconst processedSegments = segments.map((segment, index) => {\n  // Process word timestamps if available\n  let wordTimestamps = {};\n  if (segment.words && Array.isArray(segment.words)) {\n    wordTimestamps = segment.words.reduce((acc, word) => {\n      acc[word.word] = {\n        start: word.start,\n        end: word.end,\n        probability: word.probability\n      };\n      return acc;\n    }, {});\n  }\n\n  return {\n    transcript_id: transcriptId,\n    start_time: segment.start || 0,\n    end_time: segment.end || 0,\n    text: (segment.text || '').replace(/'/g, \"''\"),\n    confidence: segment.avg_logprob ? Math.max(0, Math.min(1, (segment.avg_logprob + 5) / 5)) : 0.8,\n    sequence: index + 1,\n    word_timestamps: JSON.stringify(wordTimestamps),\n    character_start: segment.character_start || 0,\n    character_end: segment.character_end || 0\n  };\n});\n\nreturn {\n  transcript_id: transcriptId,\n  segments: processedSegments,\n  segments_count: processedSegments.length,\n  skip_segments: false\n};"
+      },
+      "id": "prepare_segments",
+      "name": "Prepare Segments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1800, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.skip_segments }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "check_segments",
+      "name": "Check Segments",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const segmentData = $input.item.json;\n\n// Build bulk insert query for segments\nconst segments = segmentData.segments;\nconst valueStrings = segments.map(seg => \n  `(${seg.transcript_id}, ${seg.start_time}, ${seg.end_time}, '${seg.text}', ${seg.confidence}, ${seg.sequence}, '${seg.word_timestamps}', ${seg.character_start}, ${seg.character_end})`\n).join(', ');\n\nconst insertQuery = `\nINSERT INTO transcript_segments (\n  transcript_id, start_time, end_time, text, confidence, \n  sequence, word_timestamps, character_start, character_end\n) VALUES ${valueStrings}`;\n\nreturn {\n  transcript_id: segmentData.transcript_id,\n  insert_query: insertQuery,\n  segments_count: segmentData.segments_count\n};"
+      },
+      "id": "build_segments_query",
+      "name": "Build Segments Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.insert_query }}",
+        "options": {}
+      },
+      "id": "insert_segments",
+      "name": "Insert Segments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2400, 300],
+      "credentials": {
+        "postgres": {
+          "id": "${service.postgres.credentialId}",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE downloads SET \n  transcript_status = 'completed',\n  transcript_completed_at = NOW(),\n  has_transcript = true\nWHERE id = {{ $('prepare_segments').item.json.transcript_id ? $('Insert Transcript').item.json.download_id : $('prepare_segments').item.json.transcript_id }}",
+        "options": {}
+      },
+      "id": "update_completion_status",
+      "name": "Update Completion Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2200, 500],
+      "credentials": {
+        "postgres": {
+          "id": "${service.postgres.credentialId}",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  transcript_id: $('Insert Transcript').item.json.id,\n  download_id: $('prepare_transcript').item.json.download_id,\n  language: $('process_whisper_response').item.json.language,\n  confidence_score: $('process_whisper_response').item.json.confidence_score,\n  word_count: $('process_whisper_response').item.json.word_count,\n  segments_count: $('prepare_segments').item.json.segments_count || 0,\n  processing_time_ms: $('process_whisper_response').item.json.processing_time_ms\n}, null, 2) }}"
+      },
+      "id": "respond_success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2600, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{ "node": "merge_triggers", "type": "main", "index": 0 }]]
+    },
+    "manual_trigger": {
+      "main": [[{ "node": "test_defaults", "type": "main", "index": 0 }]]
+    },
+    "test_defaults": {
+      "main": [[{ "node": "merge_triggers", "type": "main", "index": 1 }]]
+    },
+    "merge_triggers": {
+      "main": [[{ "node": "prepare_transcript", "type": "main", "index": 0 }]]
+    },
+    "prepare_transcript": {
+      "main": [[{ "node": "update_transcript_status", "type": "main", "index": 0 }]]
+    },
+    "update_transcript_status": {
+      "main": [[{ "node": "whisper_transcription", "type": "main", "index": 0 }]]
+    },
+    "whisper_transcription": {
+      "main": [[{ "node": "process_whisper_response", "type": "main", "index": 0 }]]
+    },
+    "process_whisper_response": {
+      "main": [[{ "node": "insert_transcript", "type": "main", "index": 0 }]]
+    },
+    "insert_transcript": {
+      "main": [[{ "node": "prepare_segments", "type": "main", "index": 0 }]]
+    },
+    "prepare_segments": {
+      "main": [[{ "node": "check_segments", "type": "main", "index": 0 }, { "node": "update_completion_status", "type": "main", "index": 0 }]]
+    },
+    "check_segments": {
+      "main": [
+        [{ "node": "build_segments_query", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "build_segments_query": {
+      "main": [[{ "node": "insert_segments", "type": "main", "index": 0 }]]
+    },
+    "insert_segments": {
+      "main": [[{ "node": "respond_success", "type": "main", "index": 0 }]]
+    },
+    "update_completion_status": {
+      "main": [[{ "node": "respond_success", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "01234567-89ab-cdef-0123-456789abcdef",
+  "id": "transcript-processor",
+  "meta": {
+    "instanceId": "${service.n8n.instanceId}"
+  },
+  "tags": []
+}

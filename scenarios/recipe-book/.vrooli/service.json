@@ -1,0 +1,279 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "recipe-book",
+    "displayName": "Recipe Book",
+    "description": "Intelligent household recipe management with AI-powered search, generation, and multi-tenant sharing",
+    "version": "1.0.0",
+    "tags": [
+      "lifestyle",
+      "cooking",
+      "recipes",
+      "meal-planning",
+      "ai-search",
+      "semantic-search",
+      "multi-tenant",
+      "family-sharing",
+      "nutrition",
+      "go-api",
+      "postgres-storage",
+      "qdrant-vectors",
+      "ollama-generation"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Recipe Book API port",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store recipes, ratings, user preferences, and meal history",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for semantic recipe search using embeddings",
+      "initialization": [
+        {
+          "file": "initialization/storage/qdrant/collection.json",
+          "type": "collection"
+        }
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": false,
+      "purpose": "Workflow automation for AI recipe generation and modification",
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/recipe-generator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/recipe-modifier.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "AI model for recipe generation, modification, and natural language processing",
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": false,
+      "purpose": "Store recipe photos and images",
+      "buckets": [
+        "recipe-photos"
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache popular recipes and search results for performance"
+    },
+    "scenario-authenticator": {
+      "type": "scenario",
+      "enabled": true,
+      "required": true,
+      "purpose": "Multi-tenant authentication and user profile management"
+    },
+    "contact-book": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "purpose": "Retrieve dietary restrictions and family member preferences"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Recipe Book health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "resource",
+          "target": "postgres",
+          "critical": true
+        },
+        {
+          "name": "qdrant_connection",
+          "type": "resource",
+          "target": "qdrant",
+          "critical": true
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Recipe Book scenario",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "recipe-book-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "recipe-book"
+             ]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-dependencies",
+          "run": "cd api && go mod init recipe-book && go get github.com/lib/pq github.com/gorilla/mux github.com/google/uuid",
+          "description": "Install Go dependencies"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o recipe-book-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "initialize-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize database schema and seed data"
+        },
+        {
+          "name": "create-qdrant-collection",
+          "run": "resource-qdrant create-collection recipes 768 || echo 'Collection may already exist'",
+          "description": "Create Qdrant collection for recipe embeddings"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🍳 Recipe Book initialized\\n  UI: http://localhost:${API_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Recipe Book with API server and UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./recipe-book-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/recipe-book-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && python3 -m http.server ${API_PORT} --bind 0.0.0.0",
+          "description": "Serve UI on API port",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:$API_PORT\"",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Recipe Book API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation"
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-recipe-creation",
+          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/recipes -H 'Content-Type: application/json' -d '{\"title\":\"Test Recipe\",\"ingredients\":[\"flour\",\"water\"],\"instructions\":[\"Mix\",\"Bake\"]}'",
+          "description": "Test recipe creation"
+        },
+        {
+          "name": "test-semantic-search",
+          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/recipes/search -H 'Content-Type: application/json' -d '{\"query\":\"chocolate dessert\"}'",
+          "description": "Test semantic search"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "recipe-book list --json && recipe-book search 'pasta dishes'",
+          "description": "Test CLI functionality"
+        },
+        {
+          "name": "run-scenario-tests",
+          "run": "vrooli scenario test recipe-book",
+          "description": "Run full scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Recipe Book services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'recipe-book-api' || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'python3 -m http.server ${API_PORT}' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  }
+}

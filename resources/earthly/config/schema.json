@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Earthly Resource Configuration Schema",
+  "type": "object",
+  "required": ["version", "cache_dir"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Earthly version to install",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "cache_dir": {
+      "type": "string",
+      "description": "Directory for build cache"
+    },
+    "parallel_limit": {
+      "type": "integer",
+      "description": "Maximum parallel build steps",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 4
+    },
+    "cache_size_mb": {
+      "type": "integer",
+      "description": "Maximum cache size in MB",
+      "minimum": 100,
+      "maximum": 100000,
+      "default": 10240
+    },
+    "platforms": {
+      "type": "array",
+      "description": "Supported build platforms",
+      "items": {
+        "type": "string",
+        "enum": [
+          "linux/amd64",
+          "linux/arm64",
+          "linux/arm/v7",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "default": ["linux/amd64"]
+    },
+    "remote_cache": {
+      "type": "object",
+      "description": "Remote cache configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri"
+        },
+        "credentials": {
+          "type": "object",
+          "properties": {
+            "username": {"type": "string"},
+            "password": {"type": "string"}
+          }
+        }
+      }
+    },
+    "satellite": {
+      "type": "object",
+      "description": "Satellite build configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "name": {
+          "type": "string"
+        },
+        "organization": {
+          "type": "string"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info"
+        },
+        "file": {
+          "type": "string"
+        },
+        "max_size": {
+          "type": "string",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "100M"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "disable_analytics": {
+          "type": "boolean",
+          "default": true
+        },
+        "disable_remote_registry_proxy": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "properties": {
+        "cpu": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?$"
+        },
+        "memory": {
+          "type": "string",
+          "pattern": "^[0-9]+[KMG]i?$"
+        }
+      }
+    }
+  }
+}

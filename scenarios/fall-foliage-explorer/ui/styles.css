@@ -1,0 +1,664 @@
+/* Fall Foliage Explorer - Autumn Cozy Theme */
+
+:root {
+    --autumn-red: #dc143c;
+    --autumn-orange: #ff8c00;
+    --autumn-yellow: #ffd700;
+    --autumn-brown: #8b4513;
+    --forest-green: #2d5a2d;
+    --warm-beige: #f5e6d3;
+    --cozy-cream: #faf3e0;
+    --bark-brown: #4a3c2a;
+    --shadow: rgba(74, 60, 42, 0.2);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Georgia', serif;
+    background: linear-gradient(135deg, #f5e6d3 0%, #ffd7a8 100%);
+    color: var(--bark-brown);
+    min-height: 100vh;
+}
+
+.app-container {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header Styles */
+.autumn-header {
+    background: linear-gradient(90deg, var(--autumn-brown) 0%, var(--autumn-red) 50%, var(--autumn-orange) 100%);
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.leaf-icon {
+    fill: var(--autumn-yellow);
+    animation: sway 3s ease-in-out infinite;
+}
+
+@keyframes sway {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+}
+
+h1 {
+    color: var(--cozy-cream);
+    font-size: 2rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.nav-menu {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid var(--cozy-cream);
+    color: var(--cozy-cream);
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.nav-btn.active {
+    background: var(--cozy-cream);
+    color: var(--autumn-brown);
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.view-panel {
+    display: none;
+    animation: fadeIn 0.5s ease;
+}
+
+.view-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Map Controls */
+.map-controls {
+    background: var(--cozy-cream);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.time-slider-container {
+    margin-bottom: 1.5rem;
+}
+
+.slider-label {
+    font-weight: bold;
+    color: var(--autumn-brown);
+}
+
+.selected-date {
+    float: right;
+    color: var(--autumn-red);
+    font-weight: bold;
+}
+
+.autumn-slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--forest-green) 0%, var(--autumn-orange) 50%, var(--autumn-brown) 100%);
+    outline: none;
+    margin: 1rem 0;
+    -webkit-appearance: none;
+}
+
+.autumn-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: var(--autumn-red);
+    cursor: pointer;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    color: var(--bark-brown);
+    font-size: 0.9rem;
+}
+
+/* Legend */
+.legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.legend h3 {
+    color: var(--autumn-brown);
+    margin-bottom: 0.5rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid var(--bark-brown);
+}
+
+/* Map */
+.foliage-map {
+    height: 600px;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+/* Timeline Grid */
+.timeline-container {
+    background: var(--cozy-cream);
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.timeline-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px var(--shadow);
+    transition: transform 0.3s ease;
+}
+
+.timeline-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px var(--shadow);
+}
+
+/* Regions Grid */
+.regions-container {
+    background: var(--cozy-cream);
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.regions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.region-card {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px var(--shadow);
+    transition: transform 0.3s ease;
+}
+
+.region-card:hover {
+    transform: scale(1.05);
+}
+
+.region-image {
+    width: 100%;
+    height: 150px;
+    background: linear-gradient(135deg, var(--autumn-orange) 0%, var(--autumn-red) 100%);
+}
+
+.region-info {
+    padding: 1rem;
+}
+
+.region-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--autumn-brown);
+}
+
+.region-status {
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 15px;
+    display: inline-block;
+    font-size: 0.9rem;
+}
+
+.status-peak {
+    background: var(--autumn-red);
+    color: white;
+}
+
+.status-near-peak {
+    background: var(--autumn-orange);
+    color: white;
+}
+
+.status-progressing {
+    background: var(--autumn-yellow);
+    color: var(--bark-brown);
+}
+
+/* Trip Planner */
+.planner-container {
+    background: var(--cozy-cream);
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.planner-form {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--autumn-brown);
+    font-weight: bold;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid var(--warm-beige);
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.region-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.region-checkbox {
+    background: var(--warm-beige);
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.region-checkbox:hover {
+    background: var(--autumn-yellow);
+}
+
+.save-trip-btn {
+    background: linear-gradient(135deg, var(--autumn-orange) 0%, var(--autumn-red) 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    width: 100%;
+}
+
+.save-trip-btn:hover {
+    transform: scale(1.05);
+}
+
+/* Info Panel */
+.info-panel {
+    position: fixed;
+    right: -400px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 350px;
+    background: var(--cozy-cream);
+    border-radius: 15px 0 0 15px;
+    padding: 2rem;
+    box-shadow: -4px 0 10px var(--shadow);
+    transition: right 0.3s ease;
+}
+
+.info-panel.open {
+    right: 0;
+}
+
+.close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: var(--autumn-brown);
+    cursor: pointer;
+}
+
+/* Photo Gallery Styles */
+.gallery-container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.gallery-filters {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: var(--autumn-brown);
+}
+
+.gallery-select,
+.gallery-date-input {
+    padding: 0.6rem 1rem;
+    border: 2px solid var(--autumn-brown);
+    border-radius: 8px;
+    background: white;
+    font-size: 1rem;
+    min-width: 200px;
+}
+
+.photo-upload-section {
+    background: linear-gradient(135deg, #fff5e6 0%, #ffe9cc 100%);
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 3rem;
+    border: 2px solid var(--autumn-orange);
+}
+
+.photo-upload-section h3 {
+    margin-top: 0;
+    color: var(--autumn-brown);
+}
+
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.submit-photo-btn {
+    background: linear-gradient(135deg, var(--autumn-red) 0%, var(--autumn-orange) 100%);
+    color: white;
+    padding: 0.8rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.submit-photo-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 20, 60, 0.3);
+}
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.photo-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.photo-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+.photo-image-container {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: #f0f0f0;
+}
+
+.photo-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-info {
+    padding: 1rem;
+}
+
+.photo-info h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--autumn-brown);
+}
+
+.photo-status {
+    margin: 0.5rem 0;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-not_started {
+    background: #e8f5e9;
+    color: #2d5a2d;
+}
+
+.status-progressing {
+    background: #fff3e0;
+    color: #8b7355;
+}
+
+.status-near_peak {
+    background: #ffe0b2;
+    color: #ff8c00;
+}
+
+.status-peak {
+    background: #ffebee;
+    color: #dc143c;
+}
+
+.status-past_peak {
+    background: #efebe9;
+    color: #8b4513;
+}
+
+.photo-date {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0.3rem 0;
+}
+
+.photo-description {
+    margin-top: 0.8rem;
+    font-size: 0.95rem;
+    color: #333;
+    line-height: 1.5;
+}
+
+.no-photos {
+    text-align: center;
+    color: #666;
+    padding: 3rem;
+    font-size: 1.1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .nav-menu {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .nav-btn {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.8rem;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .info-panel {
+        width: 100%;
+        right: -100%;
+    }
+
+    .gallery-container {
+        padding: 1rem;
+    }
+
+    .gallery-filters {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .photo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .photo-upload-section {
+        padding: 1rem;
+    }
+
+    .map-controls {
+        flex-direction: column;
+    }
+
+    .time-slider-container {
+        width: 100%;
+    }
+}
+
+/* Export Button Styles */
+.export-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.export-btn {
+    background: linear-gradient(135deg, var(--autumn-orange) 0%, var(--autumn-red) 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--shadow);
+}
+
+.export-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+@media (max-width: 768px) {
+    .export-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .export-btn {
+        width: 100%;
+    }
+}

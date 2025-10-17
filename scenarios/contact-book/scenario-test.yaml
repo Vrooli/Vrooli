@@ -1,0 +1,237 @@
+version: 1.0
+scenario: contact-book
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/contact-book
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/postgres
+    - test
+
+# Resource validation
+resources:
+  required: 
+    - postgres
+    - qdrant
+  optional: 
+    - minio
+    - redis
+  health_timeout: 60  # Seconds to wait for resources to be healthy
+
+# Declarative tests
+tests:
+  # Database health and schema validation
+  - name: "PostgreSQL connection is healthy"
+    type: postgres
+    query: "SELECT 1"
+    expect:
+      rows:
+        - "1": 1
+
+  - name: "Core tables exist"
+    type: postgres
+    query: "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_name IN ('persons', 'relationships', 'organizations', 'social_analytics', 'consent_records')"
+    expect:
+      rows:
+        - table_count: 5
+
+  - name: "Sample data is loaded"
+    type: postgres
+    query: "SELECT COUNT(*) as person_count FROM persons WHERE deleted_at IS NULL"
+    expect:
+      min_rows: 1
+
+  # API endpoint validation
+  - name: "API health endpoint responds correctly"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        database: healthy
+
+  - name: "Contacts endpoint returns data"
+    type: http
+    service: api
+    endpoint: /api/v1/contacts
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - persons
+        - count
+
+  - name: "Search endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/search
+    method: POST
+    body:
+      query: "sarah"
+      limit: 5
+    expect:
+      status: 200
+      body_contains:
+        - results
+
+  - name: "Relationships endpoint returns data"
+    type: http
+    service: api
+    endpoint: /api/v1/relationships
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - relationships
+
+  - name: "Analytics endpoint is accessible"
+    type: http
+    service: api
+    endpoint: /api/v1/analytics
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - analytics
+
+  # CLI validation
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/contact-book help
+    expect:
+      exit_code: 0
+      output_contains: 
+        - "Contact Book CLI"
+        - "USAGE:"
+
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/contact-book version
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Contact Book CLI"
+
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/contact-book status --json
+    timeout: 10000  # 10 seconds
+    expect:
+      exit_code: 0
+      output_contains:
+        - "healthy"
+
+  - name: "CLI list command works"
+    type: exec
+    command: ./cli/contact-book list --limit 2 --json
+    timeout: 10000
+    expect:
+      exit_code: 0
+      output_contains:
+        - "persons"
+
+  # Integration tests
+  - name: "Create contact via API"
+    type: http
+    service: api
+    endpoint: /api/v1/contacts
+    method: POST
+    body:
+      full_name: "Integration Test User"
+      emails:
+        - "integration@test.com"
+      tags:
+        - "test"
+        - "integration"
+      notes: "Created during scenario validation"
+    expect:
+      status: 201
+      body_contains:
+        - "id"
+        - "Person created successfully"
+
+  # Performance validation  
+  - name: "API responds within performance threshold"
+    type: http
+    service: api
+    endpoint: /api/v1/contacts
+    method: GET
+    performance:
+      max_response_time: 500  # milliseconds
+    expect:
+      status: 200
+
+  # Cross-scenario integration validation
+  - name: "CLI produces valid JSON output"
+    type: exec
+    command: ./cli/contact-book search "test" --json --limit 1
+    timeout: 10000
+    validation: |
+      output=$(./cli/contact-book search "test" --json --limit 1 2>/dev/null)
+      echo "$output" | jq . >/dev/null 2>&1
+    expect:
+      exit_code: 0
+
+# Performance benchmarks
+performance:
+  contact_query_time:
+    description: "Time to query contacts via API"
+    test: "GET /api/v1/contacts?limit=50"
+    target: "<200ms"
+    
+  search_performance:
+    description: "Search response time"
+    test: "POST /api/v1/search with typical query"
+    target: "<500ms"
+    
+  cli_responsiveness:
+    description: "CLI command response time"
+    test: "contact-book list --limit 10"
+    target: "<2s"
+
+# Validation criteria
+validation:
+  # All P0 requirements must be met
+  required_tests:
+    - "PostgreSQL connection is healthy"
+    - "Core tables exist"
+    - "API health endpoint responds correctly"
+    - "Contacts endpoint returns data"
+    - "CLI help command works"
+    - "CLI status command works"
+    
+  # Optional tests (should pass but won't block validation)
+  optional_tests:
+    - "Sample data is loaded"
+    - "CLI produces valid JSON output"
+    - "API responds within performance threshold"
+
+  # Cross-scenario integration requirements
+  integration_requirements:
+    - description: "Other scenarios can list contacts programmatically"
+      test: "CLI JSON output is valid and parseable"
+      command: "contact-book list --json --limit 1"
+      
+    - description: "Other scenarios can search contacts"
+      test: "Search API returns structured results"
+      command: "contact-book search 'test' --json"
+      
+    - description: "Other scenarios can access social analytics"
+      test: "Analytics endpoint provides relationship insights"
+      api: "GET /api/v1/analytics"

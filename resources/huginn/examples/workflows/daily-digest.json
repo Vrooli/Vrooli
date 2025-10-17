@@ -1,0 +1,66 @@
+{
+  "name": "Daily News and Weather Digest",
+  "description": "Collects news from multiple sources and weather data, then sends a daily digest email",
+  "workflow": {
+    "agents": [
+      {
+        "name": "Tech News RSS",
+        "type": "RssAgent",
+        "schedule": "every_2h",
+        "options": {
+          "url": "https://techcrunch.com/feed/",
+          "clean": true,
+          "expected_update_period_in_days": 1
+        }
+      },
+      {
+        "name": "Weather API",
+        "type": "WeatherAgent",
+        "schedule": "6am",
+        "options": {
+          "location": "New York, NY",
+          "api_key": "YOUR_API_KEY",
+          "which_day": 0
+        }
+      },
+      {
+        "name": "News Filter",
+        "type": "EventFormattingAgent",
+        "sources": ["Tech News RSS"],
+        "options": {
+          "instructions": {
+            "title": "{{title}}",
+            "summary": "{{description | truncate: 200}}",
+            "link": "{{url}}",
+            "category": "tech"
+          }
+        }
+      },
+      {
+        "name": "Daily Digest Compiler",
+        "type": "DigestAgent",
+        "sources": ["News Filter", "Weather API"],
+        "schedule": "9am",
+        "options": {
+          "expected_receive_period_in_days": 1,
+          "message": "# Daily Digest for {{date}}\n\n## Weather\n{{weather}}\n\n## Tech News\n{{news}}"
+        }
+      },
+      {
+        "name": "Email Sender",
+        "type": "EmailAgent",
+        "sources": ["Daily Digest Compiler"],
+        "options": {
+          "subject": "Daily Digest - {{date}}",
+          "recipients": "user@example.com"
+        }
+      }
+    ],
+    "connections": [
+      "Tech News RSS -> News Filter",
+      "News Filter -> Daily Digest Compiler",
+      "Weather API -> Daily Digest Compiler",
+      "Daily Digest Compiler -> Email Sender"
+    ]
+  }
+}

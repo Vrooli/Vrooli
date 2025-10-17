@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Restic Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "repository": {
+      "type": "object",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "enum": ["local", "s3", "sftp", "rest"],
+          "default": "local",
+          "description": "Storage backend type"
+        },
+        "path": {
+          "type": "string",
+          "default": "/repository",
+          "description": "Repository path or URL"
+        },
+        "password": {
+          "type": "string",
+          "description": "Repository encryption password"
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "properties": {
+        "schedule": {
+          "type": "string",
+          "pattern": "^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\\d+(ns|us|µs|ms|s|m|h))+)|((\\d+|\\*) (\\d+|\\*) (\\d+|\\*) (\\d+|\\*) (\\d+|\\*))",
+          "default": "0 2 * * *",
+          "description": "Cron expression for backup schedule"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["/data"],
+          "description": "Paths to backup"
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Patterns to exclude from backup"
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "properties": {
+        "keep_daily": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 7,
+          "description": "Number of daily snapshots to keep"
+        },
+        "keep_weekly": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 4,
+          "description": "Number of weekly snapshots to keep"
+        },
+        "keep_monthly": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 12,
+          "description": "Number of monthly snapshots to keep"
+        },
+        "keep_yearly": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 3,
+          "description": "Number of yearly snapshots to keep"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "compression": {
+          "type": "string",
+          "enum": ["off", "auto", "max"],
+          "default": "auto",
+          "description": "Compression level"
+        },
+        "parallel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 2,
+          "description": "Number of parallel operations"
+        }
+      }
+    },
+    "s3": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "S3 endpoint URL"
+        },
+        "access_key": {
+          "type": "string",
+          "description": "S3 access key ID"
+        },
+        "secret_key": {
+          "type": "string",
+          "description": "S3 secret access key"
+        },
+        "region": {
+          "type": "string",
+          "default": "us-east-1",
+          "description": "S3 region"
+        }
+      }
+    }
+  },
+  "required": ["repository", "backup"]
+}

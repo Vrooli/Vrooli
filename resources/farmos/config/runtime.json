@@ -1,0 +1,28 @@
+{
+  "startup_order": 450,
+  "dependencies": [],
+  "startup_timeout": 120,
+  "startup_time_estimate": "60-90s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "description": "farmOS agricultural management platform with Drupal-based stack",
+  "category": "agriculture",
+  "capabilities": [
+    "farm-management",
+    "crop-tracking",
+    "livestock-management",
+    "equipment-tracking",
+    "activity-logging",
+    "api-access",
+    "oauth2",
+    "data-export",
+    "iot-integration"
+  ],
+  "integrations": {
+    "questdb": "Time-series analytics for sensor data",
+    "redis": "Caching and real-time data",
+    "node-red": "IoT sensor ingestion via MQTT",
+    "eclipse-ditto": "Digital twin management for farm equipment",
+    "postgres": "Spatial database for field mapping"
+  }
+}

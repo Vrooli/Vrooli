@@ -1,66 +1,89 @@
-# Deployment Documentation
+# Vrooli Deployment Guide
 
-This directory contains comprehensive documentation for deploying and maintaining Vrooli in various environments. Whether you're setting up a development instance, a production server, or implementing a CI/CD pipeline, you'll find the necessary information here.
+## 🚀 Choose Your Deployment Path
 
-## Table of Contents
+Vrooli scenarios run **directly** from source without conversion. Choose your deployment approach based on your specific needs:
 
-- [Deployment Options](#deployment-options)
-- [CI/CD Pipeline](#cicd-pipeline)
-- [Secrets Management](#secrets-management)
-- [Kubernetes Deployment](#kubernetes-deployment)
-- [Environment Setup](#environment-setup)
+## Quick Decision Tree
 
-## Deployment Options
+```
+What are you trying to do?
 
-Vrooli can be deployed in several configurations depending on your needs:
+🚀 RUN SCENARIOS (95% of use cases)
+├─ Local testing/development → vrooli scenario run <name>
+├─ Customer delivery → Package multiple scenarios for production
+└─ Production deployment → Deploy to Kubernetes cluster
 
-### [Single Server Deployment](./single_server.md)
-Deploy all Vrooli components on a single server for simpler setups or development environments. This is the recommended approach for getting started.
+⚙️ DEVELOP VROOLI CORE (Contributors only)
+└─ Core platform development → vrooli develop
+```
 
-### [Multiple Servers Deployment](./multiple_servers.md)
-For production environments with higher traffic, you can distribute Vrooli components across multiple servers for improved performance and scalability.
+## 🎯 Main Deployment Paths
 
-## CI/CD Pipeline
+### 1. Run Scenarios Locally (95% of users)
+```bash
+# Start required resources
+vrooli resource start-all
 
-### [CI/CD Setup](./ci_cd_setup.md)
-Detailed instructions for setting up a Continuous Integration and Continuous Deployment pipeline to automate testing and deployment processes. This document covers:
+# Run any scenario directly  
+vrooli scenario run research-assistant
+vrooli scenario run invoice-generator
 
-- GitHub Actions workflow configuration
-- Development VPS setup and configuration
-- Automated testing and deployment
-- Environment-specific deployment scripts
-- Monitoring and notifications
+# Test scenario integration
+vrooli scenario test research-assistant
+```
+**Perfect for:** Development, testing, local business applications, customer demos  
+**Time to deploy:** 30 seconds  
+**Documentation:** [Direct Scenario Execution](../scenarios/DEPLOYMENT.md)
 
-## Secrets Management
+### 2. Deploy to Production (Customer delivery)
+```bash
+# Package scenarios for customer deployment
+./scripts/deployment/package-scenario-deployment.sh \
+  "customer-suite" ~/deployments/customer \
+  research-assistant invoice-generator customer-portal
 
-### [Secrets Management](./secrets_management.md)
-Best practices and instructions for managing sensitive information such as API keys, database credentials, and other secrets securely across development and production environments.
+# Deploy to production cluster
+kubectl apply -f ~/deployments/customer/k8s/
+```
+**Perfect for:** Customer deliveries, production business applications  
+**Time to deploy:** 10-15 minutes  
+**Documentation:** [Production Deployment](production-deployment-guide.md)
 
-## Kubernetes Deployment
+## 📋 Deployment Comparison
 
-### [Kubernetes Setup and Testing](./kubernetes_testing.md)
-Comprehensive guide for deploying Vrooli on Kubernetes, including testing procedures, scaling considerations, and best practices for container orchestration.
+| Approach | Complexity | Time | Best For | Resources Needed |
+|----------|------------|------|----------|------------------|
+| **Local Scenarios** | ⭐ Simple | 30s | Development, testing, demos | Local Docker |
+| **Production Suite** | ⭐⭐⭐ Complex | 15min | Customer delivery | Kubernetes cluster |
 
-## Environment Setup
+## 🛠️ Infrastructure Requirements
 
-### [Development Environment](./development_environment.md)
-Setting up an isolated development environment that mirrors the production configuration for testing changes before deployment.
+### Local Scenario Execution
+- **Hardware:** 4GB RAM, 2 CPU cores
+- **Software:** Docker, Vrooli CLI
+- **Network:** Internet for initial setup
+- **Time:** 5 minutes setup
 
-### [Production Environment](./production_environment.md)
-Guidelines for configuring and securing a production environment, including performance optimization, monitoring, and backup strategies.
+### Production Business Deployment  
+- **Hardware:** 8GB RAM, 4 CPU cores minimum
+- **Software:** Kubernetes cluster, kubectl, helm
+- **Network:** External access, SSL certificates
+- **Time:** 2-4 hours initial setup
 
-## Best Practices
+## 🚨 Quick Troubleshooting
 
-- Always use version control for configuration files
-- Implement staging environments for testing before production deployment
-- Use the VSCode Peacock extension (or similar tool) to visually distinguish between development and production environments
-- Regularly test your deployment and backup/restore procedures
-- Document environment-specific settings for each deployment
+| Issue | Solution |
+|-------|----------|
+| Scenario won't start | Check `vrooli resource status` |
+| Port conflicts | Check `~/.vrooli/port-registry.json` |
+| Resource unavailable | Run `resource-<name> start` |
+| Performance slow | See resource requirements above |
 
-## Troubleshooting
+## 📚 Detailed Guides
 
-For common deployment issues and their solutions, refer to the [Troubleshooting Guide](./troubleshooting.md).
-
-## Contributing
-
-If you encounter issues with the deployment process or have improvements to suggest, please update these documents or submit an issue on our GitHub repository. 
+- **[Direct Scenario Deployment](../scenarios/DEPLOYMENT.md)** - Run scenarios directly (recommended)
+- **[Production Deployment](production-deployment-guide.md)** - Cloud Kubernetes deployment
+- **[Development Environment](../devops/development-environment.md)** - Core contributor setup
+- **[CI/CD Integration](../devops/ci-cd.md)** - Automated testing and deployment
+- **[Troubleshooting](../devops/troubleshooting.md)** - Common issues and solutions

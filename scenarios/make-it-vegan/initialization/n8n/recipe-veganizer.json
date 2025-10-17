@@ -1,0 +1,157 @@
+{
+  "name": "Make It Vegan - Recipe Veganizer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "make-it-vegan/veganize",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Default values for manual testing\nconst defaults = {\n  recipe: \"Classic Carbonara: pasta, eggs, bacon, parmesan cheese, black pepper\"\n};\n\nreturn [{json: defaults}];"
+      },
+      "id": "default_values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or default data\nconst isManual = $('Manual Trigger').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\n// Get recipe from input\nconst recipe = input.recipe || 'unknown recipe';\n\nconst prompt = `You are an expert vegan chef. Transform this recipe into a delicious vegan version.\n\nOriginal Recipe: ${recipe}\n\nProvide a complete vegan version including:\n1. List of all ingredient substitutions\n2. Modified cooking instructions if needed\n3. Tips for best results\n4. Nutritional comparison (brief)\n\nFormat as JSON:\n{\n  \"originalRecipe\": \"name\",\n  \"veganVersion\": {\n    \"name\": \"vegan recipe name\",\n    \"substitutions\": [\n      {\"original\": \"ingredient\", \"replacement\": \"vegan alternative\", \"notes\": \"preparation tips\"}\n    ],\n    \"instructions\": [\"step1\", \"step2\"],\n    \"cookingTips\": [\"tip1\", \"tip2\"],\n    \"nutritionNotes\": \"comparison to original\"\n  },\n  \"difficulty\": \"easy/medium/hard\",\n  \"estimatedTime\": \"prep and cook time\"\n}`;\n\n// Prepare request for CLI Ollama\nreturn [{\n  json: {\n    prompt: prompt,\n    model: 'llama3.2:3b',\n    type: 'reasoning',\n    quiet: true,\n    timeout_seconds: 30,\n    original_recipe: recipe\n  }\n}];"
+      },
+      "id": "prepare_veganize",
+      "name": "Prepare Veganize Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "ollama",
+        "mode": "once",
+        "source": "db",
+        "passThrough": false
+      },
+      "id": "call_shared_ollama",
+      "name": "Call Shared Ollama Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the response from shared Ollama workflow\nconst response = $json;\nconst originalRecipe = $node[\"prepare_veganize\"].json.original_recipe;\n\n// Get the response text from shared workflow\nconst responseText = response.response || '';\nconst success = response.success === true;\nconst hasError = response.error != null;\n\nlet result;\ntry {\n  // Check if the command was successful\n  if (!success) {\n    throw new Error(hasError ? response.error.message : 'Ollama workflow failed');\n  }\n  \n  // Try to parse as JSON\n  if (responseText && typeof responseText === 'string') {\n    // Clean up the response (remove markdown code blocks if present)\n    const cleanedResponse = responseText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n    result = JSON.parse(cleanedResponse);\n  } else {\n    throw new Error('Empty response from Ollama');\n  }\n} catch (e) {\n  // Fallback to provide a basic veganization if parsing fails\n  result = {\n    originalRecipe: originalRecipe,\n    veganVersion: {\n      name: 'Veganized Recipe',\n      substitutions: [\n        {original: 'eggs', replacement: 'aquafaba or flax eggs', notes: '3 tbsp aquafaba = 1 egg'},\n        {original: 'milk', replacement: 'plant milk', notes: 'Soy or oat work best'},\n        {original: 'butter', replacement: 'vegan butter', notes: 'Use same amount'},\n        {original: 'cheese', replacement: 'nutritional yeast or vegan cheese', notes: 'Adjust to taste'}\n      ],\n      instructions: ['Replace all animal products with vegan alternatives', 'Follow original cooking method'],\n      cookingTips: ['Taste and adjust seasonings', 'May need extra binding agents'],\n      nutritionNotes: 'Similar calories, more fiber, less cholesterol'\n    },\n    difficulty: 'medium',\n    estimatedTime: 'Similar to original',\n    error: e.message,\n    rawResponse: responseText\n  };\n}\n\n// Format final response\nreturn [{\n  json: {\n    originalRecipe: originalRecipe,\n    veganVersion: result.veganVersion || {},\n    difficulty: result.difficulty || 'medium',\n    estimatedTime: result.estimatedTime || 'varies',\n    timestamp: new Date().toISOString(),\n    execution_details: {\n      model_used: response.request?.model || 'llama3.2:3b',\n      shared_workflow_used: true,\n      ollama_success: success\n    }\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "prepare_veganize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "default_values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "default_values": {
+      "main": [
+        [
+          {
+            "node": "prepare_veganize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_veganize": {
+      "main": [
+        [
+          {
+            "node": "call_shared_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_shared_ollama": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "make-it-vegan-veganizer-v1.2.0",
+  "id": "make-it-vegan-veganizer",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

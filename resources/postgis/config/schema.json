@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostGIS Configuration Schema",
+  "type": "object",
+  "properties": {
+    "container": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "default": "postgis-main",
+          "description": "Docker container name"
+        },
+        "image": {
+          "type": "string",
+          "default": "vrooli/postgis-routing:16-3.4",
+          "description": "Docker image for PostGIS with pgRouting (falls back to postgis/postgis:16-3.4-alpine if custom build unavailable)"
+        },
+        "port": {
+          "type": "integer",
+          "default": 5434,
+          "description": "Host port for PostGIS",
+          "minimum": 1024,
+          "maximum": 65535
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "Database host"
+        },
+        "port": {
+          "type": "integer",
+          "default": 5434,
+          "description": "Database port"
+        },
+        "name": {
+          "type": "string",
+          "default": "spatial",
+          "description": "Default spatial database name"
+        },
+        "user": {
+          "type": "string",
+          "default": "vrooli",
+          "description": "Database user"
+        },
+        "password": {
+          "type": "string",
+          "default": "vrooli",
+          "description": "Database password"
+        }
+      }
+    },
+    "spatial": {
+      "type": "object",
+      "properties": {
+        "default_srid": {
+          "type": "integer",
+          "default": 4326,
+          "description": "Default spatial reference system (WGS84)"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["postgis", "postgis_raster", "postgis_topology", "postgis_tiger_geocoder", "address_standardizer"]
+          },
+          "default": ["postgis", "postgis_raster", "postgis_topology"],
+          "description": "PostGIS extensions to enable"
+        },
+        "max_geometry_size": {
+          "type": "integer",
+          "default": 1048576,
+          "description": "Maximum geometry size in bytes"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "shared_buffers": {
+          "type": "string",
+          "default": "256MB",
+          "description": "Shared memory buffers"
+        },
+        "work_mem": {
+          "type": "string",
+          "default": "16MB",
+          "description": "Memory for query operations"
+        },
+        "maintenance_work_mem": {
+          "type": "string",
+          "default": "128MB",
+          "description": "Memory for maintenance operations"
+        },
+        "max_connections": {
+          "type": "integer",
+          "default": 100,
+          "description": "Maximum database connections"
+        },
+        "effective_cache_size": {
+          "type": "string",
+          "default": "1GB",
+          "description": "Effective cache size for query planning"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "default": "${HOME}/.vrooli/postgis",
+          "description": "Base data directory"
+        },
+        "import_dir": {
+          "type": "string",
+          "default": "${HOME}/.vrooli/postgis/import",
+          "description": "Directory for importing spatial data"
+        },
+        "export_dir": {
+          "type": "string",
+          "default": "${HOME}/.vrooli/postgis/export",
+          "description": "Directory for exporting spatial data"
+        },
+        "backup_dir": {
+          "type": "string",
+          "default": "${HOME}/.vrooli/postgis/backups",
+          "description": "Directory for database backups"
+        }
+      }
+    },
+    "healthcheck": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable health checks"
+        },
+        "interval": {
+          "type": "integer",
+          "default": 10,
+          "description": "Health check interval in seconds"
+        },
+        "timeout": {
+          "type": "integer",
+          "default": 5,
+          "description": "Health check timeout in seconds"
+        },
+        "retries": {
+          "type": "integer",
+          "default": 5,
+          "description": "Number of retries before marking unhealthy"
+        }
+      }
+    }
+  },
+  "required": ["container", "database"],
+  "additionalProperties": false
+}

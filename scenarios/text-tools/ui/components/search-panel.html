@@ -1,0 +1,35 @@
+<div class="tool-panel" id="search-panel">
+    <div class="tool-header">
+        <h2>Pattern Search</h2>
+        <div class="tool-options">
+            <label class="checkbox">
+                <input type="checkbox" id="search-regex">
+                <span>Regex</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="search-case-sensitive">
+                <span>Case Sensitive</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="search-whole-word">
+                <span>Whole Word</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="search-fuzzy">
+                <span>Fuzzy</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="search-semantic">
+                <span>Semantic (AI)</span>
+            </label>
+        </div>
+    </div>
+    <div class="search-container">
+        <div class="search-input-group">
+            <input type="text" id="search-pattern" placeholder="Enter search pattern..." class="search-input">
+            <button class="btn-primary" id="search-btn">Search</button>
+        </div>
+        <textarea id="search-text" class="code-editor" placeholder="Enter text to search in..."></textarea>
+    </div>
+    <div class="results-container" id="search-results"></div>
+</div>

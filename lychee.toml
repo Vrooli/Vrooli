@@ -1,0 +1,70 @@
+# Lychee Configuration for Vrooli Documentation
+# This configuration is optimized for checking local file references in markdown documentation
+
+# Base directory for relative link resolution
+base = "."
+
+# Include verbatim content (code blocks, etc.) for link extraction
+include_verbatim = true
+
+# Only check local file paths, exclude external URLs during docs testing
+scheme = ["file"]
+
+# Output format: detailed for debugging, compact for CI
+format = "detailed"
+
+# File extensions to check when validating file references
+file_extensions = ["md", "markdown", "sh", "bash", "ts", "tsx", "js", "jsx", "json", "yaml", "yml", "txt", "sql", "py", "go", "toml"]
+
+# Exclude patterns - we want to check most local paths
+exclude = [
+    # Skip external URLs (we only check local file references)
+    "^https?://",
+    "^mailto:",
+    "^ftp://",
+    "^tel:",
+    
+    # Skip anchor-only links (internal page navigation)
+    "^#",
+    
+    # Skip Docker internal references
+    "^http://proxy:",
+    "^http://localhost:",
+    
+    # Skip placeholder URLs in documentation
+    "example\\.com",
+    "your-domain\\.com",
+]
+
+# Include hidden files in checking (like .env files referenced in docs)
+include_hidden = true
+
+# Maximum redirects to follow for external URLs (not applicable for file scheme)
+max_redirects = 5
+
+# Request timeout for external URLs (not applicable for file scheme) 
+timeout = 20
+
+# Maximum concurrent requests
+max_concurrency = 8
+
+# Retry failed requests
+retry_wait_time = 1
+
+# Cache successful results to speed up repeated runs
+cache = true
+
+# Cache directory - store in data/ instead of project root
+cache_dir = "data/.lycheecache"
+
+# Output detailed results to data directory instead of root
+output = "data/.lycheecache/lychee-detailed.log"
+
+# Check fragments (anchors) in local files
+check_anchors = true
+
+# Accept invalid certificates for local development
+accept_invalid_certs = true
+
+# User agent for HTTP requests (not used in file mode)
+user_agent = "lychee/vrooli-docs"

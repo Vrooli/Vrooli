@@ -1,0 +1,71 @@
+{
+  "workflow_name": "Brand Consistent Image Generation",
+  "version": "1.0",
+  "description": "Brand-aware image generation workflow with consistency validation",
+  "nodes": {
+    "1": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "sd_xl_base_1.0.safetensors"
+      }
+    },
+    "2": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{brand_prompt}, {style_guide}, professional quality, consistent branding",
+        "clip": ["1", 1]
+      }
+    },
+    "3": {
+      "class_type": "CLIPTextEncode", 
+      "inputs": {
+        "text": "low quality, blurry, inconsistent branding, off-brand",
+        "clip": ["1", 1]
+      }
+    },
+    "4": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["1", 0],
+        "positive": ["2", 0],
+        "negative": ["3", 0],
+        "latent_image": ["5", 0],
+        "seed": 42,
+        "steps": 20,
+        "cfg": 8.0,
+        "sampler_name": "euler",
+        "scheduler": "normal"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "6": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["4", 0],
+        "vae": ["1", 2]
+      }
+    },
+    "7": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["6", 0],
+        "filename_prefix": "brand_consistent_"
+      }
+    }
+  },
+  "metadata": {
+    "brand_parameters": {
+      "brand_colors": ["#PLACEHOLDER"],
+      "style_guide": "Corporate professional style",
+      "logo_placement": "bottom-right",
+      "quality_threshold": 0.8
+    }
+  }
+}

@@ -1,0 +1,534 @@
+{
+  "service": {
+    "name": "scenario-to-extension"
+  },
+  "displayName": "Browser Extension Generator",
+  "description": "Transform Vrooli scenarios into powerful browser extensions with content scripts, background services, and popup interfaces",
+  "version": "1.0.0",
+  "category": "automation",
+  "tags": [
+    "browser-extension",
+    "automation",
+    "web-integration",
+    "chrome-extension",
+    "firefox-extension"
+  ],
+  "resources": {
+    "required": [
+      {
+        "name": "browserless",
+        "purpose": "Extension testing, screenshot validation, and browser automation",
+        "access_method": "resource-browserless"
+      }
+    ],
+    "optional": [
+      {
+        "name": "postgres",
+        "purpose": "Store extension templates, build history, and deployment metadata",
+        "access_method": "CLI via scenario API"
+      },
+      {
+        "name": "redis",
+        "purpose": "Cache compiled extensions and build artifacts for faster generation",
+        "access_method": "CLI via scenario API"
+      }
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999"
+    }
+  },
+  "api": {
+    "openapi": "3.0.0",
+    "info": {
+      "title": "Browser Extension Generator API",
+      "description": "API for generating and managing browser extensions from Vrooli scenarios",
+      "version": "1.0.0"
+    },
+    "paths": {
+      "/api/v1/extension/generate": {
+        "post": {
+          "summary": "Generate browser extension from scenario specification",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "scenario_name",
+                    "template_type",
+                    "config"
+                  ],
+                  "properties": {
+                    "scenario_name": {
+                      "type": "string",
+                      "description": "Name of the scenario to create extension for"
+                    },
+                    "template_type": {
+                      "type": "string",
+                      "enum": [
+                        "full",
+                        "content-script-only",
+                        "background-only",
+                        "popup-only"
+                      ],
+                      "description": "Type of extension template to use"
+                    },
+                    "config": {
+                      "type": "object",
+                      "required": [
+                        "app_name",
+                        "description",
+                        "api_endpoint"
+                      ],
+                      "properties": {
+                        "app_name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "api_endpoint": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "host_permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Extension generation started",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "build_id": {
+                        "type": "string"
+                      },
+                      "extension_path": {
+                        "type": "string"
+                      },
+                      "install_instructions": {
+                        "type": "string"
+                      },
+                      "test_command": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/extension/status/{build_id}": {
+        "get": {
+          "summary": "Get extension build status and details",
+          "parameters": [
+            {
+              "name": "build_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Build status information",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "building",
+                          "ready",
+                          "failed"
+                        ]
+                      },
+                      "extension_path": {
+                        "type": "string"
+                      },
+                      "error_log": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "test_results": {
+                        "type": "array",
+                        "items": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/extension/test": {
+        "post": {
+          "summary": "Test extension functionality with browserless",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "extension_path"
+                  ],
+                  "properties": {
+                    "extension_path": {
+                      "type": "string"
+                    },
+                    "test_sites": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
+                    "screenshot": {
+                      "type": "boolean",
+                      "default": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Test results",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "test_results": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "site": {
+                              "type": "string"
+                            },
+                            "loaded": {
+                              "type": "boolean"
+                            },
+                            "errors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "screenshot_path": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "binary": "scenario-to-extension",
+    "commands": {
+      "generate": {
+        "description": "Generate browser extension for a scenario",
+        "usage": "scenario-to-extension generate <scenario_name> [options]",
+        "options": {
+          "--template": {
+            "description": "Extension template type",
+            "choices": [
+              "full",
+              "content-script-only",
+              "background-only",
+              "popup-only"
+            ],
+            "default": "full"
+          },
+          "--permissions": {
+            "description": "Comma-separated list of browser permissions",
+            "default": "storage,activeTab"
+          },
+          "--host-permissions": {
+            "description": "Comma-separated list of host permission patterns",
+            "default": "https://*.example.com/*"
+          },
+          "--output": {
+            "description": "Output directory for generated extension",
+            "default": "./platforms/extension"
+          },
+          "--debug": {
+            "description": "Enable debug mode in generated extension",
+            "flag": true
+          }
+        }
+      },
+      "build": {
+        "description": "Build an existing extension project",
+        "usage": "scenario-to-extension build <extension_path> [options]",
+        "options": {
+          "--watch": {
+            "description": "Watch for changes and rebuild automatically",
+            "flag": true
+          },
+          "--minify": {
+            "description": "Minify output for production",
+            "flag": true
+          }
+        }
+      },
+      "test": {
+        "description": "Test extension with browserless automation",
+        "usage": "scenario-to-extension test <extension_path> [options]",
+        "options": {
+          "--sites": {
+            "description": "Comma-separated list of test sites",
+            "default": "https://example.com"
+          },
+          "--headless": {
+            "description": "Run tests in headless mode",
+            "flag": true
+          },
+          "--screenshot": {
+            "description": "Take screenshots during testing",
+            "flag": true,
+            "default": true
+          }
+        }
+      },
+      "status": {
+        "description": "Show extension generator system status",
+        "usage": "scenario-to-extension status [options]",
+        "options": {
+          "--json": {
+            "description": "Output status in JSON format",
+            "flag": true
+          },
+          "--verbose": {
+            "description": "Show detailed status information",
+            "flag": true
+          }
+        }
+      }
+    }
+  },
+  "ui": {
+    "type": "web",
+    "framework": "vanilla",
+    "title": "Browser Extension Generator",
+    "features": [
+      "extension-generation-wizard",
+      "template-selection",
+      "configuration-editor",
+      "build-status-monitoring",
+      "extension-testing",
+      "deployment-management"
+    ]
+  },
+  "deployment": {
+    "type": "standalone",
+    "health_check": "/health",
+    "startup_timeout": 30,
+    "dependencies": [
+      "browserless"
+    ],
+    "storage_requirements": {
+      "temp_space": "1GB",
+      "persistent_space": "500MB"
+    }
+  },
+  "capabilities": {
+    "provides": [
+      "browser_extension_generation",
+      "cross_browser_compatibility",
+      "web_automation_enablement",
+      "scenario_web_integration"
+    ],
+    "enhances": [
+      "all_scenarios_needing_web_interaction",
+      "web-scraper-manager",
+      "social-media-monitor",
+      "productivity-enhancer"
+    ],
+    "discovery_keywords": [
+      "extension",
+      "browser",
+      "automation",
+      "web",
+      "chrome",
+      "firefox",
+      "content-script",
+      "background",
+      "popup",
+      "manifest"
+    ]
+  },
+  "quality_gates": {
+    "manifest_validation": true,
+    "extension_loading_test": true,
+    "api_integration_test": true,
+    "browser_compatibility_check": true,
+    "security_permission_audit": true
+  },
+  "monitoring": {
+    "metrics": [
+      "extensions_generated_total",
+      "extension_generation_duration",
+      "template_usage_stats",
+      "browser_compatibility_success_rate",
+      "extension_load_success_rate"
+    ],
+    "alerts": [
+      {
+        "name": "high_failure_rate",
+        "condition": "extension_load_success_rate < 0.9",
+        "severity": "warning"
+      },
+      {
+        "name": "browserless_unavailable",
+        "condition": "browserless_health_check_failed",
+        "severity": "critical"
+      }
+    ]
+  },
+  "development": {
+    "hot_reload": true,
+    "debug_mode": true,
+    "test_data_generation": true,
+    "integration_test_suite": true
+   },
+    "lifecycle": {
+      "setup": {
+        "description": "Initialize scenario-to-extension",
+        "condition": {
+          "checks": [
+             {
+               "type": "binaries",
+               "targets": [
+                 "scenario-to-extension-api"
+               ]
+             },
+             {
+               "type": "cli",
+               "targets": [
+                 "scenario-to-extension"
+               ]
+             },
+            {
+              "type": "dependencies",
+              "paths": [
+                "ui/package.json"
+              ]
+            },
+            {
+              "type": "resources",
+              "populated": true
+            }
+          ]
+        },
+        "steps": [
+          {
+            "name": "install-cli",
+            "run": "cd cli && ./install.sh",
+            "description": "Install CLI command globally"
+          },
+          {
+            "name": "build-api",
+            "run": "cd api && go build -o scenario-to-extension-api .",
+            "description": "Build Go API binary"
+          },
+          {
+            "name": "setup-ui",
+            "run": "cd ui && npm install",
+            "description": "Install UI dependencies"
+          }
+        ]
+      },
+      "develop": {
+       "description": "Start scenario-to-extension services",
+       "steps": [
+          {
+            "name": "start-api",
+            "run": "cd api && ./scenario-to-extension-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+              "file_exists": "api/scenario-to-extension-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Scenario to Extension running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+     "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"scenario-to-extension-api\" || true; sleep 1; pkill -9 -f \"scenario-to-extension-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/scenario-to-extension/ui\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-extension/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

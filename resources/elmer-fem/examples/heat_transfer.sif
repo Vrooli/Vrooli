@@ -1,0 +1,87 @@
+! Canonical Heat Transfer Example for Elmer FEM
+! 2D steady-state heat conduction in a square plate
+! One edge at 100°C, opposite edge at 0°C
+
+Header
+  CHECK KEYWORDS Warn
+  Mesh DB "." "."
+  Include Path ""
+  Results Directory "results"
+End
+
+Simulation
+  Max Output Level = 5
+  Coordinate System = Cartesian 2D
+  Coordinate Mapping(3) = 1 2 3
+  Simulation Type = Steady state
+  Steady State Max Iterations = 1
+  Output Intervals = 1
+  Solver Input File = heat_transfer.sif
+  Post File = heat_transfer.vtu
+End
+
+Constants
+  Gravity(4) = 0 -1 0 9.82
+  Stefan Boltzmann = 5.67e-08
+  Permittivity of Vacuum = 8.8542e-12
+  Boltzmann Constant = 1.3807e-23
+  Unit Charge = 1.602e-19
+End
+
+Body 1
+  Target Bodies(1) = 1
+  Name = "Plate"
+  Equation = 1
+  Material = 1
+End
+
+Solver 1
+  Equation = Heat Equation
+  Procedure = "HeatSolve" "HeatSolver"
+  Variable = Temperature
+  Exec Solver = Always
+  Stabilize = True
+  Bubbles = False
+  Lumped Mass Matrix = False
+  Optimize Bandwidth = True
+  Steady State Convergence Tolerance = 1.0e-5
+  Linear System Solver = Iterative
+  Linear System Iterative Method = BiCGStab
+  Linear System Max Iterations = 500
+  Linear System Convergence Tolerance = 1.0e-8
+  Linear System Preconditioning = ILU0
+  Linear System ILUT Tolerance = 1.0e-3
+  Linear System Abort Not Converged = False
+  Linear System Residual Output = 1
+  Linear System Precondition Recompute = 1
+End
+
+Equation 1
+  Name = "Heat Transfer"
+  Active Solvers(1) = 1
+End
+
+Material 1
+  Name = "Steel"
+  Heat Conductivity = 50.0    ! W/(m·K)
+  Heat Capacity = 460.0       ! J/(kg·K)
+  Density = 7850.0            ! kg/m³
+End
+
+Boundary Condition 1
+  Target Boundaries(1) = 1
+  Name = "Hot Edge"
+  Temperature = 100.0          ! °C
+End
+
+Boundary Condition 2
+  Target Boundaries(1) = 3
+  Name = "Cold Edge"
+  Temperature = 0.0            ! °C
+End
+
+Boundary Condition 3
+  Target Boundaries(2) = 2 4
+  Name = "Insulated Edges"
+  Heat Flux = 0.0             ! No heat flux (insulated)
+End

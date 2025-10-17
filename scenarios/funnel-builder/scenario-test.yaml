@@ -1,0 +1,157 @@
+version: 1.0
+scenario: funnel-builder
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/funnel-builder
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - ui/package.json
+    - ui/index.html
+    - ui/src/main.tsx
+    - ui/src/App.tsx
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - ui
+    - ui/src
+    - ui/src/components
+    - ui/src/pages
+    - ui/src/store
+    - ui/src/types
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+
+# Resource validation
+resources:
+  required: 
+    - postgres
+  optional: 
+    - redis
+    - ollama
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # API health check
+  - name: "API health check"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+      
+  # Create funnel test
+  - name: "Create funnel via API"
+    type: http
+    service: api
+    endpoint: /api/v1/funnels
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      name: "Test Funnel"
+      description: "A test funnel for validation"
+      steps: []
+    expect:
+      status: 201
+      body_contains:
+        - id
+        - slug
+        - preview_url
+        
+  # Get funnels test
+  - name: "List funnels via API"
+    type: http
+    service: api
+    endpoint: /api/v1/funnels
+    method: GET
+    expect:
+      status: 200
+      
+  # Get templates test
+  - name: "Get templates via API"
+    type: http
+    service: api
+    endpoint: /api/v1/templates
+    method: GET
+    expect:
+      status: 200
+      
+  # CLI status command test
+  - name: "CLI status command"
+    type: exec
+    command: ./cli/funnel-builder status --json
+    expect:
+      exit_code: 0
+      output_contains: ["status"]
+      
+  # CLI help command test
+  - name: "CLI help command"
+    type: exec
+    command: ./cli/funnel-builder help
+    expect:
+      exit_code: 0
+      output_contains: 
+        - "Funnel Builder CLI"
+        - "Commands:"
+        - "status"
+        - "list"
+        - "create"
+        
+  # CLI version command test
+  - name: "CLI version command"
+    type: exec
+    command: ./cli/funnel-builder version
+    expect:
+      exit_code: 0
+      output_contains: ["Funnel Builder CLI"]
+      
+  # Database schema test
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    database: vrooli
+    query: "SELECT COUNT(*) as count FROM information_schema.schemata WHERE schema_name = 'funnel_builder'"
+    expect:
+      rows:
+        - count: 1
+        
+  # Database tables test
+  - name: "Database tables exist"
+    type: sql
+    service: postgres
+    database: vrooli
+    query: "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'funnel_builder'"
+    expect:
+      rows:
+        - count: 8  # funnels, funnel_steps, leads, step_responses, analytics_events, funnel_templates, ab_test_variants, plus views
+        
+  # UI build test
+  - name: "UI can build"
+    type: exec
+    command: cd ui && npm run build
+    timeout: 300000  # 5 minutes for build
+    expect:
+      exit_code: 0
+      
+  # UI dependencies test
+  - name: "UI dependencies installed"
+    type: exec
+    command: cd ui && npm list react
+    expect:
+      exit_code: 0
+      output_contains: ["react@"]

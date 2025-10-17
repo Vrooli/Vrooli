@@ -1,0 +1,140 @@
+{
+  "service": {
+    "name": "video-downloader"
+  },
+  "version": "2.0.0",
+  "description": "Video downloader service with Go API and React UI",
+  "enabled": true,
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Video Downloader health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Video Downloader",
+      "condition": {
+         "checks": [
+            {
+               "type": "binaries",
+               "targets": [
+                  "video-downloader-api"
+               ]
+            },
+             {
+                "type": "cli",
+                "targets": [
+                   "video-downloader"
+                ]
+             },
+            {
+               "type": "dependencies",
+               "paths": [
+                  "ui/package.json"
+               ]
+            }
+         ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh . || echo \"Resource population skipped\"",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o video-downloader-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install --no-fund --no-audit",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '📹 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./video-downloader-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/video-downloader-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
+           "description": "Display running service URLs"
+         }
+      ]
+    },
+    "timeout": 90,
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"video-downloader-api\" || true; sleep 1; pkill -9 -f \"video-downloader-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/video-downloader.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/video-downloader.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "resources": {
+    "redis": {
+      "required": false
+    },
+    "postgres": {
+      "required": false
+    }
+  }
+}

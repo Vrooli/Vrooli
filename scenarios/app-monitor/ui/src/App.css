@@ -1,0 +1,237 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --matrix-green: #00ff41;
+  --matrix-dark-green: #008f11;
+  --matrix-light-green: #39ff14;
+  --matrix-cyan: #00ffff;
+  --matrix-bg: #0a0a0a;
+  --matrix-dark: #050505;
+  --matrix-card: #0d1117;
+  --matrix-border: #1a472a;
+  --matrix-red: #ff0040;
+  --matrix-yellow: #ffb000;
+  --matrix-blue: #00a8ff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Share Tech Mono', monospace;
+  background: var(--matrix-bg);
+  color: var(--matrix-green);
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
+}
+
+.app {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Matrix Rain Effect */
+.matrix-rain {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.1;
+  z-index: -1;
+  background: linear-gradient(to bottom, transparent 0%, var(--matrix-dark-green) 100%);
+}
+
+.matrix-rain::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 255, 65, 0.03) 2px,
+      rgba(0, 255, 65, 0.03) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 255, 65, 0.03) 2px,
+      rgba(0, 255, 65, 0.03) 4px
+    );
+  animation: matrix-scroll 20s linear infinite;
+}
+
+@keyframes matrix-scroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100px); }
+}
+
+/* Loading Spinner */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--matrix-dark-green);
+  border-top-color: var(--matrix-green);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.spinner.small {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--matrix-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--matrix-dark-green);
+  border: 1px solid var(--matrix-border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--matrix-green);
+}
+
+/* Button Base Styles */
+.btn {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--matrix-green);
+  color: var(--matrix-green);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--matrix-green);
+  color: var(--matrix-bg);
+  box-shadow: 0 0 15px var(--matrix-green);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.btn-danger {
+  border-color: var(--matrix-red);
+  color: var(--matrix-red);
+}
+
+.btn.btn-danger:hover:not(:disabled) {
+  background: var(--matrix-red);
+  box-shadow: 0 0 15px var(--matrix-red);
+}
+
+/* Input Styles */
+.input {
+  padding: 0.5rem 1rem;
+  background: var(--matrix-dark);
+  border: 1px solid var(--matrix-border);
+  color: var(--matrix-green);
+  font-family: inherit;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--matrix-green);
+  box-shadow: 0 0 5px var(--matrix-green);
+}
+
+/* Select Styles */
+.select {
+  padding: 0.5rem 1rem;
+  background: var(--matrix-dark);
+  border: 1px solid var(--matrix-border);
+  color: var(--matrix-green);
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.select:focus {
+  border-color: var(--matrix-green);
+  box-shadow: 0 0 5px var(--matrix-green);
+}
+
+/* Card Styles */
+.card {
+  background: var(--matrix-card);
+  border: 1px solid var(--matrix-border);
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: var(--matrix-green);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+}
+
+/* Status Colors */
+.status-running,
+.status-online {
+  color: var(--matrix-green);
+}
+
+.status-stopped,
+.status-offline {
+  color: var(--matrix-red);
+}
+
+.status-error {
+  color: var(--matrix-yellow);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none;
+  }
+}
+.panel-title-spacer {
+  flex: 1;
+  min-height: 1.5rem;
+}

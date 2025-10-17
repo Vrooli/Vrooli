@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Gemini Resource Configuration Schema",
+  "description": "Configuration schema for Google Gemini AI API integration",
+  "type": "object",
+  "properties": {
+    "api": {
+      "type": "object",
+      "description": "API configuration",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "Base URL for Gemini API",
+          "default": "https://generativelanguage.googleapis.com/v1beta",
+          "format": "uri"
+        },
+        "api_key": {
+          "type": "string",
+          "description": "Google AI Studio API key",
+          "pattern": "^AIza[A-Za-z0-9_-]{35}$|^placeholder-gemini-key$",
+          "sensitive": true
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Request timeout in seconds",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30
+        }
+      },
+      "required": ["base_url"]
+    },
+    "models": {
+      "type": "object",
+      "description": "Model configuration",
+      "properties": {
+        "default_model": {
+          "type": "string",
+          "description": "Default model to use",
+          "enum": [
+            "gemini-pro",
+            "gemini-pro-vision",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+          ],
+          "default": "gemini-pro"
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Response randomness (0-1)",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.7
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "description": "Maximum tokens in response",
+          "minimum": 1,
+          "maximum": 8192,
+          "default": 2048
+        }
+      }
+    },
+    "rate_limits": {
+      "type": "object",
+      "description": "Rate limiting configuration",
+      "properties": {
+        "requests_per_minute": {
+          "type": "integer",
+          "description": "Maximum requests per minute",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 60
+        },
+        "tokens_per_minute": {
+          "type": "integer",
+          "description": "Maximum tokens per minute",
+          "minimum": 1000,
+          "maximum": 10000000,
+          "default": 1000000
+        }
+      }
+    },
+    "health_check": {
+      "type": "object",
+      "description": "Health check configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable health checks",
+          "default": true
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Health check timeout in seconds",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 5
+        },
+        "interval": {
+          "type": "integer",
+          "description": "Health check interval in seconds",
+          "minimum": 10,
+          "maximum": 3600,
+          "default": 60
+        },
+        "test_model": {
+          "type": "string",
+          "description": "Model to use for health checks",
+          "default": "gemini-pro"
+        }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "description": "Caching configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable response caching",
+          "default": false
+        },
+        "ttl": {
+          "type": "integer",
+          "description": "Cache TTL in seconds",
+          "minimum": 60,
+          "maximum": 86400,
+          "default": 3600
+        },
+        "backend": {
+          "type": "string",
+          "description": "Cache backend",
+          "enum": ["redis", "memory"],
+          "default": "redis"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "description": "Log level",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info"
+        },
+        "log_requests": {
+          "type": "boolean",
+          "description": "Log API requests",
+          "default": false
+        },
+        "log_responses": {
+          "type": "boolean",
+          "description": "Log API responses",
+          "default": false
+        }
+      }
+    }
+  },
+  "required": ["api", "models"],
+  "additionalProperties": false
+}

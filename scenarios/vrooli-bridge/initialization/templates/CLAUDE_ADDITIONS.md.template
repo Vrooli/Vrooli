@@ -1,0 +1,63 @@
+# Vrooli Integration (Auto-generated {{date}})
+
+## 🎯 Vrooli-Enhanced Development
+
+This project has been enhanced with Vrooli integration. **Always read and reference `VROOLI_INTEGRATION.md` for available scenarios and commands.**
+
+### Key Vrooli Capabilities for {{project_type}} Projects
+
+{{project_specific_capabilities}}
+
+### Essential Commands
+```bash
+# Check what scenarios are available
+vrooli scenario list
+
+# Get scenario-specific help
+vrooli scenario help <name>
+
+# Run intelligent test generation
+vrooli scenario run test-genie
+
+# Advanced code analysis and search
+vrooli scenario run code-sleuth
+
+# Technical research assistance  
+vrooli scenario run research-assistant
+```
+
+### When to Use Vrooli Scenarios
+
+- **Before making changes**: Run `test-genie` to establish baseline tests
+- **When debugging**: Use `code-sleuth` to understand code relationships  
+- **For architecture decisions**: Leverage `research-assistant` for deep analysis
+- **Complex refactoring**: `agent-dashboard` can coordinate multiple scenarios
+- **Performance issues**: Specialized scenarios for profiling and optimization
+
+### Integration Status
+- **Vrooli Version**: {{vrooli_version}}
+- **Last Updated**: {{date}}
+- **Project Type**: {{project_type}}
+- **Integration Health**: Use `vrooli-bridge status` to check
+
+### Important Notes
+1. **Scenario Context**: Scenarios understand this project structure via integration metadata
+2. **Resource Sharing**: Scenarios share databases and AI models for efficiency  
+3. **Cross-Project Learning**: Your project contributes to Vrooli's collective intelligence
+4. **Performance**: First scenario run may be slower due to model loading
+
+### Troubleshooting
+If Vrooli scenarios aren't working:
+```bash
+# Check integration health
+vrooli-bridge status --project "{{project_name}}"
+
+# Verify Vrooli system status
+vrooli status --verbose
+
+# Re-establish integration if needed
+vrooli-bridge integrate "{{project_path}}" --force
+```
+
+---
+*Vrooli Integration managed by vrooli-bridge v{{bridge_version}}*

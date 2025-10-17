@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DeepStack Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "service": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 11453,
+          "description": "Port for DeepStack API"
+        },
+        "host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Host to bind to"
+        },
+        "api_key": {
+          "type": "string",
+          "description": "Optional API key for authentication"
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "default": "deepquestai/deepstack:latest",
+          "description": "Docker image to use"
+        },
+        "container_name": {
+          "type": "string",
+          "default": "vrooli-deepstack",
+          "description": "Container name"
+        },
+        "network": {
+          "type": "string",
+          "default": "vrooli-network",
+          "description": "Docker network to use"
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "properties": {
+        "detection_model": {
+          "type": "string",
+          "enum": ["yolov5", "yolov4", "detectron2"],
+          "default": "yolov5",
+          "description": "Object detection model"
+        },
+        "face_model": {
+          "type": "string",
+          "enum": ["retinaface", "mtcnn", "dlib"],
+          "default": "retinaface",
+          "description": "Face detection model"
+        },
+        "scene_model": {
+          "type": "string",
+          "enum": ["places365", "resnet50"],
+          "default": "places365",
+          "description": "Scene classification model"
+        },
+        "confidence_threshold": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.45,
+          "description": "Minimum confidence for detections"
+        },
+        "max_size": {
+          "type": "integer",
+          "minimum": 1048576,
+          "maximum": 104857600,
+          "default": 10485760,
+          "description": "Maximum image size in bytes"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["High", "Medium", "Low"],
+          "default": "High",
+          "description": "Performance mode"
+        },
+        "enable_gpu": {
+          "type": "string",
+          "enum": ["auto", "true", "false"],
+          "default": "auto",
+          "description": "GPU acceleration setting"
+        },
+        "threads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 4,
+          "description": "Number of processing threads"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 30000,
+          "default": 5000,
+          "description": "Request timeout in milliseconds"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Data storage directory"
+        },
+        "model_dir": {
+          "type": "string",
+          "description": "Model storage directory"
+        },
+        "temp_dir": {
+          "type": "string",
+          "description": "Temporary files directory"
+        }
+      }
+    },
+    "redis": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Redis caching"
+        },
+        "host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Redis host"
+        },
+        "port": {
+          "type": "integer",
+          "default": 6380,
+          "description": "Redis port"
+        },
+        "ttl": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400,
+          "default": 3600,
+          "description": "Cache TTL in seconds"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "default": "INFO",
+          "description": "Log level"
+        },
+        "file": {
+          "type": "string",
+          "description": "Log file path"
+        }
+      }
+    }
+  }
+}

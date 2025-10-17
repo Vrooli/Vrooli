@@ -1,0 +1,392 @@
+#!/bin/bash
+
+# Core Debugger CLI - Vrooli Infrastructure Monitor
+# Zero-dependency core health monitoring and debugging
+
+set -euo pipefail
+
+# Get script directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCENARIO_ROOT="$(dirname "$SCRIPT_DIR")"
+DATA_DIR="$SCENARIO_ROOT/data"
+
+# API configuration
+API_PORT="${API_PORT:-22000}"
+API_BASE="http://localhost:$API_PORT/api/v1"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+print_help() {
+    cat << EOF
+Core Debugger - Vrooli Infrastructure Monitor
+
+USAGE:
+    core-debugger <command> [options]
+
+COMMANDS:
+    status                  Show overall core health status
+    check-health           Run health checks on core components
+    list-issues            List active core issues
+    get-workaround         Get workaround for specific issue
+    analyze-issue          Use Claude to analyze an issue
+    report-issue           Report a new core issue
+    help                   Show this help message
+    version                Show version information
+
+OPTIONS:
+    --component <name>     Filter by component (cli, orchestrator, etc.)
+    --severity <level>     Filter by severity (critical, high, medium, low)
+    --json                 Output in JSON format
+    --verbose              Show detailed output
+
+EXAMPLES:
+    core-debugger status
+    core-debugger check-health --component cli
+    core-debugger list-issues --severity critical
+    core-debugger get-workaround "port already in use"
+    core-debugger analyze-issue <issue-id>
+
+COMPONENTS:
+    cli                    Vrooli CLI
+    orchestrator          Scenario orchestration
+    resource-manager      Resource lifecycle
+    setup                 Setup scripts
+    api                   Core API server
+    scenarios            Scenario system
+    resources            Resource health
+
+EOF
+}
+
+# Check component health
+check_health() {
+    local component="${1:-all}"
+    local verbose="${2:-false}"
+    
+    if [ ! -f "$DATA_DIR/components.json" ]; then
+        echo -e "${RED}Error: Component registry not found${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Checking core component health...${NC}\n"
+    
+    # Read components and check each
+    local all_healthy=true
+    while IFS= read -r comp; do
+        local id=$(echo "$comp" | jq -r '.id')
+        local name=$(echo "$comp" | jq -r '.name')
+        local check_cmd=$(echo "$comp" | jq -r '.health_check')
+        local critical=$(echo "$comp" | jq -r '.critical')
+        
+        if [ "$component" != "all" ] && [ "$component" != "$id" ]; then
+            continue
+        fi
+        
+        printf "%-20s " "$name:"
+        
+        # Run health check with timeout
+        if timeout 5 bash -c "$check_cmd" 2>/dev/null; then
+            echo -e "${GREEN}✓ Healthy${NC}"
+            # Save health state
+            echo "{\"component\":\"$id\",\"status\":\"healthy\",\"timestamp\":\"$(date -Iseconds)\"}" >> "$DATA_DIR/health/latest.jsonl"
+        else
+            echo -e "${RED}✗ Unhealthy${NC}"
+            all_healthy=false
+            # Save unhealthy state
+            echo "{\"component\":\"$id\",\"status\":\"unhealthy\",\"timestamp\":\"$(date -Iseconds)\"}" >> "$DATA_DIR/health/latest.jsonl"
+            
+            if [ "$verbose" == "true" ]; then
+                echo "  Check command: $check_cmd"
+                echo "  Critical: $critical"
+            fi
+        fi
+    done < <(jq -c '.components[]' "$DATA_DIR/components.json")
+    
+    echo
+    if [ "$all_healthy" == "true" ]; then
+        echo -e "${GREEN}All components healthy${NC}"
+        return 0
+    else
+        echo -e "${YELLOW}Some components need attention${NC}"
+        return 1
+    fi
+}
+
+# List active issues
+list_issues() {
+    local severity="${1:-all}"
+    local as_json="${2:-false}"
+    
+    echo -e "${BLUE}Active Core Issues:${NC}\n"
+    
+    local issue_count=0
+    for issue_file in "$DATA_DIR/issues"/*.json; do
+        if [ ! -f "$issue_file" ]; then
+            continue
+        fi
+        
+        local issue=$(cat "$issue_file")
+        local issue_severity=$(echo "$issue" | jq -r '.severity')
+        
+        if [ "$severity" != "all" ] && [ "$severity" != "$issue_severity" ]; then
+            continue
+        fi
+        
+        if [ "$as_json" == "true" ]; then
+            echo "$issue"
+        else
+            local id=$(echo "$issue" | jq -r '.id')
+            local component=$(echo "$issue" | jq -r '.component')
+            local description=$(echo "$issue" | jq -r '.description')
+            local status=$(echo "$issue" | jq -r '.status')
+            
+            # Color code severity
+            case "$issue_severity" in
+                critical) severity_color="$RED" ;;
+                high) severity_color="$YELLOW" ;;
+                *) severity_color="$NC" ;;
+            esac
+            
+            echo -e "${severity_color}[$issue_severity]${NC} $component - $description"
+            echo "  ID: $id | Status: $status"
+            echo
+        fi
+        
+        ((issue_count++))
+    done
+    
+    if [ $issue_count -eq 0 ]; then
+        echo -e "${GREEN}No active issues found${NC}"
+    else
+        echo -e "\nTotal: $issue_count issue(s)"
+    fi
+}
+
+# Get workaround for issue
+get_workaround() {
+    local search_term="$1"
+    
+    if [ -z "$search_term" ]; then
+        echo -e "${RED}Error: Please provide an issue ID or error pattern${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Searching for workarounds...${NC}\n"
+    
+    # Search in workarounds database
+    if [ -f "$DATA_DIR/workarounds/common.json" ]; then
+        local found=false
+        while IFS= read -r workaround; do
+            local pattern=$(echo "$workaround" | jq -r '.issue_pattern')
+            local description=$(echo "$workaround" | jq -r '.description')
+            
+            if echo "$search_term" | grep -qi "$pattern"; then
+                found=true
+                echo -e "${GREEN}Found workaround:${NC}"
+                echo "Issue: $description"
+                echo -e "\n${YELLOW}Solution:${NC}"
+                echo "$workaround" | jq -r '.commands[]' | while IFS= read -r cmd; do
+                    echo "  $cmd"
+                done
+                echo
+                
+                local success_rate=$(echo "$workaround" | jq -r '.success_rate')
+                echo "Success rate: $(echo "$success_rate * 100" | bc)%"
+                echo
+            fi
+        done < <(jq -c '.workarounds[]' "$DATA_DIR/workarounds/common.json")
+        
+        if [ "$found" == "false" ]; then
+            echo -e "${YELLOW}No workaround found for: $search_term${NC}"
+            echo "Try: core-debugger analyze-issue \"$search_term\""
+        fi
+    else
+        echo -e "${RED}Workaround database not found${NC}"
+    fi
+}
+
+# Analyze issue with Claude
+analyze_issue() {
+    local issue_id="$1"
+    
+    if [ -z "$issue_id" ]; then
+        echo -e "${RED}Error: Please provide an issue ID${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Analyzing issue with Claude...${NC}\n"
+    
+    # Find issue file
+    local issue_file="$DATA_DIR/issues/${issue_id}.json"
+    if [ ! -f "$issue_file" ]; then
+        echo -e "${RED}Issue not found: $issue_id${NC}"
+        exit 1
+    fi
+    
+    local issue=$(cat "$issue_file")
+    local description=$(echo "$issue" | jq -r '.description')
+    local component=$(echo "$issue" | jq -r '.component')
+    
+    echo "Issue: $description"
+    echo "Component: $component"
+    echo
+    echo -e "${YELLOW}Requesting Claude analysis...${NC}"
+    
+    # Call Claude via resource-claude-code
+    local analysis=$(resource-claude-code analyze "Vrooli core issue in $component: $description. Suggest a fix." 2>/dev/null || echo "Claude analysis unavailable")
+    
+    echo -e "\n${GREEN}Analysis:${NC}"
+    echo "$analysis"
+    
+    # Save analysis to issue
+    local timestamp=$(date -Iseconds)
+    echo "$issue" | jq --arg analysis "$analysis" --arg ts "$timestamp" \
+        '.fix_attempts += [{"timestamp": $ts, "analysis": $analysis}]' > "$issue_file.tmp"
+    mv "$issue_file.tmp" "$issue_file"
+    
+    echo -e "\n${BLUE}Analysis saved to issue record${NC}"
+}
+
+# Report new issue
+report_issue() {
+    local component="${1:-unknown}"
+    local description="${2:-No description provided}"
+    local severity="${3:-medium}"
+    
+    local timestamp=$(date -Iseconds)
+    local issue_id="${component}-$(date +%Y%m%d-%H%M%S)"
+    
+    # Create issue record
+    cat > "$DATA_DIR/issues/${issue_id}.json" << EOF
+{
+  "id": "$issue_id",
+  "component": "$component",
+  "severity": "$severity",
+  "status": "active",
+  "description": "$description",
+  "error_signature": "$(echo "$description" | head -n1)",
+  "first_seen": "$timestamp",
+  "last_seen": "$timestamp",
+  "occurrence_count": 1,
+  "workarounds": [],
+  "fix_attempts": [],
+  "metadata": {}
+}
+EOF
+    
+    echo -e "${GREEN}Issue reported: $issue_id${NC}"
+    echo "Component: $component"
+    echo "Severity: $severity"
+    echo "Description: $description"
+}
+
+# Show status
+show_status() {
+    local as_json="${1:-false}"
+    
+    echo -e "${BLUE}Core Debugger Status${NC}\n"
+    
+    # Check if API is running
+    if curl -sf "$API_BASE/health" > /dev/null 2>&1; then
+        echo -e "API Server: ${GREEN}Running${NC} (port $API_PORT)"
+    else
+        echo -e "API Server: ${YELLOW}Not running${NC}"
+    fi
+    
+    # Count issues
+    local critical_count=$(find "$DATA_DIR/issues" -name "*.json" -exec grep -l '"severity": "critical"' {} \; 2>/dev/null | wc -l)
+    local high_count=$(find "$DATA_DIR/issues" -name "*.json" -exec grep -l '"severity": "high"' {} \; 2>/dev/null | wc -l)
+    local total_count=$(find "$DATA_DIR/issues" -name "*.json" 2>/dev/null | wc -l)
+    
+    echo -e "\nIssue Summary:"
+    if [ $critical_count -gt 0 ]; then
+        echo -e "  ${RED}Critical: $critical_count${NC}"
+    fi
+    if [ $high_count -gt 0 ]; then
+        echo -e "  ${YELLOW}High: $high_count${NC}"
+    fi
+    echo -e "  Total: $total_count"
+    
+    # Quick health check
+    echo -e "\nComponent Health:"
+    check_health "all" "false" | tail -n +2
+    
+    # Show workaround stats
+    if [ -f "$DATA_DIR/workarounds/common.json" ]; then
+        local workaround_count=$(jq '.workarounds | length' "$DATA_DIR/workarounds/common.json")
+        echo -e "\nWorkaround Database: ${GREEN}$workaround_count known solutions${NC}"
+    fi
+}
+
+# Main command handler
+case "${1:-help}" in
+    status)
+        show_status "${2:-false}"
+        ;;
+    check-health)
+        shift
+        component="all"
+        verbose="false"
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --component) component="$2"; shift 2 ;;
+                --verbose) verbose="true"; shift ;;
+                *) shift ;;
+            esac
+        done
+        check_health "$component" "$verbose"
+        ;;
+    list-issues)
+        shift
+        severity="all"
+        as_json="false"
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --severity) severity="$2"; shift 2 ;;
+                --json) as_json="true"; shift ;;
+                *) shift ;;
+            esac
+        done
+        list_issues "$severity" "$as_json"
+        ;;
+    get-workaround)
+        shift
+        get_workaround "$*"
+        ;;
+    analyze-issue)
+        analyze_issue "$2"
+        ;;
+    report-issue)
+        shift
+        component="unknown"
+        description=""
+        severity="medium"
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --component) component="$2"; shift 2 ;;
+                --description) description="$2"; shift 2 ;;
+                --severity) severity="$2"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
+        report_issue "$component" "$description" "$severity"
+        ;;
+    version)
+        echo "Core Debugger v1.0.0"
+        echo "Vrooli Infrastructure Monitor"
+        ;;
+    help|--help|-h)
+        print_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo "Run 'core-debugger help' for usage"
+        exit 1
+        ;;
+esac

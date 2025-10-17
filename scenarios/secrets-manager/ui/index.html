@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 SECRETS MANAGER - Security Vault Terminal</title>
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__secretsManagerBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[SecretsManager] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'secrets-manager' });
+            window.__secretsManagerBridgeInitialized = true;
+        }
+    </script>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <meta name="description" content="Dark Chrome Security Dashboard for Vrooli Resource Secret Management">
+</head>
+<body>
+    <!-- Background Matrix Animation -->
+    <div id="matrix-bg"></div>
+    
+    <!-- Main Terminal Interface -->
+    <div class="terminal-container">
+        <!-- Header Terminal Bar -->
+        <header class="terminal-header">
+            <div class="terminal-title">
+                <span class="chrome-text">SECURITY VAULT ACCESS TERMINAL</span>
+                <span class="version">v1.0.0</span>
+            </div>
+            <!-- Terminal controls removed for cleaner look -->
+        </header>
+
+        <!-- Main Dashboard Grid -->
+        <main class="dashboard-grid">
+            <!-- System Status Panel -->
+            <section class="panel status-panel" id="status-panel">
+                <div class="panel-header">
+                    <h2><span class="matrix-green">●</span> SYSTEM STATUS</h2>
+                </div>
+                <div class="panel-content">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <span class="label">API TERMINAL</span>
+                            <span class="value" id="api-endpoint">Initializing...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">VAULT STATUS</span>
+                            <div class="status-with-info">
+                                <span class="value" id="vault-status">Checking...</span>
+                                <button class="info-btn" id="vault-info-btn" title="View details">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">DATABASE</span>
+                            <div class="status-with-action">
+                                <span class="value" id="db-status">Connecting...</span>
+                                <button class="open-external-btn" id="open-vault-btn" title="Open Vault UI">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                        <polyline points="15 3 21 3 21 9"></polyline>
+                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">LAST SCAN</span>
+                            <span class="value" id="last-scan">Never</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">SCAN TIME</span>
+                            <span class="value" id="scan-time">0ms</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">FILES SCANNED</span>
+                            <span class="value" id="files-scanned">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">SCAN ERRORS</span>
+                            <div class="status-with-info">
+                                <span class="value" id="scan-errors">0</span>
+                                <button class="info-btn" id="scan-errors-info-btn" title="View error details">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Secret Health Overview -->
+            <section class="panel health-panel" id="health-panel">
+                <div class="panel-header">
+                    <h2><span class="matrix-green">●</span> VAULT SECRETS & SECURITY</h2>
+                    <button class="refresh-btn" id="scan-all-btn" title="Refresh">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <div class="health-stats">
+                        <div class="stat-card valid">
+                            <div class="stat-value" id="configured-components">0</div>
+                            <div class="stat-label">Configured</div>
+                        </div>
+                        <div class="stat-card missing">
+                            <div class="stat-value" id="critical-vulns">0</div>
+                            <div class="stat-label">Critical Risk</div>
+                        </div>
+                        <div class="stat-card invalid">
+                            <div class="stat-value" id="high-vulns">0</div>
+                            <div class="stat-label">High Risk</div>
+                        </div>
+                        <div class="stat-card discovered">
+                            <div class="stat-value" id="medium-vulns">0</div>
+                            <div class="stat-label">Medium Risk</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="low-vulns">0</div>
+                            <div class="stat-label">Low Risk</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Resource Secrets Table -->
+            <section class="panel secrets-panel" id="secrets-panel">
+                <div class="panel-header">
+                    <h2><span class="matrix-green">●</span> COMPONENT SECURITY STATUS</h2>
+                    <div class="panel-controls">
+                        <button class="chrome-btn primary-btn" id="fix-selected-btn" disabled>FIX SELECTED</button>
+                        <select class="chrome-select" id="component-filter">
+                            <option value="">ALL COMPONENTS</option>
+                            <option value="resource">RESOURCES ONLY</option>
+                            <option value="scenario">SCENARIOS ONLY</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="secrets-table-container">
+                        <table class="secrets-table" id="secrets-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">
+                                        <input type="checkbox" id="select-all" title="Select all">
+                                    </th>
+                                    <th>COMPONENT</th>
+                                    <th>VAULT INFO</th>
+                                    <th>TYPE</th>
+                                    <th>STATUS</th>
+                                    <th>HOW TO GET</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="secrets-table-body">
+                                <tr class="loading-row">
+                                    <td colspan="7">
+                                        <div class="loading-animation">
+                                            <span>SCANNING SECURITY MATRIX</span>
+                                            <div class="loading-dots">
+                                                <span>.</span><span>.</span><span>.</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Security Alerts section removed - vulnerabilities shown in stat boxes -->
+        </main>
+
+        <!-- Terminal Footer -->
+        <footer class="terminal-footer">
+            <div class="footer-left">
+                <span class="chrome-text">VROOLI SECURITY FRAMEWORK</span>
+                <span class="separator">|</span>
+                <span>SECRET DISCOVERY & VALIDATION</span>
+            </div>
+            <div class="footer-right">
+                <span id="current-time"></span>
+                <span class="separator">|</span>
+                <span class="status-text" id="connection-status">SECURE CONNECTION ESTABLISHED</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Secret Provisioning Modal -->
+    <div class="modal-overlay" id="provision-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>🔐 SECURE PROVISIONING TERMINAL</h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-content">
+                <form id="provision-form">
+                    <div class="form-group">
+                        <label for="secret-key">SECRET KEY</label>
+                        <input type="text" id="secret-key" class="chrome-input" readonly>
+                    </div>
+                    
+                    <!-- Secret Guidance Panel -->
+                    <div id="secret-guidance" class="guidance-panel" style="display: none;">
+                        <div class="guidance-header">📋 SECRET INFORMATION</div>
+                        <div class="guidance-content">
+                            <div id="secret-description" class="guidance-item" style="display: none;">
+                                <strong>Description:</strong>
+                                <span class="guidance-value"></span>
+                            </div>
+                            <div id="secret-acquisition" class="guidance-item" style="display: none;">
+                                <strong>Get Secret:</strong>
+                                <a href="#" target="_blank" class="chrome-btn secondary-btn" style="padding: 2px 8px; font-size: 10px; text-decoration: none;">
+                                    OPEN CONSOLE ↗
+                                </a>
+                            </div>
+                            <div id="secret-documentation" class="guidance-item" style="display: none;">
+                                <strong>Documentation:</strong>
+                                <a href="#" target="_blank" class="chrome-btn secondary-btn" style="padding: 2px 8px; font-size: 10px; text-decoration: none;">
+                                    VIEW DOCS ↗
+                                </a>
+                            </div>
+                            <div id="secret-instructions" class="guidance-item" style="display: none;">
+                                <strong>Setup Instructions:</strong>
+                                <div class="guidance-value" style="margin-top: 5px; padding: 8px; background: rgba(0, 255, 65, 0.05); border: 1px solid var(--matrix-dim); border-radius: 3px;"></div>
+                            </div>
+                            <div id="secret-example" class="guidance-item" style="display: none;">
+                                <strong>Example:</strong>
+                                <code class="guidance-value" style="color: var(--matrix-green);"></code>
+                            </div>
+                            <div id="secret-validation" class="guidance-item" style="display: none;">
+                                <strong>Validation:</strong>
+                                <span class="guidance-value" style="color: var(--matrix-dim);"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                    <label for="secret-value">SECRET VALUE</label>
+                    <div class="secret-value-row">
+                        <input type="password" id="secret-value" class="chrome-input" placeholder="Enter secure value...">
+                        <button type="button" id="toggle-secret-visibility" class="chrome-btn secondary-btn secret-toggle">SHOW</button>
+                    </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="storage-method">STORAGE METHOD</label>
+                        <select id="storage-method" class="chrome-select">
+                            <option value="vault">HashiCorp Vault (Recommended)</option>
+                            <option value="env">Environment Variable</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="chrome-btn cancel-btn" id="cancel-provision">CANCEL</button>
+                        <button type="submit" class="chrome-btn primary-btn">
+                            <span class="btn-glow"></span>
+                            PROVISION SECRET
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Code Viewer Modal -->
+    <div class="modal-overlay" id="code-viewer-modal">
+        <div class="modal-container code-viewer-container">
+            <div class="modal-header">
+                <h3>🔍 VULNERABILITY CODE ANALYSIS</h3>
+                <div class="code-viewer-info">
+                    <span id="code-file-path">Loading...</span>
+                    <span class="separator">|</span>
+                    <span id="code-language">Unknown</span>
+                </div>
+                <button class="modal-close" id="code-modal-close">&times;</button>
+            </div>
+            <div class="modal-content code-viewer-content">
+                <div class="vulnerability-details">
+                    <div class="vuln-info">
+                        <span class="vuln-type" id="vuln-type-display">Loading...</span>
+                        <span class="vuln-severity" id="vuln-severity-display">Unknown</span>
+                    </div>
+                    <div class="vuln-description" id="vuln-description-display">
+                        Loading vulnerability details...
+                    </div>
+                </div>
+                <div class="code-display">
+                    <div class="code-toolbar">
+                        <button class="chrome-btn secondary-btn" id="copy-code-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            COPY CODE
+                        </button>
+                        <span class="line-info">Line <span id="vuln-line-number">?</span></span>
+                    </div>
+                    <pre class="code-block line-numbers" data-start="1"><code id="code-content" class="language-javascript">Loading code...</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification System -->
+    <div class="notifications" id="notifications"></div>
+
+    <!-- Scripts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-highlight/prism-line-highlight.min.css" rel="stylesheet" />
+    <script src="script.js"></script>
+</body>
+</html>

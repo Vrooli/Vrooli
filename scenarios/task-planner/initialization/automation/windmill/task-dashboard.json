@@ -1,0 +1,634 @@
+{
+  "summary": "AI-Powered Task Management Dashboard",
+  "description": "Comprehensive task management interface with progressive refinement from unstructured text to implementation",
+  "value": {
+    "modules": [
+      {
+        "id": "header",
+        "value": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "Task Planner Dashboard",
+            "color": "blue"
+          },
+          "componentInput": {
+            "type": "staticinput",
+            "fieldType": "object",
+            "value": {}
+          },
+          "subgrid": [
+            {
+              "id": "title",
+              "value": {
+                "type": "textcomponent",
+                "configuration": {
+                  "style": {
+                    "fontSize": "2xl",
+                    "fontWeight": "bold"
+                  }
+                },
+                "componentInput": {
+                  "type": "staticinput", 
+                  "fieldType": "text",
+                  "value": "🤖 AI Task Management"
+                }
+              },
+              "position": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 1
+              }
+            },
+            {
+              "id": "project_selector",
+              "value": {
+                "type": "selectcomponent",
+                "configuration": {
+                  "placeholder": "Select Project/App"
+                },
+                "componentInput": {
+                  "type": "runnable",
+                  "runnable": {
+                    "name": "get_apps",
+                    "type": "runnableByName"
+                  }
+                }
+              },
+              "position": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 1
+              }
+            }
+          ]
+        },
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 1
+        }
+      },
+      {
+        "id": "text_input_section",
+        "value": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "📝 Add Tasks from Text",
+            "color": "green"
+          },
+          "componentInput": {
+            "type": "staticinput",
+            "fieldType": "object", 
+            "value": {}
+          },
+          "subgrid": [
+            {
+              "id": "text_input",
+              "value": {
+                "type": "textareacomponent",
+                "configuration": {
+                  "placeholder": "Paste your unstructured task list here...\n\nExamples:\n- Add dark mode toggle\n- Fix login bug\n- TODO: Improve test coverage\n- Random idea: voice commands?",
+                  "rows": 8
+                },
+                "componentInput": {
+                  "type": "staticinput",
+                  "fieldType": "text",
+                  "value": ""
+                }
+              },
+              "position": {
+                "x": 0,
+                "y": 0,
+                "w": 8,
+                "h": 4
+              }
+            },
+            {
+              "id": "parse_button",
+              "value": {
+                "type": "buttoncomponent",
+                "configuration": {
+                  "label": "🔍 Parse Tasks",
+                  "color": "blue",
+                  "size": "md"
+                },
+                "componentInput": {
+                  "type": "runnable",
+                  "runnable": {
+                    "name": "parse_text_input",
+                    "type": "runnableByName"
+                  }
+                }
+              },
+              "position": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 1
+              }
+            },
+            {
+              "id": "parsing_status",
+              "value": {
+                "type": "textcomponent",
+                "configuration": {
+                  "style": {
+                    "fontSize": "sm"
+                  }
+                },
+                "componentInput": {
+                  "type": "evalinput",
+                  "expr": "parse_text_input.result ? \n  `✅ Created ${parse_text_input.result.tasks_created} tasks` : \n  (parse_text_input.loading ? '⏳ Parsing...' : '💡 Enter text above and click Parse')"
+                }
+              },
+              "position": {
+                "x": 8,
+                "y": 1,
+                "w": 4,
+                "h": 1
+              }
+            },
+            {
+              "id": "api_info",
+              "value": {
+                "type": "textcomponent", 
+                "configuration": {
+                  "style": {
+                    "fontSize": "xs",
+                    "color": "gray"
+                  }
+                },
+                "componentInput": {
+                  "type": "staticinput",
+                  "fieldType": "text",
+                  "value": "💡 API Endpoint: POST /api/parse-text\n📋 CLI: task-planner parse 'your text here'"
+                }
+              },
+              "position": {
+                "x": 8,
+                "y": 2,
+                "w": 4,
+                "h": 2
+              }
+            }
+          ]
+        },
+        "position": {
+          "x": 0,
+          "y": 1,
+          "w": 12,
+          "h": 5
+        }
+      },
+      {
+        "id": "task_pipeline",
+        "value": {
+          "type": "tabscomponent",
+          "configuration": {
+            "tabsKind": "tabs"
+          },
+          "componentInput": {
+            "type": "staticinput",
+            "fieldType": "object",
+            "value": {
+              "Backlog": "backlog_tab",
+              "Staged": "staged_tab",
+              "In Progress": "progress_tab",
+              "Completed": "completed_tab"
+            }
+          },
+          "subgrid": [
+            {
+              "id": "backlog_tab",
+              "value": {
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "📋 Backlog Tasks"
+                },
+                "componentInput": {
+                  "type": "staticinput",
+                  "fieldType": "object",
+                  "value": {}
+                },
+                "subgrid": [
+                  {
+                    "id": "backlog_table",
+                    "value": {
+                      "type": "tablecomponent",
+                      "configuration": {
+                        "search": {
+                          "enabled": true,
+                          "placeholder": "Search tasks..."
+                        },
+                        "pagination": {
+                          "enabled": true,
+                          "auto": true
+                        },
+                        "actions": [
+                          {
+                            "id": "research_task",
+                            "label": "🔬 Research & Plan",
+                            "type": "button",
+                            "runnable": {
+                              "name": "research_selected_task",
+                              "type": "runnableByName"
+                            }
+                          }
+                        ]
+                      },
+                      "componentInput": {
+                        "type": "runnable",
+                        "runnable": {
+                          "name": "get_backlog_tasks",
+                          "type": "runnableByName"
+                        }
+                      }
+                    },
+                    "position": {
+                      "x": 0,
+                      "y": 0,
+                      "w": 12,
+                      "h": 8
+                    }
+                  }
+                ]
+              },
+              "position": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 10
+              }
+            },
+            {
+              "id": "staged_tab",
+              "value": {
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "🎯 Staged Tasks (Ready for Implementation)"
+                },
+                "componentInput": {
+                  "type": "staticinput",
+                  "fieldType": "object",
+                  "value": {}
+                },
+                "subgrid": [
+                  {
+                    "id": "staged_table",
+                    "value": {
+                      "type": "tablecomponent",
+                      "configuration": {
+                        "search": {
+                          "enabled": true
+                        },
+                        "pagination": {
+                          "enabled": true
+                        },
+                        "actions": [
+                          {
+                            "id": "implement_task",
+                            "label": "🚀 Implement",
+                            "type": "button",
+                            "runnable": {
+                              "name": "implement_selected_task",
+                              "type": "runnableByName"
+                            }
+                          },
+                          {
+                            "id": "view_plan",
+                            "label": "📄 View Plan",
+                            "type": "button",
+                            "runnable": {
+                              "name": "view_task_details",
+                              "type": "runnableByName"
+                            }
+                          }
+                        ]
+                      },
+                      "componentInput": {
+                        "type": "runnable",
+                        "runnable": {
+                          "name": "get_staged_tasks",
+                          "type": "runnableByName"
+                        }
+                      }
+                    },
+                    "position": {
+                      "x": 0,
+                      "y": 0,
+                      "w": 12,
+                      "h": 8
+                    }
+                  }
+                ]
+              },
+              "position": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 10
+              }
+            },
+            {
+              "id": "progress_tab", 
+              "value": {
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "⚙️ Tasks In Progress"
+                },
+                "componentInput": {
+                  "type": "staticinput",
+                  "fieldType": "object",
+                  "value": {}
+                },
+                "subgrid": [
+                  {
+                    "id": "progress_table",
+                    "value": {
+                      "type": "tablecomponent",
+                      "configuration": {
+                        "search": {
+                          "enabled": true
+                        },
+                        "pagination": {
+                          "enabled": true
+                        },
+                        "actions": [
+                          {
+                            "id": "view_progress",
+                            "label": "👁️ View Details",
+                            "type": "button",
+                            "runnable": {
+                              "name": "view_task_details",
+                              "type": "runnableByName"
+                            }
+                          },
+                          {
+                            "id": "cancel_task",
+                            "label": "❌ Cancel",
+                            "type": "button",
+                            "runnable": {
+                              "name": "cancel_task",
+                              "type": "runnableByName"
+                            }
+                          }
+                        ]
+                      },
+                      "componentInput": {
+                        "type": "runnable",
+                        "runnable": {
+                          "name": "get_progress_tasks",
+                          "type": "runnableByName"
+                        }
+                      }
+                    },
+                    "position": {
+                      "x": 0,
+                      "y": 0,
+                      "w": 12,
+                      "h": 8
+                    }
+                  }
+                ]
+              },
+              "position": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 10
+              }
+            },
+            {
+              "id": "completed_tab",
+              "value": {
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "✅ Completed Tasks"
+                },
+                "componentInput": {
+                  "type": "staticinput",
+                  "fieldType": "object",
+                  "value": {}
+                },
+                "subgrid": [
+                  {
+                    "id": "completed_table",
+                    "value": {
+                      "type": "tablecomponent",
+                      "configuration": {
+                        "search": {
+                          "enabled": true
+                        },
+                        "pagination": {
+                          "enabled": true
+                        },
+                        "actions": [
+                          {
+                            "id": "view_implementation",
+                            "label": "💻 View Code",
+                            "type": "button",
+                            "runnable": {
+                              "name": "view_task_implementation",
+                              "type": "runnableByName"
+                            }
+                          }
+                        ]
+                      },
+                      "componentInput": {
+                        "type": "runnable",
+                        "runnable": {
+                          "name": "get_completed_tasks",
+                          "type": "runnableByName"
+                        }
+                      }
+                    },
+                    "position": {
+                      "x": 0,
+                      "y": 0,
+                      "w": 12,
+                      "h": 8
+                    }
+                  }
+                ]
+              },
+              "position": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 10
+              }
+            }
+          ]
+        },
+        "position": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 12
+        }
+      },
+      {
+        "id": "analytics_section",
+        "value": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "📊 Project Analytics",
+            "color": "purple"
+          },
+          "componentInput": {
+            "type": "staticinput",
+            "fieldType": "object",
+            "value": {}
+          },
+          "subgrid": [
+            {
+              "id": "stats_grid",
+              "value": {
+                "type": "containercomponent",
+                "configuration": {},
+                "componentInput": {
+                  "type": "staticinput",
+                  "fieldType": "object",
+                  "value": {}
+                },
+                "subgrid": [
+                  {
+                    "id": "total_tasks_stat",
+                    "value": {
+                      "type": "statcomponent",
+                      "configuration": {
+                        "title": "Total Tasks",
+                        "color": "blue"
+                      },
+                      "componentInput": {
+                        "type": "runnable",
+                        "runnable": {
+                          "name": "get_task_stats",
+                          "type": "runnableByName"
+                        }
+                      }
+                    },
+                    "position": {
+                      "x": 0,
+                      "y": 0,
+                      "w": 3,
+                      "h": 2
+                    }
+                  },
+                  {
+                    "id": "completion_rate_stat",
+                    "value": {
+                      "type": "statcomponent",
+                      "configuration": {
+                        "title": "Completion Rate",
+                        "color": "green"
+                      },
+                      "componentInput": {
+                        "type": "evalinput",
+                        "expr": "`${Math.round((get_task_stats.result?.completed || 0) / (get_task_stats.result?.total || 1) * 100)}%`"
+                      }
+                    },
+                    "position": {
+                      "x": 3,
+                      "y": 0,
+                      "w": 3,
+                      "h": 2
+                    }
+                  },
+                  {
+                    "id": "avg_time_stat",
+                    "value": {
+                      "type": "statcomponent",
+                      "configuration": {
+                        "title": "Avg. Completion Time",
+                        "color": "orange"
+                      },
+                      "componentInput": {
+                        "type": "evalinput",
+                        "expr": "`${get_task_stats.result?.avg_hours || 0}h`"
+                      }
+                    },
+                    "position": {
+                      "x": 6,
+                      "y": 0,
+                      "w": 3,
+                      "h": 2
+                    }
+                  },
+                  {
+                    "id": "ai_confidence_stat",
+                    "value": {
+                      "type": "statcomponent",
+                      "configuration": {
+                        "title": "AI Confidence",
+                        "color": "purple"
+                      },
+                      "componentInput": {
+                        "type": "evalinput",
+                        "expr": "`${Math.round((get_task_stats.result?.avg_confidence || 0) * 100)}%`"
+                      }
+                    },
+                    "position": {
+                      "x": 9,
+                      "y": 0,
+                      "w": 3,
+                      "h": 2
+                    }
+                  }
+                ]
+              },
+              "position": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 2
+              }
+            },
+            {
+              "id": "recent_activity",
+              "value": {
+                "type": "tablecomponent",
+                "configuration": {
+                  "pagination": {
+                    "enabled": true,
+                    "auto": true
+                  }
+                },
+                "componentInput": {
+                  "type": "runnable",
+                  "runnable": {
+                    "name": "get_recent_activity",
+                    "type": "runnableByName"
+                  }
+                }
+              },
+              "position": {
+                "x": 0,
+                "y": 2,
+                "w": 12,
+                "h": 4
+              }
+            }
+          ]
+        },
+        "position": {
+          "x": 0,
+          "y": 18,
+          "w": 12,
+          "h": 7
+        }
+      }
+    ]
+  },
+  "css": {
+    "container": "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; font-family: 'Inter', sans-serif;",
+    ".wm-button": "transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1);",
+    ".wm-button:hover": "transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15);",
+    ".wm-container": "backdrop-filter: blur(10px); background: rgba(255,255,255,0.95); border-radius: 12px; border: 1px solid rgba(255,255,255,0.2);",
+    ".wm-table": "border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);",
+    ".wm-stat": "background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7)); border-radius: 8px; border: 1px solid rgba(255,255,255,0.3);"
+  }
+}

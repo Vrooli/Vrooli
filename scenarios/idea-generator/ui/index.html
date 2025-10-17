@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idea Generator - AI-Powered Creative Brainstorming</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        const BRIDGE_FLAG = '__ideaGeneratorBridgeInitialized';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_FLAG]) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[IdeaGenerator] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'idea-generator' });
+            window[BRIDGE_FLAG] = true;
+        }
+    </script>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>Idea Generator</span>
+                    </div>
+                    <p class="tagline">AI-Powered Creative Brainstorming Lab</p>
+                </div>
+                
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="openDocumentUpload()">
+                        <i class="fas fa-upload"></i>
+                        Upload Documents
+                    </button>
+                    <button class="btn btn-primary" onclick="createNewCampaign()">
+                        <i class="fas fa-plus"></i>
+                        New Campaign
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Campaign Tabs -->
+        <div class="campaign-tabs">
+            <div class="tabs-container">
+                <div class="campaign-tab active" data-campaign="default" style="--campaign-color: #6366F1">
+                    <span class="tab-name">Default Campaign</span>
+                    <span class="tab-count">0</span>
+                </div>
+                <button class="add-campaign-btn" onclick="createNewCampaign()">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Idea Generation Center -->
+            <div class="generation-center">
+                <div class="dice-container">
+                    <div class="magic-circle">
+                        <div class="circle-inner">
+                            <button class="dice-button" onclick="generateIdea()">
+                                <div class="dice">
+                                    <i class="fas fa-dice"></i>
+                                </div>
+                                <span class="dice-text">Generate Idea</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="generation-controls">
+                    <div class="creativity-slider">
+                        <label for="creativity-level">Creativity Level</label>
+                        <input type="range" id="creativity-level" min="0" max="100" value="70" class="slider">
+                        <div class="slider-labels">
+                            <span>Focused</span>
+                            <span>Balanced</span>
+                            <span>Wild</span>
+                        </div>
+                    </div>
+                    
+                    <div class="context-input">
+                        <label for="context-input">Context (Optional)</label>
+                        <input type="text" id="context-input" placeholder="e.g., mobile app features, marketing campaigns..." class="context-field">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ideas Board -->
+            <div class="ideas-board">
+                <div class="board-header">
+                    <h2>Ideas Board</h2>
+                    <div class="board-controls">
+                        <button class="view-toggle active" data-view="cards">
+                            <i class="fas fa-th-large"></i>
+                        </button>
+                        <button class="view-toggle" data-view="list">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="ideas-container" id="ideas-container">
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <h3>Ready to Brainstorm?</h3>
+                        <p>Click the magic dice to generate your first AI-powered idea!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floating Search -->
+            <div class="floating-search" id="floating-search">
+                <div class="search-container">
+                    <div class="search-input-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="search-input" placeholder="Search ideas semantically..." class="search-input">
+                        <button class="search-close" onclick="closeSearch()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="search-results" id="search-results"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Chat Panel (Slide-out) -->
+        <div class="chat-panel" id="chat-panel">
+            <div class="chat-header">
+                <h3>AI Agent Refinement</h3>
+                <button class="close-chat" onclick="closeChat()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="agent-selector">
+                <select id="agent-type" class="agent-select">
+                    <option value="auto">Auto Agent</option>
+                    <option value="revise">Revise Agent</option>
+                    <option value="research">Research Agent</option>
+                    <option value="critique">Critique Agent</option>
+                    <option value="expand">Expand Agent</option>
+                    <option value="synthesize">Synthesize Agent</option>
+                    <option value="validate">Validate Agent</option>
+                </select>
+            </div>
+            
+            <div class="chat-messages" id="chat-messages"></div>
+            
+            <div class="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Ask the AI agent to refine your idea..." class="chat-input">
+                <button class="send-btn" onclick="sendChatMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Document Upload Modal -->
+        <div class="modal" id="document-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Upload Documents</h3>
+                    <button class="close-modal" onclick="closeDocumentUpload()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <p>Drag and drop documents here or click to browse</p>
+                        <p class="upload-hint">Supports PDF, DOCX, TXT files</p>
+                        <input type="file" id="file-input" accept=".pdf,.docx,.txt" multiple hidden>
+                    </div>
+                    
+                    <div class="uploaded-files" id="uploaded-files"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaign Modal -->
+        <div class="modal" id="campaign-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create New Campaign</h3>
+                    <button class="close-modal" onclick="closeCampaignModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="modal-body">
+                    <form id="campaign-form">
+                        <div class="form-group">
+                            <label for="campaign-name">Campaign Name</label>
+                            <input type="text" id="campaign-name" placeholder="e.g., Product Features, Marketing Ideas..." required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="campaign-description">Description (Optional)</label>
+                            <textarea id="campaign-description" placeholder="Brief description of this brainstorming campaign..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Campaign Color</label>
+                            <div class="color-picker">
+                                <div class="color-option active" data-color="#6366F1" style="background: #6366F1;"></div>
+                                <div class="color-option" data-color="#EF4444" style="background: #EF4444;"></div>
+                                <div class="color-option" data-color="#F97316" style="background: #F97316;"></div>
+                                <div class="color-option" data-color="#EAB308" style="background: #EAB308;"></div>
+                                <div class="color-option" data-color="#22C55E" style="background: #22C55E;"></div>
+                                <div class="color-option" data-color="#06B6D4" style="background: #06B6D4;"></div>
+                                <div class="color-option" data-color="#8B5CF6" style="background: #8B5CF6;"></div>
+                                <div class="color-option" data-color="#EC4899" style="background: #EC4899;"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeCampaignModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create Campaign</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Generating creative ideas...</p>
+            </div>
+        </div>
+
+        <!-- Floating Search Toggle -->
+        <button class="search-toggle" onclick="openSearch()">
+            <i class="fas fa-search"></i>
+        </button>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

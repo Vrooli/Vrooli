@@ -1,0 +1,265 @@
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import type { Issue } from '../data/sampleData';
+import type { RateLimitStatusPayload } from '../services/issues';
+import { normalizeStatus, transformIssue } from '../utils/issues';
+import type { WebSocketEvent } from '../types/events';
+import { useWebSocket, type ConnectionStatus } from './useWebSocket';
+
+export type RunningProcessMap = Map<string, { agent_id: string; start_time: string; duration?: string }>;
+
+interface UseIssueRealtimeSyncOptions {
+  apiBaseUrl: string;
+  updateIssuesState: (
+    updater: (previous: Issue[]) => Issue[],
+    options?: { invalidateRemoteStats?: boolean },
+  ) => void;
+  applyProcessorRealtimeUpdate: (payload: Record<string, unknown>) => void;
+  setRateLimitStatus: Dispatch<SetStateAction<RateLimitStatusPayload | null>>;
+  reportProcessorError: (message: string) => void;
+  enabled?: boolean;
+}
+
+interface UseIssueRealtimeSyncResult {
+  runningProcesses: RunningProcessMap;
+  removeProcess: (issueId: string) => void;
+  connectionStatus: ConnectionStatus;
+  websocketError: Error | null;
+  reconnectAttempts: number;
+}
+
+declare const __API_PORT__: string | undefined;
+
+function resolveWebSocketUrl(apiBaseUrl: string): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const normalizedBase = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
+
+  if (normalizedBase.startsWith('http://') || normalizedBase.startsWith('https://')) {
+    const absoluteUrl = new URL(normalizedBase);
+    const wsProtocol = absoluteUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const path = absoluteUrl.pathname.endsWith('/') ? absoluteUrl.pathname.slice(0, -1) : absoluteUrl.pathname;
+    return `${wsProtocol}//${absoluteUrl.host}${path || ''}/ws`;
+  }
+
+  const hostname = window.location.hostname;
+  const isProxied =
+    hostname !== 'localhost' &&
+    hostname !== '127.0.0.1' &&
+    !hostname.match(/^192\.168\./);
+
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const basePath = normalizedBase.startsWith('/') ? normalizedBase : `/${normalizedBase}`;
+  const path = basePath.endsWith('/ws') ? basePath : `${basePath}/ws`;
+
+  if (isProxied) {
+    return `${wsProtocol}//${window.location.host}${path}`;
+  }
+
+  const apiPort = typeof __API_PORT__ !== 'undefined' ? __API_PORT__ : '8090';
+  return `${wsProtocol}//${hostname}:${apiPort}${path}`;
+}
+
+export function useIssueRealtimeSync({
+  apiBaseUrl,
+  updateIssuesState,
+  applyProcessorRealtimeUpdate,
+  setRateLimitStatus,
+  reportProcessorError,
+  enabled = true,
+}: UseIssueRealtimeSyncOptions): UseIssueRealtimeSyncResult {
+  const [runningProcesses, setRunningProcesses] = useState<RunningProcessMap>(new Map());
+
+  const websocketUrl = useMemo(() => {
+    const base = resolveWebSocketUrl(apiBaseUrl);
+    if (!base || !enabled) {
+      return '';
+    }
+    return base;
+  }, [apiBaseUrl, enabled]);
+
+  const handleWebSocketEvent = useCallback(
+    (event: WebSocketEvent) => {
+      switch (event.type) {
+        case 'issue.created':
+        case 'issue.updated': {
+          const rawIssue = event.data.issue;
+          if (!rawIssue) {
+            return;
+          }
+          const updatedIssue = transformIssue(rawIssue, { apiBaseUrl });
+          updateIssuesState((previous) => {
+            const index = previous.findIndex((issue) => issue.id === updatedIssue.id);
+            if (index >= 0) {
+              const next = [...previous];
+              next[index] = updatedIssue;
+              return next;
+            }
+            return [...previous, updatedIssue];
+          });
+          break;
+        }
+        case 'issue.status_changed': {
+          const { issue_id, new_status } = event.data;
+          updateIssuesState((previous) =>
+            previous.map((issue) =>
+              issue.id === issue_id ? { ...issue, status: normalizeStatus(new_status) } : issue,
+            ),
+          );
+          break;
+        }
+        case 'issue.deleted': {
+          const { issue_id } = event.data;
+          updateIssuesState((previous) => previous.filter((issue) => issue.id !== issue_id));
+          setRunningProcesses((previous) => {
+            if (!previous.has(issue_id)) {
+              return previous;
+            }
+            const next = new Map(previous);
+            next.delete(issue_id);
+            return next;
+          });
+          break;
+        }
+        case 'agent.started': {
+          const { issue_id, agent_id, start_time } = event.data;
+          setRunningProcesses((previous) => {
+            const existing = previous.get(issue_id);
+            if (existing && existing.agent_id === agent_id && existing.start_time === start_time) {
+              return previous;
+            }
+            const next = new Map(previous);
+            next.set(issue_id, { agent_id, start_time });
+            return next;
+          });
+          break;
+        }
+        case 'agent.completed':
+        case 'agent.failed': {
+          const { issue_id, new_status } = event.data;
+          setRunningProcesses((previous) => {
+            if (!previous.has(issue_id)) {
+              return previous;
+            }
+            const next = new Map(previous);
+            next.delete(issue_id);
+            return next;
+          });
+          if (new_status) {
+            updateIssuesState((previous) =>
+              previous.map((issue) =>
+                issue.id === issue_id
+                  ? {
+                      ...issue,
+                      status: normalizeStatus(new_status),
+                    }
+                  : issue,
+              ),
+            );
+          }
+          break;
+        }
+        case 'processor.state_changed': {
+          const data = event.data ?? {};
+          applyProcessorRealtimeUpdate(data as Record<string, unknown>);
+          break;
+        }
+        case 'rate_limit.changed': {
+          setRateLimitStatus((previous) => ({
+            rate_limited: Boolean(event.data.rate_limited),
+            rate_limited_count: Number(
+              event.data.rate_limited_count ?? (typeof previous?.rate_limited_count === 'number' ? previous.rate_limited_count : 0),
+            ),
+            seconds_until_reset: Number(
+              event.data.seconds_until_reset ?? (typeof previous?.seconds_until_reset === 'number' ? previous.seconds_until_reset : 0),
+            ),
+            reset_time: event.data.reset_time ?? previous?.reset_time ?? new Date().toISOString(),
+            rate_limit_agent: event.data.rate_limit_agent ?? previous?.rate_limit_agent ?? 'unknown',
+          }));
+          break;
+        }
+        case 'processor.error': {
+          const message = typeof event.data?.message === 'string' ? event.data.message : 'Automation error';
+          reportProcessorError(message);
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [apiBaseUrl, applyProcessorRealtimeUpdate, reportProcessorError, setRateLimitStatus, updateIssuesState],
+  );
+
+  const { status: connectionStatus, error: websocketError, reconnectAttempts } = useWebSocket({
+    url: websocketUrl,
+    onEvent: handleWebSocketEvent,
+    enabled: typeof window !== 'undefined' && Boolean(websocketUrl),
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const updateDurations = () => {
+      setRunningProcesses((previous) => {
+        if (previous.size === 0) {
+          return previous;
+        }
+
+        const next = new Map(previous);
+        let changed = false;
+
+        for (const [issueId, process] of next.entries()) {
+          const startTime = new Date(process.start_time);
+          const now = new Date();
+          const durationMs = now.getTime() - startTime.getTime();
+          const seconds = Math.floor(durationMs / 1000);
+          const minutes = Math.floor(seconds / 60);
+          const hours = Math.floor(minutes / 60);
+
+          let duration: string;
+          if (hours > 0) {
+            duration = `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+          } else if (minutes > 0) {
+            duration = `${minutes}m ${seconds % 60}s`;
+          } else {
+            duration = `${seconds}s`;
+          }
+
+          if (process.duration !== duration) {
+            next.set(issueId, { ...process, duration });
+            changed = true;
+          }
+        }
+
+        return changed ? next : previous;
+      });
+    };
+
+    const intervalId = window.setInterval(updateDurations, 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const removeProcess = useCallback((issueId: string) => {
+    setRunningProcesses((previous) => {
+      if (!previous.has(issueId)) {
+        return previous;
+      }
+      const next = new Map(previous);
+      next.delete(issueId);
+      return next;
+    });
+  }, []);
+
+  return {
+    runningProcesses,
+    removeProcess,
+    connectionStatus,
+    websocketError,
+    reconnectAttempts,
+  };
+}
+
+export type { ConnectionStatus } from './useWebSocket';

@@ -13,19 +13,15 @@ vim .env-dev
 
 ## Setup full project based on environment variables:
 ```bash
-chmod +x ./scripts/*
-yarn cache clean && ./scripts/setup.sh
+pnpm cache clean && vrooli setup
 ```
-**Read /scripts/setup.sh for available flags**
+**Run `vrooli setup --help` for available options**
 
 ## Start the development environment:
 ```bash
-# Normal start or restart
-./scripts/develop.sh
-# Rebuild and restart. Useful when you change config files like package.json
-./scripts/develop.sh --build
-# Force restart. Redownloads and rebuilds containers, keeping only volumes
-./scripts/develop.sh --build --force-recreate
+# Start development environment
+vrooli develop
+# Note: For rebuild options, use vrooli clean first, then vrooli develop
 ```
 
 
@@ -35,38 +31,43 @@ yarn cache clean && ./scripts/setup.sh
 
 ## Build for deployment:
 ```bash
-./scripts/develop.sh
+vrooli build
 ```
-**Read /scripts/develop.sh for available flags**
+**Run `vrooli build --help` for available options**
 
 ## Deploy (typically run in remote server), after sending the build to it:
 ```bash
-./scripts/deploy.sh
+vrooli deploy
 ```
-**Read /scripts/deploy.sh for available flags**
+**Run `vrooli deploy --help` for available options**
 
 
 # Testing commands
 
-## Package-level unit/integration tests:
+## Scenario Testing:
 ```bash
-# Testing /packages/server
-cd packages/server && yarn build
-# Testing /packages/jobs
-cd packages/jobs && yarn build
-# Coverage tests on /packages/shared
-cd packages/shared && yarn test-coverage
+# Test individual scenarios
+vrooli scenario test research-assistant
+vrooli scenario test invoice-generator
+
+# Test all scenarios
+vrooli test scenarios
 ```
 
-## File-level unit-integration tests:
+## Resource Testing:
 ```bash
-# Testing /packages/server/src/services/stripe.test.ts
-clear && yarn build-tests && npx dotenv -e ../../.env-test -- mocha --file dist/__test/setup.js dist/services/stripe.test.js
+# Test individual resources
+resource-ollama test
+resource-postgres test
+
+# Test all resources
+vrooli test resources
 ```
 
-## Storybook:
+## Integration Testing:
 ```bash
-cd packages/ui && yarn storybook
+# Run comprehensive integration tests
+vrooli test integration
 ```
 
 
@@ -75,22 +76,22 @@ cd packages/ui && yarn storybook
 ## Container logs
 ```bash
 # View development logs from all containers
-docker-compose --env-file .env logs
+docker compose --env-file .env-dev logs
 
 # View production logs from a specific container
-docker-compose --env-file .env-prod logs server
+docker compose --env-file .env-prod logs server
 
 # Follow logs in real-time
-docker-compose logs -f
+docker compose --env-file .env-dev logs -f
 ```
 
 ## Restarting services
 ```bash
 # Restart a specific service
-docker-compose --env-file .env restart server
+docker compose --env-file .env-dev restart server
 
 # Restart all services
-docker-compose --env-file .env restart
+docker compose --env-file .env-dev restart
 ```
 
 ## Accessing Container Shell

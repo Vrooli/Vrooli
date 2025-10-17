@@ -1,0 +1,185 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "scenario-surfer",
+    "displayName": "Scenario Surfer",
+    "description": "StumbleUpon-style discovery interface for browsing and exploring running Vrooli scenarios with integrated issue reporting",
+    "version": "1.0.0",
+    "tags": [
+      "discovery",
+      "navigation",
+      "ui-tool",
+      "scenario-browser",
+      "issue-reporting",
+      "exploration",
+      "web-ui",
+      "go-api",
+      "scenario-ecosystem",
+      "user-interface"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "port": 27000,
+      "description": "Scenario discovery and issue reporting API"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 34100,
+      "description": "Main scenario surfing web interface"
+    }
+  },
+  "resources": {
+    "app-issue-tracker": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "purpose": "Submit issue reports discovered during scenario surfing"
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": false,
+      "purpose": "Capture screenshots for issue reporting"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Scenario Surfer health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Scenario Surfer",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api/scenario-surfer-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["scenario-surfer"]
+            }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o scenario-surfer-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🌊 Scenario Surfer initialized\\n  Web Interface: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-surfer --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start scenario surfer with API and UI servers",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./scenario-surfer-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/scenario-surfer-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && UI_PORT=${UI_PORT} node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🌊 Scenario Surfer running:\\n  Web Interface: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-surfer --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test scenario surfer API and UI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-ui-health",
+          "run": "curl -sf http://localhost:$UI_PORT/",
+          "description": "Test UI accessibility"
+        },
+        {
+          "name": "test-scenario-discovery",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/scenarios/healthy",
+          "description": "Test scenario discovery endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"scenario-surfer-api\" || true; sleep 1; pkill -9 -f \"scenario-surfer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/scenario-surfer.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-surfer.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,204 @@
+version: 1.0
+scenario: db-schema-explorer
+
+# Structure validation
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/db-schema-explorer
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - initialization/automation/n8n/schema-inspector.json
+    - initialization/automation/n8n/query-generator.json
+    - initialization/automation/n8n/query-optimizer.json
+    - ui/package.json
+    - ui/src/App.jsx
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - ui
+    - ui/src
+    - ui/src/components
+    - initialization
+    - initialization/automation/n8n
+    - initialization/storage/postgres
+    - tests
+    - docs
+
+# Resource validation
+resources:
+  required:
+    - postgres
+    - qdrant
+    - ollama
+    - n8n
+  optional:
+    - redis
+    - browserless
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: resource_health
+    service: postgres
+    expect:
+      status: healthy
+      
+  - name: "Qdrant is accessible"
+    type: resource_health
+    service: qdrant
+    expect:
+      status: healthy
+      
+  - name: "Ollama is accessible"
+    type: resource_health
+    service: ollama
+    expect:
+      status: healthy
+      
+  - name: "n8n is accessible"
+    type: resource_health
+    service: n8n
+    expect:
+      status: healthy
+
+  # API endpoint tests
+  - name: "API health check"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+      
+  - name: "Schema connect endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/schema/connect
+    method: POST
+    body:
+      database_name: main
+    expect:
+      status: 200
+      body:
+        success: true
+        
+  - name: "Query generation endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/query/generate
+    method: POST
+    body:
+      natural_language: "show all tables"
+      database_context: main
+    expect:
+      status: 200
+      body:
+        success: true
+        sql: ~"SELECT.*FROM.*"
+
+  # CLI command tests
+  - name: "CLI status command"
+    type: exec
+    command: ./cli/db-schema-explorer status
+    expect:
+      exit_code: 0
+      output_contains: ["API is healthy"]
+      
+  - name: "CLI help command"
+    type: exec
+    command: ./cli/db-schema-explorer help
+    expect:
+      exit_code: 0
+      output_contains: ["Database Schema Explorer CLI"]
+      
+  - name: "CLI version command"
+    type: exec
+    command: ./cli/db-schema-explorer version
+    expect:
+      exit_code: 0
+      output_contains: ["v1.0.0"]
+
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'db_explorer'"
+    expect:
+      rows:
+        - count: 8  # Expected number of tables
+        
+  - name: "Query patterns are seeded"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM db_explorer.query_patterns"
+    expect:
+      rows:
+        - count: 5  # Expected seed patterns
+        
+  # n8n workflow tests
+  - name: "Schema inspector workflow exists"
+    type: n8n
+    workflow: schema-inspector
+    expect:
+      exists: true
+      active: false  # Not active until injected
+      
+  - name: "Query generator workflow exists"
+    type: n8n
+    workflow: query-generator
+    expect:
+      exists: true
+      active: false
+      
+  - name: "Query optimizer workflow exists"
+    type: n8n
+    workflow: query-optimizer
+    expect:
+      exists: true
+      active: false
+
+# Performance requirements
+performance:
+  - name: "Schema load time"
+    type: http
+    endpoint: /api/v1/schema/connect
+    method: POST
+    body:
+      database_name: main
+    expect:
+      response_time_ms: 500
+      
+  - name: "Query generation time"
+    type: http
+    endpoint: /api/v1/query/generate
+    method: POST
+    body:
+      natural_language: "simple query"
+    expect:
+      response_time_ms: 2000
+
+# Integration validation
+integration:
+  - name: "API is discoverable"
+    type: service_discovery
+    service: db-schema-explorer-api
+    expect:
+      registered: true
+      
+  - name: "CLI is in PATH"
+    type: exec
+    command: which db-schema-explorer
+    expect:
+      exit_code: 0

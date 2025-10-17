@@ -1,0 +1,30 @@
+{
+  "startup_order": 600,
+  "dependencies": ["python", "vault"],
+  "optional_dependencies": ["postgres", "questdb", "n8n", "windmill"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "10-30s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "governance",
+  "health_check": {
+    "endpoint": "/health",
+    "timeout": 5,
+    "interval": 30
+  },
+  "resource_limits": {
+    "memory": "512MB",
+    "cpu": "1.0"
+  },
+  "ports": {
+    "api": 18250
+  },
+  "capabilities": [
+    "election-creation",
+    "key-generation",
+    "ballot-encryption",
+    "tally-computation",
+    "verification",
+    "audit-trail"
+  ]
+}

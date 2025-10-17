@@ -1,0 +1,23 @@
+{
+  "name": "document-manager-ui",
+  "version": "2.0.0",
+  "description": "Professional document management interface",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "keywords": [
+    "document-management",
+    "ai",
+    "saas",
+    "documentation",
+    "professional"
+  ],
+  "author": "Vrooli Document Manager",
+  "license": "MIT"
+}

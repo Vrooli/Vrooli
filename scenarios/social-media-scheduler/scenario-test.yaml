@@ -1,0 +1,355 @@
+# Social Media Scheduler Test Configuration
+# This file defines integration tests for the scenario
+
+name: social-media-scheduler
+version: "1.0.0"
+description: "Integration tests for Social Media Scheduler scenario"
+
+# Resource requirements for testing
+resources:
+  required: [postgres, redis, minio, ollama]
+  optional: [browserless]
+  health_timeout: 60
+
+# Test environment configuration
+test_config:
+  timeout: 300  # 5 minutes total timeout
+  parallel: false  # Run tests sequentially
+  cleanup: true    # Clean up test data after tests
+  verbose: true    # Detailed test output
+
+# Pre-test setup
+setup:
+  - name: "Wait for database initialization"
+    command: "sleep 10"
+    description: "Allow time for PostgreSQL schema setup"
+
+  - name: "Verify API server is running"
+    command: "curl -f http://localhost:${API_PORT}/health"
+    description: "Check API server health endpoint"
+    retry: 3
+    retry_delay: 5
+
+  - name: "Verify UI server is running"  
+    command: "curl -f http://localhost:${UI_PORT}/health"
+    description: "Check UI server health endpoint"
+    retry: 3
+    retry_delay: 5
+
+  - name: "Check Redis connection"
+    command: "redis-cli -h localhost -p ${RESOURCE_PORTS[redis]} ping"
+    description: "Verify Redis job queue is accessible"
+
+  - name: "Test PostgreSQL connection"
+    command: "psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d vrooli_social_media_scheduler -c 'SELECT COUNT(*) FROM users;'"
+    description: "Verify database schema is initialized"
+
+# Main test cases
+tests:
+  - name: "API Health Check"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/health"
+    method: "GET"
+    expected_status: 200
+    expected_response:
+      status: "healthy"
+    description: "Verify API server is healthy"
+
+  - name: "Queue Health Check"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/health/queue"
+    method: "GET"
+    expected_status: 200
+    expected_response:
+      success: true
+    description: "Verify job queue is healthy"
+
+  - name: "Platform Configuration Endpoint"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/auth/platforms"
+    method: "GET"
+    expected_status: 200
+    expected_response:
+      success: true
+    validation:
+      - "response.data.length >= 4"  # Should have at least 4 platforms
+      - "response.data[0].platform"  # Should have platform field
+      - "response.data[0].max_chars" # Should have character limits
+    description: "Verify platform configuration is available"
+
+  - name: "User Registration"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/auth/register"
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+    body: |
+      {
+        "email": "test@socialscheduler.test",
+        "password": "testpass123",
+        "first_name": "Test",
+        "last_name": "User",
+        "timezone": "UTC"
+      }
+    expected_status: 201
+    expected_response:
+      success: true
+    store_response:
+      auth_token: "data.token"
+      user_id: "data.user.id"
+    description: "Test user registration endpoint"
+
+  - name: "User Login"
+    type: "http" 
+    endpoint: "http://localhost:${API_PORT}/api/v1/auth/login"
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+    body: |
+      {
+        "email": "demo@vrooli.com",
+        "password": "demo123"
+      }
+    expected_status: 200
+    expected_response:
+      success: true
+    store_response:
+      demo_auth_token: "data.token"
+      demo_user_id: "data.user.id"
+    description: "Test user login with demo account"
+
+  - name: "Get Current User"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/auth/me"
+    method: "GET"
+    headers:
+      Authorization: "Bearer ${demo_auth_token}"
+    expected_status: 200
+    expected_response:
+      success: true
+    validation:
+      - "response.data.email == 'demo@vrooli.com'"
+    description: "Test authenticated user info retrieval"
+
+  - name: "Schedule Post"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/posts/schedule"
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+      Authorization: "Bearer ${demo_auth_token}"
+    body: |
+      {
+        "title": "Test Social Media Post",
+        "content": "This is a test post for the social media scheduler! 🚀 #testing #socialmedia",
+        "platforms": ["twitter", "linkedin"],
+        "scheduled_at": "2024-12-01T15:00:00Z",
+        "timezone": "UTC",
+        "auto_optimize": true
+      }
+    expected_status: 201
+    expected_response:
+      success: true
+    store_response:
+      post_id: "data.id"
+    validation:
+      - "response.data.status == 'scheduled'"
+      - "response.data.platforms.length == 2"
+      - "response.data.platform_variants"
+    description: "Test post scheduling functionality"
+
+  - name: "Get Calendar Posts"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/posts/calendar?start_date=2024-11-01&end_date=2024-12-31"
+    method: "GET"
+    headers:
+      Authorization: "Bearer ${demo_auth_token}"
+    expected_status: 200
+    expected_response:
+      success: true
+    validation:
+      - "response.data.length >= 1"
+      - "response.data[0].id"
+    description: "Test calendar posts retrieval"
+
+  - name: "Get Specific Post"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/posts/${post_id}"
+    method: "GET"
+    headers:
+      Authorization: "Bearer ${demo_auth_token}"
+    expected_status: 200
+    expected_response:
+      success: true
+    validation:
+      - "response.data.id == '${post_id}'"
+      - "response.data.title == 'Test Social Media Post'"
+    description: "Test individual post retrieval"
+
+  - name: "UI Health Check"
+    type: "http"
+    endpoint: "http://localhost:${UI_PORT}/health"
+    method: "GET"
+    expected_status: 200
+    expected_response:
+      status: "healthy"
+      service: "social-media-scheduler-ui"
+    description: "Verify UI server is healthy"
+
+  - name: "UI Index Page"
+    type: "http"
+    endpoint: "http://localhost:${UI_PORT}/"
+    method: "GET"
+    expected_status: 200
+    validation:
+      - "response_body.includes('Social Media Scheduler')"
+      - "response_body.includes('react')"
+    description: "Verify UI serves the main application page"
+
+  - name: "API Proxy via UI"
+    type: "http"
+    endpoint: "http://localhost:${UI_PORT}/api/v1/auth/platforms"
+    method: "GET"
+    expected_status: 200
+    expected_response:
+      success: true
+    description: "Test API proxy through UI server"
+
+# Performance tests
+performance_tests:
+  - name: "API Response Time"
+    type: "load"
+    endpoint: "http://localhost:${API_PORT}/health"
+    requests: 10
+    concurrency: 2
+    max_response_time: 500  # milliseconds
+    description: "Verify API responds quickly under light load"
+
+  - name: "Database Query Performance"
+    type: "custom"
+    command: |
+      time psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d vrooli_social_media_scheduler -c "
+        SELECT COUNT(*) FROM scheduled_posts sp 
+        JOIN users u ON sp.user_id = u.id 
+        WHERE sp.created_at >= NOW() - INTERVAL '1 day';
+      "
+    timeout: 10
+    description: "Verify database queries perform acceptably"
+
+# Integration tests with external services
+integration_tests:
+  - name: "Ollama Integration"
+    type: "custom"
+    command: |
+      curl -X POST http://localhost:${RESOURCE_PORTS[ollama]}/api/generate \
+        -H "Content-Type: application/json" \
+        -d '{"model": "llama3.2", "prompt": "Optimize this for Twitter: Hello world!", "stream": false}'
+    expected_exit_code: 0
+    description: "Test AI content optimization service"
+
+  - name: "Redis Queue Operations"
+    type: "custom"
+    command: |
+      redis-cli -h localhost -p ${RESOURCE_PORTS[redis]} eval "
+        redis.call('lpush', 'test_queue', 'test_job')
+        local result = redis.call('rpop', 'test_queue')
+        return result
+      " 0
+    expected_output: "test_job"
+    description: "Test Redis queue functionality"
+
+  - name: "MinIO Storage Operations"
+    type: "custom"
+    command: |
+      echo "test content" | mc pipe local/social-media-assets/test-file.txt && \
+      mc cat local/social-media-assets/test-file.txt && \
+      mc rm local/social-media-assets/test-file.txt
+    expected_output: "test content"
+    description: "Test media storage operations"
+
+# Security tests
+security_tests:
+  - name: "Unauthorized API Access"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/posts/calendar"
+    method: "GET"
+    expected_status: 401
+    expected_response:
+      success: false
+    description: "Verify protected endpoints require authentication"
+
+  - name: "Invalid Token"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/auth/me"
+    method: "GET"
+    headers:
+      Authorization: "Bearer invalid_token_here"
+    expected_status: 401
+    expected_response:
+      success: false
+    description: "Verify invalid tokens are rejected"
+
+  - name: "SQL Injection Prevention"
+    type: "http"
+    endpoint: "http://localhost:${API_PORT}/api/v1/auth/login"
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+    body: |
+      {
+        "email": "test'; DROP TABLE users; --",
+        "password": "password"
+      }
+    expected_status: 401
+    description: "Verify SQL injection attempts are handled safely"
+
+# Cleanup after tests
+cleanup:
+  - name: "Remove test user"
+    command: |
+      psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d vrooli_social_media_scheduler -c "
+        DELETE FROM scheduled_posts WHERE user_id IN (SELECT id FROM users WHERE email = 'test@socialscheduler.test');
+        DELETE FROM users WHERE email = 'test@socialscheduler.test';
+      "
+    description: "Clean up test data"
+    ignore_errors: true
+
+  - name: "Clear Redis test data" 
+    command: "redis-cli -h localhost -p ${RESOURCE_PORTS[redis]} flushdb"
+    description: "Clear Redis test data"
+    ignore_errors: true
+
+# Test reporting
+reporting:
+  format: "json"
+  output_file: "test-results.json"
+  include_performance: true
+  include_logs: true
+
+# Validation criteria
+validation:
+  required_pass_rate: 90  # 90% of tests must pass
+  critical_tests:  # These tests must pass
+    - "API Health Check"
+    - "User Login"
+    - "Schedule Post"
+    - "UI Health Check"
+  
+  performance_requirements:
+    max_response_time: 1000  # milliseconds
+    min_success_rate: 95     # percent
+
+# Test data
+test_data:
+  sample_posts:
+    - title: "Product Launch Announcement"
+      content: "We're excited to announce our latest product! 🚀 #productlaunch #innovation"
+      platforms: ["twitter", "linkedin", "facebook"]
+    
+    - title: "Weekly Team Update"
+      content: "Great week for the team! Here's what we accomplished and what's coming next..."
+      platforms: ["linkedin"]
+      
+    - title: "Behind the Scenes"  
+      content: "Take a peek behind the scenes at our development process! #development #team"
+      platforms: ["twitter", "instagram"]

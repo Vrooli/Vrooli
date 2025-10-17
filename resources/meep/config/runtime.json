@@ -1,0 +1,50 @@
+{
+  "startup_order": 550,
+  "dependencies": ["minio", "postgres"],
+  "optional_dependencies": ["questdb", "qdrant", "elmer-fem", "openems"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "science",
+  "description": "MEEP electromagnetic FDTD simulation engine with Python bindings",
+  "capabilities": {
+    "fdtd_solver": true,
+    "mode_solver": true,
+    "adjoint_optimization": true,
+    "parallel_mpi": true,
+    "gpu_acceleration": false,
+    "python_api": true,
+    "hdf5_export": true,
+    "vtk_export": true
+  },
+  "resource_requirements": {
+    "min_memory": "2GB",
+    "recommended_memory": "8GB",
+    "min_cpu": 2,
+    "recommended_cpu": 8,
+    "storage": "10GB",
+    "gpu_optional": true
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "ports": {
+    "api": 8193
+  },
+  "volumes": [
+    {
+      "host": "${MEEP_DATA_DIR}",
+      "container": "/data",
+      "mode": "rw"
+    }
+  ],
+  "environment": {
+    "MEEP_PORT": "8193",
+    "OMP_NUM_THREADS": "2",
+    "PYTHONUNBUFFERED": "1"
+  }
+}

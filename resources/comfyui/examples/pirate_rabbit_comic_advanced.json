@@ -1,0 +1,275 @@
+{
+  "1": {
+    "inputs": {
+      "width": 768,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "2": {
+    "inputs": {
+      "text": "comic book page layout, multiple panels, a heroic pirate rabbit adventure story, anthropomorphic rabbit captain with tricorn hat and eye patch, sequential art panels showing: panel 1 - rabbit looking through spyglass on ship deck, panel 2 - discovering treasure map, panel 3 - sword fighting scene, panel 4 - finding treasure chest, comic book art style, bold outlines, vibrant colors, dynamic poses, speech bubbles, action lines, professional comic illustration, DC comics style, Marvel comics style, detailed linework, cel shading",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "3": {
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "4": {
+    "inputs": {
+      "seed": 42,
+      "steps": 30,
+      "cfg": 8.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "5": {
+    "inputs": {
+      "text": "blurry, low quality, distorted, ugly, bad anatomy, mutation, extra limbs, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, body out of frame, watermark, signature, cut off, low contrast, underexposed, overexposed, bad art, beginner, amateur, distorted face, b&w, black and white, manga style, anime style, realistic photo, photorealistic",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "6": {
+    "inputs": {
+      "samples": [
+        "4",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "7": {
+    "inputs": {
+      "pixels": [
+        "6",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEEncode"
+  },
+  "8": {
+    "inputs": {
+      "text": "comic book page, detailed comic art, pirate rabbit character consistency, clean panel borders, professional comic book illustration, bold comic book colors, dynamic action sequences, expressive character poses, adventure comic storytelling, treasure hunting theme, nautical adventure, anthropomorphic rabbit hero, classic comic book style, ink and color technique, sequential narrative art",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "9": {
+    "inputs": {
+      "text": "inconsistent character design, mixed art styles, messy panels, overlapping speech bubbles, cluttered composition, poor panel layout, bad storytelling flow, inconsistent lighting, muddy colors, amateur comic art, sketch quality, unfinished art, photobashing, traced art",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "10": {
+    "inputs": {
+      "seed": 42,
+      "steps": 25,
+      "cfg": 7.0,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 0.6,
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "8",
+        0
+      ],
+      "negative": [
+        "9",
+        0
+      ],
+      "latent_image": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "11": {
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "12": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "width": 1536,
+      "height": 2048,
+      "crop": "disabled",
+      "image": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "ImageScale"
+  },
+  "13": {
+    "inputs": {
+      "pixels": [
+        "12",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEEncode"
+  },
+  "14": {
+    "inputs": {
+      "text": "ultra-high quality comic book art, masterpiece comic illustration, crisp clean lines, vibrant comic book colors, professional comic book page, detailed character expressions, perfect panel composition, award-winning comic art, superhero comic quality, graphic novel illustration, detailed backgrounds, consistent character model, dynamic storytelling, clear readable panels",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "15": {
+    "inputs": {
+      "text": "pixelated, jpeg artifacts, compression artifacts, blurry details, low resolution, noise, grain, poor upscaling, stretched image, distorted proportions, aliasing, poor line quality, faded colors, washed out, overprocessed",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "16": {
+    "inputs": {
+      "seed": 42,
+      "steps": 20,
+      "cfg": 6.5,
+      "sampler_name": "dpmpp_sde",
+      "scheduler": "karras",
+      "denoise": 0.35,
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "14",
+        0
+      ],
+      "negative": [
+        "15",
+        0
+      ],
+      "latent_image": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "17": {
+    "inputs": {
+      "samples": [
+        "16",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "18": {
+    "inputs": {
+      "filename_prefix": "pirate_rabbit_comic_advanced",
+      "images": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "19": {
+    "inputs": {
+      "filename_prefix": "pirate_rabbit_comic_stage1",
+      "images": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "20": {
+    "inputs": {
+      "filename_prefix": "pirate_rabbit_comic_stage2",
+      "images": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "21": {
+    "inputs": {
+      "filename_prefix": "pirate_rabbit_comic_upscaled",
+      "images": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  }
+}

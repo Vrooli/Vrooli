@@ -1,0 +1,42 @@
+# Build artifacts
+api/document-manager-api
+api/test-build
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test coverage
+*.out
+coverage.html
+coverage.txt
+*.coverprofile
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules
+node_modules/
+ui/node_modules/
+
+# Build outputs
+ui/dist/
+ui/build/
+build/
+dist/
+
+# Temporary files
+*.tmp
+.tmp/

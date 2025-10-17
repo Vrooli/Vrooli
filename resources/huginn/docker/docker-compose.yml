@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: huginn-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_secure_password}
+      MYSQL_DATABASE: huginn
+      MYSQL_USER: huginn
+      MYSQL_PASSWORD: ${DB_PASSWORD:-huginn_secure_password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - huginn-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "huginn", "-p${DB_PASSWORD:-huginn_secure_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  huginn:
+    image: ghcr.io/huginn/huginn-single-process:latest
+    container_name: huginn
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${HUGINN_PORT:-4111}:3000"
+    environment:
+      # Database Configuration
+      DATABASE_ADAPTER: mysql2
+      DATABASE_HOST: mysql
+      DATABASE_NAME: huginn
+      DATABASE_USERNAME: huginn
+      DATABASE_PASSWORD: ${DB_PASSWORD:-huginn_secure_password}
+      DATABASE_PORT: 3306
+      DATABASE_ENCODING: utf8mb4
+      DATABASE_RECONNECT: "true"
+      
+      # Huginn Configuration
+      APP_SECRET_TOKEN: ${APP_SECRET_TOKEN:-generate_me}
+      INVITATION_CODE: ${INVITATION_CODE:-vrooli-huginn}
+      DOMAIN: ${DOMAIN:-localhost:4111}
+      
+      # Admin Account - Using secure defaults, not from .env
+      # Credentials will be managed via Vrooli resource config
+      SEED_EMAIL: ${HUGINN_ADMIN_EMAIL:-admin@huginn.local}
+      SEED_USERNAME: ${HUGINN_ADMIN_USERNAME:-admin}
+      SEED_PASSWORD: ${HUGINN_ADMIN_PASSWORD:-vrooli_huginn_secure_2025}
+      
+      # Optional Configuration
+      SMTP_DOMAIN: ${SMTP_DOMAIN:-}
+      SMTP_USER_NAME: ${SMTP_USER_NAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SERVER: ${SMTP_SERVER:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_AUTHENTICATION: ${SMTP_AUTHENTICATION:-plain}
+      SMTP_ENABLE_STARTTLS_AUTO: ${SMTP_ENABLE_STARTTLS_AUTO:-true}
+      
+      # Performance
+      DELAYED_JOB_WORKER_PROCESSES: ${WORKER_PROCESSES:-2}
+      
+    volumes:
+      - huginn_uploads:/app/public/system
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${WORKSPACE_DIR:-/workspace}:/workspace
+    networks:
+      - huginn-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  huginn-network:
+    name: huginn-network
+    driver: bridge
+
+volumes:
+  mysql_data:
+    name: huginn_mysql_data
+  huginn_uploads:
+    name: huginn_uploads

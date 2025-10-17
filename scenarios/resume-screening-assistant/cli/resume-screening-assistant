@@ -1,0 +1,308 @@
+#!/bin/bash
+# Resume Screening Assistant CLI
+# Lightweight wrapper for the Resume Screening Assistant API
+
+set -euo pipefail
+
+# Configuration
+CLI_NAME="resume-screening-assistant"
+CLI_VERSION="1.0.0"
+API_PORT="${API_PORT:-8090}"
+API_BASE_URL="http://localhost:${API_PORT}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Helper functions
+cli::log() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+cli::success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+cli::warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+cli::error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+cli::header() {
+    echo -e "${PURPLE}$1${NC}"
+}
+
+# API interaction functions
+api::check_health() {
+    if curl -s -f "$API_BASE_URL/health" > /dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+api::get() {
+    local endpoint="$1"
+    local url="$API_BASE_URL$endpoint"
+    
+    if ! api::check_health; then
+        cli::error "API server is not responding at $API_BASE_URL"
+        cli::log "Please ensure the API server is running first"
+        return 1
+    fi
+    
+    curl -s -f "$url" 2>/dev/null || {
+        cli::error "Failed to fetch from $endpoint"
+        return 1
+    }
+}
+
+# Command implementations
+cmd::health() {
+    cli::log "Checking Resume Screening Assistant API health..."
+    
+    if api::check_health; then
+        local health_data
+        health_data=$(api::get "/health")
+        local status
+        status=$(echo "$health_data" | jq -r '.status // "unknown"')
+        local version
+        version=$(echo "$health_data" | jq -r '.version // "unknown"')
+        
+        cli::success "API is healthy"
+        echo "  Status: $status"
+        echo "  Version: $version"
+        echo "  URL: $API_BASE_URL"
+    else
+        cli::error "API health check failed"
+        cli::log "Ensure the API server is running with: cd api && ./resume-screening-assistant-api"
+        return 1
+    fi
+}
+
+cmd::jobs() {
+    local action="${1:-list}"
+    
+    case "$action" in
+        list|ls)
+            cli::log "Fetching active job postings..."
+            local jobs_data
+            jobs_data=$(api::get "/api/jobs")
+            
+            local count
+            count=$(echo "$jobs_data" | jq -r '.count // 0')
+            
+            if [[ "$count" -gt 0 ]]; then
+                cli::success "Found $count active job postings:"
+                echo
+                echo "$jobs_data" | jq -r '.jobs[] | "• \(.job_title) at \(.company_name) (\(.location)) - \(.candidate_count) candidates"'
+            else
+                cli::warning "No active job postings found"
+            fi
+            ;;
+        *)
+            cli::error "Unknown jobs action: $action"
+            cli::log "Available actions: list (or ls)"
+            return 1
+            ;;
+    esac
+}
+
+cmd::candidates() {
+    local action="${1:-list}"
+    local job_id="${2:-}"
+    
+    case "$action" in
+        list|ls)
+            cli::log "Fetching candidates..."
+            local endpoint="/api/candidates"
+            if [[ -n "$job_id" ]]; then
+                endpoint="/api/candidates?job_id=$job_id"
+                cli::log "Filtering by job ID: $job_id"
+            fi
+            
+            local candidates_data
+            candidates_data=$(api::get "$endpoint")
+            
+            local count
+            count=$(echo "$candidates_data" | jq -r '.count // 0')
+            
+            if [[ "$count" -gt 0 ]]; then
+                cli::success "Found $count candidates:"
+                echo
+                echo "$candidates_data" | jq -r '.candidates[] | "• \(.candidate_name) (Score: \(.score*100 | floor)%) - \(.experience_years) years exp - Status: \(.status)"'
+            else
+                cli::warning "No candidates found"
+            fi
+            ;;
+        *)
+            cli::error "Unknown candidates action: $action"
+            cli::log "Available actions: list [job_id] (or ls [job_id])"
+            return 1
+            ;;
+    esac
+}
+
+cmd::search() {
+    local query="$1"
+    local search_type="${2:-both}"
+    
+    if [[ -z "$query" ]]; then
+        cli::error "Search query is required"
+        cli::log "Usage: $CLI_NAME search \"query\" [type]"
+        cli::log "  type: candidates, jobs, or both (default)"
+        return 1
+    fi
+    
+    cli::log "Performing semantic search for: \"$query\""
+    cli::log "Search type: $search_type"
+    
+    local search_data
+    search_data=$(api::get "/api/search?query=$(echo "$query" | jq -sRr @uri)&type=$search_type")
+    
+    local count
+    count=$(echo "$search_data" | jq -r '.count // 0')
+    
+    if [[ "$count" -gt 0 ]]; then
+        cli::success "Found $count search results:"
+        echo
+        echo "$search_data" | jq -r '.results[] | 
+            if .type == "candidate" then
+                "🧑 \(.candidate_name) (Score: \(.score*100 | floor)%) - \(.relevance)"
+            elif .type == "job" then  
+                "💼 \(.job_title) at \(.company_name) (Score: \(.score*100 | floor)%) - \(.relevance)"
+            else
+                "• \(.name // "Unknown") (Score: \(.score*100 | floor)%)"
+            end'
+    else
+        cli::warning "No search results found for: \"$query\""
+    fi
+}
+
+cmd::status() {
+    cli::header "Resume Screening Assistant Status"
+    echo
+    
+    # Check API health
+    if api::check_health; then
+        cli::success "✅ API server is running"
+        local health_data
+        health_data=$(api::get "/health")
+        local version
+        version=$(echo "$health_data" | jq -r '.version // "unknown"')
+        echo "   Version: $version"
+        echo "   URL: $API_BASE_URL"
+    else
+        cli::error "❌ API server is not responding"
+        echo "   URL: $API_BASE_URL"
+    fi
+    
+    echo
+    
+    # Show quick stats
+    if api::check_health; then
+        local jobs_data candidates_data
+        jobs_data=$(api::get "/api/jobs" 2>/dev/null || echo '{"count":0}')
+        candidates_data=$(api::get "/api/candidates" 2>/dev/null || echo '{"count":0}')
+        
+        local job_count candidate_count
+        job_count=$(echo "$jobs_data" | jq -r '.count // 0')
+        candidate_count=$(echo "$candidates_data" | jq -r '.count // 0')
+        
+        cli::log "Quick Stats:"
+        echo "  📋 Active Jobs: $job_count"
+        echo "  👥 Total Candidates: $candidate_count"
+    fi
+    
+    echo
+    cli::log "Dashboard URLs:"
+    echo "  🔧 Windmill: http://localhost:8000"
+    echo "  ⚡ n8n: http://localhost:5678"
+    echo "  🗄️  Qdrant: http://localhost:6333"
+}
+
+cmd::help() {
+    cli::header "$CLI_NAME - Resume Screening Assistant CLI v$CLI_VERSION"
+    echo
+    echo "USAGE:"
+    echo "  $CLI_NAME <command> [arguments]"
+    echo
+    echo "COMMANDS:"
+    echo "  health              Check API server health"
+    echo "  status              Show overall system status"
+    echo "  jobs list           List all active job postings"
+    echo "  candidates list     List all candidates"
+    echo "  candidates list <job_id>  List candidates for specific job"
+    echo "  search <query>      Perform semantic search (both candidates and jobs)"
+    echo "  search <query> candidates  Search only candidates"
+    echo "  search <query> jobs        Search only jobs"
+    echo "  help                Show this help message"
+    echo
+    echo "EXAMPLES:"
+    echo "  $CLI_NAME status"
+    echo "  $CLI_NAME jobs list"
+    echo "  $CLI_NAME candidates list 1"
+    echo "  $CLI_NAME search \"python machine learning\""
+    echo "  $CLI_NAME search \"senior engineer\" jobs"
+    echo
+    echo "ENVIRONMENT:"
+    echo "  API_PORT        API server port (default: 8090)"
+    echo
+    echo "For more information, visit: http://localhost:$API_PORT"
+}
+
+# Main command dispatcher
+main() {
+    local command="${1:-help}"
+    
+    case "$command" in
+        health)
+            cmd::health
+            ;;
+        status)
+            cmd::status
+            ;;
+        jobs)
+            shift
+            cmd::jobs "$@"
+            ;;
+        candidates)
+            shift
+            cmd::candidates "$@"
+            ;;
+        search)
+            shift
+            cmd::search "$@"
+            ;;
+        help|--help|-h)
+            cmd::help
+            ;;
+        *)
+            cli::error "Unknown command: $command"
+            echo
+            cmd::help
+            exit 1
+            ;;
+    esac
+}
+
+# Check dependencies
+if ! command -v curl >/dev/null 2>&1; then
+    cli::error "curl is required but not installed"
+    exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+    cli::error "jq is required but not installed"
+    exit 1
+fi
+
+# Run main function
+main "$@"

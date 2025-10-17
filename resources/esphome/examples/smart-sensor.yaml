@@ -1,0 +1,247 @@
+# ESPHome Smart Environmental Sensor Example
+# This configuration creates a comprehensive environmental monitoring device
+# with temperature, humidity, motion detection, and light sensing
+
+esphome:
+  name: smart-sensor
+  platform: ESP32
+  board: esp32dev
+  
+  # Run custom startup code
+  on_boot:
+    priority: -10
+    then:
+      - logger.log: "Smart sensor booting up..."
+
+# WiFi Configuration
+wifi:
+  ssid: "YourWiFiNetwork"
+  password: "YourWiFiPassword"
+  
+  # Enable fallback hotspot in case WiFi connection fails
+  ap:
+    ssid: "Smart-Sensor-Fallback"
+    password: "fallback123"
+
+# Enable captive portal for easy WiFi configuration
+captive_portal:
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "base64encryptionkey="  # Generate with: openssl rand -base64 32
+
+# Enable Over-The-Air updates
+ota:
+  password: "vrooli_ota"
+
+# Web server for local access
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: admin
+
+# Time synchronization
+time:
+  - platform: sntp
+    id: sntp_time
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
+
+# I2C bus for sensors
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+  id: bus_a
+
+# Sensors Configuration
+sensor:
+  # Temperature and Humidity - DHT22
+  - platform: dht
+    pin: GPIO23
+    model: DHT22
+    temperature:
+      name: "Room Temperature"
+      id: room_temp
+      filters:
+        - sliding_window_moving_average:
+            window_size: 5
+            send_every: 3
+    humidity:
+      name: "Room Humidity"
+      id: room_humidity
+      filters:
+        - sliding_window_moving_average:
+            window_size: 5
+            send_every: 3
+    update_interval: 30s
+
+  # Light Sensor - BH1750
+  - platform: bh1750
+    name: "Illuminance"
+    id: room_light
+    address: 0x23
+    update_interval: 10s
+    filters:
+      - lambda: return x > 50000 ? 50000 : x;  # Cap at 50000 lux
+
+  # Air Quality - CCS811 (optional, if connected)
+  - platform: ccs811
+    eco2:
+      name: "Room eCO2"
+    tvoc:
+      name: "Room TVOC"
+    address: 0x5A
+    update_interval: 60s
+    
+  # WiFi Signal Strength
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    
+  # Device Uptime
+  - platform: uptime
+    name: "Uptime"
+    update_interval: 60s
+
+# Binary Sensors
+binary_sensor:
+  # Motion Detection - PIR Sensor
+  - platform: gpio
+    pin:
+      number: GPIO27
+      mode: INPUT_PULLDOWN
+    name: "Motion Detected"
+    id: motion_sensor
+    device_class: motion
+    filters:
+      - delayed_off: 30s  # Keep on for 30s after last motion
+
+  # Door/Window Sensor
+  - platform: gpio
+    pin:
+      number: GPIO26
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Door"
+    device_class: door
+    
+  # Device Status
+  - platform: status
+    name: "Device Status"
+
+# Switches
+switch:
+  # Control an LED
+  - platform: gpio
+    pin: GPIO2
+    name: "Status LED"
+    id: status_led
+    inverted: true
+    
+  # Restart switch
+  - platform: restart
+    name: "Restart Device"
+
+# Lights
+light:
+  # RGB Status Light (if using RGB LED)
+  - platform: rgb
+    name: "RGB Status Light"
+    red: gpio_red
+    green: gpio_green
+    blue: gpio_blue
+    effects:
+      - strobe:
+      - flicker:
+      - random:
+
+# Output pins for RGB LED
+output:
+  - platform: ledc
+    pin: GPIO32
+    id: gpio_red
+    frequency: 1000Hz
+    
+  - platform: ledc
+    pin: GPIO33
+    id: gpio_green
+    frequency: 1000Hz
+    
+  - platform: ledc
+    pin: GPIO25
+    id: gpio_blue
+    frequency: 1000Hz
+
+# Text Sensors
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+    ssid:
+      name: "Connected SSID"
+    mac_address:
+      name: "MAC Address"
+      
+  - platform: version
+    name: "ESPHome Version"
+
+# Automations
+automation:
+  # Turn on LED when motion detected
+  - alias: "Motion Light"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.motion_sensor
+        to: "on"
+    action:
+      - switch.turn_on: status_led
+      - delay: 30s
+      - switch.turn_off: status_led
+      
+  # Alert on high temperature
+  - alias: "Temperature Alert"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.room_temp
+        above: 30
+    action:
+      - logger.log:
+          format: "High temperature alert: %.1f°C"
+          args: ['id(room_temp).state']
+
+# MQTT Support (optional)
+mqtt:
+  broker: 192.168.1.100
+  discovery: true
+  discovery_retain: true
+  topic_prefix: "esphome/smart-sensor"
+  
+  on_message:
+    - topic: esphome/smart-sensor/command
+      then:
+        - logger.log:
+            format: "Received command: %s"
+            args: ['x.c_str()']
+
+# Deep Sleep (optional, for battery operation)
+# deep_sleep:
+#   run_duration: 20s
+#   sleep_duration: 5min
+#   id: deep_sleep_control
+
+# Intervals for periodic tasks
+interval:
+  # Heartbeat LED blink
+  - interval: 5s
+    then:
+      - switch.toggle: status_led
+      - delay: 100ms
+      - switch.toggle: status_led

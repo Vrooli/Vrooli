@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Detail - Prompt Manager</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <!-- Load shared utilities -->
+    <script src="/components/shared.js"></script>
+    
+    <!-- Prompt Detail Page Component -->
+    <script type="text/babel">
+        function PromptDetailPage() {
+            const { useState, useEffect } = React;
+            const [prompt, setPrompt] = useState(null);
+            const [loading, setLoading] = useState(true);
+            
+            // Get prompt ID from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const promptId = urlParams.get('id');
+
+            useEffect(() => {
+                if (!promptId) {
+                    setLoading(false);
+                    return;
+                }
+
+                const loadPrompt = async () => {
+                    try {
+                        // Wait for API to be configured
+                        setTimeout(async () => {
+                            const data = await window.PromptManagerAPI.get(`/api/v1/prompts/${promptId}`);
+                            setPrompt(data);
+                            setLoading(false);
+                        }, 500);
+                    } catch (error) {
+                        console.error('Failed to load prompt:', error);
+                        setLoading(false);
+                    }
+                };
+
+                loadPrompt();
+            }, [promptId]);
+
+            const handleUsePrompt = async () => {
+                if (!prompt) return;
+                
+                try {
+                    await window.PromptManagerAPI.post(`/api/v1/prompts/${prompt.id}/use`, {});
+                    
+                    // Copy to clipboard if available
+                    if (navigator.clipboard) {
+                        await navigator.clipboard.writeText(prompt.content);
+                        alert('Prompt copied to clipboard and usage recorded!');
+                    } else {
+                        alert('Usage recorded! (Clipboard not available)');
+                    }
+                    
+                    // Refresh prompt data to update usage count
+                    const updated = await window.PromptManagerAPI.get(`/api/v1/prompts/${prompt.id}`);
+                    setPrompt(updated);
+                } catch (error) {
+                    console.error('Failed to record usage:', error);
+                }
+            };
+
+            if (loading) {
+                return (
+                    <div className="flex items-center justify-center h-screen">
+                        <div className="spinner"></div>
+                    </div>
+                );
+            }
+
+            if (!promptId) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="bg-white rounded-lg shadow p-8 text-center">
+                            <h2 className="text-xl font-bold text-red-600 mb-4">No Prompt ID</h2>
+                            <p className="text-gray-600 mb-4">Please provide a prompt ID in the URL.</p>
+                            <a href="/dashboard.html" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!prompt) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="bg-white rounded-lg shadow p-8 text-center">
+                            <h2 className="text-xl font-bold text-red-600 mb-4">Prompt Not Found</h2>
+                            <p className="text-gray-600 mb-4">The requested prompt could not be found.</p>
+                            <a href="/dashboard.html" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* Header */}
+                    <header className="bg-white shadow-sm border-b">
+                        <div className="max-w-7xl mx-auto px-4 py-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <a href="/dashboard.html" className="text-blue-500 hover:text-blue-600">
+                                        ← Back to Dashboard
+                                    </a>
+                                    <h1 className="text-2xl font-bold text-gray-900">
+                                        📝 {prompt.title}
+                                    </h1>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleUsePrompt}
+                                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                                    >
+                                        Use Prompt
+                                    </button>
+                                    <a
+                                        href={`/dashboard.html?edit=${prompt.id}`}
+                                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                    >
+                                        Edit
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content */}
+                    <main className="max-w-4xl mx-auto px-4 py-6">
+                        <div className="bg-white rounded-lg shadow p-6">
+                            {/* Prompt Details */}
+                            <div className="border-b pb-6 mb-6">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span className="font-medium text-gray-700">Campaign:</span>
+                                        <span className="ml-2">{prompt.campaign_name || 'None'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-gray-700">Usage Count:</span>
+                                        <span className="ml-2">{prompt.usage_count || 0}</span>
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-gray-700">Created:</span>
+                                        <span className="ml-2">{new Date(prompt.created_at).toLocaleString()}</span>
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-gray-700">Last Used:</span>
+                                        <span className="ml-2">{prompt.last_used ? new Date(prompt.last_used).toLocaleString() : 'Never'}</span>
+                                    </div>
+                                    {prompt.word_count && (
+                                        <div>
+                                            <span className="font-medium text-gray-700">Word Count:</span>
+                                            <span className="ml-2">{prompt.word_count}</span>
+                                        </div>
+                                    )}
+                                    {prompt.estimated_tokens && (
+                                        <div>
+                                            <span className="font-medium text-gray-700">Est. Tokens:</span>
+                                            <span className="ml-2">{prompt.estimated_tokens}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {prompt.description && (
+                                    <div className="mt-4">
+                                        <span className="font-medium text-gray-700">Description:</span>
+                                        <p className="mt-1 text-gray-600">{prompt.description}</p>
+                                    </div>
+                                )}
+
+                                {prompt.is_favorite && (
+                                    <div className="mt-4">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            ⭐ Favorite
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Prompt Content */}
+                            <div>
+                                <h3 className="text-lg font-semibold mb-3">Content</h3>
+                                <div className="bg-gray-50 rounded-lg p-4">
+                                    <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800">
+                                        {prompt.content}
+                                    </pre>
+                                </div>
+                            </div>
+
+                            {prompt.notes && (
+                                <div className="mt-6">
+                                    <h3 className="text-lg font-semibold mb-3">Notes</h3>
+                                    <div className="bg-blue-50 rounded-lg p-4">
+                                        <p className="text-gray-700">{prompt.notes}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PromptDetailPage />);
+    </script>
+</body>
+</html>

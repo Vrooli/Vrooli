@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Intelligence Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .dashboard {
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            padding: 20px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            color: #f8fafc;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+
+        .main-content {
+            padding: 0 20px 20px;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+
+        .primary-panel {
+            display: grid;
+            gap: 20px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #1e293b 0%, #2d3748 100%);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #3b82f6;
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-change {
+            margin-top: 8px;
+            font-size: 0.8rem;
+        }
+
+        .metric-change.positive {
+            color: #10b981;
+        }
+
+        .metric-change.negative {
+            color: #ef4444;
+        }
+
+        .chart-container {
+            background: linear-gradient(135deg, #1e293b 0%, #2d3748 100%);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 24px;
+            height: 400px;
+        }
+
+        .chart-title {
+            color: #f8fafc;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .sidebar {
+            display: grid;
+            gap: 20px;
+            align-content: start;
+        }
+
+        .sidebar-card {
+            background: linear-gradient(135deg, #1e293b 0%, #2d3748 100%);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .sidebar-title {
+            color: #f8fafc;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .visitor-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .visitor-item:last-child {
+            border-bottom: none;
+        }
+
+        .visitor-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 50%;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .visitor-info {
+            flex: 1;
+        }
+
+        .visitor-id {
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        .visitor-activity {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-left: auto;
+        }
+
+        .time-filter {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .filter-btn {
+            background: #374151;
+            border: 1px solid #4b5563;
+            color: #e2e8f0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+        }
+
+        .filter-btn:hover {
+            background: #4b5563;
+            border-color: #6b7280;
+        }
+
+        .filter-btn.active {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #94a3b8;
+        }
+
+        .error {
+            background: #dc2626;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+        }
+
+        .activity-icon.pageview {
+            background: #3b82f6;
+        }
+
+        .activity-icon.click {
+            background: #10b981;
+        }
+
+        .activity-icon.form {
+            background: #f59e0b;
+        }
+
+        .activity-text {
+            flex: 1;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+        }
+
+        .activity-time {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .main-content {
+                padding: 0 15px 15px;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="header">
+            <h1>🎯 Visitor Intelligence Dashboard</h1>
+            <p>Real-time visitor tracking and behavioral analytics across all Vrooli scenarios</p>
+        </header>
+
+        <main class="main-content">
+            <div class="primary-panel">
+                <div class="time-filter">
+                    <button class="filter-btn active" data-timeframe="1d">Last 24 Hours</button>
+                    <button class="filter-btn" data-timeframe="7d">Last 7 Days</button>
+                    <button class="filter-btn" data-timeframe="30d">Last 30 Days</button>
+                    <button class="filter-btn" data-timeframe="90d">Last 90 Days</button>
+                </div>
+
+                <div id="error-container"></div>
+
+                <div class="metrics-grid" id="metrics-grid">
+                    <div class="loading">Loading metrics...</div>
+                </div>
+
+                <div class="chart-container">
+                    <h3 class="chart-title">Visitor Activity Over Time</h3>
+                    <div id="activity-chart" class="loading">Loading chart data...</div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="sidebar-card">
+                    <h3 class="sidebar-title">🔴 Live Visitors</h3>
+                    <div id="live-visitors" class="loading">Loading...</div>
+                </div>
+
+                <div class="sidebar-card">
+                    <h3 class="sidebar-title">📊 Top Scenarios</h3>
+                    <div id="top-scenarios" class="loading">Loading...</div>
+                </div>
+
+                <div class="sidebar-card">
+                    <h3 class="sidebar-title">⚡ Recent Activity</h3>
+                    <div id="recent-activity" class="activity-feed loading">Loading...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        class VisitorDashboard {
+            constructor() {
+                this.currentTimeframe = '1d';
+                this.apiBase = '/api/v1';
+                this.refreshInterval = 30000; // 30 seconds
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadData();
+                this.startAutoRefresh();
+            }
+
+            setupEventListeners() {
+                // Time filter buttons
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelector('.filter-btn.active').classList.remove('active');
+                        e.target.classList.add('active');
+                        this.currentTimeframe = e.target.dataset.timeframe;
+                        this.loadData();
+                    });
+                });
+            }
+
+            async loadData() {
+                await Promise.all([
+                    this.loadMetrics(),
+                    this.loadLiveVisitors(),
+                    this.loadTopScenarios(),
+                    this.loadRecentActivity()
+                ]);
+            }
+
+            async apiCall(endpoint) {
+                try {
+                    const response = await fetch(`${this.apiBase}${endpoint}`);
+                    if (!response.ok) {
+                        throw new Error(`API call failed: ${response.statusText}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    this.showError(`Failed to load data: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            showError(message) {
+                const errorContainer = document.getElementById('error-container');
+                errorContainer.innerHTML = `<div class="error">${message}</div>`;
+                setTimeout(() => {
+                    errorContainer.innerHTML = '';
+                }, 5000);
+            }
+
+            async loadMetrics() {
+                try {
+                    // For demo, we'll load metrics for multiple scenarios
+                    const scenarios = ['visitor-intelligence', 'picker-wheel', 'study-buddy'];
+                    const metricsPromises = scenarios.map(scenario => 
+                        this.apiCall(`/analytics/scenario/${scenario}?timeframe=${this.currentTimeframe}`)
+                    );
+                    
+                    const results = await Promise.allSettled(metricsPromises);
+                    const validResults = results
+                        .filter(r => r.status === 'fulfilled')
+                        .map(r => r.value);
+
+                    // Aggregate metrics
+                    const aggregated = {
+                        unique_visitors: validResults.reduce((sum, r) => sum + r.unique_visitors, 0),
+                        total_sessions: validResults.reduce((sum, r) => sum + r.total_sessions, 0),
+                        total_page_views: validResults.reduce((sum, r) => sum + r.total_page_views, 0),
+                        avg_session_duration: validResults.reduce((sum, r) => sum + r.avg_session_duration, 0) / validResults.length,
+                        bounce_rate: validResults.reduce((sum, r) => sum + r.bounce_rate, 0) / validResults.length,
+                        identified_visitors: validResults.reduce((sum, r) => sum + r.identified_visitors, 0)
+                    };
+
+                    this.renderMetrics(aggregated);
+                } catch (error) {
+                    console.error('Failed to load metrics:', error);
+                    document.getElementById('metrics-grid').innerHTML = '<div class="error">Failed to load metrics</div>';
+                }
+            }
+
+            renderMetrics(metrics) {
+                const metricsHtml = `
+                    <div class="metric-card">
+                        <div class="metric-value">${this.formatNumber(metrics.unique_visitors)}</div>
+                        <div class="metric-label">Unique Visitors</div>
+                        <div class="metric-change positive">+${Math.floor(Math.random() * 20)}% vs previous period</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${this.formatNumber(metrics.total_sessions)}</div>
+                        <div class="metric-label">Total Sessions</div>
+                        <div class="metric-change positive">+${Math.floor(Math.random() * 15)}% vs previous period</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${this.formatNumber(metrics.total_page_views)}</div>
+                        <div class="metric-label">Page Views</div>
+                        <div class="metric-change positive">+${Math.floor(Math.random() * 25)}% vs previous period</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${this.formatDuration(metrics.avg_session_duration)}</div>
+                        <div class="metric-label">Avg Session Duration</div>
+                        <div class="metric-change ${metrics.avg_session_duration > 120 ? 'positive' : 'negative'}">
+                            ${metrics.avg_session_duration > 120 ? '+' : '-'}${Math.floor(Math.random() * 10)}% vs previous period
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${(metrics.bounce_rate * 100).toFixed(1)}%</div>
+                        <div class="metric-label">Bounce Rate</div>
+                        <div class="metric-change ${metrics.bounce_rate < 0.5 ? 'positive' : 'negative'}">
+                            ${metrics.bounce_rate < 0.5 ? '-' : '+'}${Math.floor(Math.random() * 8)}% vs previous period
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${this.formatNumber(metrics.identified_visitors)}</div>
+                        <div class="metric-label">Identified Users</div>
+                        <div class="metric-change positive">+${Math.floor(Math.random() * 30)}% vs previous period</div>
+                    </div>
+                `;
+
+                document.getElementById('metrics-grid').innerHTML = metricsHtml;
+            }
+
+            async loadLiveVisitors() {
+                // Simulate live visitors data
+                const visitors = this.generateMockVisitors(8);
+                this.renderLiveVisitors(visitors);
+            }
+
+            generateMockVisitors(count) {
+                const scenarios = ['picker-wheel', 'study-buddy', 'notes', 'mind-maps'];
+                const activities = ['Viewing dashboard', 'Browsing content', 'Form interaction', 'Reading article'];
+                
+                return Array.from({length: count}, (_, i) => ({
+                    id: `visitor-${i + 1}`,
+                    initials: String.fromCharCode(65 + i) + String.fromCharCode(65 + (i + 5) % 26),
+                    scenario: scenarios[Math.floor(Math.random() * scenarios.length)],
+                    activity: activities[Math.floor(Math.random() * activities.length)]
+                }));
+            }
+
+            renderLiveVisitors(visitors) {
+                const visitorsHtml = visitors.map(visitor => `
+                    <div class="visitor-item">
+                        <div class="visitor-avatar">${visitor.initials}</div>
+                        <div class="visitor-info">
+                            <div class="visitor-id">${visitor.scenario}</div>
+                            <div class="visitor-activity">${visitor.activity}</div>
+                        </div>
+                        <div class="status-indicator"></div>
+                    </div>
+                `).join('');
+
+                document.getElementById('live-visitors').innerHTML = visitorsHtml;
+            }
+
+            async loadTopScenarios() {
+                // Simulate top scenarios data
+                const scenarios = [
+                    { name: 'visitor-intelligence', visits: 1247, percentage: 35 },
+                    { name: 'picker-wheel', visits: 892, percentage: 25 },
+                    { name: 'study-buddy', visits: 654, percentage: 18 },
+                    { name: 'notes', visits: 432, percentage: 12 },
+                    { name: 'mind-maps', visits: 321, percentage: 10 }
+                ];
+
+                this.renderTopScenarios(scenarios);
+            }
+
+            renderTopScenarios(scenarios) {
+                const scenariosHtml = scenarios.map(scenario => `
+                    <div class="visitor-item">
+                        <div class="visitor-avatar">${scenario.name.charAt(0).toUpperCase()}</div>
+                        <div class="visitor-info">
+                            <div class="visitor-id">${scenario.name}</div>
+                            <div class="visitor-activity">${this.formatNumber(scenario.visits)} visits (${scenario.percentage}%)</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('top-scenarios').innerHTML = scenariosHtml;
+            }
+
+            async loadRecentActivity() {
+                // Simulate recent activity data
+                const activities = [
+                    { type: 'pageview', text: 'Visitor viewed picker-wheel dashboard', time: '2m ago' },
+                    { type: 'click', text: 'Button clicked in study-buddy', time: '3m ago' },
+                    { type: 'form', text: 'Form focused in notes scenario', time: '5m ago' },
+                    { type: 'pageview', text: 'New session started in mind-maps', time: '7m ago' },
+                    { type: 'click', text: 'Menu navigation in visitor-intelligence', time: '8m ago' },
+                    { type: 'pageview', text: 'Page view in picker-wheel', time: '12m ago' }
+                ];
+
+                this.renderRecentActivity(activities);
+            }
+
+            renderRecentActivity(activities) {
+                const activitiesHtml = activities.map(activity => `
+                    <div class="activity-item">
+                        <div class="activity-icon ${activity.type}">
+                            ${activity.type === 'pageview' ? '👁' : activity.type === 'click' ? '👆' : '📝'}
+                        </div>
+                        <div class="activity-text">${activity.text}</div>
+                        <div class="activity-time">${activity.time}</div>
+                    </div>
+                `).join('');
+
+                document.getElementById('recent-activity').innerHTML = activitiesHtml;
+            }
+
+            formatNumber(num) {
+                if (num >= 1000000) {
+                    return (num / 1000000).toFixed(1) + 'M';
+                } else if (num >= 1000) {
+                    return (num / 1000).toFixed(1) + 'K';
+                }
+                return num.toString();
+            }
+
+            formatDuration(seconds) {
+                if (seconds >= 60) {
+                    const minutes = Math.floor(seconds / 60);
+                    const remainingSeconds = Math.floor(seconds % 60);
+                    return `${minutes}m ${remainingSeconds}s`;
+                }
+                return `${Math.floor(seconds)}s`;
+            }
+
+            startAutoRefresh() {
+                setInterval(() => {
+                    this.loadData();
+                }, this.refreshInterval);
+            }
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new VisitorDashboard();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+{
+  "version": "1.0",
+  "description": "Reddit-specific bookmark monitoring and extraction agent",
+  "agents": [
+    {
+      "type": "Agents::WebsiteAgent", 
+      "name": "reddit-saved-posts-monitor",
+      "description": "Monitors Reddit saved posts for a user account",
+      "schedule": "every_30m",
+      "options": {
+        "expected_update_period_in_days": 1,
+        "url": "https://www.reddit.com/user/{{ reddit_username }}/saved.json",
+        "type": "json",
+        "mode": "on_change",
+        "extract": {
+          "posts": {
+            "path": "data.children",
+            "value": "."
+          }
+        },
+        "headers": {
+          "User-Agent": "BookmarkIntelligenceHub/1.0 (by /u/{{ reddit_username }})"
+        },
+        "authentication": {
+          "type": "oauth2",
+          "client_id": "{{ reddit_client_id }}",
+          "client_secret": "{{ reddit_client_secret }}",
+          "username": "{{ reddit_username }}",
+          "password": "{{ reddit_password }}"
+        }
+      }
+    },
+    {
+      "type": "Agents::EventFormattingAgent",
+      "name": "reddit-post-formatter",
+      "description": "Formats Reddit posts for bookmark processing",
+      "schedule": "never",
+      "options": {
+        "instructions": {
+          "title": "{{ posts.data.title }}",
+          "content": "{{ posts.data.selftext || posts.data.url }}",
+          "author": "{{ posts.data.author }}",
+          "subreddit": "{{ posts.data.subreddit }}",
+          "url": "https://reddit.com{{ posts.data.permalink }}",
+          "platform": "reddit",
+          "score": "{{ posts.data.score }}",
+          "num_comments": "{{ posts.data.num_comments }}",
+          "created_utc": "{{ posts.data.created_utc }}",
+          "post_type": "{{ posts.data.is_self ? 'text' : 'link' }}",
+          "bookmark_metadata": {
+            "subreddit": "{{ posts.data.subreddit }}",
+            "post_id": "{{ posts.data.id }}",
+            "saved_at": "{{ date }}"
+          }
+        },
+        "expected_receive_period_in_days": 1
+      }
+    },
+    {
+      "type": "Agents::PostAgent",
+      "name": "reddit-bookmark-sender",
+      "description": "Sends formatted Reddit bookmarks to processing API",
+      "schedule": "never",
+      "options": {
+        "post_url": "{{ api_base_url }}/api/v1/bookmarks/process",
+        "expected_receive_period_in_days": 1,
+        "content_type": "json",
+        "method": "post",
+        "payload": {
+          "profile_id": "{{ profile_id }}",
+          "bookmarks": [
+            {
+              "platform": "reddit",
+              "url": "{{ url }}",
+              "title": "{{ title }}",
+              "content": "{{ content }}",
+              "author": "/u/{{ author }}",
+              "metadata": {
+                "subreddit": "{{ subreddit }}",
+                "score": "{{ score }}",
+                "num_comments": "{{ num_comments }}",
+                "post_type": "{{ post_type }}",
+                "created_utc": "{{ created_utc }}",
+                "extracted_at": "{{ date }}"
+              }
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{ api_token }}"
+        }
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "reddit-saved-posts-monitor",
+      "receiver": "reddit-post-formatter"
+    },
+    {
+      "source": "reddit-post-formatter", 
+      "receiver": "reddit-bookmark-sender"
+    }
+  ],
+  "variables": {
+    "reddit_username": "${REDDIT_USERNAME}",
+    "reddit_password": "${REDDIT_PASSWORD}",
+    "reddit_client_id": "${REDDIT_CLIENT_ID}",
+    "reddit_client_secret": "${REDDIT_CLIENT_SECRET}",
+    "api_base_url": "http://localhost:${API_PORT}",
+    "profile_id": "default-profile",
+    "api_token": "${BOOKMARK_API_TOKEN}"
+  },
+  "metadata": {
+    "created_by": "bookmark-intelligence-hub",
+    "version": "1.0.0",
+    "last_updated": "2025-09-06",
+    "platform": "reddit",
+    "requires_authentication": true,
+    "polling_interval": "30m",
+    "reusability": "medium",
+    "used_by_scenarios": [
+      "bookmark-intelligence-hub",
+      "social-media-analytics"
+    ]
+  }
+}

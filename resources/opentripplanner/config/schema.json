@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenTripPlanner Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API port for OpenTripPlanner (automatically retrieved from port_registry.sh, no manual override recommended)",
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "heap_size": {
+      "type": "string",
+      "description": "JVM heap size for OpenTripPlanner",
+      "default": "2G",
+      "pattern": "^[0-9]+[MG]$"
+    },
+    "build_timeout": {
+      "type": "integer",
+      "description": "Graph build timeout in seconds",
+      "default": 300,
+      "minimum": 60,
+      "maximum": 3600
+    },
+    "data_dir": {
+      "type": "string",
+      "description": "Directory for GTFS and OSM data",
+      "default": "${HOME}/.vrooli/opentripplanner/data"
+    },
+    "cache_dir": {
+      "type": "string",
+      "description": "Directory for cached graphs",
+      "default": "${HOME}/.vrooli/opentripplanner/cache"
+    },
+    "routing": {
+      "type": "object",
+      "properties": {
+        "max_walk_distance": {
+          "type": "integer",
+          "description": "Maximum walking distance in meters",
+          "default": 800,
+          "minimum": 100,
+          "maximum": 5000
+        },
+        "max_transfers": {
+          "type": "integer",
+          "description": "Maximum number of transfers",
+          "default": 3,
+          "minimum": 0,
+          "maximum": 5
+        },
+        "walk_speed": {
+          "type": "number",
+          "description": "Walking speed in m/s",
+          "default": 1.34,
+          "minimum": 0.5,
+          "maximum": 2.0
+        },
+        "bike_speed": {
+          "type": "number",
+          "description": "Biking speed in m/s",
+          "default": 5.0,
+          "minimum": 2.0,
+          "maximum": 10.0
+        }
+      }
+    },
+    "graph_building": {
+      "type": "object",
+      "properties": {
+        "build_street_graph": {
+          "type": "boolean",
+          "description": "Build street network from OSM",
+          "default": true
+        },
+        "build_transit_graph": {
+          "type": "boolean",
+          "description": "Build transit network from GTFS",
+          "default": true
+        },
+        "cache_graphs": {
+          "type": "boolean",
+          "description": "Cache built graphs for faster startup",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": ["port", "heap_size", "data_dir"],
+  "additionalProperties": false
+}

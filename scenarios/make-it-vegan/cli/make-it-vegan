@@ -1,0 +1,185 @@
+#!/bin/bash
+
+# Get the API port from environment, matching the service.json configuration
+# The port should be in the range 8200-8299 as defined in service.json
+API_PORT="${API_PORT:-8200}"
+API_URL="${MAKE_IT_VEGAN_API_URL:-http://localhost:${API_PORT}}"
+
+show_help() {
+    cat << EOF
+Make It Vegan - Plant-Based Food Companion
+
+Usage: make-it-vegan <command> [options]
+
+Commands:
+    check <ingredients>        Check if ingredients are vegan
+    substitute <ingredient>    Find vegan alternatives
+    veganize <recipe>         Convert a recipe to vegan
+    products                  List common non-vegan ingredients
+    nutrition                 Get nutritional guidance for vegan diet
+    help                      Show this help message
+
+Examples:
+    make-it-vegan check "milk, eggs, flour"
+    make-it-vegan substitute "cheese" --context "pizza"
+    make-it-vegan veganize "scrambled eggs with bacon"
+
+Options:
+    --context <use>           Context for substitution (e.g., "baking", "pizza")
+    --json                    Output in JSON format
+EOF
+}
+
+check_ingredients() {
+    local ingredients="$1"
+    local response=$(curl -s -X POST "$API_URL/api/check" \
+        -H "Content-Type: application/json" \
+        -d "{\"ingredients\":\"$ingredients\"}" 2>/dev/null)
+    
+    # Check if curl was successful and we got a response
+    if [ -z "$response" ]; then
+        echo "Error: Unable to connect to Make It Vegan API at $API_URL"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
+        return 1
+    fi
+    
+    if [[ "$2" == "--json" ]]; then
+        echo "$response"
+    else
+        echo "$response" | jq -r '.analysis // .message // .' 2>/dev/null || echo "$response"
+    fi
+}
+
+find_substitute() {
+    local ingredient="$1"
+    shift
+    local context="general cooking"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --context)
+                context="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response=$(curl -s -X POST "$API_URL/api/substitute" \
+        -H "Content-Type: application/json" \
+        -d "{\"ingredient\":\"$ingredient\",\"context\":\"$context\"}" 2>/dev/null)
+    
+    # Check if curl was successful and we got a response
+    if [ -z "$response" ]; then
+        echo "Error: Unable to connect to Make It Vegan API at $API_URL"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
+        return 1
+    fi
+    
+    if [[ "$json_output" == "true" ]]; then
+        echo "$response"
+    else
+        echo "Vegan alternatives for $ingredient (used as $context):"
+        echo "$response" | jq -r '.alternatives[]? | "- \(.name): \(.description)"' 2>/dev/null || echo "$response"
+    fi
+}
+
+veganize_recipe() {
+    local recipe="$1"
+    local response=$(curl -s -X POST "$API_URL/api/veganize" \
+        -H "Content-Type: application/json" \
+        -d "{\"recipe\":\"$recipe\"}" 2>/dev/null)
+    
+    # Check if curl was successful and we got a response
+    if [ -z "$response" ]; then
+        echo "Error: Unable to connect to Make It Vegan API at $API_URL"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
+        return 1
+    fi
+    
+    if [[ "$2" == "--json" ]]; then
+        echo "$response"
+    else
+        echo "Vegan Version:"
+        echo "$response" | jq -r '.veganVersion.fullText // .message // .' 2>/dev/null || echo "$response"
+    fi
+}
+
+list_products() {
+    local response=$(curl -s "$API_URL/api/products" 2>/dev/null)
+
+    # Check if curl was successful and we got a response
+    if [ -z "$response" ]; then
+        echo "Error: Unable to connect to Make It Vegan API at $API_URL"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
+        return 1
+    fi
+
+    if [[ "$1" == "--json" ]]; then
+        echo "$response"
+    else
+        echo "Common Non-Vegan Ingredients:"
+        echo "$response" | jq -r 'to_entries[] | "\n\(.key | ascii_upcase):\n\(.value | join(", "))"' 2>/dev/null || echo "$response"
+    fi
+}
+
+get_nutrition() {
+    local response=$(curl -s "$API_URL/api/nutrition" 2>/dev/null)
+
+    # Check if curl was successful and we got a response
+    if [ -z "$response" ]; then
+        echo "Error: Unable to connect to Make It Vegan API at $API_URL"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
+        return 1
+    fi
+
+    if [[ "$1" == "--json" ]]; then
+        echo "$response"
+    else
+        echo "=== Vegan Nutritional Guidance ==="
+        echo ""
+        echo "KEY NUTRIENTS:"
+        echo "$response" | jq -r '.nutritionalInfo |
+            "Protein: \(.protein)\n" +
+            "B12: \(.b12)\n" +
+            "Iron: \(.iron)\n" +
+            "Calcium: \(.calcium)\n" +
+            "Omega-3: \(.omega3)\n\n" +
+            "CONSIDERATIONS:\n" +
+            (.considerations | map("• " + .) | join("\n")) + "\n\n" +
+            "GOOD SOURCES:\n" +
+            (.goodSources | map("• " + .) | join("\n"))' 2>/dev/null || echo "$response"
+    fi
+}
+
+case "$1" in
+    check)
+        check_ingredients "$2" "$3"
+        ;;
+    substitute)
+        find_substitute "$2" "${@:3}"
+        ;;
+    veganize)
+        veganize_recipe "$2" "$3"
+        ;;
+    products)
+        list_products "$2"
+        ;;
+    nutrition)
+        get_nutrition "$2"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Use 'make-it-vegan help' for usage information"
+        exit 1
+        ;;
+esac

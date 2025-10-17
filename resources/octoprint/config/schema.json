@@ -1,0 +1,151 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OctoPrint Resource Configuration",
+  "description": "Configuration schema for OctoPrint 3D printer management platform",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "Web interface port",
+      "default": 8197,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "host": {
+      "type": "string",
+      "description": "Bind address",
+      "default": "0.0.0.0",
+      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^0\\.0\\.0\\.0$"
+    },
+    "printer": {
+      "type": "object",
+      "description": "Printer connection settings",
+      "properties": {
+        "port": {
+          "type": "string",
+          "description": "Serial port for printer connection",
+          "default": "/dev/ttyUSB0"
+        },
+        "baudrate": {
+          "type": "integer",
+          "description": "Serial baudrate",
+          "default": 115200,
+          "enum": [2400, 9600, 19200, 38400, 57600, 115200, 250000]
+        },
+        "virtual": {
+          "type": "boolean",
+          "description": "Use virtual printer for testing",
+          "default": false
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "description": "API configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable REST API",
+          "default": true
+        },
+        "key": {
+          "type": "string",
+          "description": "API key (auto to generate)",
+          "default": "auto"
+        }
+      }
+    },
+    "webcam": {
+      "type": "object",
+      "description": "Webcam configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable webcam support",
+          "default": false
+        },
+        "stream_url": {
+          "type": "string",
+          "description": "MJPEG stream URL",
+          "format": "uri"
+        },
+        "snapshot_url": {
+          "type": "string",
+          "description": "Snapshot URL",
+          "format": "uri"
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "description": "File management settings",
+      "properties": {
+        "upload_max_size": {
+          "type": "integer",
+          "description": "Maximum upload size in bytes",
+          "default": 524288000,
+          "minimum": 1048576
+        },
+        "gcode_dir": {
+          "type": "string",
+          "description": "G-code storage directory"
+        },
+        "timelapse_dir": {
+          "type": "string",
+          "description": "Timelapse storage directory"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance settings",
+      "properties": {
+        "poll_interval": {
+          "type": "number",
+          "description": "Temperature polling interval in seconds",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 10
+        },
+        "websocket_enabled": {
+          "type": "boolean",
+          "description": "Enable WebSocket for real-time updates",
+          "default": true
+        }
+      }
+    },
+    "plugins": {
+      "type": "object",
+      "description": "Plugin system configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable plugin system",
+          "default": true
+        },
+        "directory": {
+          "type": "string",
+          "description": "Plugin installation directory"
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "description": "Docker deployment settings",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Docker image to use",
+          "default": "octoprint/octoprint:latest"
+        },
+        "privileged": {
+          "type": "boolean",
+          "description": "Run container in privileged mode for USB access",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

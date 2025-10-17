@@ -1,0 +1,134 @@
+services:
+  geonode-db:
+    image: postgis/postgis:14-3.2
+    container_name: geonode-postgres
+    environment:
+      POSTGRES_DB: geonode
+      POSTGRES_USER: geonode
+      POSTGRES_PASSWORD: geonode_secure_pass
+      POSTGRES_INITDB_ARGS: "--auth-host=trust"
+    volumes:
+      - geonode-db-data:/var/lib/postgresql/data
+    networks:
+      - geonode-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geonode"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  geonode-redis:
+    image: redis:7-alpine
+    container_name: geonode-redis
+    networks:
+      - geonode-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  geonode-geoserver:
+    image: kartoza/geoserver:2.24.0
+    container_name: geonode-geoserver
+    ports:
+      - "8101:8080"
+    environment:
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: admin
+      INITIAL_MEMORY: 2G
+      MAXIMUM_MEMORY: 4G
+      GEOSERVER_DATA_DIR: /opt/geoserver/data_dir
+      STABLE_EXTENSIONS: "css,csw,importer,inspire,printing,vectortiles,wps,xslt"
+      COMMUNITY_EXTENSIONS: ""
+      GEOSERVER_CONTEXT_ROOT: geoserver
+    volumes:
+      - geonode-geoserver-data:/opt/geoserver/data_dir
+      - geonode-backup:/backup_restore
+    depends_on:
+      - geonode-db
+    networks:
+      - geonode-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/geoserver/rest/about/status", "-u", "admin:admin"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  geonode-django:
+    image: geonode/geonode:4.4.3
+    container_name: geonode-django
+    entrypoint: ["/usr/src/geonode/entrypoint.sh"]
+    command: ["python", "/usr/src/geonode/manage.py", "runserver", "0.0.0.0:8000"]
+    ports:
+      - "8100:8000"
+    environment:
+      # Database
+      DATABASE_URL: postgis://geonode:geonode_secure_pass@geonode-db:5432/geonode
+      GEODATABASE_URL: postgis://geonode:geonode_secure_pass@geonode-db:5432/geonode_data
+      
+      # GeoServer
+      GEOSERVER_PUBLIC_LOCATION: http://localhost:8101/geoserver/
+      GEOSERVER_LOCATION: http://geonode-geoserver:8080/geoserver/
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: admin
+      
+      # Django settings
+      DJANGO_SETTINGS_MODULE: geonode.settings
+      SECRET_KEY: default_secret_key_change_in_production
+      SITEURL: http://localhost:8100/
+      ALLOWED_HOSTS: "['localhost', 'geonode-django', '*']"
+      
+      # Admin
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      ADMIN_EMAIL: admin@vrooli.local
+      
+      # Redis cache
+      CACHE_URL: redis://geonode-redis:6379/0
+      BROKER_URL: redis://geonode-redis:6379/0
+      CELERY_BROKER_URL: redis://geonode-redis:6379/0
+      
+      # Features
+      MONITORING_ENABLED: "True"
+      MODIFY_TOPICCATEGORY: "True"
+      IS_CELERY: "False"
+      
+    volumes:
+      - geonode-statics:/mnt/volumes/statics
+      - geonode-media:/mnt/volumes/media
+      - geonode-backup:/backup_restore
+    depends_on:
+      - geonode-db
+      - geonode-redis
+      - geonode-geoserver
+    networks:
+      - geonode-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  geonode-db-data:
+    name: geonode-db-data
+  geonode-geoserver-data:
+    name: geonode-geoserver-data
+  geonode-statics:
+    name: geonode-statics
+  geonode-media:
+    name: geonode-media
+  geonode-backup:
+    name: geonode-backup
+
+networks:
+  geonode-network:
+    name: geonode-network
+    driver: bridge

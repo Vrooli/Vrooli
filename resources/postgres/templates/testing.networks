@@ -1,0 +1,8 @@
+# Testing Template Network Profile
+# Testing instances may need access to multiple resources
+# One network per line, comments start with #
+
+# Common test integrations
+n8n-network
+node-red-network
+windmill-network

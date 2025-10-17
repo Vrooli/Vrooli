@@ -1,0 +1,118 @@
+#!/bin/bash
+set -e
+
+API_URL="${SEO_OPTIMIZER_API_URL:-http://localhost:9220}"
+
+function show_help() {
+    cat << EOF
+SEO Optimizer CLI - Comprehensive SEO analysis and optimization
+
+Usage: seo-optimizer <command> [options]
+
+Commands:
+    audit <url>                    Run SEO audit on a website
+    keywords <seed>                Research keywords based on seed term
+    content <url>                  Optimize content for SEO
+    competitors <domain>           Analyze competitor SEO strategies
+    rank <keyword>                 Track keyword rankings
+    help                          Show this help message
+
+Options:
+    --depth <n>                   Crawl depth for audit (default: 3)
+    --location <loc>              Target location for keywords (default: US)
+    --language <lang>             Language for analysis (default: en)
+    --json                        Output in JSON format
+
+Examples:
+    seo-optimizer audit https://example.com
+    seo-optimizer keywords "digital marketing" --location "United States"
+    seo-optimizer rank "best seo tools" --json
+
+EOF
+}
+
+function api_request() {
+    local endpoint="$1"
+    local data="$2"
+    
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$data" \
+        "${API_URL}/api/${endpoint}")
+    
+    echo "$response"
+}
+
+case "$1" in
+    audit)
+        if [ -z "$2" ]; then
+            echo "Error: URL required"
+            exit 1
+        fi
+        depth="${3:-3}"
+        data="{\"url\":\"$2\",\"depth\":$depth}"
+        result=$(api_request "seo-audit" "$data")
+        echo "SEO Audit initiated for $2"
+        echo "$result" | jq '.' 2>/dev/null || echo "$result"
+        ;;
+        
+    keywords)
+        if [ -z "$2" ]; then
+            echo "Error: Seed keyword required"
+            exit 1
+        fi
+        location="${4:-United States}"
+        language="${6:-en}"
+        data="{\"seed_keyword\":\"$2\",\"target_location\":\"$location\",\"language\":\"$language\"}"
+        result=$(api_request "keyword-research" "$data")
+        echo "Keyword research started for: $2"
+        echo "$result" | jq '.' 2>/dev/null || echo "$result"
+        ;;
+        
+    content)
+        if [ -z "$2" ]; then
+            echo "Error: URL required"
+            exit 1
+        fi
+        data="{\"url\":\"$2\"}"
+        result=$(api_request "content-optimize" "$data")
+        echo "Content optimization analysis for: $2"
+        echo "$result" | jq '.' 2>/dev/null || echo "$result"
+        ;;
+        
+    competitors)
+        if [ -z "$2" ]; then
+            echo "Error: Domain required"
+            exit 1
+        fi
+        data="{\"domain\":\"$2\"}"
+        result=$(api_request "competitor-analysis" "$data")
+        echo "Competitor analysis for: $2"
+        echo "$result" | jq '.' 2>/dev/null || echo "$result"
+        ;;
+        
+    rank)
+        if [ -z "$2" ]; then
+            # Get current rankings
+            response=$(curl -s "${API_URL}/api/rank-tracking")
+            echo "Current keyword rankings:"
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        else
+            # Add keyword to track
+            data="{\"keyword\":\"$2\"}"
+            result=$(api_request "rank-tracking" "$data")
+            echo "Added to tracking: $2"
+            echo "$result" | jq '.' 2>/dev/null || echo "$result"
+        fi
+        ;;
+        
+    help|--help|-h)
+        show_help
+        ;;
+        
+    *)
+        echo "Error: Unknown command '$1'"
+        echo "Run 'seo-optimizer help' for usage information"
+        exit 1
+        ;;
+esac

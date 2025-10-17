@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 ACCOUNTING WIZARD '95 - Professional Invoice Studio</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        
+        :root {
+            --retro-green: #00ff00;
+            --retro-amber: #ffb000;
+            --retro-cyan: #00ffff;
+            --retro-pink: #ff00ff;
+            --retro-blue: #0080ff;
+            --retro-bg: #222034;
+            --retro-panel: #2d2b40;
+            --retro-border: #5a5577;
+            --retro-text: #dad8cd;
+            --retro-highlight: #8bff8b;
+        }
+        
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--retro-bg);
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(0, 255, 0, 0.03),
+                    rgba(0, 255, 0, 0.03) 1px,
+                    transparent 1px,
+                    transparent 2px
+                );
+            min-height: 100vh;
+            padding: 10px;
+            color: var(--retro-text);
+            animation: screenFlicker 0.15s infinite;
+        }
+        
+        @keyframes screenFlicker {
+            0% { opacity: 1; }
+            50% { opacity: 0.98; }
+            100% { opacity: 1; }
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: var(--retro-panel);
+            border: 3px solid var(--retro-border);
+            box-shadow: 
+                inset -2px -2px 0 rgba(0,0,0,0.5),
+                inset 2px 2px 0 rgba(255,255,255,0.1);
+        }
+        
+        .header h1 {
+            font-family: 'VT323', monospace;
+            font-size: 56px;
+            margin-bottom: 5px;
+            color: var(--retro-green);
+            text-shadow: 
+                0 0 5px var(--retro-green),
+                0 0 10px var(--retro-green),
+                0 0 15px var(--retro-green);
+            animation: textGlow 2s ease-in-out infinite alternate;
+            letter-spacing: 3px;
+        }
+        
+        @keyframes textGlow {
+            from { 
+                text-shadow: 
+                    0 0 5px var(--retro-green),
+                    0 0 10px var(--retro-green),
+                    0 0 15px var(--retro-green);
+            }
+            to { 
+                text-shadow: 
+                    0 0 10px var(--retro-green),
+                    0 0 20px var(--retro-green),
+                    0 0 30px var(--retro-green);
+            }
+        }
+        
+        .header p {
+            font-size: 16px;
+            color: var(--retro-amber);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .ascii-art {
+            font-family: 'VT323', monospace;
+            font-size: 14px;
+            color: var(--retro-cyan);
+            margin: 10px 0;
+            line-height: 1;
+            white-space: pre;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: var(--retro-panel);
+            border: 2px solid var(--retro-border);
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            box-shadow: 
+                inset -1px -1px 0 rgba(0,0,0,0.5),
+                inset 1px 1px 0 rgba(255,255,255,0.1),
+                4px 4px 0 rgba(0,0,0,0.3);
+        }
+        
+        .card::before {
+            content: '▓▓▓';
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            color: var(--retro-border);
+            font-family: 'VT323', monospace;
+            font-size: 12px;
+            letter-spacing: -2px;
+        }
+        
+        .card:hover {
+            border-color: var(--retro-cyan);
+            box-shadow: 
+                inset -1px -1px 0 rgba(0,0,0,0.5),
+                inset 1px 1px 0 rgba(255,255,255,0.1),
+                4px 4px 0 rgba(0,0,0,0.3),
+                0 0 10px rgba(0,255,255,0.3);
+        }
+        
+        .section-title {
+            font-family: 'VT323', monospace;
+            font-size: 28px;
+            font-weight: normal;
+            margin-bottom: 15px;
+            color: var(--retro-amber);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 5px 10px;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255,176,0,0.1) 10%,
+                rgba(255,176,0,0.1) 90%,
+                transparent
+            );
+            border-bottom: 2px solid var(--retro-border);
+            position: relative;
+        }
+        
+        .section-title::before {
+            content: '►';
+            margin-right: 10px;
+            color: var(--retro-green);
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 2px solid var(--retro-border);
+            font-size: 14px;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.1s ease;
+            background: rgba(0,0,0,0.3);
+            color: var(--retro-text);
+            box-shadow: inset 2px 2px 0 rgba(0,0,0,0.5);
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--retro-green);
+            background: rgba(0,0,0,0.5);
+            color: var(--retro-highlight);
+            box-shadow: 
+                inset 2px 2px 0 rgba(0,0,0,0.5),
+                0 0 5px rgba(0,255,0,0.3);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .items-section {
+            grid-column: 1 / -1;
+        }
+        
+        .item-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 10px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .item-row input {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: 2px solid;
+            font-size: 14px;
+            font-family: 'VT323', monospace;
+            font-weight: normal;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            box-shadow: 
+                inset -2px -2px 0 rgba(0,0,0,0.5),
+                inset 2px 2px 0 rgba(255,255,255,0.2);
+        }
+        
+        .btn:active {
+            transform: translate(1px, 1px);
+            box-shadow: 
+                inset -1px -1px 0 rgba(0,0,0,0.5),
+                inset 1px 1px 0 rgba(255,255,255,0.2);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(180deg, #0080ff 0%, #0060cc 100%);
+            color: white;
+            border-color: var(--retro-blue);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(180deg, #00a0ff 0%, #0080ff 100%);
+            box-shadow: 
+                inset -2px -2px 0 rgba(0,0,0,0.5),
+                inset 2px 2px 0 rgba(255,255,255,0.2),
+                0 0 10px rgba(0,128,255,0.5);
+        }
+        
+        .btn-success {
+            background: linear-gradient(180deg, #00ff00 0%, #00cc00 100%);
+            color: black;
+            border-color: var(--retro-green);
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(180deg, #40ff40 0%, #00ff00 100%);
+            box-shadow: 
+                inset -2px -2px 0 rgba(0,0,0,0.5),
+                inset 2px 2px 0 rgba(255,255,255,0.2),
+                0 0 10px rgba(0,255,0,0.5);
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .preview-section {
+            margin-top: 30px;
+            padding: 30px;
+            background: var(--light);
+            border-radius: 15px;
+            border: 2px dashed var(--primary);
+        }
+        
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .preview-total {
+            text-align: right;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+        }
+        
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .total-line.grand-total {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid var(--primary);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .success-message {
+            display: none;
+            padding: 15px;
+            background: #10b981;
+            color: white;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .success-message.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .template-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .template-option {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--retro-border);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.1s ease;
+            background: rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        .template-option:hover {
+            border-color: var(--retro-cyan);
+            background: rgba(0,255,255,0.1);
+        }
+        
+        .template-option.selected {
+            border-color: var(--retro-green);
+            background: rgba(0,255,0,0.2);
+            color: var(--retro-highlight);
+        }
+        
+        .template-option.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 2px;
+            right: 5px;
+            color: var(--retro-green);
+            font-size: 16px;
+        }
+        
+        .emoji {
+            font-size: 24px;
+            margin-bottom: 5px;
+            filter: grayscale(50%) brightness(1.5);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .stat-box {
+            padding: 10px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--retro-border);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            color: var(--retro-green);
+            font-family: 'VT323', monospace;
+            text-shadow: 0 0 5px currentColor;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: var(--retro-amber);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 3px;
+        }
+        
+        .receipt-printer {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            background: var(--retro-panel);
+            border: 3px solid var(--retro-border);
+            padding: 10px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .receipt-printer.active {
+            display: block;
+            animation: printerShake 0.1s linear infinite;
+        }
+        
+        @keyframes printerShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-1px); }
+            75% { transform: translateX(1px); }
+        }
+        
+        .receipt-paper {
+            background: white;
+            color: black;
+            font-family: 'VT323', monospace;
+            font-size: 10px;
+            padding: 5px;
+            height: 100px;
+            overflow: hidden;
+            animation: printOut 2s linear;
+        }
+        
+        @keyframes printOut {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="ascii-art">╔═══════════════════════════════════════════════════════╗
+║  ┌─┐┌─┐┌─┐┌─┐┬ ┬┌┐┌┌┬┐┬┌┐┌┌─┐  ┬ ┬┬┌─┐┌─┐┬─┐┌┬┐ '95  ║
+║  ├─┤│  │  │ ││ ││││ │ │││││ ┬  │││││┌─┘├─┤├┬┘ ││      ║
+║  ┴ ┴└─┘└─┘└─┘└─┘┘└┘ ┴ ┴┘└┘└─┘  └┴┘┴└─┘┴ ┴┴└──┴┘      ║
+╚═══════════════════════════════════════════════════════╝</div>
+            <h1>ACCOUNTING WIZARD '95</h1>
+            <p>▸ Professional Invoice Studio ◂</p>
+            <div style="margin-top: 10px; color: var(--retro-cyan); font-size: 12px;">
+                <span id="clock"></span> | USER: ADMIN | LIC: PRO-UNLIMITED
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <!-- Company Information -->
+            <div class="card">
+                <h2 class="section-title">VENDOR PROFILE</h2>
+                <div class="form-group">
+                    <label>Company Name</label>
+                    <input type="text" id="company_name" placeholder="Your Amazing Company LLC" value="Tech Solutions Inc.">
+                </div>
+                <div class="form-group">
+                    <label>Company Address</label>
+                    <textarea id="company_address" rows="2" placeholder="123 Business Ave, Suite 100">456 Innovation Drive, Tech Park, CA 94025</textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="company_email" placeholder="hello@company.com" value="billing@techsolutions.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="tel" id="company_phone" placeholder="(555) 123-4567" value="(555) 987-6543">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Client Information -->
+            <div class="card">
+                <h2 class="section-title">CLIENT DATABASE</h2>
+                <div class="form-group">
+                    <label>Client Name</label>
+                    <input type="text" id="client_name" placeholder="Awesome Client Corp" value="Acme Corporation">
+                </div>
+                <div class="form-group">
+                    <label>Client Address</label>
+                    <textarea id="client_address" rows="2" placeholder="789 Client Street">789 Enterprise Blvd, Business City, NY 10001</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Client Email</label>
+                    <input type="email" id="client_email" placeholder="client@example.com" value="accounting@acmecorp.com">
+                </div>
+            </div>
+            
+            <!-- Invoice Details -->
+            <div class="card">
+                <h2 class="section-title">DOCUMENT CONTROL</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Invoice Number</label>
+                        <input type="text" id="invoice_number" placeholder="INV-001" value="">
+                    </div>
+                    <div class="form-group">
+                        <label>Currency</label>
+                        <select id="currency">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="CAD">CAD (C$)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Issue Date</label>
+                        <input type="date" id="issue_date" value="">
+                    </div>
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="due_date" value="">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Payment Terms</label>
+                    <select id="payment_terms">
+                        <option value="Due on Receipt">Due on Receipt</option>
+                        <option value="Net 15">Net 15</option>
+                        <option value="Net 30" selected>Net 30</option>
+                        <option value="Net 45">Net 45</option>
+                        <option value="Net 60">Net 60</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Template Selection -->
+            <div class="card">
+                <h2 class="section-title">TEMPLATE MATRIX</h2>
+                <div class="template-selector">
+                    <div class="template-option selected" data-template="professional">
+                        <div class="emoji">■</div>
+                        <div>STANDARD</div>
+                    </div>
+                    <div class="template-option" data-template="modern">
+                        <div class="emoji">▲</div>
+                        <div>EXECUTIVE</div>
+                    </div>
+                    <div class="template-option" data-template="minimal">
+                        <div class="emoji">●</div>
+                        <div>COMPACT</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Line Items -->
+            <div class="card items-section">
+                <h2 class="section-title">TRANSACTION LOG</h2>
+                <div id="items-container">
+                    <div class="item-row">
+                        <input type="text" placeholder="Description" class="item-description" value="Web Development Services">
+                        <input type="number" placeholder="Qty" class="item-quantity" value="40" min="1">
+                        <input type="number" placeholder="Price" class="item-price" value="150" min="0" step="0.01">
+                        <input type="number" placeholder="Tax %" class="item-tax" value="8" min="0" max="100">
+                        <button class="btn btn-danger" onclick="removeItem(this)">🗑️</button>
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="addItem()">➕ Add Item</button>
+            </div>
+            
+            <!-- Notes and Payment -->
+            <div class="card">
+                <h2 class="section-title">PAYMENT TERMINAL</h2>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="notes" rows="3" placeholder="Thank you for your business!">Thank you for choosing Tech Solutions! We appreciate your business and look forward to working with you again.</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Payment Details</label>
+                    <textarea id="bank_details" rows="3" placeholder="Bank details, payment instructions, etc.">Bank: First National Bank
+Account: 1234567890
+Routing: 987654321
+SWIFT: FNBAUS3N</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics Dashboard -->
+        <div class="card">
+            <h2 class="section-title">REAL-TIME ANALYTICS</h2>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="total-invoices">0</div>
+                    <div class="stat-label">Invoices</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="total-revenue">$0</div>
+                    <div class="stat-label">Revenue</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="avg-invoice">$0</div>
+                    <div class="stat-label">Avg Invoice</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="tax-collected">$0</div>
+                    <div class="stat-label">Tax Total</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Preview Section -->
+        <div class="card">
+            <h2 class="section-title">DOCUMENT PREVIEW</h2>
+            <div class="preview-section">
+                <div class="preview-header">
+                    <div>
+                        <h3 id="preview-company">Tech Solutions Inc.</h3>
+                        <p id="preview-invoice-number">Invoice #INV-2025-001</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <h3 id="preview-client">Acme Corporation</h3>
+                        <p id="preview-dates">Due: 30 days</p>
+                    </div>
+                </div>
+                <div id="preview-items"></div>
+                <div class="preview-total">
+                    <div class="total-line">
+                        <span>Subtotal:</span>
+                        <span id="preview-subtotal">$0.00</span>
+                    </div>
+                    <div class="total-line">
+                        <span>Tax:</span>
+                        <span id="preview-tax">$0.00</span>
+                    </div>
+                    <div class="total-line grand-total">
+                        <span>Total:</span>
+                        <span id="preview-total">$0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveInvoice()">
+                💾 Save Invoice
+            </button>
+            <button class="btn btn-success" onclick="generatePDF()">
+                📄 Generate PDF
+            </button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Generating your invoice...</p>
+        </div>
+        
+        <div class="success-message" id="success-message">
+            [SUCCESS] Invoice generated successfully!
+        </div>
+        
+        <!-- Receipt Printer Animation -->
+        <div class="receipt-printer" id="receipt-printer">
+            <div style="text-align: center; color: var(--retro-green); margin-bottom: 5px; font-family: 'VT323', monospace;">
+                PRINTING...
+            </div>
+            <div class="receipt-paper" id="receipt-paper">
+                ================================<br>
+                    INVOICE RECEIPT<br>
+                ================================<br>
+                <span id="receipt-content"></span>
+                ================================<br>
+                  THANK YOU!<br>
+                ================================
+            </div>
+        </div>
+    </div>
+    
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+      if (typeof window !== 'undefined') {
+        window.initIframeBridgeChild = window.initIframeBridgeChild || initIframeBridgeChild;
+      }
+    </script>
+    <script src="/config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

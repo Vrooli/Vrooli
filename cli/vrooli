@@ -1,0 +1,307 @@
+#!/usr/bin/env bash
+################################################################################
+# Vrooli CLI - Unified interface for Vrooli operations
+# 
+# This is the main entry point for the Vrooli command-line interface.
+# It delegates to specific command handlers based on the first argument.
+#
+# Usage:
+#   vrooli <command> [options]
+#   vrooli --help
+#
+################################################################################
+
+set -euo pipefail
+
+# Determine Vrooli root directory
+if [[ -n "${VROOLI_ROOT:-}" ]]; then
+	# Use environment variable if set
+	VROOLI_ROOT="${VROOLI_ROOT}"
+elif [[ -L "${BASH_SOURCE[0]}" ]]; then
+	# If this script is a symlink, resolve it
+	SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+	VROOLI_ROOT="$(builtin cd "${SCRIPT_PATH%/*}/.." && builtin pwd)"
+elif git rev-parse --show-toplevel >/dev/null 2>&1; then
+	# Try to find git root
+	VROOLI_ROOT="$(git rev-parse --show-toplevel)"
+else
+	# Fallback to relative path from script location
+	APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/.." && builtin pwd)}"
+	VROOLI_ROOT="${APP_ROOT}"
+fi
+
+export VROOLI_ROOT
+
+# Source common utilities
+# shellcheck disable=SC1091
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || {
+	echo "Error: Cannot find Vrooli utilities at ${VROOLI_ROOT}/scripts/lib/utils/var.sh"
+	echo "Please ensure VROOLI_ROOT is set correctly or run from within the Vrooli repository"
+	exit 1
+}
+
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
+# Version information
+VROOLI_VERSION="2.0.0"
+CLI_VERSION="1.0.0"
+
+# Show version
+show_version() {
+	echo "Vrooli CLI v${CLI_VERSION}"
+	echo "Vrooli Platform v${VROOLI_VERSION}"
+	echo "Root: ${VROOLI_ROOT}"
+}
+
+# Show main help
+show_main_help() {
+	cat << EOF
+                          ___
+ _   _ _ __ ___   ___    / (_)
+| | | | '__/ _ \ / _ \  / /| |
+| |_| | | | (_) | (_) |/ / | |
+ \___/|_|  \___/ \___//_/  |_|
+                                   
+🚀 Vrooli CLI - AI Platform Management Tool
+
+📋 USAGE:
+    vrooli <command> [options]
+
+🔄 LIFECYCLE COMMANDS:
+    setup               Initialize the development environment
+    develop             Start development servers
+    build               Build the project
+    deploy              Deploy to production
+    clean               Clean build artifacts
+    status              Show system health and status overview
+    stop                Stop all or specific components (scenarios, resources, containers)
+
+🧪 TESTING COMMANDS:
+    test                Run comprehensive scenario-first test suite
+    test static         Run static analysis (shellcheck, syntax)
+    test resources      Run resource validation and mock testing
+    test scenarios      Run scenario validation and integration tests
+    test bats           Run BATS test execution with caching
+
+🎯 SCENARIO MANAGEMENT:
+    # Scenarios run directly from their source location
+    scenario list       List available scenarios
+    scenario run <name> Run a scenario directly
+    scenario test <name> Test a scenario
+
+🔧 RESOURCE MANAGEMENT:
+    # Resources are external services and dependencies (databases, APIs, etc.)
+    resource list       List available resources
+    resource status     Show resource status
+    resource install    Install a resource (initial setup)
+    resource start      Start a resource
+    resource start-all  Start all enabled resources
+    resource stop       Stop a resource
+    resource stop-all   Stop all running resources
+
+
+⚙️ OPTIONS:
+    --help, -h          Show help for a command
+    --version, -v       Show version information
+
+📖 For more help on a specific command:
+    vrooli <command> --help
+
+📚 Documentation: docs/
+EOF
+}
+
+# Main command router
+main() {
+	# Handle no arguments
+	if [[ $# -eq 0 ]]; then
+		# Built-in help (no external script needed)
+		show_main_help
+		exit 0
+	fi
+	
+	local command="$1"
+	shift
+	
+	case "$command" in
+		# Lifecycle commands (delegate to manage.sh)
+		setup|develop|build|deploy|backup|restore)
+			# Clear source guards to allow manage.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/scripts/manage.sh" "$command" "$@"
+			;;
+		
+		# Clean commands
+		clean)
+			# Clear source guards to allow clean-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/clean-commands.sh" "$@"
+			;;
+		
+		# Process cleanup command
+		cleanup)
+			shift
+			exec "${VROOLI_ROOT}/scripts/lib/cleanup-orphaned-processes.sh" "$@"
+			;;
+		
+		# Status command
+		status)
+			# Clear source guards to allow status-command.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/status-command.sh" "$@"
+			;;
+		
+		# Test commands (delegate to test-commands.sh)
+		test)
+			# Clear source guards to allow test-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/test-commands.sh" "$@"
+			;;
+		
+		
+		# Scenario commands  
+		scenario)
+			# Clear source guards to allow scenario-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/scenario/scenario-commands.sh" "$@"
+			;;
+			
+		# Resource commands
+		resource)
+			# Clear source guards to allow resource-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/resource-commands.sh" "$@"
+			;;
+			
+		# Unified stop commands
+		stop)
+			# Clear source guards to allow stop-commands.sh to load functions properly
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/stop-commands.sh" "$@"
+			;;
+			
+		# Doctor / preflight checks
+		doctor)
+			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
+			exec "${VROOLI_ROOT}/cli/commands/doctor.sh" "$@"
+			;;
+			
+		
+		# Version command
+		version|--version|-v)
+			show_version
+			;;
+			
+		# Help and unknown commands
+		help|--help|-h)
+			# Built-in help (no external script needed)
+		show_main_help
+			;;
+			
+		*)
+			log::error "Unknown command: $command"
+			
+					# Try to provide fuzzy suggestions
+		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "stop" "test" "scenario" "resource" "doctor" "version" "help")
+		local suggestions=()
+		
+		# Simple fuzzy matching
+		for cmd in "${available_commands[@]}"; do
+			if [[ "$cmd" != "$command" ]]; then
+				# Simple character-by-character comparison
+				local distance=0
+				local len1=${#command}
+				local len2=${#cmd}
+				local max_len=$((len1 > len2 ? len1 : len2))
+				local min_len=$((len1 < len2 ? len1 : len2))
+				
+				# Count character differences
+				for ((i=0; i<min_len; i++)); do
+					if [[ "${command:i:1}" != "${cmd:i:1}" ]]; then
+						distance=$((distance + 1))
+					fi
+				done
+				
+				# Add length difference
+				distance=$((distance + max_len - min_len))
+				
+				if [[ $distance -le 2 ]]; then
+					suggestions+=("$cmd")
+				fi
+			fi
+		done
+		
+		if [[ ${#suggestions[@]} -gt 0 ]]; then
+			echo "Did you mean one of these?"
+			for suggestion in "${suggestions[@]}"; do
+				echo "  $suggestion"
+			done
+			echo
+		fi
+			
+			echo "Run 'vrooli --help' for usage information"
+			exit 1
+			;;
+	esac
+}
+
+################################################################################
+# Argument Filtering Functions
+################################################################################
+
+# Detect if we're in a shell context where operators might leak through
+is_shell_context() {
+	# Check for indicators that shell operators might be present
+	[[ -p /dev/stdin ]] || [[ -p /dev/stdout ]] || [[ "${BASH_SOURCE[1]:-}" =~ sh$ ]]
+}
+
+# Filter shell redirection operators from arguments
+filter_shell_arguments() {
+	local filtered=()
+	local prev_arg=""
+	
+	# Filter based on detected context and known patterns
+	for arg in "$@"; do
+		case "$arg" in
+			# Always filter obvious shell redirection operators
+			"2>&1"|"1>&2"|"&>"|">&"|"2>"|"1>"|">"|">>"|"<"|"<<") 
+				prev_arg="redirect"
+				continue 
+				;;
+			# Only filter single digits if they immediately follow a redirection operator
+			[0-9]) 
+				# Check if previous argument was a redirect operator
+				if [[ "$prev_arg" == "redirect" ]] || [[ "$prev_arg" =~ [\>\<] ]]; then
+					prev_arg=""
+					continue
+				fi
+				# Otherwise keep the digit as it's likely a legitimate argument
+				filtered+=("$arg")
+				prev_arg="$arg"
+				;;
+			[0-9]\>*|[0-9]\<*|\>\&[0-9]|\<\&[0-9])
+				# Skip file descriptor redirections
+				prev_arg=""
+				continue
+				;;
+			*)
+				filtered+=("$arg")
+				prev_arg="$arg"
+				;;
+		esac
+	done
+	
+	# Only output if we have actual arguments to avoid creating empty string elements
+	if [[ ${#filtered[@]} -gt 0 ]]; then
+		printf '%s\0' "${filtered[@]}"
+	fi
+}
+
+################################################################################
+# Execute main function with filtered arguments
+################################################################################
+
+# Filter arguments to remove shell redirection artifacts
+mapfile -d $'\0' -t clean_args < <(filter_shell_arguments "$@")
+main "${clean_args[@]}"

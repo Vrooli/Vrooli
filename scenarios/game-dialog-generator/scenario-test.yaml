@@ -1,0 +1,332 @@
+# Game Dialog Generator - Scenario Test Configuration 🌿🎮
+# Jungle Platformer Adventure Theme
+
+version: 1.0
+scenario: game-dialog-generator
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/game-dialog-generator
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/data/sample_characters.sql
+    - ui/index.html
+    - ui/server.js
+    - ui/package.json
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+    - initialization/data
+    - ui
+    - tests
+    - data
+    - docs
+
+# Resource validation - what resources this scenario requires
+resources:
+  required: [postgres, qdrant, ollama]
+  optional: [whisper]
+  health_timeout: 60
+
+# Test cases for the Game Dialog Generator
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible and healthy"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Qdrant vector database is accessible"
+    type: http
+    service: qdrant
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Ollama LLM service is running"
+    type: http
+    service: ollama
+    endpoint: /api/health
+    method: GET
+    expect:
+      status: 200
+      
+  # API endpoint tests
+  - name: "Game Dialog Generator API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        theme: "jungle-platformer"
+        
+  - name: "Character creation endpoint works with jungle theme"
+    type: http
+    service: api
+    endpoint: /api/v1/characters
+    method: POST
+    body:
+      name: "Test Jungle Hero"
+      personality_traits:
+        brave: 0.8
+        humorous: 0.6
+        loyal: 0.7
+      background_story: "A brave monkey who protects the jungle"
+      voice_profile:
+        pitch: "medium"
+    expect:
+      status: 201
+      body:
+        success: true
+        character_id: "*"
+        
+  - name: "Character listing endpoint returns jungle characters"
+    type: http
+    service: api
+    endpoint: /api/v1/characters
+    method: GET
+    expect:
+      status: 200
+      body:
+        characters: "*"
+        count: "*"
+        message: "*jungle*"
+        
+  - name: "Dialog generation endpoint creates character dialog"
+    type: http
+    service: api
+    endpoint: /api/v1/dialog/generate
+    method: POST
+    body:
+      character_id: "550e8400-e29b-41d4-a716-446655440001"
+      scene_context: "A peaceful jungle clearing at dawn"
+      emotion_state: "hopeful"
+    expect:
+      status: 200
+      body:
+        dialog: "*"
+        emotion: "*"
+        character_consistency_score: "*"
+        
+  - name: "Project creation endpoint works for game projects"
+    type: http
+    service: api
+    endpoint: /api/v1/projects
+    method: POST
+    body:
+      name: "Test Jungle Adventure"
+      description: "A test platformer game project"
+      settings:
+        theme: "jungle-adventure"
+    expect:
+      status: 201
+      body:
+        success: true
+        project_id: "*"
+        
+  # CLI command tests
+  - name: "CLI help command shows jungle theme"
+    type: exec
+    command: ./cli/game-dialog-generator --help
+    expect:
+      exit_code: 0
+      output_contains: ["Game Dialog Generator", "jungle", "Characters", "Dialog Generator"]
+      
+  - name: "CLI status command reports health"
+    type: exec
+    command: ./cli/game-dialog-generator status
+    expect:
+      exit_code: 0
+      output_contains: ["healthy", "jungle adventures"]
+      
+  - name: "CLI version command shows theme information"
+    type: exec
+    command: ./cli/game-dialog-generator version
+    expect:
+      exit_code: 0
+      output_contains: ["Jungle Platformer Adventure", "CLI Version"]
+      
+  # Database schema tests
+  - name: "Database schema is properly initialized with jungle theme"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('characters', 'scenes', 'dialog_lines', 'projects')"
+    expect:
+      rows: 
+        - count: 4
+        
+  - name: "Sample jungle characters are loaded"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM characters WHERE name LIKE '%Monkey%' OR name LIKE '%Owl%' OR name LIKE '%Rhino%'"
+    expect:
+      rows_min: 3
+      
+  - name: "Character personality traits are properly stored"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM characters WHERE personality_traits ? 'brave'"
+    expect:
+      rows_min: 1
+      
+  # UI server tests
+  - name: "Jungle-themed UI server is running"
+    type: http
+    service: ui
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        service: "game-dialog-generator-ui"
+        theme: "jungle-platformer"
+        
+  - name: "Main UI page loads with jungle theme"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      content_contains: ["Game Dialog Generator", "Jungle Adventure", "🌿", "🎮"]
+      
+  - name: "Characters page is accessible"
+    type: http
+    service: ui
+    endpoint: /characters
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Dialog generation page is accessible"
+    type: http
+    service: ui
+    endpoint: /dialog
+    method: GET
+    expect:
+      status: 200
+      
+  # Integration tests
+  - name: "End-to-end character creation and dialog generation"
+    type: workflow
+    steps:
+      - name: "Create test character"
+        type: http
+        service: api
+        endpoint: /api/v1/characters
+        method: POST
+        body:
+          name: "E2E Test Monkey"
+          personality_traits:
+            brave: 0.9
+            humorous: 0.8
+          background_story: "A test character for end-to-end validation"
+        store_response: character_response
+        
+      - name: "Generate dialog for test character"
+        type: http
+        service: api
+        endpoint: /api/v1/dialog/generate
+        method: POST
+        body:
+          character_id: "{{ character_response.character_id }}"
+          scene_context: "Testing dialog generation in the jungle"
+          emotion_state: "confident"
+        expect:
+          status: 200
+          body:
+            dialog: "*"
+            character_consistency_score: ">0.5"
+            
+  # Performance tests
+  - name: "Dialog generation completes within SLA"
+    type: http
+    service: api
+    endpoint: /api/v1/dialog/generate
+    method: POST
+    body:
+      character_id: "550e8400-e29b-41d4-a716-446655440001"
+      scene_context: "Performance testing in the jungle clearing"
+      emotion_state: "neutral"
+    timeout: 5000
+    expect:
+      status: 200
+      response_time_max: 3000
+      
+  - name: "Batch dialog generation handles multiple requests"
+    type: http
+    service: api
+    endpoint: /api/v1/dialog/batch
+    method: POST
+    body:
+      scene_id: "770e8400-e29b-41d4-a716-446655440001"
+      dialog_requests:
+        - character_id: "550e8400-e29b-41d4-a716-446655440001"
+          scene_context: "Batch test scene 1"
+        - character_id: "550e8400-e29b-41d4-a716-446655440002"
+          scene_context: "Batch test scene 2"
+      export_format: "json"
+    timeout: 15000
+    expect:
+      status: 200
+      body:
+        dialog_set: "*"
+        generation_metrics: "*"
+
+# Performance benchmarks
+benchmarks:
+  dialog_generation:
+    target_response_time: 2000ms
+    target_throughput: 10_requests_per_second
+    
+  character_consistency:
+    minimum_score: 0.7
+    target_score: 0.8
+    
+  system_resources:
+    max_memory_usage: 2GB
+    max_cpu_usage: 50%
+
+# Jungle-specific validation criteria
+jungle_theme_validation:
+  ui_elements:
+    - jungle_colors: "Verify green color palette usage"
+    - platformer_aesthetics: "Check for game-inspired visual design"
+    - character_emojis: "Validate animal character representations"
+    
+  content_validation:
+    - sample_characters: "Ensure jungle animal characters are loaded"
+    - themed_messages: "Verify jungle-themed success/error messages"
+    - adventure_terminology: "Check for adventure game terminology"
+
+# Success criteria summary
+success_criteria:
+  - All required files and directories exist
+  - All resource health checks pass
+  - Character creation and management works
+  - Dialog generation produces consistent results
+  - UI loads with proper jungle theming
+  - CLI commands execute successfully
+  - Database schema is properly initialized
+  - End-to-end workflows complete successfully
+  - Performance targets are met
+  - Jungle theme validation passes

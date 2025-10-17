@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenMRS Resource Configuration",
+  "description": "Configuration schema for OpenMRS Clinical Records Platform",
+  "type": "object",
+  "properties": {
+    "ports": {
+      "type": "object",
+      "description": "Port configuration for OpenMRS services",
+      "properties": {
+        "web": {
+          "type": "integer",
+          "description": "Web interface port",
+          "default": 8005,
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "api": {
+          "type": "integer",
+          "description": "REST API port",
+          "default": 8006,
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "fhir": {
+          "type": "integer",
+          "description": "FHIR API port",
+          "default": 8007,
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "database": {
+          "type": "integer",
+          "description": "PostgreSQL database port",
+          "default": 5444,
+          "minimum": 1024,
+          "maximum": 65535
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "description": "Database configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Database name",
+          "default": "openmrs"
+        },
+        "user": {
+          "type": "string",
+          "description": "Database user",
+          "default": "openmrs"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password (auto-generated if not set)",
+          "minLength": 8
+        }
+      }
+    },
+    "admin": {
+      "type": "object",
+      "description": "Administrator credentials",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Admin username",
+          "default": "admin"
+        },
+        "password": {
+          "type": "string",
+          "description": "Admin password",
+          "default": "Admin123",
+          "minLength": 6
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature configuration",
+      "properties": {
+        "fhir": {
+          "type": "boolean",
+          "description": "Enable FHIR API module",
+          "default": true
+        },
+        "demoData": {
+          "type": "boolean",
+          "description": "Load demo data on first start",
+          "default": true
+        },
+        "restApi": {
+          "type": "boolean",
+          "description": "Enable REST API",
+          "default": true
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "description": "Docker configuration",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "OpenMRS Docker image version",
+          "default": "3.0.0"
+        },
+        "network": {
+          "type": "string",
+          "description": "Docker network name",
+          "default": "openmrs-network"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "dataDir": {
+          "type": "string",
+          "description": "Data directory path",
+          "default": "${HOME}/.vrooli/openmrs/data"
+        },
+        "logsDir": {
+          "type": "string",
+          "description": "Logs directory path",
+          "default": "${HOME}/.vrooli/openmrs/logs"
+        }
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

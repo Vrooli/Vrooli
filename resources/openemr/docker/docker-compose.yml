@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: openemr-mysql
+    restart: unless-stopped
+    command: ['mysqld', '--character-set-server=utf8mb4', '--default-authentication-plugin=mysql_native_password']
+    environment:
+      MYSQL_ROOT_PASSWORD: ${OPENEMR_DB_ROOT_PASS:-root}
+      MYSQL_DATABASE: ${OPENEMR_DB_NAME:-openemr}
+      MYSQL_USER: ${OPENEMR_DB_USER:-openemr}
+      MYSQL_PASSWORD: ${OPENEMR_DB_PASS:-openemr}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "${OPENEMR_DB_PORT:-3316}:3306"
+    networks:
+      - openemr-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${OPENEMR_DB_ROOT_PASS:-root}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  openemr:
+    image: openemr/openemr:7.0.2
+    container_name: openemr-web
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${OPENEMR_PORT:-8010}:80"
+      - "${OPENEMR_PORTAL_PORT:-443}:443"
+    volumes:
+      - sites_data:/var/www/localhost/htdocs/openemr/sites
+      - logs_data:/var/log
+      - ./openemr.conf:/etc/apache2/conf.d/openemr.conf:ro
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_ROOT_PASS: ${OPENEMR_DB_ROOT_PASS:-root}
+      MYSQL_USER: ${OPENEMR_DB_USER:-openemr}
+      MYSQL_PASS: ${OPENEMR_DB_PASS:-openemr}
+      MYSQL_DATABASE: ${OPENEMR_DB_NAME:-openemr}
+      OE_USER: ${OPENEMR_ADMIN_USER:-admin}
+      OE_PASS: ${OPENEMR_ADMIN_PASS:-pass}
+      EMPTY: ""
+      MANUAL_SETUP: "no"
+      DOCKER_ENV: "yes"
+      MYSQL_SLEEP: "15"
+      REDIS_SERVER: ""
+      EASY_DEV_MODE: "no"
+      EASY_DEV_MODE_NEW: "no"
+      DEVELOPER_MODE: "no"
+      INSANE_DEV_MODE: "no"
+      XDEBUG_ON: "no"
+      XDEBUG_IDE_KEY: "PHPSTORM"
+      XDEBUG_PROFILER_ON: "no"
+      GITHUB_COMPOSER_TOKEN: ""
+      ENABLE_API_SSL: "no"
+      ENABLE_API: "yes"
+      ENABLE_FHIR: "yes"
+      ENABLE_PORTAL: "yes"
+      ENABLE_AUDIT_LOGS: "yes"
+    networks:
+      - openemr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/interface/login/login.php?site=default"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  mysql_data:
+    name: openemr_mysql_data
+  sites_data:
+    name: openemr_sites_data
+  logs_data:
+    name: openemr_logs_data
+
+networks:
+  openemr-network:
+    name: openemr-network
+    driver: bridge

@@ -1,0 +1,46 @@
+{
+  "name": "app-monitor-ui",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Matrix-themed monitoring dashboard for Vrooli scenarios",
+  "scripts": {
+    "dev": "VITE_PORT=${VITE_PORT} vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "node server.js",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "debug": "VITE_PORT=${VITE_PORT} vite --debug --force",
+    "clean": "rm -rf dist node_modules .vite"
+  },
+  "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "axios": "^1.6.2",
+    "clsx": "^2.1.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "lucide-react": "^0.544.0",
+    "parse5": "^7.1.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.0",
+    "react-use-websocket": "^4.5.0",
+    "ws": "^8.14.2",
+    "zustand": "^4.5.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8"
+  },
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+}

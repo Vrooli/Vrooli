@@ -1,0 +1,222 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "make-it-vegan",
+    "displayName": "Make It Vegan",
+    "description": "Research if foods are vegan, find vegan alternatives and substitutes",
+    "version": "1.0.0",
+    "tags": [
+      "saas-application",
+      "saas-applications",
+      "vegan",
+      "food",
+      "nutrition",
+      "recipe",
+      "alternatives",
+      "substitutes",
+      "dietary",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Main API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Web UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/vegan-checker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/alternative-finder.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/recipe-veganizer.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2:3b"
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": false,
+      "purpose": "Store vegan food database and user preferences"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache frequently checked ingredients for faster responses"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Make It Vegan health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Make It Vegan app",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "make-it-vegan-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "make-it-vegan"
+             ]
+           },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x make-it-vegan && ln -sf $(pwd)/make-it-vegan ~/.local/bin/make-it-vegan 2>/dev/null || true",
+          "description": "Install CLI command"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o make-it-vegan-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🥬 Make It Vegan initialized' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  n8n workflows: http://localhost:'${RESOURCE_PORTS[n8n]} && echo '  CLI: make-it-vegan --help'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Make It Vegan services",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./make-it-vegan-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/make-it-vegan-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🥬 Make It Vegan running:' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  CLI: make-it-vegan --help'",
+           "description": "Display service URLs and usage information"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Make It Vegan",
+      "steps": [
+        {
+          "name": "test-api-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation"
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health || echo 'API health check failed'",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-cli",
+          "run": "make-it-vegan check 'milk, eggs, flour' || true",
+          "description": "Test CLI functionality"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"make-it-vegan-api\" || true; sleep 1; pkill -9 -f \"make-it-vegan-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/make-it-vegan.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/make-it-vegan.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

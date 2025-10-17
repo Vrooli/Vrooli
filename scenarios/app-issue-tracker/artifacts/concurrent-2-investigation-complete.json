@@ -1,0 +1,74 @@
+{
+  "issue_id": "issue-a62cc0f0",
+  "investigation_status": "completed",
+  "issue_status": "blocked",
+  "finding": "Scenario 'concurrent-2' does not exist in repository",
+  "verification": {
+    "total_scenarios_searched": 133,
+    "matches_found": 0,
+    "search_method": "exhaustive directory listing"
+  },
+  "pattern_analysis": {
+    "related_issues": [
+      "issue-b9a31f9e (concurrent-1)",
+      "issue-a62cc0f0 (concurrent-2)",
+      "issue-d3fc13e3 (concurrent-3)"
+    ],
+    "all_created_at": "2025-10-03T09:44:41Z",
+    "hypothesis": [
+      "Intentional load testing of concurrent issue handling",
+      "Test Genie bug: missing scenario validation"
+    ]
+  },
+  "system_health": {
+    "concurrent_processing": "passed",
+    "data_integrity": "passed",
+    "agent_assignment": "passed",
+    "overall_status": "excellent"
+  },
+  "artifacts_generated": [
+    {
+      "name": "investigation-report.md",
+      "size": "5.9K",
+      "category": "investigation",
+      "description": "Detailed technical analysis and root cause"
+    },
+    {
+      "name": "resolution-summary.md",
+      "size": "3.7K",
+      "category": "resolution",
+      "description": "Stakeholder summary with decision points"
+    },
+    {
+      "name": "concurrent-2-test-request.json",
+      "size": "348 bytes",
+      "category": "test_generation",
+      "description": "Original request from Test Genie"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "high",
+      "action": "Determine if this was intentional load testing",
+      "owner": "Test Genie maintainers"
+    },
+    {
+      "priority": "high",
+      "action": "If bug: Implement scenario validation before creating issues",
+      "owner": "Test Genie development team"
+    },
+    {
+      "priority": "medium",
+      "action": "Review Test Genie configuration for typos in scenario list",
+      "owner": "Test Genie maintainers"
+    }
+  ],
+  "next_steps": {
+    "option_a": "Close as 'test completed' if intentional load test",
+    "option_b": "Create scenario first, then reopen issue",
+    "option_c": "Create new issue with correct scenario name"
+  },
+  "investigation_completed_at": "2025-10-03T10:15:44Z",
+  "investigation_agent": "unified-resolver",
+  "investigation_duration_minutes": 0
+}

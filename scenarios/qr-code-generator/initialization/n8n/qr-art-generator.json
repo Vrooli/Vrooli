@@ -1,0 +1,290 @@
+{
+  "name": "QR Art Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-art-qr",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Provide test defaults for manual trigger\nreturn {\n  text: 'https://vrooli.com',\n  theme: 'cyberpunk',\n  style: 'artistic',\n  includeAsciiArt: true,\n  generateCaption: true\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "workflowId": "intelligent-text-classifier",
+        "workflowParameters": {
+          "text": "={{ $json.text }}",
+          "classification_type": "content_type"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "classify_text",
+      "name": "Classify Text Type",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare creative prompt for QR art generation\nconst input = $input.item.json;\nconst classification = $node['Classify Text Type'].json;\n\nconst themes = {\n  'cyberpunk': 'neon colors, circuit patterns, digital rain, glitch effects',\n  'retro': '80s aesthetic, pixel art, synthwave colors, arcade game style',\n  'nature': 'organic patterns, leaves, flowers, natural textures',\n  'space': 'stars, galaxies, cosmic patterns, nebula colors',\n  'minimal': 'clean lines, geometric shapes, monochrome palette',\n  'psychedelic': 'swirling patterns, rainbow colors, trippy visuals',\n  'steampunk': 'gears, bronze tones, mechanical patterns, victorian elements'\n};\n\nconst theme = themes[input.theme] || themes['cyberpunk'];\nconst textType = classification?.type || 'text';\n\n// Create ASCII art generation prompt\nconst asciiPrompt = `Create an ASCII art QR code design with the following characteristics:\n- Theme: ${theme}\n- Content type: ${textType}\n- Make it visually interesting while maintaining QR code structure\n- Use creative patterns for the data modules\n- Include decorative borders that match the theme\n\nGenerate a creative ASCII representation using blocks (█), half blocks (▄▀), and spaces.`;\n\n// Create caption generation prompt\nconst captionPrompt = `Generate a fun, creative caption for a QR code that:\n- Contains: ${input.text.substring(0, 50)}${input.text.length > 50 ? '...' : ''}\n- Type: ${textType}\n- Theme: ${input.theme}\n\nMake it playful and engaging, maximum 15 words.`;\n\nreturn {\n  ...input,\n  asciiPrompt: asciiPrompt,\n  captionPrompt: captionPrompt,\n  textType: textType,\n  themeDescription: theme\n};"
+      },
+      "id": "prepare_prompts",
+      "name": "Prepare Art Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.includeAsciiArt }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_ascii",
+      "name": "Check ASCII Art",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "ollama",
+        "workflowParameters": {
+          "prompt": "={{ $json.asciiPrompt }}",
+          "model": "llama3.2"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "generate_ascii_art",
+      "name": "Generate ASCII Art",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.generateCaption }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_caption",
+      "name": "Check Caption",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "ollama",
+        "workflowParameters": {
+          "prompt": "={{ $json.captionPrompt }}",
+          "model": "llama3.2"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "generate_caption",
+      "name": "Generate Caption",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine all generated art elements\nconst original = $node['Prepare Art Prompts'].json;\nconst asciiArt = $node['Generate ASCII Art']?.json?.response || null;\nconst caption = $node['Generate Caption']?.json?.response || 'Scan me for a surprise!';\n\n// Generate enhanced QR art with theme-based styling\nfunction generateThemedQR(text, theme) {\n  const patterns = {\n    'cyberpunk': ['▓▓', '░░', '▒▒', '██'],\n    'retro': ['██', '▄▄', '▀▀', '░░'],\n    'nature': ['❋❋', '✿✿', '◈◈', '  '],\n    'space': ['✦✦', '✧✧', '★★', '  '],\n    'minimal': ['■■', '□□', '  ', '──'],\n    'psychedelic': ['◉◉', '◎◎', '◈◈', '◊◊'],\n    'steampunk': ['⚙⚙', '◈◈', '▣▣', '  ']\n  };\n\n  const blocks = patterns[theme] || patterns['cyberpunk'];\n  const size = 25;\n  let art = '';\n  \n  // Create border\n  const borderTop = '╔' + '═'.repeat(size * 2) + '╗\\n';\n  const borderBottom = '╚' + '═'.repeat(size * 2) + '╝';\n  \n  art += borderTop;\n  \n  // Generate QR pattern\n  const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);\n  \n  for (let y = 0; y < size; y++) {\n    art += '║';\n    for (let x = 0; x < size; x++) {\n      // Position detection patterns (corners)\n      if ((x < 7 && y < 7) || (x >= size - 7 && y < 7) || (x < 7 && y >= size - 7)) {\n        art += (x % 2 === y % 2) ? blocks[0] : blocks[3];\n      }\n      // Timing patterns\n      else if (x === 6 || y === 6) {\n        art += ((x + y) % 2 === 0) ? blocks[1] : blocks[2];\n      }\n      // Data area with theme-based patterns\n      else {\n        const bit = ((hash * (x + 1) * (y + 1) + x * y) % 4);\n        art += blocks[bit];\n      }\n    }\n    art += '║\\n';\n  }\n  \n  art += borderBottom;\n  return art;\n}\n\nconst themedQR = generateThemedQR(original.text, original.theme);\n\n// Create metadata for fun facts\nconst funFacts = [\n  'QR codes can store up to 7,089 numeric characters!',\n  'QR stands for Quick Response',\n  'QR codes were invented in Japan in 1994',\n  'The largest QR code was 51,000 square meters!',\n  'QR codes can work even when 30% damaged'\n];\n\nconst randomFact = funFacts[Math.floor(Math.random() * funFacts.length)];\n\nreturn {\n  success: true,\n  qr_id: 'art_qr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),\n  text: original.text,\n  theme: original.theme,\n  text_type: original.textType,\n  artistic_qr: themedQR,\n  ai_ascii_art: asciiArt,\n  caption: caption,\n  fun_fact: randomFact,\n  metadata: {\n    theme_description: original.themeDescription,\n    generated_at: new Date().toISOString(),\n    includes_ai_art: !!asciiArt,\n    includes_caption: !!caption\n  },\n  // Still provide standard QR URL for actual scanning\n  scannable_url: `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(original.text)}&format=png`\n};"
+      },
+      "id": "combine_art",
+      "name": "Combine Art Elements",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1800, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Classify Text Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Classify Text Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Text Type": {
+      "main": [
+        [
+          {
+            "node": "Prepare Art Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Art Prompts": {
+      "main": [
+        [
+          {
+            "node": "Check ASCII Art",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check ASCII Art": {
+      "main": [
+        [
+          {
+            "node": "Generate ASCII Art",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate ASCII Art": {
+      "main": [
+        [
+          {
+            "node": "Check Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Caption": {
+      "main": [
+        [
+          {
+            "node": "Generate Caption",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Combine Art Elements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Caption": {
+      "main": [
+        [
+          {
+            "node": "Combine Art Elements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Art Elements": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "qr-art-generator"
+  },
+  "tags": ["qr", "art", "ai", "creative"]
+}

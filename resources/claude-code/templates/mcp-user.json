@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "vrooli-global": {
+      "type": "sse",
+      "url": "http://localhost:3000/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${VROOLI_API_KEY}"
+      },
+      "description": "Global Vrooli MCP server for user-wide access"
+    }
+  },
+  "_documentation": {
+    "scope": "user",
+    "description": "User-global MCP configuration for Vrooli server",
+    "usage": [
+      "This configuration is available across all projects for this user",
+      "Ideal for personal development workflows",
+      "Replace ${VROOLI_API_KEY} with your actual API key",
+      "Adjust the URL if your Vrooli server runs on a different port"
+    ],
+    "environment_variables": {
+      "VROOLI_API_KEY": "Your global Vrooli API key for authentication"
+    },
+    "endpoints": {
+      "sse": "/mcp/sse",
+      "health": "/mcp/health", 
+      "messages": "/mcp/messages"
+    },
+    "tools_available": [
+      "send_message - Send messages to Vrooli chats",
+      "resource_manage - CRUD operations on Vrooli resources",
+      "run_routine - Execute Vrooli routines",
+      "spawn_swarm - Start AI swarm sessions"
+    ]
+  }
+}

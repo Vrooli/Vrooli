@@ -1,0 +1,47 @@
+VERSION 0.8
+FROM alpine:3.18
+
+# Simple test target
+test:
+    RUN echo "Running tests..."
+    RUN echo "Test successful!" > test-result.txt
+    SAVE ARTIFACT test-result.txt AS LOCAL test-output.txt
+
+# Build target with caching
+build:
+    # This will be cached on subsequent runs
+    RUN apk add --no-cache curl jq
+    RUN echo "Building application..."
+    RUN echo "Build complete at $(date)" > build.txt
+    SAVE ARTIFACT build.txt
+
+# Parallel execution example
+parallel-demo:
+    BUILD +worker1
+    BUILD +worker2
+    BUILD +worker3
+
+worker1:
+    RUN echo "Worker 1 executing..." && sleep 2
+    RUN echo "Worker 1 done"
+
+worker2:
+    RUN echo "Worker 2 executing..." && sleep 2
+    RUN echo "Worker 2 done"
+
+worker3:
+    RUN echo "Worker 3 executing..." && sleep 2
+    RUN echo "Worker 3 done"
+
+# Multi-platform build example
+multi-platform:
+    ARG TARGETPLATFORM
+    ARG TARGETARCH
+    RUN echo "Building for platform: ${TARGETPLATFORM}"
+    RUN echo "Architecture: ${TARGETARCH}"
+    SAVE ARTIFACT platform-info.txt
+
+# All targets
+all:
+    BUILD +test
+    BUILD +build

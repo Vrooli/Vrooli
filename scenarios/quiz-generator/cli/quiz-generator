@@ -1,0 +1,535 @@
+#!/bin/bash
+
+# Quiz Generator CLI
+# AI-powered quiz generation and assessment platform
+
+set -e
+
+# Configuration
+API_BASE_URL="${QUIZ_GENERATOR_API_URL:-http://localhost:3250/api/v1}"
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+print_error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+}
+
+print_success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}$1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}$1${NC}"
+}
+
+# Show help
+show_help() {
+    cat << EOF
+Quiz Generator CLI v${VERSION}
+AI-powered quiz generation and assessment platform
+
+USAGE:
+    quiz-generator <command> [options]
+
+COMMANDS:
+    generate    Generate a quiz from content
+    list        List available quizzes
+    take        Take a quiz interactively
+    search      Search the question bank
+    export      Export a quiz to file
+    status      Show system status
+    help        Show this help message
+    version     Show version information
+
+EXAMPLES:
+    # Generate a quiz from a file
+    quiz-generator generate document.pdf --questions 10 --difficulty medium
+    
+    # List all quizzes
+    quiz-generator list --limit 10
+    
+    # Take a quiz
+    quiz-generator take <quiz-id>
+    
+    # Search for questions
+    quiz-generator search "solar system" --tags astronomy
+    
+    # Export a quiz
+    quiz-generator export <quiz-id> --format json --output quiz.json
+
+For more help on a specific command:
+    quiz-generator <command> --help
+
+EOF
+}
+
+# Generate quiz from content
+generate_quiz() {
+    local content=""
+    local questions=10
+    local difficulty="medium"
+    local types="mcq,true_false,short_answer"
+    local output_format="console"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --questions)
+                questions="$2"
+                shift 2
+                ;;
+            --difficulty)
+                difficulty="$2"
+                shift 2
+                ;;
+            --types)
+                types="$2"
+                shift 2
+                ;;
+            --output)
+                output_format="$2"
+                shift 2
+                ;;
+            --help)
+                echo "Generate a quiz from content"
+                echo ""
+                echo "USAGE:"
+                echo "    quiz-generator generate <file|text> [options]"
+                echo ""
+                echo "OPTIONS:"
+                echo "    --questions <n>      Number of questions (default: 10)"
+                echo "    --difficulty <level> Difficulty level (easy|medium|hard)"
+                echo "    --types <types>      Question types (mcq,true_false,short_answer)"
+                echo "    --output <format>    Output format (console|json|qti)"
+                return 0
+                ;;
+            *)
+                if [ -z "$content" ]; then
+                    if [ -f "$1" ]; then
+                        content=$(cat "$1")
+                        print_info "Reading content from file: $1"
+                    else
+                        content="$1"
+                    fi
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$content" ]; then
+        print_error "No content provided"
+        return 1
+    fi
+    
+    print_info "Generating quiz with $questions questions at $difficulty difficulty..."
+    
+    # Call API to generate quiz
+    response=$(curl -s -X POST "$API_BASE_URL/quiz/generate" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"content\": \"$content\",
+            \"question_count\": $questions,
+            \"difficulty\": \"$difficulty\",
+            \"question_types\": \"$types\"
+        }")
+    
+    if [ $? -eq 0 ]; then
+        quiz_id=$(echo "$response" | grep -o '"quiz_id":"[^"]*' | sed 's/"quiz_id":"//')
+        print_success "Quiz generated successfully!"
+        print_info "Quiz ID: $quiz_id"
+        
+        if [ "$output_format" == "json" ]; then
+            echo "$response"
+        else
+            echo "$response" | jq -r '.questions[] | "\\n[\\(.order_index)] \\(.question)\\nType: \\(.type) | Difficulty: \\(.difficulty) | Points: \\(.points)"'
+        fi
+    else
+        print_error "Failed to generate quiz"
+        return 1
+    fi
+}
+
+# List quizzes
+list_quizzes() {
+    local limit=20
+    local tags=""
+    local difficulty=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --tags)
+                tags="$2"
+                shift 2
+                ;;
+            --difficulty)
+                difficulty="$2"
+                shift 2
+                ;;
+            --json)
+                output_json=true
+                shift
+                ;;
+            --help)
+                echo "List available quizzes"
+                echo ""
+                echo "OPTIONS:"
+                echo "    --limit <n>          Maximum results (default: 20)"
+                echo "    --tags <tags>        Filter by tags"
+                echo "    --difficulty <level> Filter by difficulty"
+                echo "    --json              Output as JSON"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Build query parameters
+    query="limit=$limit"
+    [ -n "$tags" ] && query="$query&tags=$tags"
+    [ -n "$difficulty" ] && query="$query&difficulty=$difficulty"
+    
+    print_info "Fetching quizzes..."
+    
+    response=$(curl -s "$API_BASE_URL/quizzes?$query")
+    
+    if [ $? -eq 0 ]; then
+        if [ "$output_json" == true ]; then
+            echo "$response"
+        else
+            echo -e "\\n${BLUE}Available Quizzes:${NC}"
+            echo "----------------------------------------"
+            echo "$response" | jq -r '.[] | "ID: \\(.id)\\nTitle: \\(.title)\\nQuestions: \\(.question_count) | Difficulty: \\(.difficulty)\\nCreated: \\(.created_at)\\n"'
+        fi
+    else
+        print_error "Failed to fetch quizzes"
+        return 1
+    fi
+}
+
+# Take a quiz interactively
+take_quiz() {
+    local quiz_id="$1"
+    local practice_mode=false
+    local time_limit=""
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --practice)
+                practice_mode=true
+                shift
+                ;;
+            --time-limit)
+                time_limit="$2"
+                shift 2
+                ;;
+            --help)
+                echo "Take a quiz interactively"
+                echo ""
+                echo "USAGE:"
+                echo "    quiz-generator take <quiz-id> [options]"
+                echo ""
+                echo "OPTIONS:"
+                echo "    --practice       Practice mode (show answers)"
+                echo "    --time-limit <s> Override time limit (seconds)"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$quiz_id" ]; then
+        print_error "Quiz ID required"
+        return 1
+    fi
+    
+    print_info "Loading quiz $quiz_id..."
+    
+    # Fetch quiz
+    quiz=$(curl -s "$API_BASE_URL/quiz/$quiz_id")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to load quiz"
+        return 1
+    fi
+    
+    # Interactive quiz taking would go here
+    # This is a simplified version
+    echo "$quiz" | jq -r '.title'
+    echo "========================================="
+    echo ""
+    
+    # Process each question
+    echo "$quiz" | jq -r '.questions[] | "\\n[\\(.order_index)] \\(.question)\\n"'
+    
+    print_success "Quiz completed!"
+    print_info "View results at: $API_BASE_URL/results/<result-id>"
+}
+
+# Search question bank
+search_questions() {
+    local query="$1"
+    local tags=""
+    local limit=10
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --tags)
+                tags="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --json)
+                output_json=true
+                shift
+                ;;
+            --help)
+                echo "Search the question bank"
+                echo ""
+                echo "USAGE:"
+                echo "    quiz-generator search <query> [options]"
+                echo ""
+                echo "OPTIONS:"
+                echo "    --tags <tags>   Filter by tags"
+                echo "    --limit <n>     Maximum results (default: 10)"
+                echo "    --json         Output as JSON"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$query" ]; then
+        print_error "Search query required"
+        return 1
+    fi
+    
+    print_info "Searching for: $query"
+    
+    # Call search API
+    response=$(curl -s -X POST "$API_BASE_URL/question-bank/search" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"query\": \"$query\",
+            \"tags\": \"$tags\",
+            \"limit\": $limit
+        }")
+    
+    if [ $? -eq 0 ]; then
+        if [ "$output_json" == true ]; then
+            echo "$response"
+        else
+            echo -e "\\n${BLUE}Search Results:${NC}"
+            echo "----------------------------------------"
+            echo "$response" | jq -r '.questions[] | "\\n[\\(.relevance_score)]\\n\\(.question_text)\\nType: \\(.type) | Difficulty: \\(.difficulty)\\n"'
+        fi
+    else
+        print_error "Search failed"
+        return 1
+    fi
+}
+
+# Export quiz
+export_quiz() {
+    local quiz_id="$1"
+    local format="json"
+    local output_file=""
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            --help)
+                echo "Export a quiz to file"
+                echo ""
+                echo "USAGE:"
+                echo "    quiz-generator export <quiz-id> [options]"
+                echo ""
+                echo "OPTIONS:"
+                echo "    --format <fmt>  Export format (json|qti|moodle)"
+                echo "    --output <file> Output file path"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$quiz_id" ]; then
+        print_error "Quiz ID required"
+        return 1
+    fi
+    
+    print_info "Exporting quiz $quiz_id as $format..."
+    
+    # Call export API
+    response=$(curl -s "$API_BASE_URL/quiz/$quiz_id/export?format=$format")
+    
+    if [ $? -eq 0 ]; then
+        if [ -n "$output_file" ]; then
+            echo "$response" > "$output_file"
+            print_success "Quiz exported to $output_file"
+        else
+            echo "$response"
+        fi
+    else
+        print_error "Export failed"
+        return 1
+    fi
+}
+
+# Show status
+show_status() {
+    local verbose=false
+    local json=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --json)
+                json=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    print_info "Checking Quiz Generator status..."
+    
+    # Check API health
+    api_health=$(curl -s "$API_BASE_URL/health" 2>/dev/null)
+    api_status=$?
+    
+    if [ "$json" == true ]; then
+        echo "$api_health"
+    else
+        echo -e "\\n${BLUE}Quiz Generator Status${NC}"
+        echo "======================================"
+        
+        if [ $api_status -eq 0 ]; then
+            print_success "✓ API: Online"
+            
+            if [ "$verbose" == true ]; then
+                stats=$(curl -s "$API_BASE_URL/stats" 2>/dev/null)
+                if [ $? -eq 0 ]; then
+                    echo "$stats" | jq -r '"\\nStatistics:\\n  Total Quizzes: \\(.total_quizzes)\\n  Total Questions: \\(.total_questions)\\n  Active Sessions: \\(.active_sessions)"'
+                fi
+            fi
+        else
+            print_error "✗ API: Offline"
+        fi
+        
+        # Check database
+        db_status=$(resource-postgres status 2>/dev/null | grep -q "running" && echo "online" || echo "offline")
+        if [ "$db_status" == "online" ]; then
+            print_success "✓ Database: Online"
+        else
+            print_warning "⚠ Database: Offline"
+        fi
+        
+        # Check n8n
+        n8n_status=$(resource-n8n status 2>/dev/null | grep -q "running" && echo "online" || echo "offline")
+        if [ "$n8n_status" == "online" ]; then
+            print_success "✓ n8n Workflows: Online"
+        else
+            print_warning "⚠ n8n Workflows: Offline"
+        fi
+        
+        echo ""
+    fi
+}
+
+# Show version
+show_version() {
+    local json=false
+    
+    if [ "$1" == "--json" ]; then
+        json=true
+    fi
+    
+    if [ "$json" == true ]; then
+        echo "{\"cli_version\":\"$VERSION\",\"api_version\":\"1.0.0\"}"
+    else
+        echo "Quiz Generator CLI v${VERSION}"
+        echo "API Version: 1.0.0"
+    fi
+}
+
+# Main command dispatcher
+case "${1:-help}" in
+    generate)
+        shift
+        generate_quiz "$@"
+        ;;
+    list)
+        shift
+        list_quizzes "$@"
+        ;;
+    take)
+        shift
+        take_quiz "$@"
+        ;;
+    search)
+        shift
+        search_questions "$@"
+        ;;
+    export)
+        shift
+        export_quiz "$@"
+        ;;
+    status)
+        shift
+        show_status "$@"
+        ;;
+    version)
+        shift
+        show_version "$@"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        echo "Run 'quiz-generator help' for usage information"
+        exit 1
+        ;;
+esac

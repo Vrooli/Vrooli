@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenRouter Configuration Schema",
+  "description": "Configuration schema for OpenRouter resource",
+  "type": "object",
+  "properties": {
+    "api_key": {
+      "type": "string",
+      "description": "OpenRouter API key for authentication",
+      "pattern": "^sk-or-v1-[a-f0-9]{64}$"
+    },
+    "api_base": {
+      "type": "string",
+      "description": "OpenRouter API base URL",
+      "default": "https://openrouter.ai/api/v1",
+      "format": "uri"
+    },
+    "default_model": {
+      "type": "string",
+      "description": "Default model to use if not specified",
+      "default": "openai/gpt-3.5-turbo"
+    },
+    "timeout": {
+      "type": "integer",
+      "description": "API request timeout in seconds",
+      "default": 30,
+      "minimum": 5,
+      "maximum": 300
+    },
+    "max_retries": {
+      "type": "integer",
+      "description": "Maximum number of retry attempts",
+      "default": 3,
+      "minimum": 0,
+      "maximum": 10
+    },
+    "fallback_models": {
+      "type": "array",
+      "description": "List of fallback models if primary fails",
+      "items": {
+        "type": "string"
+      },
+      "default": ["mistralai/mistral-7b", "openai/gpt-3.5-turbo"]
+    },
+    "cost_limit": {
+      "type": "number",
+      "description": "Maximum cost per request in USD",
+      "default": 0.10,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "routing_strategy": {
+      "type": "string",
+      "description": "Model selection strategy",
+      "enum": ["auto", "cheapest", "fastest", "quality"],
+      "default": "auto"
+    },
+    "enable_cache": {
+      "type": "boolean",
+      "description": "Enable response caching",
+      "default": false
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging verbosity level",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info"
+    }
+  },
+  "required": ["api_key"],
+  "additionalProperties": false
+}

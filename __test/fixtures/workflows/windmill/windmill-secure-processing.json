@@ -1,0 +1,68 @@
+{
+  "summary": "Secure Data Processing Workflow",
+  "description": "Demonstrates Vault-secured processing across multiple resources",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "input_data": {
+        "type": "string",
+        "description": "Data to process securely"
+      }
+    }
+  },
+  "modules": [
+    {
+      "id": "vault_secrets",
+      "value": {
+        "type": "script",
+        "language": "bash",
+        "content": "# Retrieve secrets from Vault\ncurl -s -H \"X-Vault-Token: $VAULT_TOKEN\" \\\n  http://localhost:8200/v1/secret/data/api-keys \\\n  | jq -r '.data.data'"
+      }
+    },
+    {
+      "id": "process_with_ollama",
+      "value": {
+        "type": "script", 
+        "language": "python3",
+        "content": "import requests\nimport json\n\n# Use secrets from previous step\napi_keys = json.loads(vault_secrets)\n\n# Process data with Ollama\nresponse = requests.post(\n    'http://localhost:11434/api/generate',\n    json={\n        'model': 'llama3.1:8b',\n        'prompt': f'Process this data securely: {input_data}',\n        'stream': False\n    },\n    timeout=60\n)\n\nresult = response.json()\nprint(json.dumps(result))\nreturn result"
+      }
+    },
+    {
+      "id": "secure_storage",
+      "value": {
+        "type": "script",
+        "language": "bash", 
+        "content": "# Store result securely in MinIO with encryption\necho \"$1\" | curl -X PUT \\\n  -H \"Authorization: Bearer $MINIO_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"X-Amz-Server-Side-Encryption: AES256\" \\\n  --data-binary @- \\\n  http://localhost:9000/secure-bucket/processed-$(date +%s).json"
+      }
+    }
+  ],
+  "flow": [
+    {
+      "modules": [
+        {
+          "id": "vault_secrets"
+        }
+      ]
+    },
+    {
+      "modules": [
+        {
+          "id": "process_with_ollama",
+          "input_transforms": {
+            "vault_secrets": "$res1"
+          }
+        }
+      ]
+    },
+    {
+      "modules": [
+        {
+          "id": "secure_storage",
+          "input_transforms": {
+            "input_data": "$res2.response"
+          }
+        }
+      ]
+    }
+  ]
+}

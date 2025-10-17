@@ -1,0 +1,65 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Vrooli HQ",
+        "type": "headquarters",
+        "description": "Main Vrooli development center",
+        "capacity": 500,
+        "services": ["AI Development", "Resource Management", "Scenario Building"]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.4194, 37.7749]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Data Processing Center",
+        "type": "datacenter",
+        "description": "Primary compute facility",
+        "capacity": 1000,
+        "services": ["GPU Clusters", "Storage Arrays", "Network Hub"]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.4084, 37.7836]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Innovation Lab",
+        "type": "lab",
+        "description": "Research and development facility",
+        "capacity": 200,
+        "services": ["AI Research", "Prototype Testing", "Training Center"]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.3984, 37.7949]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Service Zone Alpha",
+        "type": "zone",
+        "description": "Primary service coverage area"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.45, 37.75],
+          [-122.45, 37.80],
+          [-122.38, 37.80],
+          [-122.38, 37.75],
+          [-122.45, 37.75]
+        ]]
+      }
+    }
+  ]
+}

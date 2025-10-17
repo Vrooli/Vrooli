@@ -1,0 +1,15 @@
+{
+  "name": "typing-test-ui",
+  "version": "1.0.0",
+  "description": "Retro arcade-style typing test game UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+  },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CNCjs Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "Web interface port",
+      "default": 8194,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "host": {
+      "type": "string",
+      "description": "Bind address",
+      "default": "0.0.0.0",
+      "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$|^[a-zA-Z0-9.-]+$"
+    },
+    "controller": {
+      "type": "string",
+      "description": "CNC controller type",
+      "enum": ["Grbl", "Marlin", "Smoothie", "TinyG", "g2core"],
+      "default": "Grbl"
+    },
+    "serialPort": {
+      "type": "string",
+      "description": "Serial port device path",
+      "default": "/dev/ttyUSB0",
+      "pattern": "^/dev/.*"
+    },
+    "baudRate": {
+      "type": "integer",
+      "description": "Serial communication baud rate",
+      "enum": [9600, 19200, 38400, 57600, 115200, 230400, 250000],
+      "default": 115200
+    },
+    "allowRemoteAccess": {
+      "type": "boolean",
+      "description": "Allow remote network access",
+      "default": true
+    },
+    "accessTokenLifetime": {
+      "type": "string",
+      "description": "Access token validity period",
+      "default": "30d",
+      "pattern": "^\\d+[smhd]$"
+    },
+    "watchDirectory": {
+      "type": "string",
+      "description": "Directory to watch for G-code files",
+      "default": "~/.cncjs/watch"
+    },
+    "macros": {
+      "type": "array",
+      "description": "Custom macro definitions",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "content"]
+      }
+    }
+  },
+  "required": ["port", "controller"],
+  "additionalProperties": false
+}

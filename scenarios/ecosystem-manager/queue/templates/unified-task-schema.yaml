@@ -1,0 +1,63 @@
+# Unified Task Schema for Ecosystem Manager
+# Supports all 4 operations: resource/scenario generation/improvement
+
+# Unique identifier for this task
+id: "task-type-target-timestamp"  # e.g. "resource-generator-matrix-20250907"
+
+# Human readable title
+title: "Description of what needs to be done"
+
+# Core classification
+type: "resource"        # resource | scenario
+operation: "generator"  # generator | improver
+category: "communication"  # ai-ml | communication | data | security | automation | monitoring | etc.
+
+# Priority and scheduling
+priority: "high"        # low | medium | high | critical
+effort_estimate: "4h"   # rough estimate: 1h | 2h | 4h | 8h | 16h+
+urgency: "normal"       # low | normal | high | critical
+
+# Dependencies and relationships
+dependencies: []        # list of other task IDs that must complete first
+blocks: []             # list of other task IDs that this blocks
+related_scenarios: []  # scenarios that might be affected
+related_resources: []  # resources that might be affected
+
+# Progress tracking
+status: "pending"      # pending | in_progress | review | completed | failed
+current_phase: ""      # research | design | implementation | testing | documentation
+started_at: ""         # ISO timestamp
+completed_at: ""       # ISO timestamp
+completion_count: 0
+last_completed_at: ""
+
+# Quality gates
+validation_criteria:
+  - "Health checks pass"
+  - "CLI commands work"
+  - "Documentation complete"
+  - "Tests pass"
+  - "PRD requirements met"
+
+# Metadata
+created_by: "user"     # user | system | automation
+created_at: "2025-09-07T00:00:00Z"
+updated_at: "2025-09-07T00:00:00Z"
+tags: []               # additional searchable tags
+notes: |
+  Freeform notes describing context, desired deliverables, known dependencies, and any specific research focus.
+  Use this section to capture details previously tracked under requirements/improvement areas.
+
+# Results (populated after completion)
+results:
+  files_created: []    # list of new files
+  files_modified: []   # list of changed files
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    test_coverage_percentage: 0
+    documentation_score: 0
+  artifacts:
+    prd_location: ""
+    readme_location: ""
+    test_location: ""

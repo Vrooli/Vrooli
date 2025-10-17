@@ -1,0 +1,68 @@
+{
+  "mcpServers": {
+    "vrooli-local": {
+      "type": "sse",
+      "url": "http://localhost:3000/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${VROOLI_API_KEY}",
+        "User-Agent": "Claude-Code-MCP/1.0"
+      },
+      "description": "Local Vrooli MCP server with full configuration"
+    },
+    "vrooli-remote": {
+      "type": "sse", 
+      "url": "${VROOLI_REMOTE_URL}/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${VROOLI_REMOTE_API_KEY}"
+      },
+      "description": "Remote Vrooli MCP server for production workflows",
+      "disabled": true
+    },
+    "vrooli-docker": {
+      "type": "sse",
+      "url": "http://host.docker.internal:3000/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${VROOLI_API_KEY}"
+      },
+      "description": "Vrooli MCP server running in Docker",
+      "disabled": true
+    }
+  },
+  "_documentation": {
+    "scope": "advanced",
+    "description": "Advanced MCP configuration examples for different environments",
+    "configurations": {
+      "local": "For local development with Vrooli running on localhost",
+      "remote": "For connecting to a remote Vrooli instance",
+      "docker": "For Docker-based development environments"
+    },
+    "environment_variables": {
+      "VROOLI_API_KEY": "API key for local Vrooli instance",
+      "VROOLI_REMOTE_URL": "Base URL for remote Vrooli server (e.g., https://vrooli.example.com)",
+      "VROOLI_REMOTE_API_KEY": "API key for remote Vrooli instance"
+    },
+    "server_selection": [
+      "Enable only one server configuration at a time",
+      "Use 'disabled': true to temporarily disable a server",
+      "Local is recommended for development",
+      "Remote is suitable for production workflows"
+    ],
+    "docker_notes": [
+      "Use host.docker.internal instead of localhost when running Claude Code outside Docker",
+      "If Claude Code is also in Docker, use the container name or service name",
+      "Ensure port 3000 is exposed from the Vrooli container"
+    ],
+    "troubleshooting": {
+      "connection_refused": "Check if Vrooli server is running and accessible",
+      "authentication_failed": "Verify API key is correct and has necessary permissions",
+      "timeout_errors": "Check network connectivity and firewall settings",
+      "cors_errors": "Ensure Vrooli server allows connections from Claude Code's origin"
+    },
+    "performance_tips": [
+      "Use local connections when possible for better performance",
+      "Monitor MCP health endpoint at /mcp/health",
+      "Set appropriate timeouts for remote connections",
+      "Use connection pooling for high-volume usage"
+    ]
+  }
+}

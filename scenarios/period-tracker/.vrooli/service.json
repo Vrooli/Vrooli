@@ -1,0 +1,260 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "period-tracker",
+    "displayName": "Period Tracker",
+    "description": "Privacy-first menstrual health tracking with AI insights, multi-tenant support, and calendar integration",
+    "version": "1.0.0",
+    "tags": [
+      "health",
+      "menstrual",
+      "privacy",
+      "tracking",
+      "AI",
+      "multi-tenant",
+      "women-health",
+      "cycle-tracking",
+      "symptoms",
+      "predictions",
+      "calendar-integration",
+      "javascript-ui",
+      "go-api",
+      "postgres-storage",
+      "redis-cache",
+      "no-n8n"
+    ]
+  },
+  "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Period Tracker API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Period Tracker UI port",
+       "range": "35000-39999"
+     }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store encrypted period cycles, symptoms, predictions, and user data with multi-tenant isolation",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "scenario-authenticator": {
+      "type": "scenario",
+      "enabled": true,
+      "required": true,
+      "purpose": "Multi-tenant user authentication and session management for privacy isolation"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Session caching, temporary data storage, and performance optimization"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "Local AI pattern recognition and health insight generation"
+    },
+    "calendar": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "purpose": "Calendar integration for period predictions and schedule blocking"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Period Tracker health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${PERIOD_TRACKER_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "database_connection",
+          "type": "postgres",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "auth_service",
+          "type": "http",
+          "target": "http://localhost:${SCENARIO_AUTHENTICATOR_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Period Tracker with encrypted health data storage",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "period-tracker-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "period-tracker"
+             ]
+           },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "check-auth-service",
+          "run": "curl -sf http://localhost:${SCENARIO_AUTHENTICATOR_API_PORT}/health || echo 'Warning: Authentication service not available - multi-tenant features limited'",
+          "description": "Verify authentication service availability"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize encrypted database schema for health data"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x period-tracker && mkdir -p ~/.local/bin && ln -sf $(pwd)/period-tracker ~/.local/bin/period-tracker",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o period-tracker-api .",
+          "description": "Build Go API binary with encryption support"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "verify-encryption",
+          "run": "echo 'Verifying encryption setup...' && cd api && go run -ldflags '-X main.mode=verify' .",
+          "description": "Verify data encryption configuration"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🩸 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
+          "description": "Display service URLs and privacy notice"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Period Tracker services with privacy-first configuration",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./period-tracker-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/period-tracker-api"
+           },
+          "environment": {
+            "PRIVACY_MODE": "strict",
+            "ENCRYPTION_ENABLED": "true",
+            "MULTI_TENANT": "true"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start privacy-focused UI server",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  🔐 All health data encrypted and stored locally only'",
+           "description": "Display running services with privacy notice"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Period Tracker services and data privacy",
+      "steps": [
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$PERIOD_TRACKER_API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-encryption",
+          "run": "curl -sf -H 'Content-Type: application/json' http://localhost:$PERIOD_TRACKER_API_PORT/api/v1/health/encryption",
+          "description": "Verify encryption is active"
+        },
+        {
+          "name": "test-auth-integration",
+          "run": "curl -sf http://localhost:$PERIOD_TRACKER_API_PORT/api/v1/auth/status",
+          "description": "Test authentication integration"
+        },
+        {
+          "name": "test-database-isolation",
+          "run": "cd api && go run -ldflags '-X main.mode=test-isolation' .",
+          "description": "Test multi-tenant data isolation"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services and ensure data security",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"period-tracker-api\" || true; sleep 1; pkill -9 -f \"period-tracker-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/period-tracker.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/period-tracker.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        },
+        {
+          "name": "clear-sessions",
+          "run": "echo 'Clearing session cache...' && redis-cli -h localhost FLUSHDB 2>/dev/null || echo 'Redis not available - sessions cleared on restart'",
+          "description": "Clear session data for privacy"
+        }
+      ]
+    }
+  }
+}

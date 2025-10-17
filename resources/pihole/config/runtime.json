@@ -1,0 +1,36 @@
+{
+  "startup_order": 100,
+  "dependencies": [],
+  "startup_timeout": 60,
+  "startup_time_estimate": "20-40s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "resource_type": "networking",
+  "ports": {
+    "dns": 53,
+    "api": 8087,
+    "dhcp": 67
+  },
+  "health_check": {
+    "endpoint": "http://localhost:8087/admin/api.php?status",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 2
+  },
+  "resource_limits": {
+    "memory": "512Mi",
+    "cpu": "0.5"
+  },
+  "features": {
+    "dns_filtering": true,
+    "api_access": true,
+    "query_logging": true,
+    "dhcp_server": false,
+    "ipv6_support": true
+  },
+  "integration": {
+    "supports_injection": false,
+    "supports_content": true,
+    "supports_credentials": true
+  }
+}

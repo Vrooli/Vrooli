@@ -1,0 +1,198 @@
+{
+  "supported_types": {
+    "documents": {
+      "extensions": [".pdf", ".docx", ".doc", ".txt", ".rtf", ".odt"],
+      "mime_types": [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword", 
+        "text/plain",
+        "text/rtf",
+        "application/vnd.oasis.opendocument.text"
+      ],
+      "max_size": 10485760,
+      "processing": {
+        "extract_text": true,
+        "generate_embeddings": true,
+        "create_summary": true,
+        "extract_keywords": true
+      },
+      "icon": "📄"
+    },
+    "presentations": {
+      "extensions": [".pptx", ".ppt", ".odp"],
+      "mime_types": [
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.oasis.opendocument.presentation"
+      ],
+      "max_size": 20971520,
+      "processing": {
+        "extract_text": true,
+        "generate_embeddings": true,
+        "extract_slides": true,
+        "create_summary": true
+      },
+      "icon": "📊"
+    },
+    "spreadsheets": {
+      "extensions": [".xlsx", ".xls", ".ods", ".csv"],
+      "mime_types": [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "application/vnd.oasis.opendocument.spreadsheet",
+        "text/csv"
+      ],
+      "max_size": 5242880,
+      "processing": {
+        "extract_data": true,
+        "generate_embeddings": false,
+        "analyze_structure": true,
+        "extract_insights": true
+      },
+      "icon": "📈"
+    },
+    "images": {
+      "extensions": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+      "mime_types": [
+        "image/jpeg",
+        "image/png", 
+        "image/gif",
+        "image/webp"
+      ],
+      "max_size": 5242880,
+      "processing": {
+        "extract_text": true,
+        "generate_embeddings": true,
+        "describe_content": true,
+        "extract_entities": false
+      },
+      "icon": "🖼️"
+    },
+    "markup": {
+      "extensions": [".html", ".htm", ".xml", ".md", ".markdown"],
+      "mime_types": [
+        "text/html",
+        "application/xml",
+        "text/xml",
+        "text/markdown"
+      ],
+      "max_size": 2097152,
+      "processing": {
+        "extract_text": true,
+        "generate_embeddings": true,
+        "preserve_structure": true,
+        "extract_links": true
+      },
+      "icon": "🌐"
+    }
+  },
+  "processing_pipeline": {
+    "steps": [
+      {
+        "name": "virus_scan",
+        "enabled": true,
+        "timeout": 10000,
+        "required": true
+      },
+      {
+        "name": "format_validation",
+        "enabled": true,
+        "timeout": 5000,
+        "required": true
+      },
+      {
+        "name": "content_extraction",
+        "enabled": true,
+        "timeout": 30000,
+        "service": "unstructured-io",
+        "required": true
+      },
+      {
+        "name": "text_cleaning",
+        "enabled": true,
+        "timeout": 5000,
+        "required": false
+      },
+      {
+        "name": "embedding_generation",
+        "enabled": true,
+        "timeout": 20000,
+        "service": "ollama",
+        "model": "nomic-embed-text",
+        "required": false
+      },
+      {
+        "name": "keyword_extraction",
+        "enabled": true,
+        "timeout": 15000,
+        "required": false
+      },
+      {
+        "name": "summary_generation",
+        "enabled": true,
+        "timeout": 25000,
+        "service": "ollama",
+        "model": "llama3.2",
+        "required": false
+      }
+    ]
+  },
+  "upload_settings": {
+    "max_files_per_upload": 5,
+    "max_total_size": 52428800,
+    "allowed_sources": ["local", "url", "cloud"],
+    "chunk_size": 1048576,
+    "parallel_uploads": 3,
+    "auto_retry": true,
+    "max_retries": 3
+  },
+  "storage": {
+    "temp_retention": 3600,
+    "processed_retention": 2592000,
+    "backup_enabled": true,
+    "encryption_at_rest": true,
+    "compression": {
+      "enabled": true,
+      "algorithm": "gzip",
+      "threshold": 1024
+    }
+  },
+  "metadata": {
+    "extract_properties": [
+      "created_date",
+      "modified_date",
+      "author",
+      "title",
+      "subject",
+      "keywords",
+      "page_count",
+      "word_count",
+      "language"
+    ],
+    "generate_thumbnails": true,
+    "thumbnail_size": 200
+  },
+  "content_analysis": {
+    "detect_language": true,
+    "extract_entities": true,
+    "sentiment_analysis": false,
+    "topic_modeling": true,
+    "readability_score": true
+  },
+  "error_handling": {
+    "retry_failed": true,
+    "quarantine_suspicious": true,
+    "log_processing_errors": true,
+    "notification_on_failure": true,
+    "fallback_to_ocr": true
+  },
+  "ui_display": {
+    "show_processing_status": true,
+    "show_preview": true,
+    "show_metadata": true,
+    "show_extracted_text": false,
+    "allow_reprocessing": true,
+    "group_by_type": true
+  }
+}

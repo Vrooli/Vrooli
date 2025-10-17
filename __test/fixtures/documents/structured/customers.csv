@@ -1,0 +1,11 @@
+id,name,email,company,phone,address,city,state,zip_code,country,registration_date,status,account_value
+1001,John Smith,john.smith@techcorp.com,TechCorp Industries,+1-555-0123,"123 Innovation Drive",San Francisco,CA,94105,USA,2024-01-15,active,15750.50
+1002,Maria Garcia,maria.garcia@innovate.co,Innovate Solutions,+1-555-0456,"456 Business Blvd",Austin,TX,73301,USA,2024-02-22,active,28900.75
+1003,David Chen,d.chen@future.tech,Future Technologies,+1-555-0789,"789 Tech Plaza",Seattle,WA,98101,USA,2024-01-08,active,42300.25
+1004,Sarah Johnson,sarah.j@dataflow.net,DataFlow Systems,+1-555-0321,"321 Data Street",Boston,MA,02101,USA,2024-03-12,pending,8950.00
+1005,Michael Brown,m.brown@cloudscape.io,CloudScape Inc,+1-555-0654,"654 Cloud Avenue",Denver,CO,80201,USA,2024-02-05,active,67450.80
+1006,Emma Wilson,emma.wilson@nexus.com,Nexus Corporation,+1-555-0987,"987 Enterprise Way",Chicago,IL,60601,USA,2024-01-28,active,31200.40
+1007,James Davis,james.davis@quantum.ai,Quantum AI Labs,+1-555-0147,"147 Quantum Road",Palo Alto,CA,94301,USA,2024-03-18,inactive,5600.00
+1008,Lisa Anderson,l.anderson@neural.net,Neural Networks Ltd,+1-555-0258,"258 Neural Path",Portland,OR,97201,USA,2024-02-14,active,19875.60
+1009,Robert Miller,r.miller@blockchain.pro,Blockchain Professionals,+1-555-0369,"369 Crypto Circle",Miami,FL,33101,USA,2024-01-30,active,54720.90
+1010,Jennifer Taylor,jen.taylor@iot.systems,IoT Systems Group,+1-555-0741,"741 Connected Blvd",Raleigh,NC,27601,USA,2024-03-05,pending,12400.25

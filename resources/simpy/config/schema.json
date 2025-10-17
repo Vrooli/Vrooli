@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SimPy Resource Configuration Schema",
+  "description": "Configuration schema for the SimPy discrete-event simulation resource",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "Port for SimPy REST API service",
+      "default": 9510,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "host": {
+      "type": "string",
+      "description": "Host to bind the SimPy service to",
+      "default": "localhost",
+      "pattern": "^(localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|[a-zA-Z0-9.-]+)$"
+    },
+    "python_version": {
+      "type": "string",
+      "description": "Python version requirement",
+      "default": "3.12",
+      "enum": ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    },
+    "packages": {
+      "type": "array",
+      "description": "Python packages to install",
+      "items": {
+        "type": "string"
+      },
+      "default": ["simpy", "numpy", "pandas", "matplotlib", "scipy", "networkx"]
+    },
+    "visualization": {
+      "type": "object",
+      "description": "Visualization settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable visualization features",
+          "default": true
+        },
+        "backend": {
+          "type": "string",
+          "description": "Visualization backend",
+          "enum": ["matplotlib", "plotly", "seaborn"],
+          "default": "matplotlib"
+        }
+      }
+    },
+    "simulation": {
+      "type": "object",
+      "description": "Simulation default settings",
+      "properties": {
+        "default_timeout": {
+          "type": "integer",
+          "description": "Default simulation timeout in seconds",
+          "default": 3600,
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "default_seed": {
+          "type": "integer",
+          "description": "Default random seed for reproducibility",
+          "default": 42
+        },
+        "max_concurrent": {
+          "type": "integer",
+          "description": "Maximum concurrent simulations",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 100
+        },
+        "enable_logging": {
+          "type": "boolean",
+          "description": "Enable simulation logging",
+          "default": true
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "results_retention_days": {
+          "type": "integer",
+          "description": "Days to retain simulation results",
+          "default": 7,
+          "minimum": 1,
+          "maximum": 365
+        },
+        "max_results_size_mb": {
+          "type": "integer",
+          "description": "Maximum size for results directory in MB",
+          "default": 1000,
+          "minimum": 100,
+          "maximum": 10000
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance tuning",
+      "properties": {
+        "memory_limit_mb": {
+          "type": "integer",
+          "description": "Memory limit per simulation in MB",
+          "default": 500,
+          "minimum": 100,
+          "maximum": 8000
+        },
+        "cpu_cores": {
+          "type": "integer",
+          "description": "Number of CPU cores to use",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 16
+        }
+      }
+    }
+  },
+  "required": ["port", "host"],
+  "additionalProperties": false
+}

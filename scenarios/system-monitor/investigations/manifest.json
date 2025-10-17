@@ -1,0 +1,684 @@
+{
+  "version": "1.0.0",
+  "description": "Investigation scripts registry for system-monitor scenario",
+  "last_updated": "2025-09-21T17:58:00Z",
+  "scripts": {
+    "swap-heavy-processes": {
+      "name": "Swap Heavy Process Detector",
+      "description": "Identifies processes consuming excessive swap memory and provides recommendations",
+      "file": "active/swap-heavy-processes.sh",
+      "category": "resource-management",
+      "triggers": [
+        "high_swap_usage",
+        "swap_thrashing",
+        "memory_pressure"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-21",
+      "last_modified": "2025-09-21",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "resource-exhaustion-detector": {
+      "name": "Resource Exhaustion Pattern Detector",
+      "description": "Detects resource exhaustion patterns including swap usage, memory pressure, and process limits",
+      "file": "active/resource-exhaustion-detector.sh",
+      "category": "resource-management",
+      "triggers": [
+        "high_memory_usage",
+        "swap_usage",
+        "memory_pressure",
+        "process_exhaustion"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-18",
+      "last_modified": "2025-09-18",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "judge0-worker-exhaustion-detector": {
+      "name": "Judge0 Worker Memory Exhaustion Detector",
+      "description": "Detects Judge0 workers approaching memory limits and provides tuning recommendations",
+      "file": "active/judge0-worker-exhaustion-detector.sh",
+      "category": "resource-management",
+      "triggers": [
+        "judge0_high_memory",
+        "worker_memory_exhaustion",
+        "container_memory_near_limit"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-16",
+      "last_modified": "2025-09-16",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "judge0"
+      ]
+    },
+    "container-resource-optimizer": {
+      "name": "Container Resource Optimizer",
+      "description": "Analyzes container resource usage vs limits and provides optimization recommendations",
+      "file": "active/container-resource-optimizer.sh",
+      "category": "resource-management",
+      "triggers": [
+        "container_memory_high",
+        "resource_inefficiency",
+        "container_limits_unset"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-16",
+      "last_modified": "2025-09-16",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "high-cpu-analysis": {
+      "name": "High CPU Analysis",
+      "description": "Identifies processes consuming excessive CPU and traces their origins",
+      "file": "active/high-cpu-analysis.sh",
+      "category": "performance",
+      "triggers": [
+        "cpu_usage > 80%",
+        "load_average > 4.0",
+        "excessive_processes"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30-60s",
+      "safety_level": "safe"
+    },
+    "process-genealogy": {
+      "name": "Process Genealogy Tracer",
+      "description": "Traces parent-child relationships to find process spawn sources",
+      "file": "active/process-genealogy.sh",
+      "category": "process-analysis",
+      "triggers": [
+        "excessive_processes",
+        "memory_pressure",
+        "fork_bomb_suspected"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "15-30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "resource-leak-detector": {
+      "name": "Resource Leak Detector",
+      "description": "Detects file descriptor, memory, and connection leaks",
+      "file": "active/resource-leak-detector.sh",
+      "category": "resource-management",
+      "triggers": [
+        "fd_usage > 80%",
+        "memory_growth_pattern",
+        "connection_buildup"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "45-90s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "network-anomaly-detector": {
+      "name": "Network Anomaly Detector",
+      "description": "Detects suspicious network connections, unusual ports, and potential security issues",
+      "file": "active/network-anomaly-detector.sh",
+      "category": "network",
+      "triggers": [
+        "unusual_connections",
+        "high_tcp_count",
+        "suspicious_ports"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30-45s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "zombie-process-detector": {
+      "name": "Zombie Process Detector",
+      "description": "Detects and analyzes zombie (defunct) processes to identify parent process issues",
+      "file": "active/zombie-process-detector.sh",
+      "category": "process-analysis",
+      "triggers": [
+        "zombie_processes_found",
+        "process_cleanup_issues",
+        "high_process_count"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "15-30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "disk-io-analyzer": {
+      "name": "Disk I/O Analyzer",
+      "description": "Analyzes disk usage patterns, I/O performance, and identifies storage bottlenecks",
+      "file": "active/disk-io-analyzer.sh",
+      "category": "storage",
+      "triggers": [
+        "high_disk_usage",
+        "io_wait",
+        "disk_errors"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30-60s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "hello-test-investigation": {
+      "name": "Hello Test Investigation",
+      "description": "Test investigation script that provides friendly system greeting",
+      "file": "active/hello-test-investigation.sh",
+      "category": "test",
+      "triggers": [
+        "manual_test",
+        "hello_request"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "5-10s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "example"
+      ]
+    },
+    "test-spawn-detector": {
+      "name": "Test Spawn Detector",
+      "description": "Detects test harness processes, fork storms, and multiprocessing leaks",
+      "file": "active/test-spawn-detector.sh",
+      "category": "test",
+      "triggers": [
+        "test_spawn",
+        "fork_testing",
+        "process_debugging"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "example",
+        "legacy"
+      ]
+    },
+    "python-subprocess-health": {
+      "name": "Python Subprocess Health Monitor",
+      "description": "Detects Python processes with zombie children and poor subprocess management",
+      "file": "active/python-subprocess-health.sh",
+      "category": "process-analysis",
+      "triggers": [
+        "python_zombies",
+        "jupyter_issues",
+        "subprocess_leaks"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "45s",
+      "safety_level": "safe"
+    },
+    "container-zombie-analyzer": {
+      "name": "Container Zombie Analyzer",
+      "description": "Advanced zombie process analysis for containerized applications with parent tracking",
+      "file": "active/container-zombie-analyzer.sh",
+      "category": "process-analysis",
+      "triggers": [
+        "container_zombies",
+        "jupyter_zombies",
+        "docker_process_issues"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.1",
+      "execution_time_estimate": "45s",
+      "safety_level": "safe"
+    },
+    "enhanced-zombie-analyzer": {
+      "name": "Enhanced Zombie Analyzer",
+      "description": "Advanced zombie process detection with parent analysis and timeline tracking",
+      "file": "active/enhanced-zombie-analyzer.sh",
+      "category": "process-analysis",
+      "triggers": [
+        "zombie_processes_found",
+        "jupyter_issues",
+        "long_running_zombies"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.1",
+      "execution_time_estimate": "45s",
+      "safety_level": "safe"
+    },
+    "cpu-usage-comprehensive": {
+      "name": "Comprehensive CPU Usage Analysis",
+      "description": "Detailed analysis of high CPU usage including process trees, zombie detection, and resource usage",
+      "file": "active/cpu-usage-comprehensive.sh",
+      "category": "performance",
+      "triggers": [
+        "cpu_usage > 20%",
+        "load_average > 4.0",
+        "performance_issues"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "60s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "legacy"
+      ]
+    },
+    "api-infinite-loop-detector": {
+      "name": "API Infinite Loop Detector",
+      "description": "Detects and diagnoses infinite loop conditions in Go API services",
+      "file": "active/api-infinite-loop-detector.sh",
+      "category": "performance",
+      "triggers": [
+        "high_cpu_api",
+        "infinite_loop_suspected",
+        "go_service_issue"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe"
+    },
+    "go-busy-loop-detector": {
+      "name": "Go Busy Loop Detector",
+      "description": "Detects Go processes with busy polling loops consuming excessive CPU",
+      "file": "active/go-busy-loop-detector.sh",
+      "category": "performance",
+      "triggers": [
+        "high_go_cpu",
+        "busy_loop_suspected",
+        "missing_sleep"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe"
+    },
+    "chrome-cpu-analyzer": {
+      "name": "Chrome High CPU Analyzer",
+      "description": "Detects and analyzes Chrome processes consuming excessive CPU",
+      "file": "active/chrome-cpu-analyzer.sh",
+      "category": "performance",
+      "triggers": [
+        "high_chrome_cpu",
+        "browser_performance",
+        "renderer_overload"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-14",
+      "last_modified": "2025-09-14",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "aggressive"
+      ]
+    },
+    "memory-leak-detector": {
+      "name": "Memory Leak and Process Health Detector",
+      "description": "Detects memory leaks, long-running processes, and resource consumption patterns",
+      "file": "active/memory-leak-detector.sh",
+      "category": "resource-management",
+      "triggers": [
+        "high_memory_usage",
+        "memory_growth_pattern",
+        "resource_exhaustion"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-14",
+      "last_modified": "2025-09-14",
+      "version": "1.0",
+      "execution_time_estimate": "60s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "judge0-container-monitor": {
+      "name": "Judge0 Container Health Monitor",
+      "description": "Monitors judge0 worker containers for memory exhaustion and performance issues",
+      "file": "active/judge0-container-monitor.sh",
+      "category": "resource-management",
+      "triggers": [
+        "container_memory_high",
+        "judge0_worker_issues",
+        "resque_workers_stuck"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-14",
+      "last_modified": "2025-09-14",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "judge0"
+      ]
+    },
+    "judge0-memory-optimizer": {
+      "name": "Judge0 Memory Optimizer",
+      "description": "Detects and optimizes Judge0 worker memory exhaustion patterns",
+      "file": "active/judge0-memory-optimizer.sh",
+      "category": "resource-management",
+      "triggers": [
+        "judge0_memory_high",
+        "worker_exhaustion",
+        "container_oom"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-15",
+      "last_modified": "2025-09-15",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "judge0"
+      ]
+    },
+    "judge0-cpu-investigation": {
+      "name": "Judge0 High CPU Investigation",
+      "description": "Investigates high CPU usage from Judge0 worker containers and Redis interactions",
+      "file": "active/judge0-cpu-investigation.sh",
+      "category": "performance",
+      "triggers": [
+        "judge0_high_cpu",
+        "worker_cpu_overload",
+        "redis_high_cpu"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-16",
+      "last_modified": "2025-09-16",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "judge0",
+        "legacy"
+      ]
+    },
+    "judge0-memory-analyzer": {
+      "name": "Judge0 Memory Analyzer",
+      "description": "Analyzes Judge0 worker memory usage, swap pressure, and container tuning opportunities",
+      "file": "active/judge0-memory-analyzer.sh",
+      "category": "resource-management",
+      "triggers": [
+        "judge0_memory_high",
+        "worker_memory_exhaustion",
+        "container_memory_near_limit"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-16",
+      "last_modified": "2025-09-16",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "judge0",
+        "legacy"
+      ]
+    },
+    "service-health-monitor": {
+      "name": "Service Health Monitor",
+      "description": "Detects failed systemd services and provides recovery recommendations",
+      "file": "active/service-health-monitor.sh",
+      "category": "resource-management",
+      "triggers": [
+        "service_failures",
+        "systemd_issues",
+        "daemon_problems"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-15",
+      "last_modified": "2025-09-15",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "container-health-comprehensive": {
+      "name": "Comprehensive Container Health Monitor",
+      "description": "Detects unhealthy containers, health check failures, and provides recovery recommendations",
+      "file": "active/container-health-comprehensive.sh",
+      "category": "resource-management",
+      "triggers": [
+        "container_unhealthy",
+        "health_check_failures",
+        "docker_errors"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-16",
+      "last_modified": "2025-09-16",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "docker-health-analyzer": {
+      "name": "Docker Container Health Analyzer",
+      "description": "Analyzes Docker container health issues and provides detailed diagnostics",
+      "file": "active/docker-health-analyzer.sh",
+      "category": "resource-management",
+      "triggers": [
+        "container_unhealthy",
+        "docker_errors",
+        "health_check_failures"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-14",
+      "last_modified": "2025-09-14",
+      "version": "1.0",
+      "execution_time_estimate": "45s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "comprehensive-system-analyzer": {
+      "name": "Comprehensive System Health Analyzer",
+      "description": "Unified system health check covering processes, containers, memory, and services",
+      "file": "active/comprehensive-system-analyzer.sh",
+      "category": "resource-management",
+      "triggers": [
+        "routine_health_check",
+        "system_anomaly",
+        "performance_degradation"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-16",
+      "last_modified": "2025-09-16",
+      "version": "1.0",
+      "execution_time_estimate": "60s",
+      "safety_level": "safe"
+    },
+    "service-config-validator": {
+      "name": "Service Configuration Validator",
+      "description": "Detects systemd services with configuration errors or invalid directives",
+      "file": "active/service-config-validator.sh",
+      "category": "resource-management",
+      "triggers": [
+        "service_config_errors",
+        "failed_services",
+        "systemd_warnings"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-18",
+      "last_modified": "2025-09-18",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe"
+    },
+    "master-system-sweep": {
+      "name": "Master System Sweep",
+      "description": "Runs core investigation scripts sequentially with timeout and summary reporting",
+      "file": "active/master-system-sweep.sh",
+      "category": "meta",
+      "triggers": [
+        "full_diagnostic",
+        "manual_review"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-20",
+      "last_modified": "2025-09-20",
+      "version": "1.0",
+      "execution_time_estimate": "120s",
+      "safety_level": "safe",
+      "tags": [
+        "meta"
+      ],
+      "enabled": true
+    },
+    "swap-memory-pressure-analyzer": {
+      "name": "Swap and Memory Pressure Deep Analyzer",
+      "description": "Comprehensive analysis of swap usage, memory pressure, and process behavior patterns",
+      "file": "active/swap-memory-pressure-analyzer.sh",
+      "category": "resource-management",
+      "triggers": [
+        "high_swap_usage",
+        "memory_pressure",
+        "performance_degradation"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-18",
+      "last_modified": "2025-09-18",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    }
+  },
+  "categories": {
+    "performance": {
+      "description": "CPU, memory, and general performance issues",
+      "color": "#ff6b6b"
+    },
+    "process-analysis": {
+      "description": "Process management and lifecycle issues",
+      "color": "#4ecdc4"
+    },
+    "resource-management": {
+      "description": "File descriptors, connections, and resource leaks",
+      "color": "#45b7d1"
+    },
+    "network": {
+      "description": "Network connectivity and performance issues",
+      "color": "#96ceb4"
+    },
+    "storage": {
+      "description": "Disk I/O and storage-related problems",
+      "color": "#feca57"
+    },
+    "test": {
+      "description": "Test and diagnostic scripts",
+      "color": "#a0a0a0"
+    }
+  },
+  "templates": {
+    "investigation_script": {
+      "file": "templates/investigation-template.sh",
+      "description": "Base template for creating new investigation scripts"
+    }
+  },
+  "settings": {
+    "results_retention_days": 7,
+    "max_execution_time_seconds": 300,
+    "auto_cleanup_results": true,
+    "require_metadata": true
+  }
+}

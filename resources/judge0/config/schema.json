@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Judge0 Resource Configuration Schema",
+  "description": "Configuration options for the Judge0 code execution resource",
+  "properties": {
+    "api_port": {
+      "type": "integer",
+      "description": "Port for Judge0 API server",
+      "default": 2358,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "workers": {
+      "type": "integer",
+      "description": "Number of worker containers",
+      "default": 2,
+      "minimum": 1,
+      "maximum": 10
+    },
+    "cpu_time_limit": {
+      "type": "number",
+      "description": "CPU time limit in seconds per submission",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 60
+    },
+    "wall_time_limit": {
+      "type": "number",
+      "description": "Wall time limit in seconds per submission",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 120
+    },
+    "memory_limit": {
+      "type": "integer",
+      "description": "Memory limit in MB per submission",
+      "default": 256,
+      "minimum": 32,
+      "maximum": 2048
+    },
+    "max_processes": {
+      "type": "integer",
+      "description": "Maximum number of processes per submission",
+      "default": 30,
+      "minimum": 1,
+      "maximum": 100
+    },
+    "enable_network": {
+      "type": "boolean",
+      "description": "Enable network access in submissions",
+      "default": false
+    },
+    "execution_method": {
+      "type": "string",
+      "description": "Preferred execution method",
+      "enum": ["native", "direct", "pool", "external"],
+      "default": "pool"
+    },
+    "pool_size": {
+      "type": "integer",
+      "description": "Number of warm containers per language",
+      "default": 3,
+      "minimum": 0,
+      "maximum": 10
+    },
+    "cache_enabled": {
+      "type": "boolean",
+      "description": "Enable result caching",
+      "default": true
+    },
+    "cache_ttl": {
+      "type": "integer",
+      "description": "Cache TTL in seconds",
+      "default": 3600,
+      "minimum": 60,
+      "maximum": 86400
+    },
+    "health_cache_ttl": {
+      "type": "object",
+      "description": "Health check cache TTL settings",
+      "properties": {
+        "quick": {
+          "type": "integer",
+          "default": 5
+        },
+        "detailed": {
+          "type": "integer",
+          "default": 30
+        },
+        "metrics": {
+          "type": "integer",
+          "default": 60
+        }
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

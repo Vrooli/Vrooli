@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Gazebo Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "ports": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 11456,
+          "description": "Main API and health check port"
+        },
+        "grpc": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 11457,
+          "description": "gRPC communication port"
+        },
+        "websocket": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 11458,
+          "description": "WebSocket real-time updates port"
+        }
+      }
+    },
+    "simulation": {
+      "type": "object",
+      "properties": {
+        "physics_engine": {
+          "type": "string",
+          "enum": ["dart", "bullet", "ode"],
+          "default": "dart",
+          "description": "Physics engine to use"
+        },
+        "real_time_factor": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 10.0,
+          "default": 1.0,
+          "description": "Simulation speed relative to real time"
+        },
+        "max_step_size": {
+          "type": "number",
+          "minimum": 0.0001,
+          "maximum": 0.1,
+          "default": 0.001,
+          "description": "Maximum simulation step size in seconds"
+        },
+        "update_rate": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 10000,
+          "default": 1000,
+          "description": "Physics update rate in Hz"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "max_memory": {
+          "type": "string",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "2G",
+          "description": "Maximum memory allocation"
+        },
+        "max_cpu": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 2,
+          "description": "Maximum CPU cores"
+        },
+        "max_simulations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5,
+          "description": "Maximum concurrent simulations"
+        }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "properties": {
+        "headless": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run without GUI"
+        },
+        "enable_gpu": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable GPU acceleration"
+        },
+        "render_engine": {
+          "type": "string",
+          "enum": ["ogre", "ogre2", "optix"],
+          "default": "ogre2",
+          "description": "Rendering engine"
+        }
+      }
+    },
+    "integration": {
+      "type": "object",
+      "properties": {
+        "ros2": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable ROS 2 integration"
+            },
+            "domain_id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 232,
+              "default": 0,
+              "description": "ROS 2 domain ID"
+            }
+          }
+        },
+        "python": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+$",
+              "default": "3.10",
+              "description": "Python version"
+            },
+            "context_size": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 1000000,
+              "default": 256000,
+              "description": "Python API context size for AI agents"
+            }
+          }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info",
+          "description": "Log level"
+        },
+        "max_size": {
+          "type": "string",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "100M",
+          "description": "Maximum log file size"
+        },
+        "rotate": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 7,
+          "description": "Number of log files to keep"
+        }
+      }
+    }
+  },
+  "required": ["ports", "simulation", "resources"],
+  "additionalProperties": false
+}

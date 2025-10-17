@@ -1,0 +1,35 @@
+{
+  "name": "simple-test-app",
+  "version": "1.0.0",
+  "description": "Simple test application",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "build": "echo 'Building simple app...'",
+    "test": "jest --coverage --coverageReporters=text --coverageReporters=json-summary",
+    "test:watch": "jest --watch",
+    "test:unit": "jest --testPathPattern=__tests__",
+    "test:integration": "jest --testPathPattern=integration"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "**/*.js",
+      "!**/node_modules/**",
+      "!**/coverage/**",
+      "!jest.config.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 75,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
+  }
+}

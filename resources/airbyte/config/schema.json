@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Airbyte Configuration Schema",
+  "type": "object",
+  "properties": {
+    "AIRBYTE_VERSION": {
+      "type": "string",
+      "description": "Airbyte version to deploy",
+      "default": "latest"
+    },
+    "AIRBYTE_WEBAPP_PORT": {
+      "type": "integer",
+      "description": "Port for Airbyte webapp UI",
+      "default": 8002,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "AIRBYTE_SERVER_PORT": {
+      "type": "integer",
+      "description": "Port for Airbyte API server",
+      "default": 8003,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "AIRBYTE_TEMPORAL_PORT": {
+      "type": "integer",
+      "description": "Port for Temporal workflow engine",
+      "default": 8006,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "AIRBYTE_DATA_DIR": {
+      "type": "string",
+      "description": "Directory for Airbyte data storage",
+      "default": "./data"
+    },
+    "AIRBYTE_WORKSPACE_DIR": {
+      "type": "string",
+      "description": "Directory for Airbyte workspace",
+      "default": "./data/workspace"
+    },
+    "AIRBYTE_MEMORY_LIMIT": {
+      "type": "string",
+      "description": "Memory limit for containers",
+      "default": "4g",
+      "pattern": "^[0-9]+[kmg]$"
+    },
+    "AIRBYTE_CPU_LIMIT": {
+      "type": "number",
+      "description": "CPU limit for containers",
+      "default": 2,
+      "minimum": 1
+    },
+    "DEBUG": {
+      "type": "boolean",
+      "description": "Enable debug logging",
+      "default": false
+    }
+  },
+  "required": [
+    "AIRBYTE_VERSION",
+    "AIRBYTE_WEBAPP_PORT",
+    "AIRBYTE_SERVER_PORT",
+    "AIRBYTE_TEMPORAL_PORT"
+  ]
+}

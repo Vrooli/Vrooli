@@ -1,0 +1,81 @@
+services:
+  unstructured-io:
+    image: downloads.unstructured.io/unstructured-io/unstructured-api:0.0.78
+    container_name: vrooli-unstructured-io-prod
+    ports:
+      - "11450:8000"
+    environment:
+      - UNSTRUCTURED_API_LOG_LEVEL=WARNING
+      - UNSTRUCTURED_API_MAX_REQUEST_SIZE=104857600  # 100MB for production
+      - UNSTRUCTURED_API_WORKERS=4  # Multiple workers for production
+      - UNSTRUCTURED_API_TIMEOUT=600  # 10 minutes for large documents
+    volumes:
+      # Persistent cache directory with named volume
+      - unstructured-cache:/app/cache
+      # Logs directory with named volume
+      - unstructured-logs:/app/logs
+      # Temporary processing directory
+      - /tmp/unstructured-io:/tmp/unstructured-processing:rw
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=unstructured-io,environment=production"
+    labels:
+      - "com.vrooli.service=unstructured-io"
+      - "com.vrooli.version=0.0.78"
+      - "com.vrooli.environment=production"
+      - "com.vrooli.description=Document processing and content extraction"
+      - "com.vrooli.monitoring=enabled"
+    networks:
+      - vrooli-resources
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Required for processing
+    tmpfs:
+      - /tmp:size=2G,mode=1777
+
+volumes:
+  unstructured-cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${UNSTRUCTURED_CACHE_DIR:-/var/lib/vrooli/unstructured/cache}
+  unstructured-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${UNSTRUCTURED_LOGS_DIR:-/var/log/vrooli/unstructured}
+
+networks:
+  vrooli-resources:
+    driver: bridge
+    name: vrooli-resources-prod
+    driver_opts:
+      com.docker.network.bridge.name: br-vrooli-prod
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

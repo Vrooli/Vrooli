@@ -1,0 +1,508 @@
+{
+  "name": "N8N Workflow Executor with Authentication",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n/execute-auth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for n8n workflow execution with authentication\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.workflow_id) {\n  throw new Error('Missing required field: workflow_id');\n}\n\n// Extract and validate workflow ID\nconst workflowId = input.workflow_id.toString().trim();\nif (!workflowId) {\n  throw new Error('workflow_id cannot be empty');\n}\n\n// Configuration with defaults\nconst config = {\n  workflowId: workflowId,\n  n8nBaseUrl: input.n8n_base_url || '${service.n8n.url}',\n  executionTimeout: Math.min(Math.max(input.execution_timeout || 60000, 10000), 300000), // 10s to 5min\n  inputData: input.input_data || {},\n  captureScreenshots: input.capture_screenshots !== false, // default true\n  waitAfterClick: Math.min(Math.max(input.wait_after_click || 2000, 500), 10000), // 0.5s to 10s\n  pollInterval: Math.min(Math.max(input.poll_interval || 1000, 500), 5000), // 0.5s to 5s\n  maxPolls: Math.min(Math.max(input.max_polls || 60, 10), 300), // 10 to 300 polls\n  includeDetailedLogs: input.include_detailed_logs !== false, // default true\n  viewport: input.viewport || {\n    width: 1920,\n    height: 1080\n  },\n  // Authentication configuration\n  authRequired: input.auth_required !== false, // default true\n  email: input.email || '{{$env.N8N_EMAIL}}' || 'admin@example.com',\n  password: input.password || '{{$env.N8N_PASSWORD}}' || 'admin123',\n  maxAuthWait: Math.min(Math.max(input.max_auth_wait || 10000, 3000), 30000) // 3s to 30s\n};\n\n// Build the workflow URL\nlet workflowUrl;\nif (workflowId.startsWith('http://') || workflowId.startsWith('https://')) {\n  // Full URL provided\n  workflowUrl = workflowId;\n} else {\n  // Workflow ID provided, build URL\n  workflowUrl = `${config.n8nBaseUrl}/workflow/${workflowId}`;\n}\n\n// Validate URL format\ntry {\n  new URL(workflowUrl);\n} catch (error) {\n  throw new Error(`Invalid workflow URL format: ${workflowUrl}`);\n}\n\n// Prepare metadata\nconst metadata = {\n  executionId: `n8n_auth_exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  startTime: new Date().toISOString(),\n  workflowUrl: workflowUrl,\n  expectedDuration: config.executionTimeout\n};\n\nreturn {\n  config: config,\n  metadata: metadata\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input & Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/browser/console",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"url\": {{ JSON.stringify($json.metadata.workflowUrl) }},\n  \"wait_time\": 3000,\n  \"capture_screenshot\": {{ $json.config.captureScreenshots }},\n  \"include_network_logs\": true,\n  \"include_performance\": true,\n  \"timeout\": 45000,\n  \"viewport\": {{ JSON.stringify($json.config.viewport) }},\n  \"interactions\": [\n    {\n      \"type\": \"wait\",\n      \"duration\": 2000\n    },\n    {\n      \"type\": \"evaluate\",\n      \"script\": \"() => { return { isAuthPage: window.location.href.includes('/signin') || window.location.href.includes('/login'), currentUrl: window.location.href, hasLoginForm: !!document.querySelector('input[type=\\\"email\\\"], input[type=\\\"password\\\"]') }; }\"\n    }\n  ]\n}",
+        "options": {
+          "timeout": 50000
+        }
+      },
+      "id": "check_auth_needed",
+      "name": "Check Authentication Required",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process authentication check results\nconst browserResult = $input.item.json;\nconst inputData = $('Validate Input & Config').item.json;\n\n// Check if browser automation succeeded\nif (!browserResult.success) {\n  throw new Error(`Browser automation failed: ${browserResult.error || 'Unknown error'}`);\n}\n\n// Analyze if authentication is needed\nlet authRequired = false;\nlet currentUrl = browserResult.url || '';\nlet authPageDetected = false;\n\n// Check for auth indicators\nif (currentUrl.includes('/signin') || currentUrl.includes('/login')) {\n  authPageDetected = true;\n  authRequired = true;\n}\n\n// Check evaluation results if available\nif (browserResult.evaluationResults && browserResult.evaluationResults.length > 0) {\n  const authCheck = browserResult.evaluationResults[0];\n  if (authCheck && authCheck.result) {\n    authPageDetected = authCheck.result.isAuthPage || authCheck.result.hasLoginForm;\n    authRequired = authPageDetected;\n    currentUrl = authCheck.result.currentUrl || currentUrl;\n  }\n}\n\nconsole.log(`[Auth Check] Auth page detected: ${authPageDetected}`);\nconsole.log(`[Auth Check] Current URL: ${currentUrl}`);\nconsole.log(`[Auth Check] Auth required: ${authRequired}`);\n\nreturn {\n  config: inputData.config,\n  metadata: {\n    ...inputData.metadata,\n    authCheck: {\n      authRequired: authRequired,\n      authPageDetected: authPageDetected,\n      currentUrl: currentUrl,\n      timestamp: new Date().toISOString()\n    }\n  },\n  browserResult: browserResult,\n  needsAuthentication: authRequired && inputData.config.authRequired\n};"
+      },
+      "id": "process_auth_check",
+      "name": "Process Auth Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsAuthentication }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "needs_auth_check",
+      "name": "Needs Authentication?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/browser/console",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"url\": {{ JSON.stringify($json.metadata.authCheck.currentUrl) }},\n  \"wait_time\": 2000,\n  \"capture_screenshot\": {{ $json.config.captureScreenshots }},\n  \"include_network_logs\": true,\n  \"include_performance\": false,\n  \"timeout\": {{ $json.config.maxAuthWait + 15000 }},\n  \"viewport\": {{ JSON.stringify($json.config.viewport) }},\n  \"interactions\": [\n    {\n      \"type\": \"wait\",\n      \"duration\": 1000\n    },\n    {\n      \"type\": \"type\",\n      \"selector\": \"input[type=email], input[name=email], input[id=email], input[placeholder*=email i]\",\n      \"text\": {{ JSON.stringify($json.config.email) }}\n    },\n    {\n      \"type\": \"wait\",\n      \"duration\": 500\n    },\n    {\n      \"type\": \"type\",\n      \"selector\": \"input[type=password], input[name=password], input[id=password]\",\n      \"text\": {{ JSON.stringify($json.config.password) }}\n    },\n    {\n      \"type\": \"wait\",\n      \"duration\": 500\n    },\n    {\n      \"type\": \"click\",\n      \"selector\": \"button[type=submit], input[type=submit], button:contains('Sign in'), button:contains('Login'), .login-button, .signin-button\"\n    },\n    {\n      \"type\": \"wait\",\n      \"duration\": {{ $json.config.maxAuthWait }}\n    },\n    {\n      \"type\": \"evaluate\",\n      \"script\": \"() => { return { currentUrl: window.location.href, isStillOnAuthPage: window.location.href.includes('/signin') || window.location.href.includes('/login'), hasErrorMessage: !!document.querySelector('.error, .alert-danger, [class*=error], [class*=danger]') }; }\"\n    }\n  ]\n}",
+        "options": {
+          "timeout": "={{ $json.config.maxAuthWait + 20000 }}"
+        }
+      },
+      "id": "perform_authentication",
+      "name": "Perform Authentication",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process authentication results\nconst authResult = $input.item.json;\nconst previousData = $('Needs Authentication?').item.json;\n\n// Check if authentication succeeded\nif (!authResult.success) {\n  throw new Error(`Authentication failed: ${authResult.error || 'Unknown error'}`);\n}\n\nlet authSuccess = false;\nlet authError = null;\nlet currentUrl = authResult.url || '';\n\n// Check evaluation results for auth status\nif (authResult.evaluationResults && authResult.evaluationResults.length > 0) {\n  const authCheck = authResult.evaluationResults[0];\n  if (authCheck && authCheck.result) {\n    currentUrl = authCheck.result.currentUrl || currentUrl;\n    const stillOnAuthPage = authCheck.result.isStillOnAuthPage;\n    const hasErrorMessage = authCheck.result.hasErrorMessage;\n    \n    if (hasErrorMessage) {\n      authError = 'Authentication failed - error message detected on page';\n    } else if (!stillOnAuthPage) {\n      authSuccess = true;\n    } else {\n      authError = 'Authentication failed - still on login page';\n    }\n  }\n} else {\n  // Fallback: check if URL changed away from signin page\n  if (!currentUrl.includes('/signin') && !currentUrl.includes('/login')) {\n    authSuccess = true;\n  } else {\n    authError = 'Authentication status unclear - still appears to be on login page';\n  }\n}\n\nconsole.log(`[Authentication] Success: ${authSuccess}`);\nconsole.log(`[Authentication] Current URL: ${currentUrl}`);\nif (authError) {\n  console.log(`[Authentication] Error: ${authError}`);\n}\n\nif (!authSuccess) {\n  throw new Error(authError || 'Authentication failed for unknown reason');\n}\n\n// Navigate to the actual workflow page after successful auth\nconst targetWorkflowUrl = previousData.metadata.workflowUrl;\n\nreturn {\n  config: previousData.config,\n  metadata: {\n    ...previousData.metadata,\n    authentication: {\n      success: authSuccess,\n      authenticatedUrl: currentUrl,\n      timestamp: new Date().toISOString()\n    },\n    targetWorkflowUrl: targetWorkflowUrl\n  },\n  authResult: authResult,\n  proceedToWorkflow: true\n};"
+      },
+      "id": "process_auth_result",
+      "name": "Process Auth Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/browser/console",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"url\": {{ JSON.stringify($json.metadata.targetWorkflowUrl || $json.metadata.workflowUrl) }},\n  \"wait_time\": 3000,\n  \"capture_screenshot\": {{ $json.config.captureScreenshots }},\n  \"include_network_logs\": true,\n  \"include_performance\": true,\n  \"timeout\": 30000,\n  \"viewport\": {{ JSON.stringify($json.config.viewport) }},\n  \"interactions\": [\n    {\n      \"type\": \"wait\",\n      \"selector\": \"[data-test-id='execute-workflow-button'], .execute-workflow, button:contains('Execute'), button:contains('Test')\",\n      \"timeout\": 10000\n    },\n    {\n      \"type\": \"click\",\n      \"selector\": \"[data-test-id='execute-workflow-button'], .execute-workflow, button:contains('Execute'), button:contains('Test')\"\n    },\n    {\n      \"type\": \"wait\",\n      \"duration\": {{ $json.config.waitAfterClick }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "id": "execute_workflow",
+      "name": "Execute Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process workflow execution results and prepare for monitoring\nconst executionResult = $input.item.json;\nconst inputData = $('Process Auth Result').item.json || $('Needs Authentication?').item.json;\n\n// Check if execution succeeded\nif (!executionResult.success) {\n  throw new Error(`Workflow execution failed: ${executionResult.error || 'Unknown error'}`);\n}\n\n// Analyze execution state\nconst executionAnalysis = {\n  executionTriggered: false,\n  errors: [],\n  warnings: [],\n  networkIssues: []\n};\n\n// Check console logs for execution indicators\nif (executionResult.consoleLogs) {\n  executionResult.consoleLogs.forEach(log => {\n    const text = log.text.toLowerCase();\n    \n    // Look for execution start indicators\n    if (text.includes('workflow execution') || \n        text.includes('starting execution') ||\n        text.includes('execution started')) {\n      executionAnalysis.executionTriggered = true;\n    }\n    \n    // Collect errors and warnings\n    if (log.type === 'error') {\n      executionAnalysis.errors.push({\n        message: log.text,\n        timestamp: log.timestamp\n      });\n    } else if (log.type === 'warn') {\n      executionAnalysis.warnings.push({\n        message: log.text,\n        timestamp: log.timestamp\n      });\n    }\n  });\n}\n\n// Check for network issues\nif (executionResult.networkErrors && executionResult.networkErrors.length > 0) {\n  executionAnalysis.networkIssues = executionResult.networkErrors.map(err => ({\n    url: err.url,\n    error: err.failure,\n    timestamp: err.timestamp\n  }));\n}\n\n// Check page errors\nif (executionResult.pageErrors && executionResult.pageErrors.length > 0) {\n  executionAnalysis.errors.push(...executionResult.pageErrors.map(err => ({\n    message: err.message,\n    stack: err.stack,\n    timestamp: err.timestamp,\n    type: 'javascript_error'\n  })));\n}\n\nconst shouldMonitor = executionAnalysis.errors.length === 0;\n\nconsole.log(`[Workflow Execution] Triggered: ${executionAnalysis.executionTriggered}`);\nconsole.log(`[Workflow Execution] Errors: ${executionAnalysis.errors.length}`);\nconsole.log(`[Workflow Execution] Should Monitor: ${shouldMonitor}`);\n\nreturn {\n  config: inputData.config,\n  metadata: {\n    ...inputData.metadata,\n    workflowExecution: {\n      success: executionResult.success,\n      executionTriggered: executionAnalysis.executionTriggered,\n      timestamp: new Date().toISOString()\n    }\n  },\n  executionAnalysis: executionAnalysis,\n  shouldMonitor: shouldMonitor,\n  executionResult: executionResult,\n  pollCount: 0,\n  executionLogs: [],\n  executionComplete: false\n};"
+      },
+      "id": "process_execution",
+      "name": "Process Workflow Execution",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldMonitor }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "should_monitor_check",
+      "name": "Should Monitor Execution?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build final execution report with authentication details\nconst executionData = $input.item.json;\n\n// Calculate execution statistics\nconst stats = {\n  totalPolls: executionData.pollCount || 0,\n  executionDuration: null,\n  totalLogs: (executionData.executionLogs || []).length,\n  logsByType: {},\n  errorCount: 0,\n  warningCount: 0,\n  networkErrorCount: 0\n};\n\n// Calculate execution duration if we have timestamps\nif (executionData.metadata.workflowExecution?.timestamp && executionData.executionComplete) {\n  const startTime = new Date(executionData.metadata.workflowExecution.timestamp);\n  const endTime = new Date();\n  stats.executionDuration = endTime - startTime;\n}\n\n// Analyze logs\n(executionData.executionLogs || []).forEach(log => {\n  stats.logsByType[log.type] = (stats.logsByType[log.type] || 0) + 1;\n  \n  if (log.type === 'error') stats.errorCount++;\n  else if (log.type === 'warn') stats.warningCount++;\n  else if (log.type === 'network_error') stats.networkErrorCount++;\n});\n\n// Determine overall success\nconst success = (executionData.executionComplete !== false) && \n                !(executionData.executionStatus?.failed) &&\n                stats.errorCount === 0;\n\n// Create insights\nconst insights = [];\n\nif (executionData.metadata.authentication) {\n  insights.push('Successfully authenticated with n8n');\n}\n\nif (success) {\n  insights.push('Workflow executed successfully');\n} else if (executionData.executionStatus?.failed) {\n  insights.push('Workflow execution failed');\n} else if (executionData.executionComplete === false) {\n  insights.push(`Execution monitoring timed out after ${stats.totalPolls} polls`);\n}\n\nif (stats.errorCount > 0) {\n  insights.push(`Found ${stats.errorCount} error(s) during execution`);\n}\n\nif (stats.warningCount > 0) {\n  insights.push(`Found ${stats.warningCount} warning(s) during execution`);\n}\n\n// Build final response\nconst response = {\n  success: success,\n  executionId: executionData.metadata.executionId,\n  workflowId: executionData.config.workflowId,\n  workflowUrl: executionData.metadata.workflowUrl,\n  \n  // Summary\n  summary: {\n    authenticationPerformed: !!executionData.metadata.authentication,\n    authenticationSuccess: executionData.metadata.authentication?.success || false,\n    executionComplete: executionData.executionComplete !== false,\n    executionSuccessful: success,\n    insights: insights,\n    duration: stats.executionDuration,\n    monitoringPolls: stats.totalPolls,\n    completedAt: new Date().toISOString()\n  },\n  \n  // Statistics\n  stats: stats,\n  \n  // Authentication details\n  authentication: executionData.metadata.authentication || {\n    performed: false,\n    reason: 'No authentication required'\n  },\n  \n  // Execution details\n  execution: {\n    triggered: executionData.metadata.workflowExecution?.executionTriggered || false,\n    status: executionData.executionStatus || {},\n    logs: executionData.executionLogs || [],\n    analysis: executionData.executionAnalysis\n  },\n  \n  // Browser automation results\n  browserResults: {\n    execution: {\n      success: executionData.executionResult?.success || false,\n      screenshot: executionData.executionResult?.screenshot || null,\n      consoleLogs: executionData.executionResult?.consoleLogs || [],\n      pageErrors: executionData.executionResult?.pageErrors || [],\n      networkErrors: executionData.executionResult?.networkErrors || []\n    },\n    monitoring: {\n      pollsExecuted: stats.totalPolls,\n      lastPollResult: executionData.lastMonitorResult || null\n    }\n  },\n  \n  // Configuration used\n  config: executionData.config,\n  \n  // Error information if any\n  errors: executionData.executionAnalysis?.errors || []\n};\n\nreturn response;"
+      },
+      "id": "build_success_report",
+      "name": "Build Success Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Handle case where monitoring is skipped due to execution errors\nconst data = $input.item.json;\n\n// Build error response\nconst response = {\n  success: false,\n  executionId: data.metadata.executionId,\n  workflowId: data.config.workflowId,\n  workflowUrl: data.metadata.workflowUrl,\n  \n  summary: {\n    authenticationPerformed: !!data.metadata.authentication,\n    authenticationSuccess: data.metadata.authentication?.success || false,\n    executionComplete: false,\n    executionSuccessful: false,\n    insights: [\n      'Workflow execution failed',\n      `Found ${data.executionAnalysis.errors.length} error(s) during execution`,\n      'Monitoring was skipped due to execution errors'\n    ],\n    duration: null,\n    monitoringPolls: 0,\n    failedAt: new Date().toISOString()\n  },\n  \n  stats: {\n    totalPolls: 0,\n    executionDuration: null,\n    totalLogs: data.executionAnalysis.errors.length,\n    errorCount: data.executionAnalysis.errors.length,\n    warningCount: data.executionAnalysis.warnings.length,\n    networkErrorCount: data.executionAnalysis.networkIssues.length\n  },\n  \n  authentication: data.metadata.authentication || {\n    performed: false,\n    reason: 'Authentication not completed due to execution failure'\n  },\n  \n  execution: {\n    triggered: data.metadata.workflowExecution?.executionTriggered || false,\n    status: { failed: true },\n    logs: [],\n    analysis: data.executionAnalysis\n  },\n  \n  browserResults: {\n    execution: {\n      success: data.executionResult?.success || false,\n      screenshot: data.executionResult?.screenshot || null,\n      consoleLogs: data.executionResult?.consoleLogs || [],\n      pageErrors: data.executionResult?.pageErrors || [],\n      networkErrors: data.executionResult?.networkErrors || []\n    },\n    monitoring: {\n      pollsExecuted: 0,\n      lastPollResult: null\n    }\n  },\n  \n  config: data.config,\n  errors: data.executionAnalysis.errors\n};\n\nreturn response;"
+      },
+      "id": "build_error_report",
+      "name": "Build Error Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2000, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2400, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'N8N workflow execution with authentication failed' }}\",\n  \"executionId\": \"={{ $json.executionId || 'unknown' }}\",\n  \"workflowId\": \"={{ $json.workflowId || 'unknown' }}\",\n  \"authenticationAttempted\": \"={{ !!$json.authentication }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\",\n  \"partial_data\": {\n    \"authResult\": \"={{ $json.authResult ? 'available' : 'unavailable' }}\",\n    \"executionResult\": \"={{ $json.executionResult ? 'available' : 'unavailable' }}\",\n    \"monitoring\": \"={{ $json.shouldMonitor ? 'attempted' : 'skipped' }}\"\n  }\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2400, 600]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.workflow_id) {\n  return {\n    workflow_id: \"embedding-generator\",\n    execution_timeout: 30000,\n    capture_screenshots: true,\n    include_detailed_logs: true,\n    poll_interval: 2000,\n    max_polls: 30,\n    auth_required: true,\n    email: \"admin@example.com\",\n    password: \"admin123\"\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "N8N Workflow Execution with Auth Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2600, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input & Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input & Config": {
+      "main": [
+        [
+          {
+            "node": "Check Authentication Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Authentication Required": {
+      "main": [
+        [
+          {
+            "node": "Process Auth Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Auth Check": {
+      "main": [
+        [
+          {
+            "node": "Needs Authentication?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Authentication?": {
+      "main": [
+        [
+          {
+            "node": "Perform Authentication",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perform Authentication": {
+      "main": [
+        [
+          {
+            "node": "Process Auth Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Auth Result": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow": {
+      "main": [
+        [
+          {
+            "node": "Process Workflow Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Workflow Execution": {
+      "main": [
+        [
+          {
+            "node": "Should Monitor Execution?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Monitor Execution?": {
+      "main": [
+        [
+          {
+            "node": "Build Success Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Success Report": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Error Report": {
+      "main": [
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "n8n-workflow-executor-auth-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "n8n-workflow-executor-with-auth",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "meta-automation",
+      "name": "meta-automation"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "workflow-orchestration",
+      "name": "workflow-orchestration"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "authentication",
+      "name": "authentication"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "monitoring",
+      "name": "monitoring"
+    }
+  ]
+}

@@ -1,0 +1,180 @@
+{
+  "name": "NutriTrack - Calorie Calculator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nutrition-tracker/calorie-calculator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  age: 30,\n  gender: 'male',\n  weight_kg: 75,\n  height_cm: 175,\n  activity_level: 'moderately_active',\n  weight_goal: 'maintain',\n  user_id: 'test-user'\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $('Manual').first() !== undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "defaults",
+      "name": "Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input data\nconst isManual = $('Manual').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\n// Calculate BMR using Mifflin-St Jeor Equation\nconst age = parseFloat(input.age);\nconst weight_kg = parseFloat(input.weight_kg);\nconst height_cm = parseFloat(input.height_cm);\nconst gender = input.gender;\nconst activity_level = input.activity_level;\nconst weight_goal = input.weight_goal;\n\nlet bmr;\nif (gender === 'male') {\n  bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) + 5;\n} else {\n  bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) - 161;\n}\n\n// Activity multipliers\nconst activity_multipliers = {\n  sedentary: 1.2,\n  lightly_active: 1.375,\n  moderately_active: 1.55,\n  very_active: 1.725,\n  extremely_active: 1.9\n};\n\nconst tdee = Math.round(bmr * (activity_multipliers[activity_level] || 1.55));\n\n// Weight goal adjustments\nlet daily_calories = tdee;\nlet calorie_adjustment = 0;\n\nif (weight_goal === 'lose') {\n  calorie_adjustment = -500; // 0.5 kg per week loss\n  daily_calories = tdee - 500;\n} else if (weight_goal === 'gain') {\n  calorie_adjustment = 300; // 0.3 kg per week gain\n  daily_calories = tdee + 300;\n}\n\n// Calculate macro recommendations (moderate balanced approach)\nconst protein_percent = weight_goal === 'gain' ? 0.30 : 0.25;\nconst carbs_percent = 0.45;\nconst fat_percent = 0.30;\n\nconst protein_calories = daily_calories * protein_percent;\nconst carbs_calories = daily_calories * carbs_percent;\nconst fat_calories = daily_calories * fat_percent;\n\nconst protein_grams = Math.round(protein_calories / 4);\nconst carbs_grams = Math.round(carbs_calories / 4);\nconst fat_grams = Math.round(fat_calories / 9);\n\n// Minimum protein recommendation\nconst min_protein = Math.round(weight_kg * 1.6); // 1.6g per kg for active individuals\n\nconst calculationResult = {\n  user_id: input.user_id,\n  bmr: Math.round(bmr),\n  tdee: tdee,\n  daily_calories: daily_calories,\n  calorie_adjustment: calorie_adjustment,\n  macros: {\n    protein_grams: Math.max(protein_grams, min_protein),\n    carbs_grams: carbs_grams,\n    fat_grams: fat_grams,\n    fiber_grams: Math.round(daily_calories / 100), // 10-14g per 1000 calories\n    sugar_limit: Math.round(daily_calories * 0.10 / 4), // 10% of calories max\n    sodium_limit: 2300 // mg per day\n  },\n  water_ml: Math.round(weight_kg * 35), // 35ml per kg body weight\n  notes: `Based on ${gender}, ${age} years, ${weight_kg}kg, ${height_cm}cm, ${activity_level} activity, goal: ${weight_goal}`,\n  original_input: input\n};\n\nreturn [{json: calculationResult}];"
+      },
+      "id": "calculate-calories",
+      "name": "Calculate Calories & Macros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare prompt for meal suggestions\nconst calculations = $json;\n\nconst prompt = `Based on these nutrition goals:\n- Daily calories: ${calculations.daily_calories}\n- Protein: ${calculations.macros.protein_grams}g\n- Carbs: ${calculations.macros.carbs_grams}g\n- Fat: ${calculations.macros.fat_grams}g\n- Fiber: ${calculations.macros.fiber_grams}g\n- Water: ${calculations.water_ml}ml\n- Weight goal: ${calculations.original_input.weight_goal}\n\nProvide 3 practical meal suggestions for today that help meet these targets. Include specific foods and portions.\n\nReturn ONLY a JSON object with this structure:\n{\n  \"breakfast\": {\n    \"description\": \"meal description\",\n    \"calories\": number,\n    \"protein_g\": number,\n    \"carbs_g\": number,\n    \"fat_g\": number\n  },\n  \"lunch\": {\n    \"description\": \"meal description\",\n    \"calories\": number,\n    \"protein_g\": number,\n    \"carbs_g\": number,\n    \"fat_g\": number\n  },\n  \"dinner\": {\n    \"description\": \"meal description\",\n    \"calories\": number,\n    \"protein_g\": number,\n    \"carbs_g\": number,\n    \"fat_g\": number\n  },\n  \"snacks\": {\n    \"description\": \"snack suggestions\",\n    \"calories\": number,\n    \"protein_g\": number,\n    \"carbs_g\": number,\n    \"fat_g\": number\n  }\n}`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2\",\n    type: \"generation\",\n    temperature: 0.7,\n    format: \"json\",\n    quiet: true,\n    calculations: calculations\n  }\n}];"
+      },
+      "id": "prepare-meal-prompt",
+      "name": "Prepare Meal Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.prompt,\n  model: $json.model,\n  type: $json.type,\n  quiet: $json.quiet,\n  timeout_seconds: $json.timeout_seconds || 120\n}) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "generate-suggestions",
+      "name": "Call Shared Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process the response and combine with calculations\nconst httpResponse = $json;\nconst calculations = $('Prepare Meal Prompt').first().json.calculations;\n\ntry {\n  // Extract the actual response from the ollama HTTP response\n  let ollamaResponse = httpResponse.response;\n  \n  // Parse meal suggestions\n  let mealSuggestions = {};\n  \n  if (typeof ollamaResponse === 'string') {\n    mealSuggestions = JSON.parse(ollamaResponse);\n  } else {\n    mealSuggestions = ollamaResponse;\n  }\n  \n  // Combine everything into final response\n  const finalResponse = {\n    success: true,\n    user_id: calculations.user_id,\n    daily_targets: {\n      bmr: calculations.bmr,\n      tdee: calculations.tdee,\n      daily_calories: calculations.daily_calories,\n      calorie_adjustment: calculations.calorie_adjustment,\n      macros: calculations.macros,\n      water_ml: calculations.water_ml\n    },\n    meal_plan: mealSuggestions,\n    notes: calculations.notes,\n    created_at: new Date().toISOString()\n  };\n  \n  return [{json: finalResponse}];\n  \n} catch (error) {\n  // Return calculations with error if meal suggestions fail\n  return [{\n    json: {\n      success: false,\n      error: error.message,\n      user_id: calculations.user_id,\n      daily_targets: {\n        bmr: calculations.bmr,\n        tdee: calculations.tdee,\n        daily_calories: calculations.daily_calories,\n        calorie_adjustment: calculations.calorie_adjustment,\n        macros: calculations.macros,\n        water_ml: calculations.water_ml\n      },\n      meal_plan: {\n        breakfast: { description: 'Balanced breakfast', calories: Math.round(calculations.daily_calories * 0.25) },\n        lunch: { description: 'Nutritious lunch', calories: Math.round(calculations.daily_calories * 0.35) },\n        dinner: { description: 'Wholesome dinner', calories: Math.round(calculations.daily_calories * 0.30) },\n        snacks: { description: 'Healthy snacks', calories: Math.round(calculations.daily_calories * 0.10) }\n      },\n      notes: calculations.notes,\n      created_at: new Date().toISOString()\n    }\n  }];\n}"
+      },
+      "id": "process-response",
+      "name": "Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Calculate Calories & Macros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual": {
+      "main": [
+        [
+          {
+            "node": "Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defaults": {
+      "main": [
+        [
+          {
+            "node": "Calculate Calories & Macros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Calories & Macros": {
+      "main": [
+        [
+          {
+            "node": "Prepare Meal Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Meal Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama": {
+      "main": [
+        [
+          {
+            "node": "Process Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "id": "calorie-calculator"
+}

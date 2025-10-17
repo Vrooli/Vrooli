@@ -1,0 +1,17 @@
+{
+  "startup_order": 500,
+  "dependencies": [],
+  "startup_timeout": 120,
+  "startup_time_estimate": "60-120s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "description": "OpenTripPlanner multimodal routing engine",
+  "category": "transportation",
+  "features": [
+    "multimodal-routing",
+    "gtfs-support",
+    "osm-integration",
+    "isochrone-generation",
+    "real-time-updates"
+  ]
+}

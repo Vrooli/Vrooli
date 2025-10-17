@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream of Consciousness - Mindful Note Organization</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Crimson+Text:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #FAF9F7;
+            --bg-secondary: #FFFFFF;
+            --text-primary: #2D3748;
+            --text-secondary: #718096;
+            --accent-purple: #7C3AED;
+            --accent-pink: #EC4899;
+            --accent-blue: #3B82F6;
+            --accent-green: #10B981;
+            --border-light: #E2E8F0;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes ripple {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Ambient background */
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .gradient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, transparent 70%);
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+            top: 50%;
+            right: -50px;
+            animation-delay: 7s;
+        }
+
+        .orb-3 {
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            bottom: -100px;
+            left: 30%;
+            animation-delay: 14s;
+        }
+
+        /* Main container */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 3rem;
+            padding: 1.5rem 2rem;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            box-shadow: var(--shadow-md);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .logo-text h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-text p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Campaign selector */
+        .campaign-selector {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--bg-primary);
+            border-radius: 12px;
+        }
+
+        .campaign-chip {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            background: white;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .campaign-chip:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .campaign-chip.active {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            color: white;
+        }
+
+        /* Main layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Stream input area */
+        .stream-input-card {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: var(--shadow-md);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .input-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .input-modes {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .mode-btn {
+            padding: 0.5rem 0.75rem;
+            border: none;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.25rem;
+        }
+
+        .mode-btn:hover {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            transform: scale(1.1);
+        }
+
+        .stream-textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 1.5rem;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            font-family: 'Crimson Text', serif;
+            font-size: 1.25rem;
+            line-height: 1.8;
+            resize: vertical;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .stream-textarea:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+
+        .stream-textarea::placeholder {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Voice recording indicator */
+        .voice-indicator {
+            display: none;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(124, 58, 237, 0.1));
+            border-radius: 12px;
+        }
+
+        .voice-indicator.active {
+            display: flex;
+        }
+
+        .pulse-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--accent-pink);
+            border-radius: 50%;
+            animation: breathe 2s ease-in-out infinite;
+        }
+
+        /* Process button */
+        .process-btn {
+            margin-top: 1.5rem;
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .process-btn:active {
+            transform: translateY(0);
+        }
+
+        .process-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .process-btn:active::after {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* Insights sidebar */
+        .insights-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .insight-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+        }
+
+        .insight-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .insight-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .insight-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .insight-icon.action {
+            background: linear-gradient(135deg, var(--accent-green), #34D399);
+        }
+
+        .insight-icon.pattern {
+            background: linear-gradient(135deg, var(--accent-blue), #60A5FA);
+        }
+
+        .insight-icon.idea {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+        }
+
+        .insight-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .insight-content {
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Organized notes */
+        .notes-section {
+            margin-top: 3rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .view-toggles {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.25rem;
+            background: var(--bg-primary);
+            border-radius: 8px;
+        }
+
+        .view-toggle {
+            padding: 0.5rem 0.75rem;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .view-toggle.active {
+            background: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .notes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .note-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .note-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-pink));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .note-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .note-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .note-timestamp {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .note-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .note-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .note-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .note-tag {
+            padding: 0.25rem 0.75rem;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Search bar */
+        .search-container {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1rem 1rem 3rem;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+
+        /* Loading state */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border-light);
+            border-top: 4px solid var(--accent-purple);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .insights-sidebar {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .campaign-selector {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .notes-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Ambient background -->
+    <div class="ambient-bg">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Main container -->
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🧠</div>
+                <div class="logo-text">
+                    <h1>Stream of Consciousness</h1>
+                    <p>Transform thoughts into organized insights</p>
+                </div>
+            </div>
+            
+            <div class="campaign-selector">
+                <button class="campaign-chip active" data-campaign="general">General Thoughts</button>
+                <button class="campaign-chip" data-campaign="daily">Daily Reflections</button>
+                <button class="campaign-chip" data-campaign="work">Work Ideas</button>
+                <button class="campaign-chip" data-campaign="new">+ New Campaign</button>
+            </div>
+        </header>
+
+        <!-- Main layout -->
+        <div class="main-layout">
+            <!-- Stream input area -->
+            <div class="stream-input-card">
+                <div class="input-header">
+                    <h2 class="input-title">Capture Your Thoughts</h2>
+                    <div class="input-modes">
+                        <button class="mode-btn" title="Text input">✍️</button>
+                        <button class="mode-btn" title="Voice recording">🎤</button>
+                        <button class="mode-btn" title="Upload file">📎</button>
+                    </div>
+                </div>
+                
+                <textarea 
+                    class="stream-textarea" 
+                    placeholder="Let your thoughts flow freely... Write about anything on your mind, ideas, reflections, or observations. I'll help organize them into structured notes."
+                ></textarea>
+                
+                <div class="voice-indicator">
+                    <div class="pulse-dot"></div>
+                    <span>Recording... Speak naturally</span>
+                </div>
+                
+                <button class="process-btn">
+                    Transform into Organized Notes
+                </button>
+            </div>
+
+            <!-- Insights sidebar -->
+            <aside class="insights-sidebar">
+                <div class="insight-card">
+                    <div class="insight-header">
+                        <div class="insight-icon action">✓</div>
+                        <div class="insight-title">Action Items</div>
+                    </div>
+                    <div class="insight-content">
+                        <p>• Schedule meeting with team about new feature</p>
+                        <p>• Research competitor pricing models</p>
+                        <p>• Follow up on customer feedback</p>
+                    </div>
+                </div>
+
+                <div class="insight-card">
+                    <div class="insight-header">
+                        <div class="insight-icon pattern">📊</div>
+                        <div class="insight-title">Patterns Detected</div>
+                    </div>
+                    <div class="insight-content">
+                        You've mentioned "user experience" 12 times this week. Consider prioritizing UX improvements.
+                    </div>
+                </div>
+
+                <div class="insight-card">
+                    <div class="insight-header">
+                        <div class="insight-icon idea">💡</div>
+                        <div class="insight-title">Key Ideas</div>
+                    </div>
+                    <div class="insight-content">
+                        Your thoughts about gamification could enhance user engagement significantly.
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Search bar -->
+        <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" placeholder="Search your organized thoughts...">
+        </div>
+
+        <!-- Organized notes section -->
+        <section class="notes-section">
+            <div class="section-header">
+                <h2 class="section-title">Organized Notes</h2>
+                <div class="view-toggles">
+                    <button class="view-toggle active">📱 Grid</button>
+                    <button class="view-toggle">📋 List</button>
+                    <button class="view-toggle">📅 Timeline</button>
+                </div>
+            </div>
+
+            <div class="notes-grid">
+                <div class="note-card">
+                    <div class="note-timestamp">Today at 10:32 AM</div>
+                    <h3 class="note-title">Product Roadmap Thoughts</h3>
+                    <div class="note-content">
+                        Considering the feedback from users, we should prioritize the mobile experience. The desktop version is stable but mobile engagement is dropping...
+                    </div>
+                    <div class="note-tags">
+                        <span class="note-tag">product</span>
+                        <span class="note-tag">priority-high</span>
+                        <span class="note-tag">mobile</span>
+                    </div>
+                </div>
+
+                <div class="note-card">
+                    <div class="note-timestamp">Today at 9:15 AM</div>
+                    <h3 class="note-title">Morning Reflection</h3>
+                    <div class="note-content">
+                        Feeling energized about the new direction. The team seems aligned and motivated. Need to maintain this momentum while being realistic about timelines...
+                    </div>
+                    <div class="note-tags">
+                        <span class="note-tag">reflection</span>
+                        <span class="note-tag">team</span>
+                        <span class="note-tag">positive</span>
+                    </div>
+                </div>
+
+                <div class="note-card">
+                    <div class="note-timestamp">Yesterday at 4:45 PM</div>
+                    <h3 class="note-title">API Architecture Decision</h3>
+                    <div class="note-content">
+                        After reviewing the options, GraphQL seems like the better choice for our use case. The ability to request exactly what we need will reduce bandwidth...
+                    </div>
+                    <div class="note-tags">
+                        <span class="note-tag">technical</span>
+                        <span class="note-tag">api</span>
+                        <span class="note-tag">decision</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module" src="bridge-init.js"></script>
+    <script src="script.js" defer></script>
+</body>
+</html>

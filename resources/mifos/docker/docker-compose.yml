@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  mifos-backend:
+    image: mifos-mock:latest
+    container_name: mifos-backend
+    ports:
+      - "8030:8080"
+    environment:
+      - MIFOS_PORT=8080
+    volumes:
+      - /home/matthalloran8/.vrooli/mifos/data:/data
+      - /home/matthalloran8/.vrooli/mifos/logs:/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/fineract-provider/api/v1/offices"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  mifos-webapp:
+    image: openmf/community-app:latest
+    container_name: mifos-webapp
+    ports:
+      - "8031:80"
+    environment:
+      - API_URL=http://localhost:8030
+      - FINERACT_API_URL=http://localhost:8030
+      - FINERACT_PLATFORM_TENANT_IDENTIFIER=default
+    depends_on:
+      - mifos-backend
+    restart: unless-stopped

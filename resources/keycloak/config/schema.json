@@ -1,0 +1,179 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Keycloak Resource Configuration Schema",
+  "description": "Configuration options for the Keycloak identity and access management resource",
+  "type": "object",
+  "properties": {
+    "container": {
+      "type": "object",
+      "description": "Container configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Container name",
+          "default": "vrooli-keycloak"
+        },
+        "image": {
+          "type": "string",
+          "description": "Docker image to use",
+          "default": "keycloak/keycloak:latest"
+        },
+        "network": {
+          "type": "string",
+          "description": "Docker network to use",
+          "default": "vrooli-network"
+        }
+      }
+    },
+    "admin": {
+      "type": "object",
+      "description": "Admin user configuration",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Admin username",
+          "default": "admin"
+        },
+        "password": {
+          "type": "string",
+          "description": "Admin password",
+          "default": "admin",
+          "format": "password"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "description": "Database configuration",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Database type",
+          "enum": ["dev-file", "postgres", "mysql", "mariadb"],
+          "default": "dev-file"
+        },
+        "host": {
+          "type": "string",
+          "description": "Database host (for external databases)"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Database port"
+        },
+        "name": {
+          "type": "string",
+          "description": "Database name"
+        },
+        "username": {
+          "type": "string",
+          "description": "Database username"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password",
+          "format": "password"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration",
+      "properties": {
+        "hostname_strict": {
+          "type": "boolean",
+          "description": "Enable strict hostname checking",
+          "default": false
+        },
+        "hostname_strict_https": {
+          "type": "boolean",
+          "description": "Enable strict HTTPS checking",
+          "default": false
+        },
+        "http_enabled": {
+          "type": "boolean",
+          "description": "Enable HTTP (for development)",
+          "default": true
+        },
+        "ssl_required": {
+          "type": "string",
+          "description": "SSL requirement level",
+          "enum": ["none", "external", "all"],
+          "default": "none"
+        }
+      }
+    },
+    "features": {
+      "type": "array",
+      "description": "Enabled Keycloak features",
+      "items": {
+        "type": "string",
+        "enum": [
+          "token-exchange",
+          "admin-fine-grained-authz",
+          "scripts",
+          "docker",
+          "impersonation",
+          "web-authn",
+          "client-policies",
+          "ciba"
+        ]
+      },
+      "default": ["token-exchange", "admin-fine-grained-authz"]
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance tuning",
+      "properties": {
+        "jvm_heap_min": {
+          "type": "string",
+          "description": "Minimum JVM heap size",
+          "pattern": "^[0-9]+[mMgG]$",
+          "default": "512m"
+        },
+        "jvm_heap_max": {
+          "type": "string",
+          "description": "Maximum JVM heap size",
+          "pattern": "^[0-9]+[mMgG]$",
+          "default": "1024m"
+        },
+        "log_level": {
+          "type": "string",
+          "description": "Logging level",
+          "enum": ["ALL", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "OFF"],
+          "default": "INFO"
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "description": "Monitoring configuration",
+      "properties": {
+        "health_enabled": {
+          "type": "boolean",
+          "description": "Enable health endpoints",
+          "default": true
+        },
+        "metrics_enabled": {
+          "type": "boolean",
+          "description": "Enable metrics endpoints",
+          "default": true
+        }
+      }
+    },
+    "port": {
+      "type": "integer",
+      "description": "HTTP port to expose",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8070
+    },
+    "https_port": {
+      "type": "integer",
+      "description": "HTTPS port to expose",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8443
+    }
+  },
+  "additionalProperties": false
+}

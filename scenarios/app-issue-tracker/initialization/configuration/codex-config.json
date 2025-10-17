@@ -1,0 +1,63 @@
+{
+  "description": "Configuration for Codex integration",
+  "models": {
+    "primary": {
+      "name": "gpt-5-nano",
+      "max_tokens": 8192,
+      "temperature": 0.2,
+      "use_cases": ["investigation", "fix_generation", "complex_analysis"]
+    },
+    "secondary": {
+      "name": "gpt-5-mini",
+      "max_tokens": 4096,
+      "temperature": 0.3,
+      "use_cases": ["documentation", "code_review", "pattern_analysis"]
+    },
+    "fast": {
+      "name": "gpt-4o-mini",
+      "max_tokens": 2048,
+      "temperature": 0.1,
+      "use_cases": ["triage", "quick_assessment", "categorization"]
+    }
+  },
+  "rate_limits": {
+    "requests_per_minute": 10,
+    "tokens_per_hour": 100000,
+    "concurrent_investigations": 3
+  },
+  "investigation_settings": {
+    "timeout_seconds": 300,
+    "max_retries": 2,
+    "context_window_files": 20,
+    "include_git_history": true,
+    "include_test_results": true,
+    "include_dependencies": true
+  },
+  "fix_generation_settings": {
+    "create_pull_request": false,
+    "run_tests_before_commit": true,
+    "require_human_approval": true,
+    "backup_before_fix": true,
+    "rollback_on_failure": true
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "alert_threshold_daily": 100,
+    "alert_threshold_monthly": 2000,
+    "cost_per_1k_tokens": {
+      "gpt5_nano_input": 0.00005,
+      "gpt5_nano_output": 0.00040,
+      "gpt5_mini_input": 0.00025,
+      "gpt5_mini_output": 0.00200,
+      "gpt4o_mini_input": 0.00060,
+      "gpt4o_mini_output": 0.00240
+    }
+  },
+  "prompting_strategies": {
+    "chain_of_thought": true,
+    "few_shot_examples": true,
+    "structured_output": true,
+    "confidence_scores": true,
+    "source_citations": true
+  }
+}

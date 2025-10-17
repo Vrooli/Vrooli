@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Blender Resource Configuration Schema",
+  "description": "Configuration schema for the Blender 3D creation suite resource",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Blender version to use",
+      "default": "4.0",
+      "enum": ["3.6", "4.0", "4.1"]
+    },
+    "port": {
+      "type": "integer",
+      "description": "Port for Blender service (if API mode enabled)",
+      "default": 8093,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "data_dir": {
+      "type": "string",
+      "description": "Directory for Blender data, scripts, and outputs",
+      "default": "${HOME}/.vrooli/blender"
+    },
+    "container_name": {
+      "type": "string",
+      "description": "Docker container name for Blender",
+      "default": "vrooli-blender"
+    },
+    "deployment_mode": {
+      "type": "string",
+      "description": "Deployment mode for Blender",
+      "enum": ["native", "docker"],
+      "default": "docker"
+    },
+    "rendering": {
+      "type": "object",
+      "description": "Rendering configuration",
+      "properties": {
+        "engine": {
+          "type": "string",
+          "description": "Default rendering engine",
+          "enum": ["CYCLES", "EEVEE", "WORKBENCH"],
+          "default": "CYCLES"
+        },
+        "gpu_enabled": {
+          "type": "boolean",
+          "description": "Enable GPU acceleration if available",
+          "default": true
+        },
+        "samples": {
+          "type": "integer",
+          "description": "Default render samples",
+          "default": 128,
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "resolution": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "integer",
+              "default": 1920,
+              "minimum": 1
+            },
+            "y": {
+              "type": "integer",
+              "default": 1080,
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "physics": {
+      "type": "object",
+      "description": "Physics simulation configuration",
+      "properties": {
+        "steps_per_second": {
+          "type": "integer",
+          "description": "Physics simulation steps per second",
+          "default": 60,
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "solver_iterations": {
+          "type": "integer",
+          "description": "Solver iterations for accuracy",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 100
+        },
+        "gravity": {
+          "type": "array",
+          "description": "Gravity vector [x, y, z]",
+          "default": [0, 0, -9.81],
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Resource limits",
+      "properties": {
+        "max_memory_gb": {
+          "type": "number",
+          "description": "Maximum memory usage in GB",
+          "default": 4,
+          "minimum": 1
+        },
+        "max_threads": {
+          "type": "integer",
+          "description": "Maximum number of threads",
+          "default": 0,
+          "minimum": 0
+        },
+        "temp_dir": {
+          "type": "string",
+          "description": "Temporary file directory",
+          "default": "${BLENDER_DATA_DIR}/temp"
+        }
+      }
+    },
+    "addons": {
+      "type": "array",
+      "description": "List of Blender addons to enable",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "python": {
+      "type": "object",
+      "description": "Python scripting configuration",
+      "properties": {
+        "autoexec_scripts": {
+          "type": "boolean",
+          "description": "Allow auto-execution of Python scripts",
+          "default": true
+        },
+        "script_timeout": {
+          "type": "integer",
+          "description": "Maximum script execution time in seconds",
+          "default": 300,
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "required": ["version", "data_dir"],
+  "additionalProperties": false
+}

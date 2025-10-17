@@ -1,0 +1,258 @@
+{
+  "name": "intelligent-note-linker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notes/link",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "id": "webhook-trigger"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500],
+      "id": "manual-trigger"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "note_id",
+              "value": "test-note-123"
+            },
+            {
+              "name": "user_id",
+              "value": "default-user"
+            },
+            {
+              "name": "note_content",
+              "value": "This is a test note about machine learning, neural networks, and AI applications in healthcare. It discusses deep learning algorithms and their use in medical imaging."
+            }
+          ],
+          "number": [
+            {
+              "name": "max_links",
+              "value": 5
+            }
+          ]
+        }
+      },
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 500],
+      "id": "set-defaults"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input from webhook or manual trigger\nconst input = $input.all()[0].json;\n\nreturn {\n  note_id: input.note_id,\n  user_id: input.user_id,\n  note_content: input.note_content,\n  max_links: input.max_links || 5,\n  threshold: input.threshold || 0.7,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "name": "Process Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400],
+      "id": "process-input"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_CHAIN_OF_THOUGHT_ORCHESTRATOR_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { task: 'Extract key concepts and topics from this note for finding related notes', input: $json.note_content, reasoning_steps: ['1. Identify main topic and theme', '2. Extract key concepts and entities', '3. Identify related fields and subtopics', '4. Generate search keywords for finding similar notes'], output_format: { main_topic: 'string', key_concepts: ['array of concepts'], related_fields: ['array of fields'], search_keywords: ['array of keywords'] } } }}"
+      },
+      "name": "Extract Concepts",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "id": "extract-concepts"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_SMART_SEMANTIC_SEARCH_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { query: $json.reasoning_output.search_keywords.join(' '), collection: 'notes', limit: $('process-input').item.json.max_links * 2, threshold: $('process-input').item.json.threshold, filter: { user_id: $('process-input').item.json.user_id, exclude_id: $('process-input').item.json.note_id }, rerank: true } }}"
+      },
+      "name": "Find Similar Notes",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "id": "find-similar"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { prompt: 'Analyze these search results and select the most relevant notes to link. For each selected note, provide a brief explanation of why it\\'s related.\\n\\nOriginal Note Content:\\n' + $('process-input').item.json.note_content + '\\n\\nKey Concepts: ' + JSON.stringify($('extract-concepts').item.json.reasoning_output.key_concepts) + '\\n\\nSearch Results:\\n' + JSON.stringify($json.results, null, 2) + '\\n\\nSelect up to ' + $('process-input').item.json.max_links + ' most relevant notes and return as JSON:\\n{\\n  \\\"linked_notes\\\": [\\n    {\\n      \\\"note_id\\\": \\\"id\\\",\\n      \\\"title\\\": \\\"title\\\",\\n      \\\"relevance_score\\\": 0.95,\\n      \\\"link_reason\\\": \\\"Brief explanation\\\",\\n      \\\"shared_concepts\\\": [\\\"concept1\\\", \\\"concept2\\\"]\\n    }\\n  ]\\n}', model: 'llama3.2:latest', format: 'json', type: 'reasoning', quiet: true, timeout_seconds: 120 } }}"
+      },
+      "name": "Rank and Select Links",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1250, 400],
+      "id": "rank-links"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO note_links (source_note_id, target_note_id, user_id, link_reason, relevance_score, shared_concepts, created_at)\nSELECT \n  $1 as source_note_id,\n  unnest($2::text[]) as target_note_id,\n  $3 as user_id,\n  unnest($4::text[]) as link_reason,\n  unnest($5::float[]) as relevance_score,\n  unnest($6::jsonb[]) as shared_concepts,\n  $7 as created_at\nON CONFLICT (source_note_id, target_note_id) \nDO UPDATE SET \n  link_reason = EXCLUDED.link_reason,\n  relevance_score = EXCLUDED.relevance_score,\n  shared_concepts = EXCLUDED.shared_concepts,\n  updated_at = EXCLUDED.created_at\nRETURNING *;",
+        "options": {
+          "queryParams": "={{ $('process-input').item.json.note_id }}, {{ JSON.parse($json.response || '{}').linked_notes.map(n => n.note_id) }}, {{ $('process-input').item.json.user_id }}, {{ JSON.parse($json.response || '{}').linked_notes.map(n => n.link_reason) }}, {{ JSON.parse($json.response || '{}').linked_notes.map(n => n.relevance_score) }}, {{ JSON.parse($json.response || '{}').linked_notes.map(n => JSON.stringify(n.shared_concepts)) }}, {{ $('process-input').item.json.timestamp }}"
+        }
+      },
+      "name": "Save Links",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1450, 400],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "save-links"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "=Note links created successfully"
+            }
+          ],
+          "object": [
+            {
+              "name": "note_id",
+              "value": "={{ $('process-input').item.json.note_id }}"
+            },
+            {
+              "name": "links_created",
+              "value": "={{ JSON.parse($('rank-links').item.json.response || '{}').linked_notes }}"
+            },
+            {
+              "name": "concepts_identified",
+              "value": "={{ $('extract-concepts').item.json.reasoning_output }}"
+            }
+          ]
+        }
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1650, 400],
+      "id": "format-response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Process Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Input": {
+      "main": [
+        [
+          {
+            "node": "Extract Concepts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Concepts": {
+      "main": [
+        [
+          {
+            "node": "Find Similar Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Similar Notes": {
+      "main": [
+        [
+          {
+            "node": "Rank and Select Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rank and Select Links": {
+      "main": [
+        [
+          {
+            "node": "Save Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Links": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "id": "intelligent-note-linker",
+  "meta": {
+    "instanceId": "vrooli-notes"
+  },
+  "tags": []
+}

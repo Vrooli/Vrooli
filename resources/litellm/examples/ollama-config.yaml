@@ -1,0 +1,72 @@
+# LiteLLM Configuration with Ollama Integration
+# This shows how to connect LiteLLM to local Ollama models
+
+model_list:
+  # Local Ollama Models
+  - model_name: llama2-local
+    litellm_params:
+      model: ollama/llama2
+      api_base: http://vrooli-ollama:11434  # Ollama service URL
+      # No API key needed for local Ollama
+      
+  - model_name: codellama-local
+    litellm_params:
+      model: ollama/codellama
+      api_base: http://vrooli-ollama:11434
+      
+  - model_name: mistral-local
+    litellm_params:
+      model: ollama/mistral
+      api_base: http://vrooli-ollama:11434
+
+  # Remote API Models (for fallback)
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_key: ${OPENAI_API_KEY}
+      
+  - model_name: claude-3-haiku
+    litellm_params:
+      model: anthropic/claude-3-haiku-20240307
+      api_key: ${ANTHROPIC_API_KEY}
+
+# Router Configuration - Prefer local models first
+router_settings:
+  routing_strategy: "cost-based-routing"  # Local models cost $0
+  enable_fallbacks: true
+  fallbacks:
+    # If local models fail, fall back to remote APIs
+    - llama2-local: ["gpt-3.5-turbo", "claude-3-haiku"]
+    - codellama-local: ["gpt-3.5-turbo"]
+    - mistral-local: ["claude-3-haiku", "gpt-3.5-turbo"]
+
+# Cost settings (local models are free)
+model_info:
+  llama2-local:
+    input_cost_per_token: 0.0
+    output_cost_per_token: 0.0
+    max_tokens: 4096
+    
+  codellama-local:
+    input_cost_per_token: 0.0
+    output_cost_per_token: 0.0
+    max_tokens: 4096
+    
+  mistral-local:
+    input_cost_per_token: 0.0
+    output_cost_per_token: 0.0
+    max_tokens: 8192
+
+# Budget controls
+budget_settings:
+  enable_budget_control: true
+  max_budget: 50.0  # Lower budget since we prefer free local models
+  
+# Logging
+litellm_settings:
+  set_verbose: true
+  json_logs: true
+  
+general_settings:
+  master_key: "${LITELLM_MASTER_KEY}"
+  database_url: "sqlite:///${LITELLM_DATA_DIR}/litellm.db"

@@ -1,0 +1,2644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance Orchestrator | Mission Control</title>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            background: linear-gradient(135deg, #0a0e27 0%, #151932 100%);
+            color: #e0e6ed;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: rgba(10, 14, 39, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .connected .connection-dot {
+            background: #10b981;
+        }
+
+        .disconnected .connection-dot {
+            background: #ef4444;
+            animation: none;
+        }
+
+        .connecting .connection-dot {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Apply spinning animation to loader icons */
+        i[data-lucide="loader"] {
+            animation: spin 1s linear infinite;
+        }
+
+        .logs-btn {
+            padding: 8px 16px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .logs-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        /* Loading skeleton styles */
+        .skeleton-loader {
+            padding: 20px;
+        }
+
+        .skeleton-card {
+            background: rgba(30, 35, 60, 0.5);
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-title {
+            height: 24px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 4px;
+            width: 60%;
+            margin-bottom: 12px;
+        }
+
+        .skeleton-text {
+            height: 16px;
+            background: rgba(59, 130, 246, 0.08);
+            border-radius: 4px;
+            width: 80%;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-tags {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .skeleton-tag {
+            height: 24px;
+            width: 60px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+        }
+
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 32px;
+            padding: 32px 40px;
+            max-width: 1800px;
+            margin: 0 auto;
+            transition: gap 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .main-container:has(.presets-section.collapsed) {
+            gap: 24px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+                gap: 24px;
+                padding: 24px 20px;
+            }
+            
+            .presets-section {
+                width: 100%;
+                max-width: none;
+            }
+            
+            .presets-section.collapsed {
+                width: 100%;
+                height: 70px;
+                padding: 20px 25px;
+            }
+            
+            
+            .main-container:has(.presets-section.collapsed) {
+                gap: 16px;
+            }
+        }
+
+        .presets-section {
+            background: rgba(10, 14, 39, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            width: 300px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .presets-section.collapsed {
+            width: 56px;
+            padding: 20px 12px;
+            border-color: rgba(16, 185, 129, 0.05);
+            background: rgba(10, 14, 39, 0.4);
+        }
+        
+        .presets-section.collapsed .presets-content {
+            opacity: 0;
+            transform: translateX(-30px);
+            pointer-events: none;
+            visibility: hidden;
+        }
+        
+        .presets-section.collapsed .section-title-text {
+            display: none;
+        }
+        
+        .presets-section.collapsed .section-title {
+            margin-bottom: 0;
+            justify-content: center;
+            padding: 0;
+        }
+        
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #10b981;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .presets-content {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .section-toggle-btn {
+            background: rgba(20, 25, 50, 0.8);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+        
+        .section-toggle-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+        
+        .presets-section.collapsed .section-toggle-btn {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        
+        .presets-section.collapsed .section-toggle-btn:hover {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.6);
+        }
+        
+        .section-title-text {
+            transition: opacity 0.3s ease;
+        }
+        
+        .presets-section.collapsed .section-toggle-btn {
+            margin: 0 auto;
+            position: relative;
+            z-index: 20;
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+        }
+
+        .preset-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 12px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 10px;
+            color: #e0e6ed;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            position: relative;
+        }
+
+        .preset-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+            transform: translateX(5px);
+        }
+
+        .preset-btn.preview {
+            background: rgba(59, 130, 246, 0.1);
+            transform: translateX(5px);
+            box-shadow: inset 0 0 0 2px #3b82f6;
+        }
+
+        .preset-btn.preview:hover {
+            border-color: #2563eb;
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .preset-btn.active {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.6);
+            box-shadow: 0 2px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .preset-btn.active:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.8);
+        }
+
+        .preset-action-icon {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 10;
+            padding: 0;
+            line-height: 1;
+            transition: transform 0.2s ease;
+        }
+
+        .preset-action-icon:hover {
+            transform: scale(1.2);
+        }
+
+        .preset-description {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+
+        .scenarios-section {
+            flex: 1;
+            background: rgba(10, 14, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 18px;
+            padding: 28px;
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            min-height: 600px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .main-container:has(.presets-section.collapsed) .scenarios-section {
+            border-color: rgba(16, 185, 129, 0.2);
+            background: rgba(10, 14, 39, 0.75);
+        }
+
+        .scenarios-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            min-height: 400px;
+            padding: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .scenarios-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+        
+        @media (min-width: 1400px) {
+            .scenarios-grid {
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                gap: 30px;
+            }
+        }
+
+        .scenario-card {
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(12px);
+            position: relative;
+            overflow: hidden;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .scenario-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .scenario-card.active {
+            border-color: rgba(16, 185, 129, 0.6);
+            background: rgba(16, 185, 129, 0.08);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+        }
+        
+        .scenario-card.active::before {
+            opacity: 1;
+            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.8), transparent);
+        }
+
+        .scenario-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(16, 185, 129, 0.25);
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(20, 25, 50, 0.8);
+        }
+        
+        .scenario-card:hover::before {
+            opacity: 1;
+        }
+        
+        .scenario-card .action-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .scenario-card .action-btn:hover {
+            background: rgba(16, 185, 129, 0.25) !important;
+            border-color: rgba(16, 185, 129, 0.5) !important;
+            transform: scale(1.1);
+        }
+
+        .scenario-card.preview {
+            background: rgba(59, 130, 246, 0.12);
+            transform: translateY(-8px);
+            box-shadow: inset 0 0 0 2px #3b82f6, 0 20px 40px rgba(59, 130, 246, 0.35);
+        }
+        
+        .scenario-card.preview::before {
+            opacity: 1;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.8), transparent);
+        }
+
+        .scenario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            flex: 1;
+        }
+
+        .scenario-name {
+            font-size: 17px;
+            font-weight: 600;
+            color: #e0e6ed;
+            margin-bottom: 8px;
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .scenario-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .tag {
+            font-size: 11px;
+            padding: 4px 10px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 16px;
+            color: #93bbfc;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+        
+        .tag:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: scale(1.05);
+        }
+
+        /* 3-State Toggle */
+        .state-toggle {
+            position: relative;
+            width: 72px;
+            height: 24px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 24px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+        }
+
+        .state-toggle:before {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transition: all 0.4s ease;
+        }
+
+        /* Stopped state (red) */
+        .state-toggle.stopped {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .state-toggle.stopped:before {
+            background-color: #ef4444;
+            left: 2px;
+        }
+
+        /* Running but inactive state (yellow) */
+        .state-toggle.running-inactive {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .state-toggle.running-inactive:before {
+            background-color: #f59e0b;
+            left: 26px;
+        }
+
+        /* Running and active state (green) */
+        .state-toggle.running-active {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .state-toggle.running-active:before {
+            background-color: #10b981;
+            left: 50px;
+        }
+
+        .state-toggle:hover:not(.loading) {
+            transform: scale(1.05);
+        }
+
+        /* Loading state */
+        .state-toggle.loading {
+            background: rgba(100, 116, 139, 0.2);
+            border-color: rgba(100, 116, 139, 0.3);
+            cursor: wait;
+        }
+
+        .state-toggle.loading:before {
+            background-color: #64748b;
+            left: 26px; /* Center position */
+            animation: spin 1s linear infinite;
+        }
+
+        /* Legacy 2-state toggle (kept for compatibility) */
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(100, 116, 139, 0.3);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: #64748b;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(16, 185, 129, 0.3);
+        }
+
+        input:checked + .slider:before {
+            background-color: #10b981;
+            transform: translateX(24px);
+        }
+
+
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(16, 185, 129, 0.2);
+            border-top: 3px solid #10b981;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .emergency-stop {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .emergency-stop:hover {
+            background: #b91c1c;
+            transform: scale(1.05);
+        }
+
+        /* Logs Modal Styles */
+        .logs-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logs-modal.active {
+            display: flex;
+        }
+
+        .logs-content {
+            background: rgba(10, 14, 39, 0.95);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logs-title {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logs-header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .logs-list {
+            flex: 1;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 6px;
+            background: rgba(20, 25, 50, 0.4);
+            border-left: 3px solid transparent;
+        }
+
+        .log-entry.error {
+            border-left-color: #ef4444;
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .log-entry.warn {
+            border-left-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .log-entry.info {
+            border-left-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .log-entry.success {
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .log-timestamp {
+            color: #64748b;
+            margin-right: 10px;
+            font-size: 11px;
+        }
+
+        .log-level {
+            font-weight: 600;
+            margin-right: 10px;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .log-level.error { color: #ef4444; }
+        .log-level.warn { color: #f59e0b; }
+        .log-level.info { color: #3b82f6; }
+        .log-level.success { color: #10b981; }
+
+        .log-message {
+            color: #e0e6ed;
+        }
+
+        .logs-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(20, 25, 50, 0.6);
+            color: #e0e6ed;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+        }
+
+        .modal-btn.primary:hover {
+            opacity: 0.9;
+        }
+
+        /* Control Bar Styles */
+        .control-bar {
+            background: rgba(10, 14, 39, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: rgba(16, 185, 129, 0.5);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            pointer-events: none;
+        }
+
+        .sort-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sort-label {
+            font-size: 13px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sort-select {
+            padding: 10px 15px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sort-select:focus {
+            outline: none;
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .sort-select:hover {
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .refresh-btn {
+            padding: 10px 20px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .refresh-btn.refreshing {
+            animation: spin 1s linear infinite;
+        }
+
+        .add-scenario-btn {
+            padding: 10px 20px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .add-scenario-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .available-scenarios-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .available-scenario-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .available-scenario-item.enabled {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .available-scenario-item.disabled {
+            opacity: 0.6;
+            background: rgba(20, 25, 50, 0.3);
+        }
+
+        .available-scenario-item:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .scenario-info {
+            flex: 1;
+        }
+
+        .scenario-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 6px 8px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .toggle-btn:hover {
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .bookmark-btn:hover {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .checkmark {
+            color: #10b981;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+
+        .available-scenario-name {
+            font-weight: 600;
+            color: #e0e6ed;
+            margin-bottom: 5px;
+        }
+
+        .available-scenario-desc {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .remove-btn {
+            padding: 5px 10px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+
+        .remove-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* Status chips */
+        .status-chip {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-left: 10px;
+            border: 1px solid transparent;
+        }
+
+        .status-chip.running {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .status-chip.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .status-chip.stopped {
+            background: rgba(100, 116, 139, 0.2);
+            color: #64748b;
+            border-color: rgba(100, 116, 139, 0.3);
+        }
+
+        /* Preset assignment styles */
+        .preset-list {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .preset-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .preset-item:hover {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .preset-checkbox {
+            margin-right: 12px;
+            width: 16px;
+            height: 16px;
+            accent-color: #10b981;
+        }
+
+        .preset-info {
+            flex: 1;
+        }
+
+        .preset-name {
+            font-weight: 600;
+            color: #e0e6ed;
+            margin-bottom: 4px;
+        }
+
+        .preset-description {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon"><i data-lucide="activity" style="width: 24px; height: 24px;"></i></div>
+            <h1>Maintenance Orchestrator</h1>
+        </div>
+        <div class="header-right">
+            <div class="connection-indicator" id="connectionIndicator">
+                <div class="connection-dot"></div>
+                <span id="connectionStatus">Connecting...</span>
+                <span id="apiEndpoint" style="color: #64748b; font-size: 11px; margin-left: 8px;"></span>
+            </div>
+            <button class="logs-btn" onclick="openLogsModal()">
+                <i data-lucide="clipboard-list" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>View Logs
+            </button>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="total-scenarios">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="active-scenarios" style="color: #10b981;">0</div>
+                    <div class="stat-label">Active</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="inactive-scenarios" style="color: #64748b;">0</div>
+                    <div class="stat-label">Inactive</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Bar -->
+    <div class="control-bar">
+        <div class="search-container">
+            <i data-lucide="search" class="search-icon" style="width: 18px; height: 18px;"></i>
+            <input type="text" class="search-input" id="searchInput" placeholder="Search scenarios..." />
+        </div>
+        <div class="sort-container">
+            <span class="sort-label">Sort:</span>
+            <select class="sort-select" id="sortSelect">
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="status-active">Active First</option>
+                <option value="status-inactive">Inactive First</option>
+                <option value="health-running">Running First</option>
+            </select>
+        </div>
+        <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
+            <i data-lucide="refresh-cw" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>Refresh
+        </button>
+        <button class="add-scenario-btn" onclick="openManageScenarioModal()">
+            <i data-lucide="settings" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>Manage
+        </button>
+    </div>
+
+    <div class="main-container">
+        <div class="presets-section" id="presetsSection">
+            <div class="section-title">
+                <span class="section-title-text">Quick Presets</span>
+                <button class="section-toggle-btn" onclick="togglePresets()" title="Toggle presets panel" id="presetsToggleBtn">
+                    ◀
+                </button>
+            </div>
+            <div class="presets-content" id="presetsContent">
+                <div id="presets-container"></div>
+            </div>
+        </div>
+
+        <div class="scenarios-section">
+            <div class="section-title">Maintenance Scenarios</div>
+            <div id="scenarios-grid" class="scenarios-grid">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <button class="emergency-stop" onclick="emergencyStop()">
+        <i data-lucide="stop-circle" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>STOP ALL
+    </button>
+
+    <!-- Logs Modal -->
+    <div id="logsModal" class="logs-modal">
+        <div class="logs-content">
+            <div class="logs-header">
+                <div class="logs-title"><i data-lucide="activity" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>Connection & Activity Logs</div>
+                <div class="logs-header-buttons">
+                    <button class="modal-btn" onclick="clearLogs()">Clear</button>
+                    <button class="modal-btn" onclick="testConnection()">Test Connection</button>
+                    <button class="modal-btn" onclick="closeLogsModal()">✕</button>
+                </div>
+            </div>
+            <div class="logs-list" id="logsList">
+                <!-- Logs will be inserted here -->
+            </div>
+            <div class="logs-actions">
+                <button class="modal-btn primary" onclick="closeLogsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Scenarios Modal -->
+    <div id="manageScenarioModal" class="logs-modal">
+        <div class="logs-content">
+            <div class="logs-header">
+                <div class="logs-title"><i data-lucide="settings-2" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>Manage Maintenance Scenarios</div>
+                <div class="logs-header-buttons">
+                    <button class="modal-btn" onclick="closeManageScenarioModal()">✕</button>
+                </div>
+            </div>
+            <div class="scenario-selector">
+                <div class="search-container" style="margin-bottom: 20px;">
+                    <i data-lucide="search" class="search-icon" style="width: 18px; height: 18px;"></i>
+                    <input type="text" class="search-input" id="modalSearchInput" placeholder="Search scenarios..." onkeyup="filterModalScenarios()" />
+                </div>
+                <div id="availableScenariosList" class="available-scenarios-list">
+                    <!-- Available scenarios will be listed here -->
+                </div>
+            </div>
+            <div class="logs-actions">
+                <button class="modal-btn" onclick="closeManageScenarioModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="logs-modal">
+        <div class="logs-content" style="max-width: 500px;">
+            <div class="logs-header">
+                <div class="logs-title" id="confirmTitle">⚠️ Confirm Action</div>
+            </div>
+            <div style="padding: 20px; color: #e0e6ed;" id="confirmMessage">
+                Are you sure you want to proceed?
+            </div>
+            <div class="logs-actions">
+                <button class="modal-btn" onclick="cancelConfirm()">Cancel</button>
+                <button class="modal-btn primary" id="confirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preset Assignment Modal -->
+    <div id="presetAssignmentModal" class="logs-modal">
+        <div class="logs-content" style="max-width: 600px;">
+            <div class="logs-header">
+                <div class="logs-title" id="presetAssignmentTitle">🔖 Assign to Presets</div>
+                <div class="logs-header-buttons">
+                    <button class="modal-btn" onclick="closePresetAssignmentModal()">✕</button>
+                </div>
+            </div>
+            <div class="preset-assignment-content">
+                <div style="padding: 20px; color: #e0e6ed; border-bottom: 1px solid rgba(16, 185, 129, 0.1);">
+                    Select which presets should include <span id="assignmentScenarioName" style="color: #10b981; font-weight: bold;"></span>:
+                </div>
+                <div class="preset-list" id="presetList">
+                    <!-- Preset checkboxes will be loaded here -->
+                </div>
+            </div>
+            <div class="logs-actions">
+                <button class="modal-btn" onclick="closePresetAssignmentModal()">Cancel</button>
+                <button class="modal-btn primary" onclick="savePresetAssignments()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+      if (typeof window !== 'undefined') {
+        window.initIframeBridgeChild = window.initIframeBridgeChild || initIframeBridgeChild;
+      }
+    </script>
+    <script src="app.js"></script>
+    <script>
+        let API_BASE = '';
+        let apiUrl = '';
+        let scenarios = {};
+        let presets = {};
+        let connectionStatus = 'disconnected';
+        let logs = [];
+        let pollInterval = null;
+        let searchTerm = '';
+        let sortOrder = 'name-asc';
+        let scenarioStatuses = {};
+        let isPolling = false;
+        let previewedPreset = null;
+        let previewedScenarios = new Set();
+        let presetsVisible = true;
+        let cachedStatuses = {}; // Cache for scenario statuses to prevent flicker
+        let loadingStates = {}; // Track which scenarios are loading state changes
+        let initialLoadComplete = false; // Track if initial health check has completed
+
+        // Logging functions
+        function addLog(message, level = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push({ timestamp, level, message });
+            
+            // Keep only last 200 logs
+            if (logs.length > 200) {
+                logs.shift();
+            }
+            
+            // Update logs display if modal is open
+            if (document.getElementById('logsModal').classList.contains('active')) {
+                updateLogsDisplay();
+            }
+            
+            // Also log to console
+            console.log(`[${level.toUpperCase()}] ${message}`);
+        }
+
+        function updateLogsDisplay() {
+            const logsList = document.getElementById('logsList');
+            logsList.innerHTML = logs.map(log => `
+                <div class="log-entry ${log.level}">
+                    <span class="log-timestamp">${log.timestamp}</span>
+                    <span class="log-level ${log.level}">[${log.level}]</span>
+                    <span class="log-message">${log.message}</span>
+                </div>
+            `).reverse().join('');
+        }
+
+        function updateConnectionStatus(status, message = '') {
+            connectionStatus = status;
+            const indicator = document.getElementById('connectionIndicator');
+            const statusText = document.getElementById('connectionStatus');
+            
+            // Remove all status classes
+            indicator.classList.remove('connected', 'disconnected', 'connecting');
+            
+            switch(status) {
+                case 'connected':
+                    indicator.classList.add('connected');
+                    statusText.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    indicator.classList.add('disconnected');
+                    statusText.textContent = message || 'Disconnected';
+                    break;
+                case 'connecting':
+                    indicator.classList.add('connecting');
+                    statusText.textContent = 'Connecting...';
+                    break;
+            }
+        }
+
+        // Modal functions
+        function openLogsModal() {
+            document.getElementById('logsModal').classList.add('active');
+            updateLogsDisplay();
+        }
+
+        function closeLogsModal() {
+            document.getElementById('logsModal').classList.remove('active');
+        }
+
+        function clearLogs() {
+            logs = [];
+            addLog('Logs cleared', 'info');
+            updateLogsDisplay();
+        }
+
+        // Get API configuration
+        async function getConfig() {
+            updateConnectionStatus('connecting');
+            addLog('Fetching API configuration...', 'info');
+            
+            try {
+                const response = await fetch('/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    const proxiedApiUrl = config.proxyApiUrl || '';
+                    const proxiedApiBase = config.proxyApiBase || '';
+                    const directApiUrl = config.apiUrl || config.directApiUrl || '';
+                    const directApiBase = config.apiBase || config.directApiBase || '';
+                    apiUrl = proxiedApiUrl || directApiUrl || '/proxy';
+                    const normalizedApiUrl = apiUrl.replace(/\/$/, '');
+                    API_BASE = proxiedApiBase || directApiBase || (
+                        normalizedApiUrl.endsWith('/api')
+                            ? `${normalizedApiUrl}/v1`
+                            : `${normalizedApiUrl}/api/v1`
+                    );
+
+                    const displayEndpoint = config.displayApiUrl || directApiUrl || apiUrl;
+                    addLog(`Config loaded: API proxy at ${apiUrl}`, 'success');
+                    if (directApiUrl) {
+                        addLog(`Direct API available at ${directApiUrl}`, 'info');
+                    }
+                    document.getElementById('apiEndpoint').textContent = displayEndpoint;
+                    return config;
+                } else {
+                    throw new Error(`Config endpoint returned ${response.status}`);
+                }
+            } catch (error) {
+                addLog(`Failed to get config: ${error.message}`, 'error');
+
+                // Prefer the proxy metadata injected by App Monitor when available
+                const proxyInfo = window.__APP_MONITOR_PROXY_INFO__;
+                const proxyApiEntry = Array.isArray(proxyInfo?.ports)
+                    ? proxyInfo.ports.find(entry => {
+                        const aliases = Array.isArray(entry.aliases)
+                            ? entry.aliases.map(alias => alias.toLowerCase())
+                            : [];
+                        const label = (entry.label || entry.slug || '').toLowerCase();
+                        return (
+                            aliases.includes('api_port') ||
+                            aliases.includes('api') ||
+                            aliases.includes('backend') ||
+                            label.includes('api')
+                        );
+                    })
+                    : null;
+
+                if (proxyApiEntry?.path) {
+                    const normalizedPath = proxyApiEntry.path.replace(/\/$/, '');
+                    const proxiedApiUrl = `${window.location.origin}${normalizedPath}`;
+                    apiUrl = proxiedApiUrl;
+                    API_BASE = `${proxiedApiUrl}/api/v1`;
+
+                    addLog(`Using proxy API URL: ${apiUrl}`, 'success');
+                    document.getElementById('apiEndpoint').textContent = `${apiUrl} (proxied)`;
+                    return;
+                }
+
+                // Fallback to environment-based guessing for standalone usage
+                const uiPort = window.location.port || '37116';
+                const guessedApiPort = uiPort.replace('3', '1');
+                apiUrl = `http://localhost:${guessedApiPort}`;
+                API_BASE = `${apiUrl}/api/v1`;
+
+                addLog(`Using fallback API URL: ${apiUrl}`, 'warn');
+                document.getElementById('apiEndpoint').textContent = `${apiUrl} (fallback)`;
+            }
+        }
+
+        // Test API connection
+        async function testConnection() {
+            addLog(`Testing connection to ${apiUrl}/health...`, 'info');
+            updateConnectionStatus('connecting');
+            
+            try {
+                const response = await fetch(`${apiUrl}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addLog(`API Health Check Success: ${JSON.stringify(data)}`, 'success');
+                    updateConnectionStatus('connected');
+                    return true;
+                } else {
+                    addLog(`API Health Check Failed: HTTP ${response.status}`, 'error');
+                    updateConnectionStatus('disconnected', `HTTP ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                addLog(`Connection failed: ${error.message}`, 'error');
+                updateConnectionStatus('disconnected', 'Cannot reach API');
+                return false;
+            }
+        }
+
+        async function fetchScenarios() {
+            try {
+                addLog('Fetching scenarios...', 'info');
+                const response = await fetch(`${API_BASE}/scenarios`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                scenarios = data.scenarios.reduce((acc, s) => {
+                    acc[s.id] = s;
+                    return acc;
+                }, {});
+                
+                addLog(`Loaded ${Object.keys(scenarios).length} scenarios`, 'success');
+                updateConnectionStatus('connected');
+                renderScenarios();
+                updateStats();
+            } catch (error) {
+                addLog(`Error fetching scenarios: ${error.message}`, 'error');
+                updateConnectionStatus('disconnected', 'API Error');
+            }
+        }
+
+        // Fetch scenario statuses from vrooli CLI
+        async function fetchScenarioStatuses() {
+            try {
+                const response = await fetch(`${API_BASE}/scenario-statuses`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                scenarioStatuses = data.statuses || {};
+                
+                // Update cached statuses only if changed
+                Object.keys(scenarios).forEach(id => {
+                    const newStatus = scenarioStatuses[id] || { status: 'stopped', processCount: 0 };
+                    const currentCached = cachedStatuses[id];
+                    
+                    // Only update cache if status actually changed or if it's the first fetch
+                    if (!currentCached || 
+                        currentCached.health !== newStatus.status || 
+                        currentCached.processCount !== newStatus.processCount) {
+                        
+                        cachedStatuses[id] = {
+                            health: newStatus.status,
+                            processCount: newStatus.processCount
+                        };
+                        
+                        // Update scenario object
+                        scenarios[id].health = newStatus.status;
+                        scenarios[id].processCount = newStatus.processCount;
+                    }
+                });
+                
+                renderScenarios();
+            } catch (error) {
+                addLog(`Error fetching scenario statuses: ${error.message}`, 'warn');
+            }
+        }
+
+        async function fetchPresets() {
+            try {
+                addLog('Fetching presets...', 'info');
+                const response = await fetch(`${API_BASE}/presets`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                presets = data.presets.reduce((acc, p) => {
+                    acc[p.id] = p;
+                    return acc;
+                }, {});
+                
+                addLog(`Loaded ${Object.keys(presets).length} presets`, 'success');
+                renderPresets();
+            } catch (error) {
+                addLog(`Error fetching presets: ${error.message}`, 'error');
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                updateConnectionStatus('connected');
+            } catch (error) {
+                addLog(`Error fetching status: ${error.message}`, 'warn');
+            }
+        }
+
+        function getStatusChip(scenarioId) {
+            // Check if we have a cached status for this scenario
+            if (!cachedStatuses[scenarioId]) {
+                // No cached status yet, show loading state
+                return `<span class="status-chip stopped"><i data-lucide="loader" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i>Loading...</span>`;
+            }
+            
+            const status = cachedStatuses[scenarioId];
+            switch(status.health) {
+                case 'running':
+                    return `<span class="status-chip running"><i data-lucide="circle-check" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; color: #10b981;"></i>Running (${status.processCount})</span>`;
+                case 'error':
+                    return `<span class="status-chip error"><i data-lucide="circle-x" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; color: #ef4444;"></i>Error</span>`;
+                default:
+                    return `<span class="status-chip stopped"><i data-lucide="circle" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; color: #64748b;"></i>Stopped</span>`;
+            }
+        }
+
+        function filterAndSortScenarios() {
+            let filtered = Object.values(scenarios);
+            
+            // Filter out the maintenance orchestrator itself
+            filtered = filtered.filter(s => 
+                s.id !== 'maintenance-orchestrator' && 
+                s.name !== 'maintenance-orchestrator'
+            );
+            
+            // Apply search filter
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                filtered = filtered.filter(s => 
+                    s.name.toLowerCase().includes(term) ||
+                    (s.displayName && s.displayName.toLowerCase().includes(term)) ||
+                    (s.description && s.description.toLowerCase().includes(term)) ||
+                    s.tags.some(tag => tag.toLowerCase().includes(term))
+                );
+            }
+            
+            // Apply sorting
+            filtered.sort((a, b) => {
+                // Prioritize previewed scenarios first
+                const aIsPreview = previewedScenarios.has(a.id);
+                const bIsPreview = previewedScenarios.has(b.id);
+                
+                if (aIsPreview && !bIsPreview) return -1;
+                if (!aIsPreview && bIsPreview) return 1;
+                
+                // Then apply normal sorting
+                switch(sortOrder) {
+                    case 'name-asc':
+                        return (a.displayName || a.name).localeCompare(b.displayName || b.name);
+                    case 'name-desc':
+                        return (b.displayName || b.name).localeCompare(a.displayName || a.name);
+                    case 'status-active':
+                        return (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0);
+                    case 'status-inactive':
+                        return (a.isActive ? 1 : 0) - (b.isActive ? 1 : 0);
+                    case 'health-running':
+                        const healthOrder = { running: 0, error: 1, stopped: 2 };
+                        return (healthOrder[a.health] || 2) - (healthOrder[b.health] || 2);
+                    default:
+                        return 0;
+                }
+            });
+            
+            return filtered;
+        }
+
+        function renderScenarios() {
+            const grid = document.getElementById('scenarios-grid');
+            const filtered = filterAndSortScenarios();
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #64748b;">
+                        ${searchTerm ? 'No scenarios match your search' : 'No maintenance scenarios found'}
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(scenario => {
+                const statusChip = getStatusChip(scenario.id);
+                const isPreview = previewedScenarios.has(scenario.id);
+                const previewClass = isPreview ? ' preview' : '';
+                
+                // Limit tags to 3 with overflow indicator
+                let tagsHtml = '';
+                if (scenario.tags && scenario.tags.length > 0) {
+                    const visibleTags = scenario.tags.slice(0, 3);
+                    const remainingCount = scenario.tags.length - 3;
+                    
+                    tagsHtml = visibleTags.map(tag => `<span class="tag">${tag}</span>`).join('');
+                    if (remainingCount > 0) {
+                        tagsHtml += `<span class="tag" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8;">+${remainingCount}</span>`;
+                    }
+                }
+                
+                return `
+                <div class="scenario-card ${scenario.isActive ? 'active' : ''}${previewClass}" 
+                     onclick="openScenario(event, '${scenario.id}')"
+                     style="cursor: pointer;">
+                    <div class="scenario-header">
+                        <div style="flex: 1;">
+                            <div class="scenario-name">
+                                ${scenario.displayName || scenario.name}
+                                ${statusChip}
+                            </div>
+                            <div class="scenario-tags">
+                                ${tagsHtml}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="action-btn" 
+                                    onclick="event.stopPropagation(); openScenarioInNewTab('${scenario.id}')" 
+                                    title="Open scenario in new tab"
+                                    style="padding: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; color: #10b981; cursor: pointer; transition: all 0.3s ease;">
+                                <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+                            </button>
+                            
+                            <div class="state-toggle ${getScenarioState(scenario.id)}" 
+                                 onclick="event.stopPropagation(); cycleScenarioState('${scenario.id}')"
+                                 title="${getScenarioStateTitle(scenario.id)}">
+                            </div>
+                        </div>
+                    </div>
+                    ${scenario.description ? `<div style="color: #64748b; font-size: 12px; margin-top: 10px;">${scenario.description}</div>` : ''}
+                </div>
+            `;
+            }).join('');
+            
+            // Initialize Lucide icons
+            lucide.createIcons();
+        }
+
+        function renderPresets() {
+            const container = document.getElementById('presets-container');
+            container.innerHTML = Object.values(presets).map(preset => {
+                const isPreview = previewedPreset === preset.id;
+                const isActive = isPresetActive(preset.id);
+                
+                const classes = [];
+                if (isPreview) classes.push('preview');
+                if (isActive) classes.push('active');
+                const classString = classes.length > 0 ? ' ' + classes.join(' ') : '';
+                
+                // Always show action icons, with different icons based on active state
+                let actionIcon = '';
+                if (isActive) {
+                    actionIcon = `<span class="preset-action-icon deactivate" onclick="event.stopPropagation(); deactivatePreset('${preset.id}')" title="Deactivate preset"><i data-lucide="square" style="width: 16px; height: 16px;"></i></span>`;
+                } else {
+                    actionIcon = `<span class="preset-action-icon activate" onclick="event.stopPropagation(); activatePreset('${preset.id}')" title="Activate preset"><i data-lucide="play" style="width: 16px; height: 16px;"></i></span>`;
+                }
+                
+                return `
+                    <button class="preset-btn${classString}" onclick="previewPreset('${preset.id}')">
+                        ${actionIcon}
+                        <div>${preset.name}${isActive ? ' <i data-lucide="check-circle" style="width: 14px; height: 14px; vertical-align: middle; color: #10b981;"></i>' : ''}</div>
+                        <div class="preset-description">${preset.description}</div>
+                    </button>
+                `;
+            }).join('');
+            
+            // Initialize Lucide icons
+            lucide.createIcons();
+        }
+
+
+        function updateStats() {
+            const active = Object.values(scenarios).filter(s => s.isActive).length;
+            const total = Object.values(scenarios).length;
+            
+            document.getElementById('total-scenarios').textContent = total;
+            document.getElementById('active-scenarios').textContent = active;
+            document.getElementById('inactive-scenarios').textContent = total - active;
+        }
+
+        async function toggleScenario(id, activate) {
+            try {
+                const endpoint = activate ? 'activate' : 'deactivate';
+                const scenarioName = scenarios[id]?.displayName || scenarios[id]?.name || id;
+                addLog(`${activate ? 'Activating' : 'Deactivating'} scenario: ${scenarioName}`, 'info');
+                
+                const response = await fetch(`${API_BASE}/scenarios/${id}/${endpoint}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    scenarios[id].isActive = activate;
+                    addLog(`${activate ? 'Activated' : 'Deactivated'} ${scenarioName}`, 'success');
+                    updateStats();
+                } else {
+                    addLog(`Failed to ${activate ? 'activate' : 'deactivate'} ${scenarioName}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error toggling scenario: ${error.message}`, 'error');
+            }
+        }
+
+        // 3-State System Functions
+        function getScenarioProcessStatus(scenarioId) {
+            const status = scenarioStatuses[scenarioId];
+            if (!status || status.status === 'stopped') return 'stopped';
+            return status.status === 'running' ? 'running' : 'stopped';
+        }
+
+        function getScenarioState(scenarioId) {
+            // Show loading if initial load hasn't completed or scenario is actively loading
+            if (!initialLoadComplete || loadingStates[scenarioId]) {
+                return 'loading';
+            }
+
+            const processStatus = getScenarioProcessStatus(scenarioId);
+            const isActive = scenarios[scenarioId]?.isActive || false;
+
+            if (processStatus === 'stopped') return 'stopped';
+            if (processStatus === 'running' && !isActive) return 'running-inactive';
+            if (processStatus === 'running' && isActive) return 'running-active';
+            return 'stopped';
+        }
+
+        function getScenarioStateTitle(scenarioId) {
+            const state = getScenarioState(scenarioId);
+            switch (state) {
+                case 'loading':
+                    return 'Loading... Please wait';
+                case 'stopped':
+                    return 'Stopped - Click to start process and activate maintenance';
+                case 'running-inactive':
+                    return 'Running but maintenance inactive - Click to activate maintenance';
+                case 'running-active':
+                    return 'Running with active maintenance - Click to stop process completely';
+                default:
+                    return 'Unknown state';
+            }
+        }
+
+        async function cycleScenarioState(scenarioId) {
+            // Don't allow clicks while already loading
+            if (loadingStates[scenarioId]) {
+                return;
+            }
+
+            const currentState = getScenarioState(scenarioId);
+            const scenarioName = scenarios[scenarioId]?.displayName || scenarios[scenarioId]?.name || scenarioId;
+
+            // Set loading state and re-render
+            loadingStates[scenarioId] = true;
+            renderScenarios();
+
+            try {
+                switch (currentState) {
+                    case 'loading':
+                        // Already loading, shouldn't reach here but just in case
+                        return;
+                    
+                    case 'stopped':
+                        // Start process and activate maintenance
+                        addLog(`Starting and activating ${scenarioName}`, 'info');
+                        await startScenario(scenarioId);
+                        // Wait a moment for the process to start, then activate maintenance
+                        setTimeout(async () => {
+                            await toggleScenario(scenarioId, true);
+                            // Clear loading state after both operations
+                            loadingStates[scenarioId] = false;
+                            renderScenarios();
+                        }, 2000);
+                        return; // Don't clear loading state immediately
+                    
+                    case 'running-inactive':
+                        // Just activate maintenance
+                        await toggleScenario(scenarioId, true);
+                        break;
+                    
+                    case 'running-active':
+                        // Stop process completely (which also deactivates maintenance)
+                        addLog(`Stopping ${scenarioName}`, 'info');
+                        await stopScenario(scenarioId);
+                        // Deactivate maintenance as well
+                        setTimeout(async () => {
+                            await toggleScenario(scenarioId, false);
+                            // Clear loading state after both operations
+                            loadingStates[scenarioId] = false;
+                            renderScenarios();
+                        }, 1000);
+                        return; // Don't clear loading state immediately
+                }
+                
+                // Clear loading state for single operations
+                loadingStates[scenarioId] = false;
+                renderScenarios();
+                
+            } catch (error) {
+                addLog(`Error cycling state for ${scenarioName}: ${error.message}`, 'error');
+                // Clear loading state on error
+                loadingStates[scenarioId] = false;
+                renderScenarios();
+            }
+        }
+
+        async function startScenario(scenarioId) {
+            const scenarioName = scenarios[scenarioId]?.displayName || scenarios[scenarioId]?.name || scenarioId;
+            
+            try {
+                addLog(`Starting scenario: ${scenarioName}`, 'info');
+                
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioId}/start`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Successfully started ${scenarioName}`, 'success');
+                    // Refresh status after a delay to allow process to start
+                    setTimeout(() => {
+                        pollData();
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                addLog(`Failed to start ${scenarioName}: ${error.message}`, 'error');
+                console.error('Start scenario error:', error);
+            }
+        }
+
+        async function stopScenario(scenarioId) {
+            const scenarioName = scenarios[scenarioId]?.displayName || scenarios[scenarioId]?.name || scenarioId;
+            
+            try {
+                addLog(`Stopping scenario: ${scenarioName}`, 'info');
+                
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioId}/stop`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Successfully stopped ${scenarioName}`, 'success');
+                    // Refresh status after a delay
+                    setTimeout(() => {
+                        pollData();
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                addLog(`Failed to stop ${scenarioName}: ${error.message}`, 'error');
+                console.error('Stop scenario error:', error);
+            }
+        }
+
+        async function openScenario(event, scenarioId) {
+            // Don't open if clicking on toggle switch, action buttons, or other interactive elements
+            if (event.target.closest('.toggle-switch') || 
+                event.target.closest('.state-toggle') ||
+                event.target.closest('.action-btn') || 
+                event.target.closest('button') ||
+                event.target.closest('label')) {
+                return;
+            }
+            
+            // Use the same logic as openScenarioInNewTab
+            await openScenarioInNewTab(scenarioId);
+        }
+        
+        async function openScenarioInNewTab(scenarioId) {
+            const proxyInfo = window.__APP_MONITOR_PROXY_INFO__;
+            if (proxyInfo) {
+                const baseUrl = `${window.location.origin}/apps/${encodeURIComponent(scenarioId)}`;
+                window.open(baseUrl, '_blank');
+                addLog(`Opening ${scenarioId} through proxy at ${baseUrl}`, 'info');
+                return;
+            }
+
+            // Fetch the actual port for the scenario
+            try {
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioId}/port?type=UI_PORT`);
+                const data = await response.json();
+                
+                if (data.port) {
+                    // Open scenario using the actual port
+                    window.open(`http://localhost:${data.port}`, '_blank');
+                    addLog(`Opening ${scenarioId} on port ${data.port}`, 'info');
+                } else {
+                    // Try API_PORT as fallback
+                    const apiResponse = await fetch(`${API_BASE}/scenarios/${scenarioId}/port?type=API_PORT`);
+                    const apiData = await apiResponse.json();
+                    
+                    if (apiData.port) {
+                        window.open(`http://localhost:${apiData.port}`, '_blank');
+                        addLog(`Opening ${scenarioId} on API port ${apiData.port}`, 'info');
+                    } else {
+                        addLog(`Cannot open ${scenarioId}: No port available (scenario may not be running)`, 'warn');
+                    }
+                }
+            } catch (error) {
+                addLog(`Error fetching port for ${scenarioId}: ${error.message}`, 'error');
+            }
+        }
+
+        function previewPreset(presetId) {
+            if (previewedPreset === presetId) {
+                // Clicking the same preset again clears preview
+                clearPreview();
+                return;
+            }
+            
+            previewedPreset = presetId;
+            previewedScenarios.clear();
+            
+            // Calculate which scenarios would be affected by this preset
+            const preset = presets[presetId];
+            if (preset) {
+                if (preset.pattern === '*') {
+                    // All scenarios
+                    Object.keys(scenarios).forEach(id => previewedScenarios.add(id));
+                } else if (preset.tags && preset.tags.length > 0) {
+                    // Scenarios with matching tags
+                    Object.values(scenarios).forEach(scenario => {
+                        if (scenario.tags && scenario.tags.some(tag => preset.tags.includes(tag))) {
+                            previewedScenarios.add(scenario.id);
+                        }
+                    });
+                } else if (preset.states) {
+                    // Explicitly configured scenarios
+                    Object.keys(preset.states).forEach(id => {
+                        if (scenarios[id]) previewedScenarios.add(id);
+                    });
+                }
+            }
+            
+            addLog(`Previewing preset: ${preset?.name || 'Unknown'} (${previewedScenarios.size} scenarios)`, 'info');
+            renderPresets();
+            renderScenarios();
+        }
+        
+        function clearPreview() {
+            previewedPreset = null;
+            previewedScenarios.clear();
+            renderPresets();
+            renderScenarios();
+        }
+        
+        function isPresetActive(presetId) {
+            const preset = presets[presetId];
+            if (!preset) return false;
+            
+            // Use the isActive field from the preset
+            return preset.isActive || false;
+        }
+        
+        async function activatePreset(presetId) {
+            const presetName = presets[presetId]?.name || presetId;
+            const preset = presets[presetId];
+
+            // Count scenarios that will be affected
+            let affectedCount = 0;
+            if (preset) {
+                if (preset.pattern === '*') {
+                    affectedCount = scenarios.filter(s => !s.isActive).length;
+                } else if (preset.tags && preset.tags.length > 0) {
+                    affectedCount = scenarios.filter(s =>
+                        !s.isActive && s.tags && s.tags.some(tag => preset.tags.includes(tag))
+                    ).length;
+                } else if (preset.states) {
+                    affectedCount = Object.entries(preset.states).filter(([id, state]) =>
+                        state && scenarios.find(s => s.id === id && !s.isActive)
+                    ).length;
+                }
+            }
+
+            if (!confirm(`⚡ Activate preset "${presetName}"?\n\nThis will activate ${affectedCount} scenario${affectedCount !== 1 ? 's' : ''}.`)) {
+                return;
+            }
+
+            try {
+                addLog(`Activating preset: ${presetName}`, 'info');
+                const response = await fetch(`${API_BASE}/presets/${presetId}/apply`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    addLog(`✅ Activated preset: ${presetName}`, 'success');
+                    clearPreview();
+                    fetchScenarios();
+                } else {
+                    addLog(`Failed to activate preset: ${presetName}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error activating preset: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deactivatePreset(presetId) {
+            const presetName = presets[presetId]?.name || presetId;
+            const preset = presets[presetId];
+
+            // Count scenarios that will be affected
+            let affectedCount = 0;
+            if (preset) {
+                if (preset.pattern === '*') {
+                    affectedCount = scenarios.filter(s => s.isActive).length;
+                } else if (preset.tags && preset.tags.length > 0) {
+                    affectedCount = scenarios.filter(s =>
+                        s.isActive && s.tags && s.tags.some(tag => preset.tags.includes(tag))
+                    ).length;
+                } else if (preset.states) {
+                    affectedCount = Object.entries(preset.states).filter(([id, state]) =>
+                        state && scenarios.find(s => s.id === id && s.isActive)
+                    ).length;
+                }
+            }
+
+            if (!confirm(`⏹️ Deactivate preset "${presetName}"?\n\nThis will deactivate ${affectedCount} scenario${affectedCount !== 1 ? 's' : ''}.`)) {
+                return;
+            }
+
+            try {
+                addLog(`Deactivating preset: ${presetName}`, 'info');
+                const response = await fetch(`${API_BASE}/presets/${presetId}/apply`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    addLog(`✅ Deactivated preset: ${presetName}`, 'success');
+                    clearPreview();
+                    fetchScenarios();
+                } else {
+                    addLog(`Failed to deactivate preset: ${presetName}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error deactivating preset: ${error.message}`, 'error');
+            }
+        }
+
+        async function applyPreset(presetId) {
+            const presetName = presets[presetId]?.name || presetId;
+            if (!confirm(`Apply preset: ${presetName}?`)) return;
+            
+            try {
+                addLog(`Applying preset: ${presetName}`, 'info');
+                const response = await fetch(`${API_BASE}/presets/${presetId}/apply`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Applied preset: ${presetName} (${data.activated?.length || 0} activated, ${data.deactivated?.length || 0} deactivated)`, 'success');
+                    fetchScenarios();
+                } else {
+                    addLog(`Failed to apply preset: ${presetName}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error applying preset: ${error.message}`, 'error');
+            }
+        }
+
+        async function emergencyStop() {
+            if (!confirm('⚠️ This will deactivate ALL maintenance scenarios. Continue?')) return;
+            
+            try {
+                addLog('Executing emergency stop...', 'warn');
+                const response = await fetch(`${API_BASE}/stop-all`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Emergency stop executed: ${data.deactivated?.length || 0} scenarios deactivated`, 'success');
+                    fetchScenarios();
+                } else {
+                    addLog('Emergency stop failed', 'error');
+                }
+            } catch (error) {
+                addLog(`Error executing emergency stop: ${error.message}`, 'error');
+            }
+        }
+
+        // Sequential polling mechanism
+        async function pollData() {
+            if (isPolling) return; // Prevent concurrent polling
+            
+            isPolling = true;
+            try {
+                await Promise.all([
+                    fetchScenarios(),
+                    fetchScenarioStatuses()
+                ]);
+            } catch (error) {
+                addLog(`Polling error: ${error.message}`, 'warn');
+            } finally {
+                isPolling = false;
+            }
+        }
+
+        function startPolling() {
+            // Use setTimeout for sequential polling
+            const poll = async () => {
+                await pollData();
+                pollInterval = setTimeout(poll, 5000); // Wait 5 seconds after completion
+            };
+            poll();
+        }
+
+        function stopPolling() {
+            if (pollInterval) {
+                clearTimeout(pollInterval);
+                pollInterval = null;
+            }
+        }
+
+        // Manual refresh
+        async function manualRefresh() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('refreshing');
+            
+            stopPolling();
+            await pollData();
+            startPolling();
+            
+            setTimeout(() => {
+                btn.classList.remove('refreshing');
+            }, 1000);
+        }
+
+        // Search and sort handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide icons
+            lucide.createIcons();
+            
+            const searchInput = document.getElementById('searchInput');
+            const sortSelect = document.getElementById('sortSelect');
+            
+            searchInput.addEventListener('input', (e) => {
+                searchTerm = e.target.value;
+                renderScenarios();
+            });
+            
+            sortSelect.addEventListener('change', (e) => {
+                sortOrder = e.target.value;
+                renderScenarios();
+            });
+            
+            // Load presets visibility preference
+            loadPresetsVisibility();
+        });
+
+        // Add scenario modal functions
+        let allScenarios = [];
+        let confirmCallback = null;
+
+        async function openManageScenarioModal() {
+            document.getElementById('manageScenarioModal').style.display = 'flex';
+            document.getElementById('modalSearchInput').value = '';
+            
+            // Show loading skeleton while fetching
+            const container = document.getElementById('availableScenariosList');
+            container.innerHTML = `
+                <div class="skeleton-loader">
+                    <div class="skeleton-card">
+                        <div class="skeleton-title"></div>
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-tags">
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div class="skeleton-title"></div>
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-tags">
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div class="skeleton-title"></div>
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-tags">
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            await loadAllScenarios();
+        }
+
+        function closeManageScenarioModal() {
+            document.getElementById('manageScenarioModal').style.display = 'none';
+        }
+
+        async function loadAllScenarios() {
+            try {
+                const response = await fetch(`${API_BASE}/all-scenarios`);
+                const data = await response.json();
+                allScenarios = data.scenarios || [];
+                renderAvailableScenarios();
+            } catch (error) {
+                addLog(`Error loading scenarios: ${error.message}`, 'error');
+            }
+        }
+
+        function renderAvailableScenarios() {
+            const searchTerm = document.getElementById('modalSearchInput').value.toLowerCase();
+            const container = document.getElementById('availableScenariosList');
+            
+            const filtered = allScenarios.filter(s => {
+                const nameMatch = (s.name || '').toLowerCase().includes(searchTerm);
+                const displayNameMatch = (s.displayName || '').toLowerCase().includes(searchTerm);
+                const descMatch = (s.description || '').toLowerCase().includes(searchTerm);
+                return nameMatch || displayNameMatch || descMatch;
+            });
+
+            container.innerHTML = filtered.map(scenario => {
+                const hasMaintenance = scenario.tags && scenario.tags.includes('maintenance');
+                const className = hasMaintenance ? 'available-scenario-item enabled' : 'available-scenario-item disabled';
+                const onclick = `onclick="toggleMaintenanceTag('${scenario.name}', '${scenario.displayName || scenario.name}', ${hasMaintenance})"`;
+                
+                return `
+                    <div class="${className}" ${onclick}>
+                        <div class="scenario-info">
+                            <div class="available-scenario-name">
+                                ${hasMaintenance ? '<span class="checkmark">✓</span>' : ''}
+                                ${scenario.displayName || scenario.name}
+                            </div>
+                            <div class="available-scenario-desc">${scenario.description || 'No description available'}</div>
+                        </div>
+                        <div class="scenario-actions">
+                            <button class="action-btn toggle-btn" onclick="event.stopPropagation(); toggleMaintenanceTag('${scenario.name}', '${scenario.displayName || scenario.name}', ${hasMaintenance})" title="${hasMaintenance ? 'Remove from maintenance' : 'Add to maintenance'}">
+                                ${hasMaintenance ? '❌' : '➕'}
+                            </button>
+                            <button class="action-btn bookmark-btn" onclick="event.stopPropagation(); openPresetAssignmentModal('${scenario.name}', '${scenario.displayName || scenario.name}')" title="Assign to presets">
+                                <i data-lucide="bookmark" style="width: 16px; height: 16px;"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Initialize Lucide icons for newly rendered content
+            lucide.createIcons();
+        }
+
+        function filterModalScenarios() {
+            renderAvailableScenarios();
+        }
+
+        async function toggleMaintenanceTag(scenarioName, displayName, currentlyHasMaintenance) {
+            try {
+                const endpoint = currentlyHasMaintenance ? 'remove-tag' : 'add-tag';
+                const action = currentlyHasMaintenance ? 'Removed' : 'Added';
+                
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioName}/${endpoint}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`${action} maintenance tag ${currentlyHasMaintenance ? 'from' : 'to'} ${displayName || scenarioName}`, 'success');
+                    // Refresh both the modal and main scenarios list
+                    await loadAllScenarios();
+                    await fetchScenarios();
+                } else {
+                    addLog(`Failed to ${currentlyHasMaintenance ? 'remove' : 'add'} maintenance tag ${currentlyHasMaintenance ? 'from' : 'to'} ${displayName || scenarioName}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error toggling maintenance tag: ${error.message}`, 'error');
+            }
+        }
+
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            confirmCallback = null;
+        }
+
+        function cancelConfirm() {
+            closeConfirmModal();
+        }
+
+        // Preset assignment functionality
+        let currentAssignmentScenario = null;
+        let currentPresetAssignments = {};
+
+        async function openPresetAssignmentModal(scenarioName, displayName) {
+            currentAssignmentScenario = scenarioName;
+            document.getElementById('assignmentScenarioName').textContent = displayName || scenarioName;
+            document.getElementById('presetAssignmentModal').style.display = 'flex';
+            await loadPresetAssignments(scenarioName);
+        }
+
+        function closePresetAssignmentModal() {
+            document.getElementById('presetAssignmentModal').style.display = 'none';
+            currentAssignmentScenario = null;
+            currentPresetAssignments = {};
+        }
+
+        async function loadPresetAssignments(scenarioName) {
+            try {
+                // Get current preset assignments for this scenario
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioName}/preset-assignments`);
+                const data = await response.json();
+                currentPresetAssignments = data.assignments || {};
+                
+                renderPresetAssignments();
+            } catch (error) {
+                addLog(`Error loading preset assignments: ${error.message}`, 'error');
+                // Fallback to empty assignments
+                currentPresetAssignments = {};
+                renderPresetAssignments();
+            }
+        }
+
+        function renderPresetAssignments() {
+            const container = document.getElementById('presetList');
+            
+            container.innerHTML = Object.values(presets).map(preset => {
+                const isAssigned = currentPresetAssignments[preset.id] || false;
+                
+                return `
+                    <div class="preset-item">
+                        <input type="checkbox" 
+                               class="preset-checkbox" 
+                               id="preset-${preset.id}" 
+                               ${isAssigned ? 'checked' : ''}
+                               onchange="updatePresetAssignment('${preset.id}', this.checked)">
+                        <div class="preset-info">
+                            <div class="preset-name">${preset.name}</div>
+                            <div class="preset-description">${preset.description}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updatePresetAssignment(presetId, isAssigned) {
+            currentPresetAssignments[presetId] = isAssigned;
+        }
+
+        async function savePresetAssignments() {
+            if (!currentAssignmentScenario) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/scenarios/${currentAssignmentScenario}/preset-assignments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        assignments: currentPresetAssignments
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Updated preset assignments for ${currentAssignmentScenario}`, 'success');
+                    closePresetAssignmentModal();
+                    // Refresh presets to reflect changes
+                    await fetchPresets();
+                } else {
+                    addLog(`Failed to update preset assignments: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error saving preset assignments: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize the dashboard
+        async function init() {
+            addLog('Initializing Maintenance Orchestrator Dashboard', 'info');
+            
+            // Get configuration first
+            await getConfig();
+            
+            // Test connection
+            const connected = await testConnection();
+            
+            if (connected) {
+                // Load initial data
+                await fetchScenarios();
+                await fetchPresets();
+                await fetchScenarioStatuses();
+                
+                // Mark initial load as complete
+                initialLoadComplete = true;
+                renderScenarios(); // Re-render to remove loading states
+                
+                // Start sequential polling
+                startPolling();
+                
+                addLog('Dashboard initialized successfully', 'success');
+            } else {
+                addLog('Could not connect to API - please check if the maintenance-orchestrator scenario is running', 'error');
+            }
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeLogsModal();
+                closeManageScenarioModal();
+                closeConfirmModal();
+                closePresetAssignmentModal();
+            }
+        });
+
+        // Close modal on outside click
+        document.getElementById('logsModal').addEventListener('click', (e) => {
+            if (e.target.id === 'logsModal') {
+                closeLogsModal();
+            }
+        });
+        
+        document.getElementById('manageScenarioModal').addEventListener('click', (e) => {
+            if (e.target.id === 'manageScenarioModal') {
+                closeManageScenarioModal();
+            }
+        });
+        
+        document.getElementById('confirmModal').addEventListener('click', (e) => {
+            if (e.target.id === 'confirmModal') {
+                closeConfirmModal();
+            }
+        });
+        
+        document.getElementById('presetAssignmentModal').addEventListener('click', (e) => {
+            if (e.target.id === 'presetAssignmentModal') {
+                closePresetAssignmentModal();
+            }
+        });
+
+        // Preset panel toggle functionality
+        function togglePresets() {
+            presetsVisible = !presetsVisible;
+            const presetsSection = document.getElementById('presetsSection');
+            const toggleBtn = document.getElementById('presetsToggleBtn');
+            
+            if (presetsVisible) {
+                presetsSection.classList.remove('collapsed');
+                toggleBtn.innerHTML = '\u25c0'; // Left arrow
+                toggleBtn.title = 'Hide presets panel';
+                addLog('Presets panel shown', 'info');
+            } else {
+                presetsSection.classList.add('collapsed');
+                toggleBtn.innerHTML = '\u25b6'; // Right arrow
+                toggleBtn.title = 'Show presets panel';
+                addLog('Presets panel hidden', 'info');
+                // Clear any active preview when hiding
+                if (previewedPreset) {
+                    clearPreview();
+                }
+            }
+            
+            // Save preference to localStorage
+            try {
+                localStorage.setItem('maintenance-orchestrator-presets-visible', presetsVisible.toString());
+            } catch (e) {
+                // Ignore localStorage errors
+            }
+        }
+        
+        // Load presets visibility preference
+        function loadPresetsVisibility() {
+            try {
+                const saved = localStorage.getItem('maintenance-orchestrator-presets-visible');
+                if (saved !== null) {
+                    presetsVisible = saved === 'true';
+                    
+                    // Apply the saved state without animation initially
+                    const presetsSection = document.getElementById('presetsSection');
+                    const toggleBtn = document.getElementById('presetsToggleBtn');
+                    
+                    if (!presetsVisible) {
+                        presetsSection.classList.add('collapsed');
+                        toggleBtn.innerHTML = '\u25b6';
+                        toggleBtn.title = 'Show presets panel';
+                    }
+                }
+            } catch (e) {
+                // Ignore localStorage errors
+            }
+        }
+
+        // Clear preview when clicking outside presets
+        document.addEventListener('click', (e) => {
+            // Check if click is outside of preset buttons and presets are visible
+            if (!e.target.closest('.preset-btn') && previewedPreset && presetsVisible) {
+                clearPreview();
+            }
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            stopPolling();
+        });
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>

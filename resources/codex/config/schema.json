@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Codex Resource Configuration Schema",
+  "description": "Configuration schema for the Codex AI code generation resource",
+  "type": "object",
+  "properties": {
+    "api": {
+      "type": "object",
+      "description": "OpenAI API configuration",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "OpenAI API endpoint",
+          "default": "https://api.openai.com/v1",
+          "format": "uri"
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "API request timeout in seconds",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30
+        },
+        "retry_count": {
+          "type": "integer",
+          "description": "Number of retry attempts for failed requests",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 3
+        },
+        "retry_delay": {
+          "type": "integer",
+          "description": "Delay between retries in seconds",
+          "minimum": 1,
+          "maximum": 60,
+          "default": 2
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "description": "Model configuration",
+      "properties": {
+        "default": {
+          "type": "string",
+          "description": "Default model to use",
+          "enum": ["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-turbo", "gpt-4-32k"],
+          "default": "gpt-3.5-turbo"
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Sampling temperature (0-2)",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.2
+        },
+        "max_tokens": {
+          "type": "integer",
+          "description": "Maximum tokens in response",
+          "minimum": 1,
+          "maximum": 32768,
+          "default": 2048
+        },
+        "top_p": {
+          "type": "number",
+          "description": "Nucleus sampling parameter",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "scripts_dir": {
+          "type": "string",
+          "description": "Directory for storing scripts",
+          "default": "~/.codex/scripts"
+        },
+        "output_dir": {
+          "type": "string",
+          "description": "Directory for generated code",
+          "default": "~/.codex/outputs"
+        },
+        "templates_dir": {
+          "type": "string",
+          "description": "Directory for code templates",
+          "default": "~/.codex/templates"
+        },
+        "cache_dir": {
+          "type": "string",
+          "description": "Directory for caching responses",
+          "default": "~/.codex/cache"
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "description": "Usage limits and constraints",
+      "properties": {
+        "max_concurrent_requests": {
+          "type": "integer",
+          "description": "Maximum concurrent API requests",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10
+        },
+        "daily_token_limit": {
+          "type": "integer",
+          "description": "Daily token usage limit (0 = unlimited)",
+          "minimum": 0,
+          "default": 0
+        },
+        "max_context_size": {
+          "type": "integer",
+          "description": "Maximum context size in tokens",
+          "minimum": 100,
+          "maximum": 128000,
+          "default": 8000
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature toggles",
+      "properties": {
+        "cache_enabled": {
+          "type": "boolean",
+          "description": "Enable response caching",
+          "default": true
+        },
+        "streaming_enabled": {
+          "type": "boolean",
+          "description": "Enable streaming responses",
+          "default": false
+        },
+        "auto_retry": {
+          "type": "boolean",
+          "description": "Automatically retry failed requests",
+          "default": true
+        },
+        "token_tracking": {
+          "type": "boolean",
+          "description": "Track token usage",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

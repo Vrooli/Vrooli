@@ -1,0 +1,37 @@
+{
+  "startup_order": 800,
+  "dependencies": [],
+  "optional_dependencies": ["vault"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "10-30s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "category": "hardware",
+  "capabilities": [
+    "cnc-control",
+    "gcode-execution",
+    "serial-communication",
+    "web-interface",
+    "real-time-monitoring"
+  ],
+  "health_check": {
+    "endpoint": "/api/state",
+    "timeout": 5,
+    "interval": 30,
+    "retries": 3
+  },
+  "resource_requirements": {
+    "cpu": "1 core",
+    "memory": "512MB",
+    "disk": "1GB",
+    "network": "low",
+    "gpu": false
+  },
+  "security": {
+    "requires_privileged": true,
+    "requires_devices": ["/dev/ttyUSB*", "/dev/ttyACM*"],
+    "authentication": "optional",
+    "encryption": "optional"
+  }
+}

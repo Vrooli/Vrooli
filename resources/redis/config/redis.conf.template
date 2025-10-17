@@ -1,0 +1,99 @@
+# Redis Configuration Template for Vrooli Resources
+# This file is generated automatically - do not edit directly
+# Edit defaults.sh to change configuration values
+
+# Network Configuration
+bind {{REDIS_BIND}}
+port {{REDIS_INTERNAL_PORT}}
+protected-mode {{REDIS_PROTECTED_MODE}}
+tcp-backlog {{REDIS_TCP_BACKLOG}}
+timeout {{REDIS_TIMEOUT}}
+tcp-keepalive {{REDIS_TCP_KEEPALIVE}}
+
+# General Configuration
+daemonize no
+supervised no
+pidfile /var/run/redis_6379.pid
+loglevel {{REDIS_LOGLEVEL}}
+# logfile disabled - Redis will log to stdout for Docker
+databases {{REDIS_DATABASES}}
+
+# Memory Management
+maxmemory {{REDIS_MAX_MEMORY}}
+maxmemory-policy {{REDIS_MAX_MEMORY_POLICY}}
+
+# Persistence Configuration - RDB Snapshots
+{{#if REDIS_RDB_ENABLED}}
+save {{REDIS_SAVE_INTERVALS}}
+stop-writes-on-bgsave-error yes
+rdbcompression yes
+rdbchecksum yes
+dbfilename dump.rdb
+dir /data
+{{else}}
+save ""
+{{/if}}
+
+# Persistence Configuration - AOF (Append Only File)
+appendonly {{REDIS_AOF_ENABLED}}
+appendfilename "appendonly.aof"
+{{#if REDIS_AOF_ENABLED}}
+appendfsync everysec
+no-appendfsync-on-rewrite no
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+aof-load-truncated yes
+aof-use-rdb-preamble yes
+{{/if}}
+
+# Security
+{{#if REDIS_PASSWORD}}
+requirepass {{REDIS_PASSWORD}}
+{{/if}}
+
+# Slow Log
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+
+# Latency Monitoring
+latency-monitor-threshold 100
+
+# Client Configuration
+# maxclients 10000
+
+# Advanced Configuration
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
+list-max-ziplist-size -2
+list-compress-depth 0
+set-max-intset-entries 512
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
+hll-sparse-max-bytes 3000
+stream-node-max-bytes 4096
+stream-node-max-entries 100
+activerehashing yes
+client-output-buffer-limit normal 0 0 0
+client-output-buffer-limit replica 256mb 64mb 60
+client-output-buffer-limit pubsub 32mb 8mb 60
+
+# Virtual Memory (deprecated but kept for compatibility)
+vm-enabled no
+
+# Advanced Memory Management
+rdb-save-incremental-fsync yes
+
+# Keyspace Notifications (disabled by default)
+notify-keyspace-events ""
+
+# Lua Scripting
+lua-time-limit 5000
+
+# Redis Cluster (disabled for single instance)
+# cluster-enabled yes
+# cluster-config-file nodes-6379.conf
+# cluster-node-timeout 15000
+
+# Memory Usage Optimization
+dynamic-hz yes
+jemalloc-bg-thread yes

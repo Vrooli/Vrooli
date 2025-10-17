@@ -1,0 +1,229 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "saas-landing-manager",
+    "displayName": "SaaS Landing Page Manager",
+    "description": "Automated landing page generator and manager for SaaS scenarios with A/B testing, template system, and Claude Code integration",
+    "version": "1.0.0",
+    "tags": [
+      "saas",
+      "landing-pages",
+      "marketing",
+      "a-b-testing",
+      "template-system",
+      "agent-orchestration",
+      "analytics",
+      "seo-optimization",
+      "go-api",
+      "javascript-ui",
+      "postgres-storage",
+      "claude-integration"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "SaaS Landing Manager API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "SaaS Landing Manager UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store landing page metadata, A/B test data, analytics, and scenario registry",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "AI-powered content generation for landing page copy and SEO optimization",
+      "models": [
+        "llama3.2"
+      ]
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": false,
+      "purpose": "Screenshot generation for template previews and A/B test validation",
+      "fallback": "Basic template previews without screenshots"
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": false,
+      "purpose": "Automated landing page deployment to SaaS scenarios",
+      "fallback": "Manual landing page file generation"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "SaaS Landing Manager health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${SAAS_LANDING_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${SAAS_LANDING_UI_PORT}/",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize SaaS Landing Manager",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "saas-landing-manager-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["saas-landing-manager"]
+            },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o saas-landing-manager-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "scan-scenarios",
+          "run": "cd api && ./saas-landing-manager-api scan-scenarios",
+          "description": "Initial scan of SaaS scenarios for landing page opportunities"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 SaaS Landing Manager initialized\\n  UI: http://localhost:${SAAS_LANDING_UI_PORT}\\n  API: http://localhost:${SAAS_LANDING_API_PORT}\\n  CLI: saas-landing-manager --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start SaaS Landing Manager with hot reload",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./saas-landing-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/saas-landing-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${SAAS_LANDING_UI_PORT}\\n  API: http://localhost:${SAAS_LANDING_API_PORT}\\n  CLI: saas-landing-manager --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test SaaS Landing Manager",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${SAAS_LANDING_API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-scenario-detection",
+          "run": "./cli/saas-landing-manager scan --dry-run",
+          "description": "Test SaaS scenario detection"
+        },
+        {
+          "name": "test-template-system",
+          "run": "./cli/saas-landing-manager template list",
+          "description": "Test template system"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"saas-landing-manager-api\" || true; sleep 1; pkill -9 -f \"saas-landing-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/saas-landing-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/saas-landing-manager.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

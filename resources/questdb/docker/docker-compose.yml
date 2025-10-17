@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  questdb:
+    image: ${QUESTDB_IMAGE:-questdb/questdb:8.1.2}
+    container_name: ${QUESTDB_CONTAINER_NAME:-questdb}
+    hostname: questdb
+    ports:
+      - "${QUESTDB_HTTP_PORT:-9010}:9000"         # HTTP/REST API & Web Console
+      - "${QUESTDB_PG_PORT:-8812}:8812"           # PostgreSQL wire protocol
+      - "${QUESTDB_ILP_PORT:-9011}:9009"          # InfluxDB line protocol (TCP)
+    volumes:
+      - "${QUESTDB_DATA_DIR}:/var/lib/questdb"
+      - "${QUESTDB_CONFIG_DIR}:/questdb/conf"
+      - "${QUESTDB_LOG_DIR}:/var/log/questdb"
+    environment:
+      # Performance settings
+      - QDB_SHARED_WORKER_COUNT=${QUESTDB_SHARED_WORKER_COUNT:-2}
+      - QDB_HTTP_WORKER_COUNT=${QUESTDB_HTTP_WORKER_COUNT:-2}
+      - QDB_WAL_ENABLED=${QUESTDB_WAL_ENABLED:-true}
+      - QDB_CAIRO_COMMIT_LAG=${QUESTDB_COMMIT_LAG:-300000}
+      
+      # Security settings
+      - QDB_HTTP_SECURITY_READONLY=${QUESTDB_HTTP_SECURITY_READONLY:-false}
+      - QDB_PG_USER=${QUESTDB_PG_USER:-admin}
+      - QDB_PG_PASSWORD=${QUESTDB_PG_PASSWORD:-quest}
+      
+      # Network settings
+      - QDB_HTTP_BIND_TO=0.0.0.0:9000
+      - QDB_PG_BIND_TO=0.0.0.0:8812
+      - QDB_LINE_TCP_BIND_TO=0.0.0.0:9009
+      
+      # Memory settings
+      - QDB_CAIRO_PAGE_FRAME_COUNT=256
+      - QDB_CAIRO_WRITER_DATA_APPEND_PAGE_SIZE=16M
+      
+      # Logging
+      - QDB_LOG_W_STDOUT_LEVEL=INFO
+      - QDB_LOG_W_FILE_LEVEL=INFO
+      - QDB_LOG_W_HTTP_MIN_LEVEL=INFO
+      
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - questdb-network
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+networks:
+  questdb-network:
+    driver: bridge
+    name: ${QUESTDB_NETWORK_NAME:-questdb-network}

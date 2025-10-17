@@ -1,0 +1,331 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "elo-swipe",
+    "displayName": "Elo Swipe",
+    "description": "Universal ranking engine using Elo ratings and swipe interface",
+    "version": "1.0.0",
+    "tags": [
+      "ranking",
+      "prioritization",
+      "elo",
+      "decision-making",
+      "preferences",
+      "swipe-ui",
+      "nodejs-ui",
+      "go-api",
+      "postgres-storage",
+      "redis-cache",
+      "ai-enhanced"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Elo Swipe API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Elo Swipe UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store lists, items, ratings, and comparison history",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Cache frequently accessed rankings for performance"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "AI-powered smart pairing suggestions for more efficient ranking"
+    }
+  },
+  "scripts": {
+    "setup": {
+      "description": "Initialize Elo Swipe scenario",
+      "steps": [
+        {
+          "name": "create-directories",
+          "run": "mkdir -p api cli ui initialization/storage/postgres",
+          "description": "Create required directories"
+        },
+        {
+          "name": "initialize-database",
+          "run": "resource-postgres content execute --file initialization/storage/postgres/schema.sql",
+          "description": "Create database schema",
+          "condition": {
+            "file_exists": "initialization/storage/postgres/schema.sql"
+          }
+        }
+      ]
+    },
+    "build": {
+      "description": "Build Elo Swipe components",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o elo-swipe-api",
+          "description": "Build Go API server",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "build-cli",
+          "run": "cd cli && go build -o elo-swipe",
+          "description": "Build CLI tool",
+          "condition": {
+            "file_exists": "cli/main.go"
+          }
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI to PATH",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "prepare-ui",
+          "run": "cd ui && [ -f package.json ] && npm install || echo 'No npm dependencies'",
+          "description": "Install UI dependencies if needed"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && [ -f package.json ] && VITE_API_PORT=${API_PORT:-30400} npm run build || echo 'No UI build'",
+          "description": "Build Vite UI bundle"
+        }
+      ]
+    },
+    "start": {
+      "description": "Start Elo Swipe services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./elo-swipe-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/elo-swipe-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && VITE_API_PORT=${API_PORT:-30400} npm run build && VITE_API_PORT=${API_PORT:-30400} npm run preview -- --host 0.0.0.0 --port ${UI_PORT}",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo 'Elo Swipe running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: elo-swipe --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Elo Swipe functionality",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "cd api && go test ./...",
+          "description": "Run API tests"
+        },
+        {
+          "name": "test-cli",
+          "run": "elo-swipe status --json",
+          "description": "Test CLI connectivity"
+        },
+        {
+          "name": "integration-test",
+          "run": "cd test && ./integration.sh",
+          "description": "Run integration tests",
+          "condition": {
+            "file_exists": "test/integration.sh"
+          }
+        }
+      ]
+    }
+  },
+  "health": {
+    "api": {
+      "endpoint": "http://localhost:${API_PORT}/api/v1/health",
+      "method": "GET",
+      "expected_status": 200
+    },
+    "ui": {
+      "endpoint": "http://localhost:${UI_PORT}/",
+      "method": "GET",
+      "expected_status": 200
+    }
+  },
+  "metadata": {
+    "created_at": "2024-01-04",
+    "updated_at": "2024-01-04",
+    "author": "AI Agent",
+    "status": "development",
+    "capabilities": [
+      "ranking",
+      "prioritization",
+      "preference-learning",
+      "elo-ratings"
+    ]
+  },
+  "environment": {
+    "POSTGRES_HOST": "localhost",
+    "POSTGRES_PORT": "5433",
+    "POSTGRES_USER": "vrooli",
+    "POSTGRES_PASSWORD": "vrooli",
+    "POSTGRES_DB": "vrooli"
+  },
+   "lifecycle": {
+     "setup": {
+       "description": "Initialize Elo Swipe",
+        "condition": {
+          "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "api/elo-swipe-api"
+              ]
+            },
+             {
+               "type": "cli",
+               "targets": [
+                 "elo-swipe"
+               ]
+             }
+          ]
+        },
+       "steps": [
+         {
+           "name": "build-api",
+           "run": "cd api && go build -o elo-swipe-api .",
+           "description": "Build Go API binary"
+         },
+         {
+           "name": "install-cli",
+           "run": "cd cli && ./install.sh",
+           "description": "Install CLI command globally"
+         }
+       ]
+     },
+     "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"elo-swipe-api\" || true; sleep 1; pkill -9 -f \"elo-swipe-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/elo-swipe/ui\" || true; sleep 1; pkill -9 -f \"scenarios/elo-swipe/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Development mode",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o elo-swipe-api .",
+          "description": "Build API server"
+        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./elo-swipe-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/elo-swipe-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && VITE_API_PORT=${API_PORT:-30400} npm run dev -- --host 0.0.0.0 --port ${UI_PORT}",
+           "description": "Start UI server",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo 'Elo Swipe running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: elo-swipe --help'",
+           "description": "Display service access URLs"
+         }
+      ]
+    },
+    "health": {
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api",
+          "type": "http",
+          "endpoint": "/api/v1/health",
+          "expected_status": 200,
+          "timeout": 5,
+          "interval": 10,
+          "critical": false
+        },
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "endpoint": "/health",
+          "expected_status": 200,
+          "timeout": 5,
+          "interval": 10,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "endpoint": "/health",
+          "expected_status": 200,
+          "port": "ui",
+          "timeout": 5,
+          "interval": 10,
+          "critical": true
+        },
+        {
+          "name": "database",
+          "type": "dependency",
+          "service": "postgres",
+          "critical": true
+        }
+      ]
+    },
+    "test": {
+      "description": "Run comprehensive test suite",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "./test/run-tests.sh",
+          "description": "Execute smoke, unit, and integration tests"
+        }
+      ]
+    }
+  }
+}

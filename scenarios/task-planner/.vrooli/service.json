@@ -1,0 +1,250 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "task-planner",
+    "displayName": "Task Planner",
+    "description": "General task planner and scheduler with AI-powered task refinement and implementation",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "saas-applications",
+      "task-management",
+      "planning",
+      "scheduling",
+      "ai",
+      "nodejs-ui",
+      "go-api",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Task planner API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Task dashboard UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store tasks, plans, and status",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Caching and real-time updates"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for semantic search of tasks and research"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "searxng": {
+      "type": "searxng",
+      "enabled": true,
+      "required": false
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": false
+    },
+    "agent-s2": {
+      "type": "agent-s2",
+      "enabled": true,
+      "required": false
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Task Planner health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Task Planner",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "task-planner-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["task-planner"]
+           },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o task-planner-api .",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Task Planner initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: task-planner --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start task planner with Go API server and UI",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./task-planner-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/task-planner-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Task Planner running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: task-planner --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test task planner Go API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-apps-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/apps",
+          "description": "Test API apps endpoint"
+        },
+        {
+          "name": "test-tasks-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/tasks",
+          "description": "Test API tasks endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats task-planner.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/task-planner.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"task-planner-api\" || true; sleep 1; pkill -9 -f \"task-planner-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/task-planner.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/task-planner.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

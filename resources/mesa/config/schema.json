@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mesa Configuration Schema",
+  "type": "object",
+  "properties": {
+    "host": {
+      "type": "string",
+      "description": "Host to bind the service to",
+      "default": "0.0.0.0"
+    },
+    "port": {
+      "type": "integer",
+      "description": "Port for the Mesa API",
+      "default": 9512,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "workers": {
+      "type": "integer",
+      "description": "Number of worker processes",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 16
+    },
+    "simulation": {
+      "type": "object",
+      "properties": {
+        "default_steps": {
+          "type": "integer",
+          "description": "Default number of simulation steps",
+          "default": 100,
+          "minimum": 1
+        },
+        "default_seed": {
+          "type": "integer",
+          "description": "Default random seed for reproducibility",
+          "default": 42
+        },
+        "max_agents": {
+          "type": "integer",
+          "description": "Maximum number of agents per simulation",
+          "default": 10000,
+          "minimum": 100
+        },
+        "batch_size": {
+          "type": "integer",
+          "description": "Maximum batch size for parameter sweeps",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "properties": {
+        "redis": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "qdrant": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path for exported simulation data",
+          "default": "/tmp/mesa_exports"
+        },
+        "metrics_path": {
+          "type": "string",
+          "description": "Path for metrics output",
+          "default": "/tmp/mesa_metrics"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "csv", "parquet"],
+          "default": "json"
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_memory": {
+          "type": "string",
+          "description": "Maximum memory usage",
+          "default": "512M",
+          "pattern": "^[0-9]+[MG]$"
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Simulation timeout in seconds",
+          "default": 300,
+          "minimum": 10
+        }
+      }
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

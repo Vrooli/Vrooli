@@ -1,0 +1,247 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "tech-tree-designer",
+    "displayName": "Tech Tree Designer",
+    "description": "Strategic visualization and analysis of complete technology development pathways from basic tools to civilization-scale digital twins",
+    "version": "1.0.0",
+    "tags": [
+      "strategic-planning",
+      "civilization-intelligence",
+      "technology-roadmap",
+      "digital-twin-progression",
+      "superintelligence-pathway",
+      "cross-sector-optimization",
+      "dependency-mapping",
+      "progress-tracking",
+      "ai-recommendations",
+      "graph-visualization",
+      "postgres-storage",
+      "ollama-analysis",
+      "strategic-consciousness"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Tech tree analysis and strategic planning API",
+      "range": "15000-19999"
+    },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Interactive tech tree visualization interface",
+       "range": "35000-39999"
+     }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Storage for tech tree data, sector definitions, scenario mappings, and progress tracking",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql", 
+          "type": "seed"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "AI-powered strategic analysis, dependency discovery, and development path optimization",
+      "models": [
+        "llama3.2",
+        "mistral",
+        "nomic-embed-text"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Tech Tree Designer health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "target": "tech_tree_db",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Tech Tree Designer with complete civilization roadmap",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "tech-tree-designer-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["tech-tree-designer"]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "initialize-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize database with tech tree schemas and seed data"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install tech-tree-designer CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o tech-tree-designer-api .",
+          "description": "Build Go API for strategic analysis and data management"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm install && npm run build",
+          "description": "Build interactive tech tree visualization interface"
+        },
+        {
+          "name": "seed-civilization-tree",
+          "run": "./cli/tech-tree-designer initialize --civilization-complete",
+          "description": "Populate database with complete civilization technology roadmap"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Tech Tree Designer initialized\\n  Strategic Dashboard: http://localhost:${UI_PORT}\\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\\n  CLI: tech-tree-designer --help\\n\\n🎯 Civilization Progress: Ready for strategic intelligence acceleration'",
+          "description": "Display tech tree access URLs and strategic overview"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start tech tree designer with API server and visualization interface",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./tech-tree-designer-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/tech-tree-designer-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start interactive tech tree visualization server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Strategic Intelligence System Online:\\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\\n  🧠 Analysis API: http://localhost:${API_PORT}\\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\\n  🎯 Strategic CLI: tech-tree-designer --help\\n\\n🌟 Ready to guide Vrooli\\'s evolution toward superintelligence'",
+           "description": "Display all running strategic planning services"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test tech tree visualization, analysis, and strategic planning capabilities",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go API compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-ui-health",
+          "run": "curl -sf http://localhost:$UI_PORT/health", 
+          "description": "Test UI health endpoint"
+        },
+        {
+          "name": "test-tree-endpoints",
+          "run": "bash test/test-tech-tree-api.sh",
+          "description": "Test tech tree data and analysis endpoints"
+        },
+        {
+          "name": "test-progress-tracking",
+          "run": "bash test/test-progress-tracking.sh",
+          "description": "Test scenario progress mapping and updates"
+        },
+        {
+          "name": "test-strategic-analysis",
+          "run": "bash test/test-ai-analysis.sh",
+          "description": "Test AI-powered strategic recommendations"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats tech-tree-designer.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/tech-tree-designer.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop tech tree designer services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"tech-tree-designer-api\" || true; sleep 1; pkill -9 -f \"tech-tree-designer-api\" 2>/dev/null || true",
+          "description": "Stop API server"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"ui.*dev\" || true; sleep 1; pkill -9 -f \"ui.*dev\" 2>/dev/null || true",
+          "description": "Stop UI development server"
+        }
+      ]
+    }
+  }
+}

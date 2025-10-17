@@ -1,0 +1,259 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "knowledge-observatory",
+    "displayName": "Knowledge Observatory",
+    "description": "Real-time monitoring and management of Vrooli's semantic knowledge system - acts as a consciousness monitor for collective intelligence",
+    "version": "1.0.0",
+    "tags": [
+      "vrooli-enhancement",
+      "knowledge-management",
+      "semantic-search",
+      "qdrant-visualization",
+      "intelligence-monitoring",
+      "knowledge-health",
+      "graph-visualization",
+      "go-api",
+      "postgres-storage",
+      "qdrant-vectors",
+      "dashboard-ui"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Knowledge Observatory API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Knowledge Observatory UI dashboard port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Primary vector database containing all semantic knowledge to monitor and search"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store knowledge metadata, quality metrics, search history, and configuration",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": false,
+      "purpose": "Automated knowledge quality monitoring and analysis workflows",
+      "initialization": [
+        {
+          "file": "initialization/n8n/knowledge-quality-monitor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/semantic-analyzer.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/knowledge-graph-builder.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "Enhanced semantic analysis and natural language query understanding",
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Knowledge Observatory health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "qdrant_connection",
+          "type": "http",
+          "target": "http://localhost:${RESOURCE_PORTS[qdrant]}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Knowledge Observatory",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api/knowledge-observatory-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "knowledge-observatory"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
+      "steps": [
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add knowledge observatory data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install Knowledge Observatory CLI globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o knowledge-observatory-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔭 Knowledge Observatory initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: knowledge-observatory --help\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Knowledge Observatory with API and UI",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./knowledge-observatory-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/knowledge-observatory-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm run start",
+          "description": "Start UI dashboard server",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
+           "description": "Display service URLs and usage information"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Knowledge Observatory API, CLI, and UI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-search-endpoint",
+          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/knowledge/search -H 'Content-Type: application/json' -d '{\"query\":\"test\"}'",
+          "description": "Test API search endpoint"
+        },
+        {
+          "name": "test-graph-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/knowledge/graph",
+          "description": "Test API graph endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && API_PORT=$API_PORT bats knowledge-observatory.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/knowledge-observatory.bats"
+          }
+        },
+        {
+          "name": "test-ui-accessible",
+          "run": "curl -sf http://localhost:$UI_PORT/ &>/dev/null",
+          "description": "Test UI dashboard is accessible"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"knowledge-observatory-api\" || true; sleep 1; pkill -9 -f \"knowledge-observatory-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/knowledge-observatory.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/knowledge-observatory.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

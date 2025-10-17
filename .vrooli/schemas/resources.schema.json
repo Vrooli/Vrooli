@@ -1,0 +1,242 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/resources.schema.json",
+  "title": "Service Resources Schema (Flattened)",
+  "description": "Schema for defining service resource dependencies with flattened structure",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference for IDE support"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver"
+    },
+    "resources": {
+      "$ref": "#/definitions/flattenedResources"
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/resourceProfile"
+      },
+      "description": "Named resource configuration profiles"
+    }
+  },
+  "required": ["resources"],
+  "definitions": {
+    "flattenedResources": {
+      "type": "object",
+      "description": "Flattened resource structure where resources are direct children",
+      "additionalProperties": {
+        "$ref": "#/definitions/resourceConfig"
+      },
+      "examples": [
+        {
+          "postgres": { "enabled": true },
+          "ollama": { "enabled": true, "models": ["qwen2.5:32b"] },
+          "my-secondary-db": { "type": "postgres", "enabled": true, "port": 5433 }
+        }
+      ]
+    },
+    "resourceConfig": {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "pattern": "^resource:\\w+$",
+          "description": "Resource schema hint for IDE support (e.g., 'resource:postgres')"
+        },
+        "$profile": {
+          "type": "string",
+          "description": "Reference to a resource profile"
+        },
+        "type": {
+          "type": "string",
+          "description": "Explicit resource type (required when key doesn't match resource name)",
+          "examples": ["postgres", "ollama", "n8n", "qdrant", "redis"]
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this resource is enabled"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this resource is required for the service to function"
+        },
+        "version": {
+          "type": "string",
+          "description": "Resource version or tag"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Specific use case or purpose for this resource instance"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this resource configuration"
+        },
+        "startup_order": {
+          "type": "integer",
+          "default": 500,
+          "minimum": 1,
+          "maximum": 9999,
+          "description": "Startup priority (higher = starts first, like CSS z-index). Core infrastructure: 1000+, platforms: 500-999, optional: 100-499"
+        },
+        "initialization": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/initializationItem"
+          },
+          "description": "Initialization files/scripts to run when resource is set up"
+        },
+        "baseUrl": {
+          "$ref": "common.schema.json#/definitions/url",
+          "description": "Base URL for the resource API"
+        },
+        "apiKey": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "common.schema.json#/definitions/secretReference" }
+          ],
+          "description": "API key for authentication"
+        },
+        "healthCheck": {
+          "$ref": "#/definitions/healthCheckConfig",
+          "description": "Health check configuration"
+        },
+        "connection": {
+          "$ref": "#/definitions/connectionConfig",
+          "description": "Connection configuration"
+        },
+        "security": {
+          "$ref": "#/definitions/securityConfig",
+          "description": "Security configuration"
+        },
+        "labels": {
+          "$ref": "common.schema.json#/definitions/labels"
+        },
+        "annotations": {
+          "$ref": "common.schema.json#/definitions/annotations"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Base resource configuration with type-specific properties allowed"
+    },
+    "initializationItem": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Path to initialization file relative to scenario root"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["workflow", "script", "app", "schema", "config", "data"],
+          "description": "Type of initialization content"
+        },
+        "target": {
+          "type": "string",
+          "description": "Target location or identifier for the content"
+        },
+        "order": {
+          "type": "integer",
+          "description": "Execution order (lower numbers run first)"
+        }
+      },
+      "required": ["file", "type"]
+    },
+    "healthCheckConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["http", "tcp", "grpc", "command"],
+          "default": "http"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Health check endpoint path"
+        },
+        "intervalMs": {
+          "type": "integer",
+          "default": 30000,
+          "description": "Health check interval in milliseconds"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "default": 5000,
+          "description": "Health check timeout in milliseconds"
+        },
+        "retries": {
+          "type": "integer",
+          "default": 3
+        }
+      }
+    },
+    "connectionConfig": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "$ref": "common.schema.json#/definitions/port"
+        },
+        "timeout": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "retries": {
+          "type": "integer",
+          "default": 3
+        },
+        "ssl": {
+          "type": "boolean"
+        }
+      }
+    },
+    "securityConfig": {
+      "type": "object",
+      "properties": {
+        "tls": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "verify": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "allowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allowed IP addresses or ranges"
+        }
+      }
+    },
+    "resourceProfile": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource overrides for this profile"
+        }
+      },
+      "required": ["name"]
+    }
+  }
+}

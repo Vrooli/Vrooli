@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make It Vegan - Your Plant-Based Food Companion</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <span class="logo-icon">🥬</span>
+                <h1>Make It Vegan</h1>
+            </div>
+            <p class="tagline">Your friendly plant-based food companion</p>
+        </header>
+
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="check">Check Ingredients</button>
+            <button class="tab-btn" data-tab="substitute">Find Alternatives</button>
+            <button class="tab-btn" data-tab="veganize">Veganize Recipe</button>
+        </nav>
+
+        <main>
+            <!-- Check Ingredients Tab -->
+            <div class="tab-content active" id="check-tab">
+                <div class="card">
+                    <h2>Is It Vegan? 🔍</h2>
+                    <p class="help-text">Paste an ingredient list and I'll check if it's vegan!</p>
+                    <textarea 
+                        id="ingredients-input" 
+                        placeholder="Example: flour, sugar, butter, eggs, vanilla extract"
+                        rows="4"
+                    ></textarea>
+                    <button class="btn btn-primary" onclick="checkIngredients()">
+                        <span class="btn-icon">🌱</span> Check Ingredients
+                    </button>
+                    <div id="check-result" class="result-box"></div>
+                </div>
+
+                <div class="fun-fact" id="fun-fact">
+                    <span class="fun-fact-icon">💡</span>
+                    <span id="fun-fact-text">Did you know? Cashews can be made into a creamy cheese sauce!</span>
+                </div>
+            </div>
+
+            <!-- Find Alternatives Tab -->
+            <div class="tab-content" id="substitute-tab">
+                <div class="card">
+                    <h2>Find Vegan Alternatives 🔄</h2>
+                    <p class="help-text">Looking for a vegan substitute? I've got you covered!</p>
+                    <input 
+                        type="text" 
+                        id="ingredient-input" 
+                        placeholder="What ingredient to replace? (e.g., cheese)"
+                    />
+                    <input 
+                        type="text" 
+                        id="context-input" 
+                        placeholder="How will you use it? (e.g., pizza topping)"
+                    />
+                    <button class="btn btn-primary" onclick="findAlternatives()">
+                        <span class="btn-icon">🔍</span> Find Alternatives
+                    </button>
+                    <div id="alternatives-result" class="result-box"></div>
+                </div>
+
+                <div class="quick-swaps">
+                    <h3>Quick Swaps</h3>
+                    <div class="swap-grid">
+                        <button class="swap-btn" onclick="quickSwap('milk')">🥛 Milk</button>
+                        <button class="swap-btn" onclick="quickSwap('eggs')">🥚 Eggs</button>
+                        <button class="swap-btn" onclick="quickSwap('butter')">🧈 Butter</button>
+                        <button class="swap-btn" onclick="quickSwap('cheese')">🧀 Cheese</button>
+                        <button class="swap-btn" onclick="quickSwap('honey')">🍯 Honey</button>
+                        <button class="swap-btn" onclick="quickSwap('gelatin')">🍮 Gelatin</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Veganize Recipe Tab -->
+            <div class="tab-content" id="veganize-tab">
+                <div class="card">
+                    <h2>Veganize Any Recipe 🍳→🌱</h2>
+                    <p class="help-text">Transform your favorite recipes into delicious vegan versions!</p>
+                    <textarea 
+                        id="recipe-input" 
+                        placeholder="Paste your recipe here..."
+                        rows="6"
+                    ></textarea>
+                    <button class="btn btn-primary" onclick="veganizeRecipe()">
+                        <span class="btn-icon">✨</span> Make It Vegan!
+                    </button>
+                    <div id="recipe-result" class="result-box"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="veggie-parade">
+                <span class="veggie">🥕</span>
+                <span class="veggie">🥦</span>
+                <span class="veggie">🍅</span>
+                <span class="veggie">🥒</span>
+                <span class="veggie">🫑</span>
+                <span class="veggie">🍆</span>
+                <span class="veggie">🥬</span>
+            </div>
+            <p>Made with 💚 for plant-based living</p>
+        </footer>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Mirror - Personal Digital Twin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+</head>
+<body>
+    <div class="neural-container">
+        <!-- Matrix-like background animation -->
+        <canvas id="matrix-rain"></canvas>
+        
+        <!-- Holographic overlay effects -->
+        <div class="hologram-lines"></div>
+        <div class="scan-line"></div>
+        
+        <!-- Main Interface -->
+        <div class="interface-wrapper">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="logo-section">
+                    <div class="logo-cube">
+                        <div class="cube-face front"></div>
+                        <div class="cube-face back"></div>
+                        <div class="cube-face left"></div>
+                        <div class="cube-face right"></div>
+                        <div class="cube-face top"></div>
+                        <div class="cube-face bottom"></div>
+                    </div>
+                    <h1 class="brand-title">
+                        <span class="glitch" data-text="NEURAL">NEURAL</span>
+                        <span class="subtitle">MIRROR</span>
+                    </h1>
+                </div>
+                
+                <div class="status-indicators">
+                    <div class="indicator sync-status">
+                        <span class="pulse"></span>
+                        <span class="label">SYNC</span>
+                    </div>
+                    <div class="indicator neural-load">
+                        <div class="load-bar">
+                            <div class="load-fill"></div>
+                        </div>
+                        <span class="label">NEURAL LOAD</span>
+                    </div>
+                    <div class="indicator memory-usage">
+                        <span class="value">0</span>
+                        <span class="label">MEMORIES</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+                <!-- Left Panel - Twin Status -->
+                <section class="twin-status-panel">
+                    <div class="panel-header">
+                        <h2>DIGITAL TWIN STATUS</h2>
+                        <div class="status-light active"></div>
+                    </div>
+                    
+                    <div class="avatar-container">
+                        <div class="avatar-frame">
+                            <div class="avatar-inner">
+                                <div class="dna-helix"></div>
+                                <div class="avatar-core">
+                                    <span class="avatar-initial">?</span>
+                                </div>
+                                <div class="orbit orbit-1"></div>
+                                <div class="orbit orbit-2"></div>
+                                <div class="orbit orbit-3"></div>
+                            </div>
+                        </div>
+                        <div class="avatar-name">INITIALIZING...</div>
+                        <div class="avatar-stats">
+                            <div class="stat">
+                                <span class="stat-label">Personality Model</span>
+                                <span class="stat-value">--</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Knowledge Base</span>
+                                <span class="stat-value">0 GB</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Conversations</span>
+                                <span class="stat-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="cyber-btn train-btn" id="trainBtn">
+                            <span class="btn-text">TRAIN MODEL</span>
+                            <span class="btn-glow"></span>
+                        </button>
+                        <button class="cyber-btn upload-btn" id="uploadBtn">
+                            <span class="btn-text">UPLOAD DATA</span>
+                            <span class="btn-glow"></span>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Center Panel - Chat Interface -->
+                <section class="chat-interface">
+                    <div class="chat-header">
+                        <div class="chat-mode-selector">
+                            <button class="mode-btn active" data-mode="mirror">MIRROR MODE</button>
+                            <button class="mode-btn" data-mode="advisor">ADVISOR MODE</button>
+                            <button class="mode-btn" data-mode="creative">CREATIVE MODE</button>
+                        </div>
+                        <div class="chat-options">
+                            <button class="option-btn" title="Voice Mode">🎤</button>
+                            <button class="option-btn" title="Settings">⚙️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-viewport">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="welcome-message">
+                                <div class="hologram-text">
+                                    <h3>WELCOME TO NEURAL MIRROR</h3>
+                                    <p>Initialize your digital twin by uploading personal data or start a conversation to begin training.</p>
+                                    <p class="typing-indicator">System ready<span class="dots">...</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-container">
+                        <div class="input-wrapper">
+                            <textarea 
+                                id="chatInput" 
+                                class="chat-input" 
+                                placeholder="Ask your digital twin anything..."
+                                rows="1"
+                            ></textarea>
+                            <button class="send-btn" id="sendBtn">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <path d="M2 12L22 2L12 22L10 14L2 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="input-hints">
+                            <span class="hint">Press Enter to send • Shift+Enter for new line</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right Panel - Memory Bank -->
+                <section class="memory-panel">
+                    <div class="panel-header">
+                        <h2>MEMORY BANK</h2>
+                        <button class="add-memory-btn" id="addMemoryBtn">+</button>
+                    </div>
+                    
+                    <div class="memory-categories">
+                        <button class="category-btn active">ALL</button>
+                        <button class="category-btn">PERSONAL</button>
+                        <button class="category-btn">KNOWLEDGE</button>
+                        <button class="category-btn">EXPERIENCES</button>
+                    </div>
+                    
+                    <div class="memory-list" id="memoryList">
+                        <div class="memory-item">
+                            <div class="memory-icon">💭</div>
+                            <div class="memory-content">
+                                <div class="memory-title">No memories yet</div>
+                                <div class="memory-meta">Start uploading data to build your twin's memory</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="memory-stats">
+                        <div class="stat-bar">
+                            <span class="stat-label">Storage Used</span>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <span class="stat-value">0 / 10 GB</span>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Bottom Status Bar -->
+            <footer class="status-bar">
+                <div class="status-item">
+                    <span class="status-icon">🧠</span>
+                    <span class="status-text">Neural Network: <span class="status-value">READY</span></span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon">🔗</span>
+                    <span class="status-text">API Connection: <span class="status-value connected">CONNECTED</span></span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon">⚡</span>
+                    <span class="status-text">Processing: <span class="status-value">IDLE</span></span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon">📊</span>
+                    <span class="status-text">Model Accuracy: <span class="status-value">--</span></span>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Upload Modal -->
+        <div class="modal" id="uploadModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>UPLOAD TRAINING DATA</h3>
+                    <button class="modal-close" id="closeModalBtn">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="upload-zone" id="uploadZone">
+                        <div class="upload-icon">📁</div>
+                        <p>Drag & drop files here or click to browse</p>
+                        <p class="upload-hint">Supported: Text, PDF, Images, Audio, Video</p>
+                        <input type="file" id="fileInput" multiple hidden>
+                    </div>
+                    <div class="upload-queue" id="uploadQueue"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

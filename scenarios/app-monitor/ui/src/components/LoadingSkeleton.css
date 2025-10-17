@@ -1,0 +1,198 @@
+/* Loading Skeleton - Matrix Cyberpunk Theme */
+
+.loading-skeleton {
+  background: linear-gradient(90deg, 
+    rgba(26, 71, 42, 0.6) 25%, 
+    rgba(0, 255, 65, 0.2) 50%, 
+    rgba(26, 71, 42, 0.6) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.5s infinite;
+  border: 1px solid rgba(0, 255, 65, 0.3);
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* App Card Skeleton */
+.app-card-skeleton {
+  background: rgba(13, 17, 23, 0.8);
+  border: 1px solid #1a472a;
+  border-radius: 8px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-card-skeleton.grid {
+  min-height: 180px;
+}
+
+.app-card-skeleton.list {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-card-skeleton.list .app-card-header {
+  flex: 1;
+}
+
+.app-card-skeleton.list .app-card-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.app-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.app-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app-card-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-card-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Resource Card Skeleton */
+.resource-card-skeleton {
+  background: rgba(13, 17, 23, 0.8);
+  border: 1px solid #1a472a;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 150px;
+  position: relative;
+  overflow: hidden;
+}
+
+.resource-card-skeleton .resource-icon {
+  margin-bottom: 8px;
+}
+
+/* Grid Layouts */
+.apps-grid-skeleton {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+}
+
+.apps-grid-skeleton.grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.apps-grid-skeleton.list {
+  grid-template-columns: 1fr;
+}
+
+.resources-grid-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+/* Matrix glow effect on skeleton cards */
+.app-card-skeleton::before,
+.resource-card-skeleton::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, 
+    transparent 30%, 
+    rgba(0, 255, 65, 0.3) 50%, 
+    transparent 70%
+  );
+  background-size: 200% 200%;
+  animation: matrix-glow 3s ease-in-out infinite;
+  border-radius: 8px;
+  z-index: -1;
+  opacity: 0.5;
+}
+
+@keyframes matrix-glow {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 0.3;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.6;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .apps-grid-skeleton.grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .resources-grid-skeleton {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+  
+  .app-card-skeleton.list .app-card-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .app-card-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .loading-skeleton {
+    animation: none;
+    background: rgba(26, 71, 42, 0.6);
+  }
+  
+  .app-card-skeleton::before,
+  .resource-card-skeleton::before {
+    animation: none;
+    opacity: 0.3;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .loading-skeleton {
+    border: 2px solid #00ff41;
+    background: rgba(0, 255, 65, 0.1);
+  }
+  
+  .app-card-skeleton,
+  .resource-card-skeleton {
+    border: 2px solid #00ff41;
+  }
+}

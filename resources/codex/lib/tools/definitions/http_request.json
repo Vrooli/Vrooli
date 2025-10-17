@@ -1,0 +1,87 @@
+{
+  "type": "function",
+  "category": "network",
+  "function": {
+    "name": "http_request",
+    "description": "Make HTTP requests with full control over method, headers, and body",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Target URL for the request"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+          "description": "HTTP method",
+          "default": "GET"
+        },
+        "headers": {
+          "type": "object",
+          "description": "HTTP headers as key-value pairs",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "type": "string",
+          "description": "Request body (for POST, PUT, PATCH)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Timeout in seconds",
+          "default": 30
+        },
+        "follow_redirects": {
+          "type": "boolean",
+          "description": "Follow HTTP redirects",
+          "default": true
+        },
+        "verify_ssl": {
+          "type": "boolean",
+          "description": "Verify SSL certificates",
+          "default": true
+        },
+        "user_agent": {
+          "type": "string",
+          "description": "Custom User-Agent header",
+          "default": "Codex-HTTP-Client/1.0"
+        },
+        "auth": {
+          "type": "object",
+          "description": "Authentication configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["basic", "bearer", "api_key"],
+              "description": "Authentication type"
+            },
+            "username": {
+              "type": "string",
+              "description": "Username for basic auth"
+            },
+            "password": {
+              "type": "string",
+              "description": "Password for basic auth"
+            },
+            "token": {
+              "type": "string",
+              "description": "Token for bearer auth"
+            },
+            "key": {
+              "type": "string",
+              "description": "API key"
+            },
+            "header": {
+              "type": "string",
+              "description": "Header name for API key",
+              "default": "X-API-Key"
+            }
+          }
+        }
+      },
+      "required": ["url"]
+    }
+  }
+}

@@ -1,0 +1,81 @@
+tasks:
+  - title: "Implement OpenCode Session Manager with Request Queuing"
+    description: "Create a centralized session manager for OpenCode agent calls to prevent rate limiting. Implement request queuing, retry logic with exponential backoff, and distribute requests across multiple API keys. This will prevent the 30-45 minute automation halt issue that occurs when multiple scenarios run concurrently."
+    type: performance
+    priority_estimates:
+      impact: critical
+      effort: high
+      urgency: immediate
+  
+  - title: "Optimize UI Build Performance - Reduce 4400+ Module Processing"
+    description: "The UI build currently processes 4400+ modules taking 5-10 minutes. Implement code splitting, lazy loading, tree shaking, and optimize Vite configuration. Consider using module federation or breaking into micro-frontends. Target: reduce build time to under 2 minutes."
+    type: performance
+    priority_estimates:
+      impact: high
+      effort: medium
+      urgency: high
+  
+  - title: "Create Unified Docker Network Management System"
+    description: "Fix intermittent container communication failures by implementing a unified network management system. Ensure all resources use the same Docker network, implement proper DNS resolution, add network health checks, and create automatic recovery mechanisms for network failures."
+    type: infrastructure
+    priority_estimates:
+      impact: critical
+      effort: medium
+      urgency: immediate
+  
+  - title: "Add Comprehensive Test Framework for System-Monitor Investigations"
+    description: "System-monitor has 20+ investigation scripts with zero test coverage. Create a test framework that includes mock trigger generation, result validation, performance benchmarks, and edge case testing. Add integration tests for all investigation scripts."
+    type: testing
+    priority_estimates:
+      impact: high
+      effort: high
+      urgency: medium
+  
+  - title: "Implement Resource Leak Detection and Auto-Recovery System"
+    description: "Build an automated system to detect and fix memory leaks, file descriptor leaks, and zombie processes. Integrate with system-monitor to automatically restart leaking services, clean up orphaned resources, and alert on persistent issues. Address known leaks documented in RESOURCE_LEAK_FIXES.md."
+    type: reliability
+    priority_estimates:
+      impact: high
+      effort: medium
+      urgency: high
+  
+  - title: "Create Shared Library for Common Patterns Across 80+ Scenarios"
+    description: "Extract duplicated code patterns (database connections, API structures, error handling, auth) into a shared library. This will reduce codebase size by ~30%, improve maintainability, and ensure consistency. Focus on Go services first, then Node.js components."
+    type: refactoring
+    priority_estimates:
+      impact: medium
+      effort: high
+      urgency: medium
+  
+  - title: "Implement Configurable Timeout System for Long-Running Operations"
+    description: "Replace hardcoded 2-minute timeout with configurable timeouts based on operation type. Create timeout profiles for builds (20min), tests (15min), type checking (15min), migrations (5min). Add progress indicators and graceful timeout handling."
+    type: infrastructure
+    priority_estimates:
+      impact: high
+      effort: low
+      urgency: high
+  
+  - title: "Add OpenAPI Documentation Generation for All Scenario APIs"
+    description: "Automatically generate OpenAPI/Swagger documentation for all 80+ scenario APIs. Implement middleware to auto-document endpoints, add request/response validation, create interactive API explorers, and maintain version compatibility. Priority on ecosystem-manager and browser-automation-studio."
+    type: documentation
+    priority_estimates:
+      impact: medium
+      effort: medium
+      urgency: low
+  
+  - title: "Build Intelligent Resource Discovery with State Reconciliation"
+    description: "Replace the current resource discovery script that has race conditions with a robust state reconciliation system. Implement eventual consistency, add retry logic with jitter, cache resource states, and create a unified resource registry with health status tracking."
+    type: infrastructure
+    priority_estimates:
+      impact: high
+      effort: medium
+      urgency: high
+  
+  - title: "Create Scenario Capacity Scaling System"
+    description: "Currently limited to 5 concurrent scenarios due to resource constraints. Build a dynamic scaling system that queues scenarios, monitors resource usage, implements priority scheduling, and automatically scales resources based on demand. Include predictive scaling based on historical patterns."
+    type: scalability
+    priority_estimates:
+      impact: high
+      effort: high
+      urgency: medium
+EOF < /dev/null

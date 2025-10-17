@@ -1,0 +1,44 @@
+{
+  "resource": "mathlib",
+  "version": "2.0",
+  "description": "Mathlib4 formal mathematical theorem proving with Lean 4",
+  "category": "execution",
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "resource_limits": {
+    "memory": "4096MB",
+    "cpu": "2.0",
+    "disk": "10GB"
+  },
+  "ports": {
+    "api": 11458
+  },
+  "capabilities": [
+    "theorem-proving",
+    "proof-verification",
+    "mathematical-formalization",
+    "lean-compilation",
+    "mathlib-library"
+  ],
+  "integration_points": {
+    "input": ["lean-files", "proof-scripts"],
+    "output": ["verification-results", "proof-diagnostics"],
+    "protocols": ["http", "rest"]
+  },
+  "compliance": {
+    "contract": "v2.0-universal",
+    "security": "isolated-execution",
+    "monitoring": "prometheus-compatible"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "symbol-search-ui",
+  "version": "1.0.0",
+  "description": "High-performance Unicode and ASCII symbol search interface",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "node server.js"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.0.0",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-window": "^1.8.8",
+    "react-window-infinite-loader": "^1.0.9",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.8",
+    "typescript": "^5.2.2"
+  },
+  "keywords": [
+    "unicode",
+    "symbols", 
+    "search",
+    "performance",
+    "virtualization",
+    "developer-tools"
+  ],
+  "author": "Vrooli Symbol Search",
+  "license": "MIT"
+}

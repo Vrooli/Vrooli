@@ -1,0 +1,225 @@
+{
+  "name": "Morning Vision - Context Gatherer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "vision-context-gatherer",
+        "responseMode": "responseNode",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nreturn [{\n  json: {\n    session_id: \"test-session\",\n    user_id: \"test-user\",\n    context_type: \"vrooli_state\",\n    depth: \"comprehensive\"\n  }\n}];"
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.context_type }}",
+              "operation": "equals",
+              "value2": "vrooli_state"
+            }
+          ]
+        }
+      },
+      "id": "check-context-type",
+      "name": "Check Context Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as scenario_count, COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count, COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_count FROM scenarios WHERE created_at > NOW() - INTERVAL '7 days'",
+        "additionalFields": {}
+      },
+      "id": "get-scenario-stats",
+      "name": "Get Scenario Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 300],
+      "credentials": {
+        "postgres": {
+          "id": "vision-walk-postgres",
+          "name": "Vision Walk Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT task_name, priority, status, created_at FROM tasks WHERE user_id = $1 AND status != 'completed' ORDER BY priority DESC, created_at DESC LIMIT 10",
+        "additionalFields": {
+          "queryParams": "={{ [$json.user_id] }}"
+        }
+      },
+      "id": "get-active-tasks",
+      "name": "Get Active Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 450],
+      "credentials": {
+        "postgres": {
+          "id": "vision-walk-postgres",
+          "name": "Vision Walk Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT insight_text, category, created_at FROM insights WHERE session_id IN (SELECT id FROM sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5) ORDER BY created_at DESC LIMIT 20",
+        "additionalFields": {
+          "queryParams": "={{ [$json.user_id] }}"
+        }
+      },
+      "id": "get-recent-insights",
+      "name": "Get Recent Insights",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 600],
+      "credentials": {
+        "postgres": {
+          "id": "vision-walk-postgres",
+          "name": "Vision Walk Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_URL || 'http://localhost:5678' }}/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Based on the following Vrooli project context, provide a brief summary of the current state and key focus areas:\n\nScenario Stats: {{ JSON.stringify($('get-scenario-stats').item.json) }}\n\nActive Tasks: {{ JSON.stringify($('get-active-tasks').item.json) }}\n\nRecent Insights: {{ JSON.stringify($('get-recent-insights').item.json) }}\n\nProvide:\n1. Current project momentum assessment\n2. Top 3 priorities based on the data\n3. Potential blockers or concerns\n4. Recommended focus for today"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": 0.7
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "analyze-context",
+      "name": "Analyze Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gather personal context\nconst now = new Date();\nconst hour = now.getHours();\n\nlet timeContext = {};\nif (hour < 6) {\n  timeContext = {\n    period: 'early_morning',\n    energy: 'awakening',\n    focus: 'planning'\n  };\n} else if (hour < 12) {\n  timeContext = {\n    period: 'morning',\n    energy: 'rising',\n    focus: 'execution'\n  };\n} else if (hour < 17) {\n  timeContext = {\n    period: 'afternoon',\n    energy: 'sustained',\n    focus: 'deep_work'\n  };\n} else if (hour < 21) {\n  timeContext = {\n    period: 'evening',\n    energy: 'winding',\n    focus: 'reflection'\n  };\n} else {\n  timeContext = {\n    period: 'night',\n    energy: 'low',\n    focus: 'rest'\n  };\n}\n\n// Get day of week context\nconst dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];\nconst dayOfWeek = dayNames[now.getDay()];\nconst isWeekend = now.getDay() === 0 || now.getDay() === 6;\n\nreturn [{\n  json: {\n    temporal: {\n      time: now.toISOString(),\n      ...timeContext,\n      day: dayOfWeek,\n      is_weekend: isWeekend\n    },\n    recommendations: {\n      energy_management: timeContext.energy === 'rising' ? 'Leverage high energy for complex tasks' : 'Focus on lighter, creative work',\n      focus_suggestion: `Optimal for ${timeContext.focus}`,\n      break_reminder: hour % 2 === 0 ? 'Consider a short walk or stretch' : null\n    }\n  }\n}];"
+      },
+      "id": "gather-personal-context",
+      "name": "Gather Personal Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 750]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile all context\nconst vrooliContext = $('analyze-context').item?.json || {};\nconst personalContext = $('gather-personal-context').item?.json || {};\nconst scenarioStats = $('get-scenario-stats').item?.json || {};\nconst activeTasks = $('get-active-tasks').item?.json || [];\nconst recentInsights = $('get-recent-insights').item?.json || [];\n\nconst fullContext = {\n  success: true,\n  session_id: $('webhook-trigger').item.json.session_id,\n  timestamp: new Date().toISOString(),\n  vrooli_state: {\n    summary: vrooliContext.response || 'No summary available',\n    statistics: scenarioStats,\n    active_tasks: activeTasks,\n    recent_insights: recentInsights\n  },\n  personal: personalContext,\n  recommendations: {\n    immediate_focus: vrooliContext.immediate_focus || [],\n    energy_optimization: personalContext.recommendations,\n    suggested_conversation_topics: [\n      'Review active scenarios',\n      'Brainstorm new capabilities',\n      'Discuss recursive improvement strategies',\n      'Plan today\\'s development focus'\n    ]\n  }\n};\n\nreturn [{ json: fullContext }];"
+      },
+      "id": "compile-context",
+      "name": "Compile Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{ "node": "check-context-type", "type": "main", "index": 0 }]]
+    },
+    "manual-trigger": {
+      "main": [[{ "node": "provide-defaults", "type": "main", "index": 0 }]]
+    },
+    "provide-defaults": {
+      "main": [[{ "node": "check-context-type", "type": "main", "index": 0 }]]
+    },
+    "check-context-type": {
+      "main": [
+        [
+          { "node": "get-scenario-stats", "type": "main", "index": 0 },
+          { "node": "get-active-tasks", "type": "main", "index": 0 },
+          { "node": "get-recent-insights", "type": "main", "index": 0 },
+          { "node": "gather-personal-context", "type": "main", "index": 0 }
+        ],
+        [{ "node": "gather-personal-context", "type": "main", "index": 0 }]
+      ]
+    },
+    "get-scenario-stats": {
+      "main": [[{ "node": "analyze-context", "type": "main", "index": 0 }]]
+    },
+    "get-active-tasks": {
+      "main": [[{ "node": "analyze-context", "type": "main", "index": 0 }]]
+    },
+    "get-recent-insights": {
+      "main": [[{ "node": "analyze-context", "type": "main", "index": 0 }]]
+    },
+    "analyze-context": {
+      "main": [[{ "node": "compile-context", "type": "main", "index": 0 }]]
+    },
+    "gather-personal-context": {
+      "main": [[{ "node": "compile-context", "type": "main", "index": 0 }]]
+    },
+    "compile-context": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

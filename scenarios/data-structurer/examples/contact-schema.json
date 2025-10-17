@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "properties": {
+    "first_name": {
+      "type": "string",
+      "description": "Person's first name"
+    },
+    "last_name": {
+      "type": "string",
+      "description": "Person's last name"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "company": {
+      "type": "string",
+      "description": "Company name"
+    },
+    "title": {
+      "type": "string",
+      "description": "Job title"
+    },
+    "location": {
+      "type": "string",
+      "description": "Geographic location"
+    }
+  },
+  "required": ["first_name", "email"]
+}

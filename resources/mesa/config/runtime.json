@@ -1,0 +1,21 @@
+{
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 60,
+  "startup_time_estimate": "20-30s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "description": "Agent-based modeling and simulation framework",
+  "category": "simulation",
+  "resources": {
+    "memory": "512MB",
+    "cpu": "1.0",
+    "disk": "1GB"
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  }
+}

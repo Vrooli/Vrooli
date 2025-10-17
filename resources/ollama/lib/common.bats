@@ -1,0 +1,232 @@
+#!/usr/bin/env bats
+# Tests for Ollama common utilities
+
+# Get script directory first
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+COMMON_BATS_DIR="$APP_ROOT/resources/ollama/lib"
+
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "${APP_ROOT}/lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_TEST_DIR}/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "ollama"
+    
+    # Load dependencies once
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    OLLAMA_DIR="${SCRIPT_DIR%/*}"
+    
+    # Load configuration and messages once
+    source "${OLLAMA_DIR}/config/defaults.sh"
+    source "${OLLAMA_DIR}/config/messages.sh"
+    
+    # Load common functions once
+    source "${SCRIPT_DIR}/common.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_OLLAMA_DIR="$OLLAMA_DIR"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    OLLAMA_DIR="${SETUP_FILE_OLLAMA_DIR}"
+    
+    # Set test environment
+    export DESCRIPTION="Test Ollama management"
+    
+    # Export config functions
+    ollama::export_config
+    ollama::export_messages
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
+
+@test "ollama::parse_arguments sets environment variables correctly" {
+    ollama::parse_arguments --action status
+    
+    [ "$ACTION" = "status" ]
+    [ "$FORCE" = "no" ]
+    [ "$YES" = "no" ]
+    [ "$MODELS_INPUT" = "" ]
+    [ "$SKIP_MODELS" = "no" ]
+    [ "$PROMPT_TEXT" = "" ]
+    [ "$PROMPT_MODEL" = "" ]
+    [ "$PROMPT_TYPE" = "general" ]
+    [ "$OUTPUT_FORMAT" = "text" ]
+    [ "$TEMPERATURE" = "0.8" ]
+    [ "$MAX_TOKENS" = "" ]
+    [ "$TOP_P" = "0.9" ]
+    [ "$TOP_K" = "40" ]
+    [ "$SEED" = "" ]
+    [ "$SYSTEM_PROMPT" = "" ]
+}
+
+@test "ollama::usage displays usage information" {
+    run ollama::usage
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Usage:" ]]
+    [[ "$output" =~ "Examples:" ]]
+    [[ "$output" =~ "--action install" ]]
+    [[ "$output" =~ "--action prompt" ]]
+    [[ "$output" =~ "--action status" ]]
+}
+
+@test "ollama::update_config calls resources::update_config" {
+    # Mock the function to capture call
+    resources::update_config() {
+        echo "Called with: $*"
+    }
+    
+    run ollama::update_config
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Called with: ai ollama" ]]
+}
+
+@test "ollama::validate_temperature accepts valid temperatures" {
+    # Valid temperatures
+    ollama::validate_temperature "0.0"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_temperature "0.8"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_temperature "1.0"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_temperature "2.0"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_temperature "0.5"
+    [ "$?" -eq 0 ]
+}
+
+@test "ollama::validate_temperature rejects invalid temperatures" {
+    # Invalid temperatures
+    run ollama::validate_temperature "-0.1"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_temperature "2.1"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_temperature "abc"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_temperature ""
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_temperature "3.0"
+    [ "$status" -eq 1 ]
+}
+
+@test "ollama::validate_top_p accepts valid top-p values" {
+    # Valid top-p values
+    ollama::validate_top_p "0.0"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_top_p "0.5"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_top_p "0.9"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_top_p "1.0"
+    [ "$?" -eq 0 ]
+}
+
+@test "ollama::validate_top_p rejects invalid top-p values" {
+    # Invalid top-p values
+    run ollama::validate_top_p "-0.1"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_top_p "1.1"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_top_p "abc"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_top_p ""
+    [ "$status" -eq 1 ]
+}
+
+@test "ollama::validate_top_k accepts valid top-k values" {
+    # Valid top-k values
+    ollama::validate_top_k "1"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_top_k "40"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_top_k "100"
+    [ "$?" -eq 0 ]
+}
+
+@test "ollama::validate_top_k rejects invalid top-k values" {
+    # Invalid top-k values
+    run ollama::validate_top_k "0"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_top_k "-1"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_top_k "abc"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_top_k ""
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_top_k "1.5"
+    [ "$status" -eq 1 ]
+}
+
+@test "ollama::validate_max_tokens accepts valid max-tokens values" {
+    # Valid max-tokens values
+    ollama::validate_max_tokens ""      # Empty is valid
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_max_tokens "1"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_max_tokens "100"
+    [ "$?" -eq 0 ]
+    
+    ollama::validate_max_tokens "4096"
+    [ "$?" -eq 0 ]
+}
+
+@test "ollama::validate_max_tokens rejects invalid max-tokens values" {
+    # Invalid max-tokens values
+    run ollama::validate_max_tokens "0"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_max_tokens "-1"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_max_tokens "abc"
+    [ "$status" -eq 1 ]
+    
+    run ollama::validate_max_tokens "1.5"
+    [ "$status" -eq 1 ]
+}
+
+@test "all validation functions exist and are callable" {
+    # Test that all validation functions are defined
+    type ollama::validate_temperature >/dev/null
+    type ollama::validate_top_p >/dev/null
+    type ollama::validate_top_k >/dev/null
+    type ollama::validate_max_tokens >/dev/null
+}

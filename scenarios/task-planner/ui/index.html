@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Planner - AI-Powered Task Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>Task Planner</h1>
+                    <p class="subtitle">AI-Powered Task Management & Implementation</p>
+                </div>
+                <button id="helpBtn" class="btn btn-secondary" style="margin-top: 0;" aria-label="Show keyboard shortcuts">
+                    Help (?)
+                </button>
+            </div>
+        </header>
+
+        <div class="input-section">
+            <h2>Add Tasks from Text</h2>
+            <label for="taskInput" class="sr-only">Task input field</label>
+            <textarea id="taskInput" 
+                      placeholder="Paste your unstructured task list here...
+
+Examples:
+- Add dark mode toggle to settings
+- Fix login validation bug
+- TODO: Improve test coverage
+- Research: best practices for API caching"
+                      aria-label="Enter unstructured task text for AI parsing"
+                      aria-describedby="parseStatus"></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button id="parseBtn" class="btn btn-primary" aria-describedby="parseStatus">
+                    Parse Tasks with AI
+                </button>
+                <button id="suggestBtn" class="btn btn-secondary" aria-label="Get AI task suggestions based on current project context">
+                    Get Smart Suggestions
+                </button>
+            </div>
+            <div id="parseStatus" class="status-message" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Task categories">
+            <button class="tab-btn active" data-tab="backlog" role="tab" aria-selected="true" aria-controls="backlog" id="tab-backlog">
+                Backlog <span class="sr-only">(Press 1)</span>
+            </button>
+            <button class="tab-btn" data-tab="staged" role="tab" aria-selected="false" aria-controls="staged" id="tab-staged">
+                Staged <span class="sr-only">(Press 2)</span>
+            </button>
+            <button class="tab-btn" data-tab="progress" role="tab" aria-selected="false" aria-controls="progress" id="tab-progress">
+                In Progress <span class="sr-only">(Press 3)</span>
+            </button>
+            <button class="tab-btn" data-tab="completed" role="tab" aria-selected="false" aria-controls="completed" id="tab-completed">
+                Completed <span class="sr-only">(Press 4)</span>
+            </button>
+        </div>
+
+        <div class="tab-content">
+            <div id="backlog" class="tab-pane active" role="tabpanel" aria-labelledby="tab-backlog">
+                <div class="task-list" id="backlogList" aria-label="Backlog tasks">
+                    <div class="empty-state">No tasks in backlog</div>
+                </div>
+            </div>
+            <div id="staged" class="tab-pane" role="tabpanel" aria-labelledby="tab-staged">
+                <div class="task-list" id="stagedList" aria-label="Staged tasks">
+                    <div class="empty-state">No staged tasks</div>
+                </div>
+            </div>
+            <div id="progress" class="tab-pane" role="tabpanel" aria-labelledby="tab-progress">
+                <div class="task-list" id="progressList" aria-label="Tasks in progress">
+                    <div class="empty-state">No tasks in progress</div>
+                </div>
+            </div>
+            <div id="completed" class="tab-pane" role="tabpanel" aria-labelledby="tab-completed">
+                <div class="task-list" id="completedList" aria-label="Completed tasks">
+                    <div class="empty-state">No completed tasks</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-section">
+            <h3>Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTasks">0</div>
+                    <div class="stat-label">Total Tasks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="completionRate">0%</div>
+                    <div class="stat-label">Completion Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgTime">0h</div>
+                    <div class="stat-label">Avg. Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="aiConfidence">0%</div>
+                    <div class="stat-label">AI Confidence</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

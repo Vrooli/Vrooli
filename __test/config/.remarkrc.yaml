@@ -1,0 +1,32 @@
+# Remark configuration for link validation
+plugins:
+  - - remark-validate-links
+    - 
+      # Work with local files only (no repository URL needed)
+      repository: false
+      
+      # File extensions to check when referenced
+      fileExtensions: 
+        - md
+        - markdown
+        - sh
+        - bash
+        - ts
+        - tsx
+        - js
+        - jsx
+        - json
+        - yaml
+        - yml
+        - txt
+        - sql
+        
+      # Ignore external URLs (we only validate local references)
+      urlWhitelist:
+        - "^https?://"
+        - "^mailto:"
+        - "^ftp://"
+        - "^#"  # Allow pure anchor links
+        
+  # Support YAML frontmatter in markdown files
+  - remark-frontmatter

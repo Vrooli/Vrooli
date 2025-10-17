@@ -1,0 +1,20 @@
+analyzed_at: "2025-09-04T23:11:06-04:00"
+attempts: []
+blockers: []
+completed_at: null
+created_at: 2025-09-04T22:09:37-04:00
+created_by: human
+dependencies: []
+description: ""
+id: task-20250904-220937
+notes: ""
+priority_estimates:
+    impact: 1
+    resource_cost: minimal
+    success_prob: 0.95
+    urgency: low
+priority_score: 0.9119999999999999
+started_at: null
+target: ""
+title: Test task 1757038177
+type: general

@@ -1,0 +1,270 @@
+{
+  "name": "competitor-change-analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "competitor-monitor/analyze-change",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"competitorId\": \"test-competitor-123\",\n  \"competitorName\": \"Example Corp\",\n  \"targetUrl\": \"https://example.com/products\",\n  \"changeType\": \"content\",\n  \"oldContent\": \"Our product costs $99\",\n  \"newContent\": \"Our product now costs $79 - Limited time offer!\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or manual input\nconst input = $input.all()[0].json;\n\nreturn {\n  competitorId: input.competitorId,\n  competitorName: input.competitorName,\n  targetUrl: input.targetUrl,\n  changeType: input.changeType || 'content',\n  oldContent: input.oldContent || '',\n  newContent: input.newContent || '',\n  timestamp: input.timestamp || new Date().toISOString(),\n  analysisId: `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};"
+      },
+      "id": "merge-inputs",
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "inputData": "={\n  \"prompt\": \"You are a competitive intelligence analyst. Analyze changes in competitor websites and provide actionable insights. Focus on business impact and strategic implications. Always respond with valid JSON.\\n\\nAnalyze this change from competitor {{ $json.competitorName }}:\\n\\nURL: {{ $json.targetUrl }}\\n\\nOLD CONTENT:\\n{{ $json.oldContent }}\\n\\nNEW CONTENT:\\n{{ $json.newContent }}\\n\\nProvide analysis in JSON format with these fields:\\n- relevance_score (0-100): How relevant is this change to our business?\\n- change_category: pricing|feature|marketing|legal|other\\n- impact_level: low|medium|high|critical\\n- key_insights: Array of 2-3 key insights\\n- recommended_actions: Array of 1-3 recommended actions\\n- summary: Brief summary of the change (max 100 words)\",\n  \"model\": \"llama3.2:3b\",\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 120\n}"
+      },
+      "id": "call-ollama",
+      "name": "Call Ollama Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI analysis\nconst ollamaResponse = $input.all()[0].json;\nconst inputData = $node[\"Merge Inputs\"].json;\n\nlet analysis;\ntry {\n  // Extract the response text from ollama workflow response\n  const responseText = ollamaResponse.response || ollamaResponse.text || JSON.stringify(ollamaResponse);\n  \n  // Try to parse JSON from the response\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/g);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[jsonMatch.length - 1]);\n  } else {\n    throw new Error('No JSON found in response');\n  }\n} catch (error) {\n  // Fallback analysis if parsing fails\n  analysis = {\n    relevance_score: 50,\n    change_category: 'other',\n    impact_level: 'medium',\n    key_insights: ['Change detected but analysis failed'],\n    recommended_actions: ['Manual review recommended'],\n    summary: 'Automated analysis failed - manual review needed'\n  };\n}\n\n// Combine input data with analysis\nreturn {\n  analysisId: inputData.analysisId,\n  competitorId: inputData.competitorId,\n  competitorName: inputData.competitorName,\n  targetUrl: inputData.targetUrl,\n  changeType: inputData.changeType,\n  timestamp: inputData.timestamp,\n  analysis: {\n    relevance_score: analysis.relevance_score || 50,\n    change_category: analysis.change_category || 'other',\n    impact_level: analysis.impact_level || 'medium',\n    key_insights: analysis.key_insights || [],\n    recommended_actions: analysis.recommended_actions || [],\n    summary: analysis.summary || 'No summary available'\n  },\n  changeDetails: {\n    oldContent: inputData.oldContent.substring(0, 500),\n    newContent: inputData.newContent.substring(0, 500)\n  }\n};"
+      },
+      "id": "parse-analysis",
+      "name": "Parse Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO change_analyses (\n  id,\n  competitor_id,\n  target_url,\n  change_type,\n  relevance_score,\n  change_category,\n  impact_level,\n  key_insights,\n  recommended_actions,\n  summary,\n  old_content,\n  new_content,\n  created_at\n) VALUES (\n  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13\n) RETURNING *;",
+        "additionalFields": {
+          "queryParams": "={{ $json.analysisId }},{{ $json.competitorId }},{{ $json.targetUrl }},{{ $json.changeType }},{{ $json.analysis.relevance_score }},{{ $json.analysis.change_category }},{{ $json.analysis.impact_level }},{{ JSON.stringify($json.analysis.key_insights) }},{{ JSON.stringify($json.analysis.recommended_actions) }},{{ $json.analysis.summary }},{{ $json.changeDetails.oldContent }},{{ $json.changeDetails.newContent }},{{ $json.timestamp }}"
+        }
+      },
+      "id": "save-to-postgres",
+      "name": "Save to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1250, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-creds",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.analysis.relevance_score }}",
+              "operation": "largerEqual",
+              "value2": 70
+            }
+          ],
+          "string": [
+            {
+              "value1": "={{ $json.analysis.impact_level }}",
+              "operation": "regex",
+              "value2": "high|critical"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "check-alert-threshold",
+      "name": "Check Alert Threshold",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "http://localhost:5678/webhook/competitor-monitor/send-alert",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "trigger-alert",
+      "name": "Trigger Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Change analyzed successfully"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Provide Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Provide Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Inputs": {
+      "main": [
+        [
+          {
+            "node": "Call Ollama Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Ollama Workflow": {
+      "main": [
+        [
+          {
+            "node": "Parse Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Check Alert Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Alert Threshold": {
+      "main": [
+        [
+          {
+            "node": "Trigger Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Alert": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "competitor-change-analyzer"
+  },
+  "tags": []
+}

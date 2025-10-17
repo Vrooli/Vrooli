@@ -1,0 +1,265 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "audio-intelligence-platform",
+    "displayName": "Audio Intelligence Platform",
+    "description": "AI-powered audio intelligence platform for transcription, analysis, semantic search, and knowledge extraction",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "business",
+      "audio-processing",
+      "content-automation",
+      "transcription",
+      "media-production",
+      "audio-intelligence",
+      "content-generation",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Audio intelligence API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Audio Intelligence Platform UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": false,
+      "required": false,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/transcription-pipeline.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/ai-analysis-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/semantic-search.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "whisper": {
+      "type": "whisper",
+      "enabled": false,
+      "required": true
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "models": [
+        "llama3.1:8b",
+        "nomic-embed-text"
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": false,
+      "required": false,
+      "purpose": "transcription metadata and analytics",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": false,
+      "required": false,
+      "purpose": "audio files and transcription storage"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": false,
+      "required": false,
+      "purpose": "semantic search for transcriptions"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Audio Intelligence Platform health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Audio Intelligence Platform",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "audio-intelligence-platform-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "audio-intelligence-platform"
+             ]
+           },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o audio-intelligence-platform-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI Node.js dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Audio Intelligence Platform initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper API: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: audio-intelligence-platform --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start audio intelligence platform with Go API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./audio-intelligence-platform-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/audio-intelligence-platform-api"
+          }
+        },
+        {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start Node.js UI server in background",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Audio Intelligence Platform running:\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: audio-intelligence-platform --help'",
+           "description": "Display service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test audio intelligence platform API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-transcription-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/transcriptions",
+          "description": "Test API transcriptions endpoint"
+        },
+        {
+          "name": "test-analysis-endpoint",
+          "run": "bash test/test-analysis-endpoint.sh",
+          "description": "Test API analysis endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats audio-intelligence-platform.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/audio-intelligence-platform.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"audio-intelligence-platform-api\" || true; sleep 1; pkill -9 -f \"audio-intelligence-platform-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/audio-intelligence-platform.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/audio-intelligence-platform.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

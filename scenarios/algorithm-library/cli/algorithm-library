@@ -1,0 +1,823 @@
+#!/bin/bash
+################################################################################
+# Algorithm Library CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
+
+set -e
+
+# Configuration
+SCENARIO_NAME="algorithm-library"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}Algorithm Library CLI${NC}"
+    echo "Validated algorithm and data structure reference"
+    echo ""
+    echo "Usage: algorithm-library [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}search${NC}          Search algorithms by query and filters"
+    echo -e "  ${GREEN}get${NC}             Get algorithm details and implementations"
+    echo -e "  ${GREEN}validate${NC}        Validate your implementation against test cases"
+    echo -e "  ${GREEN}benchmark${NC}       Benchmark algorithm performance"
+    echo -e "  ${GREEN}categories${NC}      List all algorithm categories"
+    echo -e "  ${GREEN}stats${NC}           Show library statistics"
+    echo -e "  ${GREEN}health${NC}          Check service health"
+    echo -e "  ${GREEN}status${NC}          Show service status"
+    echo ""
+    echo "Examples:"
+    echo "  algorithm-library search quicksort --category sorting"
+    echo "  algorithm-library get binary_search --language python"
+    echo "  algorithm-library validate quicksort my_quicksort.py"
+    echo "  algorithm-library categories"
+    echo "  algorithm-library stats --json"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo ""
+    echo "For more information: algorithm-library <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# Search command
+cmd_search() {
+    local query=""
+    local category=""
+    local language=""
+    local complexity=""
+    local difficulty=""
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --category)
+                category="$2"
+                shift 2
+                ;;
+            --language)
+                language="$2"
+                shift 2
+                ;;
+            --complexity)
+                complexity="$2"
+                shift 2
+                ;;
+            --difficulty)
+                difficulty="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: algorithm-library search <query> [OPTIONS]"
+                echo ""
+                echo "Search for algorithms by name or description"
+                echo ""
+                echo "Arguments:"
+                echo "  <query>      Search query (algorithm name or description)"
+                echo ""
+                echo "Options:"
+                echo "  --category <name>      Filter by category (sorting, graph, etc.)"
+                echo "  --language <lang>      Filter by programming language"
+                echo "  --complexity <O(n)>    Filter by time complexity"
+                echo "  --difficulty <level>   Filter by difficulty (easy, medium, hard)"
+                echo "  --json                 Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  algorithm-library search quicksort"
+                echo "  algorithm-library search \"binary tree\" --category tree"
+                echo "  algorithm-library search sorting --language python --difficulty easy"
+                return 0
+                ;;
+            -*) 
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$query" ]]; then
+                    query="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$query" ]]; then
+        echo -e "${RED}❌ Error: Search query is required${NC}" >&2
+        echo "Usage: algorithm-library search <query> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    # Build query parameters
+    local params="?query=$(printf '%s' "$query" | sed 's/ /%20/g')"
+    
+    if [[ -n "$category" ]]; then
+        params="${params}&category=$category"
+    fi
+    if [[ -n "$language" ]]; then
+        params="${params}&language=$language"
+    fi
+    if [[ -n "$complexity" ]]; then
+        params="${params}&complexity=$complexity"
+    fi
+    if [[ -n "$difficulty" ]]; then
+        params="${params}&difficulty=$difficulty"
+    fi
+    
+    echo -e "${BLUE}🔍 Searching for algorithms: $query${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/api/v1/algorithms/search${params}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print search results
+        local total=$(echo "$response" | jq -r '.total // 0' 2>/dev/null)
+        
+        if [[ "$total" == "0" ]]; then
+            echo -e "${YELLOW}No algorithms found matching your search.${NC}"
+            return 0
+        fi
+        
+        echo -e "${GREEN}Found $total algorithm(s):${NC}"
+        echo ""
+        
+        echo "$response" | jq -r '.algorithms[]? |
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "Name: \(.name)",
+            "Display: \(.display_name)",
+            "Category: \(.category)",
+            "Complexity: Time \(.complexity_time), Space \(.complexity_space)",
+            "Difficulty: \(.difficulty)",
+            "Languages: \(.language_count) available",
+            "Tests: \(.test_case_count) test cases",
+            "Validated: \(if .has_validated_impl then "✓" else "✗" end)",
+            "Description: \(.description)",
+            ""' 2>/dev/null || echo "$response"
+    fi
+}
+
+# Get command
+cmd_get() {
+    local algorithm=""
+    local language=""
+    local all_languages=false
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --language)
+                language="$2"
+                shift 2
+                ;;
+            --all-languages)
+                all_languages=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: algorithm-library get <algorithm> [OPTIONS]"
+                echo ""
+                echo "Get details and implementations for an algorithm"
+                echo ""
+                echo "Arguments:"
+                echo "  <algorithm>   Algorithm name or ID"
+                echo ""
+                echo "Options:"
+                echo "  --language <lang>     Filter by programming language"
+                echo "  --all-languages       Get all language implementations"
+                echo "  --json                Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  algorithm-library get binary_search"
+                echo "  algorithm-library get quicksort --language python"
+                echo "  algorithm-library get merge_sort --all-languages"
+                return 0
+                ;;
+            -*) 
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$algorithm" ]]; then
+                    algorithm="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$algorithm" ]]; then
+        echo -e "${RED}❌ Error: Algorithm name is required${NC}" >&2
+        echo "Usage: algorithm-library get <algorithm> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    # Build query parameters
+    local params=""
+    if [[ -n "$language" ]]; then
+        params="?language=$language"
+    fi
+    
+    echo -e "${BLUE}📖 Getting algorithm details: $algorithm${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/api/v1/algorithms/${algorithm}/implementations${params}")
+    
+    # Check if algorithm was found
+    if echo "$response" | grep -q "not found"; then
+        echo -e "${RED}Algorithm '$algorithm' not found.${NC}"
+        return 1
+    fi
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print algorithm details
+        echo -e "${GREEN}Algorithm Details:${NC}"
+        echo "$response" | jq -r '.algorithm |
+            "",
+            "Name: \(.name)",
+            "Display: \(.display_name)",
+            "Category: \(.category)",
+            "Complexity: Time \(.complexity_time), Space \(.complexity_space)",
+            "Difficulty: \(.difficulty)",
+            "Description: \(.description)",
+            ""' 2>/dev/null
+        
+        echo -e "${BLUE}Implementations:${NC}"
+        local impl_count=$(echo "$response" | jq -r '.implementations | length' 2>/dev/null)
+        
+        if [[ "$impl_count" == "0" ]]; then
+            echo "  No implementations available"
+        else
+            echo "$response" | jq -r '.implementations[]? |
+                "",
+                "━━━ \(.language) (v\(.version)) ━━━",
+                "Primary: \(if .is_primary then "Yes" else "No" end)",
+                "Validated: \(if .validated then "✓" else "✗" end)",
+                "Validation Count: \(.validation_count)",
+                "Performance Score: \(.performance_score)",
+                "",
+                "Code:",
+                "\(.code)",
+                ""' 2>/dev/null
+        fi
+    fi
+}
+
+# Validate command
+cmd_validate() {
+    local algorithm=""
+    local file=""
+    local language=""
+    local benchmark=false
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --language)
+                language="$2"
+                shift 2
+                ;;
+            --benchmark)
+                benchmark=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: algorithm-library validate <algorithm> <file> [OPTIONS]"
+                echo ""
+                echo "Validate your implementation against test cases"
+                echo ""
+                echo "Arguments:"
+                echo "  <algorithm>   Algorithm name to validate against"
+                echo "  <file>        Path to your implementation file"
+                echo ""
+                echo "Options:"
+                echo "  --language <lang>     Override language detection"
+                echo "  --benchmark           Include performance benchmarking"
+                echo "  --json                Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  algorithm-library validate quicksort my_quicksort.py"
+                echo "  algorithm-library validate binary_search search.js --benchmark"
+                return 0
+                ;;
+            -*) 
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$algorithm" ]]; then
+                    algorithm="$1"
+                elif [[ -z "$file" ]]; then
+                    file="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$algorithm" || -z "$file" ]]; then
+        echo -e "${RED}❌ Error: Algorithm name and file path are required${NC}" >&2
+        echo "Usage: algorithm-library validate <algorithm> <file> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}❌ Error: File '$file' not found${NC}" >&2
+        return 1
+    fi
+    
+    # Auto-detect language if not provided
+    if [[ -z "$language" ]]; then
+        case "${file##*.}" in
+            py) language="python" ;;
+            js) language="javascript" ;;
+            java) language="java" ;;
+            cpp|cc|cxx) language="cpp" ;;
+            c) language="c" ;;
+            go) language="go" ;;
+            rs) language="rust" ;;
+            rb) language="ruby" ;;
+            ts) language="typescript" ;;
+            cs) language="csharp" ;;
+            *)
+                echo -e "${RED}❌ Cannot detect language from file extension. Please specify with --language${NC}" >&2
+                return 1
+                ;;
+        esac
+    fi
+    
+    local code=$(cat "$file")
+    
+    echo -e "${BLUE}🧪 Validating ${language} implementation of ${algorithm}...${NC}"
+    echo ""
+    
+    # Create JSON payload
+    local request_body
+    request_body=$(jq -n \
+        --arg algorithm_id "$algorithm" \
+        --arg lang "$language" \
+        --arg code "$code" \
+        '{
+            algorithm_id: $algorithm_id,
+            language: $lang,
+            code: $code
+        }')
+    
+    local response
+    response=$(api_request "POST" "/api/v1/algorithms/validate" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local valid=$(echo "$response" | jq -r '.valid // false' 2>/dev/null)
+        
+        if [[ "$valid" == "true" ]]; then
+            echo -e "${GREEN}✅ Implementation is valid!${NC}"
+        else
+            echo -e "${RED}❌ Implementation failed validation${NC}"
+        fi
+        
+        echo ""
+        echo -e "${BLUE}Test Results:${NC}"
+        echo "$response" | jq -r '.test_results[]? |
+            "",
+            "Test: \(.test_case_id)",
+            "Result: \(if .passed then "✅ PASSED" else "❌ FAILED" end)",
+            "Execution Time: \(.execution_time_ms)ms",
+            (if .error_message then "Error: \(.error_message)" else "" end)' 2>/dev/null || echo "No detailed results available"
+        
+        # Show performance if requested or available
+        if [[ "$benchmark" == "true" ]] || echo "$response" | jq -e '.performance' >/dev/null 2>&1; then
+            echo ""
+            echo -e "${BLUE}Performance Metrics:${NC}"
+            echo "$response" | jq -r '.performance |
+                "Execution Time: \(.execution_time_ms // "unknown")ms",
+                "Memory Used: \(.memory_used_kb // "unknown")KB"' 2>/dev/null || echo "Performance data not available"
+        fi
+    fi
+}
+
+# Categories command
+cmd_categories() {
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: algorithm-library categories [OPTIONS]"
+                echo ""
+                echo "List all algorithm categories"
+                echo ""
+                echo "Options:"
+                echo "  --json       Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  algorithm-library categories"
+                echo "  algorithm-library categories --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📂 Algorithm Categories${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/api/v1/algorithms/categories")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}Available Categories:${NC}"
+        echo ""
+        echo "$response" | jq -r '.[]? | "  • \(.name): \(.count) algorithms"' 2>/dev/null || echo "$response"
+    fi
+}
+
+# Stats command
+cmd_stats() {
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: algorithm-library stats [OPTIONS]"
+                echo ""
+                echo "Show library statistics"
+                echo ""
+                echo "Options:"
+                echo "  --json       Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  algorithm-library stats"
+                echo "  algorithm-library stats --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📊 Algorithm Library Statistics${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/api/v1/algorithms/stats")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}Library Overview:${NC}"
+        echo "$response" | jq -r '.statistics |
+            "",
+            "Total Algorithms: \(.total_algorithms)",
+            "Total Implementations: \(.total_implementations)",
+            "Total Test Cases: \(.total_test_cases)",
+            "Validated Implementations: \(.validated_implementations)"' 2>/dev/null
+        
+        echo ""
+        echo -e "${BLUE}Language Distribution:${NC}"
+        echo "$response" | jq -r '.languages | to_entries[] | "  • \(.key): \(.value) implementations"' 2>/dev/null || echo "Language data not available"
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health")
+    
+    if echo "$response" | grep -q "healthy"; then
+        echo -e "${GREEN}✅ Algorithm Library is healthy${NC}"
+        echo "   API: ${api_url}"
+        echo "   Service: $(echo "$response" | jq -r '.service // "algorithm-library-api"' 2>/dev/null)"
+        echo "   Database: $(echo "$response" | jq -r '.database // "unknown"' 2>/dev/null)"
+    else
+        echo -e "${RED}❌ Health check failed${NC}"
+        echo "   Response: $response"
+        return 1
+    fi
+}
+
+# Benchmark command
+cmd_benchmark() {
+    local algorithm=""
+    local file=""
+    local language=""
+    local input_sizes="10,100,1000"
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --language)
+                language="$2"
+                shift 2
+                ;;
+            --sizes)
+                input_sizes="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: algorithm-library benchmark <algorithm> <file> [OPTIONS]"
+                echo ""
+                echo "Benchmark your algorithm implementation"
+                echo ""
+                echo "Arguments:"
+                echo "  <algorithm>   Algorithm name or ID"
+                echo "  <file>        Path to implementation file"
+                echo ""
+                echo "Options:"
+                echo "  --language <lang>     Programming language (auto-detected if not specified)"
+                echo "  --sizes <n1,n2,n3>    Input sizes to test (default: 10,100,1000)"
+                echo "  --json                Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  algorithm-library benchmark quicksort my_quicksort.py"
+                echo "  algorithm-library benchmark mergesort sort.py --sizes 100,1000,10000"
+                return 0
+                ;;
+            -*) 
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$algorithm" ]]; then
+                    algorithm="$1"
+                elif [[ -z "$file" ]]; then
+                    file="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$algorithm" ]] || [[ -z "$file" ]]; then
+        echo -e "${RED}❌ Error: Algorithm name and file path are required${NC}" >&2
+        echo "Usage: algorithm-library benchmark <algorithm> <file> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}❌ Error: File not found: $file${NC}" >&2
+        return 1
+    fi
+    
+    # Auto-detect language from file extension if not specified
+    if [[ -z "$language" ]]; then
+        case "$file" in
+            *.py)
+                language="python"
+                ;;
+            *.js)
+                language="javascript"
+                ;;
+            *.go)
+                language="go"
+                ;;
+            *.java)
+                language="java"
+                ;;
+            *.cpp|*.cc|*.cxx)
+                language="cpp"
+                ;;
+            *)
+                echo -e "${RED}❌ Error: Could not detect language. Please specify with --language${NC}" >&2
+                return 1
+                ;;
+        esac
+    fi
+    
+    # Read file content
+    local code=$(cat "$file" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+    
+    # Convert comma-separated sizes to JSON array
+    local sizes_json="[$(echo "$input_sizes" | sed 's/,/,/g')]"
+    
+    echo -e "${BLUE}⚡ Benchmarking $algorithm implementation${NC}"
+    echo "   Language: $language"
+    echo "   Input sizes: $input_sizes"
+    echo ""
+    
+    local response
+    response=$(api_request "POST" "/api/v1/algorithms/benchmark" "{\"algorithm_id\":\"$algorithm\",\"language\":\"$language\",\"code\":\"$code\",\"input_sizes\":$sizes_json}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}Benchmark Results:${NC}"
+        echo ""
+        echo "$response" | jq -r '.results[]? |
+            "Input size: \(.input_size)",
+            "  Execution time: \(.execution_time_ms) ms",
+            "  Memory used: \(.memory_used_bytes) bytes",
+            ""' 2>/dev/null || echo "$response"
+        
+        echo "$response" | jq -r '"Average time: \(.average_time_ms) ms", "Complexity fit: \(.complexity_fit)"' 2>/dev/null
+    fi
+}
+
+# Status command
+cmd_status() {
+    echo -e "${CYAN}📚 Algorithm Library Status${NC}"
+    echo ""
+    
+    # Check API
+    if api_url=$(get_api_url 2>/dev/null); then
+        echo -e "API Server: ${GREEN}✅ Running${NC}"
+        echo "   URL: $api_url"
+        
+        # Get health info
+        local health_response
+        health_response=$(curl -s "${api_url}/health" 2>/dev/null)
+        if [[ -n "$health_response" ]]; then
+            local db_status=$(echo "$health_response" | jq -r '.database // "unknown"' 2>/dev/null)
+            echo "   Database: $db_status"
+        fi
+        
+        # Get quick stats
+        local stats_response
+        stats_response=$(curl -s "${api_url}/api/v1/algorithms/stats" 2>/dev/null)
+        if [[ -n "$stats_response" ]]; then
+            local total_algos=$(echo "$stats_response" | jq -r '.statistics.total_algorithms // 0' 2>/dev/null)
+            local total_impls=$(echo "$stats_response" | jq -r '.statistics.total_implementations // 0' 2>/dev/null)
+            echo "   Total Algorithms: $total_algos"
+            echo "   Total Implementations: $total_impls"
+        fi
+    else
+        echo -e "API Server: ${RED}❌ Not Running${NC}"
+        echo "   Start with: vrooli scenario run algorithm-library"
+    fi
+    
+    # Check UI if available
+    local ui_port
+    ui_port=$(vrooli scenario port "${SCENARIO_NAME}" UI_PORT 2>/dev/null)
+    if [[ -n "$ui_port" ]]; then
+        if curl -sf "http://localhost:${ui_port}" >/dev/null 2>&1; then
+            echo -e "UI Server:  ${GREEN}✅ Running${NC} (port $ui_port)"
+            echo "   Web UI: http://localhost:${ui_port}"
+        else
+            echo -e "UI Server:  ${YELLOW}⚠️ Check connection${NC}"
+        fi
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
+        search)
+            cmd_search "$@"
+            ;;
+        get)
+            cmd_get "$@"
+            ;;
+        validate)
+            cmd_validate "$@"
+            ;;
+        benchmark)
+            cmd_benchmark "$@"
+            ;;
+        categories)
+            cmd_categories "$@"
+            ;;
+        stats)
+            cmd_stats "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        version|--version|-v)
+            echo "Algorithm Library CLI v2.0.0 (thin wrapper)"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

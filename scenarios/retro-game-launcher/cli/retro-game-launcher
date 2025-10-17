@@ -1,0 +1,324 @@
+#!/usr/bin/env bash
+# Retro Game Launcher CLI
+# Command-line interface for managing retro games and AI generation
+
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/retro-game-launcher/cli"
+CLI_NAME="retro-game-launcher"
+VERSION="1.0.0"
+
+# Default API URL - can be overridden via environment
+API_URL="${RETRO_API_URL:-http://localhost:8080}"
+
+# Color codes for retro styling
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+MAGENTA='\033[1;35m'
+CYAN='\033[1;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Retro banner
+show_banner() {
+    echo -e "${MAGENTA}"
+    cat << 'EOF'
+    ██████╗ ███████╗████████╗██████╗  ██████╗ 
+    ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔═══██╗
+    ██████╔╝█████╗     ██║   ██████╔╝██║   ██║
+    ██╔══██╗██╔══╝     ██║   ██╔══██╗██║   ██║
+    ██║  ██║███████╗   ██║   ██║  ██║╚██████╔╝
+    ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ 
+    
+      ██████╗  █████╗ ███╗   ███╗███████╗███████╗
+     ██╔════╝ ██╔══██╗████╗ ████║██╔════╝██╔════╝
+     ██║  ███╗███████║██╔████╔██║█████╗  ███████╗
+     ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  ╚════██║
+     ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗███████║
+      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝
+                                                  
+       🎮 AI-Powered Retro Game Launcher v${VERSION} 🎮
+EOF
+    echo -e "${NC}"
+}
+
+# Error handling
+error() {
+    echo -e "${RED}❌ Error: $1${NC}" >&2
+    exit 1
+}
+
+success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+info() {
+    echo -e "${CYAN}ℹ️  $1${NC}"
+}
+
+warn() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# API helper functions
+api_get() {
+    local endpoint="$1"
+    curl -s "${API_URL}${endpoint}" || error "Failed to connect to API at ${API_URL}"
+}
+
+api_post() {
+    local endpoint="$1"
+    local data="$2"
+    curl -s -X POST -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" || error "Failed to post to API"
+}
+
+# Check if API is available
+check_api() {
+    if ! api_get "/health" > /dev/null 2>&1; then
+        error "Retro Game Launcher API is not running at ${API_URL}. Please start it first."
+    fi
+}
+
+# Command implementations
+cmd_status() {
+    info "Checking Retro Game Launcher status..."
+    
+    local health
+    health=$(api_get "/health")
+    
+    if [[ -n "$health" ]]; then
+        success "API is running at ${API_URL}"
+        echo -e "${WHITE}Health Status:${NC}"
+        echo "$health" | jq '.'
+    else
+        error "API is not responding"
+    fi
+}
+
+cmd_list() {
+    local filter="${1:-all}"
+    
+    info "Fetching games..."
+    check_api
+    
+    case "$filter" in
+        "featured")
+            local games
+            games=$(api_get "/api/featured")
+            ;;
+        "trending")
+            local games
+            games=$(api_get "/api/trending")
+            ;;
+        *)
+            local games
+            games=$(api_get "/api/games")
+            ;;
+    esac
+    
+    if [[ "$games" == "[]" ]]; then
+        warn "No games found"
+        return 0
+    fi
+    
+    echo -e "${WHITE}🎮 Available Games:${NC}"
+    echo "$games" | jq -r '.[] | "\(.title) - \(.engine) - \(.play_count) plays - ID: \(.id)"' | while read -r line; do
+        echo -e "${BLUE}  • ${NC}$line"
+    done
+}
+
+cmd_search() {
+    local query="$1"
+    [[ -z "$query" ]] && error "Search query required"
+    
+    info "Searching for: $query"
+    check_api
+    
+    local results
+    results=$(api_get "/api/search/games?q=$(echo "$query" | jq -R -r @uri)")
+    
+    if [[ "$results" == "[]" ]]; then
+        warn "No games found matching: $query"
+        return 0
+    fi
+    
+    echo -e "${WHITE}🔍 Search Results:${NC}"
+    echo "$results" | jq -r '.[] | "\(.title) - \(.description // "No description") - ID: \(.id)"' | while read -r line; do
+        echo -e "${GREEN}  • ${NC}$line"
+    done
+}
+
+cmd_show() {
+    local game_id="$1"
+    [[ -z "$game_id" ]] && error "Game ID required"
+    
+    info "Fetching game details..."
+    check_api
+    
+    local game
+    game=$(api_get "/api/games/$game_id")
+    
+    if [[ -z "$game" ]] || [[ "$game" == "null" ]]; then
+        error "Game not found: $game_id"
+    fi
+    
+    echo -e "${WHITE}🎮 Game Details:${NC}"
+    echo -e "${CYAN}Title:${NC} $(echo "$game" | jq -r '.title')"
+    echo -e "${CYAN}Engine:${NC} $(echo "$game" | jq -r '.engine')"
+    echo -e "${CYAN}Description:${NC} $(echo "$game" | jq -r '.description // "No description"')"
+    echo -e "${CYAN}Play Count:${NC} $(echo "$game" | jq -r '.play_count')"
+    echo -e "${CYAN}Rating:${NC} $(echo "$game" | jq -r '.rating // "No rating"')"
+    echo -e "${CYAN}Tags:${NC} $(echo "$game" | jq -r '.tags | join(", ")')"
+    echo -e "${CYAN}Created:${NC} $(echo "$game" | jq -r '.created_at')"
+    echo -e "${CYAN}ID:${NC} $(echo "$game" | jq -r '.id')"
+    
+    local prompt
+    prompt=$(echo "$game" | jq -r '.prompt')
+    if [[ "$prompt" != "null" ]] && [[ -n "$prompt" ]]; then
+        echo -e "\n${YELLOW}Original Prompt:${NC}"
+        echo "$prompt"
+    fi
+}
+
+cmd_generate() {
+    local prompt="$1"
+    local engine="${2:-javascript}"
+    
+    [[ -z "$prompt" ]] && error "Game prompt required"
+    
+    info "Generating game from prompt: $prompt"
+    info "Using engine: $engine"
+    check_api
+    
+    local request
+    request=$(jq -n --arg prompt "$prompt" --arg engine "$engine" '{
+        prompt: $prompt,
+        engine: $engine,
+        tags: ["ai-generated", "cli-created"]
+    }')
+    
+    local response
+    response=$(api_post "/api/generate" "$request")
+    
+    if [[ -n "$response" ]]; then
+        success "Game generation started!"
+        echo -e "${WHITE}Generation Details:${NC}"
+        echo "$response" | jq '.'
+        
+        local generation_id
+        generation_id=$(echo "$response" | jq -r '.generation_id')
+        info "Track progress with: $CLI_NAME status-generation $generation_id"
+    else
+        error "Failed to start game generation"
+    fi
+}
+
+cmd_play() {
+    local game_id="$1"
+    [[ -z "$game_id" ]] && error "Game ID required"
+    
+    info "Recording play for game: $game_id"
+    check_api
+    
+    # Record the play
+    api_post "/api/games/$game_id/play" "{}" > /dev/null
+    
+    success "Play recorded! Game will be available in browser at ${API_URL%:*}:3000"
+    info "Opening game details..."
+    cmd_show "$game_id"
+}
+
+cmd_templates() {
+    info "Showing prompt templates..."
+    
+    # Try to get templates from API, but don't fail if API is not available
+    local templates=""
+    if curl -s --max-time 2 "${API_URL}/health" > /dev/null 2>&1; then
+        templates=$(curl -s --max-time 2 "${API_URL}/api/templates" 2>/dev/null || echo "[]")
+    fi
+    
+    if [[ -z "$templates" ]] || [[ "$templates" == "[]" ]]; then
+        echo -e "\n${WHITE}Example prompts you can try:${NC}"
+        echo -e "${GREEN}  • ${NC}Create a simple platformer with a blue character who can jump"
+        echo -e "${GREEN}  • ${NC}Make a space shooter where you dodge asteroids"
+        echo -e "${GREEN}  • ${NC}Build a puzzle game with colored blocks that disappear when matched"
+        echo -e "${GREEN}  • ${NC}Create a retro snake game with neon graphics"
+        echo -e "${GREEN}  • ${NC}Make a simple racing game viewed from above"
+        echo -e "${GREEN}  • ${NC}Build a breakout clone with special power-up bricks"
+        echo -e "${GREEN}  • ${NC}Create a maze game where you collect dots while avoiding ghosts"
+        echo -e "${GREEN}  • ${NC}Make a tower defense game with robots attacking a base"
+    else
+        echo -e "${WHITE}📝 Available Templates:${NC}"
+        echo "$templates" | jq -r '.[] | "• \(.category): \(.template)"'
+    fi
+}
+
+cmd_help() {
+    show_banner
+    echo -e "${WHITE}Usage: $CLI_NAME <command> [arguments]${NC}"
+    echo
+    echo -e "${CYAN}Commands:${NC}"
+    echo -e "  ${GREEN}status${NC}                    Check API and service status"
+    echo -e "  ${GREEN}list${NC} [featured|trending]  List games (default: all)"
+    echo -e "  ${GREEN}search${NC} <query>            Search games by title/description/tags"
+    echo -e "  ${GREEN}show${NC} <game-id>            Show detailed game information"
+    echo -e "  ${GREEN}generate${NC} <prompt> [engine] Generate new game from prompt"
+    echo -e "  ${GREEN}play${NC} <game-id>            Mark game as played and show details"
+    echo -e "  ${GREEN}templates${NC}                 Show available prompt templates"
+    echo -e "  ${GREEN}help${NC}                      Show this help message"
+    echo
+    echo -e "${CYAN}Examples:${NC}"
+    echo -e "  $CLI_NAME list featured"
+    echo -e "  $CLI_NAME search \"platformer\""
+    echo -e "  $CLI_NAME generate \"Create a retro space invaders game\""
+    echo -e "  $CLI_NAME play 123e4567-e89b-12d3-a456-426614174000"
+    echo
+    echo -e "${CYAN}Environment Variables:${NC}"
+    echo -e "  ${YELLOW}RETRO_API_URL${NC}    API base URL (default: http://localhost:8080)"
+    echo
+    echo -e "${MAGENTA}🎮 Happy Gaming! 🎮${NC}"
+}
+
+# Main command dispatch
+main() {
+    local command="${1:-help}"
+    
+    case "$command" in
+        "status")
+            cmd_status
+            ;;
+        "list")
+            cmd_list "${2:-all}"
+            ;;
+        "search")
+            cmd_search "${2:-}"
+            ;;
+        "show"|"details")
+            cmd_show "${2:-}"
+            ;;
+        "generate"|"create")
+            cmd_generate "${2:-}" "${3:-javascript}"
+            ;;
+        "play")
+            cmd_play "${2:-}"
+            ;;
+        "templates"|"examples")
+            cmd_templates
+            ;;
+        "help"|"--help"|"-h")
+            cmd_help
+            ;;
+        "version"|"--version")
+            echo "$CLI_NAME version $VERSION"
+            ;;
+        *)
+            error "Unknown command: $command. Run '$CLI_NAME help' for usage."
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

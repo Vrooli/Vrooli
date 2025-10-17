@@ -1,0 +1,160 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "visited-tracker",
+    "displayName": "Visited Tracker",
+    "description": "Persistent file visit tracking with staleness detection for systematic code analysis",
+    "version": "1.0.0",
+    "tags": [
+      "file-tracking",
+      "visit-tracking",
+      "staleness-detection",
+      "code-analysis",
+      "coverage-tracking",
+      "developer-tools",
+      "prioritization",
+      "go-api",
+      "postgres-storage",
+      "systematic-review"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Visited Tracker API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Visit tracking dashboard port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {},
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Visited Tracker health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Visited Tracker",
+       "condition": {
+         "checks": [
+            {
+               "type": "binaries",
+               "targets": [
+                   "api/visited-tracker-api"
+               ]
+            },
+             {
+                "type": "cli",
+                "targets": [
+                   "visited-tracker"
+                ]
+             },
+          {
+            "type": "directory",
+            "path": "data/campaigns"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "create-data-dir",
+          "run": "mkdir -p data/campaigns",
+          "description": "Create data directory for JSON file storage"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o visited-tracker-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Visited Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start visited tracker with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./visited-tracker-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/visited-tracker-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for visited-tracker using the new testing architecture",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"visited-tracker-api\" || true; sleep 1; pkill -9 -f \"visited-tracker-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/visited-tracker.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/visited-tracker.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

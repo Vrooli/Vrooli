@@ -1,0 +1,34 @@
+# Build artifacts
+api/maintenance-orchestrator-api
+api/maintenance-orchestrator
+build/
+dist/
+
+# Test coverage
+api/coverage.html
+api/coverage.out
+*.cover
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+node_modules/
+vendor/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp

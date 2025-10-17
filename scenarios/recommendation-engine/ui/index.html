@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recommendation Engine - Management Dashboard</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --accent-primary: #3b82f6;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --border-color: #475569;
+            --shadow: rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-success));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-success);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.warning {
+            background: var(--accent-warning);
+        }
+
+        .status-indicator.error {
+            background: var(--accent-danger);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .scenarios-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .scenario-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .scenario-info h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .scenario-info p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .scenario-stats {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .scenario-stat {
+            text-align: center;
+        }
+
+        .scenario-stat-value {
+            font-weight: 600;
+            color: var(--accent-success);
+        }
+
+        .scenario-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .refresh-btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #2563eb;
+        }
+
+        .refresh-btn:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--text-muted);
+            border-top: 2px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-danger);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--accent-danger);
+            margin-bottom: 1rem;
+        }
+
+        .performance-chart {
+            height: 200px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            margin-top: 3rem;
+        }
+
+        .footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎯 Recommendation Engine</h1>
+            <p>Universal Personalization Intelligence Dashboard</p>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- System Status Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <div id="systemStatus" class="status-indicator"></div>
+                        System Status
+                    </h2>
+                    <button id="refreshBtn" class="refresh-btn">
+                        🔄 Refresh
+                    </button>
+                </div>
+                <div id="systemError" class="error-message" style="display: none;"></div>
+                <div class="stats-grid">
+                    <div class="stat">
+                        <span id="apiStatus" class="stat-value">—</span>
+                        <span class="stat-label">API</span>
+                    </div>
+                    <div class="stat">
+                        <span id="databaseStatus" class="stat-value">—</span>
+                        <span class="stat-label">Database</span>
+                    </div>
+                    <div class="stat">
+                        <span id="qdrantStatus" class="stat-value">—</span>
+                        <span class="stat-label">Vector DB</span>
+                    </div>
+                    <div class="stat">
+                        <span id="lastUpdate" class="stat-value">—</span>
+                        <span class="stat-label">Last Update</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connected Scenarios Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Connected Scenarios</h2>
+                    <span id="scenarioCount" class="stat-value">—</span>
+                </div>
+                <div id="scenariosList" class="scenarios-list">
+                    <div class="scenario-item">
+                        <div class="scenario-info">
+                            <h3>Loading scenarios...</h3>
+                            <p>Please wait while we fetch scenario data</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation Metrics Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Recommendation Metrics</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat">
+                        <span id="totalRecommendations" class="stat-value">—</span>
+                        <span class="stat-label">Total Recommendations</span>
+                    </div>
+                    <div class="stat">
+                        <span id="totalUsers" class="stat-value">—</span>
+                        <span class="stat-label">Active Users</span>
+                    </div>
+                    <div class="stat">
+                        <span id="totalItems" class="stat-value">—</span>
+                        <span class="stat-label">Items Cataloged</span>
+                    </div>
+                    <div class="stat">
+                        <span id="totalInteractions" class="stat-value">—</span>
+                        <span class="stat-label">User Interactions</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Chart Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Algorithm Performance</h2>
+                </div>
+                <div class="performance-chart">
+                    📊 Performance metrics visualization coming soon
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>
+                Recommendation Engine v1.0.0 | 
+                <a href="/api/v1/docs" target="_blank">API Documentation</a> | 
+                <a href="https://github.com/vrooli/vrooli/scenarios/recommendation-engine" target="_blank">GitHub</a>
+            </p>
+        </footer>
+    </div>
+
+    <script type="module" src="./bridge-init.js"></script>
+    <script>
+        const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':' + (window.RECOMMENDATION_API_PORT || '8080');
+
+        let isLoading = false;
+
+        async function fetchAPI(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        async function updateSystemStatus() {
+            try {
+                const health = await fetchAPI('/health');
+                
+                const statusEl = document.getElementById('systemStatus');
+                const errorEl = document.getElementById('systemError');
+                
+                // Hide error message
+                errorEl.style.display = 'none';
+                
+                // Update status indicators
+                if (health.status === 'healthy') {
+                    statusEl.className = 'status-indicator';
+                } else {
+                    statusEl.className = 'status-indicator warning';
+                }
+                
+                // Update individual service statuses
+                document.getElementById('apiStatus').textContent = 
+                    health.status === 'healthy' ? '✓ Online' : '⚠ Issues';
+                document.getElementById('databaseStatus').textContent = 
+                    health.database === 'connected' ? '✓ Connected' : '✗ Disconnected';
+                document.getElementById('qdrantStatus').textContent = 
+                    health.qdrant === 'connected' ? '✓ Connected' : '✗ Disconnected';
+                
+                document.getElementById('lastUpdate').textContent = 
+                    new Date().toLocaleTimeString();
+                    
+            } catch (error) {
+                console.error('Failed to fetch system status:', error);
+                
+                const statusEl = document.getElementById('systemStatus');
+                const errorEl = document.getElementById('systemError');
+                
+                statusEl.className = 'status-indicator error';
+                errorEl.textContent = `Failed to connect to API: ${error.message}`;
+                errorEl.style.display = 'block';
+                
+                // Update status with error state
+                document.getElementById('apiStatus').textContent = '✗ Offline';
+                document.getElementById('databaseStatus').textContent = '? Unknown';
+                document.getElementById('qdrantStatus').textContent = '? Unknown';
+                document.getElementById('lastUpdate').textContent = 'Failed';
+            }
+        }
+
+        async function updateScenarios() {
+            // Mock data since we don't have a scenarios endpoint yet
+            const scenarios = [
+                { id: 'e-commerce-demo', name: 'E-Commerce Demo', users: 152, items: 1247, interactions: 3891 },
+                { id: 'content-platform', name: 'Content Platform', users: 89, items: 423, interactions: 2156 },
+                { id: 'recipe-app', name: 'Recipe App', users: 234, items: 567, interactions: 1932 }
+            ];
+            
+            const scenariosList = document.getElementById('scenariosList');
+            document.getElementById('scenarioCount').textContent = scenarios.length;
+            
+            scenariosList.innerHTML = scenarios.map(scenario => `
+                <div class="scenario-item">
+                    <div class="scenario-info">
+                        <h3>${scenario.name}</h3>
+                        <p>ID: ${scenario.id}</p>
+                    </div>
+                    <div class="scenario-stats">
+                        <div class="scenario-stat">
+                            <div class="scenario-stat-value">${scenario.users}</div>
+                            <div class="scenario-stat-label">Users</div>
+                        </div>
+                        <div class="scenario-stat">
+                            <div class="scenario-stat-value">${scenario.items}</div>
+                            <div class="scenario-stat-label">Items</div>
+                        </div>
+                        <div class="scenario-stat">
+                            <div class="scenario-stat-value">${scenario.interactions}</div>
+                            <div class="scenario-stat-label">Interactions</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateMetrics() {
+            // Mock data - in production, this would come from the API
+            document.getElementById('totalRecommendations').textContent = '47,293';
+            document.getElementById('totalUsers').textContent = '1,247';
+            document.getElementById('totalItems').textContent = '8,934';
+            document.getElementById('totalInteractions').textContent = '23,156';
+        }
+
+        async function refreshDashboard() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<div class="loading"></div> Refreshing...';
+            
+            try {
+                await Promise.all([
+                    updateSystemStatus(),
+                    updateScenarios(),
+                    updateMetrics()
+                ]);
+            } catch (error) {
+                console.error('Dashboard refresh failed:', error);
+            } finally {
+                isLoading = false;
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '🔄 Refresh';
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            await refreshDashboard();
+            
+            // Set up refresh button
+            document.getElementById('refreshBtn').addEventListener('click', refreshDashboard);
+            
+            // Auto-refresh every 30 seconds
+            setInterval(refreshDashboard, 30000);
+        });
+
+        // Health endpoint for the UI itself
+        window.addEventListener('load', () => {
+            // Create a simple health check endpoint for the UI
+            if ('serviceWorker' in navigator) {
+                // Register a minimal service worker for health checks
+                const healthHTML = `
+                    <!DOCTYPE html>
+                    <html><head><title>UI Health</title></head>
+                    <body>{"status": "healthy", "component": "ui", "timestamp": "${new Date().toISOString()}"}</body>
+                    </html>
+                `;
+                
+                // Create health endpoint via URL
+                const blob = new Blob([healthHTML], { type: 'text/html' });
+                const healthURL = URL.createObjectURL(blob);
+                
+                // Store for health checks
+                window.healthEndpoint = '/health';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,510 @@
+{
+  "value": {
+    "type": "tabscomponent",
+    "tabs": [
+      {
+        "id": "orchestrator",
+        "value": "Reasoning Orchestrator"
+      },
+      {
+        "id": "templates",
+        "value": "Template Library"
+      },
+      {
+        "id": "patterns",
+        "value": "Reasoning Patterns"
+      },
+      {
+        "id": "history",
+        "value": "Execution History"
+      }
+    ],
+    "configuration": {
+      "orchestrator": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🧠 Metareasoning Orchestrator\n## Advanced AI Decision-Making & Reasoning Pattern Execution\n**Orchestrate complex reasoning chains with multiple AI models**",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#2d3748",
+                "backgroundColor": "#f7fafc",
+                "padding": "20px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "input_section",
+            "type": "containercomponent",
+            "configuration": {
+              "title": "Input & Configuration",
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "decision_input",
+                "type": "textareacomponent",
+                "configuration": {
+                  "label": "Decision/Problem to Analyze",
+                  "placeholder": "Enter the decision, problem, or scenario you want to analyze using metareasoning...",
+                  "rows": 4,
+                  "required": true,
+                  "style": {
+                    "marginBottom": "15px"
+                  }
+                }
+              },
+              {
+                "id": "reasoning_chain_select",
+                "type": "selectcomponent",
+                "configuration": {
+                  "label": "Reasoning Chain Type",
+                  "options": [
+                    {"value": "comprehensive", "label": "Comprehensive Analysis (Pros/Cons → Devil's Advocate → Risk Assessment → Self-Review)"},
+                    {"value": "strategic", "label": "Strategic Analysis (SWOT → Risk Assessment → Final Evaluation)"},
+                    {"value": "critical", "label": "Critical Thinking (Assumption Check → Bias Detection → Devil's Advocate → Self-Review)"},
+                    {"value": "creative", "label": "Creative Analysis (Multi-Perspective → Evaluation → Risk Assessment)"},
+                    {"value": "custom", "label": "Custom Chain (Select individual patterns)"}
+                  ],
+                  "defaultValue": "comprehensive",
+                  "style": {
+                    "marginBottom": "15px"
+                  }
+                }
+              },
+              {
+                "id": "model_select",
+                "type": "selectcomponent",
+                "configuration": {
+                  "label": "Primary AI Model",
+                  "options": [
+                    {"value": "llama3.2", "label": "Llama 3.2 (Balanced reasoning)"},
+                    {"value": "mistral", "label": "Mistral (Strategic analysis)"},
+                    {"value": "codellama", "label": "CodeLlama (Technical/systematic)"}
+                  ],
+                  "defaultValue": "llama3.2",
+                  "style": {
+                    "marginBottom": "15px"
+                  }
+                }
+              },
+              {
+                "id": "execute_button",
+                "type": "buttoncomponent",
+                "configuration": {
+                  "text": "🚀 Execute Reasoning Chain",
+                  "variant": "contained",
+                  "color": "primary",
+                  "size": "large",
+                  "style": {
+                    "marginTop": "10px"
+                  },
+                  "action": {
+                    "type": "gotourl", 
+                    "href": "http://localhost:5678/webhook/reasoning-chain",
+                    "method": "POST",
+                    "body": {
+                      "input": "{{decision_input.value}}",
+                      "chain_type": "{{reasoning_chain_select.value}}",
+                      "model": "{{model_select.value}}"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "results_section",
+            "type": "containercomponent",
+            "configuration": {
+              "title": "Execution Results",
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "results_display",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "**Results will appear here after execution...**\n\nThe reasoning chain will execute each step sequentially and provide:\n- Individual step results with confidence scores\n- Synthesis of all reasoning approaches\n- Final recommendations with supporting evidence\n- Areas of convergence and divergence between methods",
+                  "style": {
+                    "backgroundColor": "#f8f9fa",
+                    "padding": "15px",
+                    "borderRadius": "6px",
+                    "fontFamily": "monospace"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "templates": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "templates_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 📚 Reasoning Template Library\n## Pre-configured patterns for common reasoning scenarios",
+              "style": {
+                "marginBottom": "20px",
+                "color": "#2d3748"
+              }
+            }
+          },
+          {
+            "id": "template_grid",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "grid",
+                "gridTemplateColumns": "repeat(auto-fit, minmax(300px, 1fr))",
+                "gap": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "pros_cons_template",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Pros & Cons Analysis",
+                  "style": {
+                    "backgroundColor": "#f0fff4",
+                    "border": "1px solid #68d391",
+                    "borderRadius": "8px",
+                    "padding": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "pros_cons_desc",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**Basic Pros and Cons**\nWeigh advantages vs disadvantages with scoring\n\n*Best for: Simple decision analysis*",
+                      "style": {
+                        "marginBottom": "10px"
+                      }
+                    }
+                  },
+                  {
+                    "id": "use_pros_cons",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "Use Template",
+                      "variant": "outlined",
+                      "size": "small"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "swot_template",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "SWOT Analysis",
+                  "style": {
+                    "backgroundColor": "#fffaf0",
+                    "border": "1px solid #f6ad55",
+                    "borderRadius": "8px",
+                    "padding": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "swot_desc",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**Strategic SWOT Analysis**\nStrengths, Weaknesses, Opportunities, Threats with strategic positioning\n\n*Best for: Strategic planning*",
+                      "style": {
+                        "marginBottom": "10px"
+                      }
+                    }
+                  },
+                  {
+                    "id": "use_swot",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "Use Template",
+                      "variant": "outlined",
+                      "size": "small"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "risk_template",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Risk Assessment",
+                  "style": {
+                    "backgroundColor": "#fef5e7",
+                    "border": "1px solid #f56565",
+                    "borderRadius": "8px",
+                    "padding": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "risk_desc",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**Risk Assessment Matrix**\nProbability × Impact analysis with mitigation strategies\n\n*Best for: Risk evaluation*",
+                      "style": {
+                        "marginBottom": "10px"
+                      }
+                    }
+                  },
+                  {
+                    "id": "use_risk",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "Use Template",
+                      "variant": "outlined",
+                      "size": "small"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "devil_template",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "Devil's Advocate",
+                  "style": {
+                    "backgroundColor": "#f7fafc",
+                    "border": "1px solid #718096",
+                    "borderRadius": "8px",
+                    "padding": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "devil_desc",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**Adversarial Analysis**\nChallenge assumptions and find weaknesses in proposals\n\n*Best for: Critical evaluation*",
+                      "style": {
+                        "marginBottom": "10px"
+                      }
+                    }
+                  },
+                  {
+                    "id": "use_devil",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "Use Template",
+                      "variant": "outlined",
+                      "size": "small"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "patterns": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "patterns_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🔄 Available Reasoning Patterns\n## Individual reasoning methods available for orchestration",
+              "style": {
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "pattern_list",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "flex",
+                "flexDirection": "column",
+                "gap": "15px"
+              }
+            },
+            "components": [
+              {
+                "id": "analytical_patterns",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "🔍 Analytical Patterns",
+                  "style": {
+                    "backgroundColor": "#f8f9fa",
+                    "padding": "15px",
+                    "borderRadius": "8px",
+                    "border": "1px solid #dee2e6"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "analytical_list",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "• **Pros & Cons Analysis** - Weighted advantage/disadvantage evaluation\n• **SWOT Analysis** - Strategic position assessment\n• **Risk Assessment** - Probability × Impact matrix with mitigation\n\n*Models: Mistral (preferred), Llama 3.2*"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "critical_patterns",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "🎯 Critical Thinking Patterns",
+                  "style": {
+                    "backgroundColor": "#fff5f5",
+                    "padding": "15px",
+                    "borderRadius": "8px",
+                    "border": "1px solid #fed7d7"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "critical_list",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "• **Devil's Advocate** - Challenge assumptions adversarially\n• **Assumption Validation** - Identify and verify underlying beliefs\n• **Bias Detection** - Scan for cognitive biases\n• **Self-Review Loop** - Recursive reasoning validation\n\n*Models: Llama 3.2 (preferred), CodeLlama*"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "creative_patterns",
+                "type": "containercomponent",
+                "configuration": {
+                  "title": "🎨 Creative Exploration Patterns",
+                  "style": {
+                    "backgroundColor": "#f0fff4",
+                    "padding": "15px",
+                    "borderRadius": "8px",
+                    "border": "1px solid #c6f6d5"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "creative_list",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "• **Multi-Perspective** - Six thinking hats analysis\n• **Contrarian Analysis** - Actively seek dissenting opinions\n\n*Models: Llama 3.2 (preferred), Mistral*"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "history": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "history_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 📊 Execution History\n## Past reasoning chain executions and insights",
+              "style": {
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "history_filters",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "flex",
+                "gap": "15px",
+                "marginBottom": "20px",
+                "flexWrap": "wrap"
+              }
+            },
+            "components": [
+              {
+                "id": "date_filter",
+                "type": "datepickercomponent",
+                "configuration": {
+                  "label": "Filter by Date",
+                  "variant": "outlined"
+                }
+              },
+              {
+                "id": "pattern_filter",
+                "type": "selectcomponent",
+                "configuration": {
+                  "label": "Pattern Type",
+                  "options": [
+                    {"value": "", "label": "All Patterns"},
+                    {"value": "comprehensive", "label": "Comprehensive"},
+                    {"value": "strategic", "label": "Strategic"},
+                    {"value": "critical", "label": "Critical"},
+                    {"value": "creative", "label": "Creative"}
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "history_summary",
+            "type": "containercomponent",
+            "configuration": {
+              "title": "Execution Summary",
+              "style": {
+                "backgroundColor": "#f8f9fa",
+                "padding": "15px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "summary_stats",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "**Total Executions:** {{total_executions || 0}}\n**Success Rate:** {{success_rate || 0}}%\n**Most Used Pattern:** {{popular_pattern || 'N/A'}}\n**Average Execution Time:** {{avg_time || 0}}ms\n\n*Last updated: {{now.format('YYYY-MM-DD HH:mm')}*"
+                }
+              }
+            ]
+          },
+          {
+            "id": "recent_executions",
+            "type": "tablecomponent",
+            "configuration": {
+              "title": "Recent Executions",
+              "columns": [
+                {"key": "executed_at", "header": "Time", "type": "datetime"},
+                {"key": "pattern_type", "header": "Pattern"},
+                {"key": "input_summary", "header": "Input (first 50 chars)"},
+                {"key": "status", "header": "Status"},
+                {"key": "confidence", "header": "Confidence"},
+                {"key": "execution_time_ms", "header": "Duration (ms)"}
+              ],
+              "data": "{{execution_history || []}}",
+              "pagination": true,
+              "pageSize": 10
+            }
+          }
+        ]
+      }
+    }
+  }
+}

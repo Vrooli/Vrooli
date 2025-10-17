@@ -1,0 +1,291 @@
+{
+  "name": "Stream of Consciousness - Extract Insights",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "extract-insights",
+        "responseMode": "responseNode",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults or pass through data\nconst items = $input.all();\n\nif (items[0].json.campaign_id) {\n  // Data from webhook, pass through\n  return items;\n}\n\n// Schedule trigger - analyze all campaigns\nreturn [{\n  json: {\n    campaign_id: null, // null means analyze all\n    time_range: '7d', // Last 7 days\n    min_notes: 3, // Minimum notes needed for pattern detection\n    insight_types: ['patterns', 'trends', 'correlations', 'anomalies']\n  }\n}];"
+      },
+      "id": "provide-defaults",
+      "name": "Provide Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.campaign_id ? \n  `SELECT * FROM organized_notes \n   WHERE campaign_id = '${$json.campaign_id}' \n   AND created_at > NOW() - INTERVAL '${$json.time_range || '7d'}' \n   ORDER BY created_at DESC;` : \n  `SELECT * FROM organized_notes \n   WHERE created_at > NOW() - INTERVAL '${$json.time_range || '7d'}' \n   ORDER BY campaign_id, created_at DESC;`\n}}",
+        "options": {}
+      },
+      "id": "fetch-recent-notes",
+      "name": "Fetch Recent Notes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Group notes by campaign and prepare for analysis\nconst notes = $input.all();\nconst campaignGroups = {};\n\nnotes.forEach(note => {\n  const campaignId = note.json.campaign_id || 'general';\n  if (!campaignGroups[campaignId]) {\n    campaignGroups[campaignId] = {\n      campaign_id: campaignId,\n      notes: [],\n      all_tags: [],\n      all_categories: [],\n      all_sentiments: [],\n      all_priorities: [],\n      date_range: {\n        start: note.json.created_at,\n        end: note.json.created_at\n      }\n    };\n  }\n  \n  const group = campaignGroups[campaignId];\n  group.notes.push({\n    id: note.json.id,\n    title: note.json.title,\n    summary: note.json.summary,\n    content: note.json.content,\n    tags: note.json.tags || [],\n    category: note.json.category,\n    priority: note.json.priority,\n    metadata: note.json.metadata,\n    created_at: note.json.created_at\n  });\n  \n  // Aggregate data for pattern analysis\n  if (note.json.tags) group.all_tags.push(...note.json.tags);\n  if (note.json.category) group.all_categories.push(note.json.category);\n  if (note.json.metadata?.sentiment) group.all_sentiments.push(note.json.metadata.sentiment);\n  group.all_priorities.push(note.json.priority);\n  \n  // Update date range\n  if (new Date(note.json.created_at) < new Date(group.date_range.start)) {\n    group.date_range.start = note.json.created_at;\n  }\n  if (new Date(note.json.created_at) > new Date(group.date_range.end)) {\n    group.date_range.end = note.json.created_at;\n  }\n});\n\n// Filter campaigns with enough notes for meaningful insights\nconst minNotes = $json.min_notes || 3;\nconst validCampaigns = Object.values(campaignGroups)\n  .filter(group => group.notes.length >= minNotes);\n\nif (validCampaigns.length === 0) {\n  return [{\n    json: {\n      message: 'Not enough notes for insight extraction',\n      required_notes: minNotes,\n      found_notes: notes.length\n    }\n  }];\n}\n\nreturn validCampaigns.map(campaign => ({ json: campaign }));"
+      },
+      "id": "group-by-campaign",
+      "name": "Group by Campaign",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze patterns in the grouped data\nconst campaign = $input.item.json;\nconst insights = [];\n\n// 1. Tag frequency analysis\nconst tagFrequency = {};\ncampaign.all_tags.forEach(tag => {\n  tagFrequency[tag] = (tagFrequency[tag] || 0) + 1;\n});\n\nconst topTags = Object.entries(tagFrequency)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 5);\n\nif (topTags.length > 0) {\n  insights.push({\n    type: 'pattern',\n    subtype: 'tag_frequency',\n    content: `Most discussed topics: ${topTags.map(t => t[0]).join(', ')}`,\n    data: { tag_frequency: Object.fromEntries(topTags) },\n    confidence: 0.9\n  });\n}\n\n// 2. Category trends\nconst categoryFrequency = {};\ncampaign.all_categories.forEach(cat => {\n  categoryFrequency[cat] = (categoryFrequency[cat] || 0) + 1;\n});\n\nconst dominantCategory = Object.entries(categoryFrequency)\n  .sort((a, b) => b[1] - a[1])[0];\n\nif (dominantCategory) {\n  insights.push({\n    type: 'trend',\n    subtype: 'category_focus',\n    content: `Primary focus area: ${dominantCategory[0]} (${Math.round(dominantCategory[1] / campaign.notes.length * 100)}% of notes)`,\n    data: { category_distribution: categoryFrequency },\n    confidence: 0.85\n  });\n}\n\n// 3. Priority patterns\nconst avgPriority = campaign.all_priorities.reduce((a, b) => a + b, 0) / campaign.all_priorities.length;\nconst highPriorityCount = campaign.all_priorities.filter(p => p <= 2).length;\n\nif (highPriorityCount > campaign.notes.length * 0.3) {\n  insights.push({\n    type: 'pattern',\n    subtype: 'urgency_level',\n    content: `High urgency period: ${highPriorityCount} high-priority items in ${campaign.notes.length} notes`,\n    data: { \n      average_priority: avgPriority.toFixed(2),\n      high_priority_ratio: (highPriorityCount / campaign.notes.length).toFixed(2)\n    },\n    confidence: 0.8\n  });\n}\n\n// 4. Sentiment analysis\nif (campaign.all_sentiments.length > 0) {\n  const sentimentCounts = {};\n  campaign.all_sentiments.forEach(s => {\n    sentimentCounts[s] = (sentimentCounts[s] || 0) + 1;\n  });\n  \n  const dominantSentiment = Object.entries(sentimentCounts)\n    .sort((a, b) => b[1] - a[1])[0];\n  \n  insights.push({\n    type: 'trend',\n    subtype: 'sentiment',\n    content: `Overall mood: ${dominantSentiment[0]} (${Math.round(dominantSentiment[1] / campaign.all_sentiments.length * 100)}%)`,\n    data: { sentiment_distribution: sentimentCounts },\n    confidence: 0.75\n  });\n}\n\n// 5. Temporal patterns\nconst notesByDay = {};\ncampaign.notes.forEach(note => {\n  const day = new Date(note.created_at).toISOString().split('T')[0];\n  notesByDay[day] = (notesByDay[day] || 0) + 1;\n});\n\nconst activeDays = Object.keys(notesByDay).length;\nconst totalDays = Math.ceil(\n  (new Date(campaign.date_range.end) - new Date(campaign.date_range.start)) / (1000 * 60 * 60 * 24)\n);\n\nif (activeDays > 0) {\n  insights.push({\n    type: 'pattern',\n    subtype: 'activity',\n    content: `Activity level: Notes on ${activeDays} of ${totalDays} days`,\n    data: { \n      activity_ratio: (activeDays / totalDays).toFixed(2),\n      notes_per_active_day: (campaign.notes.length / activeDays).toFixed(1)\n    },\n    confidence: 0.85\n  });\n}\n\nreturn [{\n  json: {\n    campaign_id: campaign.campaign_id,\n    insights: insights,\n    analysis_metadata: {\n      notes_analyzed: campaign.notes.length,\n      date_range: campaign.date_range,\n      generated_at: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "analyze-patterns",
+      "name": "Analyze Patterns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ `Analyze these insights and provide actionable recommendations.\n\nInsights found:\n${JSON.stringify($json.insights, null, 2)}\n\nBased on these patterns, provide:\n1. Key observations (2-3 points)\n2. Actionable recommendations (2-3 specific actions)\n3. Potential risks or concerns to watch\n\nRespond in JSON format:\n{\n  \"observations\": [...],\n  \"recommendations\": [...],\n  \"watch_areas\": [...]\n}` }}"
+            },
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "temperature",
+              "value": "0.4"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-recommendations",
+      "name": "Generate Recommendations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine insights with AI recommendations\nconst insights = $json.insights || [];\nlet recommendations;\n\ntry {\n  const aiResponse = $input.item.json.response;\n  if (typeof aiResponse === 'string') {\n    recommendations = JSON.parse(aiResponse);\n  } else {\n    recommendations = aiResponse;\n  }\n} catch (error) {\n  recommendations = {\n    observations: ['Pattern analysis complete'],\n    recommendations: ['Review identified patterns'],\n    watch_areas: ['Monitor trend changes']\n  };\n}\n\n// Create comprehensive insight records\nconst insightRecords = [];\n\n// Add pattern insights\ninsights.forEach(insight => {\n  insightRecords.push({\n    campaign_id: $json.campaign_id,\n    insight_type: insight.type,\n    subtype: insight.subtype,\n    content: insight.content,\n    confidence: insight.confidence,\n    metadata: {\n      data: insight.data,\n      generated_at: new Date().toISOString()\n    }\n  });\n});\n\n// Add AI-generated insights\nif (recommendations.observations) {\n  recommendations.observations.forEach(obs => {\n    insightRecords.push({\n      campaign_id: $json.campaign_id,\n      insight_type: 'observation',\n      content: obs,\n      confidence: 0.7,\n      metadata: { source: 'ai_analysis' }\n    });\n  });\n}\n\nif (recommendations.recommendations) {\n  recommendations.recommendations.forEach(rec => {\n    insightRecords.push({\n      campaign_id: $json.campaign_id,\n      insight_type: 'action_item',\n      content: rec,\n      confidence: 0.75,\n      metadata: { source: 'ai_recommendation' }\n    });\n  });\n}\n\nif (recommendations.watch_areas) {\n  recommendations.watch_areas.forEach(area => {\n    insightRecords.push({\n      campaign_id: $json.campaign_id,\n      insight_type: 'watch_area',\n      content: area,\n      confidence: 0.65,\n      metadata: { source: 'ai_analysis' }\n    });\n  });\n}\n\nreturn [{\n  json: {\n    campaign_id: $json.campaign_id,\n    insights_to_save: insightRecords,\n    summary: {\n      patterns_found: insights.length,\n      recommendations_generated: recommendations.recommendations?.length || 0,\n      observations: recommendations.observations?.length || 0,\n      analysis_metadata: $json.analysis_metadata\n    }\n  }\n}];"
+      },
+      "id": "combine-insights",
+      "name": "Combine Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "insights",
+        "columns": "campaign_id,insight_type,content,confidence,metadata",
+        "values": "={{ $json.insights_to_save.map(i => \n  `'${i.campaign_id}','${i.insight_type}','${i.content.replace(/'/g, \"''\")}',${i.confidence},'${JSON.stringify(i.metadata)}'`\n).join('),(') }}",
+        "options": {
+          "queryBatching": "all"
+        }
+      },
+      "id": "save-insights",
+      "name": "Save Insights",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1650, 400],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ JSON.stringify({\n  success: true,\n  campaign_id: $json.campaign_id,\n  insights_generated: $json.insights_to_save.length,\n  summary: $json.summary,\n  message: 'Insights extracted successfully'\n}) }}",
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "provide-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "provide-defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "provide-defaults": {
+      "main": [
+        [
+          {
+            "node": "fetch-recent-notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch-recent-notes": {
+      "main": [
+        [
+          {
+            "node": "group-by-campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "group-by-campaign": {
+      "main": [
+        [
+          {
+            "node": "analyze-patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analyze-patterns": {
+      "main": [
+        [
+          {
+            "node": "generate-recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-recommendations": {
+      "main": [
+        [
+          {
+            "node": "combine-insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "combine-insights": {
+      "main": [
+        [
+          {
+            "node": "save-insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save-insights": {
+      "main": [
+        [
+          {
+            "node": "format-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-response": {
+      "main": [
+        [
+          {
+            "node": "respond-webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "updatedAt": "2025-01-17T06:55:00.000Z",
+  "id": "extract-insights-001"
+}

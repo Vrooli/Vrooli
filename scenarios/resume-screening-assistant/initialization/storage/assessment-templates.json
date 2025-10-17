@@ -1,0 +1,237 @@
+{
+  "templates": [
+    {
+      "id": "technical_skills_template",
+      "name": "Technical Skills Assessment",
+      "description": "Template for evaluating technical competencies",
+      "criteria": [
+        {
+          "name": "Programming Languages",
+          "weight": 0.25,
+          "keywords": ["Python", "Java", "JavaScript", "TypeScript", "C++", "Go", "Rust", "Ruby", "PHP", "Swift"],
+          "scoring": "match_count"
+        },
+        {
+          "name": "Frameworks & Libraries",
+          "weight": 0.20,
+          "keywords": ["React", "Angular", "Vue", "Django", "Flask", "Spring", "Express", "Rails", "Laravel"],
+          "scoring": "match_count"
+        },
+        {
+          "name": "Databases",
+          "weight": 0.15,
+          "keywords": ["PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "Cassandra", "DynamoDB"],
+          "scoring": "match_count"
+        },
+        {
+          "name": "Cloud & DevOps",
+          "weight": 0.20,
+          "keywords": ["AWS", "Azure", "GCP", "Docker", "Kubernetes", "Jenkins", "GitLab CI", "Terraform"],
+          "scoring": "match_count"
+        },
+        {
+          "name": "Architecture & Design",
+          "weight": 0.20,
+          "keywords": ["Microservices", "REST", "GraphQL", "Event-driven", "DDD", "SOLID", "Design Patterns"],
+          "scoring": "match_count"
+        }
+      ]
+    },
+    {
+      "id": "experience_template",
+      "name": "Experience Level Assessment",
+      "description": "Template for evaluating professional experience",
+      "criteria": [
+        {
+          "name": "Years of Experience",
+          "weight": 0.30,
+          "ranges": {
+            "0-2": 20,
+            "3-5": 50,
+            "6-10": 80,
+            "10+": 100
+          },
+          "scoring": "range_match"
+        },
+        {
+          "name": "Leadership Experience",
+          "weight": 0.25,
+          "keywords": ["Team Lead", "Manager", "Director", "Head", "Principal", "Staff", "Senior", "Architect"],
+          "scoring": "keyword_presence"
+        },
+        {
+          "name": "Project Complexity",
+          "weight": 0.25,
+          "keywords": ["Enterprise", "Large-scale", "Distributed", "High-traffic", "Mission-critical", "Global"],
+          "scoring": "keyword_presence"
+        },
+        {
+          "name": "Industry Experience",
+          "weight": 0.20,
+          "categories": ["Finance", "Healthcare", "E-commerce", "SaaS", "Startup", "Enterprise", "Government"],
+          "scoring": "category_match"
+        }
+      ]
+    },
+    {
+      "id": "education_template",
+      "name": "Education Assessment",
+      "description": "Template for evaluating educational background",
+      "criteria": [
+        {
+          "name": "Degree Level",
+          "weight": 0.40,
+          "levels": {
+            "High School": 20,
+            "Associate": 40,
+            "Bachelor": 60,
+            "Master": 80,
+            "PhD": 100
+          },
+          "scoring": "level_match"
+        },
+        {
+          "name": "Field of Study",
+          "weight": 0.30,
+          "fields": ["Computer Science", "Software Engineering", "Information Technology", "Mathematics", "Engineering"],
+          "scoring": "field_match"
+        },
+        {
+          "name": "Certifications",
+          "weight": 0.30,
+          "keywords": ["AWS Certified", "Azure", "Google Cloud", "PMP", "Scrum", "CISSP", "CompTIA"],
+          "scoring": "certification_count"
+        }
+      ]
+    },
+    {
+      "id": "soft_skills_template",
+      "name": "Soft Skills Assessment",
+      "description": "Template for evaluating interpersonal and soft skills",
+      "criteria": [
+        {
+          "name": "Communication",
+          "weight": 0.25,
+          "keywords": ["Communication", "Presentation", "Documentation", "Collaboration", "Stakeholder"],
+          "scoring": "keyword_frequency"
+        },
+        {
+          "name": "Problem Solving",
+          "weight": 0.25,
+          "keywords": ["Problem-solving", "Analytical", "Critical thinking", "Innovation", "Creative"],
+          "scoring": "keyword_frequency"
+        },
+        {
+          "name": "Teamwork",
+          "weight": 0.25,
+          "keywords": ["Team", "Collaboration", "Cross-functional", "Mentoring", "Agile", "Scrum"],
+          "scoring": "keyword_frequency"
+        },
+        {
+          "name": "Adaptability",
+          "weight": 0.25,
+          "keywords": ["Adaptable", "Flexible", "Fast-paced", "Dynamic", "Multiple projects", "Versatile"],
+          "scoring": "keyword_frequency"
+        }
+      ]
+    },
+    {
+      "id": "job_specific_template",
+      "name": "Job-Specific Requirements",
+      "description": "Customizable template for specific job requirements",
+      "criteria": [
+        {
+          "name": "Required Skills",
+          "weight": 0.40,
+          "customizable": true,
+          "keywords": [],
+          "scoring": "weighted_match"
+        },
+        {
+          "name": "Preferred Skills",
+          "weight": 0.20,
+          "customizable": true,
+          "keywords": [],
+          "scoring": "bonus_points"
+        },
+        {
+          "name": "Domain Knowledge",
+          "weight": 0.20,
+          "customizable": true,
+          "keywords": [],
+          "scoring": "domain_match"
+        },
+        {
+          "name": "Cultural Fit",
+          "weight": 0.20,
+          "customizable": true,
+          "keywords": [],
+          "scoring": "cultural_alignment"
+        }
+      ]
+    }
+  ],
+  "scoring_methods": {
+    "match_count": {
+      "description": "Score based on number of keyword matches",
+      "formula": "(matches / total_keywords) * 100"
+    },
+    "range_match": {
+      "description": "Score based on matching numeric ranges",
+      "formula": "predefined_score_for_range"
+    },
+    "keyword_presence": {
+      "description": "Binary scoring for keyword presence",
+      "formula": "present ? 100 : 0"
+    },
+    "category_match": {
+      "description": "Score based on category alignment",
+      "formula": "(matching_categories / total_categories) * 100"
+    },
+    "level_match": {
+      "description": "Score based on education level",
+      "formula": "predefined_score_for_level"
+    },
+    "field_match": {
+      "description": "Score based on field of study relevance",
+      "formula": "relevance_score"
+    },
+    "certification_count": {
+      "description": "Score based on number of relevant certifications",
+      "formula": "min(cert_count * 20, 100)"
+    },
+    "keyword_frequency": {
+      "description": "Score based on keyword frequency in text",
+      "formula": "normalized_frequency * 100"
+    },
+    "weighted_match": {
+      "description": "Weighted scoring for multiple criteria",
+      "formula": "sum(criterion_score * criterion_weight)"
+    },
+    "bonus_points": {
+      "description": "Additional points for preferred qualifications",
+      "formula": "min(base_score + bonus, 100)"
+    },
+    "domain_match": {
+      "description": "Score based on domain expertise",
+      "formula": "domain_relevance * 100"
+    },
+    "cultural_alignment": {
+      "description": "Score based on cultural fit indicators",
+      "formula": "alignment_score"
+    }
+  },
+  "weights": {
+    "technical_skills": 0.30,
+    "experience": 0.25,
+    "education": 0.20,
+    "soft_skills": 0.15,
+    "job_specific": 0.10
+  },
+  "thresholds": {
+    "highly_recommended": 85,
+    "recommended": 70,
+    "maybe": 50,
+    "not_recommended": 0
+  }
+}

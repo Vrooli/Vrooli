@@ -1,0 +1,180 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenEMS Configuration Schema",
+  "type": "object",
+  "properties": {
+    "ports": {
+      "type": "object",
+      "properties": {
+        "http": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "HTTP API port"
+        },
+        "jsonrpc": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "JSON-RPC WebSocket port"
+        },
+        "modbus": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Modbus TCP port"
+        },
+        "backend": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "Backend API port"
+        }
+      },
+      "required": ["http", "jsonrpc"]
+    },
+    "docker": {
+      "type": "object",
+      "properties": {
+        "edge_image": {
+          "type": "string",
+          "description": "Docker image for OpenEMS Edge"
+        },
+        "backend_image": {
+          "type": "string",
+          "description": "Docker image for OpenEMS Backend"
+        },
+        "memory_limit": {
+          "type": "string",
+          "pattern": "^[0-9]+[kmg]$",
+          "description": "Memory limit for containers"
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "properties": {
+        "interval": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000,
+          "description": "Telemetry collection interval in milliseconds"
+        },
+        "batch_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Number of telemetry points per batch"
+        },
+        "retention": {
+          "type": "string",
+          "pattern": "^[0-9]+[hdwmy]$",
+          "description": "Data retention period"
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "properties": {
+        "questdb": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer"
+            }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer"
+            }
+          }
+        },
+        "n8n": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "webhook_url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "der_assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["solar", "battery", "ev_charger", "wind", "generator", "load"]
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 0
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": ["id", "type", "capacity"]
+      }
+    },
+    "simulation": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable simulation mode for testing"
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["residential", "commercial", "industrial", "microgrid", "ev_depot"]
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "auth_enabled": {
+          "type": "boolean"
+        },
+        "tls_enabled": {
+          "type": "boolean"
+        },
+        "api_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": ["ports"],
+  "additionalProperties": false
+}

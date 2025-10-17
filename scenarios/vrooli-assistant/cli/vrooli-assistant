@@ -1,0 +1,265 @@
+#!/bin/bash
+
+# Vrooli Assistant CLI
+# Real-time issue capture and agent spawning for rapid Vrooli iteration
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_NAME="vrooli-assistant"
+
+# Get dynamic port from service registry
+if [ -z "$API_PORT" ]; then
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    if [ -n "$api_port" ]; then
+        API_PORT="$api_port"
+    else
+        API_PORT="${API_PORT:-3250}"  # Fallback to default
+    fi
+fi
+
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
+ELECTRON_APP="$SCRIPT_DIR/../ui/electron"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Show help
+show_help() {
+    cat << EOF
+Vrooli Assistant - Real-time issue capture and agent spawning
+
+Usage: vrooli-assistant [COMMAND] [OPTIONS]
+
+Commands:
+    start           Start the assistant daemon
+    stop            Stop the assistant daemon
+    status          Show assistant status
+    capture         Manually capture an issue
+    history         View recent issues
+    test-hotkey     Test global hotkey registration
+    help            Show this help message
+    version         Show version information
+
+Options:
+    --daemon        Run in daemon mode (background)
+    --test          Run in test mode
+    --json          Output in JSON format
+    --verbose       Verbose output
+
+Examples:
+    vrooli-assistant start --daemon     # Start in background
+    vrooli-assistant capture "Bug in UI" # Capture issue with description
+    vrooli-assistant history --limit 10  # Show last 10 issues
+    
+Global Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Linux/Windows)
+
+EOF
+}
+
+# Start assistant daemon
+start_daemon() {
+    echo -e "${BLUE}Starting Vrooli Assistant...${NC}"
+    
+    # Check if already running
+    if pgrep -f "electron.*vrooli-assistant" > /dev/null; then
+        echo -e "${YELLOW}Assistant is already running${NC}"
+        return 1
+    fi
+    
+    # Start Electron app
+    cd "$ELECTRON_APP"
+    
+    if [ "$1" == "--daemon" ]; then
+        nohup npm run start:daemon > /tmp/vrooli-assistant.log 2>&1 &
+        echo $! > /tmp/vrooli-assistant.pid
+        echo -e "${GREEN}✓ Assistant started in daemon mode${NC}"
+        echo "  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Linux/Win)"
+        echo "  Logs: /tmp/vrooli-assistant.log"
+    else
+        npm run start
+    fi
+}
+
+# Stop assistant daemon
+stop_daemon() {
+    echo -e "${BLUE}Stopping Vrooli Assistant...${NC}"
+    
+    if [ -f /tmp/vrooli-assistant.pid ]; then
+        kill $(cat /tmp/vrooli-assistant.pid) 2>/dev/null
+        rm /tmp/vrooli-assistant.pid
+    fi
+    
+    pkill -f "electron.*vrooli-assistant" 2>/dev/null
+    
+    echo -e "${GREEN}✓ Assistant stopped${NC}"
+}
+
+# Show status
+show_status() {
+    local json_output="${1:-false}"
+    
+    # Check if daemon is running
+    if pgrep -f "electron.*vrooli-assistant" > /dev/null; then
+        local pid=$(pgrep -f "electron.*vrooli-assistant")
+        local status="running"
+    else
+        local status="stopped"
+    fi
+    
+    # Check API health
+    api_status=$(curl -s "$API_URL/health" 2>/dev/null | grep -q "healthy" && echo "healthy" || echo "unhealthy")
+    
+    if [ "$json_output" == "true" ]; then
+        cat << EOF
+{
+    "daemon": "$status",
+    "pid": ${pid:-null},
+    "api": "$api_status",
+    "api_url": "$API_URL"
+}
+EOF
+    else
+        echo "Vrooli Assistant Status:"
+        echo "  Daemon: $status"
+        [ -n "$pid" ] && echo "  PID: $pid"
+        echo "  API: $api_status ($API_URL)"
+        echo "  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Linux/Win)"
+    fi
+}
+
+# Capture issue manually
+capture_issue() {
+    local description="$1"
+    
+    if [ -z "$description" ]; then
+        echo -e "${RED}Error: Description required${NC}"
+        echo "Usage: vrooli-assistant capture \"Description of issue\""
+        return 1
+    fi
+    
+    echo -e "${BLUE}Capturing issue...${NC}"
+    
+    # Capture screenshot (simplified)
+    local screenshot="/tmp/screenshot-$(date +%s).png"
+    
+    # Platform-specific screenshot
+    screenshot_captured=false
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if screencapture -x "$screenshot" 2>/dev/null; then
+            screenshot_captured=true
+        fi
+    elif command -v scrot &> /dev/null; then
+        if scrot "$screenshot" 2>/dev/null; then
+            screenshot_captured=true
+        fi
+    elif command -v gnome-screenshot &> /dev/null; then
+        if gnome-screenshot -f "$screenshot" 2>/dev/null; then
+            screenshot_captured=true
+        fi
+    elif command -v import &> /dev/null; then
+        if import -window root "$screenshot" 2>/dev/null; then
+            screenshot_captured=true
+        fi
+    fi
+
+    if [ "$screenshot_captured" = false ]; then
+        echo -e "${YELLOW}Warning: Could not capture screenshot (install scrot, gnome-screenshot, or imagemagick)${NC}"
+        screenshot=""
+    fi
+    
+    # Submit to API
+    if [ -n "$screenshot" ]; then
+        response=$(curl -s -X POST "$API_URL/api/v1/assistant/capture" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"description\": \"$description\",
+                \"screenshot_path\": \"$screenshot\",
+                \"scenario_name\": \"manual\",
+                \"url\": \"cli\",
+                \"context\": {}
+            }")
+    else
+        response=$(curl -s -X POST "$API_URL/api/v1/assistant/capture" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"description\": \"$description\",
+                \"scenario_name\": \"manual\",
+                \"url\": \"cli\",
+                \"context\": {}
+            }")
+    fi
+    
+    issue_id=$(echo "$response" | grep -o '"issue_id":"[^"]*' | cut -d'"' -f4)
+
+    if [ -n "$issue_id" ]; then
+        echo -e "${GREEN}✓ Issue captured successfully${NC}"
+        echo "  Issue ID: $issue_id"
+        [ -f "$screenshot" ] && echo "  Screenshot: $screenshot"
+        return 0
+    else
+        echo -e "${RED}Failed to capture issue${NC}"
+        return 1
+    fi
+}
+
+# Show history
+show_history() {
+    local limit="${1:-20}"
+    
+    echo -e "${BLUE}Recent Issues:${NC}"
+    
+    response=$(curl -s "$API_URL/api/v1/assistant/history?limit=$limit")
+    
+    # Parse and display (simplified)
+    echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"
+}
+
+# Test hotkey registration
+test_hotkey() {
+    echo -e "${BLUE}Testing global hotkey registration...${NC}"
+    
+    cd "$ELECTRON_APP"
+    npm run test:hotkey
+}
+
+# Show version
+show_version() {
+    echo "Vrooli Assistant v1.0.0"
+    echo "Electron-based overlay for rapid Vrooli iteration"
+}
+
+# Main command handler
+case "$1" in
+    start)
+        start_daemon "$2"
+        ;;
+    stop)
+        stop_daemon
+        ;;
+    status)
+        show_status "$2"
+        ;;
+    capture)
+        capture_issue "$2"
+        ;;
+    history)
+        show_history "$2"
+        ;;
+    test-hotkey)
+        test_hotkey
+        ;;
+    version|--version)
+        show_version
+        ;;
+    help|--help|"")
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        show_help
+        exit 1
+        ;;
+esac

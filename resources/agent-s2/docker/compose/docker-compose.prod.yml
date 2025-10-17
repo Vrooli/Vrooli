@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  agent-s2:
+    image: agent-s2:${VERSION:-latest}
+    container_name: agent-s2-prod
+    ports:
+      - "127.0.0.1:4113:4113"  # API port (localhost only)
+      - "127.0.0.1:5900:5900"  # VNC port (localhost only)
+    environment:
+      # Display settings
+      - DISPLAY=:99
+      - AGENT_S2_SCREEN_WIDTH=1920
+      - AGENT_S2_SCREEN_HEIGHT=1080
+      
+      # API settings
+      - AGENT_S2_HOST=0.0.0.0
+      - AGENT_S2_PORT=4113
+      - AGENT_S2_ENABLE_CORS=false
+      
+      # AI settings (must be provided via environment or .env file)
+      - AGENT_S2_AI_ENABLED=${AGENT_S2_AI_ENABLED}
+      - AGENT_S2_AI_API_URL=${AGENT_S2_AI_API_URL}
+      - AGENT_S2_AI_MODEL=${AGENT_S2_AI_MODEL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      
+      # VNC settings
+      - AGENT_S2_VNC_PASSWORD=${AGENT_S2_VNC_PASSWORD}
+      
+      # Logging
+      - AGENT_S2_LOG_LEVEL=WARNING
+      - AGENT_S2_LOG_FORMAT=json
+      
+      # Performance
+      - AGENT_S2_MAX_CONCURRENT_REQUESTS=50
+      
+    volumes:
+      # Persistent output storage
+      - agent-s2-outputs:/tmp/agent-s2-outputs
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4113/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+      
+    restart: always
+    
+    # Shared memory size for Firefox (required to prevent crashes)
+    shm_size: '2gb'
+    
+    # Production resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+          
+    # Security configuration for transparent proxy
+    cap_drop:
+      - ALL  # Drop all capabilities first
+    cap_add:
+      - NET_ADMIN      # Required for iptables manipulation via sudo
+      - NET_RAW        # Required for packet manipulation
+      - SYS_ADMIN      # Required for some iptables operations
+      - SETUID         # Required for sudo operations
+      - SETGID         # Required for sudo operations
+    security_opt:
+      - apparmor:unconfined    # Allow broader system access for iptables
+    read_only: false  # Required for X11 and screenshot operations
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        
+volumes:
+  agent-s2-outputs:
+    driver: local

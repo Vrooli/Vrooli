@@ -1,0 +1,83 @@
+services:
+  farmos-db:
+    image: postgres:14-alpine
+    container_name: farmos-db
+    environment:
+      POSTGRES_DB: farmos
+      POSTGRES_USER: farmos
+      POSTGRES_PASSWORD: ${FARMOS_DB_PASSWORD:-farmos_secure_pass}
+    volumes:
+      - farmos-db-data:/var/lib/postgresql/data
+    networks:
+      - farmos-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farmos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  farmos:
+    image: farmos/farmos:3.x
+    container_name: farmos
+    ports:
+      - "${FARMOS_PORT:-8004}:80"
+    environment:
+      # Database configuration
+      FARMOS_DB_HOST: farmos-db
+      FARMOS_DB_PORT: 5432
+      FARMOS_DB_USER: farmos
+      FARMOS_DB_PASSWORD: ${FARMOS_DB_PASSWORD:-farmos_secure_pass}
+      FARMOS_DB_NAME: farmos
+      
+      # Site configuration
+      FARMOS_SITE_NAME: "Vrooli Farm Management"
+      FARMOS_ADMIN_USER: ${FARMOS_ADMIN_USER:-admin}
+      FARMOS_ADMIN_PASSWORD: ${FARMOS_ADMIN_PASSWORD:-admin}
+      FARMOS_ADMIN_EMAIL: ${FARMOS_ADMIN_EMAIL:-admin@vrooli.local}
+      
+      # Enable demo data
+      FARMOS_DEMO_DATA: ${FARMOS_DEMO_DATA:-true}
+      
+      # OAuth and API configuration
+      FARMOS_OAUTH_ENABLED: "true"
+      FARMOS_API_ENABLED: "true"
+      FARMOS_CORS_ORIGINS: "*"
+      
+      # File storage
+      FARMOS_FILE_PUBLIC_PATH: /opt/drupal/web/sites/default/files
+      FARMOS_FILE_PRIVATE_PATH: /opt/drupal/web/sites/default/files/private
+    volumes:
+      - farmos-data:/opt/drupal/web/sites
+      - farmos-modules:/opt/drupal/web/modules/custom
+      - farmos-themes:/opt/drupal/web/themes/custom
+      - farmos-files:/opt/drupal/web/sites/default/files
+    depends_on:
+      farmos-db:
+        condition: service_healthy
+    networks:
+      - farmos-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  farmos-db-data:
+    name: farmos-db-data
+  farmos-data:
+    name: farmos-data
+  farmos-modules:
+    name: farmos-modules
+  farmos-themes:
+    name: farmos-themes
+  farmos-files:
+    name: farmos-files
+
+networks:
+  farmos-network:
+    name: farmos-network
+    driver: bridge

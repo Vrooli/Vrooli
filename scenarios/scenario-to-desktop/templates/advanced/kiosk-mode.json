@@ -1,0 +1,277 @@
+{
+    "name": "Kiosk Mode Desktop App",
+    "description": "Full-screen kiosk application for dedicated hardware, public displays, and embedded systems. Designed for unattended operation.",
+    "use_cases": [
+        "Public information displays and digital signage",
+        "Retail point-of-sale systems and self-service kiosks",
+        "Museum interactive displays and educational terminals",
+        "Industrial control panels and monitoring stations",
+        "Conference room booking systems and check-in terminals"
+    ],
+    "features": {
+        "splash_screen": false,
+        "system_tray": false,
+        "auto_updater": true,
+        "native_menus": false,
+        "single_instance": true,
+        "dev_tools": false,
+        "file_operations": false,
+        "notifications": false,
+        "multi_window": false,
+        "deep_linking": false,
+        "global_shortcuts": false,
+        "context_menus": false,
+        "kiosk_mode": true,
+        "fullscreen_lock": true,
+        "screensaver": true,
+        "auto_restart": true,
+        "remote_monitoring": true
+    },
+    "window_config": {
+        "fullscreen": true,
+        "frame": false,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "always_on_top": true,
+        "skip_taskbar": true,
+        "transparent": false,
+        "focusable": true,
+        "kiosk": true
+    },
+    "template_variables": {
+        "ENABLE_SPLASH": false,
+        "ENABLE_MENU": false,
+        "ENABLE_SYSTEM_TRAY": false,
+        "ENABLE_AUTO_UPDATER": true,
+        "ENABLE_SINGLE_INSTANCE": true,
+        "ENABLE_DEV_TOOLS": false,
+        "ENABLE_KIOSK_MODE": true,
+        "ENABLE_FULLSCREEN_LOCK": true,
+        "WINDOW_FULLSCREEN": true,
+        "WINDOW_FRAME": false,
+        "WINDOW_BACKGROUND": "#000000",
+        "KIOSK_SCREENSAVER_TIMEOUT": 300000,
+        "KIOSK_AUTO_RESTART_INTERVAL": 86400000,
+        "KIOSK_INACTIVITY_TIMEOUT": 600000
+    },
+    "supported_server_types": [
+        "node",
+        "static",
+        "external"
+    ],
+    "required_files": [
+        "main.ts",
+        "preload.ts",
+        "package.json.template",
+        "tsconfig.json"
+    ],
+    "additional_files": [
+        "src/kiosk-manager.ts",
+        "src/screensaver.ts",
+        "src/watchdog.ts",
+        "src/remote-monitoring.ts",
+        "templates/screensaver.html",
+        "templates/error-screen.html",
+        "config/kiosk-config.json"
+    ],
+    "excluded_files": [
+        "splash.html"
+    ],
+    "build_config": {
+        "platforms": ["win", "linux"],
+        "auto_sign": false,
+        "publish_stores": false,
+        "enterprise_features": true,
+        "embedded_deployment": true
+    },
+    "kiosk_features": {
+        "security": {
+            "disable_context_menu": true,
+            "disable_shortcuts": true,
+            "disable_navigation": true,
+            "disable_zoom": true,
+            "disable_selection": true,
+            "disable_dev_tools": true,
+            "content_filtering": true,
+            "url_whitelist": true
+        },
+        "display": {
+            "fullscreen_forced": true,
+            "cursor_hide_timeout": 5000,
+            "prevent_sleep": true,
+            "screen_rotation": "auto",
+            "brightness_control": true,
+            "multi_display_support": false
+        },
+        "interaction": {
+            "touch_enabled": true,
+            "mouse_enabled": true,
+            "keyboard_enabled": "limited",
+            "gesture_support": true,
+            "inactivity_detection": true,
+            "auto_reset_timeout": 600000
+        },
+        "maintenance": {
+            "auto_restart_schedule": "daily",
+            "remote_monitoring": true,
+            "health_checks": true,
+            "log_collection": true,
+            "crash_recovery": true,
+            "watchdog_timer": true
+        }
+    },
+    "security_hardening": {
+        "disable_features": [
+            "context_menu",
+            "dev_tools",
+            "page_zoom",
+            "text_selection",
+            "drag_drop",
+            "file_downloads",
+            "window_open",
+            "print",
+            "find_in_page"
+        ],
+        "content_restrictions": {
+            "block_external_navigation": true,
+            "whitelist_domains": true,
+            "disable_plugins": true,
+            "sandbox_renderer": true,
+            "strict_csp": true
+        },
+        "system_lockdown": {
+            "disable_alt_tab": true,
+            "disable_windows_key": true,
+            "disable_ctrl_alt_del": false,
+            "hide_taskbar": true,
+            "prevent_window_switching": true
+        }
+    },
+    "monitoring_config": {
+        "health_checks": [
+            { "type": "memory_usage", "threshold": "500MB", "action": "restart" },
+            { "type": "cpu_usage", "threshold": "80%", "duration": "5min", "action": "alert" },
+            { "type": "network_connectivity", "interval": "1min", "action": "retry" },
+            { "type": "application_responsiveness", "timeout": "30s", "action": "restart" }
+        ],
+        "logging": {
+            "level": "info",
+            "rotate_size": "10MB",
+            "max_files": 5,
+            "remote_logging": true
+        },
+        "metrics": [
+            "uptime",
+            "user_interactions",
+            "error_count",
+            "performance_metrics",
+            "system_resources"
+        ]
+    },
+    "deployment_options": {
+        "startup": {
+            "auto_start_on_boot": true,
+            "delay_start": 5000,
+            "retry_on_failure": true,
+            "max_retry_attempts": 3
+        },
+        "updates": {
+            "auto_update": true,
+            "update_schedule": "2am",
+            "rollback_on_failure": true,
+            "maintenance_window": "2am-4am"
+        },
+        "backup": {
+            "configuration_backup": true,
+            "log_backup": true,
+            "automatic_restore": true
+        }
+    },
+    "customization_points": [
+        {
+            "name": "Kiosk Security Manager",
+            "description": "Comprehensive security controls and content filtering",
+            "location": "src/kiosk-manager.ts"
+        },
+        {
+            "name": "Screensaver System",
+            "description": "Automatic screensaver with branded content",
+            "location": "src/screensaver.ts"
+        },
+        {
+            "name": "Watchdog Service",
+            "description": "System monitoring and automatic recovery",
+            "location": "src/watchdog.ts"
+        },
+        {
+            "name": "Remote Monitoring",
+            "description": "Health reporting and remote management",
+            "location": "src/remote-monitoring.ts"
+        },
+        {
+            "name": "Error Recovery",
+            "description": "Graceful error handling and user-friendly error screens",
+            "location": "templates/error-screen.html"
+        }
+    ],
+    "platform_specific": {
+        "windows": {
+            "features": ["assigned_access", "shell_launcher", "unified_write_filter"],
+            "kiosk_mode": "assigned_access",
+            "system_lockdown": "full",
+            "deployment": "windows_embedded"
+        },
+        "linux": {
+            "features": ["kiosk_session", "chromium_kiosk", "systemd_service"],
+            "window_manager": "minimal",
+            "desktop_environment": "none",
+            "deployment": "embedded_linux"
+        }
+    },
+    "hardware_considerations": {
+        "minimum_requirements": {
+            "ram": "4GB",
+            "storage": "8GB",
+            "cpu": "dual_core_2ghz",
+            "display": "1024x768"
+        },
+        "recommended_requirements": {
+            "ram": "8GB", 
+            "storage": "16GB",
+            "cpu": "quad_core_2.5ghz",
+            "display": "1920x1080"
+        },
+        "peripheral_support": {
+            "touchscreen": "multi_touch",
+            "barcode_scanner": "usb_hid",
+            "receipt_printer": "serial_usb",
+            "card_reader": "usb_hid",
+            "camera": "usb_video"
+        }
+    },
+    "example_scenarios": [
+        "picker-wheel",
+        "qr-code-generator",
+        "system-monitor",
+        "nutrition-tracker",
+        "palette-gen",
+        "notes"
+    ],
+    "complexity_level": "high",
+    "deployment_complexity": "high",
+    "maintenance_requirements": [
+        "Remote monitoring system setup",
+        "Hardware-specific configuration",
+        "Security policy implementation",
+        "Automatic recovery testing",
+        "Multi-device fleet management"
+    ],
+    "compliance": {
+        "accessibility": "ADA_compliant",
+        "security": "industrial_grade", 
+        "reliability": "24x7_operation",
+        "standards": ["ISO_27001", "NIST_cybersecurity"]
+    }
+}

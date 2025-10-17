@@ -1,0 +1,385 @@
+#!/usr/bin/env bash
+# Redis Installation Functions
+# Functions for installing and uninstalling Redis resource
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+_REDIS_INSTALL_DIR="${APP_ROOT}/resources/redis/lib"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
+# Source shared secrets management library
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_TRASH_FILE}"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
+# shellcheck disable=SC1091
+source "${_REDIS_INSTALL_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${_REDIS_INSTALL_DIR}/docker.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/redis/config/defaults.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/redis/config/messages.sh"
+# shellcheck disable=SC1091
+source "${_REDIS_INSTALL_DIR}/status.sh"
+# shellcheck disable=SC1091
+source "${_REDIS_INSTALL_DIR}/backup.sh"
+
+#######################################
+# Install Redis resource
+# Returns: 0 on success, 1 on failure
+#######################################
+redis::install::main() {
+    log::info "${MSG_INSTALL_STARTING}"
+    
+    # Check if already installed
+    if redis::common::container_exists; then
+        if redis::common::is_running; then
+            log::info "${MSG_ALREADY_INSTALLED}"
+            redis::status::show
+            return 0
+        else
+            log::info "Redis container exists but is not running. Starting..."
+            redis::docker::start
+            return $?
+        fi
+    fi
+    
+    # Pre-installation checks
+    if ! redis::install::check_prerequisites; then
+        return 1
+    fi
+    
+    # Check port availability
+    if ! redis::common::is_port_available "$REDIS_PORT"; then
+        log::error "${MSG_ERROR_PORT_IN_USE}"
+        log::info "Current port usage for ${REDIS_PORT}:"
+        netstat -tuln | grep ":${REDIS_PORT} " || ss -tuln | grep ":${REDIS_PORT} "
+        return 1
+    fi
+    
+    # Pull image
+    log::info "Pulling Redis image..."
+    if ! docker::pull_image "$REDIS_IMAGE"; then
+        return 1
+    fi
+    
+    # Create and start container
+    if ! redis::docker::create_container; then
+        return 1
+    fi
+    
+    # Wait for Redis to be ready
+    if ! redis::common::wait_for_ready; then
+        log::error "${MSG_INSTALL_FAILED}"
+        redis::install::cleanup_failed_install
+        return 1
+    fi
+    
+    # Post-installation setup
+    redis::install::post_install_setup
+    
+    log::success "${MSG_INSTALL_SUCCESS}"
+    redis::status::show
+    redis::install::show_next_steps
+    
+    # Auto-install CLI if available
+    # shellcheck disable=SC1091
+    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/redis" 2>/dev/null || true
+    
+    return 0
+}
+
+#######################################
+# Check installation prerequisites
+# Returns: 0 if all checks pass, 1 if any fail
+#######################################
+redis::install::check_prerequisites() {
+    # Check Docker
+    if ! command -v docker >/dev/null 2>&1; then
+        log::error "${MSG_ERROR_DOCKER}"
+        return 1
+    fi
+    
+    # Check Docker daemon
+    if ! docker info >/dev/null 2>&1; then
+        log::error "${MSG_ERROR_DOCKER}"
+        return 1
+    fi
+    
+    # Check disk space (require at least 1GB free)
+    local available_space
+    available_space=$(df "${HOME}" | awk 'NR==2 {print $4}')
+    local required_space=1048576  # 1GB in KB
+    
+    if [[ "$available_space" -lt "$required_space" ]]; then
+        log::error "Insufficient disk space. Required: 1GB, Available: $(redis::common::format_bytes $((available_space * 1024)))"
+        return 1
+    fi
+    
+    # Check memory (warn if less than 2GB available)
+    local available_memory
+    available_memory=$(free -m | awk 'NR==2{print $7}')
+    if [[ "$available_memory" -lt 2048 ]]; then
+        log::warn "Low available memory: ${available_memory}MB. Redis may perform poorly."
+    fi
+    
+    # Check memory overcommit setting (Redis requirement)
+    local overcommit_value
+    overcommit_value=$(cat /proc/sys/vm/overcommit_memory 2>/dev/null || echo "0")
+    if [[ "$overcommit_value" != "1" ]]; then
+        log::warn "⚠️  Memory overcommit is not enabled (current value: $overcommit_value)"
+        log::info "   Redis recommends setting vm.overcommit_memory=1 for background saves"
+        log::info "   To fix temporarily (until reboot):"
+        log::info "     sudo sysctl vm.overcommit_memory=1"
+        log::info "   To fix permanently:"
+        log::info "     echo 'vm.overcommit_memory = 1' | sudo tee -a /etc/sysctl.conf"
+        log::info "     sudo sysctl -p"
+        log::info "   Redis will still work but may have issues with background saves."
+        # Don't fail installation, just warn
+    fi
+    
+    return 0
+}
+
+#######################################
+# Post-installation setup
+#######################################
+redis::install::post_install_setup() {
+    # Create backup directory in project root
+    local redis_config_dir
+    redis_config_dir="$(secrets::get_project_config_dir)/redis"
+    mkdir -p "${redis_config_dir}/backups"
+    
+    # Set up log rotation (basic)
+    redis::install::setup_log_rotation
+    
+    # Create basic CLI helper script
+    redis::install::create_cli_helper
+    
+    # Update resource configuration
+    redis::install::update_resource_config
+}
+
+#######################################
+# Setup log rotation for Redis logs
+#######################################
+redis::install::setup_log_rotation() {
+    # Log rotation is handled by Docker's logging driver
+    # No need for custom logrotate configuration with volumes
+    log::debug "Log rotation handled by Docker"
+    return 0
+}
+
+#######################################
+# Create CLI helper script
+#######################################
+redis::install::create_cli_helper() {
+    local redis_config_dir
+    redis_config_dir="$(secrets::get_project_config_dir)/redis"
+    local cli_script="${redis_config_dir}/redis-cli"
+    
+    cat > "$cli_script" << 'EOF'
+#!/bin/bash
+# Redis CLI Helper for Vrooli Resource
+# This script connects to the Redis resource instance
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
+
+REDIS_PORT="${REDIS_PORT:-6380}"
+REDIS_PASSWORD="$(secrets::resolve "REDIS_PASSWORD" 2>/dev/null || echo "")"
+
+if [[ -n "$REDIS_PASSWORD" ]]; then
+    docker exec -it vrooli-redis-resource redis-cli -p 6379 -a "$REDIS_PASSWORD" "$@"
+else
+    docker exec -it vrooli-redis-resource redis-cli -p 6379 "$@"
+fi
+EOF
+    
+    chmod +x "$cli_script"
+    log::debug "CLI helper created: $cli_script"
+}
+
+#######################################
+# Update resource configuration
+#######################################
+redis::install::update_resource_config() {
+    local config_file
+    config_file="$(secrets::get_project_config_file)"
+    
+    if [[ -f "$config_file" ]]; then
+        # Use jq to update configuration if available
+        if command -v jq >/dev/null 2>&1; then
+            local temp_config
+            temp_config=$(mktemp)
+            
+            # Use flattened structure: resources.redis (not services.storage.redis)
+            # Note: baseUrl removed as per port_registry.sh migration
+            jq --arg port "$REDIS_PORT" \
+               '.resources.redis = {
+                   "enabled": true,
+                   "required": true,
+                   "version": "7",
+                   "description": "Event bus and caching layer",
+                   "healthCheck": {
+                       "intervalMs": 60000,
+                       "timeoutMs": 5000
+                   },
+                   "instances": {
+                       "default": {
+                           "port": ($port | tonumber),
+                           "maxMemory": "'"$REDIS_MAX_MEMORY"'",
+                           "persistence": "'"$REDIS_PERSISTENCE"'",
+                           "password": ""
+                       }
+                   }
+               }' "$config_file" > "$temp_config" && mv "$temp_config" "$config_file"
+            
+            log::debug "Updated resource configuration"
+        else
+            log::debug "jq not available, skipping configuration update"
+        fi
+    fi
+}
+
+#######################################
+# Show next steps after installation
+#######################################
+redis::install::show_next_steps() {
+    echo
+    log::info "🎉 Redis resource is ready! Next steps:"
+    echo
+    echo "   📋 Basic usage:"
+    echo "      redis-cli -p ${REDIS_PORT}                    # Connect to Redis"
+    echo "      redis-cli -p ${REDIS_PORT} SET key value      # Set a key"
+    echo "      redis-cli -p ${REDIS_PORT} GET key            # Get a key"
+    echo
+    echo "   🔧 Management:"
+    echo "      $0 --action status                           # Check status"
+    echo "      $0 --action monitor                          # Real-time monitoring"
+    echo "      $0 --action backup                           # Create backup"
+    echo
+    echo "   📚 Integration:"
+    echo "      Connection URL: redis://localhost:${REDIS_PORT}"
+    echo "      Use database 0-$((REDIS_DATABASES - 1)) for different applications"
+    echo
+    if [[ -z "$REDIS_PASSWORD" ]]; then
+        echo "   ⚠️  Security: No password is set. Consider setting REDIS_PASSWORD for production use."
+        echo
+    fi
+}
+
+#######################################
+# Uninstall Redis resource
+# Arguments:
+#   $1 - remove data (yes/no)
+# Returns: 0 on success, 1 on failure
+#######################################
+redis::install::uninstall() {
+    local remove_data="${1:-no}"
+    
+    log::info "🗑️  Uninstalling Redis resource..."
+    
+    # Remove container
+    if ! docker::remove_container "$REDIS_CONTAINER_NAME" "true"; then
+        return 1
+    fi
+    
+    # Remove CLI helper from project config directory
+    local redis_config_dir
+    redis_config_dir="$(secrets::get_project_config_dir)/redis"
+    trash::safe_remove "${redis_config_dir}/redis-cli" --temp
+    
+    # Remove configuration if data is being removed
+    if [[ "$remove_data" == "yes" ]]; then
+        trash::safe_remove "${redis_config_dir}/logrotate.conf" --temp
+        
+        # Update resource configuration
+        local config_file
+        config_file="$(secrets::get_project_config_file)"
+        if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
+            local temp_config
+            temp_config=$(mktemp)
+            # Remove both old nested structure and current flattened structure
+            jq 'del(.services.storage.redis) | del(.resources.redis)' "$config_file" > "$temp_config" && mv "$temp_config" "$config_file"
+        fi
+    fi
+    
+    log::success "✅ Redis resource uninstalled"
+    return 0
+}
+
+#######################################
+# Upgrade Redis resource
+# Returns: 0 on success, 1 on failure
+#######################################
+redis::install::upgrade() {
+    log::info "⬆️  Upgrading Redis resource..."
+    
+    if ! redis::common::container_exists; then
+        log::error "Redis is not installed"
+        return 1
+    fi
+    
+    # Create backup before upgrade
+    log::info "Creating backup before upgrade..."
+    local backup_name="pre-upgrade-$(date +%Y%m%d-%H%M%S)"
+    if ! redis::backup::create "$backup_name"; then
+        log::warn "Backup failed, but continuing with upgrade..."
+    fi
+    
+    # Pull latest image
+    log::info "Pulling latest Redis image..."
+    if ! docker::pull_image "$REDIS_IMAGE"; then
+        return 1
+    fi
+    
+    # Stop current container
+    redis::docker::stop
+    
+    # Remove old container (keep data)
+    docker rm "${REDIS_CONTAINER_NAME}" >/dev/null 2>&1
+    
+    # Create new container with same configuration
+    if ! redis::docker::create_container; then
+        log::error "Failed to create upgraded container"
+        return 1
+    fi
+    
+    # Wait for Redis to be ready
+    if ! redis::common::wait_for_ready; then
+        log::error "Upgraded Redis failed to start properly"
+        return 1
+    fi
+    
+    log::success "✅ Redis resource upgraded successfully"
+    redis::status::show
+    
+    return 0
+}
+
+#######################################
+# Cleanup after failed installation
+#######################################
+redis::install::cleanup_failed_install() {
+    log::debug "Cleaning up failed installation..."
+    
+    # Remove container if it exists
+    if redis::common::container_exists; then
+        docker rm -f "${REDIS_CONTAINER_NAME}" >/dev/null 2>&1
+    fi
+    
+    # Remove partial directories
+    if [[ -d "${REDIS_DATA_DIR}" ]]; then
+        local file_count
+        file_count=$(find "${REDIS_DATA_DIR}" -type f 2>/dev/null | wc -l)
+        if [[ "$file_count" -eq 0 ]]; then
+            trash::safe_remove "${REDIS_DATA_DIR}" --temp
+        fi
+    fi
+}

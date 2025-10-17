@@ -1,0 +1,345 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "code-smell",
+    "displayName": "Code Smell Detector",
+    "description": "Self-improving code quality guardian with AI-powered smell detection and auto-fixing",
+    "version": "1.0.0",
+    "tags": [
+      "analysis",
+      "quality",
+      "lint",
+      "smell",
+      "technical-debt",
+      "auto-fix",
+      "maintenance"
+    ]
+  },
+  "enabled": true,
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "range": "35000-39999"
+     }
+   },
+   "metadata": {
+    "author": "AI Agent",
+    "created": "2025-09-07",
+    "keywords": [
+      "quality",
+      "lint",
+      "smell",
+      "technical-debt",
+      "auto-fix",
+      "maintenance"
+    ],
+    "capabilities": [
+      "smell-detection",
+      "auto-fix",
+      "pattern-learning",
+      "hot-reload"
+    ],
+    "revenue_potential": "$20K-$40K per deployment",
+    "business_value": "Saves 100+ developer hours/month in code review and maintenance"
+  },
+  "resources": {
+    "required": [
+      {
+        "name": "postgres",
+        "purpose": "Store rules, violations, history, and learned patterns",
+        "config": {
+          "database": "code_smell",
+          "schema": "public"
+        }
+      },
+      {
+        "name": "resource-claude-code",
+        "purpose": "AI-powered pattern detection beyond regex capabilities",
+        "config": {
+          "model": "claude-3-opus",
+          "max_tokens": 4000
+        }
+      }
+    ],
+    "optional": [
+      {
+        "name": "redis",
+        "purpose": "Cache analysis results for performance",
+        "fallback": "In-memory cache with 15-minute TTL"
+      },
+      {
+        "name": "visited-tracker",
+        "purpose": "Skip analysis of unchanged files",
+        "fallback": "Timestamp-based change detection"
+      }
+    ]
+  },
+  "api": {
+    "enabled": true,
+    "port": "${CODE_SMELL_API_PORT:-8090}",
+    "base_path": "/api/v1",
+    "health_check": "/api/v1/health",
+    "documentation": "/api/v1/docs",
+    "cors": {
+      "enabled": true,
+      "origins": [
+        "http://localhost:*"
+      ]
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "binary": "code-smell",
+    "install_path": "~/.vrooli/bin/",
+    "completion": true
+  },
+  "ui": {
+    "enabled": true,
+    "port": "${CODE_SMELL_UI_PORT:-3090}",
+    "framework": "react",
+    "style": "technical-modern",
+    "features": [
+      "dashboard",
+      "review-queue",
+      "rule-editor",
+      "history-timeline",
+      "settings"
+    ]
+  },
+  "initialization": {
+    "rules": {
+      "path": "initialization/rules/",
+      "hot_reload": true,
+      "watch_interval": 1000,
+      "default_files": [
+        "default.yaml",
+        "vrooli-specific.yaml"
+      ]
+    },
+    "database": {
+      "migrations": "initialization/storage/postgres/migrations/",
+      "seed_data": "initialization/storage/postgres/seed.sql"
+    }
+  },
+  "configuration": {
+    "auto_fix": {
+      "enabled": true,
+      "risk_levels": [
+        "safe"
+      ],
+      "batch_size": 10,
+      "dry_run_default": false
+    },
+    "analysis": {
+      "parallel_workers": 4,
+      "file_extensions": [
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".go",
+        ".py",
+        ".sh",
+        ".yaml",
+        ".json"
+      ],
+      "ignore_patterns": [
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        ".next",
+        "__pycache__"
+      ],
+      "max_file_size_mb": 10
+    },
+    "learning": {
+      "enabled": true,
+      "confidence_threshold": 0.8,
+      "min_examples": 5,
+      "retention_days": 90
+    },
+    "performance": {
+      "cache_ttl_seconds": 900,
+      "max_memory_mb": 2048,
+      "request_timeout_seconds": 30
+    }
+  },
+  "integrations": {
+    "scenarios": [
+      {
+        "name": "visited-tracker",
+        "type": "api",
+        "endpoint": "http://localhost:${VISITED_TRACKER_PORT:-8091}/api/v1",
+        "required": false
+      },
+      {
+        "name": "git-manager",
+        "type": "events",
+        "subscribe": [
+          "git.commit.pending"
+        ],
+        "publish": [
+          "code-smell.analysis.completed"
+        ]
+      }
+    ]
+  },
+  "deployment": {
+    "docker": {
+      "image": "vrooli/code-smell:latest",
+      "build_context": "./",
+      "dockerfile": "Dockerfile"
+    },
+    "health_checks": {
+      "startup": {
+        "path": "/api/v1/health",
+        "interval": 5,
+        "timeout": 3,
+        "retries": 10
+      },
+      "liveness": {
+        "path": "/api/v1/health/live",
+        "interval": 30,
+        "timeout": 5
+      },
+      "readiness": {
+        "path": "/api/v1/health/ready",
+        "interval": 10,
+        "timeout": 3
+      }
+    }
+  },
+  "events": {
+    "publish": [
+      "code-smell.analysis.started",
+      "code-smell.analysis.completed",
+      "code-smell.fix.applied",
+      "code-smell.fix.rejected",
+      "code-smell.pattern.learned",
+      "code-smell.rule.added",
+      "code-smell.rule.updated"
+    ],
+    "subscribe": [
+      "scenario.created",
+      "git.commit.pending",
+      "ci.build.failed"
+    ]
+  },
+  "monitoring": {
+    "metrics": {
+      "enabled": true,
+      "export_interval": 60,
+      "tracked": [
+        "files_analyzed",
+        "violations_found",
+        "auto_fixes_applied",
+        "patterns_learned",
+        "api_requests",
+        "analysis_duration"
+      ]
+    },
+    "logging": {
+      "level": "info",
+      "format": "json",
+      "destination": "stdout",
+      "rotation": {
+        "enabled": true,
+        "max_size_mb": 100,
+        "max_files": 5
+      }
+    }
+  },
+  "security": {
+    "api_keys": {
+      "enabled": true,
+      "header": "X-API-Key",
+      "storage": "postgres"
+    },
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 100,
+      "burst": 20
+    },
+    "audit_log": {
+      "enabled": true,
+      "events": [
+        "fix.applied",
+        "rule.modified",
+        "settings.changed"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "setup": {
+      "description": "Initialize Code Smell Detector",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "code-smell-api"
+            ]
+          },
+           {
+             "type": "cli",
+             "targets": [
+               "code-smell"
+             ]
+           }
+        ]
+      }
+    },
+     "stop": {
+      "description": "Stop code-smell services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"code-smell-api\" || true; sleep 1; pkill -9 -f \"code-smell-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Development mode",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o code-smell-api .",
+          "description": "Build API server"
+        },
+          {
+            "name": "start-api",
+             "run": "cd api && ./code-smell-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+               "file_exists": "api/code-smell-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && python -m http.server 8080",
+           "description": "Start UI server",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🔍 Code Smell Detector running:\\n  UI: http://localhost:8080\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service URLs"
+         }
+      ]
+    }
+  }
+}

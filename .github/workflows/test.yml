@@ -25,17 +25,17 @@ jobs:
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
           node-version: "18.x"
-          cache: "yarn"
+          cache: "pnpm"
 
       - name: Install Dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Run Tests in Workspaces
         run: |
-          yarn workspace @local/shared test && \
-          yarn workspace @local/server test && \
-          yarn workspace @local/jobs test && \
-          yarn workspace @local/ui test
+          pnpm workspace @vrooli/shared test && \
+          pnpm workspace @vrooli/server test && \
+          pnpm workspace @vrooli/jobs test && \
+          pnpm workspace @vrooli/ui test
 
       - name: Run Bash Script Tests
         run: ./scripts/tests/__runTests.sh

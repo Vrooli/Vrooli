@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vrooli Bridge - Project Integration Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    <span class="logo">🌉</span>
+                    Vrooli Bridge
+                </h1>
+                <p class="subtitle">Manage Vrooli integrations across all your projects</p>
+            </div>
+            <div class="header-actions">
+                <button id="scan-btn" class="btn btn-primary">
+                    <span class="btn-icon">🔍</span>
+                    Scan for Projects
+                </button>
+                <button id="refresh-btn" class="btn btn-secondary">
+                    <span class="btn-icon">↻</span>
+                    Refresh
+                </button>
+            </div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-projects">0</div>
+                <div class="stat-label">Total Projects</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="integrated-projects">0</div>
+                <div class="stat-label">Integrated</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="outdated-projects">0</div>
+                <div class="stat-label">Outdated</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="error-projects">0</div>
+                <div class="stat-label">Errors</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <select id="type-filter" class="filter-select">
+                <option value="">All Project Types</option>
+                <option value="npm">Node.js/NPM</option>
+                <option value="cargo">Rust</option>
+                <option value="python">Python</option>
+                <option value="go">Go</option>
+                <option value="java">Java</option>
+                <option value="csharp">C#/.NET</option>
+                <option value="generic">Generic</option>
+            </select>
+            
+            <select id="status-filter" class="filter-select">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="outdated">Outdated</option>
+                <option value="missing">Not Integrated</option>
+                <option value="error">Error</option>
+            </select>
+
+            <input type="text" id="search-input" placeholder="Search projects..." class="search-input">
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Loading projects...</p>
+        </div>
+
+        <div id="error-message" class="error-message hidden"></div>
+
+        <div class="projects-container">
+            <div id="projects-list" class="projects-list">
+                <!-- Projects will be dynamically loaded here -->
+            </div>
+        </div>
+
+        <div id="scan-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Scan for Projects</h3>
+                    <button class="modal-close" id="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <label for="scan-path">Directory to scan:</label>
+                    <input type="text" id="scan-path" class="input" placeholder="/home/user/projects">
+                    
+                    <label for="scan-depth">Max depth:</label>
+                    <input type="number" id="scan-depth" class="input" value="3" min="1" max="10">
+                    
+                    <div class="modal-actions">
+                        <button id="start-scan" class="btn btn-primary">Start Scan</button>
+                        <button id="cancel-scan" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+                <div id="scan-progress" class="scan-progress hidden">
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p id="scan-status">Scanning...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "Be Right Back",
+  "sources": [
+    {
+      "name": "BRB Image",
+      "type": "image_source",
+      "settings": {
+        "file": "/path/to/brb-image.png"
+      }
+    },
+    {
+      "name": "BRB Text",
+      "type": "text_gdiplus",
+      "settings": {
+        "text": "Be Right Back!",
+        "font": {
+          "face": "Arial",
+          "size": 72,
+          "style": "Bold"
+        },
+        "color": "#FFFFFF",
+        "outline": true,
+        "outline_color": "#000000",
+        "outline_size": 2
+      }
+    }
+  ]
+}

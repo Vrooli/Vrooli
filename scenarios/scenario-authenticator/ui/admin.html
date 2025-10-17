@@ -1,0 +1,3028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Service Admin - Scenario Authenticator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        const LOGIN_ROUTE = '/auth/login';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__scenarioAuthenticatorBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[ScenarioAuthenticator] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'scenario-authenticator' });
+            window.__scenarioAuthenticatorBridgeInitialized = true;
+        }
+    </script>
+    <style>
+        :root {
+            --surface: #ffffff;
+            --surface-subtle: #f8fafc;
+            --surface-strong: #eef2ff;
+            --border: #e2e8f0;
+            --primary: #2563eb;
+            --primary-soft: #dbeafe;
+            --primary-gradient: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            --text-strong: #0f172a;
+            --text-muted: #64748b;
+            --muted-accent: #94a3b8;
+            --shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
+            --success: #16a34a;
+            --danger: #ef4444;
+            --warning: #f97316;
+            --info: #0ea5e9;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 48px 24px;
+            background: radial-gradient(circle at top, #1e293b 0%, #0f172a 55%, #0b1120 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            color: var(--text-strong);
+        }
+
+        .admin-shell {
+            width: min(1120px, 100%);
+            background: var(--surface);
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+            padding: 40px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 36px;
+            position: relative;
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .title-group {
+            max-width: 560px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .app-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary-soft);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--primary);
+        }
+
+        .app-badge svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .title-group h1 {
+            margin: 0;
+            font-size: clamp(28px, 4vw, 36px);
+            font-weight: 700;
+            color: var(--text-strong);
+        }
+
+        .title-group p {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 14px;
+        }
+
+        .header-actions .user-summary[data-auth-user-card] {
+            margin: 0;
+        }
+
+        .ghost-button {
+            border: 1px solid rgba(37, 99, 235, 0.28);
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .ghost-button:hover {
+            background: rgba(37, 99, 235, 0.14);
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+        }
+
+        .icon-inline {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-inline svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        @media (max-width: 720px) {
+            .header-actions {
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .header-actions .ghost-button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .metrics-section {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .metrics-section h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-strong);
+        }
+
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
+        }
+
+        .stat-card {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 22px 24px;
+            background: var(--surface-subtle);
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .stat-card__icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+        }
+
+        .stat-card__icon svg {
+            width: 26px;
+            height: 26px;
+        }
+
+        .stat-card__meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-card__value {
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--text-strong);
+        }
+
+        .stat-card__label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted-accent);
+        }
+
+        .stat-card__change {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .stat-card__change--positive {
+            color: var(--success);
+        }
+
+        .stat-card.stat-card--metric {
+            flex-direction: row;
+            align-items: center;
+            gap: 22px;
+        }
+
+        .stat-card.stat-card--metric .stat-card__meta {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-card.stat-card--metric .stat-card__value {
+            font-size: 34px;
+        }
+
+        .panel-card {
+            background: var(--surface-subtle);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 28px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface-subtle);
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-strong);
+        }
+
+        .section {
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 28px 32px;
+            box-shadow: none;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-helper-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .type-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .type-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(37, 99, 235, 0.25);
+            background: rgba(37, 99, 235, 0.06);
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .type-option:hover {
+            background: rgba(37, 99, 235, 0.12);
+        }
+
+        .type-option input {
+            margin: 0;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+        }
+
+        .type-option span {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-strong);
+            letter-spacing: 0.02em;
+        }
+
+        .type-option.type-option--active {
+            border-color: rgba(37, 99, 235, 0.55);
+            background: rgba(37, 99, 235, 0.16);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: #ffffff;
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 35px rgba(37, 99, 235, 0.28);
+        }
+
+        .btn-secondary {
+            background: rgba(37, 99, 235, 0.12);
+            color: var(--primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(37, 99, 235, 0.18);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(239, 68, 68, 0.25);
+        }
+
+        .btn-small {
+            padding: 6px 14px;
+            font-size: 12px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            text-align: left;
+            padding: 14px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+            color: var(--text-strong);
+        }
+
+        .table tr:hover {
+            background: rgba(37, 99, 235, 0.04);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .status-active {
+            background: rgba(22, 163, 74, 0.14);
+            color: var(--success);
+        }
+
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.14);
+            color: var(--danger);
+        }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .tab {
+            border: none;
+            background: transparent;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-radius: 999px;
+            cursor: pointer;
+            transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .tab:hover,
+        .tab:focus-visible {
+            color: var(--text-strong);
+            background: rgba(148, 163, 184, 0.12);
+            outline: none;
+        }
+
+        .tab.active {
+            color: var(--primary);
+            background: rgba(37, 99, 235, 0.14);
+            transform: translateY(-1px);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-content[hidden] {
+            display: none !important;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .code-block {
+            position: relative;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px 20px 18px 20px;
+            font-family: 'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            margin: 18px 0;
+        }
+
+        .code-block pre {
+            margin: 0;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            display: block;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(37, 99, 235, 0.12);
+            color: var(--primary);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(37, 99, 235, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .integration-callout {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            background: rgba(37, 99, 235, 0.08);
+            border: 1px solid rgba(37, 99, 235, 0.18);
+            border-radius: 18px;
+            padding: 20px 24px;
+            margin-top: 32px;
+        }
+
+        .integration-callout__icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(37, 99, 235, 0.18);
+            color: var(--primary);
+        }
+
+        .integration-callout__icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .integration-callout__content {
+            flex: 1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            margin-bottom: 20px;
+            color: var(--primary);
+            opacity: 0.8;
+        }
+
+        .empty-state-icon svg {
+            width: 42px;
+            height: 42px;
+        }
+
+        .empty-state-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .empty-state-text {
+            margin-bottom: 20px;
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Loading spinner */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Snackbar */
+        .snackbar {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 2000;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 30px;
+        }
+
+        .snackbar.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        .snackbar.success {
+            background-color: #4CAF50;
+        }
+
+        .snackbar.error {
+            background-color: #f44336;
+        }
+
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+    </style>
+</head>
+<body>
+    <main class="admin-shell">
+    <header class="app-header">
+        <div class="title-group">
+            <span class="app-badge">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 22c6.5-3 8-5.5 8-10V5l-8-3-8 3v7c0 4.5 1.5 7 8 10Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Scenario Authenticator
+            </span>
+            <h1>Admin Control Hub</h1>
+            <p>Monitor registrations, review user activity, and manage every authentication surface in one place.</p>
+        </div>
+        <div class="header-actions">
+            <div id="userCardContainer" aria-live="polite"></div>
+            <button class="ghost-button" type="button" onclick="logout()">
+                <span class="icon-inline" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 12H7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="m11 16 4-4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M7 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </span>
+                Sign Out
+            </button>
+        </div>
+    </header>
+
+    <section class="metrics-section" aria-label="Authentication metrics">
+        <div class="stat-cards">
+            <article class="stat-card stat-card--metric">
+                <div class="stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <polyline points="10 17 15 12 10 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="stat-card__meta">
+                    <span class="stat-card__value" id="totalApps">0</span>
+                    <span class="stat-card__label">Registered Applications</span>
+                    <span class="stat-card__change stat-card__change--positive">2 new this week</span>
+                </div>
+            </article>
+            <article class="stat-card stat-card--metric">
+                <div class="stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 21a6 6 0 0 1 12 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="18" cy="10" r="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M17.75 21v-1.5a4.5 4.5 0 0 0-3-4.24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="stat-card__meta">
+                    <span class="stat-card__value" id="totalUsers">1</span>
+                    <span class="stat-card__label">Total Users</span>
+                    <span class="stat-card__change stat-card__change--positive">12 onboarded today</span>
+                </div>
+            </article>
+            <article class="stat-card stat-card--metric">
+                <div class="stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="stat-card__meta">
+                    <span class="stat-card__value" id="activeSessions">0</span>
+                    <span class="stat-card__label">Active Sessions</span>
+                    <span class="stat-card__change">Across all scenarios</span>
+                </div>
+            </article>
+            <article class="stat-card stat-card--metric">
+                <div class="stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M16 16h5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="stat-card__meta">
+                    <span class="stat-card__value" id="authRequests">0</span>
+                    <span class="stat-card__label">Auth Requests Today</span>
+                    <span class="stat-card__change">Up 18% from yesterday</span>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section class="panel-card">
+        <nav class="tabs" role="tablist" aria-label="Administration views">
+            <button class="tab active" data-tab="applications" role="tab" id="tab-applications" aria-selected="true" tabindex="0">Applications</button>
+            <button class="tab" data-tab="users" role="tab" id="tab-users" aria-selected="false" tabindex="-1">Users</button>
+            <button class="tab" data-tab="sessions" role="tab" id="tab-sessions" aria-selected="false" tabindex="-1">Sessions</button>
+            <button class="tab" data-tab="integration" role="tab" id="tab-integration" aria-selected="false" tabindex="-1">Integration Guide</button>
+        </nav>
+
+        <!-- Applications Tab -->
+        <div class="tab-content active" id="applications-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Registered Applications</h2>
+                    <button class="btn btn-primary" onclick="showRegisterModal()">+ Register New Application</button>
+                </div>
+                
+                <div id="appsTable">
+                    <div class="empty-state">
+                        <div class="empty-state-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 7.5 12 12l9-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M3 7.5v9l9 4.5 9-4.5v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 12v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <div class="empty-state-title">No Applications Yet</div>
+                        <div class="empty-state-text">Register your first scenario to start using authentication</div>
+                        <button class="btn btn-primary" onclick="showRegisterModal()">Register First Application</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="tab-content" id="users-tab" hidden>
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">All Users</h2>
+                    <button class="btn btn-primary" onclick="createUser()">+ Create User</button>
+                </div>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Username</th>
+                            <th>Roles</th>
+                            <th>Applications</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td>admin@vrooli.local</td>
+                            <td>admin</td>
+                            <td><span class="status-badge status-active">admin</span></td>
+                            <td>All</td>
+                            <td>Today</td>
+                            <td class="actions-cell">
+                                <button class="btn btn-secondary btn-small">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    View
+                                </button>
+                                <button class="btn btn-danger btn-small">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    Disable
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sessions Tab -->
+        <div class="tab-content" id="sessions-tab" hidden>
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Active Sessions</h2>
+                    <button class="btn btn-secondary" onclick="refreshSessions()">
+                        <span class="icon-inline" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M3 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M16 16h5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                        Refresh
+                    </button>
+                </div>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>IP Address</th>
+                            <th>Started</th>
+                            <th>Expires</th>
+                            <th>User Agent</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: #666;">No active sessions</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Integration Guide Tab -->
+        <div class="tab-content" id="integration-tab" hidden>
+            <div class="section">
+                <h2 class="section-title">Quick Integration Guide</h2>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">1. Discover Service Endpoints</h3>
+                <p style="color: #666; margin-bottom: 15px;">Use the lifecycle utilities to fetch the dynamic ports allocated to the authenticator. Export the URLs so your services do not need to hard-code ports.</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-bash"># From the Vrooli workspace root
+AUTH_API_PORT=$(vrooli scenario port scenario-authenticator API_PORT)
+AUTH_UI_PORT=$(vrooli scenario port scenario-authenticator UI_PORT)
+
+export SCENARIO_AUTHENTICATOR_API_URL="http://localhost:${AUTH_API_PORT}"
+export SCENARIO_AUTHENTICATOR_UI_URL="http://localhost:${AUTH_UI_PORT}"
+</code></pre>
+                </div>
+                <p style="color: #666; margin-bottom: 20px;">Add these environment variables to your scenario’s runtime (for example via <code>.env</code> files or Makefile exports) so every service can reach the authenticator consistently.</p>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">2. Secure Your API Middleware</h3>
+                <p style="color: #666; margin-bottom: 12px;">Express middleware example:</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-javascript">const authApiUrl = process.env.SCENARIO_AUTHENTICATOR_API_URL ?? 'http://localhost:15837';
+
+export async function validateAuth(req, res, next) {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  if (!token) {
+    return res.status(401).json({ error: 'Missing bearer token' });
+  }
+
+  try {
+    const response = await fetch(`${authApiUrl}/api/v1/auth/validate`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const payload = await response.json();
+    if (!payload.valid) {
+      return res.status(401).json({ error: 'Token rejected by authenticator' });
+    }
+
+    req.user = {
+      id: payload.user_id,
+      email: payload.email,
+      roles: payload.roles || []
+    };
+    return next();
+  } catch (error) {
+    console.error('[auth] validation failed', error);
+    return res.status(503).json({ error: 'Authenticator unavailable' });
+  }
+}
+</code></pre>
+                </div>
+
+                <p style="color: #666; margin: 12px 0;">Go validation helper:</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-go">func ValidateRequest(ctx context.Context, token string) error {
+    authAPI := os.Getenv("SCENARIO_AUTHENTICATOR_API_URL")
+    if authAPI == "" {
+        authAPI = "http://localhost:15837"
+    }
+
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, authAPI+"/api/v1/auth/validate", nil)
+    if err != nil {
+        return err
+    }
+    req.Header.Set("Authorization", "Bearer "+token)
+
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return fmt.Errorf("token rejected: %s", resp.Status)
+    }
+
+    var payload struct {
+        Valid  bool     `json:"valid"`
+        UserID string   `json:"user_id"`
+        Roles  []string `json:"roles"`
+    }
+    if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+        return err
+    }
+    if !payload.Valid {
+        return errors.New("token invalid")
+    }
+
+    // Attach payload metadata to the request context here.
+    return nil
+}
+</code></pre>
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">3. Protect Your UI Routes</h3>
+                <p style="color: #666; margin-bottom: 12px;">Fetch the authenticator configuration (or reuse the exported environment variables) and redirect unauthenticated users to the hosted login screen.</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-javascript">async function requireAuth() {
+  const token = localStorage.getItem('authToken');
+  const config = window.__authConfig || (await fetch('/config').then((res) => res.json()).catch(() => ({ })));
+
+  const authApiUrl = window.SCENARIO_AUTHENTICATOR_API_URL || config.apiUrl || 'http://localhost:15837';
+  const authUiUrl = window.SCENARIO_AUTHENTICATOR_UI_URL || config.uiUrl || 'http://localhost:37578';
+
+  if (!token || !authApiUrl) {
+    window.location.href = `${authUiUrl}/login?redirect=${encodeURIComponent(window.location.href)}`;
+    return false;
+  }
+
+  const response = await fetch(`${authApiUrl}/api/v1/auth/validate`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const validation = await response.json();
+
+  if (!validation.valid) {
+    localStorage.removeItem('authToken');
+    window.location.href = `${authUiUrl}/login?redirect=${encodeURIComponent(window.location.href)}`;
+    return false;
+  }
+
+  window.currentUser = validation;
+  return true;
+}
+
+document.addEventListener('DOMContentLoaded', requireAuth);
+</code></pre>
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">4. Inspect the Validation Payload</h3>
+                <p style="color: #666; margin-bottom: 12px;">Successful validation returns the enriched principal object:</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-json">{
+  "valid": true,
+  "user_id": "c8d9a8b8-4c5c-4b7d-a531-2f7bb3189c70",
+  "email": "admin@demo.app",
+  "roles": ["admin", "user"],
+  "expires_at": "2025-01-01T12:00:00Z"
+}
+</code></pre>
+                </div>
+
+                <div class="integration-callout">
+                    <div class="integration-callout__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M12 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <div class="integration-callout__content">
+                        <p>Need boilerplate? The CLI can scaffold both API and UI integrations that match the snippets above:</p>
+                        <div class="code-block" style="margin: 12px 0 0;">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            <pre><code class="language-bash">scenario-authenticator protect your-scenario api
+scenario-authenticator protect your-scenario ui
+</code></pre>
+                        </div>
+                        <p style="color: #666; font-size: 12px; margin-top: 12px;">Run these commands inside your scenario to generate ready-to-use middleware and UI guards.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Application Modal -->
+    <div class="modal" id="registerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Register New Application</h2>
+            </div>
+            
+            <form id="registerAppForm">
+                <div class="form-group">
+                    <label class="form-label" for="scenarioSelect">Scenario</label>
+                    <select class="form-select" id="scenarioSelect" required>
+                        <option value="" selected>Loading scenarios…</option>
+                    </select>
+                    <p class="form-helper-text">Choose a real Vrooli scenario to authorize.</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Scenario Surfaces</label>
+                    <div class="type-options" id="appTypeOptions">
+                        <label class="type-option type-option--active" for="appTypeApi">
+                            <input type="checkbox" name="appTypeOption" value="api" id="appTypeApi" checked>
+                            <span>API</span>
+                        </label>
+                        <label class="type-option" for="appTypeUi">
+                            <input type="checkbox" name="appTypeOption" value="ui" id="appTypeUi">
+                            <span>UI</span>
+                        </label>
+                    </div>
+                    <p class="form-helper-text">Select every surface this scenario exposes.</p>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Allowed Origins (for CORS)</label>
+                    <input type="text" class="form-input" id="appOrigins" placeholder="http://localhost:3000, http://localhost:3001">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Rate Limit (requests/hour)</label>
+                    <input type="number" class="form-input" id="appRateLimit" value="1000">
+                </div>
+
+                <div id="registerAppError" style="display: none; color: #ef4444; font-size: 13px;" role="alert"></div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Register Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    </section>
+
+    <!-- Application Details Modal -->
+    <div class="modal" id="appDetailsModal" style="z-index: 1001;">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="appDetailsTitle">Application Details</h2>
+                <button class="modal-close" onclick="closeAppDetailsModal()">×</button>
+            </div>
+            
+            <div id="appDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- API Credentials Modal -->
+    <div class="modal" id="credentialsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Application Registered!</h2>
+            </div>
+            
+            <p style="color: #666; margin-bottom: 20px;">
+                Save these credentials securely. They will not be shown again.
+            </p>
+            
+            <div class="form-group">
+                <label class="form-label">API Key</label>
+                <div class="code-block" id="apiKeyDisplay">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <span id="apiKeyValue"></span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">API Secret</label>
+                <div class="code-block" id="apiSecretDisplay">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <span id="apiSecretValue"></span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Integration Endpoint</label>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <span id="endpointValue">http://localhost:15000/api/v1/auth</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: center; margin-top: 30px;">
+                <button class="btn btn-primary" onclick="closeCredentialsModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div class="modal" id="createUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Create User Account</h2>
+            </div>
+
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label class="form-label" for="newUserEmail">Email Address</label>
+                    <input type="email" class="form-input" id="newUserEmail" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="newUserPassword">Temporary Password</label>
+                    <input type="password" class="form-input" id="newUserPassword" minlength="8" required>
+                    <p style="color: #666; font-size: 12px; margin-top: 6px;">Share this password with the new user or reset it after creation.</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="newUserUsername">Username (optional)</label>
+                    <input type="text" class="form-input" id="newUserUsername" placeholder="Display name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="newUserRoles">Roles (optional)</label>
+                    <input type="text" class="form-input" id="newUserRoles" placeholder="e.g. admin, moderator">
+                    <p style="color: #666; font-size: 12px; margin-top: 6px;">Leave blank for default access. Separate multiple roles with commas.</p>
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="newUserEmailVerified">
+                    <label for="newUserEmailVerified" style="margin: 0; color: #333;">Mark email as verified</label>
+                </div>
+
+                <div id="createUserError" style="display: none; color: #ef4444; font-size: 13px; margin-top: 10px;" role="alert"></div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateUserModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="createUserSubmit">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manage User Modal -->
+    <div class="modal" id="manageUserModal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="manageUserTitle">Manage User</h2>
+                <button class="modal-close" onclick="closeManageUserModal()">×</button>
+            </div>
+
+            <form id="manageUserForm">
+                <input type="hidden" id="manageUserId">
+
+                <div class="form-group">
+                    <label class="form-label" for="manageUserEmail">Email</label>
+                    <input type="email" class="form-input" id="manageUserEmail" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="manageUserUsername">Username</label>
+                    <input type="text" class="form-input" id="manageUserUsername" placeholder="Optional display name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="manageUserRoles">Roles</label>
+                    <input type="text" class="form-input" id="manageUserRoles" placeholder="e.g. admin, moderator">
+                    <p style="color: #666; font-size: 12px; margin-top: 6px;">All users keep baseline <code>user</code> access. Separate additional roles with commas.</p>
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="manageUserEmailVerified">
+                    <label for="manageUserEmailVerified" style="margin: 0; color: #333;">Email verified</label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Created</label>
+                    <p id="manageUserCreated" style="margin: 4px 0 0; color: #555;">–</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Last Login</label>
+                    <p id="manageUserLastLogin" style="margin: 4px 0 0; color: #555;">–</p>
+                </div>
+
+                <div id="manageUserError" style="display: none; color: #ef4444; font-size: 13px; margin-top: 4px;" role="alert"></div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeManageUserModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="manageUserSubmit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    </main>
+
+    <div id="snackbar" class="snackbar">
+        <span id="snackbar-message"></span>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="/user-card.js"></script>
+    <script>
+        let API_URL = '';
+        let CONTACT_BOOK_URL = '';
+        let authToken = '';
+        let authContext = {};
+        const usersCache = new Map();
+        let selectedUserId = null;
+        let selectedUserDetails = null;
+        const userCardContainer = document.getElementById('userCardContainer');
+        let userCard = null;
+        let scenarioOptions = [];
+        let scenarioOptionsLoaded = false;
+
+        function normalizeRoleList(rawRoles) {
+            if (!rawRoles) {
+                return [];
+            }
+            if (Array.isArray(rawRoles)) {
+                return rawRoles
+                    .map(role => String(role).trim().toLowerCase())
+                    .filter(role => role.length > 0);
+            }
+            if (typeof rawRoles === 'string') {
+                return rawRoles
+                    .split(',')
+                    .map(role => role.trim().toLowerCase())
+                    .filter(role => role.length > 0);
+            }
+            return [];
+        }
+
+        function parseRolesInput(value) {
+            if (!value) {
+                return [];
+            }
+            return value
+                .split(',')
+                .map(role => role.trim().toLowerCase())
+                .filter(role => role.length > 0);
+        }
+
+        function mergeRolesWithBaseline(roles) {
+            const merged = new Set(roles.map(role => role.toLowerCase()));
+            merged.add('user');
+            return Array.from(merged);
+        }
+
+        function rolesEqual(first, second) {
+            if (first.length !== second.length) {
+                return false;
+            }
+            for (let index = 0; index < first.length; index += 1) {
+                if (first[index] !== second[index]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function escapeHtml(value) {
+            if (value === undefined || value === null) {
+                return '';
+            }
+            return String(value).replace(/[&<>"']/g, (char) => {
+                switch (char) {
+                    case '&':
+                        return '&amp;';
+                    case '<':
+                        return '&lt;';
+                    case '>':
+                        return '&gt;';
+                    case '"':
+                        return '&quot;';
+                    case '\'':
+                        return '&#39;';
+                    default:
+                        return char;
+                }
+            });
+        }
+
+        function formatTimestamp(value) {
+            if (!value) {
+                return '—';
+            }
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return '—';
+            }
+            return date.toLocaleString();
+        }
+
+        function formatDateOnly(value) {
+            if (!value) {
+                return '—';
+            }
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return '—';
+            }
+            return date.toLocaleDateString();
+        }
+
+        function summarizeUserAgent(agent) {
+            if (!agent) {
+                return '—';
+            }
+            if (agent.length <= 48) {
+                return agent;
+            }
+            return `${agent.slice(0, 45)}…`;
+        }
+
+        function splitScenarioTypes(rawValue) {
+            if (!rawValue) {
+                return ['api'];
+            }
+            return rawValue
+                .split(',')
+                .map((value) => value.trim().toLowerCase())
+                .filter((value) => value.length > 0);
+        }
+
+        function formatScenarioTypeLabel(value) {
+            switch (value) {
+                case 'api':
+                    return 'API';
+                case 'ui':
+                    return 'UI';
+                default:
+                    return value.toUpperCase();
+            }
+        }
+
+        function renderScenarioTypeBadges(rawValue) {
+            const badges = splitScenarioTypes(rawValue).map((type) => {
+                return `<span class="status-badge">${escapeHtml(formatScenarioTypeLabel(type))}</span>`;
+            });
+            if (badges.length === 0) {
+                badges.push('<span class="status-badge">API</span>');
+            }
+            return badges.join(' ');
+        }
+
+        function syncScenarioTypeOptions() {
+            document.querySelectorAll('.type-option').forEach((label) => {
+                const input = label.querySelector('input[type="checkbox"]');
+                if (input?.checked) {
+                    label.classList.add('type-option--active');
+                } else {
+                    label.classList.remove('type-option--active');
+                }
+            });
+        }
+
+        function ensureTypeOptionListeners() {
+            const container = document.getElementById('appTypeOptions');
+            if (!container) {
+                return;
+            }
+
+            container.querySelectorAll('input[name="appTypeOption"]').forEach((input) => {
+                input.addEventListener('change', () => {
+                    syncScenarioTypeOptions();
+                });
+            });
+
+            syncScenarioTypeOptions();
+        }
+
+        function applyScenarioOptionsToSelect(options) {
+            const select = document.getElementById('scenarioSelect');
+            if (!select) {
+                return;
+            }
+
+            const previousValue = select.value;
+            select.innerHTML = '';
+
+            if (!options || options.length === 0) {
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = 'No scenarios available';
+                emptyOption.disabled = true;
+                emptyOption.selected = true;
+                select.appendChild(emptyOption);
+                return;
+            }
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select a scenario';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            select.appendChild(placeholder);
+
+            options.forEach((scenario) => {
+                const option = document.createElement('option');
+                option.value = scenario.name;
+                option.dataset.displayName = scenario.displayName;
+                option.textContent = `${scenario.displayName} (${scenario.name})`;
+                select.appendChild(option);
+            });
+
+            if (previousValue) {
+                const match = options.find((scenario) => scenario.name === previousValue);
+                if (match) {
+                    select.value = previousValue;
+                }
+            }
+        }
+
+        async function ensureScenarioOptionsLoaded(forceRefresh = false) {
+            if (!forceRefresh && scenarioOptionsLoaded && scenarioOptions.length > 0) {
+                applyScenarioOptionsToSelect(scenarioOptions);
+                return scenarioOptions;
+            }
+
+            const select = document.getElementById('scenarioSelect');
+            if (select && select.options.length === 0) {
+                const loadingOption = document.createElement('option');
+                loadingOption.value = '';
+                loadingOption.textContent = 'Loading scenarios…';
+                loadingOption.disabled = true;
+                loadingOption.selected = true;
+                select.appendChild(loadingOption);
+            }
+
+            try {
+                const response = await fetch('/scenarios');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch scenarios');
+                }
+
+                const data = await response.json();
+                const list = Array.isArray(data.scenarios) ? data.scenarios : [];
+                scenarioOptions = list;
+                scenarioOptionsLoaded = list.length > 0;
+                applyScenarioOptionsToSelect(list);
+                return list;
+            } catch (error) {
+                console.error('Failed to load scenario list:', error);
+                scenarioOptionsLoaded = false;
+                if (select) {
+                    select.innerHTML = '';
+                    const failedOption = document.createElement('option');
+                    failedOption.value = '';
+                    failedOption.textContent = 'Unable to load scenarios';
+                    failedOption.disabled = true;
+                    failedOption.selected = true;
+                    select.appendChild(failedOption);
+                }
+                return [];
+            }
+        }
+
+        function resetCreateUserForm() {
+            const form = document.getElementById('createUserForm');
+            if (form) {
+                form.reset();
+            }
+            const errorEl = document.getElementById('createUserError');
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+        }
+
+        function handleUnauthorizedResponse() {
+            showSnackbar('Session expired. Please sign in again.', 'warning');
+            setTimeout(() => {
+                logout();
+            }, 1200);
+        }
+
+        function closeCreateUserModal() {
+            document.getElementById('createUserModal')?.classList.remove('show');
+            resetCreateUserForm();
+        }
+
+        function closeManageUserModal() {
+            document.getElementById('manageUserModal')?.classList.remove('show');
+            selectedUserId = null;
+            selectedUserDetails = null;
+            const form = document.getElementById('manageUserForm');
+            if (form) {
+                form.reset();
+            }
+            const errorEl = document.getElementById('manageUserError');
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+            const createdEl = document.getElementById('manageUserCreated');
+            if (createdEl) {
+                createdEl.textContent = '—';
+            }
+            const lastLoginEl = document.getElementById('manageUserLastLogin');
+            if (lastLoginEl) {
+                lastLoginEl.textContent = '—';
+            }
+        }
+
+        // Initialize
+        async function init() {
+            // Get auth data
+            const authData = JSON.parse(localStorage.getItem('authData') || sessionStorage.getItem('authData') || '{}');
+            authContext = authData;
+            authToken = authData.token || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+            
+            if (!authToken) {
+                window.location.href = LOGIN_ROUTE;
+                return;
+            }
+
+            const roleList = normalizeRoleList(authData.user?.roles);
+            if (!roleList.includes('admin')) {
+                showSnackbar('Admin access required. Redirecting…', 'warning');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1400);
+                return;
+            }
+
+            if (!userCard && userCardContainer && window.AuthUserCard) {
+                userCard = window.AuthUserCard.mount(userCardContainer, {
+                    onProfile: viewProfile,
+                    onAdmin: () => {
+                        window.location.href = '/';
+                    },
+                    labels: {
+                        admin: 'Dashboard',
+                    },
+                });
+                userCard.setAdminVisible(false);
+            }
+
+            if (userCard && authData.user) {
+                userCard.update(authData.user);
+            }
+
+            // Get API URL from config
+            try {
+                const configResponse = await fetch('/config');
+                const config = await configResponse.json();
+                API_URL = config.apiUrl;
+                if (!API_URL) {
+                    throw new Error('Authentication API port not provided');
+                }
+
+                CONTACT_BOOK_URL = config.contactBookUrl || '';
+                if (userCard) {
+                    userCard.setAdminVisible(roleList.includes('admin'));
+                }
+
+                document.getElementById('createUserForm')?.addEventListener('submit', handleCreateUserSubmit);
+                document.getElementById('manageUserForm')?.addEventListener('submit', handleManageUserSubmit);
+                document.getElementById('registerAppForm')?.addEventListener('submit', handleRegisterApplication);
+
+                ensureTypeOptionListeners();
+
+                await Promise.all([
+                    ensureScenarioOptionsLoaded(),
+                    loadApplications(),
+                    loadUsers(),
+                    loadStatistics(),
+                ]);
+                updateIntegrationGuideUrls();
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                showSnackbar('Failed to load configuration', 'error');
+            }
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach((tab) => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+
+                // Update active tab button state
+                document.querySelectorAll('.tab').forEach((t) => {
+                    t.classList.remove('active');
+                    t.setAttribute('aria-selected', 'false');
+                    t.setAttribute('tabindex', '-1');
+                });
+                tab.classList.add('active');
+                tab.setAttribute('aria-selected', 'true');
+                tab.setAttribute('tabindex', '0');
+
+                // Toggle panels
+                document.querySelectorAll('.tab-content').forEach((content) => {
+                    content.classList.remove('active');
+                    content.setAttribute('hidden', 'true');
+                });
+
+                const targetPanel = document.getElementById(`${tabName}-tab`);
+                if (targetPanel) {
+                    targetPanel.classList.add('active');
+                    targetPanel.removeAttribute('hidden');
+                }
+
+                // Load tab-specific data
+                switch (tabName) {
+                    case 'applications':
+                        loadApplications();
+                        break;
+                    case 'users':
+                        loadUsers();
+                        break;
+                    case 'sessions':
+                        loadSessions();
+                        break;
+                    case 'integration':
+                        updateIntegrationGuideUrls();
+                        break;
+                }
+            });
+        });
+
+        // Update Integration Guide URLs with current ports
+        function updateIntegrationGuideUrls() {
+            const currentApiUrl = API_URL;
+            const currentUiUrl = window.location.origin;
+            
+            // Update the help section with current URLs
+            const helpSection = document.querySelector('#integration-tab .code');
+            if (helpSection) {
+                const codeElements = document.querySelectorAll('#integration-tab code');
+                codeElements.forEach(code => {
+                    if (code.textContent.includes('http://localhost:15837')) {
+                        code.textContent = code.textContent.replace('http://localhost:15837', currentApiUrl);
+                    }
+                    if (code.textContent.includes('http://localhost:37578')) {
+                        code.textContent = code.textContent.replace('http://localhost:37578', currentUiUrl);
+                    }
+                });
+            }
+        }
+
+        // Load applications
+        async function loadApplications() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/applications?stats=true`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch applications');
+                }
+                
+                const data = await response.json();
+                const apps = data.applications || [];
+            
+            const appsDiv = document.getElementById('appsTable');
+            
+            if (apps.length === 0) {
+                appsDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 7.5 12 12l9-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M3 7.5v9l9 4.5 9-4.5v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 12v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <div class="empty-state-title">No Applications Yet</div>
+                        <div class="empty-state-text">Register your first scenario to start using authentication</div>
+                        <button class="btn btn-primary" onclick="showRegisterModal()">Register First Application</button>
+                    </div>
+                `;
+            } else {
+                appsDiv.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Users</th>
+                                <th>Active Sessions</th>
+                                <th>Events Today</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${apps.map(app => `
+                                <tr>
+                                    <td>
+                                        <strong>${app.display_name}</strong><br>
+                                        <small style="color: #666;">${app.name}</small>
+                                    </td>
+                                    <td>${renderScenarioTypeBadges(app.scenario_type)}</td>
+                                    <td><span class="status-badge status-${app.is_active ? 'active' : 'inactive'}">${app.is_active ? 'active' : 'inactive'}</span></td>
+                                    <td>${app.total_users || 0}</td>
+                                    <td>${app.active_sessions || 0}</td>
+                                    <td>${app.total_events_today || 0}</td>
+                                    <td class="actions-cell">
+                                        <button class="btn btn-secondary btn-small" onclick="viewApp('${app.id}', '${app.name}')">
+                                            <span class="icon-inline" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                            </span>
+                                            View
+                                        </button>
+                                        <button class="btn btn-secondary btn-small" onclick="generateCode('${app.id}', '${app.name}')">
+                                            <span class="icon-inline" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <polyline points="8 7 3 12 8 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <polyline points="16 7 21 12 16 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <line x1="10" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                            </span>
+                                            Code
+                                        </button>
+                                        <button class="btn btn-danger btn-small" onclick="revokeApp('${app.id}', '${app.name}')">
+                                            <span class="icon-inline" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                            </span>
+                                            Revoke
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+            } catch (error) {
+                console.error('Error loading applications:', error);
+                showSnackbar('Failed to load applications', 'error');
+                document.getElementById('appsTable').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 9v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 17h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <div class="empty-state-title">Error Loading Applications</div>
+                        <div class="empty-state-text">Please try refreshing the page</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Load statistics
+        async function loadStatistics() {
+            const totalAppsEl = document.getElementById('totalApps');
+            const totalUsersEl = document.getElementById('totalUsers');
+            const activeSessionsEl = document.getElementById('activeSessions');
+            const authRequestsEl = document.getElementById('authRequests');
+
+            if (!API_URL) {
+                return;
+            }
+
+            try {
+                const [appsResponse, usersResponse, sessionsResponse] = await Promise.all([
+                    fetch(`${API_URL}/api/v1/applications?stats=true`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    }),
+                    fetch(`${API_URL}/api/v1/users?limit=1`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    }),
+                    fetch(`${API_URL}/api/v1/sessions?scope=all&limit=1`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    })
+                ]);
+
+                const appsData = await appsResponse.json().catch(() => ({}));
+                const usersData = await usersResponse.json().catch(() => ({}));
+                const sessionsData = await sessionsResponse.json().catch(() => ({}));
+
+                totalAppsEl.textContent = String(appsData.total ?? (appsData.applications?.length || 0));
+                totalUsersEl.textContent = String(usersData.total ?? (usersData.users?.length || 0));
+                activeSessionsEl.textContent = String(sessionsData.total ?? (sessionsData.sessions?.length || 0));
+
+                const authRequests = Array.isArray(appsData.applications)
+                    ? appsData.applications.reduce((sum, app) => sum + (app.total_events_today || 0), 0)
+                    : 0;
+                authRequestsEl.textContent = String(authRequests);
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+            }
+        }
+
+        // Load users
+        async function loadUsers() {
+            const tableBody = document.getElementById('usersTableBody');
+            if (!tableBody || !API_URL) {
+                return;
+            }
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 24px; text-align: center; color: #666;">Loading users…</td>
+                </tr>
+            `;
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/users?limit=200`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch users');
+                }
+
+                const data = await response.json();
+                const users = Array.isArray(data.users) ? data.users : [];
+                usersCache.clear();
+
+                users.forEach((user) => {
+                    usersCache.set(user.id, user);
+                });
+
+                if (users.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="padding: 24px; text-align: center; color: #666;">
+                                No users found. Create the first account to get started.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tableBody.innerHTML = users.map((user) => {
+                    const email = escapeHtml(user.email || user.id);
+                    const username = escapeHtml(user.username || '—');
+                    const roles = normalizeRoleList(user.roles);
+                    const roleBadges = roles
+                        .map((role) => {
+                            const roleClass = role === 'admin' ? 'status-badge status-active' : 'status-badge';
+                            return `<span class="${roleClass}">${escapeHtml(role)}</span>`;
+                        })
+                        .join(' ');
+                    const created = formatDateOnly(user.created_at);
+
+                    return `
+                        <tr data-user-id="${user.id}">
+                            <td>${email}</td>
+                            <td>${username}</td>
+                            <td>${roleBadges}</td>
+                            <td>—</td>
+                            <td>${created}</td>
+                            <td class="actions-cell">
+                                <button class="btn btn-secondary btn-small" data-action="manage-user" data-user-id="${user.id}">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    Manage
+                                </button>
+                                <button class="btn btn-danger btn-small" data-action="disable-user" data-user-id="${user.id}">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    Disable
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tableBody.querySelectorAll('[data-action="manage-user"]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const { userId } = button.dataset;
+                        if (userId) {
+                            openUserManagement(userId);
+                        }
+                    });
+                });
+
+                tableBody.querySelectorAll('[data-action="disable-user"]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const { userId } = button.dataset;
+                        if (userId) {
+                            disableUserAccount(userId);
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading users:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding: 24px; text-align: center; color: #ef4444;">
+                            Failed to load users. Try refreshing the page.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function fetchUserDetails(userId) {
+            if (usersCache.has(userId)) {
+                return usersCache.get(userId);
+            }
+
+            const response = await fetch(`${API_URL}/api/v1/users/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user details');
+            }
+
+            const user = await response.json();
+            usersCache.set(userId, user);
+            return user;
+        }
+
+        async function openUserManagement(userId) {
+            try {
+                const user = await fetchUserDetails(userId);
+                if (!user) {
+                    return;
+                }
+
+                selectedUserId = user.id;
+                selectedUserDetails = user;
+
+                const modal = document.getElementById('manageUserModal');
+                if (!modal) {
+                    return;
+                }
+
+                const idField = document.getElementById('manageUserId');
+                if (idField) {
+                    idField.value = user.id;
+                }
+
+                document.getElementById('manageUserEmail').value = user.email || '';
+                document.getElementById('manageUserUsername').value = user.username || '';
+
+                const roles = normalizeRoleList(user.roles).filter(role => role !== 'user');
+                document.getElementById('manageUserRoles').value = roles.join(', ');
+
+                document.getElementById('manageUserEmailVerified').checked = Boolean(user.email_verified);
+                const createdEl = document.getElementById('manageUserCreated');
+                if (createdEl) {
+                    createdEl.textContent = formatTimestamp(user.created_at);
+                }
+                const lastLoginEl = document.getElementById('manageUserLastLogin');
+                if (lastLoginEl) {
+                    lastLoginEl.textContent = formatTimestamp(user.last_login);
+                }
+
+                const errorEl = document.getElementById('manageUserError');
+                if (errorEl) {
+                    errorEl.style.display = 'none';
+                    errorEl.textContent = '';
+                }
+                modal.classList.add('show');
+            } catch (error) {
+                console.error('Failed to load user details:', error);
+                showSnackbar('Unable to load user details', 'error');
+            }
+        }
+
+        async function disableUserAccount(userId) {
+            if (!userId) {
+                return;
+            }
+
+            const cachedUser = usersCache.get(userId);
+            const email = cachedUser?.email || userId;
+            const confirmed = window.confirm(`Disable account for ${email}? This will revoke access and sessions.`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json().catch(() => ({}));
+                    throw new Error(errorBody.error || 'Failed to disable user');
+                }
+
+                showSnackbar('User disabled successfully', 'success');
+                usersCache.delete(userId);
+                if (selectedUserId === userId) {
+                    closeManageUserModal();
+                }
+                await loadUsers();
+                await loadStatistics();
+            } catch (error) {
+                console.error('Failed to disable user:', error);
+                showSnackbar(error.message || 'Failed to disable user', 'error');
+            }
+        }
+
+        async function handleCreateUserSubmit(event) {
+            event.preventDefault();
+
+            const emailField = document.getElementById('newUserEmail');
+            const passwordField = document.getElementById('newUserPassword');
+            const usernameField = document.getElementById('newUserUsername');
+            const rolesField = document.getElementById('newUserRoles');
+            const verifyField = document.getElementById('newUserEmailVerified');
+            const errorEl = document.getElementById('createUserError');
+            const submitButton = document.getElementById('createUserSubmit');
+
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+
+            const email = emailField?.value?.trim();
+            const password = passwordField?.value || '';
+
+            if (!email || !password) {
+                if (errorEl) {
+                    errorEl.textContent = 'Email and password are required.';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+
+            const username = usernameField?.value?.trim();
+            const additionalRoles = parseRolesInput(rolesField?.value || '');
+            const markVerified = Boolean(verifyField?.checked);
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Creating…';
+            }
+
+            try {
+                const registerPayload = {
+                    email,
+                    password
+                };
+                if (username) {
+                    registerPayload.username = username;
+                }
+
+                const registerResponse = await fetch(`${API_URL}/api/v1/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(registerPayload)
+                });
+
+                const registerData = await registerResponse.json().catch(() => ({}));
+                if (!registerResponse.ok || !registerData.success) {
+                    throw new Error(registerData.error || 'Failed to create user');
+                }
+
+                let createdUser = registerData.user;
+                if ((!createdUser || !createdUser.id) && registerData.User) {
+                    createdUser = registerData.User;
+                }
+
+                if (createdUser && createdUser.id && (additionalRoles.length > 0 || markVerified)) {
+                    const updatePayload = {};
+                    if (additionalRoles.length > 0) {
+                        updatePayload.roles = mergeRolesWithBaseline(additionalRoles);
+                    }
+                    if (markVerified) {
+                        updatePayload.email_verified = true;
+                    }
+
+                    const updateResponse = await fetch(`${API_URL}/api/v1/users/${createdUser.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify(updatePayload)
+                    });
+
+                    const updateData = await updateResponse.json().catch(() => ({}));
+                    if (!updateResponse.ok) {
+                        throw new Error(updateData.error || 'User created, but role update failed');
+                    }
+                }
+
+                showSnackbar('User created successfully', 'success');
+                closeCreateUserModal();
+                await loadUsers();
+                await loadStatistics();
+            } catch (error) {
+                console.error('Failed to create user:', error);
+                if (errorEl) {
+                    errorEl.textContent = error.message || 'Failed to create user';
+                    errorEl.style.display = 'block';
+                } else {
+                    showSnackbar(error.message || 'Failed to create user', 'error');
+                }
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Create User';
+                }
+            }
+        }
+
+        async function handleManageUserSubmit(event) {
+            event.preventDefault();
+
+            if (!selectedUserId || !selectedUserDetails) {
+                return;
+            }
+
+            const usernameField = document.getElementById('manageUserUsername');
+            const rolesField = document.getElementById('manageUserRoles');
+            const verifiedField = document.getElementById('manageUserEmailVerified');
+            const errorEl = document.getElementById('manageUserError');
+            const submitButton = document.getElementById('manageUserSubmit');
+
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+
+            const desiredUsername = usernameField?.value?.trim() ?? '';
+            const desiredRoles = mergeRolesWithBaseline(parseRolesInput(rolesField?.value || ''));
+            const desiredVerified = Boolean(verifiedField?.checked);
+
+            const currentRoles = mergeRolesWithBaseline(normalizeRoleList(selectedUserDetails.roles));
+            currentRoles.sort();
+            desiredRoles.sort();
+
+            const payload = {};
+
+            if ((selectedUserDetails.username || '') !== desiredUsername) {
+                payload.username = desiredUsername;
+            }
+
+            if (!rolesEqual(currentRoles, desiredRoles)) {
+                payload.roles = desiredRoles;
+            }
+
+            if (Boolean(selectedUserDetails.email_verified) !== desiredVerified) {
+                payload.email_verified = desiredVerified;
+            }
+
+            if (Object.keys(payload).length === 0) {
+                showSnackbar('No changes to apply', 'info');
+                return;
+            }
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Saving…';
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/users/${selectedUserId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const responseData = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(responseData.error || 'Failed to update user');
+                }
+
+                const updatedUser = responseData.user || selectedUserDetails;
+                usersCache.set(selectedUserId, updatedUser);
+                selectedUserDetails = updatedUser;
+
+                if (authContext?.user && selectedUserId === authContext.user.id) {
+                    authContext = {
+                        ...authContext,
+                        user: updatedUser,
+                    };
+                    if (userCard) {
+                        const updatedRoles = normalizeRoleList(updatedUser.roles);
+                        userCard.update(updatedUser);
+                        userCard.setAdminVisible(updatedRoles.includes('admin'));
+                    }
+                }
+
+                showSnackbar('User updated successfully', 'success');
+                closeManageUserModal();
+                await loadUsers();
+            } catch (error) {
+                console.error('Failed to update user:', error);
+                if (errorEl) {
+                    errorEl.textContent = error.message || 'Failed to update user';
+                    errorEl.style.display = 'block';
+                } else {
+                    showSnackbar(error.message || 'Failed to update user', 'error');
+                }
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Save Changes';
+                }
+            }
+        }
+
+        async function handleRegisterApplication(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const scenarioSelect = document.getElementById('scenarioSelect');
+            const originsField = document.getElementById('appOrigins');
+            const rateLimitField = document.getElementById('appRateLimit');
+            const errorEl = document.getElementById('registerAppError');
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+
+            const selectedOption = scenarioSelect?.selectedOptions?.[0];
+            const scenarioName = selectedOption?.value?.trim() || '';
+            const scenarioDisplayName = selectedOption?.dataset.displayName?.trim() || '';
+            const selectedTypes = Array.from(
+                document.querySelectorAll('input[name="appTypeOption"]:checked')
+            ).map((input) => input.value.toLowerCase());
+            const origins = originsField?.value
+                ?.split(',')
+                .map((origin) => origin.trim())
+                .filter((origin) => origin.length > 0) || [];
+            const rateLimitValue = rateLimitField?.value;
+
+            if (!scenarioName) {
+                if (errorEl) {
+                    errorEl.textContent = 'Select a scenario to register.';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+
+            if (selectedTypes.length === 0) {
+                if (errorEl) {
+                    errorEl.textContent = 'Choose at least one scenario surface (API or UI).';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+
+            const sortedTypes = selectedTypes.sort();
+            const payload = {
+                name: scenarioName,
+                display_name: scenarioDisplayName || scenarioName,
+                scenario_type: sortedTypes.join(','),
+                allowed_origins: origins,
+            };
+
+            if (!payload.scenario_type) {
+                payload.scenario_type = 'api';
+            }
+
+            const parsedRateLimit = Number(rateLimitValue);
+            if (!Number.isNaN(parsedRateLimit) && parsedRateLimit > 0) {
+                payload.rate_limit = parsedRateLimit;
+            }
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Registering…';
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/applications`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (response.status === 401) {
+                    handleUnauthorizedResponse();
+                    return;
+                }
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to register application');
+                }
+
+                closeModal();
+
+                document.getElementById('apiKeyValue').textContent = data.api_key || '—';
+                document.getElementById('apiSecretValue').textContent = data.api_secret || '—';
+                document.getElementById('endpointValue').textContent = `${API_URL}/api/v1/auth`;
+                document.getElementById('credentialsModal').classList.add('show');
+
+                showSnackbar('Application registered successfully!', 'success');
+                await loadApplications();
+                await loadStatistics();
+            } catch (error) {
+                console.error('Failed to register application:', error);
+                if (errorEl) {
+                    errorEl.textContent = error.message || 'Failed to register application';
+                    errorEl.style.display = 'block';
+                } else {
+                    showSnackbar(error.message || 'Failed to register application', 'error');
+                }
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Register Application';
+                }
+            }
+        }
+
+        // Load sessions
+        async function loadSessions() {
+            const tableBody = document.getElementById('sessionsTableBody');
+            if (!tableBody || !API_URL) {
+                return;
+            }
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 24px; text-align: center; color: #666;">Loading sessions…</td>
+                </tr>
+            `;
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/sessions?scope=all&limit=200`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch sessions');
+                }
+
+                const data = await response.json();
+                const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+
+                if (sessions.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="padding: 24px; text-align: center; color: #666;">
+                                No active sessions
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tableBody.innerHTML = sessions.map((session) => {
+                    const cachedUser = usersCache.get(session.user_id);
+                    const email = escapeHtml(cachedUser?.email || session.user_id);
+                    const username = cachedUser?.username ? `<br><small style="color: #666;">${escapeHtml(cachedUser.username)}</small>` : '';
+
+                    return `
+                        <tr data-session-id="${session.session_id}">
+                            <td>${email}${username}</td>
+                            <td>${escapeHtml(session.ip_address || '—')}</td>
+                            <td>${formatTimestamp(session.created_at)}</td>
+                            <td>${formatTimestamp(session.expires_at)}</td>
+                            <td title="${escapeHtml(session.user_agent || '')}">${escapeHtml(summarizeUserAgent(session.user_agent))}</td>
+                            <td class="actions-cell">
+                                <button class="btn btn-danger btn-small" data-action="revoke-session" data-session-id="${session.session_id}">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    Revoke
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tableBody.querySelectorAll('[data-action="revoke-session"]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const { sessionId } = button.dataset;
+                        if (sessionId) {
+                            revokeSession(sessionId);
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding: 24px; text-align: center; color: #ef4444;">
+                            Unable to load sessions. Try again shortly.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function revokeSession(sessionId) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/sessions/${sessionId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to revoke session');
+                }
+
+                showSnackbar('Session revoked', 'success');
+                await loadSessions();
+                await loadStatistics();
+            } catch (error) {
+                console.error('Failed to revoke session:', error);
+                showSnackbar(error.message || 'Failed to revoke session', 'error');
+            }
+        }
+
+        // Show register modal
+        async function showRegisterModal() {
+            const scenarios = await ensureScenarioOptionsLoaded();
+            const form = document.getElementById('registerAppForm');
+            const errorEl = document.getElementById('registerAppError');
+            const submitButton = form?.querySelector('button[type="submit"]');
+
+            form?.reset();
+            syncScenarioTypeOptions();
+
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+
+            if (submitButton) {
+                submitButton.disabled = scenarios.length === 0;
+            }
+
+            if (scenarios.length === 0 && errorEl) {
+                errorEl.textContent = 'No scenarios discovered. Run `vrooli scenario list` to verify scenario availability.';
+                errorEl.style.display = 'block';
+            }
+
+            document.getElementById('registerModal').classList.add('show');
+        }
+
+        // Close modal
+        function closeModal() {
+            const form = document.getElementById('registerAppForm');
+            form?.reset();
+            syncScenarioTypeOptions();
+
+            const submitButton = form?.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = false;
+            }
+
+            const errorEl = document.getElementById('registerAppError');
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+
+            document.getElementById('registerModal').classList.remove('show');
+        }
+
+        // Close credentials modal
+        function closeCredentialsModal() {
+            document.getElementById('credentialsModal').classList.remove('show');
+        }
+
+        // Copy code
+        function copyCode(button) {
+            const codeBlock = button.closest('.code-block');
+            if (!codeBlock) {
+                return;
+            }
+
+            const codeElement = codeBlock.querySelector('code');
+            const text = codeElement ? codeElement.textContent.trim() : codeBlock.textContent.replace(button.textContent, '').trim();
+
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                }, 2000);
+            });
+        }
+
+        // View application
+        async function viewApp(appId, name) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/applications/${appId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch application details');
+                }
+                
+                const app = await response.json();
+                showAppDetails(app);
+            } catch (error) {
+                console.error('Error loading application details:', error);
+                showSnackbar('Failed to load application details', 'error');
+            }
+        }
+
+        // Generate integration code
+        async function generateCode(appId, name) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/applications/${appId}/integration-code?type=api`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to generate integration code');
+                }
+                
+                const data = await response.json();
+                showIntegrationCode(data, name);
+            } catch (error) {
+                console.error('Error generating integration code:', error);
+                showSnackbar('Failed to generate integration code', 'error');
+            }
+        }
+
+        // Revoke application
+        async function revokeApp(appId, name) {
+            if (confirm(`Are you sure you want to revoke access for ${name}?`)) {
+                try {
+                    const response = await fetch(`${API_URL}/api/v1/applications/${appId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to revoke application');
+                    }
+                    
+                    showSnackbar(`${name} access revoked`, 'success');
+                    loadApplications();
+                } catch (error) {
+                    console.error('Error revoking application:', error);
+                    showSnackbar('Failed to revoke application access', 'error');
+                }
+            }
+        }
+
+        // Show application details
+        function showAppDetails(app) {
+            const modal = document.getElementById('appDetailsModal');
+            const title = document.getElementById('appDetailsTitle');
+            const content = document.getElementById('appDetailsContent');
+            
+            title.textContent = `${app.display_name} - Details`;
+            
+            const lastAccessedText = app.last_accessed ? 
+                new Date(app.last_accessed).toLocaleDateString() : 'Never';
+            
+            const originsText = app.allowed_origins && app.allowed_origins.length > 0 ? 
+                app.allowed_origins.join(', ') : 'None configured';
+                
+            const redirectsText = app.redirect_uris && app.redirect_uris.length > 0 ? 
+                app.redirect_uris.join(', ') : 'None configured';
+            const scenarioTypeBadges = renderScenarioTypeBadges(app.scenario_type);
+            
+            content.innerHTML = `
+                <div style="display: grid; gap: 30px;">
+                    <!-- Basic Information -->
+                    <section>
+                        <h3 style="margin-bottom: 15px; color: #333;">Basic Information</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <label style="font-weight: 600; color: #666;">Name</label>
+                                <p style="margin: 5px 0 15px 0;">${app.name}</p>
+                                
+                                <label style="font-weight: 600; color: #666;">Display Name</label>
+                                <p style="margin: 5px 0 15px 0;">${app.display_name}</p>
+                                
+                                <label style="font-weight: 600; color: #666;">Description</label>
+                                <p style="margin: 5px 0 15px 0;">${app.description || 'No description provided'}</p>
+                            </div>
+                            <div>
+                                <label style="font-weight: 600; color: #666;">Type</label>
+                                <p style="margin: 5px 0 15px 0;">${scenarioTypeBadges}</p>
+                                
+                                <label style="font-weight: 600; color: #666;">Status</label>
+                                <p style="margin: 5px 0 15px 0;"><span class="status-badge status-${app.is_active ? 'active' : 'inactive'}">${app.is_active ? 'Active' : 'Inactive'}</span></p>
+                                
+                                <label style="font-weight: 600; color: #666;">Created</label>
+                                <p style="margin: 5px 0 15px 0;">${new Date(app.created_at).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- Statistics -->
+                    <section>
+                        <h3 style="margin-bottom: 15px; color: #333;">Usage Statistics</h3>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                            <div class="stat-card">
+                                <div class="stat-number">${app.total_users || 0}</div>
+                                <div class="stat-label">Total Users</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${app.total_authentications || 0}</div>
+                                <div class="stat-label">Total Auths</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${app.rate_limit || 1000}</div>
+                                <div class="stat-label">Rate Limit/hr</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${app.max_users ? app.max_users : '∞'}</div>
+                                <div class="stat-label">Max Users</div>
+                            </div>
+                        </div>
+                        <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                            <strong>Last Accessed:</strong> ${lastAccessedText}
+                        </p>
+                    </section>
+                    
+                    <!-- Configuration -->
+                    <section>
+                        <h3 style="margin-bottom: 15px; color: #333;">Configuration</h3>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Allowed Origins (CORS)</label>
+                            <p style="margin: 5px 0 15px 0; font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px;">${originsText}</p>
+                            
+                            <label style="font-weight: 600; color: #666;">Redirect URIs</label>
+                            <p style="margin: 5px 0 15px 0; font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px;">${redirectsText}</p>
+                            
+                            <label style="font-weight: 600; color: #666;">Permissions</label>
+                            <p style="margin: 5px 0 15px 0;">
+                                ${app.permissions && app.permissions.length > 0 ? 
+                                    app.permissions.map(perm => `<span class="status-badge" style="margin-right: 5px;">${perm}</span>`).join('') : 
+                                    'Default permissions'
+                                }
+                            </p>
+                        </div>
+                    </section>
+                    
+                    <!-- Actions -->
+                    <section>
+                        <h3 style="margin-bottom: 15px; color: #333;">Actions</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="generateCode('${app.id}', '${app.name}')">
+                                <span class="icon-inline" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <polyline points="8 7 3 12 8 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <polyline points="16 7 21 12 16 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <line x1="10" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </span>
+                                Integration Code
+                            </button>
+                            <button class="btn btn-secondary" onclick="editApp('${app.id}')">
+                                <span class="icon-inline" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M3 21v-3.75L16.19 4.06a1.8 1.8 0 0 1 2.55 0l2.2 2.2a1.8 1.8 0 0 1 0 2.55L7.75 21H3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="m13.5 6.5 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </span>
+                                Edit Settings
+                            </button>
+                            <button class="btn btn-danger" onclick="revokeApp('${app.id}', '${app.name}')">
+                                <span class="icon-inline" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </span>
+                                Revoke Access
+                            </button>
+                        </div>
+                    </section>
+                </div>
+                
+                <div style="margin-top: 30px; text-align: right;">
+                    <button class="btn btn-secondary" onclick="closeAppDetailsModal()">Close</button>
+                </div>
+            `;
+            
+            modal.classList.add('show');
+        }
+        
+        // Close application details modal
+        function closeAppDetailsModal() {
+            document.getElementById('appDetailsModal').classList.remove('show');
+        }
+        
+        // Show integration code modal
+        function showIntegrationCode(data, appName) {
+            const modal = document.createElement('div');
+            modal.className = 'modal show';
+            modal.style.zIndex = '1002';
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">Integration Code - ${appName}</h2>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <p style="color: #666;">Copy the code below to integrate authentication into your ${data.integration_type} scenario:</p>
+                    </div>
+                    
+                    <div class="code-block" style="position: relative;">
+                        <button class="copy-btn" onclick="copyCode(this)" style="position: absolute; top: 10px; right: 10px;">Copy</button>
+                        <pre style="white-space: pre-wrap; font-family: monospace; font-size: 14px; line-height: 1.5;">${data.code}</pre>
+                    </div>
+                    
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        // Edit application (placeholder)
+        function editApp(appId) {
+            showSnackbar('Application editing coming soon', 'info');
+        }
+
+        // Create user
+        function createUser() {
+            resetCreateUserForm();
+            document.getElementById('createUserModal')?.classList.add('show');
+        }
+
+        // Refresh sessions
+        async function refreshSessions() {
+            await loadSessions();
+            await loadStatistics();
+            showSnackbar('Sessions refreshed', 'success');
+        }
+
+        // View profile shortcut
+        function viewProfile() {
+            if (!CONTACT_BOOK_URL) {
+                showSnackbar('Contact Book profile integration is not configured for this environment yet.', 'warning');
+                return;
+            }
+
+            if (!authToken) {
+                showSnackbar('No active session token found. Please sign in again.', 'error');
+                return;
+            }
+
+            if (!API_URL) {
+                showSnackbar('Authentication service configuration is not ready yet.', 'warning');
+                return;
+            }
+
+            const authData = authContext || {};
+            const userPayload = authData.user || {};
+            const userId =
+                userPayload.id ||
+                userPayload.user_id ||
+                authData.user_id ||
+                authData.id ||
+                null;
+
+            if (!userId) {
+                showSnackbar('Unable to determine your account identifier for profile linking.', 'error');
+                return;
+            }
+
+            const email = userPayload.email || authData.email || '';
+            const destinationBase = CONTACT_BOOK_URL.replace(/\/$/, '');
+            const params = new URLSearchParams();
+
+            params.set('authToken', authToken);
+            params.set('authApi', API_URL);
+            params.set('userId', userId);
+            if (email) {
+                params.set('userEmail', email);
+            }
+            params.set('returnTo', window.location.href);
+
+            window.location.href = `${destinationBase}/profile?${params.toString()}`;
+        }
+
+        async function logout() {
+            try {
+                await fetch(`${API_URL}/api/v1/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = LOGIN_ROUTE;
+        }
+
+        // Show snackbar
+        function showSnackbar(message, type = 'info') {
+            const snackbar = document.getElementById('snackbar');
+            const messageSpan = document.getElementById('snackbar-message');
+            
+            messageSpan.textContent = message;
+            snackbar.className = `snackbar ${type}`;
+            snackbar.classList.add('show');
+            
+            setTimeout(() => {
+                snackbar.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

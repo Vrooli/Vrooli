@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs - Agent Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" crossorigin="anonymous"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+    <script type="module" src="script.js"></script>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="cyber-grid"></div>
+    <div class="scan-line"></div>
+    
+    <div class="command-center">
+        <!-- Header with Navigation -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <div class="logo-cube">
+                        <div class="cube-face front"></div>
+                        <div class="cube-face back"></div>
+                        <div class="cube-face left"></div>
+                        <div class="cube-face right"></div>
+                        <div class="cube-face top"></div>
+                        <div class="cube-face bottom"></div>
+                    </div>
+                </div>
+                <div class="logo-text">AGENT COMMAND</div>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/agents.html" class="nav-link">
+                    <i data-lucide="bot"></i>
+                    <span>Agents</span>
+                </a>
+                <a href="/logs.html" class="nav-link active">
+                    <i data-lucide="terminal"></i>
+                    <span>Logs</span>
+                </a>
+                <a href="/metrics.html" class="nav-link">
+                    <i data-lucide="bar-chart"></i>
+                    <span>Metrics</span>
+                </a>
+            </nav>
+            
+            <div class="system-status">
+                <div class="status-indicator">
+                    <i data-lucide="shield-check" class="status-icon active"></i>
+                    <span>SYSTEM ONLINE</span>
+                </div>
+                <div class="status-indicator">
+                    <i data-lucide="cpu" class="status-icon warning"></i>
+                    <span id="agentCount">0 AGENTS ACTIVE</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="logs-header">
+                <h1 class="page-title">
+                    <i data-lucide="terminal"></i>
+                    System Logs
+                </h1>
+                <div class="logs-controls">
+                    <div class="logs-controls-group">
+                        <select id="agentSelect" class="filter-select">
+                            <option value="system">System Logs</option>
+                        </select>
+                        <select id="logLevel" class="filter-select">
+                            <option value="all">All Levels</option>
+                            <option value="info">Info</option>
+                            <option value="warning">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                        <input type="number" id="lineCount" class="line-input" value="100" min="10" max="1000" placeholder="Lines" />
+                    </div>
+                    <div class="logs-controls-group">
+                        <button id="refreshBtn" class="action-btn">
+                            <i data-lucide="refresh-cw"></i>
+                            <span>REFRESH</span>
+                        </button>
+                        <button id="followBtn" class="action-btn">
+                            <i data-lucide="play"></i>
+                            <span>FOLLOW</span>
+                        </button>
+                        <button id="clearBtn" class="action-btn">
+                            <i data-lucide="trash-2"></i>
+                            <span>CLEAR</span>
+                        </button>
+                        <button id="exportBtn" class="action-btn">
+                            <i data-lucide="download"></i>
+                            <span>EXPORT</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-title">[AGENT-COMMAND-TERMINAL v2.0.1]</span>
+                    <div class="terminal-actions">
+                        <button id="downloadBtn" class="terminal-btn" title="Download logs">
+                            <i data-lucide="download"></i>
+                        </button>
+                        <button id="fullscreenBtn" class="terminal-btn" title="Fullscreen">
+                            <i data-lucide="maximize"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="terminal-body">
+                    <div class="terminal-content" id="terminalOutput">
+                        <div class="terminal-line">
+                            <span class="terminal-prompt">$></span> Log viewer initialized...
+                        </div>
+                        <div class="terminal-line">
+                            <span class="terminal-prompt">$></span> Select an agent to view logs
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-footer">
+                    <span id="logStats">0 lines loaded</span>
+                    <span id="followStatus">Not following</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="shared/api.js"></script>
+    <script src="logs.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>

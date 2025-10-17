@@ -1,0 +1,103 @@
+{
+  "name": "Product Price Tracker",
+  "description": "Track product prices and alert on drops",
+  "agents": [
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "Amazon Price Scraper",
+      "disabled": false,
+      "guid": "price_scraper_001",
+      "options": {
+        "expected_update_period_in_days": "1",
+        "url": "https://www.amazon.com/dp/YOUR_PRODUCT_ID",
+        "type": "html",
+        "mode": "all",
+        "extract": {
+          "product_name": {
+            "css": "#productTitle",
+            "value": "string(.)"
+          },
+          "current_price": {
+            "css": "span.a-price-whole",
+            "value": "string(.)"
+          },
+          "currency": {
+            "css": "span.a-price-symbol",
+            "value": "string(.)"
+          },
+          "availability": {
+            "css": "#availability span",
+            "value": "string(.)"
+          },
+          "timestamp": {
+            "value": "now()"
+          }
+        },
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      },
+      "schedule": "every_2h",
+      "keep_events_for": 2592000
+    },
+    {
+      "type": "Agents::JavaScriptAgent",
+      "name": "Price Analyzer",
+      "disabled": false,
+      "guid": "price_analyzer_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "language": "JavaScript",
+        "code": "// Store price history and detect drops\nconst currentPrice = parseFloat(event.current_price.replace(/[^0-9.]/g, ''));\nconst priceHistory = memory.priceHistory || [];\n\n// Add current price to history\npriceHistory.push({\n  price: currentPrice,\n  timestamp: event.timestamp\n});\n\n// Keep only last 30 days of history\nconst thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);\nmemory.priceHistory = priceHistory.filter(p => \n  new Date(p.timestamp).getTime() > thirtyDaysAgo\n);\n\n// Calculate statistics\nconst prices = memory.priceHistory.map(p => p.price);\nconst avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;\nconst maxPrice = Math.max(...prices);\nconst minPrice = Math.min(...prices);\n\n// Detect significant price drop (10% below average)\nconst priceDropThreshold = avgPrice * 0.9;\nconst isSignificantDrop = currentPrice < priceDropThreshold;\n\n// Create event with analysis\ncreateEvent({\n  product_name: event.product_name,\n  current_price: currentPrice,\n  currency: event.currency,\n  average_price: avgPrice.toFixed(2),\n  max_price: maxPrice,\n  min_price: minPrice,\n  price_drop: isSignificantDrop,\n  drop_percentage: ((avgPrice - currentPrice) / avgPrice * 100).toFixed(2),\n  availability: event.availability,\n  timestamp: event.timestamp,\n  price_history_count: memory.priceHistory.length\n});"
+      },
+      "sources": ["price_scraper_001"],
+      "keep_events_for": 2592000
+    },
+    {
+      "type": "Agents::TriggerAgent",
+      "name": "Price Drop Alert",
+      "disabled": false,
+      "guid": "price_alert_001",
+      "options": {
+        "expected_receive_period_in_days": "1",
+        "keep_event": "true",
+        "rules": [
+          {
+            "type": "field==value",
+            "value": "true",
+            "path": "$.price_drop"
+          }
+        ],
+        "message": "Price drop detected for {{product_name}}!"
+      },
+      "sources": ["price_analyzer_001"],
+      "keep_events_for": 604800
+    },
+    {
+      "type": "Agents::EmailAgent",
+      "name": "Price Drop Email",
+      "disabled": false,
+      "guid": "price_email_001",
+      "options": {
+        "subject": "Price Alert: {{product_name}} - {{drop_percentage}}% off!",
+        "body": "Good news! The price for {{product_name}} has dropped.\n\nCurrent Price: {{currency}}{{current_price}}\nAverage Price: {{currency}}{{average_price}}\nDrop Percentage: {{drop_percentage}}%\n\nAvailability: {{availability}}\n\nBuy now before the price goes back up!",
+        "expected_receive_period_in_days": "7",
+        "recipients": "your-email@example.com"
+      },
+      "sources": ["price_alert_001"],
+      "keep_events_for": 604800
+    }
+  ],
+  "links": [
+    {
+      "source": "price_scraper_001",
+      "receiver": "price_analyzer_001"
+    },
+    {
+      "source": "price_analyzer_001",
+      "receiver": "price_alert_001"
+    },
+    {
+      "source": "price_alert_001",
+      "receiver": "price_email_001"
+    }
+  ]
+}

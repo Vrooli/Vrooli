@@ -1,0 +1,164 @@
+{
+  "templates": [
+    {
+      "name": "Debugging",
+      "description": "Prompts for troubleshooting code issues and finding bugs",
+      "color": "#ef4444",
+      "icon": "bug",
+      "tags": ["debugging", "troubleshooting", "error-analysis"],
+      "example_prompts": [
+        "Debug SQL Performance",
+        "JavaScript Error Analysis", 
+        "API Integration Debug"
+      ]
+    },
+    {
+      "name": "UX Design",
+      "description": "User experience research, design thinking, and interface improvements",
+      "color": "#8b5cf6",
+      "icon": "palette",
+      "tags": ["ux-design", "user-research", "interface"],
+      "example_prompts": [
+        "User Journey Analysis",
+        "Design System Component",
+        "Accessibility Review"
+      ]
+    },
+    {
+      "name": "Coding",
+      "description": "Software development, architecture, and programming best practices",
+      "color": "#10b981",
+      "icon": "code",
+      "tags": ["coding", "development", "architecture"],
+      "example_prompts": [
+        "Code Review Request",
+        "Architecture Decision",
+        "Refactoring Guidance"
+      ]
+    },
+    {
+      "name": "Writing",
+      "description": "Documentation, content creation, and communication",
+      "color": "#f59e0b",
+      "icon": "pen-tool",
+      "tags": ["writing", "documentation", "content"],
+      "example_prompts": [
+        "Technical Documentation",
+        "Blog Post Outline",
+        "Meeting Summary"
+      ]
+    },
+    {
+      "name": "Analysis",
+      "description": "Data analysis, research, and problem-solving approaches",
+      "color": "#3b82f6",
+      "icon": "chart-bar",
+      "tags": ["analysis", "research", "data"],
+      "example_prompts": [
+        "Market Research Analysis",
+        "Competitive Analysis",
+        "Data Interpretation"
+      ]
+    },
+    {
+      "name": "Automation",
+      "description": "Workflow automation and process optimization",
+      "color": "#6b7280",
+      "icon": "cog",
+      "tags": ["automation", "process", "optimization"],
+      "example_prompts": [
+        "Workflow Optimization",
+        "Process Documentation",
+        "Tool Recommendations"
+      ]
+    },
+    {
+      "name": "Learning",
+      "description": "Skill development and educational content",
+      "color": "#14b8a6",
+      "icon": "book-open",
+      "tags": ["learning", "education", "skill-development"],
+      "example_prompts": [
+        "Concept Explanation",
+        "Learning Path Creation",
+        "Knowledge Assessment"
+      ]
+    },
+    {
+      "name": "Creative",
+      "description": "Creative tasks, brainstorming, and ideation",
+      "color": "#ec4899",
+      "icon": "sparkles",
+      "tags": ["creative", "brainstorming", "ideation"],
+      "example_prompts": [
+        "Brainstorming Session",
+        "Creative Problem Solving",
+        "Content Ideas"
+      ]
+    },
+    {
+      "name": "Business",
+      "description": "Business strategy, planning, and decision making",
+      "color": "#8b5cf6",
+      "icon": "briefcase",
+      "tags": ["business", "strategy", "planning"],
+      "example_prompts": [
+        "Business Plan Review",
+        "Strategic Planning",
+        "Decision Framework"
+      ]
+    },
+    {
+      "name": "Communication",
+      "description": "Email templates, messages, and professional communication",
+      "color": "#06b6d4",
+      "icon": "message-circle",
+      "tags": ["communication", "email", "professional"],
+      "example_prompts": [
+        "Professional Email",
+        "Client Communication",
+        "Team Update"
+      ]
+    }
+  ],
+  "quick_setup": [
+    {
+      "name": "Developer Essentials",
+      "campaigns": ["Debugging", "Coding", "Learning"],
+      "description": "Essential campaigns for software developers"
+    },
+    {
+      "name": "Designer Toolkit",
+      "campaigns": ["UX Design", "Creative", "Writing"],
+      "description": "Perfect for UX/UI designers and creative professionals"
+    },
+    {
+      "name": "Business Professional",
+      "campaigns": ["Business", "Communication", "Analysis"],
+      "description": "For business professionals and consultants"
+    },
+    {
+      "name": "Full Setup",
+      "campaigns": ["Debugging", "UX Design", "Coding", "Writing", "Analysis"],
+      "description": "Complete setup with most commonly used campaigns"
+    }
+  ],
+  "icons": {
+    "available": [
+      "bug", "palette", "code", "pen-tool", "chart-bar", "cog", 
+      "book-open", "sparkles", "briefcase", "message-circle",
+      "folder", "file-text", "star", "heart", "zap", "target",
+      "lightbulb", "puzzle", "shield", "clock", "compass", "map"
+    ],
+    "default": "folder"
+  },
+  "colors": {
+    "palette": [
+      "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16",
+      "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
+      "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#c084fc",
+      "#d946ef", "#ec4899", "#f43f5e", "#6b7280", "#374151"
+    ],
+    "default": "#3b82f6"
+  }
+}

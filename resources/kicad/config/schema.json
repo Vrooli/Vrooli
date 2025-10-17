@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KiCad Resource Configuration Schema",
+  "description": "Configuration schema for the KiCad electronic design automation resource",
+  "type": "object",
+  "properties": {
+    "data_dir": {
+      "type": "string",
+      "description": "Base directory for KiCad data storage",
+      "default": "${VROOLI_DATA_DIR}/resources/kicad"
+    },
+    "projects_dir": {
+      "type": "string",
+      "description": "Directory for KiCad projects",
+      "default": "${KICAD_DATA_DIR}/projects"
+    },
+    "libraries_dir": {
+      "type": "string",
+      "description": "Directory for component libraries",
+      "default": "${KICAD_DATA_DIR}/libraries"
+    },
+    "templates_dir": {
+      "type": "string",
+      "description": "Directory for project templates",
+      "default": "${KICAD_DATA_DIR}/templates"
+    },
+    "outputs_dir": {
+      "type": "string",
+      "description": "Directory for exported files",
+      "default": "${KICAD_DATA_DIR}/outputs"
+    },
+    "logs_dir": {
+      "type": "string",
+      "description": "Directory for KiCad logs",
+      "default": "${KICAD_DATA_DIR}/logs"
+    },
+    "port": {
+      "type": "integer",
+      "description": "Port for KiCad API server (if applicable)",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8095
+    },
+    "host": {
+      "type": "string",
+      "description": "Host for KiCad API server",
+      "default": "localhost"
+    },
+    "python_version": {
+      "type": "string",
+      "description": "Python version for KiCad scripting",
+      "enum": ["python3", "python3.8", "python3.9", "python3.10", "python3.11"],
+      "default": "python3"
+    },
+    "use_gui": {
+      "type": "boolean",
+      "description": "Enable GUI mode (requires display)",
+      "default": false
+    },
+    "export_formats": {
+      "type": "array",
+      "description": "Supported export formats",
+      "items": {
+        "type": "string",
+        "enum": ["gerber", "pdf", "svg", "step", "pos", "drill", "dxf", "vrml"]
+      },
+      "default": ["gerber", "pdf", "svg", "step"]
+    },
+    "drc_settings": {
+      "type": "object",
+      "description": "Design Rule Check settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable automatic DRC on export",
+          "default": true
+        },
+        "min_track_width": {
+          "type": "number",
+          "description": "Minimum track width in mm",
+          "minimum": 0.1,
+          "default": 0.2
+        },
+        "min_via_diameter": {
+          "type": "number",
+          "description": "Minimum via diameter in mm",
+          "minimum": 0.2,
+          "default": 0.4
+        },
+        "min_clearance": {
+          "type": "number",
+          "description": "Minimum clearance in mm",
+          "minimum": 0.1,
+          "default": 0.2
+        }
+      }
+    },
+    "library_sources": {
+      "type": "array",
+      "description": "External library sources",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Library source name"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Library repository URL"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["git", "http", "local"],
+            "description": "Library source type"
+          }
+        },
+        "required": ["name", "url", "type"]
+      },
+      "default": []
+    },
+    "auto_backup": {
+      "type": "object",
+      "description": "Automatic backup settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable automatic backups",
+          "default": false
+        },
+        "interval": {
+          "type": "integer",
+          "description": "Backup interval in seconds",
+          "minimum": 60,
+          "default": 3600
+        },
+        "max_backups": {
+          "type": "integer",
+          "description": "Maximum number of backups to keep",
+          "minimum": 1,
+          "default": 10
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance tuning settings",
+      "properties": {
+        "max_memory_mb": {
+          "type": "integer",
+          "description": "Maximum memory usage in MB",
+          "minimum": 256,
+          "default": 1024
+        },
+        "parallel_jobs": {
+          "type": "integer",
+          "description": "Number of parallel export jobs",
+          "minimum": 1,
+          "maximum": 8,
+          "default": 2
+        },
+        "cache_enabled": {
+          "type": "boolean",
+          "description": "Enable library caching",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": ["data_dir"],
+  "additionalProperties": false
+}

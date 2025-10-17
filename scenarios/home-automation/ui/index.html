@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏠 Home Automation Intelligence</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__homeAutomationBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[HomeAutomation] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'home-automation' });
+            window.__homeAutomationBridgeInitialized = true;
+        }
+    </script>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>🏠 Home Intelligence</h1>
+                    <span class="tagline">Self-Evolving Automation</span>
+                </div>
+                
+                <div class="header-controls">
+                    <div class="connection-status" id="connectionStatus">
+                        <div class="status-indicator offline"></div>
+                        <span>Connecting...</span>
+                    </div>
+                    
+                    <div class="user-profile" id="userProfile">
+                        <div class="profile-avatar">👤</div>
+                        <span class="profile-name">Guest</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="tab-button active" data-tab="devices">🔌 Devices</button>
+            <button class="tab-button" data-tab="scenes">🎬 Scenes</button>
+            <button class="tab-button" data-tab="automations">🤖 Automations</button>
+            <button class="tab-button" data-tab="energy">⚡ Energy</button>
+            <button class="tab-button" data-tab="settings">⚙️ Settings</button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Devices Tab -->
+            <div class="tab-content active" id="devices-tab">
+                <div class="section-header">
+                    <h2>🔌 Connected Devices</h2>
+                    <div class="section-actions">
+                        <button class="btn btn-secondary" id="refreshDevices">🔄 Refresh</button>
+                        <select class="device-filter" id="deviceFilter">
+                            <option value="all">All Devices</option>
+                            <option value="lights">Lights</option>
+                            <option value="sensors">Sensors</option>
+                            <option value="switches">Switches</option>
+                            <option value="climate">Climate</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="devices-grid" id="devicesGrid">
+                    <!-- Device tiles will be dynamically populated -->
+                    <div class="device-placeholder">
+                        <div class="placeholder-icon">🔍</div>
+                        <p>Discovering devices...</p>
+                        <small>Make sure Home Assistant is connected</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenes Tab -->
+            <div class="tab-content" id="scenes-tab">
+                <div class="section-header">
+                    <h2>🎬 Smart Scenes</h2>
+                    <button class="btn btn-primary" id="createScene">➕ Create Scene</button>
+                </div>
+                
+                <div class="scenes-grid" id="scenesGrid">
+                    <div class="scene-placeholder">
+                        <div class="placeholder-icon">🎭</div>
+                        <p>No scenes configured</p>
+                        <small>Create your first automated scene</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Automations Tab -->
+            <div class="tab-content" id="automations-tab">
+                <div class="section-header">
+                    <h2>🤖 AI Automations</h2>
+                    <button class="btn btn-primary" id="createAutomation">✨ Create with AI</button>
+                </div>
+                
+                <div class="automation-creator" id="automationCreator" style="display: none;">
+                    <div class="creator-header">
+                        <h3>Describe Your Automation</h3>
+                        <button class="btn-close" id="closeCreator">✕</button>
+                    </div>
+                    
+                    <div class="creator-content">
+                        <textarea 
+                            id="automationDescription" 
+                            placeholder="Example: 'Turn on living room lights when I get home after sunset, but only on weekdays'"
+                            rows="4"
+                        ></textarea>
+                        
+                        <div class="creator-actions">
+                            <button class="btn btn-secondary" id="cancelCreation">Cancel</button>
+                            <button class="btn btn-primary" id="generateAutomation">🧠 Generate Automation</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="automations-list" id="automationsList">
+                    <div class="automation-placeholder">
+                        <div class="placeholder-icon">🤖</div>
+                        <p>No automations yet</p>
+                        <small>Let AI create your first intelligent automation</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Energy Tab -->
+            <div class="tab-content" id="energy-tab">
+                <div class="section-header">
+                    <h2>⚡ Energy Management</h2>
+                    <div class="energy-summary">
+                        <div class="energy-stat">
+                            <span class="stat-value" id="currentUsage">-- kW</span>
+                            <span class="stat-label">Current Usage</span>
+                        </div>
+                        <div class="energy-stat">
+                            <span class="stat-value" id="todayUsage">-- kWh</span>
+                            <span class="stat-label">Today</span>
+                        </div>
+                        <div class="energy-stat">
+                            <span class="stat-value" id="monthlyUsage">-- kWh</span>
+                            <span class="stat-label">This Month</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="energy-content">
+                    <div class="energy-placeholder">
+                        <div class="placeholder-icon">📊</div>
+                        <p>Energy monitoring coming soon</p>
+                        <small>Connect energy meters for detailed analytics</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-content" id="settings-tab">
+                <div class="section-header">
+                    <h2>⚙️ System Settings</h2>
+                </div>
+                
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>👥 User Profiles</h3>
+                        <p>Manage user access and permissions</p>
+                        <button class="btn btn-secondary" id="manageProfiles">Manage</button>
+                    </div>
+                    
+                    <div class="settings-card">
+                        <h3>🔐 Security</h3>
+                        <p>Authentication and access control</p>
+                        <button class="btn btn-secondary" id="securitySettings">Configure</button>
+                    </div>
+                    
+                    <div class="settings-card">
+                        <h3>📅 Calendar Integration</h3>
+                        <p>Schedule-aware automation</p>
+                        <button class="btn btn-secondary" id="calendarSettings">Setup</button>
+                    </div>
+                    
+                    <div class="settings-card">
+                        <h3>🏠 Home Assistant</h3>
+                        <p>Device discovery and control</p>
+                        <div class="status-badge" id="haStatus">Unknown</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p id="loadingMessage">Processing...</p>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

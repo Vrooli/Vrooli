@@ -1,0 +1,122 @@
+=== RUN   TestHealthHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestHealthHandler/Success
+--- PASS: TestHealthHandler (0.00s)
+    --- PASS: TestHealthHandler/Success (0.00s)
+=== RUN   TestCreateRecipeHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestCreateRecipeHandler/Success
+=== RUN   TestCreateRecipeHandler/InvalidJSON
+=== RUN   TestCreateRecipeHandler/EmptyBody
+--- PASS: TestCreateRecipeHandler (0.00s)
+    --- PASS: TestCreateRecipeHandler/Success (0.00s)
+    --- PASS: TestCreateRecipeHandler/InvalidJSON (0.00s)
+    --- PASS: TestCreateRecipeHandler/EmptyBody (0.00s)
+=== RUN   TestGetRecipeHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestGetRecipeHandler/Success
+=== RUN   TestGetRecipeHandler/NonExistentRecipe
+=== RUN   TestGetRecipeHandler/UnauthorizedAccess
+--- PASS: TestGetRecipeHandler (0.00s)
+    --- PASS: TestGetRecipeHandler/Success (0.00s)
+    --- PASS: TestGetRecipeHandler/NonExistentRecipe (0.00s)
+    --- PASS: TestGetRecipeHandler/UnauthorizedAccess (0.00s)
+=== RUN   TestListRecipesHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestListRecipesHandler/Success
+    test_helpers.go:270: Expected status 200, got 500. Response: Database not available
+=== RUN   TestListRecipesHandler/WithFilters
+--- FAIL: TestListRecipesHandler (0.00s)
+    --- FAIL: TestListRecipesHandler/Success (0.00s)
+    --- PASS: TestListRecipesHandler/WithFilters (0.00s)
+=== RUN   TestUpdateRecipeHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestUpdateRecipeHandler/Success
+=== RUN   TestUpdateRecipeHandler/InvalidJSON
+--- PASS: TestUpdateRecipeHandler (0.00s)
+    --- PASS: TestUpdateRecipeHandler/Success (0.00s)
+    --- PASS: TestUpdateRecipeHandler/InvalidJSON (0.00s)
+=== RUN   TestDeleteRecipeHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestDeleteRecipeHandler/Success
+=== RUN   TestDeleteRecipeHandler/UnauthorizedDelete
+=== RUN   TestDeleteRecipeHandler/NonExistentRecipe
+--- PASS: TestDeleteRecipeHandler (0.00s)
+    --- PASS: TestDeleteRecipeHandler/Success (0.00s)
+    --- PASS: TestDeleteRecipeHandler/UnauthorizedDelete (0.00s)
+    --- PASS: TestDeleteRecipeHandler/NonExistentRecipe (0.00s)
+=== RUN   TestSearchRecipesHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestSearchRecipesHandler/Success
+=== RUN   TestSearchRecipesHandler/InvalidJSON
+=== RUN   TestSearchRecipesHandler/WithFilters
+--- PASS: TestSearchRecipesHandler (0.00s)
+    --- PASS: TestSearchRecipesHandler/Success (0.00s)
+    --- PASS: TestSearchRecipesHandler/InvalidJSON (0.00s)
+    --- PASS: TestSearchRecipesHandler/WithFilters (0.00s)
+=== RUN   TestGenerateRecipeHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestGenerateRecipeHandler/Success
+=== RUN   TestGenerateRecipeHandler/InvalidJSON
+=== RUN   TestGenerateRecipeHandler/WithDietaryRestrictions
+--- PASS: TestGenerateRecipeHandler (0.00s)
+    --- PASS: TestGenerateRecipeHandler/Success (0.00s)
+    --- PASS: TestGenerateRecipeHandler/InvalidJSON (0.00s)
+    --- PASS: TestGenerateRecipeHandler/WithDietaryRestrictions (0.00s)
+=== RUN   TestModifyRecipeHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestModifyRecipeHandler/Success
+=== RUN   TestModifyRecipeHandler/InvalidJSON
+--- PASS: TestModifyRecipeHandler (0.00s)
+    --- PASS: TestModifyRecipeHandler/Success (0.00s)
+    --- PASS: TestModifyRecipeHandler/InvalidJSON (0.00s)
+=== RUN   TestRateRecipeHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestRateRecipeHandler/Success
+=== RUN   TestRateRecipeHandler/InvalidRating
+--- PASS: TestRateRecipeHandler (0.00s)
+    --- PASS: TestRateRecipeHandler/Success (0.00s)
+    --- PASS: TestRateRecipeHandler/InvalidRating (0.00s)
+=== RUN   TestShareRecipeHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestShareRecipeHandler/Success
+--- PASS: TestShareRecipeHandler (0.00s)
+    --- PASS: TestShareRecipeHandler/Success (0.00s)
+=== RUN   TestGenerateShoppingListHandler
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestGenerateShoppingListHandler/Success
+=== RUN   TestGenerateShoppingListHandler/InvalidJSON
+--- PASS: TestGenerateShoppingListHandler (0.00s)
+    --- PASS: TestGenerateShoppingListHandler/Success (0.00s)
+    --- PASS: TestGenerateShoppingListHandler/InvalidJSON (0.00s)
+=== RUN   TestUserPreferencesHandlers
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestUserPreferencesHandlers/GetPreferences
+=== RUN   TestUserPreferencesHandlers/UpdatePreferences
+--- PASS: TestUserPreferencesHandlers (0.00s)
+    --- PASS: TestUserPreferencesHandlers/GetPreferences (0.00s)
+    --- PASS: TestUserPreferencesHandlers/UpdatePreferences (0.00s)
+=== RUN   TestPerformance
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestPerformance/CreateRecipePerformance
+    main_test.go:853: Average recipe creation time: 15.928µs
+=== RUN   TestPerformance/ListRecipesPerformance
+    main_test.go:880: List recipes execution time: 10.06µs
+--- PASS: TestPerformance (0.00s)
+    --- PASS: TestPerformance/CreateRecipePerformance (0.00s)
+    --- PASS: TestPerformance/ListRecipesPerformance (0.00s)
+=== RUN   TestEdgeCases
+    test_helpers.go:111: Warning: Failed to ping test database: dial tcp 127.0.0.1:5432: connect: connection refused
+=== RUN   TestEdgeCases/EmptyIngredients
+=== RUN   TestEdgeCases/VeryLongRecipeTitle
+=== RUN   TestEdgeCases/NegativeCookTime
+=== RUN   TestEdgeCases/ZeroServings
+--- PASS: TestEdgeCases (0.00s)
+    --- PASS: TestEdgeCases/EmptyIngredients (0.00s)
+    --- PASS: TestEdgeCases/VeryLongRecipeTitle (0.00s)
+    --- PASS: TestEdgeCases/NegativeCookTime (0.00s)
+    --- PASS: TestEdgeCases/ZeroServings (0.00s)
+FAIL
+coverage: 42.2% of statements
+exit status 1
+FAIL	recipe-book	0.008s

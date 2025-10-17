@@ -1,0 +1,332 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "comment-system",
+    "displayName": "Universal Comment System",
+    "description": "Microservice providing collaborative comment functionality for all Vrooli scenarios. Enables discussion, feedback, and community features across the entire ecosystem.",
+    "version": "1.0.0",
+    "tags": [
+      "social",
+      "comments",
+      "collaboration",
+      "microservice",
+      "universal-capability",
+      "community-features",
+      "go-api",
+      "postgres-storage",
+      "javascript-sdk",
+      "notification-integration",
+      "session-auth-integration",
+      "markdown-support",
+      "threading",
+      "moderation-ready"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Comment system REST API port",
+      "range": "15000-19999"
+    },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Admin dashboard and SDK hosting port",
+       "range": "35000-39999"
+     }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Primary storage for comments, configurations, history, and user data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Optional caching layer for frequently accessed comments and real-time updates"
+    }
+  },
+  "dependencies": {
+    "scenarios": [
+      {
+        "name": "session-authenticator",
+        "required": true,
+        "purpose": "User authentication and profile management",
+        "interface": "REST API"
+      },
+      {
+        "name": "notification-hub", 
+        "required": true,
+        "purpose": "Push notifications for comments, replies, and mentions",
+        "interface": "Event publishing"
+      }
+    ]
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Comment System health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health/postgres",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "ui_serving",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Universal Comment System",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "comment-system-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "comment-system"
+             ]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          },
+          {
+            "type": "file_exists",
+            "targets": [
+              "ui/sdk/vrooli-comments.js"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install comment-system CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o comment-system-api .",
+          "description": "Build Go REST API server binary"
+        },
+        {
+          "name": "build-ui-sdk",
+          "run": "cd ui && npm install && npm run build",
+          "description": "Build admin dashboard and JavaScript SDK",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "initialize-database",
+          "run": "cd api && ./comment-system-api --init-db",
+          "description": "Initialize database schema and default configurations"
+        },
+        {
+          "name": "validate-integration",
+          "run": "comment-system status --json | jq -e '.dependencies.session_authenticator.status == \"connected\" and .dependencies.notification_hub.status == \"connected\"'",
+          "description": "Validate integration with required scenarios",
+          "condition": {
+            "command_exists": "jq"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Universal Comment System initialized\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nIntegration Guide: http://localhost:${UI_PORT}/docs/integration'",
+          "description": "Display service access URLs and integration information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start comment system with API server and admin UI",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./comment-system-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/comment-system-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev -- --port ${UI_PORT}",
+          "description": "Start admin dashboard and SDK server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nAPI Endpoints:\\n  GET /api/v1/comments/{scenario}\\n  POST /api/v1/comments/{scenario}\\n  PUT /api/v1/comments/{id}\\n  DELETE /api/v1/comments/{id}\\n  GET /api/v1/config/{scenario}\\n  POST /api/v1/config/{scenario}\\n\\nIntegration Examples:\\n  http://localhost:${UI_PORT}/docs/integration'",
+           "description": "Display all running service URLs and endpoints"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test comment system API, CLI, and integrations",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-postgres-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health/postgres",
+          "description": "Test database connectivity"
+        },
+        {
+          "name": "test-comment-crud",
+          "run": "bash test/test-comment-crud.sh",
+          "description": "Test comment CRUD operations",
+          "condition": {
+            "file_exists": "test/test-comment-crud.sh"
+          }
+        },
+        {
+          "name": "test-threading",
+          "run": "bash test/test-threading.sh",
+          "description": "Test comment threading and reply functionality",
+          "condition": {
+            "file_exists": "test/test-threading.sh"
+          }
+        },
+        {
+          "name": "test-configuration",
+          "run": "bash test/test-configuration.sh", 
+          "description": "Test scenario configuration management",
+          "condition": {
+            "file_exists": "test/test-configuration.sh"
+          }
+        },
+        {
+          "name": "test-integration",
+          "run": "bash test/test-integration.sh",
+          "description": "Test session-authenticator and notification-hub integration",
+          "condition": {
+            "file_exists": "test/test-integration.sh"
+          }
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats comment-system.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/comment-system.bats"
+          }
+        },
+        {
+          "name": "test-sdk-functionality",
+          "run": "cd ui && npm test",
+          "description": "Test JavaScript SDK functionality",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "test-performance",
+          "run": "bash test/test-performance.sh",
+          "description": "Test API performance under load",
+          "condition": {
+            "file_exists": "test/test-performance.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop comment system services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"comment-system-api\" || true; sleep 1; pkill -9 -f \"comment-system-api\" 2>/dev/null || true",
+          "description": "Stop API server process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"node.*comment-system.*ui\" || true; sleep 1; pkill -9 -f \"node.*comment-system.*ui\" 2>/dev/null || true",
+          "description": "Stop UI development server"
+        }
+      ]
+    }
+  },
+  "exports": {
+    "api": {
+      "url": "http://localhost:${API_PORT}",
+      "endpoints": [
+        "GET /api/v1/comments/{scenario}",
+        "POST /api/v1/comments/{scenario}", 
+        "PUT /api/v1/comments/{id}",
+        "DELETE /api/v1/comments/{id}",
+        "GET /api/v1/config/{scenario}",
+        "POST /api/v1/config/{scenario}"
+      ]
+    },
+    "sdk": {
+      "javascript": "http://localhost:${UI_PORT}/sdk/vrooli-comments.js",
+      "type": "universal",
+      "integration": "http://localhost:${UI_PORT}/docs/integration"
+    },
+    "cli": {
+      "command": "comment-system",
+      "description": "Full CLI interface for comment management and configuration"
+    }
+  },
+  "metadata": {
+    "category": "social",
+    "business_value": "Adds collaborative discussion capabilities to every Vrooli scenario",
+    "technical_value": "Universal microservice that eliminates need for custom comment systems",
+    "reusability_score": 10,
+    "enhances_scenarios": "*",
+    "revenue_potential": "15K-30K"
+  }
+}

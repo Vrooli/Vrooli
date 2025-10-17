@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Unstructured.io Configuration",
+  "description": "Configuration schema for Unstructured.io document processing resource",
+  "type": "object",
+  "properties": {
+    "processing": {
+      "type": "object",
+      "description": "Document processing configuration",
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["fast", "hi_res", "auto"],
+          "default": "hi_res",
+          "description": "Processing strategy - fast for speed, hi_res for accuracy, auto for automatic selection"
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["eng"],
+          "description": "OCR languages to use for text extraction"
+        },
+        "includePageBreaks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include page break markers in output"
+        },
+        "maxFileSize": {
+          "type": "string",
+          "pattern": "^[0-9]+(MB|GB)$",
+          "default": "50MB",
+          "description": "Maximum file size allowed for processing"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 3600,
+          "default": 300,
+          "description": "Processing timeout in seconds"
+        },
+        "maxConcurrentRequests": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5,
+          "description": "Maximum concurrent processing requests"
+        }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "description": "Cache configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable document processing cache"
+        },
+        "ttl": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 86400,
+          "default": 3600,
+          "description": "Cache TTL in seconds"
+        },
+        "directory": {
+          "type": "string",
+          "default": "/tmp/unstructured-cache",
+          "description": "Cache directory path"
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "description": "Docker container configuration",
+      "properties": {
+        "memoryLimit": {
+          "type": "string",
+          "pattern": "^[0-9]+(m|g)$",
+          "default": "4g",
+          "description": "Container memory limit"
+        },
+        "cpuLimit": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?$",
+          "default": "2.0",
+          "description": "Container CPU limit"
+        },
+        "image": {
+          "type": "string",
+          "default": "downloads.unstructured.io/unstructured-io/unstructured-api:0.0.78",
+          "description": "Docker image to use"
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "description": "Health check configuration",
+      "properties": {
+        "interval": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 300,
+          "default": 60,
+          "description": "Health check interval in seconds"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 5,
+          "description": "Health check timeout in seconds"
+        }
+      }
+    },
+    "outputFormats": {
+      "type": "array",
+      "description": "Supported output formats",
+      "items": {
+        "type": "string",
+        "enum": ["json", "markdown", "text", "elements"]
+      },
+      "default": ["json", "text"],
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

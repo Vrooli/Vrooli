@@ -1,0 +1,382 @@
+#!/bin/bash
+
+# Typing Test CLI
+# Provides command-line interface for typing test game
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# API endpoints
+# Use environment variable if set, otherwise use default from service port range
+API_PORT="${API_PORT:-${TYPING_TEST_API_PORT:-8200}}"
+API_BASE="http://localhost:${API_PORT}/api"
+
+# Show help
+show_help() {
+    cat << EOF
+🎮 Typing Test CLI - Test your typing skills from the command line
+
+Usage: typing-test [command] [options]
+
+Commands:
+    play [difficulty]       Start a quick typing test session
+    scores [period]         View leaderboard scores
+    submit <name> <wpm> <accuracy> <score>  Submit a score
+    practice [difficulty]   Get practice text
+    stats                   View personal statistics
+    coaching               Get typing improvement tips
+    
+Options:
+    --difficulty <level>    Set difficulty (easy/medium/hard)
+    --period <period>       Set time period (today/week/all)
+    --json                  Output in JSON format
+    --help                  Show this help message
+
+Examples:
+    typing-test play easy
+    typing-test scores today
+    typing-test submit "Player1" 65 95 1300
+    typing-test practice hard
+    typing-test coaching
+
+Difficulty Levels:
+    easy     - Simple words and short sentences
+    medium   - Longer sentences with common words
+    hard     - Complex vocabulary and technical terms
+
+Time Periods:
+    today    - Today's scores only
+    week     - Last 7 days
+    all      - All-time scores
+
+EOF
+}
+
+# Start a typing test session
+play_game() {
+    local difficulty="${1:-easy}"
+    
+    echo -e "${CYAN}🎮 Starting Typing Test - $difficulty mode${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Get practice text
+    text_data=$(curl -s "$API_BASE/practice-text?difficulty=$difficulty")
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Failed to connect to typing test API${NC}"
+        echo "Make sure the typing test service is running on port ${API_PORT}"
+        exit 1
+    fi
+    
+    # Extract random text
+    text=$(echo "$text_data" | python3 -c "
+import json, sys, random
+try:
+    data = json.load(sys.stdin)
+    texts = data.get('texts', [])
+    if texts:
+        print(texts[random.randint(0, len(texts)-1)])
+    else:
+        print('The quick brown fox jumps over the lazy dog.')
+except:
+    print('The quick brown fox jumps over the lazy dog.')
+" 2>/dev/null)
+    
+    echo -e "${YELLOW}Type the following text:${NC}"
+    echo ""
+    echo -e "${BLUE}$text${NC}"
+    echo ""
+    echo -e "${PURPLE}Press Enter when ready to start...${NC}"
+    read -r
+    
+    echo -e "${GREEN}GO!${NC}"
+    start_time=$(date +%s%N)
+    
+    echo -n "> "
+    read -r typed_text
+    
+    end_time=$(date +%s%N)
+    duration=$((($end_time - $start_time) / 1000000000))
+    
+    # Calculate stats
+    text_length=${#text}
+    typed_length=${#typed_text}
+    
+    # Count correct characters
+    correct_chars=0
+    min_length=$((text_length < typed_length ? text_length : typed_length))
+    
+    for ((i=0; i<min_length; i++)); do
+        if [ "${text:$i:1}" = "${typed_text:$i:1}" ]; then
+            correct_chars=$((correct_chars + 1))
+        fi
+    done
+    
+    # Calculate WPM (words per minute)
+    words=$((text_length / 5))  # Standard: 5 characters = 1 word
+    wpm=0
+    if [ $duration -gt 0 ]; then
+        wpm=$(echo "scale=0; $words * 60 / $duration" | bc 2>/dev/null || echo "0")
+    fi
+    
+    # Calculate accuracy
+    accuracy=0
+    if [ $text_length -gt 0 ]; then
+        accuracy=$(echo "scale=0; $correct_chars * 100 / $text_length" | bc 2>/dev/null || echo "0")
+    fi
+    
+    # Calculate score (basic scoring)
+    score=$(echo "$wpm * $accuracy / 100" | bc 2>/dev/null || echo "0")
+    
+    echo ""
+    echo -e "${CYAN}📊 Test Results:${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "  ⚡ WPM:      ${YELLOW}$wpm${NC}"
+    echo -e "  🎯 Accuracy: ${YELLOW}$accuracy%${NC}"
+    echo -e "  🏆 Score:    ${YELLOW}$score${NC}"
+    echo -e "  ⏱️  Time:     ${YELLOW}${duration}s${NC}"
+    echo -e "  ✅ Correct:  ${GREEN}$correct_chars/$text_length${NC}"
+    echo ""
+    
+    # Offer to submit score
+    echo -e "${PURPLE}Submit this score? (y/n):${NC} "
+    read -r submit_choice
+    
+    if [[ "$submit_choice" =~ ^[Yy]$ ]]; then
+        echo -n "Enter your name: "
+        read -r player_name
+        submit_score "$player_name" "$wpm" "$accuracy" "$score" "$difficulty"
+    fi
+}
+
+# View leaderboard scores
+view_scores() {
+    local period="${1:-all}"
+    
+    echo -e "${CYAN}🏆 Typing Test Leaderboard - $period${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    response=$(curl -s "$API_BASE/leaderboard?period=$period")
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Failed to fetch leaderboard${NC}"
+        exit 1
+    fi
+    
+    echo "$response" | python3 -c "
+import json, sys
+from datetime import datetime
+
+try:
+    data = json.load(sys.stdin)
+    scores = data.get('scores', [])
+    
+    if not scores:
+        print('No scores found for this period.')
+        sys.exit(0)
+    
+    print(f\"{'Rank':<4} {'Name':<15} {'WPM':<6} {'Accuracy':<8} {'Score':<8} {'Date':<12}\")
+    print('─' * 65)
+    
+    for i, score in enumerate(scores, 1):
+        name = score.get('name', 'Unknown')[:14]
+        wpm = score.get('wpm', 0)
+        accuracy = score.get('accuracy', 0)
+        score_val = score.get('score', 0)
+        created_at = score.get('createdAt', '')
+        
+        # Format date
+        try:
+            date_obj = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            date_str = date_obj.strftime('%m/%d/%Y')
+        except:
+            date_str = created_at[:10]
+        
+        print(f\"{i:<4} {name:<15} {wpm:<6} {accuracy}%{' ':<3} {score_val:<8} {date_str:<12}\")
+
+except Exception as e:
+    print(f'Error parsing leaderboard data: {e}')
+" 2>/dev/null || echo "Error displaying leaderboard"
+}
+
+# Submit a score
+submit_score() {
+    local name="$1"
+    local wpm="$2"
+    local accuracy="$3"
+    local score="$4"
+    local difficulty="${5:-easy}"
+    
+    if [ -z "$name" ] || [ -z "$wpm" ] || [ -z "$accuracy" ] || [ -z "$score" ]; then
+        echo -e "${RED}Error: All score parameters required${NC}"
+        echo "Usage: typing-test submit <name> <wpm> <accuracy> <score>"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Submitting score...${NC}"
+    
+    response=$(curl -s -X POST "$API_BASE/submit-score" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"name\": \"$name\",
+            \"wpm\": $wpm,
+            \"accuracy\": $accuracy,
+            \"score\": $score,
+            \"maxCombo\": 0,
+            \"difficulty\": \"$difficulty\",
+            \"mode\": \"cli\"
+        }")
+    
+    if echo "$response" | grep -q "success"; then
+        echo -e "${GREEN}✓ Score submitted successfully!${NC}"
+        echo -e "  Player: ${YELLOW}$name${NC}"
+        echo -e "  WPM: ${YELLOW}$wpm${NC}, Accuracy: ${YELLOW}$accuracy%${NC}, Score: ${YELLOW}$score${NC}"
+    else
+        echo -e "${RED}Failed to submit score${NC}"
+        echo "$response"
+        exit 1
+    fi
+}
+
+# Get practice text
+get_practice() {
+    local difficulty="${1:-easy}"
+    
+    echo -e "${BLUE}Practice Text - $difficulty difficulty:${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    response=$(curl -s "$API_BASE/practice-text?difficulty=$difficulty")
+    
+    echo "$response" | python3 -c "
+import json, sys, random
+
+try:
+    data = json.load(sys.stdin)
+    texts = data.get('texts', [])
+    
+    if texts:
+        for i, text in enumerate(texts, 1):
+            print(f'{i}. {text}')
+            print()
+    else:
+        print('No practice texts available')
+
+except Exception as e:
+    print(f'Error loading practice texts: {e}')
+" 2>/dev/null || echo "Error loading practice texts"
+}
+
+# Get typing coaching tips
+get_coaching() {
+    echo -e "${PURPLE}🎯 Typing Improvement Tips${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Mock user stats for coaching request
+    response=$(curl -s -X POST "$API_BASE/coaching" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"userStats\": {
+                \"wpm\": 40,
+                \"accuracy\": 90
+            },
+            \"difficulty\": \"easy\"
+        }")
+    
+    echo "$response" | python3 -c "
+import json, sys
+
+try:
+    data = json.load(sys.stdin)
+    coaching = data.get('coaching', {})
+    
+    technique = coaching.get('technique', 'Practice regularly to improve your typing speed.')
+    encouragement = coaching.get('encouragement', 'Keep practicing!')
+    
+    print(f'💡 Technique Tip:')
+    print(f'   {technique}')
+    print()
+    print(f'🌟 Encouragement:')
+    print(f'   {encouragement}')
+    print()
+    
+    metrics = coaching.get('personalizedMetrics', {})
+    if metrics:
+        print(f'📈 Your Goals:')
+        print(f'   Target WPM: {metrics.get(\"targetWpm\", \"N/A\")}')
+        print(f'   Accuracy Goal: {metrics.get(\"accuracyGoal\", \"N/A\")}%')
+
+except Exception as e:
+    print('💡 General Typing Tips:')
+    print('   • Keep your wrists straight and fingers curved')
+    print('   • Use proper finger placement on home row keys')
+    print('   • Look at the screen, not the keyboard')
+    print('   • Practice regularly for muscle memory')
+    print('   • Focus on accuracy before speed')
+" 2>/dev/null
+}
+
+# Check API health
+check_api() {
+    response=$(curl -s "$API_BASE/health")
+    if echo "$response" | grep -q "healthy"; then
+        echo -e "${GREEN}✓ Typing Test API is running${NC}"
+    else
+        echo -e "${RED}✗ Typing Test API is not responding${NC}"
+        echo "Make sure the service is running on port 9200"
+        exit 1
+    fi
+}
+
+# Main command processing
+case "$1" in
+    play)
+        check_api
+        play_game "$2"
+        ;;
+    scores)
+        check_api
+        view_scores "$2"
+        ;;
+    submit)
+        check_api
+        submit_score "$2" "$3" "$4" "$5" "$6"
+        ;;
+    practice)
+        check_api
+        get_practice "$2"
+        ;;
+    coaching)
+        check_api
+        get_coaching
+        ;;
+    stats)
+        check_api
+        view_scores "all"
+        ;;
+    health|status)
+        check_api
+        ;;
+    --help|help)
+        show_help
+        ;;
+    --version|version)
+        echo "typing-test v1.0.0"
+        ;;
+    *)
+        if [ -z "$1" ]; then
+            show_help
+        else
+            echo -e "${RED}Unknown command: $1${NC}"
+            echo "Use 'typing-test --help' for usage information"
+            exit 1
+        fi
+        ;;
+esac

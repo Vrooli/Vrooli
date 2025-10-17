@@ -1,0 +1,24 @@
+{
+  "startup_order": 200,
+  "dependencies": [],
+  "optional_dependencies": ["gazebo", "pybullet"],
+  "startup_timeout": 30,
+  "startup_time_estimate": "10-30s",
+  "shutdown_timeout": 10,
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "robotics",
+  "description": "Robot Operating System 2 middleware for distributed robotics",
+  "memory_requirements": "512MB-2GB",
+  "cpu_requirements": "2-4 cores",
+  "network_requirements": "multicast support for DDS",
+  "health_check_interval": 30,
+  "capabilities": [
+    "distributed_computing",
+    "real_time_control",
+    "hardware_abstraction",
+    "sensor_fusion",
+    "navigation",
+    "multi_robot_coordination"
+  ]
+}

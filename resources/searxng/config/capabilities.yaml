@@ -1,0 +1,241 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: searxng
+  category: search
+  subcategory: metasearch
+  description: "Privacy-respecting metasearch engine aggregating results from multiple search engines"
+  maturity: stable
+  complexity: simple
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - metasearch-aggregation
+      - privacy-preserving-search
+      - multi-engine-results
+      - api-based-search
+    secondary:
+      - result-filtering
+      - search-customization
+      - category-search
+      - json-api-output
+    specialized:
+      - search-engine-aggregation
+      - no-tracking-search
+      - local-search-proxy
+      - research-automation
+  
+  # API interfaces available
+  interfaces:
+    - name: search-api
+      endpoint: "/search"
+      method: [GET, POST]
+      inputTypes: [application/x-www-form-urlencoded, application/json]
+      outputTypes: [application/json, text/html, text/csv]
+      description: "Search across multiple engines with customizable parameters"
+    - name: suggestions
+      endpoint: "/autocompleter"
+      method: [GET]
+      inputTypes: [text/plain]
+      outputTypes: [application/json]
+      description: "Get search suggestions and autocompletion"
+    - name: config-info
+      endpoint: "/config"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "Get instance configuration and enabled engines"
+    - name: health-check
+      endpoint: "/healthz"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [text/plain]
+      description: "Health status check endpoint"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - docker
+      - internet-connection
+    optional:
+      - redis
+      - tor-proxy
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - research-assistant
+      - idea-generator
+      - document-manager
+    secondary:
+      - brand-manager
+      - campaign-content-studio
+      - workflow-scheduler
+    optimal_combinations:
+      - [searxng, ollama, qdrant]           # AI-powered research workflows
+      - [searxng, n8n, postgres]           # Automated research pipelines
+      - [searxng, whisper, minio]          # Multi-modal research platform
+      - [searxng, agent-s2, browserless]   # Comprehensive web research
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 3000
+      max: 15000
+      currency: USD
+    complexity_score: 4  # 1-10 scale
+    implementation_time: "1-2 days"
+    upwork_demand: medium
+    target_industries:
+      - research-services
+      - content-creation
+      - market-research
+      - competitive-intelligence
+      - educational-technology
+      - privacy-focused-solutions
+    common_project_types:
+      - "Privacy-focused search platform"
+      - "Research automation system"
+      - "Competitive intelligence dashboard"
+      - "Content research pipeline"
+      - "Academic research tool"
+  
+  # Technical specifications
+  technical:
+    ports: [8280]
+    protocols: [http, https]
+    data_formats: [json, html, csv, rss]
+    resource_requirements:
+      memory:
+        minimum: "512MB"
+        recommended: "1GB"
+        optimal: "2GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "4+ cores"
+      storage:
+        minimum: "500MB"
+        recommended: "2GB"
+        optimal: "10GB+"
+      database:
+        required: false
+        recommended: false
+        supported: [redis]
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_searches: 100
+      execution_modes: [instant, cached, batch]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - research-automation
+      - content-discovery
+      - competitive-analysis
+      - information-aggregation
+    integration_targets:
+      preferred: [ollama, n8n, postgres, qdrant]
+      compatible: [whisper, minio, vault, agent-s2]
+      avoid: [data-storage, computation-heavy-tasks]
+    workflow_templates:
+      research: "Define search terms → Query SearXNG → Process results → Store findings → Generate report"
+      monitoring: "Monitor search terms → Aggregate results → Detect changes → Send notifications"
+      analysis: "Search multiple topics → Compare results → Extract insights → Create summaries"
+    complexity_indicators:
+      simple: ["basic search queries", "single result processing", "simple filtering"]
+      intermediate: ["multi-query research", "result aggregation", "automated monitoring"]
+      advanced: ["complex research workflows", "AI-powered analysis", "enterprise research platforms"]
+  
+  # Specialized features
+  features:
+    privacy_protection:
+      enabled: true
+      description: "No tracking, logging, or data collection of user searches"
+      features: ["no-cookies", "no-logging", "no-profiling"]
+    multi_engine_support:
+      enabled: true
+      description: "Aggregate results from 70+ search engines"
+      engines: ["google", "bing", "duckduckgo", "startpage", "yandex", "baidu"]
+    customizable_results:
+      enabled: true
+      description: "Configurable result filtering and ranking"
+      options: ["language", "region", "time-range", "safe-search"]
+    api_formats:
+      enabled: true
+      description: "Multiple output formats for API integration"
+      formats: ["json", "html", "csv", "rss", "opensearch"]
+  
+  # Integration capabilities
+  integrations:
+    search_engines:
+      general: ["google", "bing", "duckduckgo", "startpage", "yandex"]
+      academic: ["arxiv", "google_scholar", "semantic_scholar"]
+      media: ["flickr", "deviantart", "unsplash"]
+      code: ["github", "gitlab", "stackoverflow"]
+      news: ["bing_news", "google_news", "reuters"]
+    categories:
+      - general
+      - images
+      - videos
+      - news
+      - maps
+      - music
+      - it
+      - science
+    output_formats:
+      - json
+      - html
+      - csv
+      - rss
+      - opensearch
+  
+  # Testing and validation
+  testing:
+    test_file: "resources/searxng/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - search_functionality
+      - api_responses
+      - multi_engine_aggregation
+      - result_formatting
+    fixtures:
+      - test_search_queries
+      - expected_response_formats
+      - performance_benchmarks
+    integration_tests:
+      - searxng_n8n_workflow
+      - searxng_ollama_research
+      - multi_query_automation
+  
+  # Documentation and examples
+  documentation:
+    readme: "resources/searxng/README.md"
+    api_reference: "resources/searxng/docs/API.md"
+    examples_dir: "resources/searxng/examples/"
+    configuration: "resources/searxng/docs/CONFIGURATION.md"
+    troubleshooting: "resources/searxng/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "1.0.0"
+    tested_version: "latest"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      python: ">=3.8"
+      redis: ">=6.0"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "search"
+  resource.vrooli.com/type: "metasearch"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "medium"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/privacy-focused: "true"

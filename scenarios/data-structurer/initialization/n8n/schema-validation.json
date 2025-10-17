@@ -1,0 +1,213 @@
+{
+  "name": "Schema Validation Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "schema-validation-webhook"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "schema_definition",
+              "value": "={{ JSON.stringify($json.schema_definition) }}"
+            },
+            {
+              "name": "test_data",
+              "value": "={{ JSON.stringify($json.test_data) }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-inputs",
+      "name": "Extract Inputs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate JSON Schema\nconst schemaDefStr = $json.schema_definition;\nconst testDataStr = $json.test_data;\n\ntry {\n  // Parse inputs\n  const schemaDef = JSON.parse(schemaDefStr);\n  const testData = JSON.parse(testDataStr);\n  \n  // Basic schema structure validation\n  const errors = [];\n  const warnings = [];\n  \n  // Check required schema properties\n  if (!schemaDef.type) {\n    errors.push('Schema must have a \"type\" property');\n  }\n  \n  if (schemaDef.type === 'object' && !schemaDef.properties) {\n    errors.push('Object schema must have \"properties\"');\n  }\n  \n  // Validate test data against schema\n  if (schemaDef.type === 'object' && schemaDef.properties) {\n    const schemaProps = Object.keys(schemaDef.properties);\n    const dataProps = Object.keys(testData);\n    \n    // Check required properties\n    const required = schemaDef.required || [];\n    const missingRequired = required.filter(prop => !dataProps.includes(prop));\n    if (missingRequired.length > 0) {\n      errors.push(`Missing required properties: ${missingRequired.join(', ')}`);\n    }\n    \n    // Check property types\n    for (const prop of dataProps) {\n      if (schemaDef.properties[prop]) {\n        const expectedType = schemaDef.properties[prop].type;\n        const actualType = typeof testData[prop];\n        \n        // Type mapping\n        const typeMap = {\n          'string': 'string',\n          'number': 'number', \n          'integer': 'number',\n          'boolean': 'boolean',\n          'array': 'object',\n          'object': 'object'\n        };\n        \n        if (expectedType === 'array' && !Array.isArray(testData[prop])) {\n          warnings.push(`Property \"${prop}\" should be an array`);\n        } else if (expectedType !== 'array' && typeMap[expectedType] !== actualType) {\n          warnings.push(`Property \"${prop}\" type mismatch: expected ${expectedType}, got ${actualType}`);\n        }\n      } else {\n        warnings.push(`Property \"${prop}\" not defined in schema`);\n      }\n    }\n  }\n  \n  // Calculate validation score\n  const totalChecks = errors.length + warnings.length + 5; // Base checks\n  const validationScore = Math.max(0, (totalChecks - errors.length * 2 - warnings.length) / totalChecks);\n  \n  return [{\n    validation_result: {\n      valid: errors.length === 0,\n      errors: errors,\n      warnings: warnings,\n      validation_score: validationScore,\n      schema_complexity: Object.keys(schemaDef.properties || {}).length,\n      test_data_coverage: Object.keys(testData).length / Object.keys(schemaDef.properties || {}).length\n    }\n  }];\n  \n} catch (error) {\n  return [{\n    validation_result: {\n      valid: false,\n      errors: [`Validation error: ${error.message}`],\n      warnings: [],\n      validation_score: 0\n    }\n  }];\n}"
+      },
+      "id": "validate-schema",
+      "name": "Validate Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:${RESOURCE_PORTS[ollama]}/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type", 
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "prompt",
+              "value": "Review this JSON schema for data extraction and provide suggestions for improvement:\\n\\nSchema: {{ $node[\"Extract Inputs\"].json.schema_definition }}\\n\\nConsider:\\n1. Completeness of properties\\n2. Appropriate data types\\n3. Required vs optional fields\\n4. Description clarity\\n5. Extraction difficulty\\n\\nProvide 3-5 specific suggestions in JSON format: {\\\"suggestions\\\": [\\\"suggestion1\\\", \\\"suggestion2\\\", ...]}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "id": "ai-schema-review",
+      "name": "AI Schema Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI suggestions\nconst ollamaResponse = $input.first().json.response;\nconst validationResult = $node[\"Validate Schema\"].first().json.validation_result;\n\ntry {\n  // Extract JSON from AI response\n  const jsonMatch = ollamaResponse.match(/\\{[\\s\\S]*\\}/);\n  let aiSuggestions = [];\n  \n  if (jsonMatch) {\n    const parsed = JSON.parse(jsonMatch[0]);\n    aiSuggestions = parsed.suggestions || [];\n  }\n  \n  // Combine validation results with AI suggestions\n  const finalResult = {\n    ...validationResult,\n    ai_suggestions: aiSuggestions,\n    improvement_recommendations: [\n      ...validationResult.errors.map(err => ({ type: 'error', message: err })),\n      ...validationResult.warnings.map(warn => ({ type: 'warning', message: warn })),\n      ...aiSuggestions.map(sugg => ({ type: 'suggestion', message: sugg }))\n    ]\n  };\n  \n  return [{ schema_validation: finalResult }];\n  \n} catch (error) {\n  return [{\n    schema_validation: {\n      ...validationResult,\n      ai_suggestions: [],\n      ai_error: error.message\n    }\n  }];\n}"
+      },
+      "id": "combine-results",
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{{ JSON.stringify($json.schema_validation, null, 2) }}"
+      },
+      "id": "return-validation-result",
+      "name": "Return Validation Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 120]
+    },
+    {
+      "parameters": {
+        "values": {
+          "object": [
+            {
+              "name": "schema_definition",
+              "value": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"name\": {\"type\": \"string\"},\n    \"email\": {\"type\": \"string\", \"format\": \"email\"},\n    \"age\": {\"type\": \"integer\"}\n  },\n  \"required\": [\"name\", \"email\"]\n}"
+            },
+            {
+              "name": "test_data",
+              "value": "{\n  \"name\": \"John Smith\",\n  \"email\": \"john@example.com\",\n  \"age\": 30\n}"
+            }
+          ]
+        }
+      },
+      "id": "test-schema-data",
+      "name": "Test Schema Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 120]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Inputs": {
+      "main": [
+        [
+          {
+            "node": "Validate Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Schema": {
+      "main": [
+        [
+          {
+            "node": "AI Schema Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Schema Review": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Results": {
+      "main": [
+        [
+          {
+            "node": "Return Validation Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Test Schema Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Schema Data": {
+      "main": [
+        [
+          {
+            "node": "Validate Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1"
+}

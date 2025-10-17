@@ -1,0 +1,36 @@
+# Priority Weight Configuration
+# These weights are used in the priority calculation formula:
+# Priority = (Impact × Urgency × Success_Probability) / (Resource_Cost × Cooldown_Factor)
+
+weights:
+  impact: 1.0        # Weight for task impact (1-10 scale)
+  urgency: 0.8       # Weight for urgency (critical=4, high=3, medium=2, low=1)
+  success: 0.6       # Weight for success probability (0-1)
+  cost: 0.5          # Weight for resource cost (minimal=1, moderate=2, heavy=3)
+
+# Priority Thresholds
+thresholds:
+  critical: 1000     # Priority score above this is critical
+  high: 500          # Priority score above this is high
+  medium: 200        # Priority score above this is medium
+  low: 100          # Priority score below this is low
+
+# Cooldown Configuration
+cooldown:
+  base_hours: 24     # Base cooldown period in hours
+  failure_multiplier: 2.0  # Multiply cooldown for each failure
+  max_cooldown: 168  # Maximum cooldown in hours (1 week)
+
+# Task Category Priorities (multipliers)
+category_modifiers:
+  critical-fix: 2.0      # System failures, security issues
+  user-request: 1.5      # Explicit user requests
+  system-health: 1.2     # Performance, optimization
+  capability-growth: 1.0 # New features, scenarios
+  knowledge-building: 0.8 # Documentation, testing
+
+# Learning Rate
+learning:
+  success_weight_increase: 0.1  # Increase weight after success
+  failure_weight_decrease: 0.05 # Decrease weight after failure
+  adjustment_interval: 10       # Adjust after N tasks

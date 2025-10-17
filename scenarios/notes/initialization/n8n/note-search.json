@@ -1,0 +1,272 @@
+{
+  "name": "note-search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notes/search",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300],
+      "id": "webhook-1"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 500],
+      "id": "manual-1"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "query",
+              "value": "={{ $json.query || 'machine learning algorithms' }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id || 'default-user' }}"
+            },
+            {
+              "name": "search_type",
+              "value": "={{ $json.search_type || 'hybrid' }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "limit",
+              "value": "={{ $json.limit || 10 }}"
+            }
+          ]
+        }
+      },
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 500],
+      "id": "set-defaults"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [660, 400],
+      "id": "merge-1"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/semantic-search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "collection",
+              "value": "notes"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.limit * 2 }}"
+            },
+            {
+              "name": "filter",
+              "value": "={{ { user_id: $json.user_id } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Semantic Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [860, 400],
+      "id": "http-semantic"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT n.id, n.title, n.content, n.summary, n.created_at, n.updated_at,\n       n.is_pinned, n.is_favorite, n.word_count, n.reading_time_minutes,\n       f.name as folder_name, f.color as folder_color,\n       array_agg(DISTINCT t.name) as tags\nFROM notes n\nLEFT JOIN folders f ON n.folder_id = f.id\nLEFT JOIN note_tags nt ON n.id = nt.note_id\nLEFT JOIN tags t ON nt.tag_id = t.id\nWHERE n.user_id = $1\n  AND (n.title ILIKE $2 OR n.content ILIKE $2)\n  AND n.is_archived = false\nGROUP BY n.id, f.name, f.color\nORDER BY \n  CASE WHEN n.title ILIKE $2 THEN 0 ELSE 1 END,\n  n.updated_at DESC\nLIMIT $3",
+        "additionalFields": {
+          "queryParameters": "={{ [$json.user_id, '%' + $json.query + '%', $json.limit] }}"
+        }
+      },
+      "name": "Text Search",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [860, 600],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-text"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine and rank results from semantic and text search\nconst semanticResults = $('http-semantic').item.json.results || [];\nconst textResults = $('postgres-text').all().map(r => r.json);\nconst searchType = $('merge-1').item.json.search_type;\nconst limit = $('merge-1').item.json.limit;\n\n// Create a map to combine results\nconst resultMap = new Map();\n\n// Process semantic search results\nsemanticResults.forEach((result, index) => {\n  const noteId = result.payload.note_id;\n  if (!resultMap.has(noteId)) {\n    resultMap.set(noteId, {\n      id: noteId,\n      title: result.payload.title,\n      summary: result.payload.summary,\n      tags: result.payload.tags || [],\n      created_at: result.payload.created_at,\n      semantic_score: result.score,\n      semantic_rank: index + 1,\n      text_score: 0,\n      text_rank: 999,\n      combined_score: 0\n    });\n  } else {\n    const existing = resultMap.get(noteId);\n    existing.semantic_score = result.score;\n    existing.semantic_rank = index + 1;\n  }\n});\n\n// Process text search results\ntextResults.forEach((result, index) => {\n  const noteId = result.id;\n  if (!resultMap.has(noteId)) {\n    resultMap.set(noteId, {\n      id: noteId,\n      title: result.title,\n      content: result.content,\n      summary: result.summary,\n      tags: result.tags || [],\n      folder_name: result.folder_name,\n      folder_color: result.folder_color,\n      created_at: result.created_at,\n      updated_at: result.updated_at,\n      is_pinned: result.is_pinned,\n      is_favorite: result.is_favorite,\n      word_count: result.word_count,\n      reading_time_minutes: result.reading_time_minutes,\n      semantic_score: 0,\n      semantic_rank: 999,\n      text_score: 1 - (index / textResults.length),\n      text_rank: index + 1,\n      combined_score: 0\n    });\n  } else {\n    const existing = resultMap.get(noteId);\n    existing.text_score = 1 - (index / textResults.length);\n    existing.text_rank = index + 1;\n    // Add missing fields from text search\n    existing.content = result.content;\n    existing.folder_name = result.folder_name;\n    existing.folder_color = result.folder_color;\n    existing.updated_at = result.updated_at;\n    existing.is_pinned = result.is_pinned;\n    existing.is_favorite = result.is_favorite;\n    existing.word_count = result.word_count;\n    existing.reading_time_minutes = result.reading_time_minutes;\n  }\n});\n\n// Calculate combined scores based on search type\nconst results = Array.from(resultMap.values()).map(result => {\n  if (searchType === 'semantic') {\n    result.combined_score = result.semantic_score;\n  } else if (searchType === 'text') {\n    result.combined_score = result.text_score;\n  } else { // hybrid\n    // Weighted combination: 60% semantic, 40% text\n    result.combined_score = (result.semantic_score * 0.6) + (result.text_score * 0.4);\n    \n    // Boost score for results that appear in both\n    if (result.semantic_rank < 999 && result.text_rank < 999) {\n      result.combined_score *= 1.2;\n    }\n  }\n  \n  // Boost pinned and favorite items\n  if (result.is_pinned) result.combined_score *= 1.5;\n  if (result.is_favorite) result.combined_score *= 1.3;\n  \n  return result;\n});\n\n// Sort by combined score and limit\nconst finalResults = results\n  .sort((a, b) => b.combined_score - a.combined_score)\n  .slice(0, limit)\n  .map((result, index) => ({\n    ...result,\n    rank: index + 1,\n    relevance_percentage: Math.round(result.combined_score * 100)\n  }));\n\n// Generate search insights\nconst insights = {\n  total_results: resultMap.size,\n  semantic_only: semanticResults.length,\n  text_only: textResults.length,\n  overlap: Array.from(resultMap.values()).filter(r => \n    r.semantic_rank < 999 && r.text_rank < 999\n  ).length,\n  search_type: searchType\n};\n\nreturn {\n  results: finalResults,\n  insights: insights,\n  query: $('merge-1').item.json.query\n};"
+      },
+      "name": "Combine & Rank Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 500],
+      "id": "code-combine"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "search_history",
+        "columns": "user_id, query, results_count",
+        "additionalFields": {},
+        "returnFields": "*"
+      },
+      "name": "Log Search",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1260, 500],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-log"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ],
+          "object": [
+            {
+              "name": "data",
+              "value": "={{ $('code-combine').item.json }}"
+            }
+          ]
+        }
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1460, 300],
+      "id": "format-response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Inputs": {
+      "main": [
+        [
+          {
+            "node": "Semantic Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Text Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Semantic Search": {
+      "main": [
+        [
+          {
+            "node": "Combine & Rank Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Search": {
+      "main": [
+        [
+          {
+            "node": "Combine & Rank Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine & Rank Results": {
+      "main": [
+        [
+          {
+            "node": "Log Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Search": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}

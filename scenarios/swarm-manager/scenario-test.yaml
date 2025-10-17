@@ -1,0 +1,58 @@
+name: swarm-manager
+description: Autonomous task orchestrator that coordinates work across all Vrooli scenarios
+version: 1.0.0
+
+resources:
+  required:
+    - postgres
+    - redis
+    - qdrant
+    - n8n
+    - claude-code
+  optional:
+    - windmill
+    - ollama
+
+tests:
+  - name: Database Connection
+    type: connectivity
+    target: postgres
+    config:
+      database: swarm_manager
+      timeout: 30
+    
+  - name: Redis Connection
+    type: connectivity
+    target: redis
+    config:
+      timeout: 10
+      
+  - name: Vector Database Health
+    type: http
+    method: GET
+    url: http://localhost:6333/health
+    expected:
+      status: 200
+      
+  - name: N8N Workflow Engine
+    type: http
+    method: GET
+    url: http://localhost:5678/healthz
+    expected:
+      status: 200
+      body:
+        status: ok
+        
+  - name: API Health Check
+    type: http
+    method: GET
+    url: http://localhost:8095/health
+    expected:
+      status: 200
+      
+  - name: UI Health Check
+    type: http
+    method: GET
+    url: http://localhost:4000
+    expected:
+      status: 200

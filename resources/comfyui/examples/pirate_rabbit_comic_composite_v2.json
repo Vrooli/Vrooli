@@ -1,0 +1,290 @@
+{
+  "1": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "2": {
+    "inputs": {
+      "text": "comic book panel 1: pirate rabbit captain with tricorn hat and eye patch, looking through brass spyglass on ship deck, ocean horizon in background, bold comic book art style, clean lines, vibrant colors, dynamic pose, single panel composition",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "3": {
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "4": {
+    "inputs": {
+      "seed": 111,
+      "steps": 25,
+      "cfg": 8.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "5": {
+    "inputs": {
+      "text": "blurry, low quality, multiple panels, page layout, speech bubbles, text, watermark, signature, bad anatomy, distorted, ugly, amateur art, photorealistic, photograph",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "6": {
+    "inputs": {
+      "samples": [
+        "4",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "7": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "8": {
+    "inputs": {
+      "text": "comic book panel 2: same pirate rabbit character, excited expression, holding an old treasure map with X marks the spot, ship interior cabin with lanterns, treasure map unrolled on wooden table, comic book art style, consistent character design",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "9": {
+    "inputs": {
+      "seed": 222,
+      "steps": 25,
+      "cfg": 8.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "8",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "10": {
+    "inputs": {
+      "samples": [
+        "9",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "11": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "12": {
+    "inputs": {
+      "text": "comic book panel 3: dynamic action scene, pirate rabbit in sword fighting duel with skeleton pirate, crossed cutlass swords, dramatic lighting, action lines, speed lines, intense facial expression, ship deck battle scene, comic book action style",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "13": {
+    "inputs": {
+      "seed": 333,
+      "steps": 25,
+      "cfg": 8.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "12",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "14": {
+    "inputs": {
+      "samples": [
+        "13",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "15": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "16": {
+    "inputs": {
+      "text": "comic book panel 4: triumphant pirate rabbit standing over open treasure chest full of gold coins and jewels, victory pose with paws on hips, tropical island beach background, palm trees, sunset lighting, celebration moment, comic book conclusion panel",
+      "clip": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "17": {
+    "inputs": {
+      "seed": 444,
+      "steps": 25,
+      "cfg": 8.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "16",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "18": {
+    "inputs": {
+      "samples": [
+        "17",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "19": {
+    "inputs": {
+      "filename_prefix": "comic_panel_1_spyglass",
+      "images": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "20": {
+    "inputs": {
+      "filename_prefix": "comic_panel_2_map",
+      "images": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "21": {
+    "inputs": {
+      "filename_prefix": "comic_panel_3_battle",
+      "images": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "22": {
+    "inputs": {
+      "filename_prefix": "comic_panel_4_treasure",
+      "images": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  }
+}

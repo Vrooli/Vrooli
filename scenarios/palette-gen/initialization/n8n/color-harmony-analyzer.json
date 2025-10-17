@@ -1,0 +1,221 @@
+{
+  "name": "color-harmony-analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "color-harmony-analyzer",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "colors",
+              "value": "[\"#3B82F6\", \"#60A5FA\", \"#93C5FD\", \"#DBEAFE\", \"#1E40AF\"]"
+            },
+            {
+              "name": "harmony_type",
+              "value": "complementary"
+            }
+          ]
+        }
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node['Manual Trigger'].json ? 'manual' : 'webhook' }}",
+              "value2": "manual"
+            }
+          ]
+        }
+      },
+      "id": "input-router",
+      "name": "Input Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze color harmony relationships\nconst colors = typeof $input.item.json.colors === 'string' \n  ? JSON.parse($input.item.json.colors) \n  : $input.item.json.colors;\n\nconst harmonyType = $input.item.json.harmony_type || 'auto';\n\n// Convert hex to RGB for analysis\nfunction hexToRgb(hex) {\n  const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);\n  return result ? {\n    r: parseInt(result[1], 16),\n    g: parseInt(result[2], 16),\n    b: parseInt(result[3], 16)\n  } : null;\n}\n\n// Convert RGB to HSL for harmony analysis\nfunction rgbToHsl(r, g, b) {\n  r /= 255;\n  g /= 255;\n  b /= 255;\n  \n  const max = Math.max(r, g, b);\n  const min = Math.min(r, g, b);\n  let h, s, l = (max + min) / 2;\n  \n  if (max === min) {\n    h = s = 0;\n  } else {\n    const d = max - min;\n    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);\n    \n    switch(max) {\n      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;\n      case g: h = ((b - r) / d + 2) / 6; break;\n      case b: h = ((r - g) / d + 4) / 6; break;\n    }\n  }\n  \n  return {\n    h: Math.round(h * 360),\n    s: Math.round(s * 100),\n    l: Math.round(l * 100)\n  };\n}\n\n// Analyze the colors\nconst analysis = colors.map(color => {\n  const rgb = hexToRgb(color);\n  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);\n  return {\n    hex: color,\n    rgb: rgb,\n    hsl: hsl\n  };\n});\n\n// Calculate harmony score\nconst hueVariance = analysis.reduce((acc, color, i, arr) => {\n  if (i === 0) return 0;\n  return acc + Math.abs(color.hsl.h - arr[i-1].hsl.h);\n}, 0) / (analysis.length - 1);\n\nconst saturationRange = Math.max(...analysis.map(c => c.hsl.s)) - Math.min(...analysis.map(c => c.hsl.s));\nconst lightnessRange = Math.max(...analysis.map(c => c.hsl.l)) - Math.min(...analysis.map(c => c.hsl.l));\n\nreturn {\n  colors: colors,\n  analysis: analysis,\n  harmony_metrics: {\n    hue_variance: hueVariance,\n    saturation_range: saturationRange,\n    lightness_range: lightnessRange,\n    harmony_type: harmonyType\n  },\n  formatted_data: JSON.stringify({\n    colors: analysis,\n    metrics: {\n      hue_variance: hueVariance,\n      saturation_range: saturationRange,\n      lightness_range: lightnessRange\n    }\n  })\n};"
+      },
+      "id": "color-analysis",
+      "name": "Color Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare prompt for AI harmony analysis\nconst colorsData = $json.formatted_data;\nconst metrics = $json.harmony_metrics;\nconst analysis = $json.analysis;\n\nconst prompt = `You are a professional color harmony analyst. Analyze this color palette for harmony, usability, and design effectiveness.\n\nColor Data:\n${colorsData}\n\nMetrics:\n- Hue Variance: ${metrics.hue_variance}\n- Saturation Range: ${metrics.saturation_range}\n- Lightness Range: ${metrics.lightness_range}\n- Harmony Type Request: ${metrics.harmony_type}\n\nProvide a JSON response with:\n{\n  \"harmony_type\": \"complementary|analogous|triadic|tetradic|monochromatic|custom\",\n  \"strengths\": [\"list of palette strengths\"],\n  \"improvements\": [\"list of suggested improvements\"],\n  \"use_cases\": [\"list of ideal use cases\"],\n  \"variations\": [\"list of suggested color variations\"],\n  \"confidence\": 0.0-1.0\n}`;\n\nreturn {\n  prompt: prompt,\n  model: 'llama3.2:3b',\n  type: 'reasoning',\n  quiet: true,\n  original_data: $json\n};"
+      },
+      "id": "prepare-ai-prompt",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.prompt,\n  model: $json.model,\n  type: $json.type,\n  quiet: $json.quiet,\n  timeout_seconds: 90\n}) }}",
+        "options": {
+          "timeout": 95000
+        }
+      },
+      "id": "call-shared-ollama",
+      "name": "Call Shared Ollama Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the harmony analysis response from Ollama\ntry {\n  // Get both the Ollama response and the original metrics\n  const ollamaResponse = $input.item.json;\n  const preparedData = $node['Prepare AI Prompt'].json;\n  const originalData = preparedData.original_data;\n  const metrics = originalData.harmony_metrics;\n  const analysis = originalData.analysis;\n  \n  // Extract Ollama results\n  let aiAnalysis = {};\n  \n  // Handle Ollama response structure\n  if (ollamaResponse.response || ollamaResponse.stdout || ollamaResponse.output) {\n    // Get the response text\n    const responseText = ollamaResponse.response || ollamaResponse.stdout || ollamaResponse.output || '';\n    const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n    \n    if (jsonMatch) {\n      try {\n        const parsed = JSON.parse(jsonMatch[0]);\n        aiAnalysis = {\n          harmony_type: parsed.harmony_type || 'custom',\n          strengths: parsed.strengths || ['Well-balanced palette'],\n          improvements: parsed.improvements || ['Consider adjusting saturation levels'],\n          use_cases: parsed.use_cases || ['Web design', 'Branding'],\n          variations: parsed.variations || [],\n          confidence: 0.5\n        };\n      } catch (e) {\n        // Use defaults\n        aiAnalysis = {\n          harmony_type: 'custom',\n          strengths: ['Well-balanced palette'],\n          improvements: ['Consider adjusting saturation levels'],\n          use_cases: ['Web design', 'Branding'],\n          variations: [],\n          confidence: 0.3\n        };\n      }\n    }\n  }\n  \n  // Calculate harmony score (0-100)\n  let harmonyScore = 100;\n  \n  // Deduct points for poor hue distribution\n  if (metrics.hue_variance < 20) harmonyScore -= 15; // Too similar\n  if (metrics.hue_variance > 180) harmonyScore -= 10; // Too disparate\n  \n  // Deduct points for poor saturation range\n  if (metrics.saturation_range < 10) harmonyScore -= 10; // Too uniform\n  if (metrics.saturation_range > 80) harmonyScore -= 15; // Too varied\n  \n  // Deduct points for poor lightness range\n  if (metrics.lightness_range < 20) harmonyScore -= 10; // Poor contrast\n  if (metrics.lightness_range > 90) harmonyScore -= 5; // Excessive contrast\n  \n  // Adjust score based on AI confidence\n  if (aiAnalysis.confidence) {\n    harmonyScore = Math.round(harmonyScore * (0.7 + 0.3 * aiAnalysis.confidence));\n  }\n  \n  return {\n    success: true,\n    colors: originalData.colors,\n    color_data: analysis,\n    harmony: {\n      type: aiAnalysis.harmony_type || 'custom',\n      score: Math.max(0, harmonyScore),\n      metrics: metrics,\n      strengths: aiAnalysis.strengths || [],\n      improvements: aiAnalysis.improvements || [],\n      use_cases: aiAnalysis.use_cases || [],\n      variations: aiAnalysis.variations || [],\n      analysis_confidence: aiAnalysis.confidence || 0.5,\n      reasoning_depth: aiAnalysis.reasoning_depth || 0.5\n    },\n    suggestions: {\n      optimal_hue_variance: '30-120 degrees',\n      optimal_saturation_range: '20-60%',\n      optimal_lightness_range: '30-70%'\n    },\n    shared_ollama_used: true,\n    timestamp: new Date().toISOString()\n  };\n} catch (error) {\n  // Fallback to basic analysis without CoT\n  const originalData = $node['Color Analysis'].json;\n  return {\n    success: true,\n    colors: originalData.colors,\n    color_data: originalData.analysis,\n    harmony: {\n      type: 'custom',\n      score: 70,\n      metrics: originalData.harmony_metrics,\n      strengths: ['Color palette analyzed'],\n      improvements: ['Consider using shared Ollama workflow for deeper analysis'],\n      use_cases: ['General design'],\n      variations: []\n    },\n    suggestions: {\n      optimal_hue_variance: '30-120 degrees',\n      optimal_saturation_range: '20-60%',\n      optimal_lightness_range: '30-70%'\n    },\n    shared_ollama_used: false,\n    error_fallback: error.message,\n    timestamp: new Date().toISOString()\n  };\n}"
+      },
+      "id": "format-harmony-response",
+      "name": "Format Harmony Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Input Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Default Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Values": {
+      "main": [
+        [
+          {
+            "node": "Input Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Router": {
+      "main": [
+        [
+          {
+            "node": "Color Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Color Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Color Analysis": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama Workflow": {
+      "main": [
+        [
+          {
+            "node": "Format Harmony Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Harmony Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Manager - Professional Documentation Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <span class="logo-icon">📄</span>
+                    <span class="logo-text">Document Manager</span>
+                </div>
+                <div class="breadcrumb">
+                    <span class="breadcrumb-item active">Dashboard</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="system-status">
+                    <span class="status-indicator" id="systemStatus">⚫</span>
+                    <span class="status-text">System Status</span>
+                </div>
+                <button class="refresh-btn" id="refreshBtn" title="Refresh Data">
+                    <span class="refresh-icon">⟲</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav-menu">
+                    <div class="nav-section">
+                        <div class="nav-item active" data-view="dashboard">
+                            <span class="nav-icon">📊</span>
+                            <span class="nav-text">Dashboard</span>
+                        </div>
+                        <div class="nav-item" data-view="applications">
+                            <span class="nav-icon">📁</span>
+                            <span class="nav-text">Applications</span>
+                            <span class="nav-count" id="appCount">0</span>
+                        </div>
+                        <div class="nav-item" data-view="agents">
+                            <span class="nav-icon">🤖</span>
+                            <span class="nav-text">AI Agents</span>
+                            <span class="nav-count" id="agentCount">0</span>
+                        </div>
+                        <div class="nav-item" data-view="queue">
+                            <span class="nav-icon">📋</span>
+                            <span class="nav-text">Improvement Queue</span>
+                            <span class="nav-count priority" id="queueCount">0</span>
+                        </div>
+                    </div>
+                    <div class="nav-section">
+                        <div class="nav-item" data-view="analytics">
+                            <span class="nav-icon">📈</span>
+                            <span class="nav-text">Analytics</span>
+                        </div>
+                        <div class="nav-item" data-view="settings">
+                            <span class="nav-icon">⚙️</span>
+                            <span class="nav-text">Settings</span>
+                        </div>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Content Views -->
+            <div class="content-area">
+                <!-- Dashboard View -->
+                <div class="view" id="dashboardView">
+                    <div class="view-header">
+                        <h1>Dashboard Overview</h1>
+                        <div class="view-actions">
+                            <button class="btn btn-primary" id="addApplicationBtn">
+                                <span class="btn-icon">➕</span>
+                                Add Application
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Cards -->
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon">📁</div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="totalApps">-</div>
+                                <div class="metric-label">Total Applications</div>
+                                <div class="metric-trend">↗️ Active monitoring</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">🤖</div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="activeAgents">-</div>
+                                <div class="metric-label">Active Agents</div>
+                                <div class="metric-trend">⚡ Processing docs</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">📋</div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="pendingItems">-</div>
+                                <div class="metric-label">Pending Improvements</div>
+                                <div class="metric-trend">🎯 Ready for review</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">💚</div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="avgHealth">-</div>
+                                <div class="metric-label">Average Health Score</div>
+                                <div class="metric-trend">📈 Quality metrics</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="activity-section">
+                        <h2>Recent Activity</h2>
+                        <div class="activity-list" id="activityList">
+                            <div class="activity-item">
+                                <div class="activity-icon">🔄</div>
+                                <div class="activity-content">
+                                    <div class="activity-title">System initialized</div>
+                                    <div class="activity-time">Just now</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applications View -->
+                <div class="view hidden" id="applicationsView">
+                    <div class="view-header">
+                        <h1>Applications</h1>
+                        <div class="view-actions">
+                            <button class="btn btn-secondary" id="refreshAppsBtn">⟲ Refresh</button>
+                            <button class="btn btn-primary" id="addApplicationBtn2">
+                                <span class="btn-icon">➕</span>
+                                Add Application
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="applications-grid" id="applicationsGrid">
+                        <!-- Applications will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Agents View -->
+                <div class="view hidden" id="agentsView">
+                    <div class="view-header">
+                        <h1>AI Agents</h1>
+                        <div class="view-actions">
+                            <button class="btn btn-secondary" id="refreshAgentsBtn">⟲ Refresh</button>
+                            <button class="btn btn-primary" id="createAgentBtn">
+                                <span class="btn-icon">🤖</span>
+                                Create Agent
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="agents-grid" id="agentsGrid">
+                        <!-- Agents will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Queue View -->
+                <div class="view hidden" id="queueView">
+                    <div class="view-header">
+                        <h1>Improvement Queue</h1>
+                        <div class="view-actions">
+                            <button class="btn btn-secondary" id="refreshQueueBtn">⟲ Refresh</button>
+                            <button class="btn btn-success" id="approveAllBtn" disabled>
+                                <span class="btn-icon">✅</span>
+                                Approve Selected
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="queue-container" id="queueContainer">
+                        <!-- Queue items will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Analytics View -->
+                <div class="view hidden" id="analyticsView">
+                    <div class="view-header">
+                        <h1>Analytics & Reports</h1>
+                    </div>
+                    <div class="analytics-content">
+                        <div class="coming-soon">
+                            <div class="coming-soon-icon">📊</div>
+                            <h3>Advanced Analytics Coming Soon</h3>
+                            <p>Comprehensive reporting and trend analysis will be available in the next release.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <div class="view hidden" id="settingsView">
+                    <div class="view-header">
+                        <h1>System Settings</h1>
+                    </div>
+                    <div class="settings-content">
+                        <div class="settings-section">
+                            <h3>System Status</h3>
+                            <div class="system-checks" id="systemChecks">
+                                <!-- System status will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="addApplicationModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Application</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form class="modal-body" id="addApplicationForm">
+                <div class="form-group">
+                    <label for="appName">Application Name</label>
+                    <input type="text" id="appName" required placeholder="My Documentation Project">
+                </div>
+                <div class="form-group">
+                    <label for="repositoryUrl">Repository URL</label>
+                    <input type="url" id="repositoryUrl" required placeholder="https://github.com/user/repo">
+                </div>
+                <div class="form-group">
+                    <label for="docPath">Documentation Path</label>
+                    <input type="text" id="docPath" placeholder="docs/" value="docs/">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelAddApp">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

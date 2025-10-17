@@ -1,0 +1,38 @@
+{
+  "name": "image-generation-pipeline-ui",
+  "version": "1.0.0",
+  "description": "Enterprise Image Generation Pipeline - Creative Gallery-Style UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh NODE_ENV=development node server.js'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "image-generation",
+    "ai",
+    "creative",
+    "gallery",
+    "enterprise",
+    "ui",
+    "voice-briefing",
+    "brand-management"
+  ],
+  "author": "Vrooli Image Generation Pipeline",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vrooli/scenarios"
+  },
+  "bugs": {
+    "url": "https://github.com/vrooli/scenarios/issues"
+  },
+  "homepage": "https://github.com/vrooli/scenarios#readme"
+}

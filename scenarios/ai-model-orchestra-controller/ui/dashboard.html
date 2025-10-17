@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Orchestra Controller - Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__modelOrchestraBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[ModelOrchestraController] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'ai-model-orchestra-controller' });
+            window.__modelOrchestraBridgeInitialized = true;
+        }
+    </script>
+    <style>
+        /* Component container styles */
+        .component-container {
+            margin-bottom: 2rem;
+        }
+        
+        /* Loading state */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+            color: #666;
+        }
+        
+        /* Error state */
+        .error-message {
+            background-color: #fee;
+            color: #c00;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        /* Component specific styles */
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .model-card {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .section-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 0.25rem;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        /* Status colors */
+        .text-green-500 { color: #10b981; }
+        .text-yellow-500 { color: #f59e0b; }
+        .text-orange-500 { color: #f97316; }
+        .text-red-500 { color: #ef4444; }
+        .bg-green-50 { background-color: #f0fdf4; }
+        .bg-yellow-50 { background-color: #fefce8; }
+        .bg-orange-50 { background-color: #fff7ed; }
+        .bg-red-50 { background-color: #fef2f2; }
+        
+        /* Processing indicator */
+        .processing {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ddd;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <nav class="sidebar">
+            <div class="logo">
+                <span>🎛️</span>
+                <h1>AI Orchestra</h1>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#overview" class="nav-link active" data-section="overview">
+                        <span class="nav-icon">📊</span>
+                        Overview
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#models" class="nav-link" data-section="models">
+                        <span class="nav-icon">🤖</span>
+                        Models
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#resources" class="nav-link" data-section="resources">
+                        <span class="nav-icon">💾</span>
+                        Resources
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#routing" class="nav-link" data-section="routing">
+                        <span class="nav-icon">🔄</span>
+                        Routing
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <div id="error-container"></div>
+
+            <!-- Overview Section -->
+            <section id="overview-section" class="content-section">
+                <div class="header">
+                    <h1 class="page-title">AI Model Orchestra Controller</h1>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span id="system-status" class="status-badge">Initializing...</span>
+                        <span id="api-url" style="font-size: 12px; color: #666;"></span>
+                    </div>
+                </div>
+
+                <div class="component-container" id="overview-metrics-container">
+                    <!-- Resource metrics component will be loaded here -->
+                </div>
+
+                <div class="component-container" id="overview-models-container">
+                    <!-- Model status component summary will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Models Section -->
+            <section id="models-section" class="content-section" style="display: none;">
+                <div class="header">
+                    <h1 class="page-title">AI Models</h1>
+                </div>
+                <div class="component-container" id="models-container">
+                    <!-- Model status component will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Resources Section -->
+            <section id="resources-section" class="content-section" style="display: none;">
+                <div class="header">
+                    <h1 class="page-title">System Resources</h1>
+                </div>
+                <div class="component-container" id="resources-container">
+                    <!-- Resource metrics component will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Routing Section -->
+            <section id="routing-section" class="content-section" style="display: none;">
+                <div class="header">
+                    <h1 class="page-title">Request Routing</h1>
+                </div>
+                <div class="component-container" id="routing-container">
+                    <!-- Request routing component will be loaded here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Main dashboard JavaScript with ES6 modules -->
+    <script type="module">
+        import apiClient from './services/api-client.js';
+        import { ModelStatusComponent } from './components/model-status.js';
+        import { ResourceMetricsComponent } from './components/resource-metrics.js';
+        import { RequestRoutingComponent } from './components/request-routing.js';
+
+        // Component instances
+        let modelStatusComponent = null;
+        let resourceMetricsComponent = null;
+        let requestRoutingComponent = null;
+        let currentSection = 'overview';
+
+        // Initialize dashboard
+        async function initDashboard() {
+            try {
+                // Initialize API client
+                const config = await apiClient.initialize();
+                document.getElementById('api-url').textContent = config.apiUrl;
+                
+                // Check system health
+                const health = await apiClient.checkHealth();
+                updateSystemStatus(health);
+                
+                // Initialize components for overview
+                await initOverviewComponents();
+                
+                // Setup navigation
+                setupNavigation();
+                
+                // Start health monitoring
+                startHealthMonitoring();
+                
+            } catch (error) {
+                console.error('Dashboard initialization error:', error);
+                showError('Failed to initialize dashboard: ' + error.message);
+            }
+        }
+
+        // Initialize overview components
+        async function initOverviewComponents() {
+            // Initialize resource metrics in overview
+            const overviewMetricsContainer = document.getElementById('overview-metrics-container');
+            overviewMetricsContainer.innerHTML = '<div id="overview-metrics"></div>';
+            const overviewMetrics = new ResourceMetricsComponent('overview-metrics');
+            await overviewMetrics.init();
+            
+            // Initialize model status summary in overview
+            const overviewModelsContainer = document.getElementById('overview-models-container');
+            overviewModelsContainer.innerHTML = '<div id="overview-models"></div>';
+            const overviewModels = new ModelStatusComponent('overview-models');
+            await overviewModels.init();
+        }
+
+        // Setup navigation
+        function setupNavigation() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const section = link.dataset.section;
+                    await switchSection(section);
+                    
+                    // Update active state
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                });
+            });
+        }
+
+        // Switch between sections
+        async function switchSection(section) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(s => {
+                s.style.display = 'none';
+            });
+            
+            // Show selected section
+            const sectionElement = document.getElementById(`${section}-section`);
+            if (sectionElement) {
+                sectionElement.style.display = 'block';
+            }
+            
+            // Clean up previous components if switching away from them
+            if (currentSection !== section) {
+                cleanupComponents(currentSection);
+            }
+            
+            // Initialize components for the new section
+            switch (section) {
+                case 'overview':
+                    await initOverviewComponents();
+                    break;
+                    
+                case 'models':
+                    if (!modelStatusComponent) {
+                        const container = document.getElementById('models-container');
+                        container.innerHTML = '<div id="models-detail"></div>';
+                        modelStatusComponent = new ModelStatusComponent('models-detail');
+                        await modelStatusComponent.init();
+                    }
+                    break;
+                    
+                case 'resources':
+                    if (!resourceMetricsComponent) {
+                        const container = document.getElementById('resources-container');
+                        container.innerHTML = '<div id="resources-detail"></div>';
+                        resourceMetricsComponent = new ResourceMetricsComponent('resources-detail');
+                        await resourceMetricsComponent.init();
+                    }
+                    break;
+                    
+                case 'routing':
+                    if (!requestRoutingComponent) {
+                        const container = document.getElementById('routing-container');
+                        container.innerHTML = '<div id="routing-detail"></div>';
+                        requestRoutingComponent = new RequestRoutingComponent('routing-detail');
+                        await requestRoutingComponent.init();
+                    }
+                    break;
+            }
+            
+            currentSection = section;
+        }
+
+        // Cleanup components when switching sections
+        function cleanupComponents(section) {
+            switch (section) {
+                case 'models':
+                    if (modelStatusComponent) {
+                        modelStatusComponent.destroy();
+                        modelStatusComponent = null;
+                    }
+                    break;
+                    
+                case 'resources':
+                    if (resourceMetricsComponent) {
+                        resourceMetricsComponent.destroy();
+                        resourceMetricsComponent = null;
+                    }
+                    break;
+                    
+                case 'routing':
+                    if (requestRoutingComponent) {
+                        requestRoutingComponent.destroy();
+                        requestRoutingComponent = null;
+                    }
+                    break;
+            }
+        }
+
+        // Update system status badge
+        function updateSystemStatus(health) {
+            const statusBadge = document.getElementById('system-status');
+            if (health.success) {
+                const status = health.data.status;
+                statusBadge.textContent = `System ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+                statusBadge.className = `status-badge status-${status}`;
+            } else {
+                statusBadge.textContent = 'System Offline';
+                statusBadge.className = 'status-badge status-unhealthy';
+            }
+        }
+
+        // Start health monitoring
+        function startHealthMonitoring() {
+            setInterval(async () => {
+                try {
+                    const health = await apiClient.checkHealth();
+                    updateSystemStatus(health);
+                } catch (error) {
+                    console.error('Health check error:', error);
+                    updateSystemStatus({ success: false });
+                }
+            }, 30000); // Check every 30 seconds
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = `
+                <div class="error-message">
+                    <strong>Error:</strong> ${message}
+                    <button onclick="this.parentElement.remove()" style="float: right;">✕</button>
+                </div>
+            `;
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDashboard);
+        } else {
+            initDashboard();
+        }
+    </script>
+</body>
+</html>

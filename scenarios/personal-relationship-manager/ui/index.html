@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Relationship Manager - Your Circle of Care</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">💝</div>
+                <h1>Circle of Care</h1>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="dashboard">
+                    <span class="nav-icon">🏠</span>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-view="contacts">
+                    <span class="nav-icon">👥</span>
+                    <span>My People</span>
+                </button>
+                <button class="nav-item" data-view="upcoming">
+                    <span class="nav-icon">🎉</span>
+                    <span>Upcoming Events</span>
+                </button>
+                <button class="nav-item" data-view="gifts">
+                    <span class="nav-icon">🎁</span>
+                    <span>Gift Ideas</span>
+                </button>
+                <button class="nav-item" data-view="memories">
+                    <span class="nav-icon">📸</span>
+                    <span>Memories</span>
+                </button>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <button class="add-person-btn">
+                    <span>➕</span>
+                    <span>Add Someone Special</span>
+                </button>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard View -->
+            <div class="view active" id="dashboard-view">
+                <header class="view-header">
+                    <h2>Welcome Back! 🌟</h2>
+                    <p class="subtitle">Here's what's happening with your loved ones</p>
+                </header>
+                
+                <div class="dashboard-grid">
+                    <!-- Today's Reminders -->
+                    <div class="card reminder-card">
+                        <h3>Today's Reminders 📅</h3>
+                        <div class="reminder-list" id="today-reminders">
+                            <div class="reminder-item">
+                                <div class="reminder-icon">🎂</div>
+                                <div class="reminder-details">
+                                    <strong>Sarah's Birthday!</strong>
+                                    <p>Don't forget to call her today</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="card quick-actions">
+                        <h3>Quick Actions ⚡</h3>
+                        <div class="action-buttons">
+                            <button class="action-btn" id="log-interaction">
+                                <span class="action-icon">💬</span>
+                                <span>Log Interaction</span>
+                            </button>
+                            <button class="action-btn" id="find-gift">
+                                <span class="action-icon">🎁</span>
+                                <span>Find Gift Ideas</span>
+                            </button>
+                            <button class="action-btn" id="set-reminder">
+                                <span class="action-icon">⏰</span>
+                                <span>Set Reminder</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Interactions -->
+                    <div class="card recent-interactions">
+                        <h3>Recent Connections 💕</h3>
+                        <div class="interaction-timeline" id="recent-interactions">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- Relationship Insights -->
+                    <div class="card insights-card">
+                        <h3>Relationship Insights 💡</h3>
+                        <div class="insights-content">
+                            <div class="insight-item">
+                                <span class="insight-emoji">📞</span>
+                                <p>You haven't called Mom in 2 weeks</p>
+                            </div>
+                            <div class="insight-item">
+                                <span class="insight-emoji">🎈</span>
+                                <p>3 birthdays coming up this month</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contacts View -->
+            <div class="view" id="contacts-view">
+                <header class="view-header">
+                    <h2>My People 👥</h2>
+                    <div class="header-actions">
+                        <input type="search" class="search-input" placeholder="Search by name, tag, or notes...">
+                        <div class="filter-chips">
+                            <button class="chip active">All</button>
+                            <button class="chip">Family</button>
+                            <button class="chip">Friends</button>
+                            <button class="chip">Colleagues</button>
+                        </div>
+                    </div>
+                </header>
+                
+                <div class="contacts-grid" id="contacts-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <!-- Upcoming Events View -->
+            <div class="view" id="upcoming-view">
+                <header class="view-header">
+                    <h2>Upcoming Events 🎉</h2>
+                    <p class="subtitle">Never miss another special moment</p>
+                </header>
+                
+                <div class="events-timeline" id="events-timeline">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <!-- Gift Ideas View -->
+            <div class="view" id="gifts-view">
+                <header class="view-header">
+                    <h2>Gift Ideas 🎁</h2>
+                    <p class="subtitle">Thoughtful suggestions for your loved ones</p>
+                </header>
+                
+                <div class="gifts-container">
+                    <div class="gift-finder">
+                        <h3>Find the Perfect Gift</h3>
+                        <form id="gift-finder-form">
+                            <select id="gift-person" class="form-select">
+                                <option value="">Select a person...</option>
+                            </select>
+                            <select id="gift-occasion" class="form-select">
+                                <option value="">Occasion...</option>
+                                <option value="birthday">Birthday</option>
+                                <option value="anniversary">Anniversary</option>
+                                <option value="holiday">Holiday</option>
+                                <option value="just-because">Just Because</option>
+                            </select>
+                            <input type="text" id="gift-budget" class="form-input" placeholder="Budget (e.g., 50-100)">
+                            <button type="submit" class="btn-primary">Get Suggestions 🎯</button>
+                        </form>
+                    </div>
+                    
+                    <div class="gift-suggestions" id="gift-suggestions">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Memories View -->
+            <div class="view" id="memories-view">
+                <header class="view-header">
+                    <h2>Memories 📸</h2>
+                    <p class="subtitle">Cherished moments with your loved ones</p>
+                </header>
+                
+                <div class="memories-gallery" id="memories-gallery">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </main>
+        
+        <!-- Modals -->
+        <!-- Add Person Modal -->
+        <div class="modal" id="add-person-modal">
+            <div class="modal-content">
+                <button class="modal-close">&times;</button>
+                <h2>Add Someone Special 💕</h2>
+                
+                <form id="add-person-form">
+                    <div class="form-group">
+                        <label>Name *</label>
+                        <input type="text" name="name" required class="form-input">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nickname</label>
+                            <input type="text" name="nickname" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Relationship</label>
+                            <select name="relationship_type" class="form-select">
+                                <option value="family">Family</option>
+                                <option value="friend">Friend</option>
+                                <option value="colleague">Colleague</option>
+                                <option value="partner">Partner</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Birthday 🎂</label>
+                            <input type="date" name="birthday" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Anniversary 💑</label>
+                            <input type="date" name="anniversary" class="form-input">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Interests & Hobbies</label>
+                        <input type="text" name="interests" class="form-input" placeholder="e.g., reading, travel, coffee">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-textarea" rows="3" placeholder="Anything special to remember..."></textarea>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary modal-cancel">Cancel</button>
+                        <button type="submit" class="btn-primary">Add to My Circle 💝</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Contact Detail Modal -->
+        <div class="modal" id="contact-detail-modal">
+            <div class="modal-content large">
+                <button class="modal-close">&times;</button>
+                <div id="contact-detail-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Log Interaction Modal -->
+        <div class="modal" id="log-interaction-modal">
+            <div class="modal-content">
+                <button class="modal-close">&times;</button>
+                <h2>Log Interaction 💬</h2>
+                
+                <form id="log-interaction-form">
+                    <div class="form-group">
+                        <label>Who did you connect with?</label>
+                        <select name="contact_id" required class="form-select">
+                            <option value="">Select person...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Type of Interaction</label>
+                        <div class="interaction-type-grid">
+                            <label class="interaction-type">
+                                <input type="radio" name="interaction_type" value="call">
+                                <span>📞 Call</span>
+                            </label>
+                            <label class="interaction-type">
+                                <input type="radio" name="interaction_type" value="message">
+                                <span>💬 Message</span>
+                            </label>
+                            <label class="interaction-type">
+                                <input type="radio" name="interaction_type" value="visit">
+                                <span>🏠 Visit</span>
+                            </label>
+                            <label class="interaction-type">
+                                <input type="radio" name="interaction_type" value="gift">
+                                <span>🎁 Gift</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="description" class="form-textarea" rows="3" placeholder="What did you talk about?"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>How was it?</label>
+                        <div class="sentiment-selector">
+                            <label class="sentiment-option">
+                                <input type="radio" name="sentiment" value="great">
+                                <span>😊 Great</span>
+                            </label>
+                            <label class="sentiment-option">
+                                <input type="radio" name="sentiment" value="good">
+                                <span>🙂 Good</span>
+                            </label>
+                            <label class="sentiment-option">
+                                <input type="radio" name="sentiment" value="neutral">
+                                <span>😐 Neutral</span>
+                            </label>
+                            <label class="sentiment-option">
+                                <input type="radio" name="sentiment" value="difficult">
+                                <span>😔 Difficult</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary modal-cancel">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Interaction 💕</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="script.js"></script>
+</body>
+</html>

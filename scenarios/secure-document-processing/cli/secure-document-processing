@@ -1,0 +1,209 @@
+#!/bin/bash
+# Secure Document Processing CLI
+# Lightweight wrapper for the secure document processing API
+
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/secure-document-processing/cli"
+CLI_NAME="secure-document-processing"
+API_PORT="${API_PORT:-8090}"
+API_BASE_URL="http://localhost:$API_PORT"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_blue() {
+    echo -e "${BLUE}$1${NC}"
+}
+
+# Function to check if API is running
+check_api() {
+    if curl -sf "$API_BASE_URL/health" > /dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Function to make API calls
+api_call() {
+    local endpoint="$1"
+    local method="${2:-GET}"
+    
+    if ! check_api; then
+        print_error "API is not running. Please start the service first."
+        exit 1
+    fi
+    
+    curl -sf -X "$method" "$API_BASE_URL$endpoint" 2>/dev/null
+}
+
+# Function to format JSON output
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq '.'
+    else
+        cat
+    fi
+}
+
+# Show help
+show_help() {
+    cat << EOF
+${BLUE}Secure Document Processing CLI${NC}
+
+${GREEN}USAGE:${NC}
+    $CLI_NAME [COMMAND] [OPTIONS]
+
+${GREEN}COMMANDS:${NC}
+    ${YELLOW}status${NC}          Show service status and health
+    ${YELLOW}documents${NC}       List all documents
+    ${YELLOW}jobs${NC}            List all processing jobs
+    ${YELLOW}workflows${NC}       List available workflows
+    ${YELLOW}health${NC}          Check service health
+    ${YELLOW}help${NC}            Show this help message
+
+${GREEN}EXAMPLES:${NC}
+    $CLI_NAME status        # Show service status
+    $CLI_NAME documents     # List all documents
+    $CLI_NAME jobs          # List processing jobs
+    $CLI_NAME workflows     # List available workflows
+
+${GREEN}CONFIGURATION:${NC}
+    API_PORT               Service port (default: 8090)
+
+${GREEN}SERVICE URLs:${NC}
+    API Health:            $API_BASE_URL/health
+    Documents API:         $API_BASE_URL/api/documents
+    Jobs API:              $API_BASE_URL/api/jobs
+    Workflows API:         $API_BASE_URL/api/workflows
+
+EOF
+}
+
+# Show service status
+show_status() {
+    print_status "Checking Secure Document Processing service status..."
+    
+    if check_api; then
+        print_status "✓ API is running on port $API_PORT"
+        
+        # Get health info
+        health_data=$(api_call "/health")
+        if [ $? -eq 0 ]; then
+            echo ""
+            print_blue "Service Health:"
+            echo "$health_data" | format_json
+        fi
+    else
+        print_error "✗ API is not running on port $API_PORT"
+        print_warning "Please start the service using the orchestrator or run the API directly"
+        exit 1
+    fi
+}
+
+# List documents
+list_documents() {
+    print_status "Fetching documents..."
+    
+    documents=$(api_call "/api/documents")
+    if [ $? -eq 0 ]; then
+        echo ""
+        print_blue "Documents:"
+        echo "$documents" | format_json
+    else
+        print_error "Failed to fetch documents"
+        exit 1
+    fi
+}
+
+# List jobs
+list_jobs() {
+    print_status "Fetching processing jobs..."
+    
+    jobs=$(api_call "/api/jobs")
+    if [ $? -eq 0 ]; then
+        echo ""
+        print_blue "Processing Jobs:"
+        echo "$jobs" | format_json
+    else
+        print_error "Failed to fetch jobs"
+        exit 1
+    fi
+}
+
+# List workflows
+list_workflows() {
+    print_status "Fetching workflows..."
+    
+    workflows=$(api_call "/api/workflows")
+    if [ $? -eq 0 ]; then
+        echo ""
+        print_blue "Available Workflows:"
+        echo "$workflows" | format_json
+    else
+        print_error "Failed to fetch workflows"
+        exit 1
+    fi
+}
+
+# Check health
+check_health() {
+    print_status "Checking service health..."
+    
+    health=$(api_call "/health")
+    if [ $? -eq 0 ]; then
+        echo ""
+        print_blue "Health Status:"
+        echo "$health" | format_json
+    else
+        print_error "Service health check failed"
+        exit 1
+    fi
+}
+
+# Main command processing
+case "${1:-help}" in
+    "status"|"stat"|"st")
+        show_status
+        ;;
+    "documents"|"docs"|"doc")
+        list_documents
+        ;;
+    "jobs"|"job")
+        list_jobs
+        ;;
+    "workflows"|"workflow"|"wf")
+        list_workflows
+        ;;
+    "health"|"healthcheck")
+        check_health
+        ;;
+    "help"|"-h"|"--help")
+        show_help
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

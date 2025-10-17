@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# Idea Generator CLI - Lightweight wrapper for the coordination API
+
+set -euo pipefail
+
+# Configuration
+# Try to get the actual port from the running service
+if command -v vrooli >/dev/null 2>&1; then
+    API_PORT=$(vrooli scenario status idea-generator --json 2>/dev/null | jq -r '.ports.API_PORT // "15204"' 2>/dev/null || echo "15204")
+else
+    API_PORT="15204"
+fi
+API_BASE_URL="${IDEA_GENERATOR_API_URL:-http://localhost:${API_PORT}}"
+WINDMILL_URL="${WINDMILL_URL:-http://localhost:5681}"
+N8N_URL="${N8N_URL:-http://localhost:5678}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Utility functions
+log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+
+# Check if API is available
+check_api() {
+    if ! curl -sf "$API_BASE_URL/health" >/dev/null 2>&1; then
+        log_error "API server is not responding at $API_BASE_URL"
+        log_info "Make sure the idea-generator service is running"
+        return 1
+    fi
+}
+
+# Show help information
+show_help() {
+    cat << EOF
+Idea Generator CLI - AI-powered idea generation platform
+
+USAGE:
+    idea-generator [COMMAND] [OPTIONS]
+
+COMMANDS:
+    status          Show service status and health
+    campaigns       List all campaigns
+    ideas           List all ideas
+    workflows       List available workflows
+    dashboard       Open the Windmill dashboard
+    workflows-ui    Open the n8n workflows interface
+    health          Check service health
+    help            Show this help message
+
+EXAMPLES:
+    idea-generator status           # Check service status
+    idea-generator campaigns        # List campaigns
+    idea-generator ideas            # List ideas
+    idea-generator dashboard        # Open web dashboard
+    idea-generator health           # Check service health
+
+ENVIRONMENT:
+    IDEA_GENERATOR_API_URL     API base URL (default: http://localhost:8500)
+    WINDMILL_URL               Windmill dashboard URL (default: http://localhost:5681)
+    N8N_URL                    n8n workflows URL (default: http://localhost:5678)
+
+For more information, visit the dashboard at: $WINDMILL_URL
+EOF
+}
+
+# Show service status
+show_status() {
+    log_info "Checking Idea Generator status..."
+    
+    if check_api; then
+        local response=$(curl -s "$API_BASE_URL/status")
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        log_success "Service is running"
+        echo
+        log_info "Access points:"
+        echo "  Dashboard: $WINDMILL_URL"
+        echo "  n8n Workflows: $N8N_URL"
+        echo "  API: $API_BASE_URL"
+    else
+        return 1
+    fi
+}
+
+# List campaigns
+list_campaigns() {
+    log_info "Fetching campaigns..."
+
+    if check_api; then
+        local response=$(curl -s "$API_BASE_URL/api/campaigns")
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        return 1
+    fi
+}
+
+# List ideas
+list_ideas() {
+    log_info "Fetching ideas..."
+
+    if check_api; then
+        local response=$(curl -s "$API_BASE_URL/api/ideas")
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        return 1
+    fi
+}
+
+# List workflows
+list_workflows() {
+    log_info "Fetching workflows..."
+
+    if check_api; then
+        local response=$(curl -s "$API_BASE_URL/api/workflows")
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        return 1
+    fi
+}
+
+# Check health
+check_health() {
+    log_info "Checking service health..."
+    
+    if check_api; then
+        local response=$(curl -s "$API_BASE_URL/health")
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        log_success "All services are healthy"
+    else
+        return 1
+    fi
+}
+
+# Open dashboard
+open_dashboard() {
+    log_info "Opening Idea Generator dashboard..."
+    log_info "Dashboard URL: $WINDMILL_URL"
+    
+    if command -v open >/dev/null 2>&1; then
+        open "$WINDMILL_URL"
+    elif command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$WINDMILL_URL"
+    else
+        log_info "Please open this URL in your browser: $WINDMILL_URL"
+    fi
+}
+
+# Open workflows UI
+open_workflows() {
+    log_info "Opening n8n workflows interface..."
+    log_info "Workflows URL: $N8N_URL"
+    
+    if command -v open >/dev/null 2>&1; then
+        open "$N8N_URL"
+    elif command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$N8N_URL"
+    else
+        log_info "Please open this URL in your browser: $N8N_URL"
+    fi
+}
+
+# Main command processing
+main() {
+    case "${1:-}" in
+        "status")
+            show_status
+            ;;
+        "campaigns")
+            list_campaigns
+            ;;
+        "ideas")
+            list_ideas
+            ;;
+        "workflows")
+            list_workflows
+            ;;
+        "health")
+            check_health
+            ;;
+        "dashboard")
+            open_dashboard
+            ;;
+        "workflows-ui")
+            open_workflows
+            ;;
+        "help"|"--help"|"-h")
+            show_help
+            ;;
+        "")
+            log_error "No command specified"
+            echo
+            show_help
+            exit 1
+            ;;
+        *)
+            log_error "Unknown command: $1"
+            echo
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

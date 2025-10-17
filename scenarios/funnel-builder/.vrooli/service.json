@@ -1,0 +1,228 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "funnel-builder",
+    "displayName": "Sales & Marketing Funnel Builder",
+    "description": "Visual drag-and-drop builder for creating conversion funnels with lead capture, branching logic, and analytics",
+    "version": "1.0.0",
+    "tags": [
+      "sales",
+      "marketing",
+      "conversion",
+      "lead-generation",
+      "funnels",
+      "react-ui",
+      "go-api",
+      "postgres-storage",
+      "multi-tenant",
+      "analytics",
+      "a-b-testing"
+    ]
+  },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Funnel builder API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Funnel builder UI port",
+       "range": "35000-39999"
+     }
+   },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store funnel definitions, steps, leads, and analytics data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Cache funnel sessions and real-time analytics"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "purpose": "Generate compelling copy for funnel steps",
+      "models": [
+        "llama3.2"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Funnel Builder health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Funnel Builder",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api/funnel-builder-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "funnel-builder"
+             ]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o funnel-builder-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Funnel Builder initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: funnel-builder --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Funnel Builder with hot reload",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./funnel-builder-api",
+           "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/funnel-builder-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev -- --port ${UI_PORT}",
+          "description": "Start React UI with hot reload",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: funnel-builder --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Funnel Builder",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-ui-build",
+          "run": "cd ui && npm run build",
+          "description": "Test UI build"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats funnel-builder.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/funnel-builder.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"funnel-builder-api\" || true; sleep 1; pkill -9 -f \"funnel-builder-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/funnel-builder.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/funnel-builder.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,138 @@
+version: 1.0
+scenario: privacy-terms-generator
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - lib/generator.sh
+    - lib/fetch-templates.sh
+    - cli/privacy-terms-generator
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed-templates.sql
+    - ui/index.html
+    - scenario-test.yaml
+    
+  required_dirs:
+    - .vrooli
+    - cli
+    - lib
+    - initialization
+    - initialization/postgres
+    - ui
+
+# Resource validation
+resources:
+  required:
+    - postgres
+    - ollama
+  optional:
+    - qdrant
+    - browserless
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # CLI availability test
+  - name: "CLI is executable"
+    type: file_check
+    path: cli/privacy-terms-generator
+    permissions: executable
+    
+  # Database schema test
+  - name: "Database schema can be initialized"
+    type: exec
+    command: "resource-postgres query 'CREATE SCHEMA IF NOT EXISTS legal_generator_test'"
+    expect:
+      exit_code: 0
+      
+  # CLI help test
+  - name: "CLI help command works"
+    type: exec
+    command: "./cli/privacy-terms-generator help"
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Privacy & Terms Generator CLI"
+        - "generate"
+        - "list-templates"
+        
+  # CLI version test
+  - name: "CLI version command works"
+    type: exec
+    command: "./cli/privacy-terms-generator version"
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Privacy & Terms Generator CLI"
+        - "1.0.0"
+        
+  # Template generation test (basic)
+  - name: "Can generate privacy policy"
+    type: exec
+    command: |
+      source lib/generator.sh && 
+      generate_document "privacy" "TestCompany" "saas" "US" "markdown" '{"contact_email": "test@example.com"}'
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Generating privacy for TestCompany"
+        
+  # Template freshness check
+  - name: "Can check template freshness"
+    type: exec
+    command: |
+      source lib/generator.sh &&
+      check_template_freshness
+    expect:
+      exit_code: 0
+      
+  # UI health check
+  - name: "UI health endpoint responds"
+    type: http
+    service: ui
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  # Shell script syntax validation
+  - name: "Shell scripts have valid syntax"
+    type: exec
+    command: "bash -n lib/generator.sh && bash -n lib/fetch-templates.sh"
+    expect:
+      exit_code: 0
+      
+  # Service.json validation
+  - name: "Service configuration is valid"
+    type: exec
+    command: "jq '.' .vrooli/service.json > /dev/null"
+    expect:
+      exit_code: 0
+
+# Performance requirements
+performance:
+  - name: "Document generation time"
+    type: exec
+    command: |
+      time (source lib/generator.sh && 
+            generate_document "privacy" "PerfTest" "saas" "US" "markdown" '{}')
+    expect:
+      execution_time: "<5s"
+      
+# Integration tests
+integration:
+  - name: "CLI can connect to database"
+    type: exec
+    command: "./cli/privacy-terms-generator status --json | jq '.database'"
+    expect:
+      output: "connected"
+      
+  - name: "Templates are seeded"
+    type: exec
+    command: "./cli/privacy-terms-generator list-templates --json | jq 'length'"
+    expect:
+      output_greater_than: 0

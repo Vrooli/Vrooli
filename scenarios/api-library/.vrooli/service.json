@@ -1,0 +1,331 @@
+ {
+   "$schema": "../../../.vrooli/schemas/service.schema.json",
+   "version": "1.0.0",
+   "service": {
+     "name": "api-library",
+     "displayName": "API Library",
+     "description": "Semantic API discovery with pricing, gotchas, and integration patterns",
+     "version": "1.0.0",
+     "tags": [
+       "api",
+       "discovery",
+       "integration",
+       "pricing",
+       "search"
+     ]
+   },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "range": "35000-39999"
+     }
+   },
+  "dependencies": {
+    "required": [
+      "postgres",
+      "qdrant"
+    ],
+    "optional": [
+      "redis",
+      "ollama",
+      "research-assistant"
+    ]
+  },
+  "resources": {
+    "postgres": {
+      "enabled": true,
+      "database": "api_library",
+      "initialization": {
+        "schema": "initialization/postgres/schema.sql",
+        "seed": "initialization/postgres/seed.sql"
+      }
+    },
+    "qdrant": {
+      "enabled": true,
+      "collection": "api_embeddings",
+      "initialization": {
+        "config": "initialization/qdrant/config.json"
+      }
+    },
+    "redis": {
+      "enabled": false,
+      "purpose": "API data caching"
+    },
+    "ollama": {
+      "enabled": false,
+      "model": "nomic-embed-text",
+      "purpose": "Generate embeddings for semantic search"
+    }
+  },
+   "lifecycle": {
+     "version": "2.0.0",
+     "setup": {
+       "description": "Initialize API Library",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api-library-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "api-library"
+              ]
+            }
+         ]
+       },
+       "steps": [
+         {
+           "name": "build-api",
+           "run": "cd api && go mod download && go build -o api-library-api .",
+           "description": "Build Go API binary"
+         },
+         {
+           "name": "install-cli",
+           "run": "cd cli && ./install.sh",
+           "description": "Install CLI command globally"
+         },
+         {
+           "name": "show-urls",
+           "run": "echo \"🚀 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+     "startup": {
+      "order": [
+        "postgres",
+        "qdrant",
+        "api",
+        "ui"
+      ],
+      "healthChecks": {
+        "postgres": {
+          "endpoint": "${service.postgres.url}/health",
+          "timeout": 30
+        },
+        "qdrant": {
+          "endpoint": "${service.qdrant.url}/health",
+          "timeout": 30
+        },
+        "api": {
+          "endpoint": "http://localhost:${ports.api}/health",
+          "timeout": 60
+        },
+        "ui": {
+          "endpoint": "http://localhost:${ports.ui}",
+          "timeout": 60
+        }
+      }
+    },
+    "shutdown": {
+      "gracePeriod": 10,
+      "order": [
+        "ui",
+        "api",
+        "qdrant",
+        "postgres"
+      ]
+    },
+    "stop": {
+      "description": "Stop api-library services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"api-library-api\" || true; sleep 1; pkill -9 -f \"api-library-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/api-library/ui\" || true; sleep 1; pkill -9 -f \"scenarios/api-library/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+     "develop": {
+       "description": "Development mode",
+       "steps": [
+          {
+            "name": "start-api",
+             "run": "cd api && unset POSTGRES_URL && VROOLI_LIFECYCLE_MANAGED=true API_PORT=${API_PORT:-15100} POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=lUq9qvemypKpuEeXCV6Vnxak1 POSTGRES_DB=api_library QDRANT_URL=http://localhost:6333 OLLAMA_URL=http://localhost:11434 ./api-library-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+               "file_exists": "api/api-library-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && PORT=${UI_PORT:-35100} REACT_APP_API_URL=http://localhost:${API_PORT:-15100}/api/v1 npm start",
+           "description": "Start UI development server",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo \"🚀 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+           "description": "Display running service URLs"
+         }
+       ]
+     },
+    "test": {
+      "description": "Run test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test/run-tests.sh",
+          "description": "Execute phased test suite"
+        }
+      ]
+    }
+  },
+  "api": {
+    "basePath": "/api/v1",
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/search",
+        "description": "Semantic search for APIs by capability"
+      },
+      {
+        "method": "GET",
+        "path": "/apis/:id",
+        "description": "Get detailed API information"
+      },
+      {
+        "method": "POST",
+        "path": "/apis",
+        "description": "Add new API to library"
+      },
+      {
+        "method": "PUT",
+        "path": "/apis/:id",
+        "description": "Update API information"
+      },
+      {
+        "method": "POST",
+        "path": "/apis/:id/notes",
+        "description": "Add notes or gotchas to an API"
+      },
+      {
+        "method": "POST",
+        "path": "/request-research",
+        "description": "Request research for new APIs"
+      },
+      {
+        "method": "GET",
+        "path": "/configured",
+        "description": "List APIs with configured credentials"
+      },
+      {
+        "method": "GET",
+        "path": "/export",
+        "description": "Export APIs in JSON or CSV format"
+      },
+      {
+        "method": "GET",
+        "path": "/categories",
+        "description": "List available API categories with counts"
+      },
+      {
+        "method": "GET",
+        "path": "/tags",
+        "description": "List popular API tags with counts"
+      },
+      {
+        "method": "PUT",
+        "path": "/apis/:id/tags",
+        "description": "Update tags for an API"
+      },
+      {
+        "method": "PUT",
+        "path": "/apis/:id/status",
+        "description": "Update API status and sunset date"
+      },
+      {
+        "method": "POST",
+        "path": "/calculate-cost",
+        "description": "Calculate estimated costs based on usage"
+      },
+      {
+        "method": "GET",
+        "path": "/apis/:id/versions",
+        "description": "Get version history for an API"
+      },
+      {
+        "method": "POST",
+        "path": "/apis/:id/versions",
+        "description": "Add new version for an API"
+      }
+    ]
+  },
+  "cli": {
+    "binary": "api-library",
+    "commands": [
+      "search <query>",
+      "show <api-id>",
+      "add-note <api-id> <note>",
+      "request-research <capability>",
+      "list-configured",
+      "export [--format json|csv]",
+      "list-categories",
+      "list-tags",
+      "update-tags <api-id> <tags...>",
+      "update-status <api-id> <status> [sunset-date]",
+      "calculate-cost <api-id> <requests> <mb>",
+      "status",
+      "help",
+      "version"
+    ]
+  },
+  "capabilities": {
+    "provides": [
+      "api-discovery",
+      "cost-analysis",
+      "integration-patterns",
+      "gotcha-tracking"
+    ],
+    "consumes": [
+      "research-automation"
+    ]
+  },
+  "monitoring": {
+    "metrics": {
+      "searches_per_minute": {
+        "type": "counter",
+        "description": "Number of API searches performed"
+      },
+      "apis_discovered": {
+        "type": "gauge",
+        "description": "Total APIs in library"
+      },
+      "research_requests": {
+        "type": "counter",
+        "description": "Research requests initiated"
+      }
+    },
+    "alerts": {
+      "high_search_latency": {
+        "condition": "p95_latency > 200ms",
+        "severity": "warning"
+      },
+      "database_growth": {
+        "condition": "db_size > 10GB",
+        "severity": "info"
+      }
+    }
+  },
+  "metadata": {
+    "author": "Vrooli AI",
+    "created": "2024-01-09",
+    "lastModified": "2024-01-09",
+    "prdLink": "PRD.md",
+    "testSuite": "scenario-test.yaml"
+  }
+}

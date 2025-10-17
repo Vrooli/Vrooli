@@ -1,0 +1,238 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: unstructured-io
+  category: ai
+  subcategory: document-processing
+  description: "Enterprise-grade document processing that transforms any document into AI-ready structured data"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - document-processing
+      - text-extraction
+      - table-extraction
+      - layout-analysis
+    secondary:
+      - ocr-processing
+      - metadata-extraction
+      - image-analysis
+      - multi-format-support
+    specialized:
+      - ai-ready-output
+      - chunking-strategies
+      - hi-res-processing
+      - enterprise-document-parsing
+  
+  # API interfaces available
+  interfaces:
+    - name: document-processing
+      endpoint: "/general/v0/general"
+      method: [POST]
+      inputTypes: [application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, image/jpeg, image/png, text/html, text/plain, message/rfc822]
+      outputTypes: [application/json, text/plain, text/markdown]
+      description: "Process documents and extract structured data"
+    - name: health-check
+      endpoint: "/healthcheck"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "Service health status check"
+    - name: batch-processing
+      endpoint: "/general/v0/general"
+      method: [POST]
+      inputTypes: [multipart/form-data]
+      outputTypes: [application/json]
+      description: "Batch process multiple documents"
+    - name: chunking
+      endpoint: "/general/v0/general"
+      method: [POST]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "Apply intelligent chunking strategies for AI consumption"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - docker
+      - python
+    optional:
+      - gpu
+      - tesseract-ocr
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - document-manager
+      - secure-document-processing
+      - research-assistant
+    secondary:
+      - prompt-manager
+      - brand-manager
+      - campaign-content-studio
+    optimal_combinations:
+      - [unstructured-io, qdrant, ollama]   # Document AI pipeline
+      - [unstructured-io, postgres, minio]  # Document management system
+      - [unstructured-io, n8n, vault]       # Secure document workflows
+      - [unstructured-io, whisper, agent-s2] # Multi-modal document processing
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 15000
+      max: 75000
+      currency: USD
+    complexity_score: 7  # 1-10 scale
+    implementation_time: "3-7 days"
+    upwork_demand: very-high
+    target_industries:
+      - legal-services
+      - financial-services
+      - healthcare
+      - education
+      - consulting
+      - enterprise-software
+      - document-management
+    common_project_types:
+      - "Enterprise document processing platform"
+      - "AI-powered document analysis system"
+      - "Legal document automation"
+      - "Financial document processing"
+      - "Healthcare records digitization"
+      - "Research paper analysis platform"
+  
+  # Technical specifications
+  technical:
+    ports: [8000]
+    protocols: [http, rest]
+    data_formats: [json, markdown, text, pdf, docx, pptx, xlsx, html, csv, eml, msg, rtf, odt, epub, jpg, png, tiff]
+    resource_requirements:
+      memory:
+        minimum: "2GB"
+        recommended: "4GB"
+        optimal: "8GB+"
+      cpu:
+        minimum: "2 cores"
+        recommended: "4 cores"
+        optimal: "8+ cores"
+      storage:
+        minimum: "2GB"
+        recommended: "10GB"
+        optimal: "50GB+"
+      gpu:
+        required: false
+        recommended: true
+        supported: ["NVIDIA CUDA"]
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_requests: 20
+      execution_modes: [fast, hi-res, ocr_only, auto]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - document-ingestion-pipelines
+      - ai-powered-document-analysis
+      - enterprise-content-processing
+      - document-to-knowledge-base
+    integration_targets:
+      preferred: [qdrant, postgres, minio, n8n]
+      compatible: [ollama, vault, redis, agent-s2]
+      avoid: [audio-processing, image-generation]
+    workflow_templates:
+      processing: "Upload document → Extract structure → Store in vector DB → Enable AI search"
+      automation: "Monitor document folder → Process new files → Extract insights → Generate summaries"
+      enterprise: "Batch process documents → Apply compliance rules → Archive structured data → Generate reports"
+    complexity_indicators:
+      simple: ["single document processing", "basic text extraction", "standard formats"]
+      intermediate: ["batch processing", "table extraction", "multi-format support", "chunking strategies"]
+      advanced: ["enterprise workflows", "AI-powered analysis", "compliance automation", "real-time processing"]
+  
+  # Specialized features
+  features:
+    multi_format_support:
+      enabled: true
+      description: "Process 20+ document formats including PDFs, Office docs, images"
+      formats: ["pdf", "docx", "pptx", "xlsx", "html", "csv", "eml", "jpg", "png", "tiff", "rtf", "odt", "epub"]
+    layout_analysis:
+      enabled: true
+      description: "Advanced layout detection and structure preservation"
+      capabilities: ["headers", "paragraphs", "lists", "tables", "images", "footnotes"]
+    processing_strategies:
+      enabled: true
+      description: "Multiple processing strategies for different use cases"
+      strategies: ["fast", "hi_res", "ocr_only", "auto"]
+    chunking_optimization:
+      enabled: true
+      description: "AI-optimized chunking for vector databases and LLMs"
+      methods: ["by_title", "by_page", "by_similarity", "fixed_size"]
+  
+  # Integration capabilities
+  integrations:
+    supported_formats:
+      documents: ["pdf", "docx", "pptx", "xlsx", "odt", "rtf", "epub"]
+      images: ["jpg", "jpeg", "png", "tiff", "bmp", "gif"]
+      text: ["txt", "html", "xml", "csv", "tsv", "json"]
+      email: ["eml", "msg", "mbox"]
+    output_formats:
+      - structured_json
+      - plain_text
+      - markdown
+      - html
+    processing_modes:
+      fast: "Quick text extraction for simple documents"
+      hi_res: "Deep analysis for complex layouts and tables"
+      ocr_only: "OCR processing for scanned documents"
+      auto: "Automatic strategy selection based on content"
+  
+  # Testing and validation
+  testing:
+    test_file: "resources/unstructured-io/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - document_processing
+      - format_compatibility
+      - extraction_accuracy
+      - performance_benchmarks
+    fixtures:
+      - sample_documents
+      - multi_format_test_suite
+      - performance_test_files
+    integration_tests:
+      - unstructured_qdrant_pipeline
+      - unstructured_postgres_storage
+      - batch_processing_workflow
+  
+  # Documentation and examples
+  documentation:
+    readme: "resources/unstructured-io/README.md"
+    api_reference: "resources/unstructured-io/docs/API.md"
+    examples_dir: "resources/unstructured-io/examples/"
+    configuration: "resources/unstructured-io/docs/CONFIGURATION.md"
+    troubleshooting: "resources/unstructured-io/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "0.10.0"
+    tested_version: "latest"
+    api_version: "v0"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      python: ">=3.8"
+      tesseract: ">=4.0"
+      poppler: ">=0.86"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "ai"
+  resource.vrooli.com/type: "document-processing"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "very-high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/enterprise-ready: "true"

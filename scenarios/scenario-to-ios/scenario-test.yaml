@@ -1,0 +1,215 @@
+version: 1.0
+scenario: scenario-to-ios
+
+metadata:
+  name: "iOS App Generator"
+  description: "Convert Vrooli scenarios to native iOS applications"
+  category: deployment
+  tags:
+    - ios
+    - mobile
+    - app-store
+    - deployment
+    - apple
+
+structure:
+  required_files:
+    - PRD.md
+    - README.md
+    - cli/scenario-to-ios
+    - cli/install.sh
+    - initialization/templates/ios/project.xcodeproj/project.pbxproj
+    - initialization/templates/ios/project/VrooliScenarioApp.swift
+    - initialization/templates/ios/project/ContentView.swift
+    - initialization/templates/ios/project/WebView.swift
+    - initialization/templates/ios/project/JSBridge.swift
+    - initialization/templates/ios/project/Info.plist
+    - initialization/templates/ios/project/www/index.html
+    - initialization/prompts/ios-app-creator.md
+    - initialization/prompts/ios-app-debugger.md
+    - test/test.sh
+    
+  required_dirs:
+    - api
+    - cli
+    - data
+    - initialization
+    - initialization/templates
+    - initialization/templates/ios
+    - initialization/templates/ios/project
+    - initialization/templates/ios/project.xcodeproj
+    - initialization/prompts
+    - test
+    - ui
+
+resources:
+  required:
+    - name: n8n
+      purpose: "Build pipeline orchestration"
+      health_check: true
+    - name: browserless
+      purpose: "UI testing and validation"
+      health_check: true
+      
+  optional:
+    - name: minio
+      purpose: "IPA and artifact storage"
+      fallback: "Local filesystem"
+    - name: redis
+      purpose: "Build cache and configurations"
+      fallback: "No caching"
+    - name: postgres
+      purpose: "Build history and metadata"
+      fallback: "File-based tracking"
+
+  health_timeout: 60
+
+tests:
+  - name: "Prerequisites check"
+    type: exec
+    command: |
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macOS detected"
+        exit 0
+      else
+        echo "Warning: iOS development requires macOS"
+        exit 0
+      fi
+    expect:
+      exit_code: 0
+      
+  - name: "Xcode availability (optional)"
+    type: exec
+    command: which xcodebuild || echo "Xcode not installed (optional for testing)"
+    expect:
+      exit_code: 0
+      
+  - name: "CLI help command"
+    type: exec
+    command: ./cli/scenario-to-ios help
+    expect:
+      exit_code: 0
+      output_contains: ["scenario-to-ios", "COMMANDS", "build"]
+      
+  - name: "CLI version command"
+    type: exec
+    command: ./cli/scenario-to-ios version
+    expect:
+      exit_code: 0
+      output_contains: ["scenario-to-ios version"]
+      
+  - name: "Template structure validation"
+    type: exec
+    command: |
+      if [ -f "initialization/templates/ios/project.xcodeproj/project.pbxproj" ] && \
+         [ -f "initialization/templates/ios/project/VrooliScenarioApp.swift" ] && \
+         [ -f "initialization/templates/ios/project/Info.plist" ]; then
+        echo "iOS template structure valid"
+        exit 0
+      else
+        echo "iOS template structure incomplete"
+        exit 1
+      fi
+    expect:
+      exit_code: 0
+      output_contains: ["valid"]
+      
+  - name: "JavaScript bridge validation"
+    type: exec
+    command: |
+      if grep -q "vrooliNative" initialization/templates/ios/project/JSBridge.swift && \
+         grep -q "hapticFeedback" initialization/templates/ios/project/JSBridge.swift; then
+        echo "JavaScript bridge configured correctly"
+        exit 0
+      else
+        echo "JavaScript bridge missing required methods"
+        exit 1
+      fi
+    expect:
+      exit_code: 0
+      output_contains: ["correctly"]
+      
+  - name: "Info.plist XML validation"
+    type: exec
+    command: |
+      if command -v xmllint &> /dev/null; then
+        xmllint --noout initialization/templates/ios/project/Info.plist && echo "Valid XML" || echo "Invalid XML"
+      else
+        echo "xmllint not available, skipping XML validation"
+      fi
+    expect:
+      exit_code: 0
+      
+  - name: "Prompt files validation"
+    type: exec
+    command: |
+      if [ -s "initialization/prompts/ios-app-creator.md" ] && \
+         [ -s "initialization/prompts/ios-app-debugger.md" ]; then
+        echo "Prompt files present and non-empty"
+        exit 0
+      else
+        echo "Prompt files missing or empty"
+        exit 1
+      fi
+    expect:
+      exit_code: 0
+      output_contains: ["present"]
+
+performance:
+  metrics:
+    - name: "Template generation time"
+      target: "< 5s"
+      measurement: "CLI timing"
+    - name: "IPA build time"
+      target: "< 3 minutes"
+      measurement: "Xcode build timing"
+    - name: "Memory usage"
+      target: "< 4GB during build"
+      measurement: "System monitor"
+
+integration:
+  capabilities:
+    provides:
+      - ios-app-generation
+      - testflight-submission
+      - app-store-packaging
+      - javascript-bridge
+    consumes:
+      - scenario-ui
+      - scenario-api
+      - signing-certificates
+  
+  api_endpoints:
+    - path: /api/v1/ios/build
+      method: POST
+      description: "Build iOS app from scenario"
+    - path: /api/v1/ios/testflight
+      method: POST
+      description: "Submit to TestFlight"
+    - path: /api/v1/ios/status/{build_id}
+      method: GET
+      description: "Check build status"
+  
+  cli_commands:
+    - command: build
+      description: "Build iOS app from scenario"
+    - command: testflight
+      description: "Submit IPA to TestFlight"
+    - command: validate
+      description: "Validate IPA for App Store"
+    - command: simulator
+      description: "Test in iOS Simulator"
+
+validation:
+  success_criteria:
+    - "All required files present"
+    - "CLI commands functional"
+    - "Template structure valid"
+    - "JavaScript bridge configured"
+    - "Prompts complete"
+    
+  quality_gates:
+    - "No syntax errors in Swift files"
+    - "Valid Info.plist XML"
+    - "All placeholders defined"
+    - "Security best practices followed"

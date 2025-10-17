@@ -1,0 +1,255 @@
+{
+  "name": "nutrition-analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nutrition-analyzer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "food_description",
+              "value": "1 medium apple with 2 tablespoons peanut butter"
+            },
+            {
+              "name": "meal_type",
+              "value": "snack"
+            },
+            {
+              "name": "user_id",
+              "value": "demo-user-123"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "default-values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or default data\nconst isManual = $('Manual').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\nconst prompt = `Analyze the nutritional content of this food: ${input.food_description}\n\nProvide the following nutritional information per serving:\n- Total calories\n- Protein (grams)\n- Carbohydrates (grams)\n- Fat (grams)\n- Fiber (grams)\n- Sugar (grams)\n- Sodium (mg)\n- Serving size description\n\nAlso identify:\n- Food category (Fruits, Vegetables, Protein, Grains, Dairy, Fats, etc.)\n- Is it vegan/vegetarian/keto-friendly?\n- Any notable vitamins or minerals\n\nReturn as JSON with keys: calories, protein, carbs, fat, fiber, sugar, sodium, serving_size, food_category, dietary_tags, nutrients`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2\",\n    type: \"generation\",\n    temperature: 0.3,\n    format: \"json\",\n    quiet: true,\n    original_input: input\n  }\n}];"
+      },
+      "id": "prepare-prompt",
+      "name": "Prepare Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/ollama",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  prompt: $json.prompt,\n  model: $json.model,\n  type: $json.type,\n  quiet: $json.quiet,\n  timeout_seconds: $json.timeout_seconds || 120\n}) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "analyze-nutrition",
+      "name": "Call Shared Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate the response from HTTP request\nconst httpResponse = $json;\nconst originalInput = $('Prepare Prompt').first().json.original_input;\n\ntry {\n  // Extract the actual response from the ollama HTTP response\n  let ollamaResponse = httpResponse.response;\n  \n  // Parse the JSON response\n  let nutritionData = {};\n  \n  if (typeof ollamaResponse === 'string') {\n    nutritionData = JSON.parse(ollamaResponse);\n  } else {\n    nutritionData = ollamaResponse;\n  }\n  \n  // Ensure all required fields with defaults\n  const validatedData = {\n    food_description: originalInput.food_description,\n    meal_type: originalInput.meal_type,\n    user_id: originalInput.user_id,\n    calories: nutritionData.calories || 0,\n    protein: nutritionData.protein || 0,\n    carbs: nutritionData.carbs || 0,\n    fat: nutritionData.fat || 0,\n    fiber: nutritionData.fiber || 0,\n    sugar: nutritionData.sugar || 0,\n    sodium: nutritionData.sodium || 0,\n    serving_size: nutritionData.serving_size || '1 serving',\n    food_category: nutritionData.food_category || 'Unknown',\n    dietary_tags: nutritionData.dietary_tags || [],\n    nutrients: nutritionData.nutrients || [],\n    analyzed_at: new Date().toISOString()\n  };\n  \n  return [{ json: validatedData }];\n  \n} catch (error) {\n  // Return default values if parsing fails\n  return [{\n    json: {\n      food_description: originalInput.food_description,\n      meal_type: originalInput.meal_type,\n      user_id: originalInput.user_id,\n      calories: 0,\n      protein: 0,\n      carbs: 0,\n      fat: 0,\n      fiber: 0,\n      sugar: 0,\n      sodium: 0,\n      serving_size: '1 serving',\n      food_category: 'Unknown',\n      dietary_tags: [],\n      nutrients: [],\n      error: error.message,\n      analyzed_at: new Date().toISOString()\n    }\n  }];\n}"
+      },
+      "id": "process-response",
+      "name": "Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO meal_items (\n  meal_id,\n  custom_food_name,\n  quantity,\n  unit,\n  calories,\n  protein,\n  carbs,\n  fat,\n  fiber,\n  sugar,\n  sodium\n) VALUES (\n  gen_random_uuid(),\n  '{{ $json.food_description }}',\n  1,\n  '{{ $json.serving_size }}',\n  {{ $json.calories }},\n  {{ $json.protein }},\n  {{ $json.carbs }},\n  {{ $json.fat }},\n  {{ $json.fiber }},\n  {{ $json.sugar }},\n  {{ $json.sodium }}\n) RETURNING *;",
+        "options": {}
+      },
+      "id": "save-to-database",
+      "name": "Save Analysis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 200],
+      "credentials": {
+        "postgres": {
+          "id": "nutrition-tracker-postgres",
+          "name": "Nutrition Tracker DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "={{ `Nutritional analysis complete for: ${$json.food_description}` }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "total_calories",
+              "value": "={{ $json.calories }}"
+            },
+            {
+              "name": "protein_grams",
+              "value": "={{ $json.protein }}"
+            },
+            {
+              "name": "carbs_grams",
+              "value": "={{ $json.carbs }}"
+            },
+            {
+              "name": "fat_grams",
+              "value": "={{ $json.fat }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual": {
+      "main": [
+        [
+          {
+            "node": "Default Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Values": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama": {
+      "main": [
+        [
+          {
+            "node": "Process Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Response": {
+      "main": [
+        [
+          {
+            "node": "Save Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "id": "nutrition-analyzer"
+}

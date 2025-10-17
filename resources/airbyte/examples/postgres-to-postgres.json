@@ -1,0 +1,47 @@
+{
+  "source": {
+    "name": "Source PostgreSQL",
+    "sourceDefinitionId": "decd338e-5647-4c0b-adf4-da0e75f5a750",
+    "connectionConfiguration": {
+      "host": "source-postgres-host",
+      "port": 5432,
+      "database": "source_db",
+      "username": "source_user",
+      "password": "source_password",
+      "ssl_mode": {
+        "mode": "prefer"
+      },
+      "replication_method": {
+        "method": "Standard"
+      }
+    }
+  },
+  "destination": {
+    "name": "Destination PostgreSQL",
+    "destinationDefinitionId": "25c5221d-dce2-4163-ade9-739ef790f503",
+    "connectionConfiguration": {
+      "host": "dest-postgres-host",
+      "port": 5432,
+      "database": "dest_db",
+      "username": "dest_user",
+      "password": "dest_password",
+      "ssl_mode": {
+        "mode": "prefer"
+      }
+    }
+  },
+  "connection": {
+    "name": "PostgreSQL to PostgreSQL Sync",
+    "namespaceDefinition": "destination",
+    "namespaceFormat": "${SOURCE_NAMESPACE}",
+    "prefix": "",
+    "syncCatalog": {
+      "streams": []
+    },
+    "scheduleType": "manual",
+    "status": "active",
+    "geography": "auto",
+    "notifySchemaChanges": true,
+    "nonBreakingChangesPreference": "propagate_columns"
+  }
+}

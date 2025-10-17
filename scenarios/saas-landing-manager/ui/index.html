@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaaS Landing Manager - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__saasLandingBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[SaaSLandingManager] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'saas-landing-manager' });
+            window.__saasLandingBridgeInitialized = true;
+        }
+    </script>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>🚀 SaaS Landing Manager</h1>
+                    <span class="version">v1.0.0</span>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-outline">
+                        <span class="icon">🔄</span> Refresh
+                    </button>
+                    <div class="status-indicator" id="apiStatus">
+                        <span class="dot"></span>
+                        <span class="text">API Status</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="scenarios">
+                <span class="icon">🎯</span> Scenarios
+            </button>
+            <button class="nav-tab" data-tab="templates">
+                <span class="icon">🎨</span> Templates
+            </button>
+            <button class="nav-tab" data-tab="generator">
+                <span class="icon">✨</span> Generator
+            </button>
+            <button class="nav-tab" data-tab="deployments">
+                <span class="icon">🚀</span> Deployments
+            </button>
+            <button class="nav-tab" data-tab="analytics">
+                <span class="icon">📊</span> Analytics
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Scenarios Tab -->
+            <section id="scenarios" class="tab-content active">
+                <div class="section-header">
+                    <h2>SaaS Scenarios</h2>
+                    <div class="section-actions">
+                        <button id="scanScenarios" class="btn btn-primary">
+                            <span class="icon">🔍</span> Scan Scenarios
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalScenarios">-</div>
+                        <div class="stat-label">Total Scenarios</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="saasScenarios">-</div>
+                        <div class="stat-label">SaaS Scenarios</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="newlyDetected">-</div>
+                        <div class="stat-label">Newly Detected</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="withLandingPages">-</div>
+                        <div class="stat-label">With Landing Pages</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Detected SaaS Scenarios</h3>
+                        <div class="filters">
+                            <select id="typeFilter" class="filter-select">
+                                <option value="">All Types</option>
+                                <option value="b2b_tool">B2B Tool</option>
+                                <option value="b2c_app">B2C App</option>
+                                <option value="api_service">API Service</option>
+                                <option value="marketplace">Marketplace</option>
+                            </select>
+                            <input type="text" id="searchFilter" placeholder="Search scenarios..." class="filter-input">
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div id="scenariosTable" class="table-container">
+                            <div class="loading">Scanning scenarios...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Templates Tab -->
+            <section id="templates" class="tab-content">
+                <div class="section-header">
+                    <h2>Landing Page Templates</h2>
+                    <div class="section-actions">
+                        <button id="createTemplate" class="btn btn-primary">
+                            <span class="icon">➕</span> Create Template
+                        </button>
+                    </div>
+                </div>
+
+                <div class="templates-grid" id="templatesGrid">
+                    <div class="loading">Loading templates...</div>
+                </div>
+            </section>
+
+            <!-- Generator Tab -->
+            <section id="generator" class="tab-content">
+                <div class="section-header">
+                    <h2>Landing Page Generator</h2>
+                </div>
+
+                <div class="generator-container">
+                    <div class="generator-form">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Generate New Landing Page</h3>
+                            </div>
+                            <div class="card-content">
+                                <form id="generateForm">
+                                    <div class="form-group">
+                                        <label for="scenarioSelect">Select Scenario</label>
+                                        <select id="scenarioSelect" name="scenario_id" required class="form-control">
+                                            <option value="">Choose a scenario...</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="templateSelect">Template (Optional)</label>
+                                        <select id="templateSelect" name="template_id" class="form-control">
+                                            <option value="">Auto-select best template</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableABTesting" name="enable_ab_testing">
+                                            <span class="checkmark"></span>
+                                            Enable A/B Testing
+                                        </label>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn-primary">
+                                            <span class="icon">✨</span> Generate Landing Page
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="generator-preview">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Preview</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="generatorPreview" class="preview-container">
+                                    <div class="preview-placeholder">
+                                        <div class="icon">👁️</div>
+                                        <p>Select a scenario and template to see preview</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Deployments Tab -->
+            <section id="deployments" class="tab-content">
+                <div class="section-header">
+                    <h2>Deployment Management</h2>
+                </div>
+
+                <div class="deployments-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recent Deployments</h3>
+                        </div>
+                        <div class="card-content">
+                            <div id="deploymentsList" class="deployments-list">
+                                <div class="loading">Loading deployments...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Deploy Landing Page</h3>
+                        </div>
+                        <div class="card-content">
+                            <form id="deployForm">
+                                <div class="form-group">
+                                    <label for="landingPageId">Landing Page ID</label>
+                                    <input type="text" id="landingPageId" name="landing_page_id" required class="form-control" placeholder="Enter landing page ID">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="targetScenario">Target Scenario</label>
+                                    <select id="targetScenario" name="target_scenario" required class="form-control">
+                                        <option value="">Choose target scenario...</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="deploymentMethod">Deployment Method</label>
+                                    <select id="deploymentMethod" name="deployment_method" class="form-control">
+                                        <option value="claude_agent">Claude Agent (Recommended)</option>
+                                        <option value="direct">Direct File Copy</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="backupExisting" name="backup_existing" checked>
+                                        <span class="checkmark"></span>
+                                        Backup existing files
+                                    </label>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">
+                                        <span class="icon">🚀</span> Deploy Landing Page
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics Tab -->
+            <section id="analytics" class="tab-content">
+                <div class="section-header">
+                    <h2>Performance Analytics</h2>
+                    <div class="section-actions">
+                        <select id="timeframeSelect" class="filter-select">
+                            <option value="7d">Last 7 days</option>
+                            <option value="30d">Last 30 days</option>
+                            <option value="90d">Last 90 days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <div class="analytics-number" id="totalLandingPages">0</div>
+                        <div class="analytics-label">Total Landing Pages</div>
+                        <div class="analytics-change positive">+12%</div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-number" id="activeABTests">0</div>
+                        <div class="analytics-label">Active A/B Tests</div>
+                        <div class="analytics-change neutral">0%</div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-number" id="avgConversionRate">0.0%</div>
+                        <div class="analytics-label">Avg. Conversion Rate</div>
+                        <div class="analytics-change positive">+2.3%</div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-number" id="totalConversions">0</div>
+                        <div class="analytics-label">Total Conversions</div>
+                        <div class="analytics-change positive">+18%</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Performance Overview</h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="performanceChart" class="chart-container">
+                            <div class="chart-placeholder">
+                                <div class="icon">📈</div>
+                                <p>Analytics chart will be displayed here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Modal Title</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="modalBody" class="modal-body">
+                Modal content goes here
+            </div>
+            <div class="modal-footer">
+                <button id="modalCancel" class="btn btn-outline">Cancel</button>
+                <button id="modalConfirm" class="btn btn-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

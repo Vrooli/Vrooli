@@ -1,0 +1,250 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/service.schema.json",
+  "title": "Service Configuration Schema",
+  "description": "Enhanced service configuration with resource auto-completion support",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver"
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "env_var": {
+            "type": "string"
+          },
+          "port": {
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "range": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "resources": {
+      "$ref": "resource-definitions.json#/resourceCatalog",
+      "description": "Resource configurations with auto-completion support"
+    },
+    "deployment": {
+      "type": "object"
+    },
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "setup": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "develop": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "test": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "stop": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "shutdown": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "health": {
+          "$ref": "#/definitions/healthPhase"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Default timeout in seconds for lifecycle operations"
+        }
+      }
+    }
+  },
+  "required": [
+    "resources"
+  ],
+  "definitions": {
+    "lifecyclePhase": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "object",
+          "properties": {
+            "checks": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "run": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "background": {
+                "type": "boolean"
+              },
+              "condition": {
+                "type": "object"
+              },
+              "retry": {
+                "type": "object",
+                "properties": {
+                  "max_attempts": {
+                    "type": "integer"
+                  },
+                  "delay": {
+                    "type": "integer"
+                  }
+                }
+              }
+            },
+            "required": [
+              "name",
+              "run"
+            ]
+          }
+        }
+      }
+    },
+    "healthPhase": {
+      "type": "object",
+      "description": "Health check configuration for the service",
+      "properties": {
+        "description": {
+          "type": "string",
+          "default": "Service health check configuration"
+        },
+        "endpoints": {
+          "type": "object",
+          "description": "Health check endpoints for different service components",
+          "properties": {
+            "api": {
+              "type": "string",
+              "default": "/health",
+              "description": "API health endpoint path (must be /health for lifecycle orchestration)"
+            },
+            "ui": {
+              "type": "string",
+              "default": "/health",
+              "description": "UI health endpoint path (standardized to /health for cross-scenario interoperability)"
+            },
+            "metrics": {
+              "type": "string",
+              "default": "/metrics",
+              "description": "Metrics endpoint path"
+            }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "description": "Specific health checks to perform",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the health check"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "http",
+                  "tcp",
+                  "postgres",
+                  "redis",
+                  "process",
+                  "file"
+                ],
+                "description": "Type of health check"
+              },
+              "target": {
+                "type": "string",
+                "description": "Target for the health check (URL, port, file path, etc.)"
+              },
+              "critical": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether this check is critical for service health"
+              },
+              "timeout": {
+                "type": "integer",
+                "default": 5000,
+                "description": "Timeout in milliseconds"
+              },
+              "interval": {
+                "type": "integer",
+                "default": 30000,
+                "description": "Check interval in milliseconds"
+              }
+            },
+            "required": [
+              "name",
+              "type"
+            ]
+          }
+        },
+        "timeout": {
+          "type": "integer",
+          "default": 5000,
+          "description": "Default timeout for health checks in milliseconds"
+        },
+        "interval": {
+          "type": "integer",
+          "default": 30000,
+          "description": "Default interval between health checks in milliseconds"
+        },
+        "startup_grace_period": {
+          "type": "integer",
+          "default": 10000,
+          "description": "Grace period in milliseconds before first health check"
+        }
+      }
+    }
+  }
+}

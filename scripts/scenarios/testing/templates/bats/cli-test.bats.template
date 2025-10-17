@@ -1,0 +1,207 @@
+#!/usr/bin/env bats
+# Safe BATS CLI test template
+# 
+# This template includes safety measures to prevent accidental file deletion
+# and follows best practices for CLI testing with external dependencies.
+#
+# Usage:
+#   1. Copy this template to your scenario's cli/ directory
+#   2. Rename to match your CLI tool (e.g., my-tool.bats)
+#   3. Customize the CLI_COMMAND variable and test cases
+#   4. Update setup/teardown functions for your needs
+
+################################################################################
+# Configuration - CUSTOMIZE THESE VALUES
+################################################################################
+
+# REQUIRED: Set your CLI command name
+CLI_COMMAND="REPLACE_WITH_YOUR_CLI_NAME"
+
+# REQUIRED: Set a safe test file prefix (must be absolute path under /tmp)
+TEST_FILE_PREFIX="/tmp/${CLI_COMMAND}-cli-test"
+
+# Optional: Set custom API port for integration tests
+API_PORT="${API_PORT:-17695}"
+
+################################################################################
+# Safe Setup and Teardown Functions
+################################################################################
+
+setup() {
+    # SAFETY: Always set TEST_FILE_PREFIX before any other operations
+    # This prevents teardown from deleting everything if setup fails early
+    export TEST_FILE_PREFIX="${TEST_FILE_PREFIX}"
+    export API_PORT="${API_PORT}"
+    
+    # Check if CLI is available - this should be first condition check
+    if ! command -v "${CLI_COMMAND}" >/dev/null 2>&1; then
+        skip "${CLI_COMMAND} CLI not installed"
+    fi
+    
+    # Create isolated test environment under /tmp
+    mkdir -p "${TEST_FILE_PREFIX}-dir"
+    
+    # Create any test files needed for your tests
+    echo "# Test file 1" > "${TEST_FILE_PREFIX}-dir/test1.txt"
+    echo "# Test file 2" > "${TEST_FILE_PREFIX}-dir/test2.txt"
+    echo "# Test file 3" > "${TEST_FILE_PREFIX}-dir/test3.txt"
+}
+
+teardown() {
+    # SAFETY: Only clean up if TEST_FILE_PREFIX is properly set
+    # This prevents accidental deletion of all files in current directory
+    if [ -n "${TEST_FILE_PREFIX:-}" ] && [ "${TEST_FILE_PREFIX}" != "/" ]; then
+        # Additional safety: ensure path starts with /tmp
+        case "${TEST_FILE_PREFIX}" in
+            /tmp/*)
+                rm -rf "${TEST_FILE_PREFIX}-dir" 2>/dev/null || true
+                rm -f "${TEST_FILE_PREFIX}"* 2>/dev/null || true
+                ;;
+            *)
+                # Log warning but don't delete anything suspicious
+                echo "WARNING: Unsafe TEST_FILE_PREFIX '${TEST_FILE_PREFIX}', skipping cleanup" >&2
+                ;;
+        esac
+    fi
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+
+# Check if the service/API this CLI connects to is running
+service_running() {
+    timeout 3 curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1
+}
+
+# Validate JSON output from CLI commands
+is_valid_json() {
+    echo "$1" | jq . >/dev/null 2>&1
+}
+
+# Run CLI command with error handling
+run_cli() {
+    run "${CLI_COMMAND}" "$@"
+}
+
+################################################################################
+# Basic Command Tests - CUSTOMIZE THESE
+################################################################################
+
+@test "CLI help command works" {
+    run_cli help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Usage:" ]]
+}
+
+@test "CLI version command works" {
+    run_cli version
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "version" ]] || [[ "$output" =~ "v[0-9]" ]]
+}
+
+@test "CLI handles unknown command gracefully" {
+    run_cli nonexistent-command
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Unknown command" ]] || [[ "$output" =~ "Error" ]]
+}
+
+################################################################################
+# Service Integration Tests - CUSTOMIZE THESE
+################################################################################
+
+@test "CLI status command works" {
+    run_cli status
+    # Status should work regardless of service state but may return different exit codes
+    [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
+}
+
+@test "CLI command works with service running" {
+    # Skip if service is not running
+    if ! service_running; then
+        skip "Service not running at localhost:${API_PORT}"
+    fi
+    
+    # CUSTOMIZE: Replace with your actual CLI command that requires the service
+    run_cli list --limit 1
+    [ "$status" -eq 0 ]
+}
+
+@test "CLI handles service down gracefully" {
+    # Skip if service is actually running
+    if service_running; then
+        skip "Service is running - cannot test service down scenario"
+    fi
+    
+    # CUSTOMIZE: Replace with command that should fail gracefully when service is down
+    run_cli list
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "not running" ]] || [[ "$output" =~ "connection" ]] || [[ "$output" =~ "Error" ]]
+}
+
+################################################################################
+# File Operation Tests - CUSTOMIZE THESE
+################################################################################
+
+@test "CLI processes test files correctly" {
+    # Only run this test if your CLI processes files
+    if ! service_running; then
+        skip "Service not running"
+    fi
+    
+    # CUSTOMIZE: Replace with your CLI's file processing command
+    run_cli process "${TEST_FILE_PREFIX}-dir/test1.txt"
+    [ "$status" -eq 0 ] || [[ "$output" =~ "processed" ]] || [[ "$output" =~ "success" ]]
+}
+
+################################################################################
+# JSON Output Tests - CUSTOMIZE THESE
+################################################################################
+
+@test "CLI produces valid JSON output" {
+    if ! service_running; then
+        skip "Service not running"
+    fi
+    
+    # CUSTOMIZE: Replace with your CLI's JSON output command
+    run_cli list --json
+    [ "$status" -eq 0 ]
+    is_valid_json "$output"
+}
+
+################################################################################
+# Error Handling Tests
+################################################################################
+
+@test "CLI validates numeric arguments" {
+    run_cli list --limit not-a-number
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Error" ]] || [[ "$output" =~ "invalid" ]]
+}
+
+@test "CLI handles missing file arguments" {
+    run_cli process /nonexistent/file.txt
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "not found" ]] || [[ "$output" =~ "Error" ]]
+}
+
+################################################################################
+# Template Usage Instructions
+################################################################################
+
+# To customize this template for your CLI:
+#
+# 1. Replace CLI_COMMAND with your actual CLI command name
+# 2. Update TEST_FILE_PREFIX to use your CLI name
+# 3. Modify setup() to create any test files your CLI needs
+# 4. Replace example commands (list, process, etc.) with your actual CLI commands
+# 5. Update service_running() to check your service's health endpoint
+# 6. Add your specific test cases
+# 7. Remove this comment block
+#
+# Safety reminders:
+# - Always set TEST_FILE_PREFIX in setup() before any skip conditions
+# - Use absolute paths under /tmp for TEST_FILE_PREFIX
+# - Add bounds checking in teardown() function
+# - Test with CLI both available and unavailable
+# - Use skip conditions to handle missing dependencies gracefully

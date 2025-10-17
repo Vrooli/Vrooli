@@ -1,0 +1,47 @@
+#!/bin/bash
+# SU2 Resource Configuration Defaults
+
+# Service configuration
+export SU2_PORT="${SU2_PORT:-9514}"
+export SU2_HOST="${SU2_HOST:-0.0.0.0}"
+export SU2_VERSION="${SU2_VERSION:-7.5.1}"
+
+# Container settings
+export SU2_CONTAINER_NAME="${SU2_CONTAINER_NAME:-vrooli-su2}"
+export SU2_IMAGE="${SU2_IMAGE:-su2/su2:${SU2_VERSION}}"
+export SU2_MEMORY_LIMIT="${SU2_MEMORY_LIMIT:-4G}"
+export SU2_CPU_LIMIT="${SU2_CPU_LIMIT:-4}"
+
+# MPI configuration
+export SU2_MPI_ENABLED="${SU2_MPI_ENABLED:-true}"
+export SU2_MPI_PROCESSES="${SU2_MPI_PROCESSES:-4}"
+export SU2_OMP_NUM_THREADS="${SU2_OMP_NUM_THREADS:-1}"
+
+# Data directories
+export SU2_DATA_DIR="${SU2_DATA_DIR:-${HOME}/.vrooli/su2}"
+export SU2_MESHES_DIR="${SU2_MESHES_DIR:-${SU2_DATA_DIR}/meshes}"
+export SU2_CONFIGS_DIR="${SU2_CONFIGS_DIR:-${SU2_DATA_DIR}/configs}"
+export SU2_RESULTS_DIR="${SU2_RESULTS_DIR:-${SU2_DATA_DIR}/results}"
+export SU2_CACHE_DIR="${SU2_CACHE_DIR:-${SU2_DATA_DIR}/cache}"
+
+# Solver settings
+export SU2_MAX_ITERATIONS="${SU2_MAX_ITERATIONS:-1000}"
+export SU2_CONVERGENCE_CRITERIA="${SU2_CONVERGENCE_CRITERIA:-1e-6}"
+export SU2_CFL_NUMBER="${SU2_CFL_NUMBER:-1.0}"
+export SU2_MULTIGRID_LEVEL="${SU2_MULTIGRID_LEVEL:-3}"
+
+# Output formats
+export SU2_OUTPUT_FORMAT="${SU2_OUTPUT_FORMAT:-TECPLOT,PARAVIEW,CSV}"
+export SU2_HISTORY_OUTPUT="${SU2_HISTORY_OUTPUT:-YES}"
+export SU2_VOLUME_OUTPUT="${SU2_VOLUME_OUTPUT:-YES}"
+export SU2_SURFACE_OUTPUT="${SU2_SURFACE_OUTPUT:-YES}"
+
+# Integration settings
+export SU2_ENABLE_QDRANT="${SU2_ENABLE_QDRANT:-true}"
+export SU2_ENABLE_QUESTDB="${SU2_ENABLE_QUESTDB:-true}"
+export SU2_ENABLE_MINIO="${SU2_ENABLE_MINIO:-true}"
+
+# Health check settings
+export SU2_HEALTH_TIMEOUT="${SU2_HEALTH_TIMEOUT:-5}"
+export SU2_STARTUP_TIMEOUT="${SU2_STARTUP_TIMEOUT:-60}"
+export SU2_SHUTDOWN_TIMEOUT="${SU2_SHUTDOWN_TIMEOUT:-30}"

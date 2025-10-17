@@ -1,0 +1,183 @@
+{
+  "buckets": [
+    {
+      "name": "idea-documents",
+      "description": "Storage for campaign documents and files uploaded by users",
+      "policy": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {"AWS": ["*"]},
+            "Action": ["s3:GetObject"],
+            "Resource": ["arn:aws:s3:::idea-documents/public/*"]
+          },
+          {
+            "Effect": "Allow", 
+            "Principal": {"AWS": ["*"]},
+            "Action": ["s3:PutObject", "s3:DeleteObject"],
+            "Resource": ["arn:aws:s3:::idea-documents/uploads/*"],
+            "Condition": {
+              "StringLike": {
+                "s3:x-amz-content-sha256": "*"
+              }
+            }
+          }
+        ]
+      },
+      "versioning": true,
+      "encryption": {
+        "enabled": true,
+        "algorithm": "AES256"
+      },
+      "lifecycle_rules": [
+        {
+          "id": "cleanup_failed_uploads",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "uploads/temp/"
+          },
+          "expiration": {
+            "days": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "processed-content",
+      "description": "Storage for processed document content and extracted text",
+      "policy": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {"AWS": ["*"]},
+            "Action": ["s3:GetObject", "s3:PutObject"],
+            "Resource": ["arn:aws:s3:::processed-content/*"]
+          }
+        ]
+      },
+      "versioning": false,
+      "encryption": {
+        "enabled": true,
+        "algorithm": "AES256"
+      }
+    },
+    {
+      "name": "exports",
+      "description": "Storage for exported ideas, reports, and data downloads",
+      "policy": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {"AWS": ["*"]},
+            "Action": ["s3:GetObject"],
+            "Resource": ["arn:aws:s3:::exports/*"]
+          }
+        ]
+      },
+      "versioning": false,
+      "encryption": {
+        "enabled": true,
+        "algorithm": "AES256"
+      },
+      "lifecycle_rules": [
+        {
+          "id": "cleanup_exports",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "exports/"
+          },
+          "expiration": {
+            "days": 30
+          }
+        }
+      ]
+    },
+    {
+      "name": "backups",
+      "description": "Storage for data backups and snapshots",
+      "policy": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Deny",
+            "Principal": {"AWS": ["*"]},
+            "Action": ["s3:DeleteObject"],
+            "Resource": ["arn:aws:s3:::backups/*"]
+          }
+        ]
+      },
+      "versioning": true,
+      "encryption": {
+        "enabled": true,
+        "algorithm": "AES256"
+      },
+      "lifecycle_rules": [
+        {
+          "id": "archive_old_backups",
+          "status": "Enabled",
+          "filter": {
+            "prefix": "backups/"
+          },
+          "transition": {
+            "days": 90,
+            "storage_class": "GLACIER"
+          }
+        }
+      ]
+    }
+  ],
+  "access_keys": [
+    {
+      "access_key": "${MINIO_ACCESS_KEY}",
+      "secret_key": "${MINIO_SECRET_KEY}", 
+      "policy": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:GetObject",
+              "s3:PutObject",
+              "s3:DeleteObject",
+              "s3:ListBucket"
+            ],
+            "Resource": [
+              "arn:aws:s3:::idea-documents/*",
+              "arn:aws:s3:::processed-content/*",
+              "arn:aws:s3:::exports/*",
+              "arn:aws:s3:::idea-documents",
+              "arn:aws:s3:::processed-content", 
+              "arn:aws:s3:::exports"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:GetObject",
+              "s3:PutObject",
+              "s3:ListBucket"
+            ],
+            "Resource": [
+              "arn:aws:s3:::backups/*",
+              "arn:aws:s3:::backups"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "notifications": [
+    {
+      "bucket": "idea-documents",
+      "events": ["s3:ObjectCreated:*"],
+      "prefix": "uploads/",
+      "webhook": {
+        "url": "http://localhost:5678/webhook/document-upload",
+        "method": "POST"
+      }
+    }
+  ]
+}

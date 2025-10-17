@@ -1,0 +1,167 @@
+---
+description: 
+globs: *.md,/doc
+alwaysApply: false
+---
+# Documentation Styling Guidelines
+
+This document outlines the styling and content guidelines for creating documentation within the Vrooli project. Adhering to these guidelines will ensure consistency, clarity, and maintainability across all project documentation.
+
+## 🎯 Guiding Principles
+
+-   **Visually Stunning**: Documentation should be engaging and easy to navigate. Utilize Markdown's full capabilities, including emojis and Mermaid diagrams, to enhance visual appeal.
+-   **Comprehensive yet Concise**: Provide thorough information, but avoid unnecessary length. Prefer linking to other relevant documents or sections for deeper dives.
+-   **Clarity and Accessibility**: Write clearly and make documentation accessible to a diverse audience, including those with varying technical backgrounds.
+-   **Actionable and Practical**: Focus on providing practical examples, real-world context, and actionable guidance.
+
+## 📝 Content Structure & Organization
+
+-   **Table of Contents (TOC)**:
+    -   Always include a comprehensive TOC for documents longer than approximately 100 lines.
+    -   Ensure the TOC is easy to navigate and accurately reflects the document structure.
+-   **Logical Hierarchy**:
+    -   Use proper heading structure (H1 → H2 → H3, etc.).
+    -   Ensure a clear and logical progression of sections.
+    -   Use emojis in headings to add visual cues and improve readability (e.g., `## 🚀 Section Title`).
+-   **Introduction & TL;DR**:
+    -   Start with a brief introduction explaining the document's purpose.
+    -   Include a "Too Long; Didn't Read" (TL;DR) summary at the beginning for quick insights, especially for longer documents.
+-   **Cross-References**:
+    -   Link to related documentation files using relative paths (e.g., `[Link Text](mdc:../path/to/document.md)`).
+    -   Use descriptive link text that clearly indicates the target content.
+    -   Encourage linking to minimize redundancy and keep documents focused.
+-   **Practical Examples**:
+    -   Include real code examples, command snippets, and practical scenarios—not just theory.
+    -   Clearly explain what each example does and how it relates to the Vrooli project.
+
+## ✨ Visual Enhancement & Formatting
+
+-   **Mermaid Diagrams**:
+    -   Use [Mermaid diagrams](mdc:https:/mermaid.js.org/intro) to illustrate complex workflows, architectures, system relationships, and decision trees.
+    -   Ensure diagrams are clear, well-labeled, and contribute to understanding.
+    -   Example:
+        ```mermaid
+        graph TD
+            A[Start] --> B{Decision?};
+            B -- Yes --> C[Option 1];
+            B -- No --> D[Option 2];
+        ```
+-   **Emojis**:
+    -   Use emojis appropriately in headings and text to add visual interest and context (e.g., ✨, 🚀, 💡, ⚠️, 🎯, ⚙️, 📚).
+    -   Don't overuse emojis to the point of distraction.
+-   **Code Blocks**:
+    -   Always specify the language for syntax highlighting (e.g., ` ```typescript`, ` ```bash`, ` ```sql`, ` ```mermaid`).
+    -   Ensure code is well-formatted and easy to read.
+-   **Consistent Formatting**:
+    -   Use **bold** for important concepts, tool names, and key terms.
+    -   Use *italics* for emphasis and file/directory names when inline (e.g., *README.md*, */docs/architecture*).
+    -   Use `backticks` for inline code snippets, commands, technical terms, and file extensions (e.g., `npm install`, `API_KEY`, `.ts` files).
+    -   Use `>` blockquotes for important notes, warnings, or direct quotations.
+        > **Note**: This is an important piece of information.
+
+## 💎 Content Quality Standards
+
+-   **Up-to-Date Information**:
+    -   Ensure documentation reflects the current state of the project.
+    -   Research current best practices and include modern approaches where relevant.
+-   **Actionable Guidance**:
+    -   Provide step-by-step instructions where applicable.
+    -   Focus on enabling users to accomplish tasks.
+-   **Troubleshooting**:
+    -   Include common issues, error scenarios, and practical solutions or workarounds.
+-   **Real-World Context**:
+    -   Show how concepts apply specifically to the Vrooli project and its goals.
+-   **Audience Awareness**:
+    -   Write for the intended audience, explaining technical concepts clearly.
+
+## 📄 Documentation Patterns
+
+-   **Error Scenarios**: Document what can go wrong and how to fix it.
+-   **Command Examples**: Show actual commands with expected outputs (if applicable).
+-   **Configuration Snippets**: Include real configuration examples with explanations.
+-   **Integration Points**: Clearly explain how components connect and interact.
+-   **Decision Rationale**: For architectural or significant technical decisions, briefly explain the "why" behind them.
+
+## 🛠️ Maintenance Principles
+
+-   **Accuracy First**: Validate information against the actual codebase and project implementation.
+-   **Comprehensive Coverage**: Address both "happy path" scenarios and potential edge cases or problems.
+-   **Future-Proof**: Structure content to remain relevant as the project evolves, or clearly mark version-specific information.
+-   **Review and Update**: Periodically review documentation for outdated information or areas needing improvement.
+
+## 🎨 Mermaid Diagram Guidelines
+
+### **Text Formatting and Line Breaks**
+
+#### **Newlines and Line Breaks**
+- **Use `<br>` tags** for manual line breaks within node text:
+  ```mermaid
+  A["First line<br>Second line<br>Third line"]
+  ```
+
+#### **Automatic Text Wrapping (Recommended)**
+- **Use markdown strings** with backticks and double quotes for automatic text wrapping:
+  ```mermaid
+  A["`This text will automatically wrap when it becomes too long and you can
+     start a new line by simply using a newline character`"]
+  ```
+
+#### **Text Formatting**
+- **Bold text**: Use double asterisks within markdown strings: `**bold text**`
+- **Italics**: Use single asterisks within markdown strings: `*italic text*`
+- **Example**:
+  ```mermaid
+  A["`**Bold text** and *italic text* with automatic wrapping`"]
+  ```
+
+### **Character Restrictions and Escaping**
+
+#### **Reserved Words That Break Diagrams**
+- **The word "end"** (case-sensitive): Must be wrapped in quotes
+  ```mermaid
+  A["End"] --> B["START"]  // ✅ Correct
+  A[End] --> B[START]      // ❌ Will break
+  ```
+
+#### **Problematic Character Sequences**
+- **Avoid starting connecting nodes with "o" or "x"**: Add space or capitalize
+  ```mermaid
+  A --- ops    // ✅ Correct (space added)
+  A --- Ops    // ✅ Correct (capitalized)
+  A ---ops     // ❌ Will create unexpected edge types
+  ```
+
+#### **Special Character Escaping**
+- **Use HTML entity codes** for special characters:
+  ```mermaid
+  A["Hash symbol: &#35;"]     // For #
+  A["Semicolon: &#59;"]       // For ;
+  A["Less than: &lt;"]       // For <
+  A["Greater than: &gt;"]    // For >
+  ```
+
+#### **Comments and Directives**
+- **Avoid curly braces `{}` in comments** using `%%`:
+  ```mermaid
+  %% This is a good comment
+  %% Avoid: This comment has {braces} - may confuse renderer
+  ```
+
+#### **Unicode and Emojis**
+- **Fully supported** within quoted text and markdown strings:
+  ```mermaid
+  A["`🚀 Unicode works: शान्तिः سلام 和平`"]
+  ```
+
+#### **Quotes and Special Text**
+- **Use double quotes** to safely include problematic characters:
+  ```mermaid
+  A["Text with (parentheses) and {braces} and [brackets]"]
+  ```
+
+### **Best Practices for Mermaid Text**
+1. **Use markdown strings** `"` for text that needs formatting or automatic wrapping
+2. **Quote any text** that contains special characters, punctuation, or reserved words
+3. **Use entity codes** for symbols that might interfere with Mermaid syntax
+
+By following these guidelines, we can create a high-quality, engaging, and useful documentation suite that supports the Vrooli project and its community.

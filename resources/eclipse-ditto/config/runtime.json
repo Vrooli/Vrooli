@@ -1,0 +1,38 @@
+{
+  "startup_order": 600,
+  "dependencies": ["postgres", "redis"],
+  "optional_dependencies": ["qdrant", "n8n"],
+  "startup_timeout": 120,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "resource_requirements": {
+    "memory": "2GB minimum, 4GB recommended",
+    "cpu": "2 cores minimum",
+    "disk": "10GB minimum for data persistence"
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 5,
+    "timeout": 5,
+    "retries": 3
+  },
+  "ports": {
+    "gateway": 8089,
+    "mongodb": 27017
+  },
+  "compatibility": {
+    "platforms": ["linux", "darwin", "windows"],
+    "docker": "20.10+",
+    "docker_compose": "2.0+"
+  },
+  "features": {
+    "digital_twins": true,
+    "rest_api": true,
+    "websocket": true,
+    "mqtt": false,
+    "amqp": false,
+    "policy_management": true,
+    "search": true
+  }
+}

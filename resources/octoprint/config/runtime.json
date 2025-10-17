@@ -1,0 +1,36 @@
+{
+  "startup_order": 700,
+  "dependencies": [],
+  "optional_dependencies": ["postgres", "minio", "redis"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "20-40s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "health_check": {
+    "endpoint": "/api/version",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "resource_limits": {
+    "memory": "512M",
+    "cpu": "1.0"
+  },
+  "network": {
+    "ports": [8197],
+    "protocols": ["http", "websocket"]
+  },
+  "persistence": {
+    "data_dir": "${HOME}/.vrooli/resources/octoprint/data",
+    "backup_enabled": true,
+    "backup_interval": "daily"
+  },
+  "features": {
+    "api": true,
+    "websocket": true,
+    "plugins": true,
+    "webcam": false,
+    "virtual_printer": true
+  }
+}

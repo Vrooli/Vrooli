@@ -1,0 +1,204 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "qr-code-generator",
+    "displayName": "QR Code Generator",
+    "description": "Fun retro-style QR code generator with customization options and batch processing",
+    "version": "1.0.0",
+    "tags": [
+      "utility-application",
+      "utilities",
+      "qr-code",
+      "generator",
+      "utility",
+      "batch-processing",
+      "javascript-ui",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "redis-cache"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "QR code generator API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "QR code generator UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "shared_workflows": [
+        "file-list-writer",
+        "ollama",
+        "intelligent-text-classifier",
+        "cache-manager"
+      ],
+      "initialization": [
+        {
+          "file": "initialization/n8n/qr-generator-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/batch-qr-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/qr-art-generator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/qr-puzzle-generator.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache generated QR codes and track batch jobs"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "QR Code Generator health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize QR Code Generator",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "qr-code-generator-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "qr-code-generator"
+             ]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o qr-generator-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🎨 QR Code Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start QR code generator services",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./qr-code-generator-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/qr-code-generator-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test QR code generator",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-generation",
+          "run": "curl -X POST http://localhost:$API_PORT/generate -H 'Content-Type: application/json' -d '{\"text\":\"test\",\"size\":256}'",
+          "description": "Test QR generation"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"qr-code-generator-api\" || true; sleep 1; pkill -9 -f \"qr-code-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/qr-code-generator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/qr-code-generator.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,541 @@
+{
+  "name": "Agent Conversation Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent/conversation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for Agent Conversation\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.topic) {\n  throw new Error('Missing required field: topic');\n}\n\nif (!input.participants || !Array.isArray(input.participants) || input.participants.length === 0) {\n  throw new Error('Missing required field: participants (must be non-empty array)');\n}\n\n// Extract and validate inputs\nconst topic = input.topic.trim();\nif (topic.length === 0) {\n  throw new Error('Topic field cannot be empty');\n}\n\nif (topic.length > 10000) {\n  throw new Error('Topic exceeds maximum length of 10000 characters');\n}\n\n// Validate participants\nconst participants = input.participants.map((p, i) => {\n  if (!p.name || !p.model || !p.role) {\n    throw new Error(`Participant ${i} missing required fields: name, model, role`);\n  }\n  \n  return {\n    name: p.name.trim(),\n    model: p.model.trim(),\n    role: p.role.trim(),\n    perspective: (p.perspective || '').trim(),\n    personality: p.personality || 'balanced',\n    temperature: Math.min(Math.max(p.temperature || 0.7, 0.0), 2.0),\n    maxTokens: Math.min(p.max_tokens || 2000, 4000)\n  };\n});\n\nif (participants.length < 2) {\n  throw new Error('At least 2 participants required for conversation');\n}\n\nif (participants.length > 8) {\n  throw new Error('Maximum 8 participants allowed');\n}\n\n// Configuration with defaults\nconst rounds = Math.min(Math.max(input.rounds || 3, 1), 10);\nconst consensusThreshold = Math.min(Math.max(input.consensus_threshold || 0.7, 0.0), 1.0);\nconst moderation = input.moderation !== false; // Default to true\nconst allowInterruptions = input.allow_interruptions || false;\nconst requireEvidence = input.require_evidence || false;\n\n// Advanced options\nconst advanced = input.advanced || {};\nconst debateStyle = advanced.debate_style || 'structured'; // structured, freestyle, socratic\nconst synthesisModel = advanced.synthesis_model || 'qwen2.5-coder:32b';\nconst enableEmotions = advanced.enable_emotions || false;\nconst trackAgreement = advanced.track_agreement !== false;\nconst enableMemory = advanced.enable_memory !== false;\n\n// Initialize conversation context\nconst conversationContext = {\n  // Core configuration\n  topic: topic,\n  participants: participants,\n  rounds: rounds,\n  consensusThreshold: consensusThreshold,\n  moderation: moderation,\n  allowInterruptions: allowInterruptions,\n  requireEvidence: requireEvidence,\n  debateStyle: debateStyle,\n  synthesisModel: synthesisModel,\n  enableEmotions: enableEmotions,\n  trackAgreement: trackAgreement,\n  enableMemory: enableMemory,\n  \n  // Conversation state\n  currentRound: 0,\n  conversationHistory: [],\n  participantStates: participants.map(p => ({\n    name: p.name,\n    currentPosition: '',\n    confidenceLevel: 0.5,\n    agreementWithOthers: {},\n    contributionCount: 0,\n    lastContributionRound: -1,\n    emotionalState: 'neutral',\n    memory: []\n  })),\n  \n  // Tracking metrics\n  agreementMatrix: {},\n  consensusHistory: [],\n  interruptionCount: 0,\n  moderationActions: [],\n  conversationStats: {\n    totalTurns: 0,\n    averageTurnLength: 0,\n    agreementEvolution: [],\n    topicDriftScore: 0,\n    participationBalance: {}\n  },\n  \n  // Runtime state\n  sessionId: `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  startTime: new Date().toISOString(),\n  processingComplete: false,\n  finalSynthesis: null,\n  conversationTranscript: []\n};\n\n// Define debate styles and their characteristics\nconst debateStyles = {\n  'structured': {\n    description: 'Orderly turn-taking with formal response structure',\n    turnOrder: 'sequential',\n    responseFormat: 'position-evidence-conclusion',\n    moderationLevel: 'high'\n  },\n  'freestyle': {\n    description: 'Open discussion with natural flow and interruptions',\n    turnOrder: 'dynamic',\n    responseFormat: 'natural',\n    moderationLevel: 'low'\n  },\n  'socratic': {\n    description: 'Question-driven exploration with deep inquiry',\n    turnOrder: 'inquiry-based',\n    responseFormat: 'question-hypothesis-question',\n    moderationLevel: 'medium'\n  }\n};\n\nconversationContext.debateStyleConfig = debateStyles[debateStyle] || debateStyles.structured;\n\n// Initialize agreement matrix\nparticipants.forEach(p1 => {\n  conversationContext.agreementMatrix[p1.name] = {};\n  participants.forEach(p2 => {\n    if (p1.name !== p2.name) {\n      conversationContext.agreementMatrix[p1.name][p2.name] = 0.5; // Neutral starting point\n    }\n  });\n});\n\nconsole.log(`[Agent Conversation] Initialized session: ${conversationContext.sessionId}`);\nconsole.log(`[Agent Conversation] Topic: ${topic.substring(0, 100)}...`);\nconsole.log(`[Agent Conversation] Participants: ${participants.map(p => `${p.name}(${p.model})`).join(', ')}`);\nconsole.log(`[Agent Conversation] Style: ${debateStyle}, Rounds: ${rounds}, Consensus: ${consensusThreshold}`);\n\nreturn conversationContext;"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if conversation should continue\nconst context = $input.item.json;\n\n// Continue if:\n// 1. Not all rounds are complete\n// 2. Consensus hasn't been reached (if tracking)\n// 3. Processing hasn't been marked as complete\nconst shouldContinue = !context.processingComplete && \n                      context.currentRound < context.rounds;\n\nif (shouldContinue) {\n  console.log(`[Agent Conversation] Starting round ${context.currentRound + 1}/${context.rounds}`);\n  context.shouldProcessRound = true;\n  context.roundStartTime = new Date().toISOString();\n} else {\n  context.shouldProcessRound = false;\n  context.readyForSynthesis = !context.processingComplete;\n  console.log(`[Agent Conversation] All rounds complete, preparing synthesis`);\n}\n\nreturn context;"
+      },
+      "id": "check_round_condition",
+      "name": "Check Round Condition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldProcessRound }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "should_process_round",
+      "name": "Should Process Round?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare round execution - create participant turns\nconst context = $input.item.json;\nconst currentRound = context.currentRound;\n\n// Determine speaking order based on debate style\nlet speakingOrder;\nswitch (context.debateStyleConfig.turnOrder) {\n  case 'sequential':\n    speakingOrder = context.participants.map((_, i) => i);\n    break;\n  case 'dynamic':\n    // Randomize order with some bias toward less frequent speakers\n    speakingOrder = context.participants\n      .map((p, i) => ({ index: i, lastRound: context.participantStates[i].lastContributionRound }))\n      .sort((a, b) => a.lastRound - b.lastRound) // Prioritize those who spoke less recently\n      .map(item => item.index);\n    break;\n  case 'inquiry-based':\n    // Start with most disagreeing participants\n    const disagreementScores = context.participants.map((p, i) => {\n      const state = context.participantStates[i];\n      const avgAgreement = Object.values(state.agreementWithOthers).reduce((a, b) => a + b, 0) / \n                          Math.max(Object.keys(state.agreementWithOthers).length, 1);\n      return { index: i, disagreement: 1 - avgAgreement };\n    });\n    speakingOrder = disagreementScores\n      .sort((a, b) => b.disagreement - a.disagreement)\n      .map(item => item.index);\n    break;\n  default:\n    speakingOrder = context.participants.map((_, i) => i);\n}\n\n// Create turn execution items\nconst turnItems = speakingOrder.map((participantIndex, turnIndex) => {\n  const participant = context.participants[participantIndex];\n  const participantState = context.participantStates[participantIndex];\n  \n  // Build context for this participant's turn\n  const conversationContext = context.conversationHistory.length > 0 ? \n    context.conversationHistory.slice(-10).map(entry => \n      `${entry.speaker} (${entry.role}): ${entry.content}`\n    ).join('\\n\\n') : 'Beginning of conversation';\n  \n  // Build prompt based on debate style and round\n  let prompt;\n  switch (context.debateStyleConfig.responseFormat) {\n    case 'position-evidence-conclusion':\n      prompt = `You are ${participant.name}, a ${participant.role} participating in a structured debate about: \"${context.topic}\"\n\n${participant.perspective ? `Your perspective: ${participant.perspective}` : ''}\n\nConversation so far:\n${conversationContext}\n\nThis is round ${currentRound + 1} of ${context.rounds}. Please provide your response in the following structure:\n\n**Position**: Your current stance on the topic\n**Evidence**: Supporting evidence, reasoning, or examples\n**Conclusion**: Key takeaway or recommendation\n\nBe concise but thorough. Address points made by others when relevant. Maintain your role and perspective while being open to good arguments.`;\n      break;\n      \n    case 'question-hypothesis-question':\n      prompt = `You are ${participant.name}, a ${participant.role} engaging in Socratic dialogue about: \"${context.topic}\"\n\n${participant.perspective ? `Your perspective: ${participant.perspective}` : ''}\n\nConversation so far:\n${conversationContext}\n\nAs a Socratic participant, focus on asking probing questions and testing hypotheses. Structure your response as:\n\n**Question**: What key question does this raise?\n**Hypothesis**: What do you think might be true?\n**Follow-up**: What should we explore next?\n\nChallenge assumptions and dig deeper into the underlying principles.`;\n      break;\n      \n    default: // natural\n      prompt = `You are ${participant.name}, a ${participant.role} discussing: \"${context.topic}\"\n\n${participant.perspective ? `Your perspective: ${participant.perspective}` : ''}\n\nConversation so far:\n${conversationContext}\n\nThis is round ${currentRound + 1} of ${context.rounds}. Share your thoughts naturally, responding to what others have said and contributing new insights. Stay true to your role and expertise while engaging constructively with the discussion.`;\n  }\n  \n  return {\n    participantIndex: participantIndex,\n    participant: participant,\n    participantState: participantState,\n    turnIndex: turnIndex,\n    prompt: prompt,\n    roundNumber: currentRound + 1,\n    conversationContext: context\n  };\n});\n\nreturn turnItems;"
+      },
+      "id": "prepare_round",
+      "name": "Prepare Round",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.prompt) }},\n  \"model\": {{ JSON.stringify($json.participant.model) }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 180\n}",
+        "options": {
+          "timeout": 185000
+        }
+      },
+      "id": "execute_participant_turn",
+      "name": "Execute Participant Turn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process participant's response and update conversation state from Universal Ollama Executor\nconst response = $input.item.json;\nconst turnData = $('Prepare Round').item.json;\nconst participant = turnData.participant;\nconst participantIndex = turnData.participantIndex;\nconst context = turnData.conversationContext;\n\n// Extract response content\nconst responseContent = response.response || response.text || 'No response generated';\n\n// Create conversation entry\nconst conversationEntry = {\n  speaker: participant.name,\n  role: participant.role,\n  model: participant.model,\n  round: turnData.roundNumber,\n  turnIndex: turnData.turnIndex,\n  content: responseContent.trim(),\n  timestamp: new Date().toISOString(),\n  wordCount: responseContent.split(/\\s+/).length,\n  participantIndex: participantIndex\n};\n\n// Analyze response for agreement/disagreement indicators\nlet agreementLevel = 0.5; // Neutral starting point\nconst agreementIndicators = [\n  'I agree', 'exactly right', 'good point', 'that\\'s correct', 'absolutely',\n  'I support', 'well said', 'precisely', 'exactly', 'spot on'\n];\nconst disagreementIndicators = [\n  'I disagree', 'however', 'but', 'on the contrary', 'I think not',\n  'that\\'s wrong', 'not quite', 'I differ', 'alternatively', 'instead'\n];\n\nconst lowerContent = responseContent.toLowerCase();\nagreementIndicators.forEach(indicator => {\n  if (lowerContent.includes(indicator)) agreementLevel += 0.1;\n});\ndisagreementIndicators.forEach(indicator => {\n  if (lowerContent.includes(indicator)) agreementLevel -= 0.1;\n});\nagreementLevel = Math.min(Math.max(agreementLevel, 0), 1);\n\n// Extract confidence indicators\nlet confidenceLevel = 0.5;\nconst confidenceIndicators = [\n  'I\\'m certain', 'definitely', 'absolutely', 'without doubt', 'clearly',\n  'obviously', 'certainly', 'undoubtedly', 'I\\'m sure', 'confident'\n];\nconst uncertaintyIndicators = [\n  'maybe', 'perhaps', 'possibly', 'might be', 'could be',\n  'I think', 'seems like', 'appears to', 'uncertain', 'not sure'\n];\n\nconfidenceIndicators.forEach(indicator => {\n  if (lowerContent.includes(indicator)) confidenceLevel += 0.1;\n});\nuncertaintyIndicators.forEach(indicator => {\n  if (lowerContent.includes(indicator)) confidenceLevel -= 0.1;\n});\nconfidenceLevel = Math.min(Math.max(confidenceLevel, 0), 1);\n\nconversationEntry.analysis = {\n  agreementLevel: agreementLevel,\n  confidenceLevel: confidenceLevel,\n  keyTerms: responseContent.match(/\\b\\w{4,}\\b/g)?.slice(0, 10) || [],\n  questionCount: (responseContent.match(/\\?/g) || []).length,\n  evidenceCount: (responseContent.match(/because|since|due to|evidence|study|research|data/gi) || []).length\n};\n\nreturn {\n  conversationEntry: conversationEntry,\n  participantIndex: participantIndex,\n  agreementLevel: agreementLevel,\n  confidenceLevel: confidenceLevel,\n  contextData: context\n};"
+      },
+      "id": "process_turn_response",
+      "name": "Process Turn Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "mode": "aggregate",
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "round_turns",
+        "include": "allFields",
+        "options": {}
+      },
+      "id": "aggregate_round_turns",
+      "name": "Aggregate Round Turns",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Update conversation state after round completion\nconst roundData = $input.item.json;\nconst roundTurns = roundData.round_turns;\nconst context = roundTurns[0].contextData; // Get context from first turn\n\n// Add all turns to conversation history\nroundTurns.forEach(turnData => {\n  context.conversationHistory.push(turnData.conversationEntry);\n  context.conversationTranscript.push({\n    round: turnData.conversationEntry.round,\n    speaker: turnData.conversationEntry.speaker,\n    content: turnData.conversationEntry.content,\n    analysis: turnData.conversationEntry.analysis\n  });\n  \n  // Update participant state\n  const participantState = context.participantStates[turnData.participantIndex];\n  participantState.currentPosition = turnData.conversationEntry.content.substring(0, 200) + '...';\n  participantState.confidenceLevel = turnData.confidenceLevel;\n  participantState.contributionCount += 1;\n  participantState.lastContributionRound = context.currentRound;\n  \n  // Update memory if enabled\n  if (context.enableMemory) {\n    participantState.memory.push({\n      round: context.currentRound + 1,\n      keyPoints: turnData.conversationEntry.analysis.keyTerms,\n      position: turnData.conversationEntry.content.substring(0, 100)\n    });\n    // Keep only last 5 memory items\n    if (participantState.memory.length > 5) {\n      participantState.memory = participantState.memory.slice(-5);\n    }\n  }\n});\n\n// Update agreement matrix based on content analysis\nroundTurns.forEach((turnA, i) => {\n  roundTurns.forEach((turnB, j) => {\n    if (i !== j) {\n      const speakerA = turnA.conversationEntry.speaker;\n      const speakerB = turnB.conversationEntry.speaker;\n      \n      // Simple agreement calculation based on key terms overlap\n      const termsA = new Set(turnA.conversationEntry.analysis.keyTerms);\n      const termsB = new Set(turnB.conversationEntry.analysis.keyTerms);\n      const overlap = [...termsA].filter(x => termsB.has(x)).length;\n      const totalTerms = Math.max(termsA.size + termsB.size - overlap, 1);\n      const similarity = overlap / totalTerms;\n      \n      // Update agreement matrix\n      const currentAgreement = context.agreementMatrix[speakerA][speakerB];\n      context.agreementMatrix[speakerA][speakerB] = (currentAgreement * 0.7) + (similarity * 0.3);\n      \n      // Update participant state\n      const participantStateA = context.participantStates[turnA.participantIndex];\n      participantStateA.agreementWithOthers[speakerB] = context.agreementMatrix[speakerA][speakerB];\n    }\n  });\n});\n\n// Calculate round metrics\nconst roundMetrics = {\n  roundNumber: context.currentRound + 1,\n  totalTurns: roundTurns.length,\n  averageWordCount: roundTurns.reduce((sum, turn) => sum + turn.conversationEntry.wordCount, 0) / roundTurns.length,\n  averageConfidence: roundTurns.reduce((sum, turn) => sum + turn.confidenceLevel, 0) / roundTurns.length,\n  totalQuestions: roundTurns.reduce((sum, turn) => sum + turn.conversationEntry.analysis.questionCount, 0),\n  totalEvidence: roundTurns.reduce((sum, turn) => sum + turn.conversationEntry.analysis.evidenceCount, 0),\n  participationBalance: {}\n};\n\n// Calculate participation balance\ncontext.participants.forEach((p, i) => {\n  const participantTurns = roundTurns.filter(turn => turn.participantIndex === i);\n  roundMetrics.participationBalance[p.name] = {\n    turnCount: participantTurns.length,\n    wordCount: participantTurns.reduce((sum, turn) => sum + turn.conversationEntry.wordCount, 0),\n    avgConfidence: participantTurns.reduce((sum, turn) => sum + turn.confidenceLevel, 0) / Math.max(participantTurns.length, 1)\n  };\n});\n\n// Store round metrics\ncontext.conversationStats.totalTurns += roundTurns.length;\ncontext.conversationStats.averageTurnLength = context.conversationHistory.reduce((sum, entry) => sum + entry.wordCount, 0) / context.conversationHistory.length;\n\n// Calculate current consensus level\nconst agreementValues = [];\nObject.keys(context.agreementMatrix).forEach(speaker1 => {\n  Object.keys(context.agreementMatrix[speaker1]).forEach(speaker2 => {\n    agreementValues.push(context.agreementMatrix[speaker1][speaker2]);\n  });\n});\n\nconst currentConsensus = agreementValues.length > 0 ? \n  agreementValues.reduce((a, b) => a + b, 0) / agreementValues.length : 0.5;\n\ncontext.consensusHistory.push({\n  round: context.currentRound + 1,\n  consensusLevel: currentConsensus,\n  metrics: roundMetrics\n});\n\n// Check if consensus threshold reached\nconst consensusReached = currentConsensus >= context.consensusThreshold;\n\n// Move to next round\ncontext.currentRound += 1;\n\n// Decide if we should continue\nif (consensusReached && context.currentRound >= 2) {\n  console.log(`[Agent Conversation] Consensus reached (${currentConsensus.toFixed(3)}) after ${context.currentRound} rounds`);\n  context.processingComplete = true;\n  context.earlyConsensus = true;\n} else if (context.currentRound >= context.rounds) {\n  console.log(`[Agent Conversation] Maximum rounds (${context.rounds}) completed`);\n  context.processingComplete = true;\n}\n\nconsole.log(`[Agent Conversation] Round ${context.currentRound} completed. Consensus: ${currentConsensus.toFixed(3)}`);\n\nreturn context;"
+      },
+      "id": "update_conversation_state",
+      "name": "Update Conversation State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.processingComplete }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "continue_conversation",
+      "name": "Continue Conversation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"prompt\": {{ JSON.stringify($json.synthesis_prompt) }},\n  \"model\": {{ JSON.stringify($json.synthesisModel) }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 120\n}",
+        "options": {
+          "timeout": 125000
+        }
+      },
+      "id": "synthesize_conversation",
+      "name": "Synthesize Conversation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare synthesis prompt and context\nconst context = $input.item.json;\n\n// Build comprehensive conversation summary\nconst conversationSummary = context.conversationTranscript.map((entry, i) => \n  `Turn ${i + 1} - ${entry.speaker}: ${entry.content.substring(0, 500)}...`\n).join('\\n\\n');\n\n// Calculate final metrics\nconst finalConsensus = context.consensusHistory.length > 0 ? \n  context.consensusHistory[context.consensusHistory.length - 1].consensusLevel : 0.5;\n\n// Identify key disagreement areas\nconst disagreementAreas = [];\nObject.keys(context.agreementMatrix).forEach(speaker1 => {\n  Object.keys(context.agreementMatrix[speaker1]).forEach(speaker2 => {\n    const agreement = context.agreementMatrix[speaker1][speaker2];\n    if (agreement < 0.4) {\n      disagreementAreas.push(`${speaker1} and ${speaker2}: ${agreement.toFixed(2)}`);\n    }\n  });\n});\n\n// Build participant summaries\nconst participantSummaries = context.participants.map((p, i) => {\n  const state = context.participantStates[i];\n  return `${p.name} (${p.role}): ${state.contributionCount} contributions, confidence ${state.confidenceLevel.toFixed(2)}, current position: ${state.currentPosition}`;\n}).join('\\n');\n\nconst synthesisPrompt = `You are an expert conversation analyst and synthesis moderator. A multi-agent conversation has concluded on the topic: \"${context.topic}\"\n\nConversation Details:\n- Participants: ${context.participants.length}\n- Rounds completed: ${context.currentRound}\n- Final consensus level: ${finalConsensus.toFixed(3)}\n- Consensus threshold: ${context.consensusThreshold}\n- Debate style: ${context.debateStyle}\n\nParticipant Summary:\n${participantSummaries}\n\nKey Disagreement Areas:\n${disagreementAreas.length > 0 ? disagreementAreas.join('\\n') : 'No major disagreements identified'}\n\nComplete Conversation Transcript:\n${conversationSummary}\n\nPlease provide a comprehensive synthesis in the following JSON format:\n{\n  \"executive_summary\": \"Brief overview of the conversation and key outcomes\",\n  \"consensus_analysis\": {\n    \"level_achieved\": ${finalConsensus},\n    \"areas_of_agreement\": [\"Point 1\", \"Point 2\", \"Point 3\"],\n    \"areas_of_disagreement\": [\"Issue 1\", \"Issue 2\"],\n    \"consensus_evolution\": \"How agreement changed over time\"\n  },\n  \"participant_contributions\": {\n    ${context.participants.map(p => `\"${p.name}\": {\n      \"key_positions\": [\"Position 1\", \"Position 2\"],\n      \"unique_insights\": [\"Insight 1\", \"Insight 2\"],\n      \"influence_level\": \"high/medium/low\",\n      \"collaboration_score\": 0.8\n    }`).join(',\\n    ')}\n  },\n  \"conversation_quality\": {\n    \"depth_score\": 0.85,\n    \"evidence_usage\": \"high/medium/low\",\n    \"respectful_discourse\": \"high/medium/low\",\n    \"topic_focus\": \"high/medium/low\",\n    \"balanced_participation\": \"high/medium/low\"\n  },\n  \"key_insights\": [\n    {\n      \"insight\": \"Major insight discovered\",\n      \"supporting_participants\": [\"Agent1\", \"Agent2\"],\n      \"confidence_level\": 0.9\n    }\n  ],\n  \"recommendations\": {\n    \"final_recommendation\": \"Synthesized recommendation based on the discussion\",\n    \"implementation_steps\": [\"Step 1\", \"Step 2\", \"Step 3\"],\n    \"risk_mitigation\": [\"Risk 1 mitigation\", \"Risk 2 mitigation\"],\n    \"success_metrics\": [\"Metric 1\", \"Metric 2\"]\n  },\n  \"unresolved_issues\": [\n    {\n      \"issue\": \"Unresolved question or disagreement\",\n      \"positions\": [\"Position A\", \"Position B\"],\n      \"suggested_resolution\": \"How this might be resolved\"\n    }\n  ],\n  \"conversation_statistics\": {\n    \"total_turns\": ${context.conversationHistory.length},\n    \"total_words\": ${context.conversationHistory.reduce((sum, entry) => sum + entry.wordCount, 0)},\n    \"average_turn_length\": ${Math.round(context.conversationStats.averageTurnLength)},\n    \"questions_asked\": ${context.conversationHistory.reduce((sum, entry) => sum + entry.analysis.questionCount, 0)},\n    \"evidence_citations\": ${context.conversationHistory.reduce((sum, entry) => sum + entry.analysis.evidenceCount, 0)}\n  }\n}`;\n\nreturn {\n  synthesis_prompt: synthesisPrompt,\n  context: context,\n  final_consensus: finalConsensus,\n  disagreement_areas: disagreementAreas\n};"
+      },
+      "id": "prepare_synthesis",
+      "name": "Prepare Synthesis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process synthesis response and build final output from Universal Ollama Executor\nconst synthesisResponse = $input.item.json;\nconst preparationData = $('Prepare Synthesis').item.json;\nconst context = preparationData.context;\n\nlet synthesis;\ntry {\n  // Extract and parse synthesis response\n  const responseText = synthesisResponse.response || synthesisResponse.text || '';\n  const jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    synthesis = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('No valid JSON found in synthesis response');\n  }\n} catch (error) {\n  console.warn('Synthesis parsing failed, using fallback:', error.message);\n  \n  // Fallback synthesis structure\n  synthesis = {\n    executive_summary: 'Conversation synthesis encountered technical issues. Manual review recommended.',\n    consensus_analysis: {\n      level_achieved: preparationData.final_consensus,\n      areas_of_agreement: ['Unable to parse agreement areas'],\n      areas_of_disagreement: preparationData.disagreement_areas,\n      consensus_evolution: 'Analysis incomplete due to parsing error'\n    },\n    participant_contributions: {},\n    conversation_quality: {\n      depth_score: 0.5,\n      evidence_usage: 'medium',\n      respectful_discourse: 'high',\n      topic_focus: 'medium',\n      balanced_participation: 'medium'\n    },\n    key_insights: [{\n      insight: 'Synthesis processing incomplete',\n      supporting_participants: [],\n      confidence_level: 0.1\n    }],\n    recommendations: {\n      final_recommendation: 'Manual review required for final recommendation',\n      implementation_steps: [],\n      risk_mitigation: [],\n      success_metrics: []\n    },\n    unresolved_issues: [{\n      issue: 'Synthesis processing error',\n      positions: ['Technical issue occurred'],\n      suggested_resolution: 'Retry synthesis or manual analysis'\n    }],\n    conversation_statistics: {\n      total_turns: context.conversationHistory.length,\n      total_words: context.conversationHistory.reduce((sum, entry) => sum + entry.wordCount, 0),\n      average_turn_length: Math.round(context.conversationStats.averageTurnLength),\n      questions_asked: context.conversationHistory.reduce((sum, entry) => sum + entry.analysis.questionCount, 0),\n      evidence_citations: context.conversationHistory.reduce((sum, entry) => sum + entry.analysis.evidenceCount, 0)\n    }\n  };\n}\n\n// Calculate processing time\nconst endTime = new Date();\nconst startTime = new Date(context.startTime);\nconst totalProcessingTime = endTime - startTime;\n\n// Build comprehensive final output\nconst finalOutput = {\n  meta: {\n    success: true,\n    conversation_completed: true,\n    session_id: context.sessionId,\n    topic: context.topic,\n    participants_count: context.participants.length,\n    rounds_completed: context.currentRound,\n    consensus_reached: preparationData.final_consensus >= context.consensusThreshold,\n    final_consensus_level: preparationData.final_consensus,\n    consensus_threshold: context.consensusThreshold,\n    processing_time_ms: totalProcessingTime,\n    early_consensus: context.earlyConsensus || false,\n    moderation_enabled: context.moderation\n  },\n  \n  synthesis: synthesis,\n  \n  conversation_details: {\n    participants: context.participants.map((p, i) => ({\n      name: p.name,\n      role: p.role,\n      model: p.model,\n      perspective: p.perspective,\n      contributions: context.participantStates[i].contributionCount,\n      confidence_level: context.participantStates[i].confidenceLevel,\n      final_position: context.participantStates[i].currentPosition\n    })),\n    \n    debate_configuration: {\n      style: context.debateStyle,\n      rounds_planned: context.rounds,\n      moderation: context.moderation,\n      consensus_threshold: context.consensusThreshold,\n      allow_interruptions: context.allowInterruptions,\n      require_evidence: context.requireEvidence\n    }\n  },\n  \n  conversation_transcript: context.conversationTranscript,\n  \n  agreement_analysis: {\n    agreement_matrix: context.agreementMatrix,\n    consensus_evolution: context.consensusHistory,\n    disagreement_areas: preparationData.disagreement_areas,\n    participant_alignment: Object.keys(context.agreementMatrix).map(participant => {\n      const agreements = Object.values(context.agreementMatrix[participant]);\n      return {\n        participant: participant,\n        avg_agreement: agreements.reduce((a, b) => a + b, 0) / agreements.length,\n        strongest_ally: Object.keys(context.agreementMatrix[participant]).reduce((a, b) => \n          context.agreementMatrix[participant][a] > context.agreementMatrix[participant][b] ? a : b),\n        biggest_disagreement: Object.keys(context.agreementMatrix[participant]).reduce((a, b) => \n          context.agreementMatrix[participant][a] < context.agreementMatrix[participant][b] ? a : b)\n      };\n    })\n  },\n  \n  conversation_statistics: {\n    total_turns: context.conversationHistory.length,\n    total_words: context.conversationHistory.reduce((sum, entry) => sum + entry.wordCount, 0),\n    average_turn_length: Math.round(context.conversationStats.averageTurnLength),\n    participation_balance: context.participants.map((p, i) => ({\n      participant: p.name,\n      contribution_percentage: (context.participantStates[i].contributionCount / context.conversationHistory.length * 100).toFixed(1),\n      word_share: ((context.conversationHistory\n        .filter(entry => entry.speaker === p.name)\n        .reduce((sum, entry) => sum + entry.wordCount, 0) / \n        context.conversationHistory.reduce((sum, entry) => sum + entry.wordCount, 0)) * 100).toFixed(1)\n    })),\n    questions_asked: context.conversationHistory.reduce((sum, entry) => sum + entry.analysis.questionCount, 0),\n    evidence_citations: context.conversationHistory.reduce((sum, entry) => sum + entry.analysis.evidenceCount, 0),\n    rounds_to_consensus: context.consensusHistory.findIndex(h => h.consensusLevel >= context.consensusThreshold) + 1 || context.rounds\n  },\n  \n  quality_metrics: {\n    conversation_depth: synthesis.conversation_quality?.depth_score || 0.5,\n    evidence_quality: synthesis.conversation_quality?.evidence_usage === 'high' ? 0.9 : synthesis.conversation_quality?.evidence_usage === 'medium' ? 0.6 : 0.3,\n    discourse_quality: synthesis.conversation_quality?.respectful_discourse === 'high' ? 0.9 : synthesis.conversation_quality?.respectful_discourse === 'medium' ? 0.6 : 0.3,\n    focus_score: synthesis.conversation_quality?.topic_focus === 'high' ? 0.9 : synthesis.conversation_quality?.topic_focus === 'medium' ? 0.6 : 0.3,\n    participation_balance: synthesis.conversation_quality?.balanced_participation === 'high' ? 0.9 : synthesis.conversation_quality?.balanced_participation === 'medium' ? 0.6 : 0.3,\n    overall_quality: ((synthesis.conversation_quality?.depth_score || 0.5) + \n                     (preparationData.final_consensus) + \n                     0.8) / 3 // Simple average of depth, consensus, and base quality\n  },\n  \n  moderation_report: {\n    actions_taken: context.moderationActions,\n    interruption_count: context.interruptionCount,\n    off_topic_warnings: 0, // Could be enhanced with topic drift detection\n    respectful_discourse: true // Could be enhanced with sentiment analysis\n  }\n};\n\nreturn finalOutput;"
+      },
+      "id": "build_final_output",
+      "name": "Build Final Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.meta.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_success",
+      "name": "Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'Agent conversation failed' }}\",\n  \"meta\": {\n    \"conversation_completed\": false,\n    \"session_id\": \"={{ $json.sessionId || 'unknown' }}\",\n    \"consensus_reached\": false,\n    \"rounds_completed\": 0,\n    \"processing_time_ms\": \"={{ Date.now() }}\"\n  },\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 500]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.topic) {\n  return {\n    topic: \"Should companies adopt a 4-day work week?\",\n    agents: [\n      { role: \"advocate\", model: \"mistral\" },\n      { role: \"skeptic\", model: \"mistral\" },\n      { role: \"moderator\", model: \"mistral\" }\n    ],\n    rounds: 3,\n    consensus_required: false\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Agent Conversation Manager Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Check Round Condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Round Condition": {
+      "main": [
+        [
+          {
+            "node": "Should Process Round?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Process Round?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Round",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Round": {
+      "main": [
+        [
+          {
+            "node": "Execute Participant Turn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Participant Turn": {
+      "main": [
+        [
+          {
+            "node": "Process Turn Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Turn Response": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Round Turns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Round Turns": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation State": {
+      "main": [
+        [
+          {
+            "node": "Continue Conversation?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Conversation?": {
+      "main": [
+        [
+          {
+            "node": "Check Round Condition",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Synthesis": {
+      "main": [
+        [
+          {
+            "node": "Synthesize Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Synthesize Conversation": {
+      "main": [
+        [
+          {
+            "node": "Build Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Output": {
+      "main": [
+        [
+          {
+            "node": "Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "agent-conversation-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "agent-conversation-manager",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "multi-agent",
+      "name": "multi-agent"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "conversation",
+      "name": "conversation"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "ai-collaboration",
+      "name": "ai-collaboration"
+    }
+  ]
+}

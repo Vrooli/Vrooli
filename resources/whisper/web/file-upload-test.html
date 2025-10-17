@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisper Test - File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #4CAF50;
+        }
+        .upload-area.drag-over {
+            border-color: #4CAF50;
+            background-color: #f0f8f0;
+        }
+        #fileInput {
+            display: none;
+        }
+        .upload-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-button:hover {
+            background-color: #45a049;
+        }
+        #transcribeButton {
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        #transcribeButton:hover {
+            background-color: #007399;
+        }
+        #transcribeButton:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #status {
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        #audioPlayback {
+            width: 100%;
+            margin: 20px 0;
+        }
+        #transcription {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+        .file-info {
+            background-color: #e8f5e8;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #f44336;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .info {
+            color: #2196F3;
+        }
+        .supported-formats {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Whisper File Upload Test</h1>
+        <p style="text-align: center;">Upload audio files for transcription using Whisper ASR</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <p>📁 Drag and drop an audio file here, or click to select</p>
+            <button class="upload-button" onclick="document.getElementById('fileInput').click()">
+                Choose Audio File
+            </button>
+            <input type="file" id="fileInput" accept="audio/*" />
+            <div class="supported-formats">
+                Supported formats: MP3, WAV, OGG, M4A, FLAC, AAC, WebM
+            </div>
+        </div>
+        
+        <div id="fileInfo" style="display:none;"></div>
+        
+        <div style="text-align: center;">
+            <button id="transcribeButton" disabled>Transcribe Audio</button>
+        </div>
+        
+        <div id="status">Ready to upload audio file</div>
+        
+        <audio id="audioPlayback" controls style="display:none;"></audio>
+        
+        <h3>Transcription Result:</h3>
+        <div id="transcription">Upload an audio file and click "Transcribe Audio" to see the result...</div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInfo = document.getElementById('fileInfo');
+        const transcribeButton = document.getElementById('transcribeButton');
+        const status = document.getElementById('status');
+        const audioPlayback = document.getElementById('audioPlayback');
+        const transcription = document.getElementById('transcription');
+        
+        // Whisper API endpoint
+        const WHISPER_API_URL = 'http://localhost:8090/asr?output=json';
+        
+        // File input change event
+        fileInput.addEventListener('change', handleFileSelect);
+        transcribeButton.addEventListener('click', transcribeAudio);
+        
+        // Drag and drop events
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+        
+        function handleFile(file) {
+            // Validate file type
+            const validTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/flac', 'audio/aac', 'audio/webm'];
+            const isValidType = validTypes.some(type => file.type.startsWith(type)) || file.type.startsWith('audio/');
+            
+            if (!isValidType) {
+                status.textContent = 'Error: Please select a valid audio file';
+                status.className = 'error';
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // Show file info
+            fileInfo.innerHTML = `
+                <div class="file-info">
+                    <strong>Selected File:</strong><br>
+                    📄 Name: ${file.name}<br>
+                    💾 Size: ${(file.size / (1024 * 1024)).toFixed(2)} MB<br>
+                    🎵 Type: ${file.type || 'Unknown'}
+                </div>
+            `;
+            fileInfo.style.display = 'block';
+            
+            // Enable transcribe button
+            transcribeButton.disabled = false;
+            
+            // Show audio player
+            const audioUrl = URL.createObjectURL(file);
+            audioPlayback.src = audioUrl;
+            audioPlayback.style.display = 'block';
+            
+            status.textContent = 'File ready for transcription';
+            status.className = 'success';
+        }
+        
+        async function transcribeAudio() {
+            if (!selectedFile) {
+                status.textContent = 'Error: No file selected';
+                status.className = 'error';
+                return;
+            }
+            
+            transcribeButton.disabled = true;
+            status.textContent = 'Transcribing... Please wait...';
+            status.className = 'info';
+            transcription.textContent = 'Processing audio...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('audio_file', selectedFile);
+                formData.append('task', 'transcribe');
+                
+                const response = await fetch(WHISPER_API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // Display result
+                if (result.text) {
+                    transcription.textContent = result.text;
+                    status.textContent = 'Transcription completed successfully!';
+                    status.className = 'success';
+                } else {
+                    transcription.textContent = JSON.stringify(result, null, 2);
+                    status.textContent = 'Transcription completed (see raw result)';
+                    status.className = 'success';
+                }
+                
+            } catch (error) {
+                console.error('Transcription error:', error);
+                transcription.textContent = `Error: ${error.message}\n\nMake sure Whisper is running on port 8090.`;
+                status.textContent = 'Transcription failed';
+                status.className = 'error';
+            } finally {
+                transcribeButton.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+id: scenario-improver-app-issue-tracker-20251003-120618
+title: Enhance scenario app-issue-tracker
+type: scenario
+operation: improver
+target: app-issue-tracker
+targets:
+    - app-issue-tracker
+category: ""
+priority: critical
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 0
+last_completed_at: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-10-03T12:06:18-04:00"
+updated_at: "2025-10-03T12:06:18-04:00"
+tags: []
+notes: I know I told you explicitly not to use gut, but app-issue-tracker was changed and ut broke. Please revert the changes in that scenario only, and get it running again. Ultra think
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false

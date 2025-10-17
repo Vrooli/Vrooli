@@ -1,0 +1,35 @@
+{
+  "startup_order": 600,
+  "dependencies": [],
+  "optional_dependencies": ["home-assistant", "mqtt", "vault"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "15-30s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "category": "iot",
+  "capabilities": [
+    "firmware-generation",
+    "ota-updates",
+    "device-discovery",
+    "yaml-configuration",
+    "web-dashboard"
+  ],
+  "resource_requirements": {
+    "memory": "512MB",
+    "cpu": "0.5",
+    "disk": "2GB"
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "ports": {
+    "dashboard": "from_registry"
+  },
+  "environment": {
+    "ESPHOME_DASHBOARD": "true",
+    "PLATFORMIO_CORE_DIR": "/config/.platformio"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Eclipse Ditto Configuration Schema",
+  "type": "object",
+  "properties": {
+    "gateway_port": {
+      "type": "integer",
+      "description": "Port for Ditto Gateway HTTP/WebSocket API",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8089
+    },
+    "mongodb_port": {
+      "type": "integer",
+      "description": "MongoDB database port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 27017
+    },
+    "mongodb_host": {
+      "type": "string",
+      "description": "MongoDB host address",
+      "default": "localhost"
+    },
+    "mongodb_db": {
+      "type": "string",
+      "description": "MongoDB database name",
+      "default": "ditto"
+    },
+    "username": {
+      "type": "string",
+      "description": "Default admin username",
+      "default": "ditto"
+    },
+    "password": {
+      "type": "string",
+      "description": "Default admin password",
+      "default": "ditto"
+    },
+    "memory_limit": {
+      "type": "string",
+      "description": "Container memory limit",
+      "pattern": "^[0-9]+[kmg]$",
+      "default": "2g"
+    },
+    "cpu_limit": {
+      "type": "number",
+      "description": "Container CPU limit",
+      "minimum": 0.5,
+      "maximum": 16,
+      "default": 2
+    },
+    "startup_timeout": {
+      "type": "integer",
+      "description": "Startup timeout in seconds",
+      "minimum": 30,
+      "maximum": 600,
+      "default": 120
+    },
+    "enable_websocket": {
+      "type": "boolean",
+      "description": "Enable WebSocket connectivity",
+      "default": true
+    },
+    "enable_mqtt": {
+      "type": "boolean",
+      "description": "Enable MQTT connectivity",
+      "default": false
+    },
+    "enable_amqp": {
+      "type": "boolean",
+      "description": "Enable AMQP connectivity",
+      "default": false
+    },
+    "docker_tag": {
+      "type": "string",
+      "description": "Eclipse Ditto Docker image tag",
+      "default": "3.5.6"
+    },
+    "debug": {
+      "type": "boolean",
+      "description": "Enable debug mode",
+      "default": false
+    }
+  },
+  "required": ["gateway_port", "mongodb_host", "mongodb_db"],
+  "additionalProperties": false
+}

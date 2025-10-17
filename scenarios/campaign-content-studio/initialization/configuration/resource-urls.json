@@ -1,0 +1,81 @@
+{
+  "resource_urls": {
+    "automation": {
+      "n8n": {
+        "base_url": "http://localhost:${RESOURCE_PORTS[n8n]}",
+        "webhook_prefix": "/webhook",
+        "api_prefix": "/rest",
+        "health_endpoint": "/healthz"
+      },
+      "windmill": {
+        "base_url": "http://localhost:${RESOURCE_PORTS[windmill]}",
+        "workspace": "demo",
+        "api_prefix": "/api/w/demo",
+        "apps_prefix": "/f",
+        "health_endpoint": "/api/version"
+      }
+    },
+    "storage": {
+      "postgres": {
+        "host": "localhost",
+        "port": "${RESOURCE_PORTS[postgres]}",
+        "database": "campaign_content_studio",
+        "username": "postgres",
+        "password": "postgres",
+        "connection_string": "postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/campaign_content_studio?sslmode=disable"
+      },
+      "qdrant": {
+        "base_url": "http://localhost:${RESOURCE_PORTS[qdrant]}",
+        "collections": {
+          "document_embeddings": "document_embeddings",
+          "content_embeddings": "content_embeddings"
+        },
+        "health_endpoint": "/telemetry"
+      },
+      "minio": {
+        "base_url": "http://localhost:${RESOURCE_PORTS[minio]}",
+        "access_key": "minioadmin",
+        "secret_key": "minioadmin",
+        "bucket": "campaign-content-studio",
+        "health_endpoint": "/minio/health/live"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "base_url": "http://localhost:${RESOURCE_PORTS[ollama]}",
+        "api_prefix": "/api",
+        "models": {
+          "text_generation": "llama3.2",
+          "embeddings": "nomic-embed-text",
+          "code_generation": "codellama"
+        },
+        "health_endpoint": "/api/tags"
+      }
+    },
+    "generation": {
+      "comfyui": {
+        "base_url": "http://localhost:${RESOURCE_PORTS[comfyui]}",
+        "api_prefix": "/api",
+        "health_endpoint": "/system_stats"
+      }
+    },
+    "processing": {
+      "unstructured_io": {
+        "base_url": "http://localhost:${RESOURCE_PORTS[unstructured-io]}",
+        "api_prefix": "/general/v0",
+        "health_endpoint": "/healthcheck"
+      }
+    }
+  },
+  "webhooks": {
+    "campaign_management": "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/campaign-management",
+    "document_processing": "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/document-processing",
+    "content_generation": "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/content-generation",
+    "search_retrieval": "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/search-retrieval"
+  },
+  "dashboards": {
+    "main_dashboard": "http://localhost:${RESOURCE_PORTS[windmill]}/f/campaign-content-studio/dashboard",
+    "campaign_manager": "http://localhost:${RESOURCE_PORTS[windmill]}/f/campaign-content-studio/campaign-manager",
+    "content_generator": "http://localhost:${RESOURCE_PORTS[windmill]}/f/campaign-content-studio/content-generator"
+  }
+}

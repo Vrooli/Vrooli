@@ -1,0 +1,165 @@
+{
+  "name": "Flashcard Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "flashcards/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Provide defaults for manual testing\nconst defaults = {\n  user_id: 'test-user',\n  subject_id: 'test-subject',\n  material_id: null,\n  content: 'The mitochondria is the powerhouse of the cell. It produces ATP through cellular respiration. Mitochondria have their own DNA and can replicate independently.',\n  count: 5,\n  difficulty: 'medium',\n  style: 'conceptual' // factual, conceptual, application\n};\n\n// Only use defaults if coming from manual trigger\nconst isManual = $('Manual').first() !== undefined;\nif (isManual) {\n  return [{json: defaults}];\n}\n\n// Otherwise pass through webhook data\nreturn items;"
+      },
+      "id": "defaults",
+      "name": "Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or default data\nconst isManual = $('Manual').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\nconst prompt = `You are an expert educator creating flashcards for effective learning.\n\nContent to create flashcards from:\n${input.content}\n\nCreate ${input.count} flashcards with:\n- Difficulty level: ${input.difficulty}\n- Style: ${input.style}\n- Clear, specific questions on the front\n- Concise, accurate answers on the back\n- Include hints where helpful\n\nRules:\n- Use active recall principles\n- Avoid yes/no questions when possible\n- Include context when needed\n- For harder cards, test deeper understanding\n\nReturn ONLY a JSON array with this structure:\n[\n  {\n    \"front\": \"question text\",\n    \"back\": \"answer text\",\n    \"hint\": \"optional hint\",\n    \"tags\": [\"relevant\", \"tags\"]\n  }\n]`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    model: \"llama3.2\",\n    type: \"generation\",\n    temperature: 0.7,\n    format: \"json\",\n    quiet: true,\n    original_input: input\n  }\n}];"
+      },
+      "id": "prepare-prompt",
+      "name": "Prepare Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "workflow": "Ollama Universal Executor",
+        "workflowData": "={{ JSON.stringify($json) }}",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "generate-cards",
+      "name": "Call Shared Ollama",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the response from Ollama\nconst response = $json.response;\nconst originalInput = $json.original_input;\n\ntry {\n  // Parse the JSON response\n  let flashcards = [];\n  \n  if (typeof response === 'string') {\n    flashcards = JSON.parse(response);\n  } else {\n    flashcards = response;\n  }\n  \n  // Validate and enrich flashcards\n  const enrichedCards = flashcards.map((card, index) => ({\n    id: `${originalInput.subject_id}_${Date.now()}_${index}`,\n    subject_id: originalInput.subject_id,\n    user_id: originalInput.user_id,\n    front: card.front || '',\n    back: card.back || '',\n    hint: card.hint || null,\n    tags: card.tags || [],\n    difficulty: originalInput.difficulty,\n    style: originalInput.style,\n    created_at: new Date().toISOString(),\n    last_reviewed: null,\n    review_count: 0,\n    ease_factor: 2.5,\n    interval: 1,\n    next_review: new Date().toISOString()\n  }));\n  \n  return [{\n    json: {\n      success: true,\n      flashcards: enrichedCards,\n      count: enrichedCards.length,\n      message: `Generated ${enrichedCards.length} flashcards successfully`\n    }\n  }];\n  \n} catch (error) {\n  return [{\n    json: {\n      success: false,\n      error: error.message,\n      flashcards: [],\n      count: 0\n    }\n  }];\n}"
+      },
+      "id": "process-response",
+      "name": "Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual": {
+      "main": [
+        [
+          {
+            "node": "Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defaults": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Shared Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Shared Ollama": {
+      "main": [
+        [
+          {
+            "node": "Process Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "study-buddy-flashcard-generator"
+  },
+  "tags": [
+    {
+      "name": "study-buddy",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}

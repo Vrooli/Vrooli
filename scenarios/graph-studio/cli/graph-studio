@@ -1,0 +1,218 @@
+#!/bin/bash
+################################################################################
+# Graph Studio CLI - Lightweight API Wrapper
+# 
+# Thin wrapper that delegates all operations to the Graph Studio API
+################################################################################
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SCENARIO_NAME="graph-studio"
+VERSION="1.0.0"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Get API URL using fast port lookup
+get_api_url() {
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+# Discover preview access token so CLI requests integrate with secured API deployments
+get_preview_token() {
+    if [[ -n "${PREVIEW_ACCESS_TOKEN:-}" ]]; then
+        echo "${PREVIEW_ACCESS_TOKEN}"
+        return
+    fi
+    if [[ -n "${GRAPH_STUDIO_PREVIEW_TOKEN:-}" ]]; then
+        echo "${GRAPH_STUDIO_PREVIEW_TOKEN}"
+        return
+    fi
+    if [[ -n "${VITE_PREVIEW_ACCESS_TOKEN:-}" ]]; then
+        echo "${VITE_PREVIEW_ACCESS_TOKEN}"
+        return
+    fi
+
+    local token_file="${SCENARIO_ROOT}/tmp/preview-token"
+    if [[ -f "$token_file" ]]; then
+        local token
+        token=$(head -n 1 "$token_file" | tr -d '\r\n ')
+        if [[ -n "$token" ]]; then
+            echo "$token"
+        fi
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    local preview_token
+    local header_args=()
+
+    api_url=$(get_api_url)
+    preview_token=$(get_preview_token)
+    if [[ -n "$preview_token" ]]; then
+        header_args+=(-H "X-Preview-Token: ${preview_token}")
+    fi
+
+    if [[ "$method" == "GET" ]]; then
+        curl -s "${header_args[@]}" "${api_url}${endpoint}"
+    else
+        curl -s -X "$method" \
+             "${header_args[@]}" \
+             -H "Content-Type: application/json" \
+             ${data:+-d "$data"} \
+             "${api_url}${endpoint}"
+    fi
+}
+
+# Format JSON output
+format_output() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Show usage
+usage() {
+    echo -e "${CYAN}Graph Studio CLI v${VERSION}${NC}"
+    echo ""
+    echo "Usage: graph-studio <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  status       Check service health"
+    echo "  list         List graphs"
+    echo "  create       Create a new graph"
+    echo "  get <id>     Get graph details"
+    echo "  delete <id>  Delete a graph"
+    echo "  validate <id> Validate a graph"
+    echo "  convert <id> <format> Convert graph format"
+    echo "  export <id> <format> [file] Export graph (graphml, gexf, json)"
+    echo "  plugins      List available plugins"
+    echo "  help         Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  graph-studio status"
+    echo "  graph-studio list"
+    echo "  graph-studio create \"My Graph\" mind-maps"
+    echo "  graph-studio validate abc-123"
+    echo "  graph-studio export abc-123 graphml output.graphml"
+    exit 0
+}
+
+# Parse command
+COMMAND="${1:-help}"
+shift || true
+
+case "$COMMAND" in
+    status|health)
+        echo -e "${BLUE}Checking status...${NC}"
+        api_request GET "/health" | format_output
+        ;;
+        
+    list|ls)
+        api_request GET "/api/v1/graphs" | format_output
+        ;;
+        
+    create)
+        if [[ $# -lt 2 ]]; then
+            echo -e "${RED}Usage: graph-studio create <name> <type>${NC}"
+            exit 1
+        fi
+        NAME="$1"
+        TYPE="$2"
+        DATA="{\"name\":\"$NAME\",\"type\":\"$TYPE\"}"
+        api_request POST "/api/v1/graphs" "$DATA" | format_output
+        ;;
+        
+    get|show)
+        if [[ -z "$1" ]]; then
+            echo -e "${RED}Usage: graph-studio get <id>${NC}"
+            exit 1
+        fi
+        api_request GET "/api/v1/graphs/$1" | format_output
+        ;;
+        
+    delete|rm)
+        if [[ -z "$1" ]]; then
+            echo -e "${RED}Usage: graph-studio delete <id>${NC}"
+            exit 1
+        fi
+        api_request DELETE "/api/v1/graphs/$1" | format_output
+        ;;
+        
+    validate)
+        if [[ -z "$1" ]]; then
+            echo -e "${RED}Usage: graph-studio validate <id>${NC}"
+            exit 1
+        fi
+        api_request POST "/api/v1/graphs/$1/validate" | format_output
+        ;;
+        
+    convert)
+        if [[ $# -lt 2 ]]; then
+            echo -e "${RED}Usage: graph-studio convert <id> <format>${NC}"
+            exit 1
+        fi
+        DATA="{\"target_format\":\"$2\"}"
+        api_request POST "/api/v1/graphs/$1/convert" "$DATA" | format_output
+        ;;
+
+    export)
+        if [[ $# -lt 2 ]]; then
+            echo -e "${RED}Usage: graph-studio export <id> <format> [output-file]${NC}"
+            echo -e "Formats: graphml, gexf, json"
+            exit 1
+        fi
+        GRAPH_ID="$1"
+        FORMAT="$2"
+        OUTPUT_FILE="${3:-}"
+
+        DATA="{\"format\":\"$FORMAT\"}"
+        RESPONSE=$(api_request POST "/api/v1/graphs/$GRAPH_ID/export" "$DATA")
+
+        if [[ -n "$OUTPUT_FILE" ]]; then
+            # Extract content and save to file
+            echo "$RESPONSE" | jq -r '.content' > "$OUTPUT_FILE"
+            echo -e "${GREEN}✓ Exported to: $OUTPUT_FILE${NC}"
+        else
+            # Show full response
+            echo "$RESPONSE" | format_output
+        fi
+        ;;
+
+    plugins)
+        api_request GET "/api/v1/plugins" | format_output
+        ;;
+        
+    help|--help|-h)
+        usage
+        ;;
+        
+    *)
+        echo -e "${RED}Unknown command: $COMMAND${NC}"
+        echo "Run 'graph-studio help' for usage"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,23 @@
+{
+  "name": "maintenance-orchestrator-ui",
+  "version": "1.0.0",
+  "description": "Maintenance Orchestrator Dashboard - Mission Control for System Maintenance",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "keywords": [
+    "maintenance",
+    "orchestrator",
+    "dashboard",
+    "mission-control",
+    "vrooli"
+  ],
+  "author": "Vrooli System",
+  "license": "MIT"
+}

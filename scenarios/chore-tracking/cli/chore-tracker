@@ -1,0 +1,233 @@
+#!/bin/bash
+
+# Chore Tracker CLI
+# Gamified chore tracking and management
+
+set -e
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/chore-tracking/cli"
+API_URL="${CHORE_API_URL:-http://localhost:8456}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Help function
+show_help() {
+    echo -e "${PURPLE}🎮 ChoreQuest CLI${NC}"
+    echo -e "${CYAN}Gamified chore tracking and management${NC}"
+    echo ""
+    echo "Usage: chore-tracker [command] [options]"
+    echo ""
+    echo "Commands:"
+    echo "  list              List all available chores"
+    echo "  assign            Assign chores to users"
+    echo "  complete          Mark a chore as complete"
+    echo "  schedule          Generate weekly schedule"
+    echo "  points            Check user points and level"
+    echo "  rewards           List available rewards"
+    echo "  redeem            Redeem a reward"
+    echo "  achievements      View achievements"
+    echo "  leaderboard       Show leaderboard"
+    echo "  stats             View user statistics"
+    echo ""
+    echo "Examples:"
+    echo "  chore-tracker list --category kitchen"
+    echo "  chore-tracker complete --chore-id chore-001 --quality 5"
+    echo "  chore-tracker schedule --user user-001 --week current"
+    echo "  chore-tracker redeem --reward-id reward-003"
+}
+
+# List chores
+list_chores() {
+    local category="${1:-all}"
+    echo -e "${CYAN}📋 Available Chores${NC}"
+    
+    response=$(curl -s "${API_URL}/api/chores?category=${category}")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.chores[] | "\(.icon_emoji) \(.name) - \(.difficulty) (\(.base_points) pts, \(.estimated_minutes) min)"'
+    else
+        echo -e "${RED}Failed to fetch chores${NC}"
+    fi
+}
+
+# Complete a chore
+complete_chore() {
+    local chore_id=""
+    local quality=5
+    local time_taken=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --chore-id) chore_id="$2"; shift 2 ;;
+            --quality) quality="$2"; shift 2 ;;
+            --time) time_taken="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+    
+    if [ -z "$chore_id" ]; then
+        echo -e "${RED}Error: --chore-id is required${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✅ Marking chore as complete...${NC}"
+    
+    response=$(curl -s -X POST "${API_URL}/api/chores/complete" \
+        -H "Content-Type: application/json" \
+        -d "{\"chore_id\":\"${chore_id}\",\"quality_rating\":${quality},\"completion_time\":${time_taken:-30}}")
+    
+    if [ $? -eq 0 ]; then
+        points=$(echo "$response" | jq -r '.points_awarded')
+        achievements=$(echo "$response" | jq -r '.achievements[]?.name' 2>/dev/null)
+        
+        echo -e "${GREEN}🎉 Chore completed!${NC}"
+        echo -e "${YELLOW}⭐ Points earned: ${points}${NC}"
+        
+        if [ -n "$achievements" ]; then
+            echo -e "${PURPLE}🏆 Achievement unlocked: ${achievements}${NC}"
+        fi
+    else
+        echo -e "${RED}Failed to complete chore${NC}"
+    fi
+}
+
+# Generate schedule
+generate_schedule() {
+    local user_id="${1:-user-demo-001}"
+    local max_daily="${2:-3}"
+    
+    echo -e "${CYAN}📅 Generating weekly schedule...${NC}"
+    
+    response=$(curl -s -X POST "${API_URL}/api/schedule/generate" \
+        -H "Content-Type: application/json" \
+        -d "{\"user_id\":\"${user_id}\",\"preferences\":{\"max_daily_chores\":${max_daily}}}")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.schedule[] | "📆 \(.day): \(.chores | length) chores (\(.total_time) min total)"'
+    else
+        echo -e "${RED}Failed to generate schedule${NC}"
+    fi
+}
+
+# Check points
+check_points() {
+    local user_id="${1:-user-demo-001}"
+    
+    echo -e "${CYAN}💎 Points & Level${NC}"
+    
+    response=$(curl -s "${API_URL}/api/users/${user_id}/stats")
+    
+    if [ $? -eq 0 ]; then
+        points=$(echo "$response" | jq -r '.total_points')
+        level=$(echo "$response" | jq -r '.current_level')
+        streak=$(echo "$response" | jq -r '.current_streak')
+        
+        echo -e "${YELLOW}⭐ Total Points: ${points}${NC}"
+        echo -e "${PURPLE}🎖️ Level: ${level}${NC}"
+        echo -e "${GREEN}🔥 Streak: ${streak} days${NC}"
+    else
+        echo -e "${RED}Failed to fetch stats${NC}"
+    fi
+}
+
+# List rewards
+list_rewards() {
+    echo -e "${CYAN}🎁 Available Rewards${NC}"
+    
+    response=$(curl -s "${API_URL}/api/rewards")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.rewards[] | "\(.icon_emoji) \(.name) - \(.points_cost) pts"'
+    else
+        echo -e "${RED}Failed to fetch rewards${NC}"
+    fi
+}
+
+# Redeem reward
+redeem_reward() {
+    local reward_id="$1"
+    
+    if [ -z "$reward_id" ]; then
+        echo -e "${RED}Error: reward ID is required${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}🎁 Redeeming reward...${NC}"
+    
+    response=$(curl -s -X POST "${API_URL}/api/rewards/redeem" \
+        -H "Content-Type: application/json" \
+        -d "{\"reward_id\":\"${reward_id}\"}")
+    
+    if [ $? -eq 0 ]; then
+        success=$(echo "$response" | jq -r '.success')
+        
+        if [ "$success" = "true" ]; then
+            echo -e "${GREEN}🎉 Reward redeemed successfully!${NC}"
+            new_balance=$(echo "$response" | jq -r '.new_balance')
+            echo -e "${YELLOW}💰 New balance: ${new_balance} points${NC}"
+        else
+            error=$(echo "$response" | jq -r '.error')
+            echo -e "${RED}Failed: ${error}${NC}"
+        fi
+    else
+        echo -e "${RED}Failed to redeem reward${NC}"
+    fi
+}
+
+# Show leaderboard
+show_leaderboard() {
+    echo -e "${CYAN}🏆 Leaderboard${NC}"
+    
+    response=$(curl -s "${API_URL}/api/leaderboard")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.entries[] | "\(.rank). \(.emoji) \(.username) - \(.total_points) pts (Level \(.level))"'
+    else
+        echo -e "${RED}Failed to fetch leaderboard${NC}"
+    fi
+}
+
+# Main command handler
+case "$1" in
+    list)
+        shift
+        list_chores "$@"
+        ;;
+    complete)
+        shift
+        complete_chore "$@"
+        ;;
+    schedule)
+        shift
+        generate_schedule "$@"
+        ;;
+    points)
+        shift
+        check_points "$@"
+        ;;
+    rewards)
+        list_rewards
+        ;;
+    redeem)
+        shift
+        redeem_reward "$@"
+        ;;
+    leaderboard)
+        show_leaderboard
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo -e "${YELLOW}ChoreQuest CLI - Making chores fun! 🎮${NC}"
+        echo "Use 'chore-tracker help' for usage information"
+        ;;
+esac

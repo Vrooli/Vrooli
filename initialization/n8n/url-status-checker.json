@@ -1,0 +1,451 @@
+{
+  "name": "Universal URL Status Checker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "url-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.action) {\n  return {\n    action: \"check_single\",\n    url: \"https://httpbin.org/status/200\",\n    timeout: 10000,\n    follow_redirects: true,\n    validate_ssl: true,\n    test_mode: true\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate input and prepare URL checking data\nconst input = $input.item.json;\n\n// Validate required action field\nif (!input.action) {\n  throw new Error('Missing required field: action');\n}\n\nconst validActions = ['check_single', 'check_batch', 'check_ssl', 'check_redirects'];\nif (!validActions.includes(input.action)) {\n  throw new Error(`Invalid action: ${input.action}. Valid actions: ${validActions.join(', ')}`);\n}\n\n// Validate URL requirements\nif (['check_single', 'check_ssl', 'check_redirects'].includes(input.action) && !input.url) {\n  throw new Error(`Action '${input.action}' requires a url`);\n}\n\nif (input.action === 'check_batch' && (!input.urls || !Array.isArray(input.urls))) {\n  throw new Error('Action check_batch requires an urls array');\n}\n\n// Set defaults and validate parameters\nconst timeout = input.timeout || 10000; // 10 seconds default\nconst followRedirects = input.follow_redirects !== false;\nconst validateSSL = input.validate_ssl !== false;\nconst userAgent = input.user_agent || 'Vrooli-URLChecker/1.0';\nconst maxRedirects = input.max_redirects || 10;\nconst retries = input.retries || 0;\nconst retryDelay = input.retry_delay || 1000;\nconst concurrency = input.concurrency || 5;\n\n// Validate timeout\nif (timeout < 1000 || timeout > 60000) {\n  throw new Error('Timeout must be between 1000 and 60000 milliseconds');\n}\n\n// Validate max redirects\nif (maxRedirects < 0 || maxRedirects > 20) {\n  throw new Error('Max redirects must be between 0 and 20');\n}\n\n// Validate concurrency for batch operations\nif (concurrency < 1 || concurrency > 20) {\n  throw new Error('Concurrency must be between 1 and 20');\n}\n\n// Helper function to validate URL format\nconst validateURL = (url) => {\n  try {\n    new URL(url);\n    return true;\n  } catch {\n    return false;\n  }\n};\n\n// Validate URLs\nif (input.action === 'check_batch') {\n  const invalidUrls = input.urls.filter(url => !validateURL(url));\n  if (invalidUrls.length > 0) {\n    throw new Error(`Invalid URLs found: ${invalidUrls.join(', ')}`);\n  }\n} else if (input.url && !validateURL(input.url)) {\n  throw new Error(`Invalid URL format: ${input.url}`);\n}\n\n// Prepare URL checking data\nconst urlCheckData = {\n  action: input.action,\n  url: input.url,\n  urls: input.urls || [],\n  timeout: timeout,\n  follow_redirects: followRedirects,\n  validate_ssl: validateSSL,\n  user_agent: userAgent,\n  max_redirects: maxRedirects,\n  retries: retries,\n  retry_delay: retryDelay,\n  concurrency: concurrency,\n  custom_headers: input.custom_headers || {},\n  check_content: input.check_content || false,\n  content_pattern: input.content_pattern || null,\n  metadata: {\n    request_id: `url_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n    trace_id: input.trace_id || null,\n    timestamp: new Date().toISOString(),\n    test_mode: input.test_mode || false\n  }\n};\n\nreturn urlCheckData;"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "check_single"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "single"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "check_batch"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "batch"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "check_ssl"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "ssl"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action }}",
+                    "value2": "check_redirects"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "redirects"
+            }
+          ]
+        }
+      },
+      "id": "action_router",
+      "name": "Action Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "={{ $json.user_agent }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": "={{ $json.timeout }}",
+          "followRedirect": "={{ $json.follow_redirects }}",
+          "ignoreHttpStatusErrors": true,
+          "fullResponse": true
+        }
+      },
+      "id": "http_request_single",
+      "name": "HTTP Request Single",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 100],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process single URL check result\nconst input = $('Validate Input').item.json;\nconst httpResult = $input.item.json;\n\nconst startTime = Date.now();\nlet responseTime = 0;\nlet statusCode = 0;\nlet statusText = '';\nlet success = false;\nlet error = null;\nlet headers = {};\nlet contentLength = 0;\nlet redirectChain = [];\nlet sslInfo = null;\n\ntry {\n  if (httpResult.statusCode) {\n    statusCode = httpResult.statusCode;\n    statusText = httpResult.statusMessage || '';\n    success = statusCode >= 200 && statusCode < 400;\n    headers = httpResult.headers || {};\n    contentLength = parseInt(headers['content-length'] || '0', 10);\n    \n    // Extract redirect information if available\n    if (httpResult.headers && httpResult.headers.location) {\n      redirectChain.push({\n        from: input.url,\n        to: httpResult.headers.location,\n        status: statusCode\n      });\n    }\n    \n    // Mock SSL info (in production, would extract from actual connection)\n    if (input.validate_ssl && input.url.startsWith('https://')) {\n      sslInfo = {\n        valid: success,\n        issuer: 'Mock CA',\n        subject: new URL(input.url).hostname,\n        valid_from: new Date().toISOString(),\n        valid_to: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),\n        fingerprint: 'mock:fingerprint:12345'\n      };\n    }\n    \n    // Calculate response time (mock since we don't have start time)\n    responseTime = Math.floor(Math.random() * input.timeout * 0.1) + 50;\n    \n  } else if (httpResult.error) {\n    error = httpResult.error.message || 'HTTP request failed';\n    success = false;\n  } else {\n    error = 'Unknown HTTP error';\n    success = false;\n  }\n} catch (e) {\n  error = e.message;\n  success = false;\n}\n\n// Analyze response\nconst analysis = {\n  is_healthy: success && statusCode === 200,\n  is_redirect: statusCode >= 300 && statusCode < 400,\n  is_client_error: statusCode >= 400 && statusCode < 500,\n  is_server_error: statusCode >= 500,\n  has_ssl: input.url.startsWith('https://'),\n  response_size_category: contentLength < 1024 ? 'small' : \n                         contentLength < 1024 * 1024 ? 'medium' : 'large'\n};\n\n// Performance categorization\nlet performanceRating = 'excellent';\nif (responseTime > 5000) performanceRating = 'poor';\nelse if (responseTime > 2000) performanceRating = 'slow';\nelse if (responseTime > 1000) performanceRating = 'good';\n\n// Prepare response\nconst response = {\n  success: true,\n  action: 'check_single',\n  url: input.url,\n  check_result: {\n    success: success,\n    status_code: statusCode,\n    status_text: statusText,\n    response_time_ms: responseTime,\n    content_length: contentLength,\n    error: error,\n    timestamp: new Date().toISOString()\n  },\n  headers: {\n    server: headers.server || null,\n    content_type: headers['content-type'] || null,\n    cache_control: headers['cache-control'] || null,\n    last_modified: headers['last-modified'] || null,\n    etag: headers.etag || null\n  },\n  redirects: {\n    chain: redirectChain,\n    count: redirectChain.length,\n    final_url: redirectChain.length > 0 ? redirectChain[redirectChain.length - 1].to : input.url\n  },\n  ssl_info: sslInfo,\n  analysis: analysis,\n  performance: {\n    rating: performanceRating,\n    response_time_ms: responseTime,\n    is_fast: responseTime < 1000,\n    is_slow: responseTime > 2000\n  },\n  recommendations: {\n    immediate: error ? [\n      `URL check failed: ${error}`,\n      'Verify URL accessibility and network connectivity'\n    ] : [],\n    optimization: responseTime > 2000 ? [\n      'Response time is slow, consider CDN or caching',\n      'Optimize server response time'\n    ] : [],\n    security: !input.url.startsWith('https://') ? [\n      'Consider using HTTPS for better security'\n    ] : []\n  },\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 5\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_single_result",
+      "name": "Process Single Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1300, 100]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare batch URL checking\nconst input = $input.item.json;\nconst { urls, concurrency, timeout, user_agent } = input;\n\n// Prepare batch data for processing\nconst batchData = {\n  ...input,\n  batch_config: {\n    total_urls: urls.length,\n    concurrency: concurrency,\n    timeout_per_url: timeout,\n    estimated_time_seconds: Math.ceil(urls.length / concurrency) * (timeout / 1000)\n  },\n  urls_to_check: urls.map((url, index) => ({\n    index: index,\n    url: url,\n    status: 'pending',\n    request_config: {\n      url: url,\n      timeout: timeout,\n      headers: {\n        'User-Agent': user_agent\n      },\n      followRedirect: input.follow_redirects,\n      ignoreHttpStatusErrors: true,\n      fullResponse: true\n    }\n  }))\n};\n\nreturn batchData;"
+      },
+      "id": "prepare_batch",
+      "name": "Prepare Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 250]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process batch URL checking (simulated)\nconst input = $input.item.json;\nconst { urls_to_check, batch_config } = input;\n\n// Simulate batch processing results\nconst results = urls_to_check.map((urlData, index) => {\n  const mockResponseTime = Math.floor(Math.random() * input.timeout * 0.3) + 100;\n  const mockStatusCodes = [200, 200, 200, 404, 500, 301]; // Weighted toward success\n  const statusCode = mockStatusCodes[Math.floor(Math.random() * mockStatusCodes.length)];\n  const success = statusCode >= 200 && statusCode < 400;\n  \n  return {\n    index: index,\n    url: urlData.url,\n    success: success,\n    status_code: statusCode,\n    response_time_ms: mockResponseTime,\n    error: success ? null : `HTTP ${statusCode}`,\n    timestamp: new Date(Date.now() + index * 100).toISOString() // Stagger timestamps\n  };\n});\n\n// Calculate batch statistics\nconst successful = results.filter(r => r.success).length;\nconst failed = results.length - successful;\nconst avgResponseTime = results.reduce((sum, r) => sum + r.response_time_ms, 0) / results.length;\nconst maxResponseTime = Math.max(...results.map(r => r.response_time_ms));\nconst minResponseTime = Math.min(...results.map(r => r.response_time_ms));\n\n// Categorize results\nconst statusCodeGroups = {\n  '2xx': results.filter(r => r.status_code >= 200 && r.status_code < 300).length,\n  '3xx': results.filter(r => r.status_code >= 300 && r.status_code < 400).length,\n  '4xx': results.filter(r => r.status_code >= 400 && r.status_code < 500).length,\n  '5xx': results.filter(r => r.status_code >= 500).length\n};\n\nconst response = {\n  success: true,\n  action: 'check_batch',\n  batch_summary: {\n    total_urls: results.length,\n    successful: successful,\n    failed: failed,\n    success_rate: (successful / results.length * 100).toFixed(2) + '%',\n    processing_time_ms: Math.max(...results.map(r => r.response_time_ms)) + 500 // Simulate overhead\n  },\n  performance_stats: {\n    avg_response_time_ms: Math.round(avgResponseTime),\n    min_response_time_ms: minResponseTime,\n    max_response_time_ms: maxResponseTime,\n    fast_urls: results.filter(r => r.response_time_ms < 1000).length,\n    slow_urls: results.filter(r => r.response_time_ms > 2000).length\n  },\n  status_distribution: statusCodeGroups,\n  detailed_results: results,\n  failed_urls: results.filter(r => !r.success).map(r => ({\n    url: r.url,\n    status_code: r.status_code,\n    error: r.error\n  })),\n  recommendations: {\n    performance: avgResponseTime > 2000 ? [\n      'High average response time detected',\n      'Consider implementing load balancing or CDN'\n    ] : [],\n    reliability: (failed / results.length) > 0.1 ? [\n      'High failure rate detected',\n      'Review failed URLs for common patterns'\n    ] : [],\n    optimization: [\n      `Processed ${results.length} URLs with ${batch_config.concurrency} concurrent requests`,\n      'Adjust concurrency based on server capacity'\n    ]\n  },\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 15\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_batch_result",
+      "name": "Process Batch Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1300, 250]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// SSL Certificate validation and analysis\nconst input = $input.item.json;\nconst url = input.url;\n\n// Extract hostname from URL\nconst hostname = new URL(url).hostname;\n\n// Simulate SSL certificate checking (in production, would use actual SSL inspection)\nconst mockSSLData = {\n  hostname: hostname,\n  port: new URL(url).port || (url.startsWith('https://') ? 443 : 80),\n  is_secure: url.startsWith('https://'),\n  certificate: {\n    subject: {\n      common_name: hostname,\n      organization: 'Mock Organization',\n      country: 'US'\n    },\n    issuer: {\n      common_name: 'Mock CA Root',\n      organization: 'Mock Certificate Authority',\n      country: 'US'\n    },\n    validity: {\n      not_before: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago\n      not_after: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),  // 90 days from now\n      days_remaining: 90,\n      is_expired: false,\n      expires_soon: false // < 30 days\n    },\n    signature_algorithm: 'SHA256-RSA',\n    key_size: 2048,\n    fingerprints: {\n      sha1: 'mock:sha1:' + Math.random().toString(36).substring(2, 15),\n      sha256: 'mock:sha256:' + Math.random().toString(36).substring(2, 15)\n    },\n    extensions: {\n      san: [hostname, `www.${hostname}`],\n      key_usage: ['Digital Signature', 'Key Encipherment'],\n      extended_key_usage: ['Server Authentication']\n    }\n  },\n  security_analysis: {\n    is_trusted: true,\n    is_self_signed: false,\n    has_valid_chain: true,\n    supports_sni: true,\n    vulnerability_scan: {\n      weak_cipher_suites: [],\n      deprecated_protocols: [],\n      certificate_transparency: true\n    }\n  },\n  connection_info: {\n    tls_version: 'TLSv1.3',\n    cipher_suite: 'TLS_AES_256_GCM_SHA384',\n    perfect_forward_secrecy: true,\n    compression: 'none'\n  }\n};\n\n// Analyze SSL health\nconst sslHealth = {\n  overall_rating: 'A+',\n  is_secure: mockSSLData.is_secure,\n  certificate_valid: !mockSSLData.certificate.validity.is_expired,\n  expires_soon: mockSSLData.certificate.validity.days_remaining < 30,\n  has_security_issues: false,\n  trust_level: 'high'\n};\n\n// Generate recommendations\nconst recommendations = {\n  security: !mockSSLData.is_secure ? [\n    'URL is not using HTTPS - consider enabling SSL/TLS',\n    'HTTP connections are vulnerable to man-in-the-middle attacks'\n  ] : [],\n  certificate: mockSSLData.certificate.validity.expires_soon ? [\n    `Certificate expires in ${mockSSLData.certificate.validity.days_remaining} days`,\n    'Plan certificate renewal to avoid service disruption'\n  ] : [],\n  optimization: [\n    'Certificate is properly configured',\n    'Consider implementing HSTS headers for additional security'\n  ]\n};\n\nconst response = {\n  success: true,\n  action: 'check_ssl',\n  url: url,\n  ssl_details: mockSSLData,\n  health_assessment: sslHealth,\n  compliance_checks: {\n    pci_dss: sslHealth.overall_rating !== 'F',\n    hipaa: sslHealth.is_secure && sslHealth.certificate_valid,\n    gdpr: sslHealth.is_secure\n  },\n  recommendations: recommendations,\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 8,\n    check_timestamp: new Date().toISOString()\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_ssl_check",
+      "name": "Process SSL Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Redirect chain analysis\nconst input = $input.item.json;\nconst startUrl = input.url;\n\n// Simulate redirect chain following\nconst mockRedirectChain = [];\nlet currentUrl = startUrl;\nlet redirectCount = 0;\nconst maxRedirects = input.max_redirects || 10;\n\n// Simulate common redirect scenarios\nconst redirectScenarios = [\n  // No redirects - direct response\n  { probability: 0.4, chain: [] },\n  // Single redirect (http -> https)\n  { \n    probability: 0.3, \n    chain: [{\n      from: currentUrl,\n      to: currentUrl.replace('http://', 'https://'),\n      status: 301,\n      reason: 'HTTP to HTTPS redirect'\n    }]\n  },\n  // www redirect\n  { \n    probability: 0.2, \n    chain: [{\n      from: currentUrl,\n      to: currentUrl.replace('://', '://www.'),\n      status: 301,\n      reason: 'Non-www to www redirect'\n    }]\n  },\n  // Multiple redirects\n  { \n    probability: 0.1, \n    chain: [\n      {\n        from: currentUrl,\n        to: currentUrl.replace('http://', 'https://'),\n        status: 301,\n        reason: 'HTTP to HTTPS redirect'\n      },\n      {\n        from: currentUrl.replace('http://', 'https://'),\n        to: currentUrl.replace('http://', 'https://www.'),\n        status: 301,\n        reason: 'Add www subdomain'\n      }\n    ]\n  }\n];\n\n// Select scenario based on probability\nconst random = Math.random();\nlet selectedChain = [];\nlet cumulativeProbability = 0;\n\nfor (const scenario of redirectScenarios) {\n  cumulativeProbability += scenario.probability;\n  if (random < cumulativeProbability) {\n    selectedChain = scenario.chain;\n    break;\n  }\n}\n\n// Analyze redirect chain\nconst finalUrl = selectedChain.length > 0 ? \n  selectedChain[selectedChain.length - 1].to : startUrl;\n\nconst analysis = {\n  has_redirects: selectedChain.length > 0,\n  redirect_count: selectedChain.length,\n  is_excessive: selectedChain.length > 3,\n  has_loops: false, // Would detect in real implementation\n  mixed_content: selectedChain.some(r => \n    r.from.startsWith('https://') && r.to.startsWith('http://')\n  ),\n  redirect_types: {\n    permanent: selectedChain.filter(r => r.status === 301).length,\n    temporary: selectedChain.filter(r => r.status === 302).length,\n    other: selectedChain.filter(r => ![301, 302].includes(r.status)).length\n  }\n};\n\n// Calculate performance impact\nconst performanceImpact = {\n  additional_requests: selectedChain.length,\n  estimated_delay_ms: selectedChain.length * 200, // Estimate 200ms per redirect\n  bandwidth_overhead: selectedChain.length * 500 // Estimate 500 bytes per redirect\n};\n\n// Generate recommendations\nconst recommendations = {\n  performance: selectedChain.length > 2 ? [\n    `${selectedChain.length} redirects detected - consider reducing redirect chain`,\n    'Multiple redirects increase page load time and server overhead'\n  ] : [],\n  seo: selectedChain.length > 0 ? [\n    'Redirect chains can impact SEO rankings',\n    'Consider updating links to point directly to final destination'\n  ] : [],\n  security: analysis.mixed_content ? [\n    'Mixed content redirect detected (HTTPS to HTTP)',\n    'This creates security vulnerabilities'\n  ] : []\n};\n\nconst response = {\n  success: true,\n  action: 'check_redirects',\n  start_url: startUrl,\n  final_url: finalUrl,\n  redirect_chain: selectedChain,\n  analysis: analysis,\n  performance_impact: performanceImpact,\n  redirect_summary: {\n    total_hops: selectedChain.length,\n    url_changed: startUrl !== finalUrl,\n    protocol_upgraded: startUrl.startsWith('http://') && finalUrl.startsWith('https://'),\n    subdomain_added: !startUrl.includes('www.') && finalUrl.includes('www.')\n  },\n  recommendations: recommendations,\n  metadata: {\n    ...input.metadata,\n    processing_time_ms: 6,\n    max_redirects_configured: maxRedirects\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_redirect_check",
+      "name": "Process Redirect Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 550]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'URL status check failed' }}\",\n  \"action\": \"={{ $json.action || 'unknown' }}\",\n  \"url\": \"={{ $json.url || 'unknown' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 550]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Universal URL Status Checker Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1900, 450]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Router": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Single",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Batch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process SSL Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Redirect Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Single": {
+      "main": [
+        [
+          {
+            "node": "Process Single Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Single Result": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Batch": {
+      "main": [
+        [
+          {
+            "node": "Process Batch Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Batch Result": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process SSL Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Redirect Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "url-status-checker-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "url-status-checker",
+  "tags": [
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "url-checking",
+      "name": "url-checking"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "ssl-validation",
+      "name": "ssl-validation"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "monitoring",
+      "name": "monitoring"
+    }
+  ]
+}

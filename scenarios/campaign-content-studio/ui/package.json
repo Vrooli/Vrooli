@@ -1,0 +1,31 @@
+{
+  "name": "campaign-content-studio-ui",
+  "version": "1.0.0",
+  "description": "Campaign Content Studio - AI-powered marketing content creation interface",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "campaign",
+    "content",
+    "marketing",
+    "ai",
+    "studio"
+  ],
+  "author": "Campaign Content Studio",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

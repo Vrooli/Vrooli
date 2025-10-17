@@ -1,0 +1,273 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "image-generation-pipeline",
+    "displayName": "Enterprise Image Generation Pipeline",
+    "description": "Enterprise-grade AI image generation platform with voice briefings, multi-brand management, and quality control",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "creative-tools",
+      "visual-generation",
+      "voice-enabled",
+      "enterprise-ready",
+      "multimodal",
+      "custom-ui",
+      "high-revenue-potential",
+      "brand-management",
+      "quality-control",
+      "comfyui-workflows",
+      "go-api",
+      "n8n-workflows",
+      "nodejs-ui",
+      "postgres-storage",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Image generation API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Image Generation Pipeline UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/main-workflow.json",
+          "type": "workflow"
+        }
+      ],
+      "sharedWorkflows": [
+        "ollama",
+        "embedding-generator"
+      ]
+    },
+    "comfyui": {
+      "type": "comfyui",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI image generation workflows",
+      "initialization": [
+        {
+          "file": "initialization/workflows/comfyui/brand-workflow.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/workflows/comfyui/qc-workflow.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.1:8b",
+        "nomic-embed-text",
+        "llava:13b"
+      ]
+    },
+    "whisper": {
+      "type": "whisper",
+      "enabled": true,
+      "required": true,
+      "purpose": "voice-to-text for image briefings"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "campaign and brand data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "style and brand vector embeddings"
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "purpose": "generated images and brand assets storage"
+    },
+    "vault": {
+      "type": "vault",
+      "enabled": false,
+      "required": false,
+      "purpose": "API keys and secrets management"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Image Generation Pipeline health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Enterprise Image Generation Pipeline",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "image-generation-pipeline-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "image-generation-pipeline"
+             ]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o image-generation-pipeline-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Image Generation Pipeline initialized\\n  UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:${API_PORT}\\n  CLI: image-generation-pipeline --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start image generation pipeline with Go API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./image-generation-pipeline-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/image-generation-pipeline-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start Node.js UI server in background",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Image Generation Pipeline running:\\n  UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:$API_PORT\\n  CLI: image-generation-pipeline --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test image generation pipeline API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-campaigns-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/campaigns",
+          "description": "Test API campaigns endpoint"
+        },
+        {
+          "name": "test-generation-endpoint",
+          "run": "bash test/test-generation-endpoint.sh",
+          "description": "Test API image generation endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats image-generation-pipeline.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/image-generation-pipeline.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"image-generation-pipeline-api\" || true; sleep 1; pkill -9 -f \"image-generation-pipeline-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/image-generation-pipeline.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/image-generation-pipeline.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

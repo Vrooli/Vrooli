@@ -1,0 +1,29 @@
+{
+  "name": "prompt-injection-arena-ui",
+  "version": "1.0.0",
+  "description": "Web interface for the Prompt Injection Arena - defensive security platform",
+  "main": "server.js",
+  "scripts": {
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "build": "echo 'No build step required for vanilla JS app'",
+    "test": "echo 'No tests specified'",
+    "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && ln -snf ../../../../../packages/iframe-bridge node_modules/@vrooli/iframe-bridge'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "prompt-injection",
+    "security",
+    "ai-safety",
+    "testing",
+    "arena",
+    "leaderboard"
+  ],
+  "author": "Vrooli Team",
+  "license": "MIT"
+}

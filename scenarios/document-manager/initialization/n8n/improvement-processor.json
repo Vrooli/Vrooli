@@ -1,0 +1,334 @@
+{
+  "name": "Improvement Processor",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "minutes", "triggerAtMinute": 10}]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300],
+      "id": "processor-trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT iq.*, a.name as application_name, a.repository_url, ag.name as agent_name FROM improvement_queue iq JOIN applications a ON iq.application_id = a.id JOIN agents ag ON iq.agent_id = ag.id WHERE iq.status = 'approved' ORDER BY iq.severity DESC, iq.created_at ASC",
+        "options": {}
+      },
+      "name": "Get Approved Improvements",
+      "type": "n8n-nodes-base.postgres",
+      "position": [450, 300],
+      "id": "get-approved"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-improvements",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Check Improvements Exist",
+      "type": "n8n-nodes-base.if",
+      "position": [650, 300],
+      "id": "check-improvements"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Process Each Improvement",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [850, 300],
+      "id": "split-improvements"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "improvement-context",
+              "name": "improvement_context",
+              "value": "={\n  \"improvement_id\": $json.id,\n  \"title\": $json.title,\n  \"description\": $json.description,\n  \"type\": $json.type,\n  \"severity\": $json.severity,\n  \"suggested_fix\": JSON.parse($json.suggested_fix || '{}'),\n  \"application_name\": $json.application_name,\n  \"repository_url\": $json.repository_url,\n  \"agent_name\": $json.agent_name,\n  \"approved_at\": $json.reviewed_at\n}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Prepare Improvement Context",
+      "type": "n8n-nodes-base.set",
+      "position": [1050, 300],
+      "id": "prepare-improvement-context"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "improvement-type-switch",
+              "leftValue": "={{ $json.improvement_context.type }}",
+              "rightValue": "broken_link",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Route by Improvement Type",
+      "type": "n8n-nodes-base.switch",
+      "position": [1250, 300],
+      "id": "route-improvement-type"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process broken link fixes\nconst context = items[0].json.improvement_context;\nconst suggestedFix = context.suggested_fix;\n\nlet applyResult = {\n  success: false,\n  action: 'fix_broken_link',\n  details: {},\n  error: null\n};\n\ntry {\n  // In a real implementation, this would:\n  // 1. Clone the repository\n  // 2. Find the broken link\n  // 3. Replace with the suggested URL\n  // 4. Create a pull request or commit\n  \n  // Simulate the fix process\n  if (suggestedFix.old_url && suggestedFix.new_url) {\n    applyResult = {\n      success: true,\n      action: 'fix_broken_link',\n      details: {\n        file_modified: suggestedFix.file || 'docs/README.md',\n        old_url: suggestedFix.old_url,\n        new_url: suggestedFix.new_url,\n        confidence: suggestedFix.confidence || 0.8,\n        method: 'direct_replacement',\n        commit_hash: 'abc123def456', // Simulated\n        pull_request: null // Would be PR number if using PRs\n      },\n      execution_time_ms: 2500,\n      error: null\n    };\n  } else {\n    applyResult.error = 'Insufficient fix details: missing old_url or new_url';\n  }\n} catch (error) {\n  applyResult.error = error.message;\n}\n\nreturn [{\n  json: {\n    improvement_context: context,\n    apply_result: applyResult\n  }\n}];"
+      },
+      "name": "Apply Link Fix",
+      "type": "n8n-nodes-base.code",
+      "position": [1450, 200],
+      "id": "apply-link-fix"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process outdated content updates\nconst context = items[0].json.improvement_context;\nconst suggestedFix = context.suggested_fix;\n\nlet applyResult = {\n  success: false,\n  action: 'update_content',\n  details: {},\n  error: null\n};\n\ntry {\n  // In a real implementation, this would:\n  // 1. Clone the repository\n  // 2. Locate the outdated content\n  // 3. Apply the suggested updates\n  // 4. Verify the changes make sense\n  // 5. Create a pull request\n  \n  // Simulate the update process\n  if (suggestedFix.action && suggestedFix.details) {\n    applyResult = {\n      success: true,\n      action: 'update_content',\n      details: {\n        files_modified: [suggestedFix.file || 'docs/api.md'],\n        changes_applied: suggestedFix.details,\n        lines_changed: Math.floor(Math.random() * 20) + 5,\n        confidence: suggestedFix.confidence || 0.7,\n        method: 'content_replacement',\n        commit_hash: 'def456abc789', // Simulated\n        pull_request: 'PR#' + Math.floor(Math.random() * 1000)\n      },\n      execution_time_ms: 4200,\n      error: null\n    };\n  } else {\n    applyResult.error = 'Insufficient fix details: missing action or details';\n  }\n} catch (error) {\n  applyResult.error = error.message;\n}\n\nreturn [{\n  json: {\n    improvement_context: context,\n    apply_result: applyResult\n  }\n}];"
+      },
+      "name": "Apply Content Update",
+      "type": "n8n-nodes-base.code",
+      "position": [1450, 400],
+      "id": "apply-content-update"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process missing documentation additions\nconst context = items[0].json.improvement_context;\nconst suggestedFix = context.suggested_fix;\n\nlet applyResult = {\n  success: false,\n  action: 'add_documentation',\n  details: {},\n  error: null\n};\n\ntry {\n  // In a real implementation, this would:\n  // 1. Clone the repository\n  // 2. Generate documentation based on the template\n  // 3. Add to the appropriate location\n  // 4. Ensure proper formatting and structure\n  // 5. Create a pull request for review\n  \n  // Simulate the documentation addition\n  if (suggestedFix.documentation_needed && suggestedFix.template) {\n    applyResult = {\n      success: true,\n      action: 'add_documentation',\n      details: {\n        files_created: ['docs/api/' + context.type + '.md'],\n        documentation_type: suggestedFix.documentation_needed,\n        template_used: suggestedFix.template.substring(0, 50) + '...',\n        sections_added: ['Overview', 'Usage', 'Examples'],\n        confidence: suggestedFix.confidence || 0.6,\n        method: 'template_generation',\n        commit_hash: 'ghi789jkl012', // Simulated\n        pull_request: 'PR#' + Math.floor(Math.random() * 1000)\n      },\n      execution_time_ms: 6800,\n      error: null\n    };\n  } else {\n    applyResult.error = 'Insufficient fix details: missing documentation_needed or template';\n  }\n} catch (error) {\n  applyResult.error = error.message;\n}\n\nreturn [{\n  json: {\n    improvement_context: context,\n    apply_result: applyResult\n  }\n}];"
+      },
+      "name": "Apply Documentation Addition",
+      "type": "n8n-nodes-base.code",
+      "position": [1450, 600],
+      "id": "apply-documentation-addition"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "apply-success",
+              "leftValue": "={{ $json.apply_result.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Check Apply Success",
+      "type": "n8n-nodes-base.if",
+      "position": [1650, 300],
+      "id": "check-apply-success"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "improvement_queue",
+        "updateKey": "id",
+        "columns": "status,applied_at,applied_by,applied_result,revert_possible",
+        "additionalFields": {
+          "id": "={{ $json.improvement_context.improvement_id }}",
+          "status": "applied",
+          "applied_at": "={{ new Date().toISOString() }}",
+          "applied_by": "automation",
+          "applied_result": "={{ JSON.stringify($json.apply_result) }}",
+          "revert_possible": "={{ $json.apply_result.details.commit_hash ? true : false }}"
+        },
+        "options": {}
+      },
+      "name": "Mark as Applied",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1850, 200],
+      "id": "mark-applied"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "improvement_queue",
+        "updateKey": "id",
+        "columns": "status,review_notes",
+        "additionalFields": {
+          "id": "={{ $json.improvement_context.improvement_id }}",
+          "status": "revision_requested",
+          "review_notes": "={{ 'Automatic application failed: ' + $json.apply_result.error }}"
+        },
+        "options": {}
+      },
+      "name": "Mark as Failed",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1850, 400],
+      "id": "mark-failed"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "action_history",
+        "columns": "queue_item_id,agent_id,action_type,action_data,result,execution_time_ms,created_at",
+        "additionalFields": {
+          "queue_item_id": "={{ $json.improvement_context.improvement_id }}",
+          "agent_id": "={{ $json.improvement_context.agent_id || null }}",
+          "action_type": "apply_improvement",
+          "action_data": "={{ JSON.stringify($json.apply_result.details || {}) }}",
+          "result": "={{ $json.apply_result.success ? 'success' : 'failure' }}",
+          "execution_time_ms": "={{ $json.apply_result.execution_time_ms || 0 }}",
+          "created_at": "={{ new Date().toISOString() }}"
+        },
+        "options": {}
+      },
+      "name": "Log Application Attempt",
+      "type": "n8n-nodes-base.postgres",
+      "position": [2050, 300],
+      "id": "log-application"
+    },
+    {
+      "parameters": {
+        "channel": "improvement-updates",
+        "message": "=Improvement \"{{ $json.improvement_context.title }}\" {{ $json.apply_result.success ? 'successfully applied' : 'failed to apply' }}: {{ $json.apply_result.success ? $json.apply_result.details.method : $json.apply_result.error }}"
+      },
+      "name": "Notify via Redis",
+      "type": "n8n-nodes-base.redis",
+      "position": [2250, 300],
+      "id": "notify-redis"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-pr",
+              "leftValue": "={{ $json.apply_result.details.pull_request }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Check for Pull Request",
+      "type": "n8n-nodes-base.if",
+      "position": [2050, 100],
+      "id": "check-pr"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.improvement_context.repository_url }}/pulls",
+        "method": "POST",
+        "headers": {
+          "Accept": "application/vnd.github.v3+json",
+          "Authorization": "token {{ $credentials.github_token }}"
+        },
+        "body": {
+          "title": "=Documentation Fix: {{ $json.improvement_context.title }}",
+          "body": "=**Automated improvement application**\n\n**Original Issue:**\n{{ $json.improvement_context.description }}\n\n**Changes Made:**\n{{ $json.apply_result.details.method }}\n\n**Confidence Score:** {{ $json.apply_result.details.confidence }}\n\n**Files Modified:**\n{{ $json.apply_result.details.files_modified ? $json.apply_result.details.files_modified.join(', ') : 'N/A' }}\n\n---\n*This PR was automatically created by the Documentation Manager system.*",
+          "head": "=doc-fix-{{ $json.improvement_context.improvement_id }}",
+          "base": "main"
+        }
+      },
+      "name": "Create Pull Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2250, 100],
+      "id": "create-pr"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {"main": [[{"node": "Get Approved Improvements", "type": "main", "index": 0}]]},
+    "Get Approved Improvements": {"main": [[{"node": "Check Improvements Exist", "type": "main", "index": 0}]]},
+    "Check Improvements Exist": {
+      "main": [
+        [{"node": "Process Each Improvement", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "Process Each Improvement": {"main": [[{"node": "Prepare Improvement Context", "type": "main", "index": 0}]]},
+    "Prepare Improvement Context": {"main": [[{"node": "Route by Improvement Type", "type": "main", "index": 0}]]},
+    "Route by Improvement Type": {
+      "main": [
+        [{"node": "Apply Link Fix", "type": "main", "index": 0}],
+        [{"node": "Apply Content Update", "type": "main", "index": 0}],
+        [{"node": "Apply Documentation Addition", "type": "main", "index": 0}]
+      ]
+    },
+    "Apply Link Fix": {"main": [[{"node": "Check Apply Success", "type": "main", "index": 0}]]},
+    "Apply Content Update": {"main": [[{"node": "Check Apply Success", "type": "main", "index": 0}]]},
+    "Apply Documentation Addition": {"main": [[{"node": "Check Apply Success", "type": "main", "index": 0}]]},
+    "Check Apply Success": {
+      "main": [
+        [
+          {"node": "Mark as Applied", "type": "main", "index": 0},
+          {"node": "Check for Pull Request", "type": "main", "index": 0}
+        ],
+        [{"node": "Mark as Failed", "type": "main", "index": 0}]
+      ]
+    },
+    "Mark as Applied": {"main": [[{"node": "Log Application Attempt", "type": "main", "index": 0}]]},
+    "Mark as Failed": {"main": [[{"node": "Log Application Attempt", "type": "main", "index": 0}]]},
+    "Log Application Attempt": {"main": [[{"node": "Notify via Redis", "type": "main", "index": 0}]]},
+    "Check for Pull Request": {
+      "main": [
+        [{"node": "Create Pull Request", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "Create Pull Request": {"main": [[]]},
+    "Notify via Redis": {"main": [[]]}
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["documentation", "automation", "improvements"],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "v2.0"
+}

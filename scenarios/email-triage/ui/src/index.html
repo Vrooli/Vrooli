@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Triage - AI-Powered Email Management</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
+    <!-- CSS Styles -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .dashboard {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            color: #666;
+        }
+        
+        .nav-tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .nav-tab:hover {
+            background: #e9ecef;
+        }
+        
+        .tab-content {
+            padding: 30px;
+            min-height: 400px;
+        }
+        
+        .tab-pane {
+            display: none;
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b3d9ff;
+        }
+        
+        .email-list {
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+        
+        .email-item {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .email-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .email-item:last-child {
+            border-bottom: none;
+        }
+        
+        .email-subject {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .email-sender {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .nav-tabs {
+                flex-wrap: wrap;
+            }
+            
+            .nav-tab {
+                flex: 1 1 50%;
+                min-width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📧 Email Triage</h1>
+            <p>AI-powered multi-tenant email management system</p>
+        </div>
+        
+        <!-- Main Dashboard -->
+        <div class="dashboard">
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="showTab('dashboard')">Dashboard</button>
+                <button class="nav-tab" onclick="showTab('accounts')">Email Accounts</button>
+                <button class="nav-tab" onclick="showTab('rules')">Triage Rules</button>
+                <button class="nav-tab" onclick="showTab('search')">Search</button>
+                <button class="nav-tab" onclick="showTab('settings')">Settings</button>
+            </div>
+            
+            <div class="tab-content">
+                <!-- Dashboard Tab -->
+                <div id="dashboard-tab" class="tab-pane active">
+                    <h2>Dashboard</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="emails-processed">0</div>
+                            <div class="stat-label">Emails Processed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="rules-active">0</div>
+                            <div class="stat-label">Active Rules</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="actions-automated">0</div>
+                            <div class="stat-label">Actions Automated</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="avg-process-time">0ms</div>
+                            <div class="stat-label">Avg Process Time</div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>Welcome to Email Triage!</strong> This is your AI-powered email management dashboard. Start by adding an email account and creating some triage rules.
+                    </div>
+                    
+                    <div id="dashboard-content">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading dashboard data...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Email Accounts Tab -->
+                <div id="accounts-tab" class="tab-pane">
+                    <h2>Email Accounts</h2>
+                    
+                    <div class="form-group">
+                        <button class="btn btn-primary" onclick="showAddAccountForm()">+ Add Email Account</button>
+                    </div>
+                    
+                    <div id="add-account-form" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+                        <h3>Add New Email Account</h3>
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-input" id="email-address" placeholder="user@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-input" id="email-password" placeholder="Email account password">
+                        </div>
+                        <div class="form-group">
+                            <button class="btn btn-primary" onclick="addEmailAccount()">Connect Account</button>
+                            <button class="btn btn-secondary" onclick="hideAddAccountForm()">Cancel</button>
+                        </div>
+                    </div>
+                    
+                    <div id="accounts-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading email accounts...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Triage Rules Tab -->
+                <div id="rules-tab" class="tab-pane">
+                    <h2>Triage Rules</h2>
+                    
+                    <div class="form-group">
+                        <button class="btn btn-primary" onclick="showAddRuleForm()">+ Create New Rule</button>
+                    </div>
+                    
+                    <div id="add-rule-form" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+                        <h3>Create AI-Powered Rule</h3>
+                        <div class="form-group">
+                            <label class="form-label">Describe what you want to do with emails</label>
+                            <input type="text" class="form-input" id="rule-description" placeholder="e.g., Archive all newsletters and promotional emails">
+                        </div>
+                        <div class="form-group">
+                            <button class="btn btn-primary" onclick="createTriageRule()">Generate Rule with AI</button>
+                            <button class="btn btn-secondary" onclick="hideAddRuleForm()">Cancel</button>
+                        </div>
+                    </div>
+                    
+                    <div id="rules-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading triage rules...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Search Tab -->
+                <div id="search-tab" class="tab-pane">
+                    <h2>Semantic Email Search</h2>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Search by meaning, not just keywords</label>
+                        <input type="text" class="form-input" id="search-query" placeholder="e.g., urgent meeting about quarterly budget">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-primary" onclick="searchEmails()">🔍 Search</button>
+                    </div>
+                    
+                    <div id="search-results">
+                        <div class="alert alert-info">
+                            Enter a search query above to find emails by their meaning, not just keywords. Our AI understands context and intent.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Settings Tab -->
+                <div id="settings-tab" class="tab-pane">
+                    <h2>Settings</h2>
+                    
+                    <div class="alert alert-info">
+                        <strong>Multi-tenant SaaS Ready!</strong> This email triage system supports multiple users with isolated data and subscription tiers.
+                    </div>
+                    
+                    <h3>System Status</h3>
+                    <div id="system-status">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Checking system status...
+                        </div>
+                    </div>
+                    
+                    <h3>Configuration</h3>
+                    <div class="form-group">
+                        <label class="form-label">API Base URL</label>
+                        <input type="text" class="form-input" id="api-url" value="" readonly>
+                        <script>
+                            // Set API URL dynamically when page loads
+                            document.addEventListener('DOMContentLoaded', () => {
+                                const apiUrlInput = document.getElementById('api-url');
+                                if (apiUrlInput) {
+                                    apiUrlInput.value = getApiBaseUrl();
+                                }
+                            });
+                        </script>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Plan Type</label>
+                        <select class="form-input" id="plan-type">
+                            <option value="free">Free (1 account, 1K emails/month)</option>
+                            <option value="pro">Pro ($29/mo - 5 accounts, 10K emails/month)</option>
+                            <option value="business">Business ($99/mo - 20 accounts, 100K emails/month)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="text-align: center; color: white; opacity: 0.8; margin-top: 30px;">
+            <p>Email Triage v1.0.0 - AI-Powered Email Management by Vrooli</p>
+            <p>Revenue Potential: $20K-50K per deployment | Multi-tenant SaaS Ready</p>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

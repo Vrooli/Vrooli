@@ -1,0 +1,732 @@
+#!/bin/bash
+################################################################################
+# ROI Fit Analysis CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
+
+set -e
+
+# Configuration
+SCENARIO_NAME="roi-fit-analysis"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}ROI Fit Analysis CLI${NC}"
+    echo "Comprehensive ROI and investment opportunity analysis"
+    echo ""
+    echo "Usage: roi-fit [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}analyze${NC}        Analyze ROI for a business idea"
+    echo -e "  ${GREEN}comprehensive${NC}  Perform comprehensive ROI analysis"
+    echo -e "  ${GREEN}list${NC}           List investment opportunities"
+    echo -e "  ${GREEN}opportunities${NC}  Show available opportunities"
+    echo -e "  ${GREEN}report${NC}         Generate analysis report"
+    echo -e "  ${GREEN}results${NC}        Show analysis results history"
+    echo -e "  ${GREEN}health${NC}         Check service health"
+    echo -e "  ${GREEN}status${NC}         Show service status"
+    echo ""
+    echo "Examples:"
+    echo "  roi-fit analyze \"AI-powered CRM\" 75000 --timeline \"12 months\""
+    echo "  roi-fit comprehensive \"E-commerce platform\" --budget 50000 --market B2B"
+    echo "  roi-fit list --min-roi 70"
+    echo "  roi-fit report --format summary"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo ""
+    echo "For more information: roi-fit <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# Analyze command
+cmd_analyze() {
+    local idea=""
+    local budget=""
+    local timeline="12 months"
+    local skills=""
+    local market_focus=""
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --timeline)
+                timeline="$2"
+                shift 2
+                ;;
+            --skills)
+                skills="$2"
+                shift 2
+                ;;
+            --market|--market-focus)
+                market_focus="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: roi-fit analyze <idea> <budget> [OPTIONS]"
+                echo ""
+                echo "Analyze ROI for a business idea"
+                echo ""
+                echo "Arguments:"
+                echo "  <idea>      Business idea description"
+                echo "  <budget>    Available budget (numeric value)"
+                echo ""
+                echo "Options:"
+                echo "  --timeline <period>     Timeline for investment (default: 12 months)"
+                echo "  --skills <list>         Comma-separated skills list"
+                echo "  --market <focus>        Market focus area"
+                echo "  --json                  Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  roi-fit analyze \"AI-powered CRM\" 75000"
+                echo "  roi-fit analyze \"E-commerce platform\" 50000 --timeline \"18 months\""
+                echo "  roi-fit analyze \"SaaS product\" 100000 --skills \"development,marketing\""
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$idea" ]]; then
+                    idea="$1"
+                elif [[ -z "$budget" ]]; then
+                    budget="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$idea" || -z "$budget" ]]; then
+        echo -e "${RED}❌ Error: Both idea and budget are required${NC}" >&2
+        echo "Usage: roi-fit analyze <idea> <budget> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    # Validate budget is numeric
+    if ! [[ "$budget" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        echo -e "${RED}❌ Error: Budget must be a numeric value${NC}" >&2
+        return 1
+    fi
+    
+    # Build request JSON
+    local skills_array="[\"development\", \"marketing\"]"
+    if [[ -n "$skills" ]]; then
+        skills_array=$(echo "$skills" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    fi
+    
+    local request_body=$(jq -n \
+        --arg idea "$idea" \
+        --argjson budget "$budget" \
+        --arg timeline "$timeline" \
+        --argjson skills "$skills_array" \
+        --arg market_focus "$market_focus" \
+        '{
+            idea: $idea,
+            budget: $budget,
+            timeline: $timeline,
+            skills: $skills,
+            market_focus: $market_focus
+        }')
+    
+    echo -e "${BLUE}📊 Analyzing ROI for: $idea${NC}"
+    echo -e "${YELLOW}   Budget: \$$(printf "%'.0f\n" $budget)${NC}"
+    echo -e "${YELLOW}   Timeline: $timeline${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "POST" "/analyze" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print analysis results
+        local roi_score=$(echo "$response" | jq -r '.analysis.roi_score // "N/A"' 2>/dev/null)
+        local recommendation=$(echo "$response" | jq -r '.analysis.recommendation // "N/A"' 2>/dev/null)
+        local payback_months=$(echo "$response" | jq -r '.analysis.payback_months // "N/A"' 2>/dev/null)
+        local risk_level=$(echo "$response" | jq -r '.analysis.risk_level // "N/A"' 2>/dev/null)
+        local market_size=$(echo "$response" | jq -r '.analysis.market_size // "N/A"' 2>/dev/null)
+        local confidence=$(echo "$response" | jq -r '.analysis.confidence // "N/A"' 2>/dev/null)
+        
+        echo -e "${GREEN}=== ROI Analysis Results ===${NC}"
+        echo ""
+        echo -e "${CYAN}ROI Score:${NC}       $roi_score/100"
+        echo -e "${CYAN}Recommendation:${NC}  $recommendation"
+        echo -e "${CYAN}Payback Period:${NC}  $payback_months months"
+        echo -e "${CYAN}Risk Level:${NC}      $risk_level"
+        echo -e "${CYAN}Market Size:${NC}     $market_size"
+        echo -e "${CYAN}Confidence:${NC}      $confidence%"
+        
+        # Show analysis ID if available
+        local analysis_id=$(echo "$response" | jq -r '.analysis_id // ""' 2>/dev/null)
+        if [[ -n "$analysis_id" && "$analysis_id" != "null" ]]; then
+            echo ""
+            echo -e "${PURPLE}Analysis ID: $analysis_id${NC}"
+            echo "   View full results: roi-fit comprehensive --id $analysis_id"
+        fi
+    fi
+}
+
+# Comprehensive analysis command
+cmd_comprehensive() {
+    local idea=""
+    local budget=""
+    local timeline="12 months"
+    local skills=""
+    local market_focus=""
+    local risk_tolerance="medium"
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --budget)
+                budget="$2"
+                shift 2
+                ;;
+            --timeline)
+                timeline="$2"
+                shift 2
+                ;;
+            --skills)
+                skills="$2"
+                shift 2
+                ;;
+            --market|--market-focus)
+                market_focus="$2"
+                shift 2
+                ;;
+            --risk|--risk-tolerance)
+                risk_tolerance="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: roi-fit comprehensive <idea> [OPTIONS]"
+                echo ""
+                echo "Perform comprehensive ROI analysis"
+                echo ""
+                echo "Arguments:"
+                echo "  <idea>      Business idea description"
+                echo ""
+                echo "Options:"
+                echo "  --budget <amount>       Available budget"
+                echo "  --timeline <period>     Timeline for investment (default: 12 months)"
+                echo "  --skills <list>         Comma-separated skills list"
+                echo "  --market <focus>        Market focus area"
+                echo "  --risk <level>          Risk tolerance (low, medium, high)"
+                echo "  --json                  Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  roi-fit comprehensive \"AI chatbot\" --budget 25000"
+                echo "  roi-fit comprehensive \"Mobile app\" --budget 75000 --risk high"
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$idea" ]]; then
+                    idea="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$idea" ]]; then
+        echo -e "${RED}❌ Error: Business idea is required${NC}" >&2
+        echo "Usage: roi-fit comprehensive <idea> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    # Set default budget if not provided
+    if [[ -z "$budget" ]]; then
+        budget="50000"
+    fi
+    
+    # Validate budget is numeric
+    if ! [[ "$budget" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        echo -e "${RED}❌ Error: Budget must be a numeric value${NC}" >&2
+        return 1
+    fi
+    
+    # Build request JSON
+    local skills_array="[\"development\", \"marketing\"]"
+    if [[ -n "$skills" ]]; then
+        skills_array=$(echo "$skills" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    fi
+    
+    local request_body=$(jq -n \
+        --arg idea "$idea" \
+        --argjson budget "$budget" \
+        --arg timeline "$timeline" \
+        --argjson skills "$skills_array" \
+        --arg market_focus "${market_focus:-general}" \
+        --arg risk_tolerance "$risk_tolerance" \
+        '{
+            idea: $idea,
+            budget: $budget,
+            timeline: $timeline,
+            skills: $skills,
+            market_focus: $market_focus,
+            risk_tolerance: $risk_tolerance
+        }')
+    
+    echo -e "${BLUE}🔍 Performing comprehensive analysis for: $idea${NC}"
+    echo -e "${YELLOW}   Budget: \$$(printf "%'.0f\n" $budget)${NC}"
+    echo -e "${YELLOW}   Risk Tolerance: $risk_tolerance${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "POST" "/comprehensive-analysis" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}=== Comprehensive ROI Analysis ===${NC}"
+        echo "$response" | jq -r '
+            "Analysis ID: \(.analysis_id // "N/A")",
+            "Execution Time: \(.execution_time // "N/A")ms",
+            "",
+            "ROI Analysis:",
+            "  ROI Percentage: \(.roi_analysis.roi_percentage // "N/A")%",
+            "  Payback Period: \(.roi_analysis.payback_months // "N/A") months",
+            "  Risk Level: \(.roi_analysis.risk_level // "N/A")",
+            "  Confidence: \(.roi_analysis.confidence_score // "N/A")%",
+            "",
+            "Market Research:",
+            "  Market Size: $\(.market_research.market_size // 0 | . / 1000000 | floor)M",
+            "  Competition Level: \(.market_research.competition_level // "N/A")/10",
+            "  Growth Rate: \(.market_research.growth_rate // "N/A")%",
+            "",
+            "Summary:",
+            "  Overall Rating: \(.summary.overall_rating // "N/A")",
+            "  Key Opportunities: \(.summary.key_opportunities // [] | join(", "))",
+            "  Main Risks: \(.summary.main_risks // [] | join(", "))"
+        ' 2>/dev/null || echo "$response" | format_json
+    fi
+}
+
+# List opportunities command
+cmd_list() {
+    local min_roi=""
+    local max_investment=""
+    local risk_level=""
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --min-roi)
+                min_roi="$2"
+                shift 2
+                ;;
+            --max-investment)
+                max_investment="$2"
+                shift 2
+                ;;
+            --risk|--risk-level)
+                risk_level="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: roi-fit list [OPTIONS]"
+                echo ""
+                echo "List investment opportunities"
+                echo ""
+                echo "Options:"
+                echo "  --min-roi <score>         Minimum ROI score"
+                echo "  --max-investment <amount> Maximum investment amount"
+                echo "  --risk-level <level>      Risk level filter"
+                echo "  --json                    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  roi-fit list --min-roi 70"
+                echo "  roi-fit list --max-investment 50000 --risk-level Low"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📋 Investment Opportunities${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/opportunities")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Apply filters and pretty print
+        local filtered_response="$response"
+        
+        # Apply min ROI filter
+        if [[ -n "$min_roi" ]]; then
+            filtered_response=$(echo "$filtered_response" | jq "map(select(.roi_score >= $min_roi))")
+        fi
+        
+        # Apply max investment filter
+        if [[ -n "$max_investment" ]]; then
+            filtered_response=$(echo "$filtered_response" | jq "map(select(.investment <= $max_investment))")
+        fi
+        
+        # Apply risk level filter
+        if [[ -n "$risk_level" ]]; then
+            filtered_response=$(echo "$filtered_response" | jq "map(select(.risk_level | test(\"$risk_level\"; \"i\")))")
+        fi
+        
+        local count=$(echo "$filtered_response" | jq 'length' 2>/dev/null)
+        echo -e "${CYAN}Found $count opportunities:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$filtered_response" | jq -r '.[] | 
+                "\(.id): \(.name)",
+                "   ROI Score: \(.roi_score)/100",
+                "   Investment: $\(.investment | floor)",
+                "   Payback: \(.payback_months // .payback) months",
+                "   Risk: \(.risk_level)",
+                ""' 2>/dev/null
+        else
+            echo "No opportunities match the specified criteria."
+        fi
+    fi
+}
+
+# Opportunities command (alias for list)
+cmd_opportunities() {
+    cmd_list "$@"
+}
+
+# Report command
+cmd_report() {
+    local format="summary"
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: roi-fit report [OPTIONS]"
+                echo ""
+                echo "Generate analysis report"
+                echo ""
+                echo "Options:"
+                echo "  --format <type>    Report format (summary, detailed)"
+                echo "  --json             Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  roi-fit report --format summary"
+                echo "  roi-fit report --format detailed --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📈 ROI Analysis Report${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/reports")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print report
+        local generated_at=$(echo "$response" | jq -r '.generated_at // "Unknown"' 2>/dev/null)
+        local total_analyzed=$(echo "$response" | jq -r '.summary.total_analyzed // 0' 2>/dev/null)
+        local high_roi_count=$(echo "$response" | jq -r '.summary.high_roi_count // 0' 2>/dev/null)
+        local average_roi=$(echo "$response" | jq -r '.summary.average_roi // 0' 2>/dev/null)
+        local best_opportunity=$(echo "$response" | jq -r '.summary.best_opportunity // "N/A"' 2>/dev/null)
+        
+        echo -e "${CYAN}Report Summary:${NC}"
+        echo "   Generated: $(date -d "$generated_at" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$generated_at")"
+        echo "   Total Analyzed: $total_analyzed"
+        echo "   High ROI Count: $high_roi_count"
+        echo "   Average ROI: $average_roi%"
+        echo "   Best Opportunity: $best_opportunity"
+        echo ""
+        
+        if [[ "$format" == "detailed" ]]; then
+            echo -e "${CYAN}Recommendations:${NC}"
+            echo "$response" | jq -r '.recommendations[]? | "  - \(.)"' 2>/dev/null
+        fi
+    fi
+}
+
+# Results command
+cmd_results() {
+    local limit="20"
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: roi-fit results [OPTIONS]"
+                echo ""
+                echo "Show analysis results history"
+                echo ""
+                echo "Options:"
+                echo "  --limit <num>      Number of results to show (default: 20)"
+                echo "  --json             Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  roi-fit results --limit 10"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📊 Analysis Results History${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/analysis/results")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print results
+        local count=$(echo "$response" | jq -r '.count // 0' 2>/dev/null)
+        echo -e "${CYAN}Found $count analysis results:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r ".results | .[0:$limit] | .[] | 
+                \"ID: \(.id)\",
+                \"Idea: \(.idea)\",
+                \"Budget: $\(.budget)\",
+                \"Status: \(.status)\",
+                \"Success: \(.success)\",
+                \"Date: \(.created_at | split(\"T\")[0])\",
+                \"\"" 2>/dev/null
+        else
+            echo "No analysis results found."
+        fi
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health")
+    
+    if echo "$response" | grep -q "healthy"; then
+        echo -e "${GREEN}✅ ROI Fit Analysis is healthy${NC}"
+        echo "   API: ${api_url}"
+        echo "   Service: $(echo "$response" | jq -r '.service // "roi-fit-analysis"' 2>/dev/null)"
+        echo "   Timestamp: $(echo "$response" | jq -r '.timestamp // "unknown"' 2>/dev/null)"
+    else
+        echo -e "${RED}❌ Health check failed${NC}"
+        echo "   Response: $response"
+        return 1
+    fi
+}
+
+# Status command
+cmd_status() {
+    echo -e "${CYAN}📊 ROI Fit Analysis Status${NC}"
+    echo ""
+    
+    # Check API
+    if api_url=$(get_api_url 2>/dev/null); then
+        echo -e "API Server: ${GREEN}✅ Running${NC}"
+        echo "   URL: $api_url"
+        
+        # Get health info
+        local health_response
+        health_response=$(curl -s "${api_url}/health" 2>/dev/null)
+        if [[ -n "$health_response" ]]; then
+            local timestamp=$(echo "$health_response" | jq -r '.timestamp // "unknown"' 2>/dev/null)
+            echo "   Last Health Check: $timestamp"
+        fi
+        
+        # Get recent analysis count
+        local results_response
+        results_response=$(curl -s "${api_url}/analysis/results" 2>/dev/null)
+        if [[ -n "$results_response" ]]; then
+            local count=$(echo "$results_response" | jq -r '.count // 0' 2>/dev/null)
+            echo "   Total Analyses: $count"
+        fi
+    else
+        echo -e "API Server: ${RED}❌ Not Running${NC}"
+        echo "   Start with: vrooli scenario run roi-fit-analysis"
+    fi
+    
+    # Check UI if available
+    local ui_port
+    ui_port=$(vrooli scenario port "${SCENARIO_NAME}" UI_PORT 2>/dev/null)
+    if [[ -n "$ui_port" ]]; then
+        if curl -sf "http://localhost:${ui_port}" >/dev/null 2>&1; then
+            echo -e "UI Server:  ${GREEN}✅ Running${NC} (port $ui_port)"
+            echo "   Web UI: http://localhost:${ui_port}"
+        else
+            echo -e "UI Server:  ${YELLOW}⚠️ Check connection${NC}"
+        fi
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
+        analyze)
+            cmd_analyze "$@"
+            ;;
+        comprehensive)
+            cmd_comprehensive "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        opportunities)
+            cmd_opportunities "$@"
+            ;;
+        report)
+            cmd_report "$@"
+            ;;
+        results)
+            cmd_results "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        version|--version|-v)
+            echo "ROI Fit Analysis CLI v2.0.0 (thin wrapper)"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

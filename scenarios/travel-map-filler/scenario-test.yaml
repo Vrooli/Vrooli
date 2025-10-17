@@ -1,0 +1,266 @@
+# Travel Map Filler - Scenario Test Configuration
+
+metadata:
+  name: travel-map-filler
+  version: "1.0.0"
+  description: "Interactive world map application for tracking and visualizing travel history"
+  category: "personal-productivity"
+  business_value: "25000"  # $25K value for travel tracking and analytics platform
+  
+dependencies:
+  required:
+    - postgres
+    - n8n
+    - qdrant
+  optional:
+    - ollama
+    - redis
+
+ports:
+  api: 8760
+  ui: 3760
+
+api_tests:
+  health_check:
+    endpoint: "/health"
+    method: GET
+    expected_status: 200
+    expected_response:
+      status: "healthy"
+      service: "travel-map-filler"
+  
+  get_travels:
+    endpoint: "/api/travels"
+    method: GET
+    expected_status: 200
+    validation: "response should be array"
+    
+  get_stats:
+    endpoint: "/api/stats"
+    method: GET
+    expected_status: 200
+    expected_fields: ["total_countries", "total_cities", "total_continents", "total_distance_km", "total_days_traveled", "world_coverage_percent"]
+    
+  get_achievements:
+    endpoint: "/api/achievements"
+    method: GET
+    expected_status: 200
+    validation: "response should be array"
+    
+  get_bucket_list:
+    endpoint: "/api/bucket-list"
+    method: GET
+    expected_status: 200
+    validation: "response should be array"
+    
+  add_travel:
+    endpoint: "/api/add-travel"
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    payload:
+      location: "Test City, Test Country"
+      date: "2024-01-01"
+      type: "vacation"
+      notes: "Test travel entry"
+      rating: 5
+      duration_days: 3
+    expected_status: 200
+    validation: "response should contain success status"
+    
+  search_travels:
+    endpoint: "/api/travels/search"
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    payload:
+      query: "vacation"
+      limit: 10
+    expected_status: 200
+    validation: "response should contain results array"
+
+cli_tests:
+  help_command:
+    command: "./cli/travel-map help"
+    expected_exit_code: 0
+    expected_output_contains: ["Travel Map Filler CLI", "Commands:", "Examples:"]
+    
+  stats_command:
+    command: "./cli/travel-map stats"
+    expected_exit_code: 0
+    expected_output_contains: ["Travel Statistics:", "Countries:", "Cities:"]
+    timeout: 10
+    
+  list_command:
+    command: "./cli/travel-map list"
+    expected_exit_code: 0
+    expected_output_contains: ["Fetching your travel history"]
+    timeout: 10
+    
+  achievements_command:
+    command: "./cli/travel-map achievements"
+    expected_exit_code: 0
+    expected_output_contains: ["Fetching achievements"]
+    timeout: 10
+    
+  bucket_list_command:
+    command: "./cli/travel-map bucket-list"
+    expected_exit_code: 0
+    expected_output_contains: ["Fetching bucket list"]
+    timeout: 10
+
+ui_tests:
+  page_load:
+    url: "http://localhost:3760"
+    expected_title: "🗺️ Travel Map Filler - Track Your Adventures"
+    expected_elements:
+      - ".header"
+      - ".main-content"
+      - ".sidebar"
+      - "#worldMap"
+      - ".stats-bar"
+    load_timeout: 10
+    
+  form_elements:
+    url: "http://localhost:3760"
+    expected_elements:
+      - "#addTravelForm"
+      - "#locationInput"
+      - "#dateInput"
+      - "#typeSelect"
+      - "#notesInput"
+      - ".submit-btn"
+      
+  map_controls:
+    url: "http://localhost:3760"
+    expected_elements:
+      - "#zoomInBtn"
+      - "#zoomOutBtn"
+      - "#resetViewBtn"
+      - "#heatmapToggle"
+      - "#locationSearch"
+      - "#searchBtn"
+
+database_tests:
+  postgres_connection:
+    query: "SELECT version();"
+    expected_result_contains: "PostgreSQL"
+    
+  schema_validation:
+    tables:
+      - name: "travels"
+        required_columns: ["id", "user_id", "location", "lat", "lng", "date", "type", "created_at"]
+      - name: "achievements"
+        required_columns: ["id", "user_id", "type", "unlocked_at"]
+      - name: "bucket_list"
+        required_columns: ["id", "user_id", "location", "priority", "completed"]
+
+n8n_workflow_tests:
+  travel_tracker_workflow:
+    webhook_url: "/webhook/travel-tracker/add"
+    test_payload:
+      location: "Test Location"
+      date: "2024-01-01"
+      type: "vacation"
+    expected_response_contains: ["processed", "success"]
+    
+  travel_search_workflow:
+    webhook_url: "/webhook/travel-search"
+    test_payload:
+      query: "beach vacation"
+      limit: 5
+    expected_response_contains: ["results"]
+    timeout: 15
+
+integration_tests:
+  full_travel_workflow:
+    description: "Complete travel addition and retrieval workflow"
+    steps:
+      - name: "Add travel via API"
+        action: "POST /api/add-travel"
+        payload:
+          location: "Integration Test City"
+          date: "2024-01-15"
+          type: "business"
+          notes: "Integration test travel"
+      - name: "Verify travel in list"
+        action: "GET /api/travels"
+        validation: "response contains Integration Test City"
+      - name: "Check updated stats"
+        action: "GET /api/stats"
+        validation: "total_countries >= 1"
+        
+  search_integration:
+    description: "Travel search functionality integration test"
+    steps:
+      - name: "Add searchable travel"
+        action: "POST /api/add-travel"
+        payload:
+          location: "Searchable Beach Resort"
+          date: "2024-01-20"
+          type: "vacation"
+          notes: "Beautiful sunset views and relaxing atmosphere"
+      - name: "Search for travel"
+        action: "POST /api/travels/search"
+        payload:
+          query: "sunset relaxing"
+          limit: 5
+        validation: "results contain Searchable Beach Resort"
+
+performance_tests:
+  api_response_times:
+    endpoints:
+      - path: "/health"
+        max_response_time_ms: 100
+      - path: "/api/travels"
+        max_response_time_ms: 500
+      - path: "/api/stats"
+        max_response_time_ms: 300
+        
+  concurrent_requests:
+    endpoint: "/api/travels"
+    concurrent_users: 10
+    requests_per_user: 5
+    max_avg_response_time_ms: 1000
+
+load_tests:
+  travel_data_volume:
+    description: "Test with large dataset"
+    setup:
+      - "Generate 1000 test travel entries"
+      - "Verify API performance with large dataset"
+    validation:
+      - "API responses remain under 500ms"
+      - "Map rendering completes within 3 seconds"
+
+security_tests:
+  input_validation:
+    tests:
+      - endpoint: "/api/add-travel"
+        malicious_payload:
+          location: "<script>alert('xss')</script>"
+        expected_status: 400
+      - endpoint: "/api/travels/search"
+        malicious_payload:
+          query: "'; DROP TABLE travels; --"
+        validation: "no database errors"
+        
+  rate_limiting:
+    endpoint: "/api/add-travel"
+    requests_per_minute: 60
+    expected_behavior: "requests above limit return 429"
+
+teardown:
+  - "Clean up test travel data"
+  - "Reset database to initial state"
+  - "Stop running services"
+  
+monitoring:
+  health_endpoints:
+    - "http://localhost:8760/health"
+  log_files:
+    - "api/logs/travel-map-api.log"
+  metrics:
+    - "api_response_times"
+    - "database_connection_pool"
+    - "memory_usage"

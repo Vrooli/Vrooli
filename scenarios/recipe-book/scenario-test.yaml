@@ -1,0 +1,324 @@
+version: 1.0
+scenario: recipe-book
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - cli/recipe-book
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - initialization/automation/n8n/recipe-generator.json
+    - initialization/automation/n8n/recipe-modifier.json
+    - scenario-test.yaml
+    - ui/index.html
+    - ui/styles.css
+    - ui/app.js
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/automation/n8n
+    - initialization/storage/postgres
+    - ui
+    - .vrooli
+
+# Resource validation
+resources:
+  required: 
+    - postgres
+    - qdrant
+  optional: 
+    - n8n
+    - ollama
+    - minio
+    - redis
+    - scenario-authenticator
+    - contact-book
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: resource_health
+    service: postgres
+    critical: true
+    
+  - name: "Qdrant is accessible"
+    type: resource_health
+    service: qdrant
+    critical: true
+    
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - status
+        - healthy
+        
+  - name: "API can create recipe"
+    type: http
+    service: api
+    endpoint: /api/v1/recipes
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      title: "Test Recipe"
+      description: "A test recipe for validation"
+      ingredients:
+        - name: "flour"
+          amount: 2
+          unit: "cups"
+        - name: "water"
+          amount: 1
+          unit: "cup"
+      instructions:
+        - "Mix ingredients"
+        - "Bake for 30 minutes"
+      prep_time: 10
+      cook_time: 30
+      servings: 4
+      created_by: "test-user"
+    expect:
+      status: 201
+      body_contains:
+        - id
+        - title
+        
+  - name: "API can list recipes"
+    type: http
+    service: api
+    endpoint: /api/v1/recipes
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - recipes
+        - total
+        
+  - name: "API semantic search works"
+    type: http
+    service: api
+    endpoint: /api/v1/recipes/search
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      query: "chocolate dessert"
+      user_id: "test-user"
+      limit: 10
+    expect:
+      status: 200
+      body_contains:
+        - results
+        - query_interpretation
+        
+  # CLI command tests
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/recipe-book help
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Recipe Book CLI"
+        - "Commands:"
+        - "list"
+        - "search"
+        - "generate"
+        
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/recipe-book version
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Recipe Book CLI"
+        - "1.0.0"
+        
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/recipe-book status
+    expect:
+      exit_code: 0
+      output_contains:
+        - "healthy"
+        
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    database: recipe_book
+    query: "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('recipes', 'recipe_ratings', 'user_preferences', 'meal_plans')"
+    expect:
+      rows:
+        - count: 4
+        
+  - name: "Seed data is present"
+    type: sql
+    service: postgres
+    database: recipe_book
+    query: "SELECT COUNT(*) as count FROM recipes"
+    expect:
+      rows:
+        - count: 5  # We seeded 5 recipes
+        
+  # Workflow tests (if n8n is available)
+  - name: "Recipe generator workflow exists"
+    type: n8n
+    workflow: recipe-generator
+    expect:
+      exists: true
+      active: true
+    optional: true  # Since n8n is optional
+    
+  - name: "Recipe modifier workflow exists"
+    type: n8n
+    workflow: recipe-modifier
+    expect:
+      exists: true
+      active: true
+    optional: true
+    
+  # UI tests
+  - name: "UI is accessible"
+    type: http
+    service: api
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - "Recipe Book"
+        - "Your Family Cookbook"
+        
+  - name: "UI styles are loaded"
+    type: http
+    service: api
+    endpoint: /styles.css
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - "Recipe Book - Cozy Cookbook Aesthetic"
+        - "--warm-terracotta"
+        
+  - name: "UI JavaScript is loaded"
+    type: http
+    service: api
+    endpoint: /app.js
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - "Recipe Book Application"
+        - "loadRecipes"
+
+# Performance validation
+performance:
+  - name: "API response time"
+    type: http_performance
+    endpoint: /api/v1/recipes
+    method: GET
+    max_response_time: 200  # milliseconds
+    requests: 10
+    
+  - name: "Search performance"
+    type: http_performance
+    endpoint: /api/v1/recipes/search
+    method: POST
+    body:
+      query: "pasta"
+      user_id: "test"
+    max_response_time: 500  # milliseconds
+    requests: 5
+
+# Integration validation
+integration:
+  - name: "Recipe creation flow"
+    type: sequence
+    steps:
+      - action: create_recipe
+        endpoint: /api/v1/recipes
+        method: POST
+        capture: recipe_id
+      - action: get_recipe
+        endpoint: /api/v1/recipes/${recipe_id}
+        method: GET
+        expect:
+          status: 200
+      - action: rate_recipe
+        endpoint: /api/v1/recipes/${recipe_id}/rate
+        method: POST
+        body:
+          rating: 5
+          user_id: "test"
+        expect:
+          status: 200
+          
+  - name: "CLI integration"
+    type: sequence
+    steps:
+      - action: cli_list
+        command: ./cli/recipe-book list --json
+        expect:
+          exit_code: 0
+      - action: cli_search
+        command: ./cli/recipe-book search "chocolate"
+        expect:
+          exit_code: 0
+
+# Capability verification
+capabilities:
+  - name: "Recipe storage"
+    verified: true
+    test: "API can create recipe"
+    
+  - name: "Semantic search"
+    verified: true
+    test: "API semantic search works"
+    
+  - name: "Multi-tenant support"
+    verified: true
+    notes: "User ID filtering implemented in API"
+    
+  - name: "AI generation"
+    verified: true
+    test: "Recipe generator workflow exists"
+    optional: true  # Depends on n8n/ollama
+    
+  - name: "Beautiful UI"
+    verified: true
+    test: "UI is accessible"
+    
+  - name: "CLI interface"
+    verified: true
+    test: "CLI help command works"
+
+# Success criteria from PRD
+success_criteria:
+  p0_requirements:
+    - "Store and retrieve recipes with full CRUD operations"
+    - "Multi-tenant support with scenario-authenticator integration"
+    - "Semantic recipe search using Qdrant embeddings"
+    - "Basic privacy controls (public/private/shared recipes)"
+    - "API endpoints for cross-scenario recipe access"
+    - "CLI commands for all recipe operations"
+    - "Beautiful, responsive UI with cozy cookbook aesthetic"
+    
+  p1_requirements:
+    - "AI-powered recipe generation via shared ollama.json workflow"
+    - "Recipe modification (make vegan/keto/instant-pot friendly)"
+    - "Recipe ratings and popularity tracking"
+    - "Shopping list generation with smart grouping"
+    - "Nutritional information calculation"

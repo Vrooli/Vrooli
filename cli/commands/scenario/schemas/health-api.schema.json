@@ -1,0 +1,167 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "API Health Check Response",
+  "description": "Schema for API service health check responses. APIs should report their status and dependencies.",
+  "type": "object",
+  "required": ["status", "service", "timestamp", "readiness"],
+  "definitions": {
+    "errorObject": {
+      "type": "object",
+      "description": "Standardized error structure",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable error code (e.g., CONNECTION_REFUSED, TIMEOUT)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["network", "configuration", "authentication", "resource", "internal"],
+          "description": "Error category for automated handling"
+        },
+        "retryable": {
+          "type": "boolean",
+          "description": "Whether retrying the operation might succeed"
+        },
+        "details": {
+          "type": "object",
+          "description": "Optional additional error context",
+          "additionalProperties": true
+        }
+      },
+      "required": ["code", "message", "category", "retryable"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["healthy", "degraded", "unhealthy"],
+      "description": "Overall health status of the API service"
+    },
+    "service": {
+      "type": "string",
+      "description": "Name of the API service (e.g., 'test-genie-api') (REQUIRED)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the health check (REQUIRED)"
+    },
+    "readiness": {
+      "type": "boolean",
+      "description": "Whether the service is ready to serve traffic (true) or still initializing/draining (false). Distinguishes startup state from operational health."
+    },
+    "version": {
+      "type": "string",
+      "description": "API version string"
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Health status of API dependencies",
+      "properties": {
+        "database": {
+          "type": "object",
+          "properties": {
+            "connected": {
+              "type": "boolean"
+            },
+            "latency_ms": {
+              "type": ["number", "null"],
+              "minimum": 0
+            },
+            "error": {
+              "oneOf": [
+                {"$ref": "#/definitions/errorObject"},
+                {"type": "null"}
+              ],
+              "description": "Structured error information if connection failed, null if successful"
+            }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "connected": {
+              "type": "boolean"
+            },
+            "latency_ms": {
+              "type": ["number", "null"],
+              "minimum": 0
+            },
+            "error": {
+              "oneOf": [
+                {"$ref": "#/definitions/errorObject"},
+                {"type": "null"}
+              ],
+              "description": "Structured error information if connection failed, null if successful"
+            }
+          }
+        },
+        "external_services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "error": {
+                "oneOf": [
+                  {"$ref": "#/definitions/errorObject"},
+                  {"type": "null"}
+                ],
+                "description": "Structured error information if connection failed, null if successful"
+              }
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Optional performance metrics",
+      "properties": {
+        "memory_usage_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cpu_usage_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "goroutines": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of active goroutines (for Go services)"
+        },
+        "request_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Error rate as a fraction (0.0 to 1.0)"
+        }
+      }
+    },
+    "circuit_breakers": {
+      "type": "object",
+      "description": "Circuit breaker states if applicable",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["closed", "open", "half-open"]
+      }
+    }
+  },
+  "additionalProperties": true
+}

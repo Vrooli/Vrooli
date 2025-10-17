@@ -1,0 +1,64 @@
+--- FAIL: TestAPIHandlerEdgeCases (0.10s)
+    --- FAIL: TestAPIHandlerEdgeCases/handleDNSQueryAAAARecord (0.00s)
+        additional_coverage_test.go:118: Expected 200 or 500, got 400
+    --- FAIL: TestAPIHandlerEdgeCases/handleDNSQueryNSRecord (0.00s)
+        additional_coverage_test.go:137: Expected 200 or 500, got 400
+--- FAIL: TestHelperFunctionsComprehensive (0.00s)
+    --- FAIL: TestHelperFunctionsComprehensive/getServiceNameAllPorts (0.00s)
+        additional_coverage_test.go:306: getServiceName(6379) = unknown, expected redis
+        additional_coverage_test.go:306: getServiceName(27017) = unknown, expected mongodb
+2025/10/04 11:41:38 Database schema initialized successfully
+2025/10/04 11:41:38 Rate limiting: 100 requests per 1m0s
+2025/10/04 11:41:38 192.0.2.1:1234 GET /health
+2025/10/04 11:41:39 192.0.2.1:1234 GET /test
+--- FAIL: TestDatabaseHandlers (0.00s)
+    --- FAIL: TestDatabaseHandlers/handleCreateTargetInvalidJSON (0.00s)
+        database_handlers_test.go:82: Expected 400 for invalid JSON, got 500
+--- FAIL: TestTLSHelpers (0.00s)
+    --- FAIL: TestTLSHelpers/tlsVersionString (0.00s)
+        database_handlers_test.go:138: tlsVersionString(300) = Unknown (0x0300), expected SSL 3.0
+        database_handlers_test.go:138: tlsVersionString(9999) = Unknown (0x9999), expected Unknown
+2025/10/04 11:41:39 Invalid API key attempt from 192.0.2.1:1234
+--- FAIL: TestCORSMiddlewareExtended (0.00s)
+    --- FAIL: TestCORSMiddlewareExtended/AllowedOrigin (0.00s)
+        database_handlers_test.go:338: Expected localhost origin to be allowed, got: 
+--- FAIL: TestHelperEdgeCases (0.00s)
+    --- FAIL: TestHelperEdgeCases/assertJSONResponseInvalidJSON (0.00s)
+        final_coverage_boost_test.go:234: Expected Content-Type application/json, got 
+        final_coverage_boost_test.go:234: Failed to decode JSON response: invalid character 'o' in literal null (expecting 'u')
+            Body: 
+--- FAIL: TestInitializeDatabaseEdgeCases (0.00s)
+    --- FAIL: TestInitializeDatabaseEdgeCases/InitializeWithNilDB (0.00s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered]
+	panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x20 pc=0x576054]
+
+goroutine 258 [running]:
+testing.tRunner.func1.2({0x79ac80, 0xadd710})
+	/home/matthalloran8/.local/go/src/testing/testing.go:1545 +0x238
+testing.tRunner.func1()
+	/home/matthalloran8/.local/go/src/testing/testing.go:1548 +0x397
+panic({0x79ac80?, 0xadd710?})
+	/home/matthalloran8/.local/go/src/runtime/panic.go:914 +0x21f
+database/sql.(*DB).conn(0x0, {0x8a7600, 0xb1c8e0}, 0x1)
+	/home/matthalloran8/.local/go/src/database/sql/sql.go:1282 +0x54
+database/sql.(*DB).exec(0xab3460?, {0x8a7600, 0xb1c8e0}, {0x823f5c, 0x1787}, {0x0, 0x0, 0x0}, 0x0?)
+	/home/matthalloran8/.local/go/src/database/sql/sql.go:1651 +0x57
+database/sql.(*DB).ExecContext.func1(0xf?)
+	/home/matthalloran8/.local/go/src/database/sql/sql.go:1634 +0x4f
+database/sql.(*DB).retry(0x542bcf?, 0xc00021de38)
+	/home/matthalloran8/.local/go/src/database/sql/sql.go:1538 +0x42
+database/sql.(*DB).ExecContext(0x34?, {0x8a7600?, 0xb1c8e0?}, {0x823f5c?, 0xa53b48?}, {0x0?, 0x542c2d?, 0xa53b48?})
+	/home/matthalloran8/.local/go/src/database/sql/sql.go:1633 +0xc8
+database/sql.(*DB).Exec(...)
+	/home/matthalloran8/.local/go/src/database/sql/sql.go:1647
+network-tools/cmd/server.InitializeDatabase(0x542a3c?)
+	/home/matthalloran8/Vrooli/scenarios/network-tools/api/cmd/server/init_db.go:170 +0x67
+network-tools/cmd/server.TestInitializeDatabaseEdgeCases.func1(0xc00028dd40)
+	/home/matthalloran8/Vrooli/scenarios/network-tools/api/cmd/server/final_coverage_boost_test.go:259 +0x1a
+testing.tRunner(0xc00028dd40, 0x83f4b0)
+	/home/matthalloran8/.local/go/src/testing/testing.go:1595 +0xff
+created by testing.(*T).Run in goroutine 257
+	/home/matthalloran8/.local/go/src/testing/testing.go:1648 +0x3ad
+FAIL	network-tools/cmd/server	36.493s
+FAIL

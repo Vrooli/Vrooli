@@ -1,0 +1,280 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "app-monitor",
+    "displayName": "App Monitor",
+    "description": "Dashboard to monitor and control all running scenarios with real-time health checks and performance metrics",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "monitoring",
+      "maintenance",
+      "dashboard",
+      "docker",
+      "health-check",
+      "app-management",
+      "metrics",
+      "automation",
+      "nodejs-ui",
+      "go-api",
+      "postgres-storage",
+      "redis-cache",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "21600-21699",
+      "description": "App monitoring coordination API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 21774,
+      "description": "Web UI dashboard port (production)"
+    },
+    "vite": {
+      "env_var": "VITE_PORT",
+      "range": "21800-21899",
+      "description": "Vite dev server port (development)"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store app metadata, monitoring data, status logs, and metrics",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Real-time event streaming, caching, and app notifications"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "models": [
+        "phi3.5:3.8b",
+        "llama3.2"
+      ],
+      "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "App Monitor health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize App Monitor with database schema and automation workflows",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/app-monitor-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "app-monitor"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o app-monitor-api .",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies for React app"
+        },
+        {
+          "name": "verify-docker-access",
+          "run": "docker version > /dev/null && echo '✅ Docker access verified' || echo '❌ Docker access required for app monitoring'",
+          "description": "Verify Docker access for app monitoring"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI for production"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start app monitor with Go API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./app-monitor-api",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-monitor-api"
+          }
+        },
+        {
+          "name": "ensure-ui-bundle",
+          "run": "cd ui && if [ ! -f dist/index.html ]; then echo 'UI bundle missing; running npm run build'; npm run build; elif find src -type f -newer dist/index.html -print -quit | grep -q .; then echo 'UI sources changed; rebuilding'; npm run build; elif [ -d public ] && find public -type f -newer dist/index.html -print -quit | grep -q .; then echo 'UI static assets changed; rebuilding'; npm run build; elif [ index.html -nt dist/index.html ] || [ vite.config.ts -nt dist/index.html ]; then echo 'UI configuration changed; rebuilding'; npm run build; else echo 'UI bundle up to date'; fi",
+          "description": "Ensure production UI bundle is current before starting server"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Start Express server with built React app",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "dev": {
+      "description": "Start app monitor in development mode with hot reload",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./app-monitor-api",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-monitor-api"
+          }
+        },
+        {
+          "name": "start-vite-dev",
+          "run": "cd ui && VITE_PORT=${VITE_PORT} npm run dev",
+          "description": "Start Vite dev server with hot reload",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-dev-services",
+          "run": "echo '🚀 App Monitor (DEV MODE) running:\\n  UI Dashboard: http://localhost:${VITE_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help\\n\\n🔥 Hot reload enabled - changes will update automatically'",
+          "description": "Display development service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test app monitor API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-apps-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/apps",
+          "description": "Test API apps endpoint"
+        },
+        {
+          "name": "test-docker-access",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/docker/info",
+          "description": "Test Docker API access through app monitor"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats app-monitor.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/app-monitor.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"app-monitor-api\" || true; sleep 1; pkill -9 -f \"app-monitor-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/app-monitor.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/app-monitor.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

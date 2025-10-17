@@ -1,0 +1,49 @@
+{
+    "name": "Content Script Only",
+    "description": "Extension that only injects content scripts into web pages. No popup or persistent background.",
+    "use_cases": [
+        "Web page data extraction",
+        "DOM manipulation and enhancement", 
+        "Page interaction monitoring",
+        "Simple web automation"
+    ],
+    "manifest_template": {
+        "manifest_version": 3,
+        "name": "{{APP_NAME}}",
+        "version": "{{VERSION}}",
+        "description": "{{APP_DESCRIPTION}}",
+        "permissions": ["storage"],
+        "host_permissions": "{{HOST_PERMISSIONS}}",
+        "content_scripts": [
+            {
+                "matches": "{{CONTENT_SCRIPT_MATCHES}}",
+                "js": ["content.js"],
+                "css": ["content.css"],
+                "run_at": "document_end"
+            }
+        ],
+        "icons": {
+            "16": "icons/icon-16.png",
+            "32": "icons/icon-32.png",
+            "48": "icons/icon-48.png",
+            "128": "icons/icon-128.png"
+        }
+    },
+    "files": [
+        "manifest.json",
+        "content.js",
+        "content.css",
+        "icons/"
+    ],
+    "excluded_files": [
+        "background.js",
+        "popup.html",
+        "popup.js"
+    ],
+    "template_variables": {
+        "CONTENT_SCRIPT_MATCHES": ["<all_urls>"],
+        "HOST_PERMISSIONS": ["<all_urls>"],
+        "AUTO_INJECT": true,
+        "DEBUG_MODE": false
+    }
+}

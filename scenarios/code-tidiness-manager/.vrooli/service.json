@@ -1,0 +1,272 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "code-tidiness-manager",
+    "displayName": "Code Tidiness Manager",
+    "description": "Automated technical debt detection, cleanup suggestion generation, and codebase maintenance intelligence",
+    "version": "1.0.0",
+    "tags": [
+      "vrooli-enhancement",
+      "maintenance",
+      "code-quality",
+      "technical-debt",
+      "cleanup-automation",
+      "go-api",
+      "native-go-processing",
+      "postgres-storage",
+      "redis-cache",
+      "dashboard-ui"
+    ]
+  },
+  "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Code Tidiness Manager API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Cleanup dashboard UI port",
+       "range": "35000-39999"
+     }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store scan history, cleanup patterns, and learning data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Cache scan results and temporary analysis data for performance"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector storage for code similarity detection and duplicate identification"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "AI-powered code analysis and suggestion refinement",
+      "models": [
+        "codellama",
+        "mistral"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Code Tidiness Manager health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${TIDINESS_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${TIDINESS_UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "critical": true,
+          "timeout": 5000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Code Tidiness Manager",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "code-tidiness-manager-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "code-tidiness-manager"
+             ]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build the dashboard UI"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize database with cleanup rules and patterns"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o tidiness-manager-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "initial-scan",
+          "run": "./cli/code-tidiness-manager scan --types backup_files,temp_files --limit 100 || echo 'Initial scan will run after startup'",
+          "description": "Run initial limited scan to populate dashboard"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🧹 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Code Tidiness Manager services",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./code-tidiness-manager-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/code-tidiness-manager-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🧹 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Code Tidiness Manager functionality",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go test ./...",
+          "description": "Run Go unit tests",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${TIDINESS_API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-scan-endpoint",
+          "run": "curl -sf -X POST http://localhost:${TIDINESS_API_PORT}/api/v1/scan -H 'Content-Type: application/json' -d '{\"paths\": [\"test/\"], \"types\": [\"backup_files\"]}'",
+          "description": "Test scan initiation"
+        },
+        {
+          "name": "test-suggestions-endpoint",
+          "run": "curl -sf http://localhost:${TIDINESS_API_PORT}/api/v1/analyze -X POST -H 'Content-Type: application/json' -d '{\"analysis_type\": \"todo_comments\"}'",
+          "description": "Test suggestions retrieval"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats code-tidiness-manager.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/code-tidiness-manager.bats"
+          }
+        },
+        {
+          "name": "test-cleanup-detection",
+          "run": "bash test/test-cleanup-detection.sh",
+          "description": "Test various cleanup pattern detections"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"tidiness-manager-api\" || true; sleep 1; pkill -9 -f \"tidiness-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/code-tidiness-manager.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/code-tidiness-manager.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "schedule": {
+      "description": "Scheduled scanning configuration",
+      "jobs": [
+        {
+          "name": "daily-scan",
+          "cron": "0 2 * * *",
+          "run": "code-tidiness-manager scan --deep",
+          "description": "Daily deep scan at 2 AM"
+        },
+        {
+          "name": "hourly-quick-scan",
+          "cron": "0 * * * *",
+          "run": "code-tidiness-manager scan --types backup_files,temp_files --quick",
+          "description": "Hourly quick scan for obvious issues"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "research_crew",
+  "description": "A crew for conducting research and generating reports",
+  "agents": [
+    {
+      "name": "researcher",
+      "role": "Research Specialist",
+      "goal": "Find accurate and relevant information on topics",
+      "backstory": "You are an expert researcher with years of experience in finding and validating information from multiple sources.",
+      "tools": ["web_search", "file_reader", "memory_store"]
+    },
+    {
+      "name": "analyst",
+      "role": "Data Analyst", 
+      "goal": "Analyze research findings and identify patterns",
+      "backstory": "You excel at analyzing data, finding patterns, and drawing meaningful conclusions from research.",
+      "tools": ["database_query", "memory_retrieve"]
+    },
+    {
+      "name": "writer",
+      "role": "Report Writer",
+      "goal": "Create clear and comprehensive reports from research",
+      "backstory": "You are a skilled writer who can transform complex research into clear, actionable reports.",
+      "tools": ["file_reader", "llm_query"]
+    }
+  ],
+  "tasks": [
+    {
+      "description": "Research the given topic thoroughly",
+      "agent": "researcher",
+      "expected_output": "Comprehensive research findings with sources"
+    },
+    {
+      "description": "Analyze the research and identify key insights",
+      "agent": "analyst",
+      "expected_output": "Analysis report with patterns and insights"
+    },
+    {
+      "description": "Write a final report summarizing all findings",
+      "agent": "writer",
+      "expected_output": "Professional report with conclusions and recommendations"
+    }
+  ],
+  "process": "sequential"
+}

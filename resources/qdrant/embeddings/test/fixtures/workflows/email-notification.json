@@ -1,0 +1,92 @@
+{
+  "name": "Email Notification Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/webhook/email-trigger",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-001",
+      "name": "Email Trigger Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 400],
+      "webhookId": "email-trigger-webhook"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "recipient",
+              "value": "={{ $json.email }}"
+            },
+            {
+              "name": "subject", 
+              "value": "={{ $json.subject || 'Notification' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-001",
+      "name": "Prepare Email Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "authentication": "oauth2",
+        "message": "={{ $json.message }}",
+        "options": {
+          "ccList": "",
+          "bccList": ""
+        },
+        "sendTo": "={{ $json.recipient }}",
+        "subject": "={{ $json.subject }}"
+      },
+      "id": "gmail-001", 
+      "name": "Send Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [700, 400]
+    }
+  ],
+  "connections": {
+    "Email Trigger Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email Data": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "test-v1",
+  "id": "email-workflow-test",
+  "meta": {
+    "description": "Receives webhook triggers and sends email notifications via Gmail",
+    "purpose": "automated email notifications",
+    "integrations": ["webhook", "gmail"],
+    "created_at": "2025-01-22T10:00:00Z"
+  }
+}

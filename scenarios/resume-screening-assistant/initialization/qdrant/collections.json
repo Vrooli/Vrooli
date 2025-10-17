@@ -1,0 +1,183 @@
+{
+  "collections": [
+    {
+      "name": "resumes",
+      "description": "Resume embeddings for semantic search and matching",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine",
+          "on_disk": false
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_segment_size": 20000,
+          "memmap_threshold": 20000,
+          "indexing_threshold": 20000,
+          "flush_interval_sec": 5,
+          "max_optimization_threads": 1
+        },
+        "wal_config": {
+          "wal_capacity_mb": 32,
+          "wal_segments_ahead": 0
+        },
+        "hnsw_config": {
+          "m": 16,
+          "ef_construct": 200,
+          "full_scan_threshold": 10000,
+          "max_indexing_threads": 1,
+          "on_disk": false,
+          "payload_m": 16
+        }
+      },
+      "indexes": [
+        {
+          "field_name": "candidate_id",
+          "field_type": "integer"
+        },
+        {
+          "field_name": "skills",
+          "field_type": "keyword"
+        },
+        {
+          "field_name": "experience_years",
+          "field_type": "integer"
+        },
+        {
+          "field_name": "education_level",
+          "field_type": "keyword"
+        }
+      ]
+    },
+    {
+      "name": "job-descriptions",
+      "description": "Job description embeddings for candidate matching",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine",
+          "on_disk": false
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_segment_size": 20000,
+          "memmap_threshold": 20000,
+          "indexing_threshold": 20000,
+          "flush_interval_sec": 5,
+          "max_optimization_threads": 1
+        }
+      },
+      "indexes": [
+        {
+          "field_name": "job_id",
+          "field_type": "integer"
+        },
+        {
+          "field_name": "job_title",
+          "field_type": "text"
+        },
+        {
+          "field_name": "company_name",
+          "field_type": "text"
+        },
+        {
+          "field_name": "required_skills",
+          "field_type": "keyword"
+        },
+        {
+          "field_name": "experience_required",
+          "field_type": "integer"
+        },
+        {
+          "field_name": "location",
+          "field_type": "keyword"
+        }
+      ]
+    },
+    {
+      "name": "candidate-profiles",
+      "description": "Enhanced candidate profiles combining resume data with assessments",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine",
+          "on_disk": false
+        }
+      },
+      "indexes": [
+        {
+          "field_name": "candidate_id",
+          "field_type": "integer"
+        },
+        {
+          "field_name": "overall_score",
+          "field_type": "float"
+        },
+        {
+          "field_name": "skills_match",
+          "field_type": "keyword"
+        },
+        {
+          "field_name": "availability",
+          "field_type": "keyword"
+        }
+      ]
+    }
+  ],
+  "initial_data": {
+    "resumes": [
+      {
+        "id": 1,
+        "vector": "placeholder_for_embedding",
+        "payload": {
+          "candidate_id": 1,
+          "candidate_name": "John Smith",
+          "skills": ["JavaScript", "React", "Node.js", "PostgreSQL", "Python", "Docker"],
+          "experience_years": 6,
+          "education_level": "Bachelor's Degree",
+          "resume_summary": "Experienced software engineer with 6 years in full-stack development"
+        }
+      },
+      {
+        "id": 2,
+        "vector": "placeholder_for_embedding",
+        "payload": {
+          "candidate_id": 2,
+          "candidate_name": "Sarah Johnson",
+          "skills": ["Python", "SQL", "Machine Learning", "TensorFlow", "Statistics", "R"],
+          "experience_years": 4,
+          "education_level": "Master's Degree",
+          "resume_summary": "Data scientist with expertise in machine learning and statistical analysis"
+        }
+      }
+    ],
+    "job-descriptions": [
+      {
+        "id": 1,
+        "vector": "placeholder_for_embedding",
+        "payload": {
+          "job_id": 1,
+          "job_title": "Senior Software Engineer",
+          "company_name": "Tech Innovations Inc",
+          "required_skills": ["JavaScript", "React", "Node.js", "PostgreSQL", "Git"],
+          "experience_required": 5,
+          "location": "San Francisco, CA",
+          "description": "We are looking for a Senior Software Engineer to join our dynamic team. The ideal candidate will have experience in full-stack development with modern frameworks."
+        }
+      },
+      {
+        "id": 2,
+        "vector": "placeholder_for_embedding",
+        "payload": {
+          "job_id": 2,
+          "job_title": "Data Scientist",
+          "company_name": "Analytics Pro LLC",
+          "required_skills": ["Python", "SQL", "Machine Learning", "Statistics", "Pandas"],
+          "experience_required": 3,
+          "location": "Remote",
+          "description": "Join our data science team to build predictive models and extract insights from large datasets. Experience with machine learning and statistical analysis required."
+        }
+      }
+    ]
+  }
+}

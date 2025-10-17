@@ -1,0 +1,201 @@
+{
+  "name": "Vault Secret Integration Example (Working)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "webhook-vault-demo"
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook", 
+      "typeVersion": 1,
+      "position": [180, 300],
+      "webhookId": "vault-demo-webhook"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8200/v1/secret/data/test/stripe-config",
+        "options": {
+          "headers": {
+            "X-Vault-Token": "myroot"
+          }
+        }
+      },
+      "name": "Get Stripe API Key from Vault",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [380, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8200/v1/secret/data/test/openai-config", 
+        "options": {
+          "headers": {
+            "X-Vault-Token": "myroot"
+          }
+        }
+      },
+      "name": "Get OpenAI Config from Vault",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [380, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract secrets from Vault responses\nconst stripeData = $node['Get Stripe API Key from Vault'].json.data.data;\nconst openaiData = $node['Get OpenAI Config from Vault'].json.data.data;\n\nreturn {\n  stripe_api_key: stripeData.stripe_api_key,\n  stripe_environment: stripeData.environment,\n  openai_api_key: openaiData.openai_api_key,\n  openai_model: openaiData.model,\n  retrieved_at: new Date().toISOString()\n};"
+      },
+      "name": "Process Vault Secrets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [580, 390]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "https://api.stripe.com/v1/customers",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{$node['Process Vault Secrets'].json['stripe_api_key']}}"
+          }
+        },
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "email", 
+              "value": "customer@example.com"
+            },
+            {
+              "name": "name",
+              "value": "Test Customer"
+            }
+          ]
+        }
+      },
+      "name": "Create Stripe Customer (Demo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{$node['Process Vault Secrets'].json['openai_api_key']}}",
+            "Content-Type": "application/json"
+          }
+        },
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "model",
+              "value": "={{$node['Process Vault Secrets'].json['openai_model']}}"
+            },
+            {
+              "name": "messages",
+              "value": "[{\"role\": \"user\", \"content\": \"Generate a welcome message for the new customer\"}]"
+            },
+            {
+              "name": "max_tokens",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "name": "Generate Welcome Message (Demo)",
+      "type": "n8n-nodes-base.httpRequest", 
+      "typeVersion": 3,
+      "position": [780, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine results from both API calls\nconst stripeResult = $node['Create Stripe Customer (Demo)'].json;\nconst openaiResult = $node['Generate Welcome Message (Demo)'].json;\n\nreturn {\n  success: true,\n  message: 'Successfully retrieved secrets from Vault and used them in API calls',\n  customer_created: !!stripeResult.id,\n  customer_id: stripeResult.id || 'demo-mode',\n  welcome_message: openaiResult.choices?.[0]?.message?.content || 'Welcome to our service!',\n  vault_integration: 'working',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "name": "Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 390]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Stripe API Key from Vault",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get OpenAI Config from Vault",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Stripe API Key from Vault": {
+      "main": [
+        [
+          {
+            "node": "Process Vault Secrets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get OpenAI Config from Vault": {
+      "main": [
+        [
+          {
+            "node": "Process Vault Secrets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Vault Secrets": {
+      "main": [
+        [
+          {
+            "node": "Create Stripe Customer (Demo)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Welcome Message (Demo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Stripe Customer (Demo)": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Welcome Message (Demo)": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

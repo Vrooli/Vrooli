@@ -1,0 +1,403 @@
+#!/bin/bash
+
+# System Monitor CLI
+# A command-line interface for system monitoring operations
+
+set -e
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/system-monitor/cli"
+# Match the API's port resolution logic: API_PORT -> 8080
+API_PORT="${API_PORT:-8080}"
+API_URL="http://localhost:${API_PORT}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if API is available
+check_api() {
+    if curl -sf "${API_URL}/health" >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Display help
+show_help() {
+    cat << EOF
+System Monitor CLI
+
+USAGE:
+    system-monitor <command> [options]
+
+COMMANDS:
+    health              Check system monitor API health
+    metrics             Get current system metrics
+    status              Show overall system status
+    alerts              List active alerts
+    investigate         Run anomaly investigation
+    report <type>       Generate system report (daily, weekly)
+    simulate            Simulate CPU anomaly for testing
+    dashboard           Open dashboard in browser
+    watch               Continuously monitor metrics
+
+OPTIONS:
+    -h, --help          Show this help message
+    -p, --port <port>   Specify API port (default: 8083)
+    -j, --json          Output in JSON format
+    -q, --quiet         Suppress non-essential output
+
+EXAMPLES:
+    system-monitor health
+    system-monitor metrics --json
+    system-monitor report daily
+    system-monitor watch
+    system-monitor dashboard
+
+EOF
+}
+
+# Health check
+cmd_health() {
+    log_info "Checking System Monitor API health..."
+    
+    if check_api; then
+        response=$(curl -s "${API_URL}/health")
+        if [[ "$JSON_OUTPUT" == "true" ]]; then
+            echo "$response"
+        else
+            status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+            log_success "API is ${status}"
+        fi
+    else
+        log_error "API is not responding at ${API_URL}"
+        exit 1
+    fi
+}
+
+# Get current metrics
+cmd_metrics() {
+    log_info "Fetching current system metrics..."
+    
+    if ! check_api; then
+        log_error "API is not available"
+        exit 1
+    fi
+    
+    response=$(curl -s "${API_URL}/api/metrics/current")
+    
+    if [[ "$JSON_OUTPUT" == "true" ]]; then
+        echo "$response"
+    else
+        cpu=$(echo "$response" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
+        memory=$(echo "$response" | grep -o '"memory_usage":[0-9.]*' | cut -d':' -f2)
+        tcp=$(echo "$response" | grep -o '"tcp_connections":[0-9]*' | cut -d':' -f2)
+        timestamp=$(echo "$response" | grep -o '"timestamp":"[^"]*"' | cut -d'"' -f4)
+        
+        echo "System Metrics (${timestamp}):"
+        echo "  CPU Usage:       ${cpu}%"
+        echo "  Memory Usage:    ${memory}%"
+        echo "  TCP Connections: ${tcp}"
+        
+        # Add status indicators
+        if (( $(echo "$cpu > 80" | bc -l) )); then
+            log_warning "High CPU usage detected!"
+        fi
+        if (( $(echo "$memory > 85" | bc -l) )); then
+            log_warning "High memory usage detected!"
+        fi
+    fi
+}
+
+# Show system status
+cmd_status() {
+    log_info "Checking overall system status..."
+    
+    if ! check_api; then
+        echo "Status: OFFLINE"
+        exit 1
+    fi
+    
+    # Get metrics for status evaluation
+    response=$(curl -s "${API_URL}/api/metrics/current")
+    cpu=$(echo "$response" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
+    memory=$(echo "$response" | grep -o '"memory_usage":[0-9.]*' | cut -d':' -f2)
+    
+    # Determine overall status
+    if (( $(echo "$cpu > 90 || $memory > 95" | bc -l) )); then
+        status="CRITICAL"
+        color="$RED"
+    elif (( $(echo "$cpu > 80 || $memory > 85" | bc -l) )); then
+        status="WARNING"
+        color="$YELLOW"
+    else
+        status="HEALTHY"
+        color="$GREEN"
+    fi
+    
+    echo -e "Status: ${color}${status}${NC}"
+}
+
+# List active alerts
+cmd_alerts() {
+    log_info "Checking for active alerts..."
+    
+    if ! check_api; then
+        log_error "API is not available"
+        exit 1
+    fi
+    
+    # Get current metrics to check for alerts
+    response=$(curl -s "${API_URL}/api/metrics/current")
+    cpu=$(echo "$response" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
+    memory=$(echo "$response" | grep -o '"memory_usage":[0-9.]*' | cut -d':' -f2)
+    tcp=$(echo "$response" | grep -o '"tcp_connections":[0-9]*' | cut -d':' -f2)
+    
+    alerts=0
+    
+    if (( $(echo "$cpu > 80" | bc -l) )); then
+        log_warning "HIGH_CPU: CPU usage at ${cpu}%"
+        ((alerts++))
+    fi
+    
+    if (( $(echo "$memory > 85" | bc -l) )); then
+        log_warning "HIGH_MEMORY: Memory usage at ${memory}%"
+        ((alerts++))
+    fi
+    
+    if (( tcp > 150 )); then
+        log_warning "HIGH_CONNECTIONS: TCP connections at ${tcp}"
+        ((alerts++))
+    fi
+    
+    if [[ $alerts -eq 0 ]]; then
+        log_success "No active alerts"
+    else
+        log_info "Total alerts: $alerts"
+    fi
+}
+
+# Run investigation
+cmd_investigate() {
+    log_info "Running anomaly investigation..."
+    
+    if ! check_api; then
+        log_error "API is not available"
+        exit 1
+    fi
+    
+    response=$(curl -s "${API_URL}/api/investigations/latest")
+    
+    if [[ "$JSON_OUTPUT" == "true" ]]; then
+        echo "$response"
+    else
+        id=$(echo "$response" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+        status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        findings=$(echo "$response" | grep -o '"findings":"[^"]*"' | cut -d'"' -f4)
+        
+        echo "Investigation Results:"
+        echo "  ID:       $id"
+        echo "  Status:   $status"
+        echo "  Findings: $findings"
+    fi
+}
+
+# Generate report
+cmd_report() {
+    local report_type="$1"
+    
+    if [[ -z "$report_type" ]]; then
+        log_error "Report type required (daily, weekly)"
+        exit 1
+    fi
+    
+    log_info "Generating ${report_type} report..."
+    
+    if ! check_api; then
+        log_error "API is not available"
+        exit 1
+    fi
+    
+    response=$(curl -s -X POST "${API_URL}/api/reports/generate" \
+        -H "Content-Type: application/json" \
+        -d "{\"type\":\"${report_type}\"}")
+    
+    if [[ "$JSON_OUTPUT" == "true" ]]; then
+        echo "$response"
+    else
+        report_id=$(echo "$response" | grep -o '"report_id":"[^"]*"' | cut -d'"' -f4)
+        log_success "Report generated: $report_id"
+    fi
+}
+
+# Simulate anomaly
+cmd_simulate() {
+    log_info "Simulating CPU anomaly..."
+    
+    if ! check_api; then
+        log_error "API is not available"
+        exit 1
+    fi
+    
+    response=$(curl -s "${API_URL}/api/test/anomaly/cpu")
+    
+    if [[ "$JSON_OUTPUT" == "true" ]]; then
+        echo "$response"
+    else
+        detected=$(echo "$response" | grep -o '"anomaly_detected":[^,}]*' | cut -d':' -f2)
+        cpu_usage=$(echo "$response" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
+        
+        if [[ "$detected" == "true" ]]; then
+            log_warning "Anomaly detected: CPU usage at ${cpu_usage}%"
+        else
+            log_info "No anomaly detected"
+        fi
+    fi
+}
+
+# Open dashboard
+cmd_dashboard() {
+    local ui_port="${UI_PORT:-3003}"
+    local dashboard_url="http://localhost:${ui_port}"
+    
+    log_info "Opening dashboard at ${dashboard_url}..."
+    
+    # Try to open in browser
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$dashboard_url"
+    elif command -v open >/dev/null 2>&1; then
+        open "$dashboard_url"
+    else
+        echo "Dashboard URL: $dashboard_url"
+        log_info "Copy the URL above to your browser"
+    fi
+}
+
+# Watch metrics continuously
+cmd_watch() {
+    log_info "Monitoring system metrics (Press Ctrl+C to stop)..."
+    
+    while true; do
+        clear
+        echo "=== System Monitor - Real-time Metrics ==="
+        echo "$(date)"
+        echo
+        
+        if check_api; then
+            response=$(curl -s "${API_URL}/api/metrics/current")
+            cpu=$(echo "$response" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
+            memory=$(echo "$response" | grep -o '"memory_usage":[0-9.]*' | cut -d':' -f2)
+            tcp=$(echo "$response" | grep -o '"tcp_connections":[0-9]*' | cut -d':' -f2)
+            
+            echo "CPU Usage:       ${cpu}%"
+            echo "Memory Usage:    ${memory}%"
+            echo "TCP Connections: ${tcp}"
+            echo
+            
+            # Show status bars
+            cpu_bar=$(printf "%-20s" $(printf "%*s" $((${cpu%.*}/5)) "" | tr ' ' '█'))
+            memory_bar=$(printf "%-20s" $(printf "%*s" $((${memory%.*}/5)) "" | tr ' ' '█'))
+            
+            echo "CPU:    [$cpu_bar] ${cpu}%"
+            echo "Memory: [$memory_bar] ${memory}%"
+            
+        else
+            log_error "API not available"
+        fi
+        
+        sleep 2
+    done
+}
+
+# Parse command line arguments
+QUIET=false
+JSON_OUTPUT=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -p|--port)
+            API_PORT="$2"
+            API_URL="http://localhost:${API_PORT}"
+            shift 2
+            ;;
+        -j|--json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        -q|--quiet)
+            QUIET=true
+            shift
+            ;;
+        health)
+            cmd_health
+            exit 0
+            ;;
+        metrics)
+            cmd_metrics
+            exit 0
+            ;;
+        status)
+            cmd_status
+            exit 0
+            ;;
+        alerts)
+            cmd_alerts
+            exit 0
+            ;;
+        investigate)
+            cmd_investigate
+            exit 0
+            ;;
+        report)
+            cmd_report "$2"
+            exit 0
+            ;;
+        simulate)
+            cmd_simulate
+            exit 0
+            ;;
+        dashboard)
+            cmd_dashboard
+            exit 0
+            ;;
+        watch)
+            cmd_watch
+            exit 0
+            ;;
+        *)
+            log_error "Unknown command: $1"
+            echo "Use 'system-monitor --help' for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# If no command provided, show help
+show_help

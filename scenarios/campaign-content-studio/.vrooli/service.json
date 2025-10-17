@@ -1,0 +1,270 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "campaign-content-studio",
+    "displayName": "Campaign Content Studio",
+    "description": "AI-powered content studio for automated campaign creation, content generation, and multi-channel marketing",
+    "version": "1.0.0",
+    "tags": [
+      "business-application",
+      "business",
+      "content-generation",
+      "campaign-management",
+      "marketing-automation",
+      "document-processing",
+      "custom-ui",
+      "ai-content",
+      "go-api",
+      "n8n-workflows",
+      "nodejs-ui",
+      "postgres-storage",
+      "qdrant-vectors",
+      "minio-storage",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Campaign content studio API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Campaign content studio UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/campaign-management.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/content-generation.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/document-processing.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/search-retrieval.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "mistral",
+        "nomic-embed-text"
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Campaign metadata, document tracking, content history",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Document embeddings for semantic search and context retrieval"
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "purpose": "File storage for documents and generated assets"
+    },
+    "comfyui": {
+      "type": "comfyui",
+      "enabled": true,
+      "required": false,
+      "purpose": "Image generation for blog posts and social media content"
+    },
+    "unstructured-io": {
+      "type": "unstructured-io",
+      "enabled": true,
+      "required": false,
+      "purpose": "Document text extraction from PDFs, DOCX, and other formats"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Campaign Content Studio health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Campaign Content Studio",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "campaign-content-studio-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "campaign-content-studio"
+             ]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o campaign-content-studio-api .",
+          "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install Node.js UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Campaign Content Studio initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: campaign-content-studio --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start campaign content studio with Go API and Node.js UI servers",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./campaign-content-studio-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/campaign-content-studio-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start Node.js UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Campaign Content Studio running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: campaign-content-studio --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test campaign content studio API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-campaigns-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/campaigns",
+          "description": "Test API campaigns endpoint"
+        },
+        {
+          "name": "test-ui-health",
+          "run": "curl -sf http://localhost:$UI_PORT/health",
+          "description": "Test UI health endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats campaign-content-studio.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/campaign-content-studio.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"campaign-content-studio-api\" || true; sleep 1; pkill -9 -f \"campaign-content-studio-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/campaign-content-studio.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/campaign-content-studio.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

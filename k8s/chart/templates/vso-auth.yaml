@@ -1,0 +1,28 @@
+{{- if .Values.vso.enabled -}}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: {{ include "vrooli.fullname" . }}-vault-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vrooli.labels" . | nindent 4 }}
+spec:
+  # Reference to the VaultConnection created above
+  vaultConnectionRef: {{ include "vrooli.fullname" . }}-vault-connection
+
+  {{- if .Values.vso.appRoleId }}
+  # AppRole authentication method
+  method: appRole
+  mount: {{ .Values.vso.appRoleMount | default "approle" | quote }}
+  appRole:
+    roleId: {{ .Values.vso.appRoleId | quote }}
+    secretRef: {{ .Values.vso.appRoleSecretRef | default "vault-approle" | quote }}
+  {{- else }}
+  # Kubernetes authentication method (default)
+  method: kubernetes
+  mount: {{ .Values.vso.k8sAuthMount | default "kubernetes" | quote }}
+  kubernetes:
+    role: {{ .Values.vso.k8sAuthRole | quote }}
+    serviceAccount: {{ .Values.serviceAccount.name | default "default" | quote }}
+  {{- end }}
+{{- end }} 

@@ -1,0 +1,36 @@
+{
+  "startup_order": 100,
+  "dependencies": [],
+  "optional_dependencies": ["minio", "postgres", "vault"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "10-30s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "infrastructure",
+  "description": "Encrypted backup and recovery service with deduplication",
+  "capabilities": [
+    "encrypted-backups",
+    "incremental-snapshots",
+    "deduplication",
+    "multiple-backends",
+    "point-in-time-recovery"
+  ],
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 60,
+    "timeout": 5,
+    "failure_threshold": 3
+  },
+  "resource_requirements": {
+    "minimum": {
+      "cpu": "0.5",
+      "memory": "512Mi",
+      "disk": "1Gi"
+    },
+    "recommended": {
+      "cpu": "2",
+      "memory": "2Gi",
+      "disk": "10Gi"
+    }
+  }
+}

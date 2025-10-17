@@ -1,0 +1,5 @@
+# MinIO Python Example Dependencies
+# Install with: pip install -r requirements.txt
+
+boto3>=1.28.0
+botocore>=1.31.0

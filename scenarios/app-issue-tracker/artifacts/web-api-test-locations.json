@@ -1,0 +1,199 @@
+{
+  "issue_id": "issue-0843da1a",
+  "request": {
+    "scenario": "web-api",
+    "test_types": ["performance"],
+    "coverage_target": "70.00%",
+    "requested_by": "test-genie",
+    "request_id": "79833c97-bcbd-427c-8e8c-a1f6830496db"
+  },
+  "investigation": {
+    "status": "BLOCKED - Clarification Required",
+    "agent": "unified-resolver",
+    "completed_at": "2025-10-04T11:30:00Z",
+    "blocker": "Scenario identity ambiguous - 'web-api' does not exist as a scenario"
+  },
+  "findings": {
+    "scenario_exists": false,
+    "scenario_path": null,
+    "alternative_identified": {
+      "component": "Main Vrooli API",
+      "location": "/api/",
+      "type": "root-level",
+      "note": "Not a scenario - violates issue safety boundaries"
+    }
+  },
+  "existing_tests": {
+    "location": "/home/matthalloran8/Vrooli/api/",
+    "test_files": [
+      {
+        "file": "main_test.go",
+        "size_bytes": 14159,
+        "description": "Core endpoint tests",
+        "build_tag": "// +build testing"
+      },
+      {
+        "file": "comprehensive_test.go",
+        "size_bytes": 11685,
+        "description": "Comprehensive test suite",
+        "build_tag": "// +build testing"
+      },
+      {
+        "file": "performance_test.go",
+        "size_bytes": 12555,
+        "description": "Performance and load tests",
+        "build_tag": "// +build testing",
+        "note": "PERFORMANCE TESTS ALREADY EXIST"
+      },
+      {
+        "file": "test_helpers.go",
+        "size_bytes": 8091,
+        "description": "Test helper functions"
+      },
+      {
+        "file": "test_patterns.go",
+        "size_bytes": 8793,
+        "description": "Systematic test patterns"
+      }
+    ],
+    "total_test_code_bytes": 55283,
+    "execution_status": "FAILING - Tests timeout after 2 minutes",
+    "coverage_measured": false,
+    "coverage_percentage": "Unknown - cannot complete test run"
+  },
+  "performance_tests_implemented": {
+    "unit_tests": [
+      "TestHealthCheckPerformance",
+      "TestListScenariosPerformance",
+      "TestGetScenarioStatusPerformance",
+      "TestListAppsPerformance",
+      "TestListResourcesPerformance",
+      "TestProcessMetricsPerformance"
+    ],
+    "concurrency_tests": [
+      "TestConcurrentHealthChecks",
+      "TestConcurrentScenarioListing",
+      "TestConcurrentMixedEndpoints"
+    ],
+    "load_tests": [
+      "TestHighLoadScenarioStatus"
+    ],
+    "reliability_tests": [
+      "TestMemoryLeakDetection",
+      "TestResponseTimeConsistency"
+    ],
+    "benchmarks": [
+      "BenchmarkHealthCheck",
+      "BenchmarkListScenarios",
+      "BenchmarkListApps",
+      "BenchmarkListResources",
+      "BenchmarkProcessMetrics"
+    ],
+    "total_performance_tests": 17
+  },
+  "test_patterns_gold_standard_compliance": {
+    "helper_library": true,
+    "pattern_library": true,
+    "systematic_error_testing": true,
+    "performance_testing": true,
+    "concurrency_testing": true,
+    "load_testing": true,
+    "memory_leak_testing": true,
+    "benchmarking": true,
+    "follows_visited_tracker_patterns": true,
+    "overall_compliance": "HIGH"
+  },
+  "issues_identified": [
+    {
+      "severity": "BLOCKER",
+      "category": "scope",
+      "description": "Scenario 'web-api' does not exist",
+      "impact": "Cannot determine what to test",
+      "recommendation": "Clarify if this refers to main API or a new/different scenario"
+    },
+    {
+      "severity": "BLOCKER",
+      "category": "execution",
+      "description": "Tests timeout after 2 minutes",
+      "impact": "Cannot verify coverage or completion",
+      "recommendation": "Investigate and fix timeout causes"
+    },
+    {
+      "severity": "CRITICAL",
+      "category": "safety_boundaries",
+      "description": "Main API is root-level code, not in scenarios/",
+      "impact": "Modifying /api/ violates issue constraint to only modify scenarios/web-api/",
+      "recommendation": "Update issue boundaries if targeting main API"
+    },
+    {
+      "severity": "HIGH",
+      "category": "test_failures",
+      "description": "Test assertions failing in ProcessHealthSnapshot tests",
+      "impact": "Some tests fail with incorrect status expectations",
+      "recommendation": "Fix test assertions or implementation"
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "integration",
+      "description": "No test phase integration (test/phases/)",
+      "impact": "Tests not integrated with centralized testing library",
+      "recommendation": "Add test-unit.sh phase integration"
+    }
+  ],
+  "compliance_with_requirements": {
+    "test_helpers_go": "EXISTS but in /api/ not /scenarios/web-api/",
+    "test_patterns_go": "EXISTS but in /api/ not /scenarios/web-api/",
+    "main_test_go": "EXISTS but in /api/ not /scenarios/web-api/",
+    "performance_test_go": "EXISTS but in /api/ not /scenarios/web-api/",
+    "test_phases_test_unit_sh": "MISSING",
+    "centralized_testing_integration": "MISSING",
+    "coverage_target_70_percent": "UNKNOWN - cannot measure",
+    "tests_pass": "NO - timeout and failures",
+    "tests_complete_under_60s": "NO - timeout at 120s"
+  },
+  "next_actions": [
+    {
+      "priority": 1,
+      "action": "Clarify scenario identity",
+      "owner": "test-genie or issue-creator",
+      "blocking": true,
+      "description": "Determine if 'web-api' refers to main API, new scenario, or misnamed scenario"
+    },
+    {
+      "priority": 2,
+      "action": "Update issue metadata",
+      "owner": "test-genie",
+      "blocking": true,
+      "description": "Correct app_id and safety boundaries based on clarification"
+    },
+    {
+      "priority": 3,
+      "action": "Fix test execution",
+      "owner": "unified-resolver",
+      "blocking": false,
+      "description": "Debug and resolve timeout issues in existing tests",
+      "conditional": "Only if targeting main API"
+    },
+    {
+      "priority": 4,
+      "action": "Verify coverage",
+      "owner": "unified-resolver",
+      "blocking": false,
+      "description": "Measure actual code coverage after fixing tests",
+      "conditional": "Only if targeting main API"
+    },
+    {
+      "priority": 5,
+      "action": "Add phase integration",
+      "owner": "unified-resolver",
+      "blocking": false,
+      "description": "Create test/phases/test-unit.sh with centralized library integration",
+      "conditional": "Only if targeting main API"
+    }
+  ],
+  "recommendation": "BLOCK and request clarification - cannot proceed safely without knowing which component to test",
+  "artifacts_generated": [
+    "artifacts/web-api-investigation-report.md",
+    "artifacts/web-api-test-locations.json"
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "cache": {
+    "ttl": {
+      "balances": 60,
+      "tokens": 300,
+      "wallets": 300,
+      "transactions": 120,
+      "exchange_rates": 30
+    },
+    "keys": {
+      "balance": "balance:{wallet}:{token}",
+      "balances": "balances:{wallet}",
+      "wallet": "wallet:{address}",
+      "token": "token:{id}",
+      "transaction": "tx:{hash}",
+      "rate": "rate:{from}:{to}"
+    }
+  },
+  "pubsub": {
+    "channels": {
+      "transactions": "token:transactions",
+      "mints": "token:mints",
+      "burns": "token:burns",
+      "swaps": "token:swaps",
+      "achievements": "token:achievements"
+    }
+  },
+  "persistence": {
+    "enabled": true,
+    "save": [
+      {"seconds": 900, "changes": 1},
+      {"seconds": 300, "changes": 10},
+      {"seconds": 60, "changes": 10000}
+    ],
+    "appendonly": false
+  },
+  "memory": {
+    "maxmemory": "256mb",
+    "maxmemory_policy": "allkeys-lru"
+  }
+}

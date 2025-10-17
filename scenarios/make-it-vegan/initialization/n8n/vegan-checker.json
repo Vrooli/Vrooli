@@ -1,0 +1,157 @@
+{
+  "name": "Make It Vegan - Ingredient Checker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "make-it-vegan/check",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Default values for manual testing\nconst defaults = {\n  ingredients: \"soy milk, tofu, nutritional yeast, olive oil\"\n};\n\nreturn [{json: defaults}];"
+      },
+      "id": "default_values",
+      "name": "Default Values",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge webhook or default data\nconst isManual = $('Manual Trigger').first() !== undefined;\nconst input = isManual ? $json : $('Webhook').first().json;\n\n// Get ingredients from input\nconst ingredients = input.ingredients || 'unknown ingredients';\n\n// Prepare the prompt for vegan analysis\nconst prompt = `You are a vegan food expert. Analyze these ingredients and determine if the food is vegan. Be precise and thorough.\n\nIngredients: ${ingredients}\n\nProvide:\n1. Whether the food is vegan (yes/no)\n2. List any non-vegan ingredients found\n3. Brief explanation of why each non-vegan ingredient isn't vegan\n\nFormat your response as JSON:\n{\"isVegan\": boolean, \"nonVeganIngredients\": [\"ingredient1\", \"ingredient2\"], \"explanations\": {\"ingredient1\": \"reason\", \"ingredient2\": \"reason\"}}`;\n\n// Prepare request for Ollama CLI\nreturn [{\n  json: {\n    prompt: prompt,\n    model: 'llama3.2:3b',\n    type: 'reasoning',\n    quiet: true,\n    timeout_seconds: 30,\n    original_ingredients: ingredients\n  }\n}];"
+      },
+      "id": "prepare_request",
+      "name": "Prepare Ollama Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "ollama",
+        "mode": "once",
+        "source": "db",
+        "passThrough": false
+      },
+      "id": "call_shared_ollama",
+      "name": "Call Shared Ollama Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the response from shared Ollama workflow\nconst response = $json;\nconst ingredients = $node[\"prepare_request\"].json.original_ingredients;\n\n// Get the response text from the shared workflow\nconst responseText = response.response || response.content || '';\nconst success = response.success !== false;\nconst error = response.error || null;\n\nlet result;\ntry {\n  // Try to parse as JSON\n  if (responseText && typeof responseText === 'string') {\n    // Clean up the response (remove markdown code blocks if present)\n    const cleanedResponse = responseText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n    result = JSON.parse(cleanedResponse);\n  } else {\n    throw new Error('Empty response from Ollama');\n  }\n} catch (e) {\n  // Fallback parsing if not valid JSON\n  const text = responseText.toLowerCase();\n  \n  // Look for common non-vegan ingredients\n  const nonVeganKeywords = ['milk', 'egg', 'honey', 'gelatin', 'whey', 'casein', 'lactose', 'butter', 'cheese', 'meat', 'chicken', 'beef', 'pork', 'fish'];\n  const foundNonVegan = [];\n  \n  for (const keyword of nonVeganKeywords) {\n    if (text.includes(keyword)) {\n      foundNonVegan.push(keyword);\n    }\n  }\n  \n  result = {\n    isVegan: foundNonVegan.length === 0,\n    nonVeganIngredients: foundNonVegan,\n    explanations: {},\n    rawAnalysis: responseText,\n    error: e.message\n  };\n}\n\n// Format final response\nreturn [{\n  json: {\n    ingredients: ingredients,\n    isVegan: result.isVegan || false,\n    nonVeganIngredients: result.nonVeganIngredients || [],\n    explanations: result.explanations || {},\n    analysis: result.rawAnalysis || responseText || 'Analysis complete',\n    timestamp: new Date().toISOString(),\n    confidence: result.isVegan !== undefined ? 'high' : 'medium',\n    execution_details: {\n      model_used: response.execution_meta?.model || 'llama3.2:3b',\n      workflow_success: success,\n      shared_workflow_used: true\n    }\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "prepare_request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "default_values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "default_values": {
+      "main": [
+        [
+          {
+            "node": "prepare_request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_request": {
+      "main": [
+        [
+          {
+            "node": "call_shared_ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_shared_ollama": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "make-it-vegan-checker-v1.3.0",
+  "id": "make-it-vegan-checker",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

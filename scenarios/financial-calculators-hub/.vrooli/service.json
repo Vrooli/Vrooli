@@ -1,0 +1,214 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "financial-calculators-hub",
+    "displayName": "Financial Calculators Hub",
+    "description": "Comprehensive suite of financial calculators for retirement planning, investment analysis, and budgeting - foundational capability for all financial scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "finance",
+      "calculators",
+      "fire",
+      "retirement",
+      "investment",
+      "mortgage",
+      "budgeting",
+      "foundational",
+      "api-service",
+      "go-api",
+      "professional-ui"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Financial calculators API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Financial calculators UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": false,
+      "required": false,
+      "purpose": "Store calculation history and saved scenarios",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Cache frequently used calculations for performance"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "purpose": "Provide AI-powered explanations of financial results",
+      "models": [
+        "llama3.2"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Financial Calculators Hub health check",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Financial Calculators Hub",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api/financial-calculators-hub-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "financial-calculators-hub"
+              ]
+            }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-api-deps",
+          "run": "cd api && go mod init financial-calculators-hub 2>/dev/null || true && go mod tidy",
+          "description": "Install API dependencies"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o financial-calculators-hub-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build UI application"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x install.sh && ./install.sh",
+          "description": "Install CLI globally"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '💰 Financial Calculators Hub initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Financial Calculators Hub services",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./financial-calculators-hub-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/financial-calculators-hub-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '💰 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+           "description": "Display running services"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Financial Calculators Hub",
+      "steps": [
+        {
+          "name": "test-calculations",
+          "run": "cd lib && go test ./...",
+          "description": "Test financial calculations"
+        },
+        {
+          "name": "test-api",
+          "run": "cd api && go test ./...",
+          "description": "Test API endpoints"
+        },
+        {
+          "name": "test-cli",
+          "run": "$HOME/.vrooli/bin/financial-calculators-hub fire --age 30 --savings 100000 --income 100000 --expenses 50000",
+          "description": "Test CLI FIRE calculation"
+        },
+        {
+          "name": "test-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"financial-calculators-hub-api\" || true; sleep 1; pkill -9 -f \"financial-calculators-hub-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/financial-calculators-hub.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/financial-calculators-hub.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

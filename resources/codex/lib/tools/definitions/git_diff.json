@@ -1,0 +1,40 @@
+{
+  "type": "function",
+  "category": "git",
+  "function": {
+    "name": "git_diff",
+    "description": "Show git differences between commits, files, or staging area",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "What to diff: 'staged', 'unstaged', 'commit', or specific file path",
+          "default": "unstaged"
+        },
+        "commit1": {
+          "type": "string",
+          "description": "First commit hash/branch for comparison"
+        },
+        "commit2": {
+          "type": "string",
+          "description": "Second commit hash/branch for comparison (defaults to HEAD)"
+        },
+        "file_path": {
+          "type": "string",
+          "description": "Specific file to diff"
+        },
+        "context_lines": {
+          "type": "number",
+          "description": "Number of context lines to show",
+          "default": 3
+        },
+        "path": {
+          "type": "string",
+          "description": "Repository path",
+          "default": "."
+        }
+      }
+    }
+  }
+}

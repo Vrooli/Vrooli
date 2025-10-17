@@ -1,0 +1,806 @@
+#!/bin/bash
+################################################################################
+# Vrooli Orchestrator CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
+
+set -e
+
+# Configuration
+SCENARIO_NAME="vrooli-orchestrator"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}Vrooli Orchestrator CLI${NC}"
+    echo "Contextual environment orchestration"
+    echo ""
+    echo -e "${BLUE}🎯 Purpose:${NC} Manage startup profiles to control which resources and scenarios run"
+    echo ""
+    echo "Usage: vrooli-orchestrator [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Profile Management:"
+    echo -e "  ${GREEN}list-profiles${NC}    List all available profiles"
+    echo -e "  ${GREEN}get-profile${NC}      Show profile details"
+    echo -e "  ${GREEN}create-profile${NC}   Create new profile"
+    echo -e "  ${GREEN}update-profile${NC}   Update existing profile"
+    echo -e "  ${GREEN}delete-profile${NC}   Delete profile"
+    echo ""
+    echo "Profile Operations:"
+    echo -e "  ${GREEN}activate${NC}         Activate profile (start resources/scenarios)"
+    echo -e "  ${GREEN}deactivate${NC}       Deactivate current profile"
+    echo -e "  ${GREEN}status${NC}           Show current status and active profile"
+    echo ""
+    echo "System:"
+    echo -e "  ${GREEN}health${NC}           Check API health"
+    echo -e "  ${GREEN}version${NC}          Show CLI version"
+    echo ""
+    echo "Examples:"
+    echo "  vrooli-orchestrator status"
+    echo "  vrooli-orchestrator list-profiles"
+    echo "  vrooli-orchestrator activate developer-full"
+    echo "  vrooli-orchestrator create-profile my-profile --resources postgres,n8n --scenarios system-monitor"
+    echo "  vrooli-orchestrator deactivate"
+    echo ""
+    echo "Common Profiles:"
+    echo "  developer-full            Complete development environment"
+    echo "  developer-light           Essential dev tools (laptop-friendly)"
+    echo "  business-productivity      Business and productivity tools"
+    echo "  creative-suite             Content creation and design tools"
+    echo "  gaming-entertainment       Fun and games"
+    echo "  demo-showcase              Curated demos for showing Vrooli"
+    echo "  minimal                    Just postgres and system-monitor"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo ""
+    echo "For more information: vrooli-orchestrator <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# List profiles command
+cmd_list_profiles() {
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-orchestrator list-profiles [OPTIONS]"
+                echo ""
+                echo "List all available profiles"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-orchestrator list-profiles"
+                echo "  vrooli-orchestrator list-profiles --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📋 Available Startup Profiles:${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/api/v1/profiles")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print profiles
+        local count=$(echo "$response" | jq -r '.count // 0' 2>/dev/null)
+        echo -e "${CYAN}Profiles: $count${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            printf "%-20s %-25s %-10s %-12s %-10s\n" "NAME" "DISPLAY NAME" "STATUS" "RESOURCES" "SCENARIOS"
+            printf "%-20s %-25s %-10s %-12s %-10s\n" "----" "------------" "------" "---------" "---------"
+            echo "$response" | jq -r '.profiles[]? | 
+                [.name, .display_name, .status, (.resources | length | tostring), (.scenarios | length | tostring)] | 
+                @tsv' 2>/dev/null | 
+                while IFS=$'\t' read -r name display_name status resources scenarios; do
+                    printf "%-20s %-25s %-10s %-12s %-10s\n" "$name" "$display_name" "$status" "$resources" "$scenarios"
+                done
+        else
+            echo "No profiles found."
+        fi
+    fi
+}
+
+# Get profile command
+cmd_get_profile() {
+    local profile_name="$1"
+    local json_output=false
+    
+    if [[ -z "$profile_name" ]]; then
+        echo -e "${RED}❌ Error: Profile name required${NC}" >&2
+        echo "Usage: vrooli-orchestrator get-profile <profile-name>" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-orchestrator get-profile <profile-name> [OPTIONS]"
+                echo ""
+                echo "Show profile details"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-orchestrator get-profile developer-full"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response
+    response=$(api_request "GET" "/api/v1/profiles/${profile_name}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print profile details
+        echo -e "${CYAN}📋 Profile Details: $profile_name${NC}"
+        echo ""
+        echo "$response" | jq -r '
+            "Name: \(.name)",
+            "Display Name: \(.display_name)",
+            "Description: \(.description // "No description")",
+            "Status: \(.status)",
+            "Resources (\(.resources | length)):",
+            (.resources[]? | "  - \(.)"),
+            "Scenarios (\(.scenarios | length)):",
+            (.scenarios[]? | "  - \(.)")
+        ' 2>/dev/null || echo "$response" | format_json
+    fi
+}
+
+# Create profile command
+cmd_create_profile() {
+    local name=""
+    local display_name=""
+    local description=""
+    local resources=""
+    local scenarios=""
+    local auto_browser=""
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --display-name)
+                display_name="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --resources)
+                resources="$2"
+                shift 2
+                ;;
+            --scenarios)
+                scenarios="$2"
+                shift 2
+                ;;
+            --auto-browser)
+                auto_browser="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-orchestrator create-profile <name> [OPTIONS]"
+                echo ""
+                echo "Create new profile"
+                echo ""
+                echo "Options:"
+                echo "  --display-name <name>        Human-readable profile name"
+                echo "  --description <text>         Profile description"
+                echo "  --resources <r1,r2,r3>      Comma-separated resource list"
+                echo "  --scenarios <s1,s2,s3>      Comma-separated scenario list"
+                echo "  --auto-browser <url1,url2>  Comma-separated URL list"
+                echo "  --json                       Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-orchestrator create-profile my-profile --resources postgres,n8n --scenarios system-monitor"
+                echo "  vrooli-orchestrator create-profile dev-full --display-name \"Full Dev Environment\""
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}❌ Error: Profile name required${NC}" >&2
+        echo "Usage: vrooli-orchestrator create-profile <name> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    # Set default display name
+    [[ -z "$display_name" ]] && display_name="$name"
+    
+    # Build JSON payload
+    local resources_array="[]"
+    if [[ -n "$resources" ]]; then
+        resources_array=$(echo "$resources" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    fi
+    
+    local scenarios_array="[]"
+    if [[ -n "$scenarios" ]]; then
+        scenarios_array=$(echo "$scenarios" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    fi
+    
+    local auto_browser_array="[]"
+    if [[ -n "$auto_browser" ]]; then
+        auto_browser_array=$(echo "$auto_browser" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    fi
+    
+    local request_body=$(jq -n \
+        --arg name "$name" \
+        --arg display_name "$display_name" \
+        --arg description "$description" \
+        --argjson resources "$resources_array" \
+        --argjson scenarios "$scenarios_array" \
+        --argjson auto_browser "$auto_browser_array" \
+        '{
+            name: $name,
+            display_name: $display_name,
+            description: $description,
+            resources: $resources,
+            scenarios: $scenarios,
+            auto_browser: $auto_browser
+        }')
+    
+    echo -e "${BLUE}📝 Creating profile: $name${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/profiles" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Check if successful
+        if echo "$response" | jq -e '.name' >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ Profile created successfully${NC}"
+            echo "   Name: $(echo "$response" | jq -r '.name')"
+            echo "   Resources: $(echo "$response" | jq -r '.resources | length') configured"
+            echo "   Scenarios: $(echo "$response" | jq -r '.scenarios | length') configured"
+        else
+            echo -e "${RED}❌ Failed to create profile${NC}"
+            echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+            return 1
+        fi
+    fi
+}
+
+# Update profile command
+cmd_update_profile() {
+    local profile_name="$1"
+    local display_name=""
+    local description=""
+    local resources=""
+    local scenarios=""
+    local json_output=false
+    local has_updates=false
+    
+    if [[ -z "$profile_name" ]]; then
+        echo -e "${RED}❌ Error: Profile name required${NC}" >&2
+        echo "Usage: vrooli-orchestrator update-profile <profile-name> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --display-name)
+                display_name="$2"
+                has_updates=true
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                has_updates=true
+                shift 2
+                ;;
+            --resources)
+                resources="$2"
+                has_updates=true
+                shift 2
+                ;;
+            --scenarios)
+                scenarios="$2"
+                has_updates=true
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-orchestrator update-profile <profile-name> [OPTIONS]"
+                echo ""
+                echo "Update existing profile"
+                echo ""
+                echo "Options:"
+                echo "  --display-name <name>      Human-readable profile name"
+                echo "  --description <text>       Profile description"
+                echo "  --resources <r1,r2,r3>    Comma-separated resource list"
+                echo "  --scenarios <s1,s2,s3>    Comma-separated scenario list"
+                echo "  --json                     Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-orchestrator update-profile my-profile --resources postgres,n8n,redis"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ "$has_updates" == false ]]; then
+        echo -e "${RED}❌ Error: No updates specified${NC}" >&2
+        echo "Use --display-name, --description, --resources, or --scenarios to update profile" >&2
+        return 1
+    fi
+    
+    # Build update JSON
+    local updates="{}"
+    
+    if [[ -n "$display_name" ]]; then
+        updates=$(echo "$updates" | jq --arg val "$display_name" '. + {display_name: $val}')
+    fi
+    
+    if [[ -n "$description" ]]; then
+        updates=$(echo "$updates" | jq --arg val "$description" '. + {description: $val}')
+    fi
+    
+    if [[ -n "$resources" ]]; then
+        local resources_array
+        resources_array=$(echo "$resources" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+        updates=$(echo "$updates" | jq --argjson val "$resources_array" '. + {resources: $val}')
+    fi
+    
+    if [[ -n "$scenarios" ]]; then
+        local scenarios_array
+        scenarios_array=$(echo "$scenarios" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+        updates=$(echo "$updates" | jq --argjson val "$scenarios_array" '. + {scenarios: $val}')
+    fi
+    
+    echo -e "${BLUE}📝 Updating profile: $profile_name${NC}"
+    
+    local response
+    response=$(api_request "PUT" "/api/v1/profiles/${profile_name}" "$updates")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Check if successful
+        if echo "$response" | jq -e '.name' >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ Profile updated successfully${NC}"
+        else
+            echo -e "${RED}❌ Failed to update profile${NC}"
+            echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+            return 1
+        fi
+    fi
+}
+
+# Delete profile command
+cmd_delete_profile() {
+    local profile_name="$1"
+    local json_output=false
+    
+    if [[ -z "$profile_name" ]]; then
+        echo -e "${RED}❌ Error: Profile name required${NC}" >&2
+        echo "Usage: vrooli-orchestrator delete-profile <profile-name>" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-orchestrator delete-profile <profile-name> [OPTIONS]"
+                echo ""
+                echo "Delete profile (with confirmation)"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-orchestrator delete-profile old-profile"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${YELLOW}⚠️  Are you sure you want to delete profile '$profile_name'? [y/N]${NC}"
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "Delete cancelled."
+        return 0
+    fi
+    
+    local response
+    response=$(api_request "DELETE" "/api/v1/profiles/${profile_name}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | jq -e '.message' >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ Profile deleted successfully${NC}"
+        else
+            echo -e "${RED}❌ Failed to delete profile${NC}"
+            echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+            return 1
+        fi
+    fi
+}
+
+# Activate profile command
+cmd_activate() {
+    local profile_name="$1"
+    local force_flag=false
+    local json_output=false
+    
+    if [[ -z "$profile_name" ]]; then
+        echo -e "${RED}❌ Error: Profile name required${NC}" >&2
+        echo "Usage: vrooli-orchestrator activate <profile-name> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --force)
+                force_flag=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-orchestrator activate <profile-name> [OPTIONS]"
+                echo ""
+                echo "Activate profile (start resources and scenarios)"
+                echo ""
+                echo "Options:"
+                echo "  --force    Force activation even if another profile is active"
+                echo "  --json     Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-orchestrator activate developer-full"
+                echo "  vrooli-orchestrator activate minimal --force"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🚀 Activating profile '$profile_name'...${NC}"
+    echo "   This will start resources and scenarios defined in the profile."
+    echo "   It may take 30-60 seconds depending on the profile complexity."
+    echo ""
+    
+    local request_body=$(jq -n --argjson force "$force_flag" '{force: $force}')
+    
+    local response
+    response=$(api_request "POST" "/api/v1/profiles/${profile_name}/activate" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | jq -e '.status' >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ Profile activation initiated${NC}"
+            local status=$(echo "$response" | jq -r '.status' 2>/dev/null)
+            echo "   Status: $status"
+        else
+            echo -e "${RED}❌ Failed to activate profile${NC}"
+            echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+            return 1
+        fi
+    fi
+}
+
+# Deactivate profile command
+cmd_deactivate() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-orchestrator deactivate [OPTIONS]"
+                echo ""
+                echo "Deactivate current profile"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-orchestrator deactivate"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}⏹️  Deactivating current profile...${NC}"
+    echo "   This will stop running scenarios and resources."
+    echo ""
+    
+    local response
+    response=$(api_request "POST" "/api/v1/profiles/current/deactivate" "{}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | jq -e '.status' >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ Profile deactivation initiated${NC}"
+        else
+            echo -e "${RED}❌ Failed to deactivate profile${NC}"
+            echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+            return 1
+        fi
+    fi
+}
+
+# Status command
+cmd_status() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli-orchestrator status [OPTIONS]"
+                echo ""
+                echo "Show current status and active profile"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli-orchestrator status"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${CYAN}🎯 Vrooli Orchestrator Status${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/api/v1/status")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Parse and display status
+        local service=$(echo "$response" | jq -r '.service // "vrooli-orchestrator"' 2>/dev/null)
+        local version=$(echo "$response" | jq -r '.version // "unknown"' 2>/dev/null)
+        local status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+        
+        echo "Service: $service v$version"
+        echo "Status: $status"
+        echo ""
+        
+        # Active profile info
+        if echo "$response" | jq -e '.active_profile' >/dev/null 2>&1; then
+            local profile_name=$(echo "$response" | jq -r '.active_profile.name // "unknown"' 2>/dev/null)
+            local resource_count=$(echo "$response" | jq -r '.resource_count // 0' 2>/dev/null)
+            local scenario_count=$(echo "$response" | jq -r '.scenario_count // 0' 2>/dev/null)
+            
+            echo -e "${GREEN}✅ Active Profile: $profile_name${NC}"
+            echo "   Resources: $resource_count"
+            echo "   Scenarios: $scenario_count"
+        else
+            echo -e "${YELLOW}⭕ No active profile${NC}"
+        fi
+        
+        echo ""
+        echo -e "${BLUE}💡 Quick Commands:${NC}"
+        echo "   vrooli-orchestrator list-profiles     # Show all profiles"
+        echo "   vrooli-orchestrator activate <name>   # Activate profile"
+        echo "   vrooli-orchestrator deactivate        # Stop current profile"
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health")
+    
+    if echo "$response" | grep -q "healthy"; then
+        echo -e "${GREEN}✅ Vrooli Orchestrator is healthy${NC}"
+        echo "   API: ${api_url}"
+        echo "   Service: $(echo "$response" | jq -r '.service // "vrooli-orchestrator"' 2>/dev/null)"
+        echo "   Version: $(echo "$response" | jq -r '.version // "unknown"' 2>/dev/null)"
+    else
+        echo -e "${RED}❌ Health check failed${NC}"
+        echo "   Response: $response"
+        return 1
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-help}"
+    
+    if [[ -z "$command" || "$command" == "help" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
+        list-profiles|list)
+            cmd_list_profiles "$@"
+            ;;
+        get-profile|get)
+            cmd_get_profile "$@"
+            ;;
+        create-profile|create)
+            cmd_create_profile "$@"
+            ;;
+        update-profile|update)
+            cmd_update_profile "$@"
+            ;;
+        delete-profile|delete)
+            cmd_delete_profile "$@"
+            ;;
+        activate)
+            cmd_activate "$@"
+            ;;
+        deactivate)
+            cmd_deactivate "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        version|--version|-v)
+            echo "Vrooli Orchestrator CLI v2.0.0 (thin wrapper)"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

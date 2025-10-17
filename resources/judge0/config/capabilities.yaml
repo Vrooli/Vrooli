@@ -1,0 +1,235 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: judge0
+  category: execution
+  subcategory: code-execution
+  description: "Secure and robust code execution system supporting 60+ programming languages"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - multi-language-execution
+      - secure-code-execution
+      - sandboxed-runtime
+      - api-based-execution
+    secondary:
+      - performance-monitoring
+      - resource-limiting
+      - compilation-services
+      - batch-processing
+    specialized:
+      - docker-isolation
+      - security-monitoring
+      - language-detection
+      - execution-analytics
+  
+  # API interfaces available
+  interfaces:
+    - name: submissions
+      endpoint: "/submissions"
+      method: [GET, POST]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "Submit and retrieve code execution results"
+    - name: languages
+      endpoint: "/languages"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "List supported programming languages and versions"
+    - name: system-info
+      endpoint: "/system_info"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "System information and resource usage statistics"
+    - name: config
+      endpoint: "/config_info"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [application/json]
+      description: "Configuration information and limits"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - docker
+      - redis
+    optional:
+      - postgres
+      - monitoring-tools
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - resource-experimenter
+      - ecosystem-manager
+    secondary:
+      - research-assistant
+      - document-manager
+    optimal_combinations:
+      - [judge0, redis, postgres]           # Full code execution platform
+      - [judge0, vault, minio]             # Secure code execution with storage
+      - [judge0, n8n, ollama]              # AI-powered code execution workflows
+      - [judge0, claude-code, agent-s2]    # Comprehensive development environment
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 8000
+      max: 40000
+      currency: USD
+    complexity_score: 7  # 1-10 scale
+    implementation_time: "3-5 days"
+    upwork_demand: high
+    target_industries:
+      - education-technology
+      - coding-platforms
+      - development-tools
+      - assessment-systems
+      - automation-platforms
+      - research-institutions
+    common_project_types:
+      - "Online coding platform"
+      - "Automated code assessment system"
+      - "Multi-language execution service"
+      - "Educational programming environment"
+      - "Code validation and testing platform"
+  
+  # Technical specifications
+  technical:
+    ports: [2358]
+    protocols: [http, rest]
+    data_formats: [json, text, base64]
+    resource_requirements:
+      memory:
+        minimum: "2GB"
+        recommended: "4GB"
+        optimal: "8GB+"
+      cpu:
+        minimum: "2 cores"
+        recommended: "4 cores"
+        optimal: "8+ cores"
+      storage:
+        minimum: "2GB"
+        recommended: "10GB"
+        optimal: "50GB+"
+      database:
+        required: false
+        recommended: true
+        supported: [postgresql, redis]
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_executions: 50
+      execution_modes: [sync, async, batch]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - code-execution-services
+      - educational-platforms
+      - automated-testing-systems
+      - development-environments
+    integration_targets:
+      preferred: [redis, postgres, n8n, vault]
+      compatible: [ollama, claude-code, minio, agent-s2]
+      avoid: [gui-applications, graphics-processing]
+    workflow_templates:
+      execution: "Receive code → Validate syntax → Execute in sandbox → Return results → Log metrics"
+      assessment: "Load test cases → Execute student code → Compare outputs → Generate scores → Store results"
+      validation: "Receive code → Run security checks → Execute safely → Validate results → Report status"
+    complexity_indicators:
+      simple: ["single language execution", "basic input/output", "simple validation"]
+      intermediate: ["multi-language support", "complex testing", "batch processing", "resource monitoring"]
+      advanced: ["enterprise security", "advanced sandboxing", "performance optimization", "custom runtime environments"]
+  
+  # Specialized features
+  features:
+    language_support:
+      enabled: true
+      description: "Support for 60+ programming languages and versions"
+      count: "60+"
+      categories: ["compiled", "interpreted", "scripting", "functional"]
+    security_isolation:
+      enabled: true
+      description: "Docker-based sandboxing with resource limits"
+      features: ["cpu-limits", "memory-limits", "time-limits", "network-isolation"]
+    execution_monitoring:
+      enabled: true
+      description: "Comprehensive execution monitoring and analytics"
+      metrics: ["execution-time", "memory-usage", "cpu-usage", "success-rates"]
+    batch_processing:
+      enabled: true
+      description: "Process multiple code submissions efficiently"
+      capabilities: ["queue-management", "parallel-execution", "result-aggregation"]
+  
+  # Integration capabilities
+  integrations:
+    supported_languages:
+      compiled: ["c", "cpp", "java", "go", "rust", "csharp"]
+      interpreted: ["python", "javascript", "ruby", "php", "perl"]
+      functional: ["haskell", "scala", "clojure", "erlang"]
+      scripting: ["bash", "powershell", "lua", "r"]
+      web: ["html", "css", "typescript"]
+    execution_modes:
+      - synchronous
+      - asynchronous
+      - batch
+      - streaming
+    output_formats:
+      - json
+      - text
+      - base64
+      - binary
+  
+  # Testing and validation
+  testing:
+    test_file: "resources/judge0/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - language_compilation
+      - execution_accuracy
+      - security_isolation
+      - performance_limits
+    fixtures:
+      - multi_language_samples
+      - security_test_cases
+      - performance_benchmarks
+    integration_tests:
+      - judge0_redis_integration
+      - judge0_postgres_logging
+      - security_validation_suite
+  
+  # Documentation and examples
+  documentation:
+    readme: "resources/judge0/README.md"
+    api_reference: "resources/judge0/docs/API.md"
+    examples_dir: "resources/judge0/examples/"
+    configuration: "resources/judge0/docs/CONFIGURATION.md"
+    security: "resources/judge0/docs/SECURITY.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "1.13.0"
+    tested_version: "latest"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      redis: ">=6.0"
+      postgres: ">=12.0"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "execution"
+  resource.vrooli.com/type: "code-execution"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/security-focused: "true"

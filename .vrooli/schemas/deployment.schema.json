@@ -1,0 +1,263 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/deployment.schema.json",
+  "title": "Vrooli Deployment Configuration",
+  "description": "Deployment and monitoring configuration for services",
+  "definitions": {
+    "deployment": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": ["docker", "docker-compose", "kubernetes", "native-linux", "k8s-cluster"],
+          "default": "docker",
+          "description": "Deployment target platform"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["recreate", "rolling-update", "blue-green", "canary"],
+          "default": "rolling-update",
+          "description": "Deployment strategy"
+        },
+        "environment": {
+          "type": "string",
+          "enum": ["development", "staging", "production"],
+          "default": "development",
+          "description": "Deployment environment"
+        },
+        "urls": {
+          "$ref": "#/definitions/urls",
+          "description": "Service URLs"
+        },
+        "ports": {
+          "$ref": "#/definitions/ports",
+          "description": "Service port mappings"
+        },
+        "monitoring": {
+          "$ref": "#/definitions/monitoring",
+          "description": "Monitoring configuration"
+        },
+        "scaling": {
+          "$ref": "#/definitions/scaling",
+          "description": "Scaling configuration"
+        }
+      }
+    },
+    "urls": {
+      "type": "object",
+      "properties": {
+        "application": {
+          "type": "string",
+          "format": "uri",
+          "description": "Main application URL"
+        },
+        "api": {
+          "type": "string",
+          "format": "uri",
+          "description": "API endpoint URL"
+        },
+        "health": {
+          "type": "string",
+          "format": "uri",
+          "description": "Health check endpoint"
+        },
+        "metrics": {
+          "type": "string",
+          "format": "uri",
+          "description": "Metrics endpoint"
+        },
+        "docs": {
+          "type": "string",
+          "format": "uri",
+          "description": "Documentation URL"
+        }
+      },
+      "additionalProperties": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          {
+            "type": "string",
+            "pattern": "^\\d{1,5}:\\d{1,5}$"
+          }
+        ]
+      },
+      "description": "Port mappings (name to port number or host:container format)"
+    },
+    "monitoring": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable monitoring"
+        },
+        "healthChecks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/healthCheck"
+          },
+          "description": "Health check configurations"
+        },
+        "metrics": {
+          "$ref": "#/definitions/metrics",
+          "description": "Metrics collection configuration"
+        },
+        "alerts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/alert"
+          },
+          "description": "Alert configurations"
+        }
+      }
+    },
+    "healthCheck": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["http", "https", "tcp", "exec", "grpc"],
+          "description": "Health check type"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "HTTP/HTTPS endpoint path or full URL"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port for TCP checks"
+        },
+        "command": {
+          "type": "string",
+          "description": "Command for exec checks"
+        },
+        "interval": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "30s",
+          "description": "Check interval"
+        },
+        "timeout": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "5s",
+          "description": "Check timeout"
+        },
+        "threshold": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "description": "Failure threshold before marking unhealthy"
+        },
+        "initialDelay": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "0s",
+          "description": "Initial delay before first check"
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable metrics collection"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 9090,
+          "description": "Metrics port"
+        },
+        "path": {
+          "type": "string",
+          "default": "/metrics",
+          "description": "Metrics endpoint path"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["prometheus", "json", "statsd"],
+          "default": "prometheus",
+          "description": "Metrics format"
+        }
+      }
+    },
+    "alert": {
+      "type": "object",
+      "required": ["name", "condition"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Alert name"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Alert condition expression"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error", "critical"],
+          "default": "warning",
+          "description": "Alert severity"
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Notification channels"
+        }
+      }
+    },
+    "scaling": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable auto-scaling"
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Minimum instances"
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "description": "Maximum instances"
+        },
+        "targetCPU": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 70,
+          "description": "Target CPU percentage for scaling"
+        },
+        "targetMemory": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 80,
+          "description": "Target memory percentage for scaling"
+        }
+      }
+    }
+  }
+}

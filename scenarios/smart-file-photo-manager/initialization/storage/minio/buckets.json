@@ -1,0 +1,245 @@
+{
+  "buckets": [
+    {
+      "name": "original-files",
+      "description": "Original uploaded files in their native format",
+      "policy": "private",
+      "versioning": {
+        "enabled": true,
+        "retention": "365d"
+      },
+      "lifecycle": {
+        "rules": [
+          {
+            "id": "archive-old-versions",
+            "status": "Enabled",
+            "noncurrentVersionExpiration": {
+              "noncurrentDays": 365
+            }
+          },
+          {
+            "id": "cleanup-multipart",
+            "status": "Enabled", 
+            "abortIncompleteMultipartUpload": {
+              "daysAfterInitiation": 7
+            }
+          }
+        ]
+      },
+      "folder_structure": [
+        "images/",
+        "documents/", 
+        "videos/",
+        "audio/",
+        "archives/",
+        "temp/",
+        "quarantine/"
+      ],
+      "encryption": {
+        "enabled": false,
+        "algorithm": "AES256"
+      }
+    },
+    
+    {
+      "name": "processed-files", 
+      "description": "AI-processed and optimized versions of files",
+      "policy": "private",
+      "versioning": {
+        "enabled": false
+      },
+      "lifecycle": {
+        "rules": [
+          {
+            "id": "cleanup-processed",
+            "status": "Enabled",
+            "expiration": {
+              "days": 90
+            }
+          }
+        ]
+      },
+      "folder_structure": [
+        "images/optimized/",
+        "images/analyzed/",
+        "documents/extracted/",
+        "documents/chunked/",
+        "videos/transcribed/",
+        "audio/transcribed/",
+        "temp/"
+      ],
+      "compression": {
+        "enabled": true,
+        "algorithm": "gzip"
+      }
+    },
+    
+    {
+      "name": "thumbnails",
+      "description": "Generated thumbnails and preview images", 
+      "policy": "download",
+      "versioning": {
+        "enabled": false
+      },
+      "lifecycle": {
+        "rules": [
+          {
+            "id": "cleanup-thumbnails",
+            "status": "Enabled",
+            "expiration": {
+              "days": 30
+            }
+          }
+        ]
+      },
+      "folder_structure": [
+        "150/",
+        "300/", 
+        "800/",
+        "previews/",
+        "temp/"
+      ],
+      "cache": {
+        "enabled": true,
+        "maxAge": "7d"
+      }
+    },
+    
+    {
+      "name": "exports",
+      "description": "Temporary exports, downloads, and shared files",
+      "policy": "private", 
+      "versioning": {
+        "enabled": false
+      },
+      "lifecycle": {
+        "rules": [
+          {
+            "id": "cleanup-exports",
+            "status": "Enabled",
+            "expiration": {
+              "days": 7
+            }
+          }
+        ]
+      },
+      "folder_structure": [
+        "user-exports/",
+        "bulk-downloads/",
+        "shared-links/",
+        "temp/"
+      ],
+      "notifications": {
+        "enabled": true,
+        "events": ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
+      }
+    }
+  ],
+  
+  "bucket_policies": {
+    "private": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": "s3:*",
+          "Resource": ["arn:aws:s3:::*/*", "arn:aws:s3:::*"]
+        }
+      ]
+    },
+    
+    "download": {
+      "Version": "2012-10-17", 
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": "*",
+          "Action": "s3:GetObject",
+          "Resource": "arn:aws:s3:::*/*"
+        }
+      ]
+    },
+    
+    "upload": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": "*", 
+          "Action": ["s3:PutObject", "s3:PutObjectAcl"],
+          "Resource": "arn:aws:s3:::*/*"
+        }
+      ]
+    }
+  },
+  
+  "storage_classes": {
+    "standard": {
+      "description": "Frequently accessed data",
+      "buckets": ["original-files", "thumbnails"]
+    },
+    "infrequent": {
+      "description": "Less frequently accessed data", 
+      "buckets": ["processed-files"]
+    },
+    "archive": {
+      "description": "Long-term archival storage",
+      "buckets": ["exports"]
+    }
+  },
+  
+  "monitoring": {
+    "metrics": {
+      "enabled": true,
+      "interval": "1m",
+      "metrics": ["requests", "bandwidth", "storage"]
+    },
+    "alerts": {
+      "enabled": true,
+      "thresholds": {
+        "storage_usage": "80%",
+        "request_rate": "1000/min",
+        "error_rate": "5%"
+      }
+    }
+  },
+  
+  "backup": {
+    "enabled": true,
+    "schedule": "0 3 * * *",
+    "retention": "30d",
+    "destinations": ["local", "remote"]
+  },
+  
+  "security": {
+    "encryption": {
+      "at_rest": true,
+      "in_transit": true
+    },
+    "access_logging": {
+      "enabled": true,
+      "bucket": "access-logs"
+    },
+    "virus_scanning": {
+      "enabled": false,
+      "quarantine_bucket": "quarantine"
+    }
+  },
+  
+  "performance": {
+    "multipart": {
+      "enabled": true,
+      "threshold": "64MB",
+      "part_size": "16MB"
+    },
+    "connection_pooling": {
+      "enabled": true,
+      "max_connections": 100
+    },
+    "caching": {
+      "enabled": true,
+      "ttl": "1h"
+    }
+  }
+}

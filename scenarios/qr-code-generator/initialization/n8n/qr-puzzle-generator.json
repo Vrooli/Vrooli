@@ -1,0 +1,187 @@
+{
+  "name": "QR Puzzle Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-qr-puzzle",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Test defaults for manual trigger\nreturn {\n  message: 'You found all the pieces! The secret code is: VROOLI-2025',\n  pieces: 4,\n  hints: [\n    'Look under the coffee mug',\n    'Check behind the monitor',\n    'Inside the drawer',\n    'On the bulletin board'\n  ],\n  difficulty: 'medium'\n};"
+      },
+      "id": "set_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Create a QR puzzle game\nconst input = $input.item.json;\n\nif (!input.message) {\n  throw new Error('Message is required for puzzle creation');\n}\n\nconst pieces = Math.min(10, Math.max(2, parseInt(input.pieces) || 4));\nconst hints = input.hints || [];\nconst difficulty = input.difficulty || 'medium';\n\n// Split message into puzzle pieces\nfunction createPuzzlePieces(message, numPieces) {\n  const puzzleId = 'puzzle_' + Date.now();\n  const pieces = [];\n  \n  // Calculate piece size\n  const baseLength = Math.floor(message.length / numPieces);\n  let remaining = message.length % numPieces;\n  let currentIndex = 0;\n  \n  for (let i = 0; i < numPieces; i++) {\n    const pieceLength = baseLength + (remaining > 0 ? 1 : 0);\n    remaining--;\n    \n    const piece = {\n      id: `${puzzleId}_piece_${i + 1}`,\n      number: i + 1,\n      total: numPieces,\n      content: message.substring(currentIndex, currentIndex + pieceLength),\n      hint: hints[i] || `Find piece ${i + 1} of ${numPieces}`,\n      checksum: null\n    };\n    \n    // Add verification checksum\n    const checksum = piece.content.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);\n    piece.checksum = checksum.toString(16);\n    \n    // Encode piece data\n    piece.encoded = Buffer.from(JSON.stringify({\n      p: piece.number,\n      t: numPieces,\n      c: piece.content,\n      v: piece.checksum,\n      id: puzzleId\n    })).toString('base64');\n    \n    pieces.push(piece);\n    currentIndex += pieceLength;\n  }\n  \n  return { puzzleId, pieces };\n}\n\n// Add difficulty-based obfuscation\nfunction obfuscateByDifficulty(pieces, difficulty) {\n  const strategies = {\n    easy: (content) => content,\n    medium: (content) => {\n      // Reverse every other piece\n      return content.split('').map((char, i) => i % 2 === 0 ? char : '*').join('');\n    },\n    hard: (content) => {\n      // ROT13 cipher\n      return content.replace(/[a-zA-Z]/g, char => {\n        const code = char.charCodeAt(0);\n        const base = code < 97 ? 65 : 97;\n        return String.fromCharCode((code - base + 13) % 26 + base);\n      });\n    }\n  };\n  \n  const obfuscate = strategies[difficulty] || strategies.medium;\n  \n  return pieces.map(piece => ({\n    ...piece,\n    display: obfuscate(piece.content),\n    difficulty: difficulty\n  }));\n}\n\nconst { puzzleId, pieces: rawPieces } = createPuzzlePieces(input.message, pieces);\nconst puzzlePieces = obfuscateByDifficulty(rawPieces, difficulty);\n\n// Create solver instructions\nconst solverInstructions = `\n🧩 QR PUZZLE CHALLENGE 🧩\n\n1. Find all ${pieces} QR codes\n2. Scan each code to get a piece\n3. Combine pieces in order (1 to ${pieces})\n4. Decode the message based on difficulty: ${difficulty}\n\n${difficulty === 'medium' ? 'Hint: Replace * with the actual character' : ''}\n${difficulty === 'hard' ? 'Hint: ROT13 cipher was used' : ''}\n\nPuzzle ID: ${puzzleId}\n`;\n\nreturn {\n  puzzleId: puzzleId,\n  pieces: puzzlePieces,\n  totalPieces: pieces,\n  difficulty: difficulty,\n  instructions: solverInstructions,\n  originalMessage: input.message,\n  created: new Date().toISOString()\n};"
+      },
+      "id": "create_puzzle",
+      "name": "Create Puzzle Pieces",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Generate QR codes for each puzzle piece\nconst puzzle = $input.item.json;\nconst qrCodes = [];\n\n// Generate QR URL for each piece\nfor (const piece of puzzle.pieces) {\n  const qrData = {\n    pieceNumber: piece.number,\n    totalPieces: piece.total,\n    hint: piece.hint,\n    encodedData: piece.encoded,\n    qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(piece.encoded)}&format=png`,\n    displayContent: piece.display,\n    checksum: piece.checksum\n  };\n  \n  qrCodes.push(qrData);\n}\n\n// Create verification QR that reveals the solution\nconst verificationData = {\n  type: 'solution',\n  puzzleId: puzzle.puzzleId,\n  message: puzzle.originalMessage,\n  timestamp: puzzle.created\n};\n\nconst verificationQR = {\n  type: 'verification',\n  qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(Buffer.from(JSON.stringify(verificationData)).toString('base64'))}&format=png`,\n  description: 'Scan this after collecting all pieces to verify your solution'\n};\n\nreturn {\n  ...puzzle,\n  qrCodes: qrCodes,\n  verificationQR: verificationQR\n};"
+      },
+      "id": "generate_qrs",
+      "name": "Generate QR Codes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": "ollama",
+        "workflowParameters": {
+          "prompt": "={{ $json.prompt }}",
+          "model": "llama3.2"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "generate_story",
+      "name": "Generate Puzzle Story",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare fun puzzle story prompt\nconst puzzle = $input.item.json;\n\nconst storyPrompt = `Create a short, fun treasure hunt story (max 50 words) for a QR code puzzle with:\n- ${puzzle.totalPieces} hidden pieces\n- Difficulty: ${puzzle.difficulty}\n- Hints: ${puzzle.pieces.map(p => p.hint).join(', ')}\n\nMake it exciting and mysterious!`;\n\nreturn {\n  ...puzzle,\n  prompt: storyPrompt\n};"
+      },
+      "id": "prepare_story_prompt",
+      "name": "Prepare Story Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1000, 300],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Create final puzzle package\nconst puzzle = $node['Generate QR Codes'].json;\nconst story = $node['Generate Puzzle Story']?.json?.response || 'Begin your QR quest! Hidden pieces await discovery...';\n\n// Create printable puzzle sheet data\nconst puzzleSheet = {\n  title: '🎮 QR PUZZLE ADVENTURE 🎮',\n  puzzleId: puzzle.puzzleId,\n  story: story,\n  difficulty: puzzle.difficulty,\n  totalPieces: puzzle.totalPieces,\n  instructions: puzzle.instructions,\n  pieces: puzzle.qrCodes.map(qr => ({\n    number: qr.pieceNumber,\n    hint: qr.hint,\n    qrUrl: qr.qrUrl,\n    preview: qr.displayContent\n  })),\n  verificationQR: puzzle.verificationQR,\n  tips: [\n    `Difficulty ${puzzle.difficulty}: ${puzzle.difficulty === 'easy' ? 'Direct message' : puzzle.difficulty === 'medium' ? 'Some characters hidden' : 'Encoded with ROT13'}`,\n    'Scan codes in order for best results',\n    'Keep track of which pieces you\\'ve found',\n    'The verification QR reveals the complete solution'\n  ],\n  created: puzzle.created\n};\n\n// Generate HTML preview\nconst htmlPreview = `\n<!DOCTYPE html>\n<html>\n<head>\n  <title>QR Puzzle - ${puzzle.puzzleId}</title>\n  <style>\n    body { font-family: monospace; background: #000; color: #0f0; padding: 20px; }\n    .container { max-width: 800px; margin: 0 auto; }\n    .piece { border: 2px solid #0f0; padding: 10px; margin: 10px; display: inline-block; }\n    .qr { width: 150px; height: 150px; background: white; }\n    h1 { text-align: center; color: #0ff; text-shadow: 0 0 10px #0ff; }\n    .hint { color: #ff0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h1>${puzzleSheet.title}</h1>\n    <p>${story}</p>\n    <div class=\"pieces\">\n      ${puzzle.qrCodes.map(qr => `\n        <div class=\"piece\">\n          <img class=\"qr\" src=\"${qr.qrUrl}\" />\n          <p>Piece ${qr.pieceNumber}/${puzzle.totalPieces}</p>\n          <p class=\"hint\">${qr.hint}</p>\n        </div>\n      `).join('')}\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  success: true,\n  puzzleId: puzzle.puzzleId,\n  puzzleSheet: puzzleSheet,\n  htmlPreview: htmlPreview,\n  downloadUrl: `data:text/html;base64,${Buffer.from(htmlPreview).toString('base64')}`,\n  message: 'QR Puzzle created successfully! Print or share the puzzle pieces.',\n  stats: {\n    totalPieces: puzzle.totalPieces,\n    difficulty: puzzle.difficulty,\n    messageLength: puzzle.originalMessage.length\n  }\n};"
+      },
+      "id": "create_package",
+      "name": "Create Puzzle Package",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Puzzle Pieces",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Create Puzzle Pieces",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Puzzle Pieces": {
+      "main": [
+        [
+          {
+            "node": "Generate QR Codes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate QR Codes": {
+      "main": [
+        [
+          {
+            "node": "Create Puzzle Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Puzzle Package": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "qr-puzzle-generator"
+  },
+  "tags": ["qr", "puzzle", "game", "interactive"]
+}

@@ -1,0 +1,77 @@
+# Vault Helm Chart Values for Development Environment
+# This configuration is for development/testing purposes only
+
+# Inject environment variables into Vault server
+injector:
+  enabled: false # Disable the Vault injector for dev
+
+server:
+  # Run Vault in development mode (NOT for production)
+  dev:
+    enabled: true
+    # Development root token (change in production)
+    devRootToken: "root"
+    # Development listener on all interfaces
+    devListenAddress: "[::]:8200"
+
+  # Standalone mode for development (no HA)
+  standalone:
+    enabled: true
+    config: |
+      ui = true
+      listener "tcp" {
+        tls_disable = 1
+        address = "[::]:8200"
+        cluster_address = "[::]:8201"
+      }
+      storage "file" {
+        path = "/vault/data"
+      }
+
+  # Service configuration
+  service:
+    enabled: true
+    type: "ClusterIP"
+    port: 8200
+    targetPort: 8200
+    annotations: {}
+
+  # Resource limits for development
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi" 
+      cpu: "400m"
+
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsGroup: 1000
+    runAsUser: 100
+    fsGroup: 1000
+
+  # Volume configuration
+  dataStorage:
+    enabled: true
+    size: 1Gi
+    storageClass: null
+    accessMode: ReadWriteOnce
+
+  # Enable audit logging in dev
+  auditStorage:
+    enabled: false
+
+# UI configuration
+ui:
+  enabled: true
+  serviceType: "ClusterIP"
+  serviceNodePort: null
+  externalPort: 8200
+
+# Global settings
+global:
+  enabled: true
+  # Disable TLS for development
+  tlsDisable: true

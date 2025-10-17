@@ -1,0 +1,185 @@
+{
+  "name": "Backup Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "*/5 * * * *"}]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM backup_schedules WHERE enabled = true AND (next_run IS NULL OR next_run <= CURRENT_TIMESTAMP) ORDER BY next_run LIMIT 10",
+        "additionalFields": {}
+      },
+      "name": "Get Due Schedules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-main",
+          "name": "PostgreSQL Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process each scheduled backup\nconst schedules = $input.all();\nconst dueSchedules = [];\n\nfor (const schedule of schedules) {\n  const item = schedule.json;\n  \n  // Parse cron expression to calculate next run time\n  const cronParser = require('cron-parser');\n  let nextRun;\n  \n  try {\n    const interval = cronParser.parseExpression(item.cron_expression);\n    nextRun = interval.next().toDate();\n  } catch (error) {\n    console.error(`Invalid cron expression for schedule ${item.id}:`, error);\n    continue;\n  }\n  \n  dueSchedules.push({\n    schedule_id: item.id,\n    name: item.name,\n    backup_type: item.backup_type,\n    targets: item.targets,\n    retention_days: item.retention_days,\n    next_run: nextRun.toISOString(),\n    description: `Scheduled ${item.backup_type} backup: ${item.name}`\n  });\n}\n\nreturn dueSchedules.map(schedule => ({ json: schedule }));"
+      },
+      "name": "Process Schedules",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split Into Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/backup/trigger",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "={{$json.backup_type}}"
+            },
+            {
+              "name": "targets",
+              "value": "={{$json.targets}}"
+            },
+            {
+              "name": "retention_days",
+              "value": "={{$json.retention_days}}"
+            },
+            {
+              "name": "description",
+              "value": "={{$json.description}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Trigger Backup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "backup_schedules",
+        "updateKey": "id",
+        "columns": "last_run,next_run",
+        "additionalFields": {},
+        "options": {}
+      },
+      "name": "Update Schedule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-main",
+          "name": "PostgreSQL Main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log successful schedule execution\nconst scheduleId = $json.schedule_id;\nconst scheduleName = $json.name;\nconst backupResponse = $json.backup_response;\n\nconsole.log(`Successfully triggered backup for schedule: ${scheduleName} (${scheduleId})`);\n\nreturn [{\n  json: {\n    schedule_id: scheduleId,\n    schedule_name: scheduleName,\n    backup_job_id: backupResponse?.job_id,\n    executed_at: new Date().toISOString(),\n    status: 'triggered'\n  }\n}];"
+      },
+      "name": "Log Success",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log schedule execution errors\nconst error = $json.error || 'Unknown error';\nconst scheduleId = $json.schedule_id || 'unknown';\nconst scheduleName = $json.name || 'unknown';\n\nconsole.error(`Failed to execute schedule: ${scheduleName} (${scheduleId})`, error);\n\n// Could optionally disable the schedule or send alerts here\n\nreturn [{\n  json: {\n    schedule_id: scheduleId,\n    schedule_name: scheduleName,\n    error_message: error.toString(),\n    failed_at: new Date().toISOString(),\n    status: 'failed'\n  }\n}];"
+      },
+      "name": "Log Error",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO backup_statistics (date, target, total_backups, successful_backups, failed_backups) VALUES (CURRENT_DATE, 'scheduled', 1, CASE WHEN '{{$json.status}}' = 'triggered' THEN 1 ELSE 0 END, CASE WHEN '{{$json.status}}' = 'failed' THEN 1 ELSE 0 END) ON CONFLICT (date, target) DO UPDATE SET total_backups = backup_statistics.total_backups + 1, successful_backups = backup_statistics.successful_backups + CASE WHEN '{{$json.status}}' = 'triggered' THEN 1 ELSE 0 END, failed_backups = backup_statistics.failed_backups + CASE WHEN '{{$json.status}}' = 'failed' THEN 1 ELSE 0 END, updated_at = CURRENT_TIMESTAMP",
+        "additionalFields": {}
+      },
+      "name": "Update Statistics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1780, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-main",
+          "name": "PostgreSQL Main"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{"node": "Get Due Schedules", "type": "main", "index": 0}]]
+    },
+    "Get Due Schedules": {
+      "main": [[{"node": "Process Schedules", "type": "main", "index": 0}]]
+    },
+    "Process Schedules": {
+      "main": [[{"node": "Split Into Items", "type": "main", "index": 0}]]
+    },
+    "Split Into Items": {
+      "main": [
+        [{"node": "Trigger Backup", "type": "main", "index": 0}],
+        [{"node": "Update Statistics", "type": "main", "index": 0}]
+      ]
+    },
+    "Trigger Backup": {
+      "main": [
+        [{"node": "Update Schedule", "type": "main", "index": 0}],
+        [{"node": "Log Error", "type": "main", "index": 0}]
+      ]
+    },
+    "Update Schedule": {
+      "main": [[{"node": "Log Success", "type": "main", "index": 0}]]
+    },
+    "Log Success": {
+      "main": [[{"node": "Update Statistics", "type": "main", "index": 0}]]
+    },
+    "Log Error": {
+      "main": [[{"node": "Update Statistics", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "id": "backup-scheduler"
+}

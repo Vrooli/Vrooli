@@ -1,0 +1,227 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "nutrition-tracker",
+    "displayName": "Nutrition Tracker",
+    "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",
+    "version": "1.0.0",
+    "tags": [
+      "saas-applications",
+      "health",
+      "nutrition",
+      "calorie-tracking",
+      "macro-tracking",
+      "meal-planning",
+      "ai-suggestions",
+      "fitness",
+      "go-api",
+      "nodejs-ui",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Nutrition tracker API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Nutrition tracker UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/calorie-calculator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/macro-tracker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/meal-suggester.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/nutrition-analyzer.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store user profiles, food entries, meals, and nutrition data",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache nutrition data and user session management"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector search for similar foods and meal suggestions"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2"
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Nutrition Tracker health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Nutrition Tracker",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "nutrition-tracker-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "nutrition-tracker"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o nutrition-tracker-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/nutrition-tracker",
+          "description": "Make CLI executable"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Nutrition Tracker initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Nutrition Tracker services",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./nutrition-tracker-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/nutrition-tracker-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Nutrition Tracker",
+      "steps": [
+        {
+          "name": "validate",
+          "run": "./test/validate.sh",
+          "description": "Run validation tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"nutrition-tracker-api\" || true; sleep 1; pkill -9 -f \"nutrition-tracker-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/nutrition-tracker.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/nutrition-tracker.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

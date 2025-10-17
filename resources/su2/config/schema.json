@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SU2 Resource Configuration",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "default": 9514,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "mpi": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable MPI parallel processing",
+          "default": true
+        },
+        "processes": {
+          "type": "integer",
+          "description": "Number of MPI processes",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 32
+        }
+      }
+    },
+    "solver": {
+      "type": "object",
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "description": "Maximum solver iterations",
+          "default": 1000
+        },
+        "convergence_criteria": {
+          "type": "number",
+          "description": "Convergence threshold",
+          "default": 1e-6
+        },
+        "cfl_number": {
+          "type": "number",
+          "description": "Courant-Friedrichs-Lewy number",
+          "default": 1.0
+        },
+        "multigrid_level": {
+          "type": "integer",
+          "description": "Number of multigrid levels",
+          "default": 3,
+          "minimum": 0,
+          "maximum": 5
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["TECPLOT", "PARAVIEW", "CSV", "VTK", "STL"]
+          },
+          "default": ["TECPLOT", "PARAVIEW", "CSV"]
+        },
+        "history": {
+          "type": "boolean",
+          "description": "Output convergence history",
+          "default": true
+        },
+        "volume": {
+          "type": "boolean",
+          "description": "Output volume solution",
+          "default": true
+        },
+        "surface": {
+          "type": "boolean",
+          "description": "Output surface solution",
+          "default": true
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "properties": {
+        "qdrant": {
+          "type": "boolean",
+          "description": "Enable Qdrant vector storage",
+          "default": true
+        },
+        "questdb": {
+          "type": "boolean",
+          "description": "Enable QuestDB time series",
+          "default": true
+        },
+        "minio": {
+          "type": "boolean",
+          "description": "Enable MinIO object storage",
+          "default": true
+        }
+      }
+    }
+  }
+}

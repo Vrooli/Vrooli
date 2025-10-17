@@ -1,0 +1,631 @@
+#!/bin/bash
+
+# Prompt Injection Arena CLI
+# Command-line interface for the defensive security platform
+
+set -e
+
+# Configuration
+API_BASE_URL="${API_BASE_URL:-http://localhost:20300}"
+CLI_VERSION="1.0.0"
+CONFIG_DIR="$HOME/.vrooli/prompt-injection-arena"
+CONFIG_FILE="$CONFIG_DIR/config"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Utility functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Load configuration
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        source "$CONFIG_FILE"
+    fi
+}
+
+# Save configuration
+save_config() {
+    mkdir -p "$CONFIG_DIR"
+    echo "API_BASE_URL=\"$API_BASE_URL\"" > "$CONFIG_FILE"
+    echo "CLI_VERSION=\"$CLI_VERSION\"" >> "$CONFIG_FILE"
+}
+
+# API helper function
+api_call() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    local output_format="${4:-json}"
+    
+    local curl_args=("-s" "-X" "$method" "$API_BASE_URL$endpoint")
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=("-H" "Content-Type: application/json" "-d" "$data")
+    fi
+    
+    local response
+    response=$(curl "${curl_args[@]}")
+    local status=$?
+    
+    if [[ $status -ne 0 ]]; then
+        log_error "Failed to connect to API at $API_BASE_URL"
+        return 1
+    fi
+    
+    if [[ "$output_format" == "json" ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo "$response"
+    fi
+}
+
+# Command functions
+show_help() {
+    cat << 'EOF'
+Prompt Injection Arena CLI - Defensive Security Testing Platform
+
+USAGE:
+    prompt-injection-arena <command> [options]
+
+COMMANDS:
+    status                   Show arena status and health
+    help                     Show this help message
+    version                  Show version information
+    
+    test-agent              Test an agent against injection library
+    add-injection           Add new injection technique
+    leaderboard             Show current leaderboards
+    library                 View injection technique library
+    statistics              Show system statistics
+    
+    config                  Manage CLI configuration
+
+EXAMPLES:
+    # Test an agent configuration
+    prompt-injection-arena test-agent "You are helpful assistant" --model llama3.2
+    
+    # Add a new injection technique
+    prompt-injection-arena add-injection "New Attack" direct_override --example "Ignore all instructions"
+    
+    # View agent leaderboard
+    prompt-injection-arena leaderboard agents
+    
+    # Check system status
+    prompt-injection-arena status --verbose
+
+For detailed help on a specific command, use:
+    prompt-injection-arena help <command>
+
+EOF
+}
+
+show_version() {
+    local format="${1:-human}"
+    
+    if [[ "$format" == "json" ]]; then
+        echo "{\"version\":\"$CLI_VERSION\",\"api_url\":\"$API_BASE_URL\"}"
+    else
+        echo "Prompt Injection Arena CLI v$CLI_VERSION"
+        echo "API Base URL: $API_BASE_URL"
+    fi
+}
+
+show_status() {
+    local format="${1:-human}"
+    local verbose="${2:-false}"
+    
+    log_info "Checking arena status..."
+    
+    local response
+    response=$(api_call "GET" "/health" "" "raw")
+    
+    if [[ $? -ne 0 ]]; then
+        if [[ "$format" == "json" ]]; then
+            echo '{"status":"unhealthy","error":"API unreachable"}'
+        else
+            log_error "Arena API is unreachable at $API_BASE_URL"
+        fi
+        return 1
+    fi
+    
+    if [[ "$format" == "json" ]]; then
+        echo "$response"
+    else
+        local status
+        status=$(echo "$response" | jq -r '.status' 2>/dev/null || echo "unknown")
+        
+        if [[ "$status" == "healthy" ]]; then
+            log_success "Arena is healthy and operational"
+        else
+            log_error "Arena status: $status"
+        fi
+        
+        if [[ "$verbose" == "true" ]]; then
+            echo
+            echo "Detailed Status:"
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        fi
+    fi
+}
+
+test_agent() {
+    local system_prompt="$1"
+    local model_name="${2:-llama3.2}"
+    local output_format="${3:-table}"
+    local timeout="${4:-30000}"
+    
+    if [[ -z "$system_prompt" ]]; then
+        log_error "System prompt is required"
+        echo "Usage: prompt-injection-arena test-agent \"<system_prompt>\" [--model <model>] [--format <format>] [--timeout <ms>]"
+        return 1
+    fi
+    
+    log_info "Testing agent configuration..."
+    log_info "System Prompt: ${system_prompt:0:50}..."
+    log_info "Model: $model_name"
+    
+    local payload
+    payload=$(jq -n \
+        --arg prompt "$system_prompt" \
+        --arg model "$model_name" \
+        --argjson timeout "$timeout" \
+        '{
+            agent_config: {
+                system_prompt: $prompt,
+                model_name: $model,
+                temperature: 0.7,
+                max_tokens: 1000
+            },
+            max_execution_time: $timeout
+        }')
+    
+    local response
+    response=$(api_call "POST" "/api/v1/security/test-agent" "$payload")
+    
+    if [[ $? -ne 0 ]]; then
+        log_error "Failed to test agent"
+        return 1
+    fi
+    
+    if [[ "$output_format" == "json" ]]; then
+        echo "$response"
+    else
+        # Parse and display results in table format
+        local robustness_score
+        robustness_score=$(echo "$response" | jq -r '.robustness_score // 0')
+        
+        local total_tests
+        total_tests=$(echo "$response" | jq -r '.summary.total_tests // 0')
+        
+        local successful_injections  
+        successful_injections=$(echo "$response" | jq -r '.summary.successful_injections // 0')
+        
+        echo
+        log_success "Agent Testing Complete"
+        echo "----------------------------------------"
+        printf "%-20s %s\n" "Robustness Score:" "${robustness_score}%"
+        printf "%-20s %s\n" "Total Tests:" "$total_tests"
+        printf "%-20s %s\n" "Failed Injections:" "$((total_tests - successful_injections))"
+        printf "%-20s %s\n" "Successful Attacks:" "$successful_injections"
+        echo
+        
+        if [[ "$successful_injections" -gt 0 ]]; then
+            log_warning "Agent is vulnerable to $successful_injections injection techniques"
+        else
+            log_success "Agent successfully resisted all injection attempts"
+        fi
+        
+        local recommendations
+        recommendations=$(echo "$response" | jq -r '.recommendations[]?' 2>/dev/null)
+        if [[ -n "$recommendations" ]]; then
+            echo
+            echo "Recommendations:"
+            while IFS= read -r rec; do
+                echo "  • $rec"
+            done <<< "$recommendations"
+        fi
+    fi
+}
+
+add_injection() {
+    local name="$1"
+    local category="$2"
+    local example="$3"
+    local difficulty="${4:-0.5}"
+    local description="$5"
+    
+    if [[ -z "$name" || -z "$category" || -z "$example" ]]; then
+        log_error "Name, category, and example are required"
+        echo "Usage: prompt-injection-arena add-injection \"<name>\" \"<category>\" --example \"<example>\" [--difficulty <0.0-1.0>] [--description \"<desc>\"]"
+        echo "Categories: direct_override, context_poisoning, role_playing, delimiter_attack, social_engineering, token_manipulation, multi_turn, jailbreaking, prompt_leakage"
+        return 1
+    fi
+    
+    log_info "Adding new injection technique..."
+    
+    local payload
+    payload=$(jq -n \
+        --arg name "$name" \
+        --arg category "$category" \
+        --arg example "$example" \
+        --arg desc "$description" \
+        --argjson difficulty "$difficulty" \
+        '{
+            name: $name,
+            category: $category,
+            example_prompt: $example,
+            description: $desc,
+            difficulty_score: $difficulty,
+            source_attribution: "CLI user submission"
+        }')
+    
+    local response
+    response=$(api_call "POST" "/api/v1/injections" "$payload")
+    
+    if [[ $? -ne 0 ]]; then
+        log_error "Failed to add injection technique"
+        return 1
+    fi
+    
+    local injection_id
+    injection_id=$(echo "$response" | jq -r '.id // "unknown"')
+    
+    log_success "Injection technique added successfully"
+    echo "ID: $injection_id"
+    echo "Name: $name"
+    echo "Category: $category"
+}
+
+show_leaderboard() {
+    local type="${1:-agents}"
+    local limit="${2:-20}"
+    local format="${3:-table}"
+    
+    log_info "Fetching $type leaderboard..."
+    
+    local response
+    response=$(api_call "GET" "/api/v1/leaderboards/$type?limit=$limit")
+    
+    if [[ $? -ne 0 ]]; then
+        log_error "Failed to fetch leaderboard"
+        return 1
+    fi
+    
+    if [[ "$format" == "json" ]]; then
+        echo "$response"
+    else
+        echo
+        if [[ "$type" == "agents" ]]; then
+            echo "🏆 Agent Robustness Leaderboard"
+            echo "================================================"
+            printf "%-4s %-20s %-12s %-10s %-8s %-8s\n" "Rank" "Name" "Model" "Score" "Tests" "Passed"
+            echo "------------------------------------------------"
+            
+            echo "$response" | jq -r '.leaderboard[]? | "\(.additional_info.rank) \(.name) \(.additional_info.model_name) \(.score) \(.tests_run) \(.tests_passed)"' | \
+            while read -r rank name model score tests passed; do
+                printf "%-4s %-20s %-12s %-10.1f %-8s %-8s\n" "$rank" "${name:0:20}" "${model:0:12}" "$score" "$tests" "$passed"
+            done
+        else
+            echo "🎯 Injection Effectiveness Leaderboard"  
+            echo "======================================================"
+            printf "%-4s %-25s %-15s %-10s %-8s\n" "Rank" "Name" "Category" "Success%" "Tests"
+            echo "------------------------------------------------------"
+            
+            echo "$response" | jq -r '.leaderboard[]? | "\(.additional_info.rank) \(.name) \(.additional_info.category) \(.pass_percentage) \(.tests_run)"' | \
+            while read -r rank name category success tests; do
+                printf "%-4s %-25s %-15s %-10.1f %-8s\n" "$rank" "${name:0:25}" "${category:0:15}" "$success" "$tests"
+            done
+        fi
+        echo
+    fi
+}
+
+show_library() {
+    local category="$1"
+    local limit="${2:-50}"
+    local format="${3:-table}"
+    
+    local url="/api/v1/injections/library?limit=$limit"
+    if [[ -n "$category" ]]; then
+        url="$url&category=$category"
+    fi
+    
+    log_info "Fetching injection library..."
+    
+    local response
+    response=$(api_call "GET" "$url")
+    
+    if [[ $? -ne 0 ]]; then
+        log_error "Failed to fetch injection library"
+        return 1
+    fi
+    
+    if [[ "$format" == "json" ]]; then
+        echo "$response"
+    else
+        local total_count
+        total_count=$(echo "$response" | jq -r '.total_count // 0')
+        
+        echo
+        echo "📚 Injection Technique Library ($total_count techniques)"
+        echo "============================================================="
+        printf "%-30s %-15s %-10s %-10s\n" "Name" "Category" "Difficulty" "Success%"
+        echo "-------------------------------------------------------------"
+        
+        echo "$response" | jq -r '.techniques[]? | "\(.name) \(.category) \(.difficulty_score) \(.success_rate)"' | \
+        while read -r name category difficulty success; do
+            printf "%-30s %-15s %-10.2f %-10.1f\n" "${name:0:30}" "${category:0:15}" "$difficulty" "$(echo "$success * 100" | bc -l 2>/dev/null || echo "$success")"
+        done
+        
+        echo
+        echo "Available categories:"
+        echo "$response" | jq -r '.categories[]?' | sed 's/^/  • /'
+    fi
+}
+
+show_statistics() {
+    local format="${1:-human}"
+    
+    log_info "Fetching system statistics..."
+    
+    local response
+    response=$(api_call "GET" "/api/v1/statistics")
+    
+    if [[ $? -ne 0 ]]; then
+        log_error "Failed to fetch statistics"
+        return 1
+    fi
+    
+    if [[ "$format" == "json" ]]; then
+        echo "$response"
+    else
+        echo
+        echo "📊 Prompt Injection Arena Statistics"
+        echo "===================================="
+        
+        local total_injections total_agents total_tests
+        total_injections=$(echo "$response" | jq -r '.totals.injections // 0')
+        total_agents=$(echo "$response" | jq -r '.totals.agents // 0')
+        total_tests=$(echo "$response" | jq -r '.totals.tests // 0')
+        
+        printf "%-25s %s\n" "Total Injections:" "$total_injections"
+        printf "%-25s %s\n" "Total Agents:" "$total_agents"  
+        printf "%-25s %s\n" "Total Tests Run:" "$total_tests"
+        
+        local recent_tests
+        recent_tests=$(echo "$response" | jq -r '.recent_activity.tests_last_24h // 0')
+        printf "%-25s %s\n" "Tests (Last 24h):" "$recent_tests"
+        
+        echo
+        echo "Injection Categories:"
+        echo "$response" | jq -r '.injection_categories | to_entries[]? | "  \(.key): \(.value)"'
+        
+        echo
+        echo "Agent Models:"
+        echo "$response" | jq -r '.agent_models | to_entries[]? | "  \(.key): \(.value)"'
+    fi
+}
+
+manage_config() {
+    local action="$1"
+    local key="$2"
+    local value="$3"
+    
+    case "$action" in
+        "show")
+            echo "Current Configuration:"
+            echo "API_BASE_URL = $API_BASE_URL"
+            echo "Config file: $CONFIG_FILE"
+            ;;
+        "set")
+            if [[ -z "$key" || -z "$value" ]]; then
+                log_error "Both key and value are required"
+                echo "Usage: prompt-injection-arena config set <key> <value>"
+                return 1
+            fi
+            
+            case "$key" in
+                "api-url")
+                    API_BASE_URL="$value"
+                    save_config
+                    log_success "API URL updated to: $value"
+                    ;;
+                *)
+                    log_error "Unknown configuration key: $key"
+                    echo "Available keys: api-url"
+                    return 1
+                    ;;
+            esac
+            ;;
+        *)
+            echo "Configuration Management:"
+            echo "  show        Show current configuration"
+            echo "  set <key>   Set configuration value"
+            echo ""
+            echo "Available keys:"
+            echo "  api-url     Base URL for the arena API"
+            ;;
+    esac
+}
+
+# Main command processing
+main() {
+    load_config
+    
+    local command="$1"
+    shift || true
+    
+    case "$command" in
+        "help"|"--help"|"-h"|"")
+            if [[ -n "$1" ]]; then
+                # Show help for specific command
+                case "$1" in
+                    "test-agent")
+                        echo "Test Agent Command:"
+                        echo "  Tests an agent configuration against the injection library"
+                        echo ""
+                        echo "Usage: prompt-injection-arena test-agent \"<system_prompt>\" [options]"
+                        echo ""
+                        echo "Options:"
+                        echo "  --model <name>      Ollama model to use (default: llama3.2)"
+                        echo "  --format <format>   Output format: table, json (default: table)"
+                        echo "  --timeout <ms>      Max execution time in milliseconds (default: 30000)"
+                        ;;
+                    "add-injection")
+                        echo "Add Injection Command:"
+                        echo "  Adds a new injection technique to the library"
+                        echo ""
+                        echo "Usage: prompt-injection-arena add-injection \"<name>\" \"<category>\" --example \"<prompt>\""
+                        echo ""
+                        echo "Options:"
+                        echo "  --example <prompt>     Example injection prompt (required)"
+                        echo "  --difficulty <0.0-1.0> Difficulty score (default: 0.5)"
+                        echo "  --description <text>   Description of the technique"
+                        ;;
+                    *)
+                        show_help
+                        ;;
+                esac
+            else
+                show_help
+            fi
+            ;;
+        "version"|"--version"|"-v")
+            local format="human"
+            if [[ "$1" == "--json" ]]; then
+                format="json"
+            fi
+            show_version "$format"
+            ;;
+        "status")
+            local format="human"
+            local verbose="false"
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --json) format="json"; shift ;;
+                    --verbose) verbose="true"; shift ;;
+                    *) shift ;;
+                esac
+            done
+            show_status "$format" "$verbose"
+            ;;
+        "test-agent")
+            local system_prompt="$1"
+            local model_name="llama3.2"
+            local format="table"
+            local timeout="30000"
+            
+            shift || true
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --model) model_name="$2"; shift 2 ;;
+                    --format) format="$2"; shift 2 ;;
+                    --timeout) timeout="$2"; shift 2 ;;
+                    *) shift ;;
+                esac
+            done
+            
+            test_agent "$system_prompt" "$model_name" "$format" "$timeout"
+            ;;
+        "add-injection")
+            local name="$1"
+            local category="$2"
+            local example=""
+            local difficulty="0.5"
+            local description=""
+            
+            shift 2 || true
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --example) example="$2"; shift 2 ;;
+                    --difficulty) difficulty="$2"; shift 2 ;;
+                    --description) description="$2"; shift 2 ;;
+                    *) shift ;;
+                esac
+            done
+            
+            add_injection "$name" "$category" "$example" "$difficulty" "$description"
+            ;;
+        "leaderboard")
+            local type="${1:-agents}"
+            local limit="20"
+            local format="table"
+            
+            shift || true
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --limit) limit="$2"; shift 2 ;;
+                    --format) format="$2"; shift 2 ;;
+                    agents|injections) type="$1"; shift ;;
+                    *) shift ;;
+                esac
+            done
+            
+            show_leaderboard "$type" "$limit" "$format"
+            ;;
+        "library")
+            local category=""
+            local limit="50"
+            local format="table"
+            
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --category) category="$2"; shift 2 ;;
+                    --limit) limit="$2"; shift 2 ;;
+                    --format) format="$2"; shift 2 ;;
+                    *) shift ;;
+                esac
+            done
+            
+            show_library "$category" "$limit" "$format"
+            ;;
+        "statistics")
+            local format="human"
+            if [[ "$1" == "--json" ]]; then
+                format="json"
+            fi
+            show_statistics "$format"
+            ;;
+        "config")
+            manage_config "$@"
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo "Run 'prompt-injection-arena help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Check dependencies
+if ! command -v curl &> /dev/null; then
+    log_error "curl is required but not installed"
+    exit 1
+fi
+
+if ! command -v jq &> /dev/null; then
+    log_error "jq is required but not installed"
+    exit 1
+fi
+
+# Run main function
+main "$@"

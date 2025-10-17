@@ -1,0 +1,251 @@
+{
+    "name": "Multi-Window Desktop App",
+    "description": "Advanced desktop application supporting multiple windows, perfect for complex workflows, dashboards, and professional tools.",
+    "use_cases": [
+        "IDE-like applications with multiple editors",
+        "Financial dashboards with multiple screens",
+        "Design tools with canvas and property panels",
+        "Communication apps with chat and video windows",
+        "Development tools with multiple monitors support"
+    ],
+    "features": {
+        "splash_screen": true,
+        "system_tray": true,
+        "auto_updater": true,
+        "native_menus": true,
+        "single_instance": true,
+        "dev_tools": true,
+        "file_operations": true,
+        "notifications": true,
+        "multi_window": true,
+        "deep_linking": true,
+        "global_shortcuts": true,
+        "context_menus": true,
+        "window_management": true,
+        "inter_window_communication": true
+    },
+    "window_types": [
+        {
+            "name": "main",
+            "description": "Primary application window",
+            "width": 1400,
+            "height": 900,
+            "resizable": true,
+            "closable": false,
+            "role": "primary"
+        },
+        {
+            "name": "secondary",
+            "description": "Secondary tool windows",
+            "width": 800,
+            "height": 600,
+            "resizable": true,
+            "closable": true,
+            "role": "secondary"
+        },
+        {
+            "name": "modal",
+            "description": "Modal dialog windows",
+            "width": 500,
+            "height": 400,
+            "resizable": false,
+            "closable": true,
+            "modal": true,
+            "role": "dialog"
+        },
+        {
+            "name": "floating",
+            "description": "Floating palette windows",
+            "width": 300,
+            "height": 200,
+            "resizable": true,
+            "closable": true,
+            "always_on_top": true,
+            "role": "tool"
+        }
+    ],
+    "window_config": {
+        "main_window": {
+            "width": 1400,
+            "height": 900,
+            "min_width": 1200,
+            "min_height": 800,
+            "resizable": true,
+            "maximizable": true,
+            "minimizable": true,
+            "closable": false,
+            "frame": true,
+            "transparent": false,
+            "always_on_top": false
+        },
+        "secondary_windows": {
+            "max_count": 10,
+            "remember_positions": true,
+            "cascade_offset": { "x": 30, "y": 30 },
+            "auto_focus": true
+        }
+    },
+    "template_variables": {
+        "ENABLE_SPLASH": true,
+        "ENABLE_MENU": true,
+        "ENABLE_SYSTEM_TRAY": true,
+        "ENABLE_AUTO_UPDATER": true,
+        "ENABLE_SINGLE_INSTANCE": true,
+        "ENABLE_DEV_TOOLS": true,
+        "ENABLE_MULTI_WINDOW": true,
+        "WINDOW_WIDTH": 1400,
+        "WINDOW_HEIGHT": 900,
+        "WINDOW_BACKGROUND": "#1e1e1e",
+        "SPLASH_BACKGROUND_START": "#0d1117",
+        "SPLASH_BACKGROUND_END": "#161b22",
+        "SPLASH_TEXT_COLOR": "#f0f6fc",
+        "SPLASH_ACCENT_COLOR": "#58a6ff"
+    },
+    "supported_server_types": [
+        "node",
+        "static",
+        "external",
+        "executable"
+    ],
+    "required_files": [
+        "main.ts",
+        "preload.ts",
+        "splash.html",
+        "package.json.template",
+        "tsconfig.json"
+    ],
+    "additional_files": [
+        "src/window-manager.ts",
+        "src/window-types.ts",
+        "src/inter-window-communication.ts",
+        "src/window-state-manager.ts",
+        "templates/window-main.html",
+        "templates/window-secondary.html",
+        "templates/window-modal.html",
+        "templates/window-floating.html"
+    ],
+    "build_config": {
+        "platforms": ["win", "mac", "linux"],
+        "auto_sign": true,
+        "publish_stores": true,
+        "enterprise_features": true,
+        "code_signing_required": true
+    },
+    "multi_window_features": {
+        "window_management": {
+            "remember_positions": true,
+            "restore_on_startup": true,
+            "cascade_new_windows": true,
+            "focus_management": "smart",
+            "minimize_all": true,
+            "tile_windows": true
+        },
+        "inter_window_communication": {
+            "message_bus": true,
+            "shared_state": true,
+            "event_broadcasting": true,
+            "window_coordination": true
+        },
+        "window_types": {
+            "main": {
+                "singleton": true,
+                "required": true,
+                "hide_on_close": true
+            },
+            "secondary": {
+                "multiple": true,
+                "optional": true,
+                "independent_close": true
+            },
+            "modal": {
+                "blocks_interaction": true,
+                "center_on_parent": true,
+                "auto_focus": true
+            },
+            "floating": {
+                "always_on_top": true,
+                "minimal_chrome": true,
+                "moveable": true
+            }
+        }
+    },
+    "window_menu_integration": {
+        "window_menu": {
+            "list_open_windows": true,
+            "bring_all_to_front": true,
+            "minimize_all": true,
+            "cascade": true,
+            "tile_horizontal": true,
+            "tile_vertical": true
+        },
+        "shortcuts": [
+            { "accelerator": "CmdOrCtrl+N", "action": "new_window" },
+            { "accelerator": "CmdOrCtrl+W", "action": "close_window" },
+            { "accelerator": "CmdOrCtrl+Shift+W", "action": "close_all_windows" },
+            { "accelerator": "CmdOrCtrl+Tab", "action": "cycle_windows" },
+            { "accelerator": "CmdOrCtrl+`", "action": "next_window" }
+        ]
+    },
+    "customization_points": [
+        {
+            "name": "Window Manager",
+            "description": "Central window management system with state persistence",
+            "location": "src/window-manager.ts"
+        },
+        {
+            "name": "Inter-Window Communication",
+            "description": "Message passing and state synchronization between windows",
+            "location": "src/inter-window-communication.ts"
+        },
+        {
+            "name": "Window Templates",
+            "description": "HTML templates for different window types",
+            "location": "templates/"
+        },
+        {
+            "name": "Window State Management", 
+            "description": "Save and restore window positions and sizes",
+            "location": "src/window-state-manager.ts"
+        },
+        {
+            "name": "Advanced Menus",
+            "description": "Window-aware menu system with dynamic options",
+            "location": "main.ts:createMultiWindowMenu"
+        }
+    ],
+    "platform_specific": {
+        "windows": {
+            "features": ["taskbar_grouping", "jump_lists", "aero_snap"],
+            "window_chrome": "native",
+            "taskbar_integration": true
+        },
+        "macos": {
+            "features": ["spaces_integration", "mission_control", "expose"],
+            "window_chrome": "native", 
+            "dock_integration": true
+        },
+        "linux": {
+            "features": ["workspace_integration", "window_manager_hints"],
+            "window_chrome": "native",
+            "desktop_integration": true
+        }
+    },
+    "example_scenarios": [
+        "agent-dashboard",
+        "brand-manager",
+        "campaign-content-studio",
+        "core-debugger",
+        "app-debugger",
+        "mind-maps",
+        "prompt-manager"
+    ],
+    "complexity_level": "high",
+    "development_time": "extended",
+    "maintenance_requirements": [
+        "Window state persistence",
+        "Cross-window state synchronization", 
+        "Memory management for multiple windows",
+        "Platform-specific window behavior",
+        "Focus and activation management"
+    ]
+}

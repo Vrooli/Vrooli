@@ -1,0 +1,267 @@
+{
+  "name": "note-processor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notes/process",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300],
+      "id": "webhook-1"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 500],
+      "id": "manual-1"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "title",
+              "value": "={{ $json.title || 'Test Note' }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.content || 'This is a test note to demonstrate AI processing capabilities. It contains multiple paragraphs and ideas that can be analyzed and summarized.' }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id || 'default-user' }}"
+            }
+          ]
+        }
+      },
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 500],
+      "id": "set-defaults"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input from webhook or manual trigger with defaults\nconst input = $input.all()[0].json;\n\nreturn {\n  title: input.title || 'Test Note',\n  content: input.content || 'This is a test note to demonstrate AI processing capabilities.',\n  user_id: input.user_id || 'default-user',\n  note_id: input.note_id || `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "name": "Process Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 400],
+      "id": "process-input"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { prompt: 'Analyze this note and provide:\\n1. A concise summary (2-3 sentences)\\n2. Key points or concepts (bullet list)\\n3. Suggested tags (comma-separated)\\n4. Related topics for linking\\n\\nNote Title: ' + $json.title + '\\nNote Content: ' + $json.content + '\\n\\nProvide response in JSON format:\\n{\\n  \"summary\": \"...\",\\n  \"key_points\": [\"point1\", \"point2\"],\\n  \"suggested_tags\": [\"tag1\", \"tag2\"],\\n  \"related_topics\": [\"topic1\", \"topic2\"]\\n}', model: 'llama3.2:3b', type: 'reasoning', quiet: true, timeout_seconds: 120 } }}"
+      },
+      "name": "Analyze Note",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [860, 400],
+      "id": "analyze-note"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_EMBEDDING_GENERATOR_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { text: $json.title + ' ' + $json.content, model: 'nomic-embed-text', store_in_qdrant: false, metadata: { note_id: $json.note_id, user_id: $json.user_id } } }}"
+      },
+      "name": "Generate Embeddings",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1060, 400],
+      "id": "generate-embeddings"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "notes",
+        "columns": "title, content, user_id, summary, metadata",
+        "additionalFields": {},
+        "returnFields": "id, title, created_at"
+      },
+      "name": "Save to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1260, 300],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-save"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "collection": "notes",
+        "points": [
+          {
+            "id": "={{ $json.id }}",
+            "vector": "={{ $json.embedding }}",
+            "payload": {
+              "note_id": "={{ $('postgres-save').item.json.id }}",
+              "user_id": "={{ $('process-input').item.json.user_id }}",
+              "title": "={{ $('process-input').item.json.title }}",
+              "summary": "={{ $('analyze-note').item.json.response ? JSON.parse($('analyze-note').item.json.response).summary : '' }}",
+              "tags": "={{ $('analyze-note').item.json.response ? JSON.parse($('analyze-note').item.json.response).suggested_tags : [] }}",
+              "created_at": "={{ $('postgres-save').item.json.created_at }}"
+            }
+          }
+        ]
+      },
+      "name": "Store in Qdrant",
+      "type": "n8n-nodes-base.qdrant",
+      "typeVersion": 1,
+      "position": [1460, 400],
+      "credentials": {
+        "qdrantApi": {
+          "id": "vrooli-qdrant",
+          "name": "Vrooli Qdrant"
+        }
+      },
+      "id": "qdrant-store"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Note processed and stored successfully"
+            }
+          ],
+          "number": [
+            {
+              "name": "note_id",
+              "value": "={{ $('postgres-save').item.json.id }}"
+            }
+          ],
+          "boolean": [],
+          "object": [
+            {
+              "name": "analysis",
+              "value": "={{ $('analyze-note').item.json.response ? JSON.parse($('analyze-note').item.json.response) : {} }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ { created_at: $('postgres-save').item.json.created_at, embedding_dimensions: $('generate-embeddings').item.json.metadata ? $('generate-embeddings').item.json.metadata.expected_dimensions : 1024 } }}"
+            }
+          ]
+        }
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1660, 300],
+      "id": "format-response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Process Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Input": {
+      "main": [
+        [
+          {
+            "node": "Analyze Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Note": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Save to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}

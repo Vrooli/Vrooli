@@ -1,0 +1,763 @@
+#!/bin/bash
+# CLI_NAME_PLACEHOLDER - Command-line interface for SCENARIO_NAME_PLACEHOLDER
+# This is a thin wrapper around the API, following the agent-metareasoning-manager pattern
+
+set -euo pipefail
+
+# Configuration
+readonly CLI_NAME="network-tools"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+readonly DEFAULT_API_BASE="http://localhost:${API_PORT:-15000}"
+readonly DEFAULT_TOKEN=""
+
+# Colors for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Initialize configuration
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<EOF
+{
+    "api_base": "$DEFAULT_API_BASE",
+    "api_token": "$DEFAULT_TOKEN",
+    "output_format": "table",
+    "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+        echo -e "${GREEN}✓${NC} Configuration initialized at $CONFIG_FILE"
+    fi
+}
+
+# Load configuration
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
+        API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
+        OUTPUT_FORMAT=$(jq -r '.output_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
+    else
+        API_BASE="$DEFAULT_API_BASE"
+        API_TOKEN="$DEFAULT_TOKEN"
+        OUTPUT_FORMAT="table"
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    
+    local url="${API_BASE}${endpoint}"
+    local curl_opts=(-s -X "$method" -H "Authorization: Bearer $API_TOKEN")
+    
+    if [[ -n "$data" ]]; then
+        curl_opts+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null)
+    exit_code=$?
+    
+    if [[ $exit_code -ne 0 ]]; then
+        echo -e "${RED}✗${NC} Failed to connect to API at $url" >&2
+        return 1
+    fi
+    
+    echo "$response"
+}
+
+# Format output
+format_output() {
+    local data="$1"
+    local format="${2:-$OUTPUT_FORMAT}"
+    
+    case "$format" in
+        json)
+            echo "$data" | jq '.' 2>/dev/null || echo "$data"
+            ;;
+        table)
+            # Convert JSON to simple table format
+            echo "$data" | jq -r '
+                if type == "array" then
+                    .[] | [.id, .name, .status // .description // ""] | @tsv
+                elif type == "object" then
+                    to_entries | .[] | [.key, .value] | @tsv
+                else
+                    .
+                end
+            ' 2>/dev/null || echo "$data"
+            ;;
+        raw)
+            echo "$data"
+            ;;
+        *)
+            echo "$data"
+            ;;
+    esac
+}
+
+# Command: health
+cmd_health() {
+    echo -e "${BLUE}Checking system health...${NC}"
+    
+    response=$(api_request GET "/health")
+    if [[ $? -eq 0 ]]; then
+        status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+        
+        if [[ "$status" == "healthy" ]]; then
+            echo -e "${GREEN}✓${NC} System is healthy"
+        else
+            echo -e "${YELLOW}⚠${NC} System status: $status"
+        fi
+        
+        echo "$response" | jq -r '
+            "  API: \(.service // "Unknown")",
+            "  Version: \(.version // "Unknown")",
+            "  Database: \(.database // "Unknown")"
+        ' 2>/dev/null
+    else
+        echo -e "${RED}✗${NC} API is not responding"
+        return 1
+    fi
+}
+
+# Command: list resources
+cmd_list() {
+    local resource="${1:-targets}"
+    
+    echo -e "${BLUE}Listing network ${resource}...${NC}"
+    
+    response=$(api_request GET "/api/v1/network/${resource}")
+    if [[ $? -eq 0 ]]; then
+        count=$(echo "$response" | jq '.data | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✓${NC} Found $count ${resource}"
+        echo
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Failed to list ${resource}"
+        return 1
+    fi
+}
+
+# Command: HTTP request
+cmd_http() {
+    local url="$1"
+    local method="${2:-GET}"
+    local data="${3:-}"
+    local headers="${4:-}"
+    
+    if [[ -z "$url" ]]; then
+        echo -e "${RED}✗${NC} URL is required"
+        echo "Usage: $CLI_NAME http <url> [method] [data] [headers]"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Performing HTTP ${method} request to ${url}...${NC}"
+    
+    local payload=$(jq -n \
+        --arg url "$url" \
+        --arg method "$method" \
+        --arg data "$data" \
+        --arg headers "$headers" \
+        '{
+            url: $url,
+            method: $method,
+            body: (if $data != "" then $data else null end),
+            headers: (if $headers != "" then ($headers | split(",") | map(split(":") | {(.[0]): .[1]}) | add) else {} end)
+        }')
+    
+    response=$(api_request POST "/api/v1/network/http" "$payload")
+    if [[ $? -eq 0 ]]; then
+        status_code=$(echo "$response" | jq -r '.data.status_code' 2>/dev/null)
+        response_time=$(echo "$response" | jq -r '.data.response_time_ms' 2>/dev/null)
+        echo -e "${GREEN}✓${NC} Request completed"
+        echo "  Status: $status_code"
+        echo "  Response time: ${response_time}ms"
+        echo
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} HTTP request failed"
+        return 1
+    fi
+}
+
+# Command: DNS lookup
+cmd_dns() {
+    local query="$1"
+    local record_type="${2:-A}"
+    local dns_server="${3:-}"
+    
+    if [[ -z "$query" ]]; then
+        echo -e "${RED}✗${NC} Query domain is required"
+        echo "Usage: $CLI_NAME dns <domain> [record_type] [dns_server]"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Looking up ${record_type} records for ${query}...${NC}"
+    
+    local payload=$(jq -n \
+        --arg query "$query" \
+        --arg type "$record_type" \
+        --arg server "$dns_server" \
+        '{
+            query: $query,
+            record_type: $type,
+            dns_server: $server
+        }')
+    
+    response=$(api_request POST "/api/v1/network/dns" "$payload")
+    if [[ $? -eq 0 ]]; then
+        answers=$(echo "$response" | jq -r '.data.answers' 2>/dev/null)
+        echo -e "${GREEN}✓${NC} DNS lookup completed"
+        echo "$response" | jq -r '.data.answers[] | "  \(.type): \(.data)"' 2>/dev/null
+    else
+        echo -e "${RED}✗${NC} DNS lookup failed"
+        return 1
+    fi
+}
+
+# Command: Port scan
+cmd_scan() {
+    local target="$1"
+    local ports="${2:-common}"
+    local scan_type="${3:-port}"
+    
+    if [[ -z "$target" ]]; then
+        echo -e "${RED}✗${NC} Target is required"
+        echo "Usage: $CLI_NAME scan <target> [ports] [scan_type]"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Scanning ${target}...${NC}"
+    
+    # Convert port string to array
+    local port_array
+    if [[ "$ports" == "common" ]]; then
+        port_array="[21,22,23,25,80,443,3306,5432,8080,8443]"
+    else
+        port_array="[$(echo "$ports" | sed 's/,/,/g')]"
+    fi
+    
+    local payload=$(jq -n \
+        --arg target "$target" \
+        --arg scan_type "$scan_type" \
+        --argjson ports "$port_array" \
+        '{
+            target: $target,
+            scan_type: $scan_type,
+            ports: $ports
+        }')
+    
+    response=$(api_request POST "/api/v1/network/scan" "$payload")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Scan completed"
+        echo "$response" | jq -r '.data.results[] | "  Port \(.port)/\(.protocol): \(.state)"' 2>/dev/null
+    else
+        echo -e "${RED}✗${NC} Scan failed"
+        return 1
+    fi
+}
+
+# Command: Ping
+cmd_ping() {
+    local target="$1"
+    local count="${2:-4}"
+    
+    if [[ -z "$target" ]]; then
+        echo -e "${RED}✗${NC} Target is required"
+        echo "Usage: $CLI_NAME ping <target> [count]"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Pinging ${target}...${NC}"
+    
+    local payload=$(jq -n \
+        --arg target "$target" \
+        --arg count "$count" \
+        '{
+            target: $target,
+            test_type: "ping",
+            options: {
+                count: ($count | tonumber)
+            }
+        }')
+    
+    response=$(api_request POST "/api/v1/network/test/connectivity" "$payload")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Ping completed"
+        echo "$response" | jq -r '.data.statistics | "  Packets: \(.packets_sent) sent, \(.packets_received) received (\(.packet_loss_percent)% loss)\n  RTT: min=\(.min_rtt_ms)ms avg=\(.avg_rtt_ms)ms max=\(.max_rtt_ms)ms"' 2>/dev/null
+    else
+        echo -e "${RED}✗${NC} Ping failed"
+        return 1
+    fi
+}
+
+# Command: Traceroute
+cmd_trace() {
+    local target="$1"
+    local max_hops="${2:-30}"
+    
+    if [[ -z "$target" ]]; then
+        echo -e "${RED}✗${NC} Target is required"
+        echo "Usage: $CLI_NAME trace <target> [max_hops]"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Tracing route to ${target}...${NC}"
+    
+    local payload=$(jq -n \
+        --arg target "$target" \
+        --arg max_hops "$max_hops" \
+        '{
+            target: $target,
+            test_type: "traceroute",
+            options: {
+                max_hops: ($max_hops | tonumber)
+            }
+        }')
+    
+    response=$(api_request POST "/api/v1/network/test/connectivity" "$payload")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Traceroute completed"
+        hops=$(echo "$response" | jq -r '.data.route_hops[]' 2>/dev/null)
+        if [[ -n "$hops" ]]; then
+            echo "Route hops:"
+            echo "$hops" | nl -w 2 -s ". "
+        else
+            echo "Route information not available"
+        fi
+    else
+        echo -e "${RED}✗${NC} Traceroute failed"
+        return 1
+    fi
+}
+
+# Command: SSL validation
+cmd_ssl() {
+    local url="$1"
+    
+    if [[ -z "$url" ]]; then
+        echo -e "${RED}✗${NC} URL is required"
+        echo "Usage: $CLI_NAME ssl <url>"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Validating SSL certificate for ${url}...${NC}"
+    
+    local payload=$(jq -n \
+        --arg url "$url" \
+        '{
+            url: $url,
+            options: {
+                check_expiry: true,
+                check_chain: true,
+                check_hostname: true
+            }
+        }')
+    
+    response=$(api_request POST "/api/v1/network/ssl/validate" "$payload")
+    if [[ $? -eq 0 ]]; then
+        valid=$(echo "$response" | jq -r '.data.valid' 2>/dev/null)
+        if [[ "$valid" == "true" ]]; then
+            echo -e "${GREEN}✓${NC} SSL certificate is valid"
+        else
+            echo -e "${YELLOW}⚠${NC} SSL certificate has issues"
+        fi
+        
+        echo "$response" | jq -r '.data | 
+            "  Subject: \(.certificate.subject)\n  Issuer: \(.certificate.issuer)\n  Valid from: \(.certificate.not_before)\n  Valid until: \(.certificate.not_after)\n  Days remaining: \(.days_remaining // "N/A")\n  TLS Version: \(.tls_version)\n  Cipher Suite: \(.cipher_suite)"' 2>/dev/null
+        
+        # Show issues if any
+        issues=$(echo "$response" | jq -r '.data.issues[]' 2>/dev/null)
+        if [[ -n "$issues" ]]; then
+            echo -e "\n${RED}Issues:${NC}"
+            echo "$issues" | while read -r issue; do
+                echo "  - $issue"
+            done
+        fi
+        
+        # Show warnings if any
+        warnings=$(echo "$response" | jq -r '.data.warnings[]' 2>/dev/null)
+        if [[ -n "$warnings" ]]; then
+            echo -e "\n${YELLOW}Warnings:${NC}"
+            echo "$warnings" | while read -r warning; do
+                echo "  - $warning"
+            done
+        fi
+    else
+        echo -e "${RED}✗${NC} SSL validation failed"
+        return 1
+    fi
+}
+
+# Command: API test
+cmd_api_test() {
+    local base_url="$1"
+    local test_file="${2:-}"
+    
+    if [[ -z "$base_url" ]]; then
+        echo -e "${RED}✗${NC} Base URL is required"
+        echo "Usage: $CLI_NAME api-test <base_url> [test_file]"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Testing API at ${base_url}...${NC}"
+    
+    # If test file provided, use it; otherwise create simple test
+    local payload
+    if [[ -n "$test_file" ]] && [[ -f "$test_file" ]]; then
+        payload=$(cat "$test_file")
+    else
+        payload=$(jq -n \
+            --arg base_url "$base_url" \
+            '{
+                base_url: $base_url,
+                test_suite: [{
+                    endpoint: "/health",
+                    method: "GET",
+                    test_cases: [{
+                        name: "Health check",
+                        expected_status: 200
+                    }]
+                }]
+            }')
+    fi
+    
+    response=$(api_request POST "/api/v1/network/api/test" "$payload")
+    if [[ $? -eq 0 ]]; then
+        success_rate=$(echo "$response" | jq -r '.data.overall_success_rate' 2>/dev/null)
+        echo -e "${GREEN}✓${NC} API tests completed"
+        echo "  Overall success rate: ${success_rate}%"
+        echo
+        echo "$response" | jq -r '.data.test_results[] | "  \(.endpoint): \(.passed_tests)/\(.total_tests) passed"' 2>/dev/null
+    else
+        echo -e "${RED}✗${NC} API test failed"
+        return 1
+    fi
+}
+
+# Command: get resource
+cmd_get() {
+    local resource="${1:-resources}"
+    local id="$2"
+    
+    if [[ -z "$id" ]]; then
+        echo -e "${RED}✗${NC} ID is required" >&2
+        return 1
+    fi
+    
+    echo -e "${BLUE}Getting ${resource} ${id}...${NC}"
+    
+    response=$(api_request GET "/api/v1/${resource}/${id}")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Retrieved ${resource}"
+        echo
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Failed to get ${resource}"
+        return 1
+    fi
+}
+
+# Command: create resource
+cmd_create() {
+    local resource="${1:-resources}"
+    shift
+    
+    # Build JSON from remaining arguments
+    local json_data="{}"
+    while [[ $# -gt 0 ]]; do
+        key="$1"
+        value="${2:-}"
+        json_data=$(echo "$json_data" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
+        shift 2 || break
+    done
+    
+    echo -e "${BLUE}Creating ${resource}...${NC}"
+    
+    response=$(api_request POST "/api/v1/${resource}" "$json_data")
+    if [[ $? -eq 0 ]]; then
+        id=$(echo "$response" | jq -r '.data.id // .id // ""' 2>/dev/null)
+        echo -e "${GREEN}✓${NC} Created ${resource} ${id}"
+        echo
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Failed to create ${resource}"
+        return 1
+    fi
+}
+
+# Command: update resource
+cmd_update() {
+    local resource="${1:-resources}"
+    local id="$2"
+    shift 2
+    
+    if [[ -z "$id" ]]; then
+        echo -e "${RED}✗${NC} ID is required" >&2
+        return 1
+    fi
+    
+    # Build JSON from remaining arguments
+    local json_data="{}"
+    while [[ $# -gt 0 ]]; do
+        key="$1"
+        value="${2:-}"
+        json_data=$(echo "$json_data" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
+        shift 2 || break
+    done
+    
+    echo -e "${BLUE}Updating ${resource} ${id}...${NC}"
+    
+    response=$(api_request PUT "/api/v1/${resource}/${id}" "$json_data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Updated ${resource} ${id}"
+        echo
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Failed to update ${resource}"
+        return 1
+    fi
+}
+
+# Command: delete resource
+cmd_delete() {
+    local resource="${1:-resources}"
+    local id="$2"
+    
+    if [[ -z "$id" ]]; then
+        echo -e "${RED}✗${NC} ID is required" >&2
+        return 1
+    fi
+    
+    echo -e "${BLUE}Deleting ${resource} ${id}...${NC}"
+    
+    response=$(api_request DELETE "/api/v1/${resource}/${id}")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Deleted ${resource} ${id}"
+    else
+        echo -e "${RED}✗${NC} Failed to delete ${resource}"
+        return 1
+    fi
+}
+
+# Command: execute workflow
+cmd_execute() {
+    local workflow_id="${1:-}"
+    shift
+    
+    if [[ -z "$workflow_id" ]]; then
+        echo -e "${RED}✗${NC} Workflow ID is required" >&2
+        return 1
+    fi
+    
+    # Build input data from remaining arguments
+    local input_data="{\"workflow_id\": \"$workflow_id\""
+    if [[ $# -gt 0 ]]; then
+        local user_input="$*"
+        input_data="${input_data}, \"input\": \"$user_input\""
+    fi
+    input_data="${input_data}}"
+    
+    echo -e "${BLUE}Executing workflow ${workflow_id}...${NC}"
+    
+    response=$(api_request POST "/api/v1/execute" "$input_data")
+    if [[ $? -eq 0 ]]; then
+        execution_id=$(echo "$response" | jq -r '.data.execution_id // .execution_id // ""' 2>/dev/null)
+        echo -e "${GREEN}✓${NC} Started execution ${execution_id}"
+        echo
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Failed to execute workflow"
+        return 1
+    fi
+}
+
+# Command: configure
+cmd_configure() {
+    local key="${1:-}"
+    local value="${2:-}"
+    
+    if [[ -z "$key" ]]; then
+        echo "Current configuration:"
+        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
+        return 0
+    fi
+    
+    case "$key" in
+        api|api_base)
+            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} API base set to: $value"
+            ;;
+        token|api_token)
+            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} API token updated"
+            ;;
+        format|output_format)
+            jq --arg v "$value" '.output_format = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} Output format set to: $value"
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown configuration key: $key"
+            echo "Valid keys: api_base, api_token, output_format"
+            return 1
+            ;;
+    esac
+}
+
+# Command: version
+cmd_version() {
+    echo "$CLI_NAME version $CLI_VERSION"
+    echo "API endpoint: $API_BASE"
+}
+
+# Command: help
+cmd_help() {
+    cat <<EOF
+$CLI_NAME - Network diagnostics and testing tools
+
+Usage: $CLI_NAME <command> [options]
+
+Core Commands:
+    health              Check system health
+    http <url> [method] [data] [headers]  Perform HTTP request
+    dns <domain> [type] [server]           DNS lookup
+    scan <target> [ports] [type]           Port/service scanning
+    ping <target> [count]                   Test connectivity
+    trace <target> [max_hops]               Trace network route
+    ssl <url>                               Validate SSL certificate
+    api-test <base_url> [test_file]        Test API endpoints
+    
+Management Commands:
+    list [targets|alerts]                   List network targets or alerts
+    create target <args>                    Create network target
+    configure [key] [value]                 View or update configuration
+    version                                 Show version information
+    help                                    Show this help message
+
+Configuration:
+    The CLI stores its configuration in: $CONFIG_FILE
+    
+    Configure API endpoint:
+        $CLI_NAME configure api_base http://localhost:15000
+    
+    Configure output format (json|table|raw):
+        $CLI_NAME configure output_format json
+
+Examples:
+    # Perform HTTP GET request
+    $CLI_NAME http https://api.example.com/health
+    
+    # Perform HTTP POST with data
+    $CLI_NAME http https://api.example.com/users POST '{"name":"John"}'
+    
+    # DNS lookup
+    $CLI_NAME dns google.com A
+    $CLI_NAME dns example.com MX 8.8.8.8
+    
+    # Port scan
+    $CLI_NAME scan 192.168.1.1 "22,80,443"
+    $CLI_NAME scan example.com common
+    
+    # Test connectivity
+    $CLI_NAME ping google.com 10
+    
+    # SSL certificate validation
+    $CLI_NAME ssl https://example.com
+    
+    # API testing
+    $CLI_NAME api-test https://api.example.com tests.json
+
+Environment Variables:
+    API_PORT              Override default API port (default: 15000)
+    NETWORK_TOOLS_FORMAT  Override output format
+
+For more information, visit: https://github.com/Vrooli/Vrooli
+EOF
+}
+
+# Main entry point
+main() {
+    # Initialize configuration on first run
+    init_config
+    
+    # Load configuration
+    load_config
+    
+    # Override with environment variables if set
+    API_BASE="${NETWORK_TOOLS_API_BASE:-$API_BASE}"
+    API_TOKEN="${NETWORK_TOOLS_API_TOKEN:-$API_TOKEN}"
+    OUTPUT_FORMAT="${NETWORK_TOOLS_FORMAT:-$OUTPUT_FORMAT}"
+    
+    # Parse command
+    local command="${1:-help}"
+    shift || true
+    
+    case "$command" in
+        health|status)
+            cmd_health "$@"
+            ;;
+        http)
+            cmd_http "$@"
+            ;;
+        dns)
+            cmd_dns "$@"
+            ;;
+        scan)
+            cmd_scan "$@"
+            ;;
+        ping)
+            cmd_ping "$@"
+            ;;
+        trace|traceroute)
+            cmd_trace "$@"
+            ;;
+        ssl)
+            cmd_ssl "$@"
+            ;;
+        api-test|apitest)
+            cmd_api_test "$@"
+            ;;
+        list|ls)
+            cmd_list "$@"
+            ;;
+        get)
+            cmd_get "$@"
+            ;;
+        create|add)
+            cmd_create "$@"
+            ;;
+        update|edit)
+            cmd_update "$@"
+            ;;
+        delete|rm|remove)
+            cmd_delete "$@"
+            ;;
+        configure|config)
+            cmd_configure "$@"
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown command: $command"
+            echo "Run '$CLI_NAME help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

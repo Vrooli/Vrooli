@@ -1,0 +1,121 @@
+{
+  "name": "URL Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "video-downloader/analyze-url",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',\n  extract_formats: true\n};"
+      },
+      "id": "test_defaults",
+      "name": "Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nconst url = input.url;\n\nif (!url) {\n  throw new Error('URL is required');\n}\n\n// Validate URL format\nconst urlPattern = /^(https?:\\/\\/)?([\\da-z\\.-]+)\\.([a-z\\.]{2,6})([\\/\\w \\.-]*)*\\/?$/;\nif (!urlPattern.test(url)) {\n  throw new Error('Invalid URL format');\n}\n\n// Extract platform from URL\nlet platform = 'unknown';\nif (url.includes('youtube.com') || url.includes('youtu.be')) {\n  platform = 'youtube';\n} else if (url.includes('vimeo.com')) {\n  platform = 'vimeo';\n} else if (url.includes('dailymotion.com')) {\n  platform = 'dailymotion';\n} else if (url.includes('twitter.com') || url.includes('x.com')) {\n  platform = 'twitter';\n}\n\nreturn {\n  url: url,\n  platform: platform,\n  extract_formats: input.extract_formats || false\n};"
+      },
+      "id": "validate_url",
+      "name": "Validate URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "command": "#!/bin/bash\n\nurl=\"{{ $json.url }}\"\nextract_formats=\"{{ $json.extract_formats }}\"\n\n# Use yt-dlp to get video info\nif [ \"$extract_formats\" = \"true\" ]; then\n  yt-dlp -J \"$url\" 2>/dev/null || echo '{\"error\": \"Failed to extract video info\"}'\nelse\n  yt-dlp --get-title --get-duration --get-description \"$url\" 2>/dev/null | head -3 | awk 'NR==1{title=$0} NR==2{duration=$0} NR==3{description=$0} END{print \"{\\\"title\\\":\\\"\" title \"\\\",\\\"duration\\\":\\\"\" duration \"\\\",\\\"description\\\":\\\"\" description \"\\\"}\"}'\nfi"
+      },
+      "id": "extract_info",
+      "name": "Extract Video Info",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const videoInfo = $input.item.json;\nconst url = $node[\"validate_url\"].json.url;\nconst platform = $node[\"validate_url\"].json.platform;\n\n// Parse the yt-dlp output\nlet result = {\n  url: url,\n  platform: platform,\n  available: false,\n  error: null\n};\n\ntry {\n  if (videoInfo.error) {\n    result.error = videoInfo.error;\n  } else if (videoInfo.stdout) {\n    const data = JSON.parse(videoInfo.stdout);\n    \n    result.available = true;\n    result.title = data.title || data.fulltitle || 'Unknown';\n    result.duration = data.duration || 0;\n    result.description = data.description || '';\n    result.thumbnail = data.thumbnail || '';\n    result.uploader = data.uploader || '';\n    \n    // Extract available formats if requested\n    if (data.formats) {\n      result.formats = data.formats.map(f => ({\n        format_id: f.format_id,\n        ext: f.ext,\n        quality: f.quality,\n        filesize: f.filesize,\n        resolution: f.resolution || `${f.width}x${f.height}`,\n        fps: f.fps,\n        vcodec: f.vcodec,\n        acodec: f.acodec\n      })).filter(f => f.vcodec !== 'none');\n      \n      // Get best formats\n      result.best_video = result.formats.find(f => f.quality === 'best') || result.formats[0];\n      result.best_audio = data.formats.find(f => f.acodec !== 'none' && f.vcodec === 'none');\n    }\n  }\n} catch (e) {\n  result.error = 'Failed to parse video information: ' + e.message;\n}\n\nreturn result;"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{ "node": "merge", "type": "main", "index": 0 }]]
+    },
+    "manual_trigger": {
+      "main": [[{ "node": "test_defaults", "type": "main", "index": 0 }]]
+    },
+    "test_defaults": {
+      "main": [[{ "node": "merge", "type": "main", "index": 1 }]]
+    },
+    "merge": {
+      "main": [[{ "node": "validate_url", "type": "main", "index": 0 }]]
+    },
+    "validate_url": {
+      "main": [[{ "node": "extract_info", "type": "main", "index": 0 }]]
+    },
+    "extract_info": {
+      "main": [[{ "node": "format_response", "type": "main", "index": 0 }]]
+    },
+    "format_response": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "01234567-89ab-cdef-0123-456789abcdef",
+  "id": "video-downloader-url-analyzer",
+  "meta": {
+    "instanceId": "${service.n8n.instanceId}"
+  },
+  "tags": []
+}

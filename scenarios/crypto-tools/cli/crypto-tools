@@ -1,0 +1,743 @@
+#!/bin/bash
+# crypto-tools - Command-line interface for cryptographic operations
+# This is a thin wrapper around the API, following the Vrooli patterns
+
+set -euo pipefail
+
+# Configuration
+readonly CLI_NAME="crypto-tools"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.vrooli/crypto-tools"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+readonly DEFAULT_API_BASE="http://localhost:15001"
+# NOTE: This is a simple bearer token for local dev/test environments only.
+# Production deployments should use environment variables or secure credential storage.
+# See PROBLEMS.md for authentication upgrade recommendations.
+readonly DEFAULT_TOKEN="crypto-tools-api-key-2024"
+
+# Colors for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Initialize configuration
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<EOF
+{
+    "api_base": "$DEFAULT_API_BASE",
+    "api_token": "$DEFAULT_TOKEN",
+    "output_format": "table",
+    "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+        echo -e "${GREEN}✓${NC} Configuration initialized at $CONFIG_FILE"
+    fi
+}
+
+# Load configuration
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
+        API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
+        OUTPUT_FORMAT=$(jq -r '.output_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
+    else
+        API_BASE="$DEFAULT_API_BASE"
+        API_TOKEN="$DEFAULT_TOKEN"
+        OUTPUT_FORMAT="table"
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    
+    local url="${API_BASE}${endpoint}"
+    local curl_opts=(-s -X "$method" -H "Authorization: Bearer $API_TOKEN")
+    
+    if [[ -n "$data" ]]; then
+        curl_opts+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null)
+    exit_code=$?
+    
+    if [[ $exit_code -ne 0 ]]; then
+        echo -e "${RED}✗${NC} Failed to connect to API at $url" >&2
+        return 1
+    fi
+    
+    echo "$response"
+}
+
+# Format output
+format_output() {
+    local data="$1"
+    local format="${2:-$OUTPUT_FORMAT}"
+    
+    case "$format" in
+        json)
+            echo "$data" | jq '.' 2>/dev/null || echo "$data"
+            ;;
+        table)
+            # Convert JSON to simple table format
+            echo "$data" | jq -r '
+                if type == "array" then
+                    .[] | [.id, .name, .status // .description // ""] | @tsv
+                elif type == "object" then
+                    to_entries | .[] | [.key, .value] | @tsv
+                else
+                    .
+                end
+            ' 2>/dev/null || echo "$data"
+            ;;
+        raw)
+            echo "$data"
+            ;;
+        *)
+            echo "$data"
+            ;;
+    esac
+}
+
+# Show help
+show_help() {
+    cat <<EOF
+${BLUE}${CLI_NAME}${NC} v${CLI_VERSION} - Cryptographic operations toolkit
+
+${YELLOW}Usage:${NC}
+  ${CLI_NAME} <command> [options]
+
+${YELLOW}Core Commands:${NC}
+  ${GREEN}hash${NC}           Generate cryptographic hashes
+  ${GREEN}encrypt${NC}        Encrypt data with various algorithms
+  ${GREEN}decrypt${NC}        Decrypt previously encrypted data
+  ${GREEN}sign${NC}           Create digital signatures
+  ${GREEN}verify${NC}         Verify digital signatures
+  ${GREEN}keygen${NC}         Generate cryptographic keys
+  ${GREEN}keys${NC}           List available keys
+  
+${YELLOW}Management Commands:${NC}
+  ${GREEN}status${NC}         Show operational status and resource health
+  ${GREEN}help${NC}           Show this help message
+  ${GREEN}version${NC}        Show version information
+
+${YELLOW}Global Options:${NC}
+  --api-base <url>    API base URL (default: $DEFAULT_API_BASE)
+  --token <token>     API authentication token
+  --format <format>   Output format: json, table, raw (default: table)
+  --verbose          Enable verbose output
+  --help             Show help for specific command
+
+${YELLOW}Examples:${NC}
+  ${CLI_NAME} hash "Hello World" --algorithm sha256
+  ${CLI_NAME} encrypt data.txt --algorithm aes256 --output encrypted.bin
+  ${CLI_NAME} keygen rsa --size 4096 --name mykey
+  ${CLI_NAME} sign document.pdf key123 --algorithm rsa_pss
+EOF
+}
+
+# Command: status
+cmd_status() {
+    echo -e "${BLUE}📊 Checking ${CLI_NAME} status...${NC}"
+    
+    response=$(api_request GET "/health")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} API is healthy"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} API is not responding"
+        return 1
+    fi
+}
+
+# Command: hash
+cmd_hash() {
+    local input=""
+    local algorithm="sha256"
+    local salt=""
+    local iterations=""
+    local output_format="hex"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --algorithm)
+                algorithm="$2"
+                shift 2
+                ;;
+            --salt)
+                salt="$2"
+                shift 2
+                ;;
+            --iterations)
+                iterations="$2"
+                shift 2
+                ;;
+            --output)
+                output_format="$2"
+                shift 2
+                ;;
+            --help)
+                echo "Usage: $CLI_NAME hash <input> [options]"
+                echo "Options:"
+                echo "  --algorithm <algo>   Hash algorithm (sha256, sha512, bcrypt, scrypt)"
+                echo "  --salt <salt>        Salt for hash function"
+                echo "  --iterations <n>     Number of iterations for key derivation"
+                echo "  --output <format>    Output format (hex, base64)"
+                return 0
+                ;;
+            *)
+                input="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input" ]]; then
+        echo -e "${RED}Error: Input data required${NC}" >&2
+        return 1
+    fi
+    
+    # Check if input is a file
+    if [[ -f "$input" ]]; then
+        input=$(cat "$input")
+    fi
+    
+    local data=$(jq -n \
+        --arg data "$input" \
+        --arg algorithm "$algorithm" \
+        --arg salt "$salt" \
+        --arg iterations "$iterations" \
+        --arg format "$output_format" \
+        '{
+            data: $data,
+            algorithm: $algorithm,
+            salt: (if $salt != "" then $salt else null end),
+            iterations: (if $iterations != "" then ($iterations | tonumber) else null end),
+            output_format: $format
+        }')
+    
+    response=$(api_request POST "/api/v1/crypto/hash" "$data")
+    if [[ $? -eq 0 ]]; then
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Hash operation failed" >&2
+        return 1
+    fi
+}
+
+# Command: encrypt
+cmd_encrypt() {
+    local input=""
+    local algorithm="aes256"
+    local key=""
+    local key_id=""
+    local output_file=""
+    local armor="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --algorithm)
+                algorithm="$2"
+                shift 2
+                ;;
+            --key)
+                key="$2"
+                shift 2
+                ;;
+            --key-id)
+                key_id="$2"
+                shift 2
+                ;;
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            --armor)
+                armor="true"
+                shift
+                ;;
+            --help)
+                echo "Usage: $CLI_NAME encrypt <input> [options]"
+                echo "Options:"
+                echo "  --algorithm <algo>   Encryption algorithm (aes256, chacha20, rsa)"
+                echo "  --key <key>          Encryption key"
+                echo "  --key-id <id>        Use existing key by ID"
+                echo "  --output <file>      Output file path"
+                echo "  --armor              ASCII armor the output"
+                return 0
+                ;;
+            *)
+                input="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input" ]]; then
+        echo -e "${RED}Error: Input data required${NC}" >&2
+        return 1
+    fi
+    
+    # Check if input is a file
+    if [[ -f "$input" ]]; then
+        input=$(cat "$input" | base64 -w 0)
+    fi
+    
+    local data=$(jq -n \
+        --arg data "$input" \
+        --arg algorithm "$algorithm" \
+        --arg key "$key" \
+        --arg key_id "$key_id" \
+        --arg format "$(if [[ "$armor" == "true" ]]; then echo "base64"; else echo "hex"; fi)" \
+        '{
+            data: $data,
+            algorithm: $algorithm,
+            key: (if $key != "" then $key else null end),
+            key_id: (if $key_id != "" then $key_id else null end),
+            output_format: $format
+        }')
+    
+    response=$(api_request POST "/api/v1/crypto/encrypt" "$data")
+    if [[ $? -eq 0 ]]; then
+        if [[ -n "$output_file" ]]; then
+            echo "$response" | jq -r '.encrypted_data' > "$output_file"
+            echo -e "${GREEN}✓${NC} Encrypted data saved to $output_file"
+        else
+            format_output "$response"
+        fi
+    else
+        echo -e "${RED}✗${NC} Encryption failed" >&2
+        return 1
+    fi
+}
+
+# Command: decrypt
+cmd_decrypt() {
+    local input=""
+    local key=""
+    local key_id=""
+    local output_file=""
+    local verify="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --key)
+                key="$2"
+                shift 2
+                ;;
+            --key-id)
+                key_id="$2"
+                shift 2
+                ;;
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            --verify)
+                verify="true"
+                shift
+                ;;
+            --help)
+                echo "Usage: $CLI_NAME decrypt <input> [options]"
+                echo "Options:"
+                echo "  --key <key>          Decryption key"
+                echo "  --key-id <id>        Use existing key by ID"
+                echo "  --output <file>      Output file path"
+                echo "  --verify             Verify integrity and authenticity"
+                return 0
+                ;;
+            *)
+                input="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input" ]]; then
+        echo -e "${RED}Error: Encrypted data required${NC}" >&2
+        return 1
+    fi
+    
+    # Check if input is a file
+    if [[ -f "$input" ]]; then
+        input=$(cat "$input")
+    fi
+    
+    # Extract algorithm and IV from the encrypted data if available
+    local data=$(jq -n \
+        --arg encrypted_data "$input" \
+        --arg key "$key" \
+        --arg key_id "$key_id" \
+        '{
+            encrypted_data: $encrypted_data,
+            algorithm: "aes256",
+            key: (if $key != "" then $key else null end),
+            key_id: (if $key_id != "" then $key_id else null end)
+        }')
+    
+    response=$(api_request POST "/api/v1/crypto/decrypt" "$data")
+    if [[ $? -eq 0 ]]; then
+        if [[ -n "$output_file" ]]; then
+            echo "$response" | jq -r '.decrypted_data' > "$output_file"
+            echo -e "${GREEN}✓${NC} Decrypted data saved to $output_file"
+        else
+            format_output "$response"
+        fi
+    else
+        echo -e "${RED}✗${NC} Decryption failed" >&2
+        return 1
+    fi
+}
+
+# Command: keygen
+cmd_keygen() {
+    local key_type="rsa"
+    local key_size=""
+    local name=""
+    local expiry=""
+    local usage="encryption,signing"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --size)
+                key_size="$2"
+                shift 2
+                ;;
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --expiry)
+                expiry="$2"
+                shift 2
+                ;;
+            --usage)
+                usage="$2"
+                shift 2
+                ;;
+            --help)
+                echo "Usage: $CLI_NAME keygen <key_type> [options]"
+                echo "Key Types: rsa, ec, ed25519, symmetric"
+                echo "Options:"
+                echo "  --size <bits>        Key size in bits"
+                echo "  --name <name>        Key name for identification"
+                echo "  --expiry <days>      Key expiry in days"
+                echo "  --usage <usage>      Key usage (encryption,signing,key_agreement)"
+                return 0
+                ;;
+            *)
+                key_type="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # Set default key size if not specified
+    if [[ -z "$key_size" ]]; then
+        case $key_type in
+            rsa)
+                key_size="2048"
+                ;;
+            symmetric)
+                key_size="256"
+                ;;
+        esac
+    fi
+    
+    local data=$(jq -n \
+        --arg key_type "$key_type" \
+        --arg key_size "$key_size" \
+        --arg name "$name" \
+        --arg expiry "$expiry" \
+        --arg usage "$usage" \
+        '{
+            key_type: $key_type,
+            key_size: (if $key_size != "" then ($key_size | tonumber) else null end),
+            name: (if $name != "" then $name else null end),
+            expiry_days: (if $expiry != "" then ($expiry | tonumber) else null end),
+            usage: ($usage | split(","))
+        }')
+    
+    response=$(api_request POST "/api/v1/crypto/keys/generate" "$data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Key generated successfully"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Key generation failed" >&2
+        return 1
+    fi
+}
+
+# Command: keys
+cmd_keys() {
+    echo -e "${BLUE}🔑 Listing cryptographic keys...${NC}"
+    
+    response=$(api_request GET "/api/v1/crypto/keys")
+    if [[ $? -eq 0 ]]; then
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Failed to list keys" >&2
+        return 1
+    fi
+}
+
+# Command: sign
+cmd_sign() {
+    local input=""
+    local key_id=""
+    local algorithm="rsa_pss"
+    local detached="false"
+    local timestamp="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --algorithm)
+                algorithm="$2"
+                shift 2
+                ;;
+            --detached)
+                detached="true"
+                shift
+                ;;
+            --timestamp)
+                timestamp="true"
+                shift
+                ;;
+            --help)
+                echo "Usage: $CLI_NAME sign <input> <key_id> [options]"
+                echo "Options:"
+                echo "  --algorithm <algo>   Signature algorithm (rsa_pss, ecdsa, ed25519)"
+                echo "  --detached           Create detached signature"
+                echo "  --timestamp          Include timestamp in signature"
+                return 0
+                ;;
+            *)
+                if [[ -z "$input" ]]; then
+                    input="$1"
+                elif [[ -z "$key_id" ]]; then
+                    key_id="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input" || -z "$key_id" ]]; then
+        echo -e "${RED}Error: Input data and key ID required${NC}" >&2
+        return 1
+    fi
+    
+    # Check if input is a file
+    if [[ -f "$input" ]]; then
+        input=$(cat "$input" | base64 -w 0)
+    fi
+    
+    local data=$(jq -n \
+        --arg data "$input" \
+        --arg key_id "$key_id" \
+        --arg algorithm "$algorithm" \
+        --argjson detached "$detached" \
+        --argjson timestamp "$timestamp" \
+        '{
+            data: $data,
+            key_id: $key_id,
+            algorithm: $algorithm,
+            options: {
+                detached_signature: $detached,
+                include_timestamp: $timestamp
+            }
+        }')
+    
+    response=$(api_request POST "/api/v1/crypto/sign" "$data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Signature created"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Signing failed" >&2
+        return 1
+    fi
+}
+
+# Command: verify
+cmd_verify() {
+    local input=""
+    local signature=""
+    local public_key=""
+    local certificate=""
+    local check_chain="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --public-key)
+                public_key="$2"
+                shift 2
+                ;;
+            --certificate)
+                certificate="$2"
+                shift 2
+                ;;
+            --check-chain)
+                check_chain="true"
+                shift
+                ;;
+            --help)
+                echo "Usage: $CLI_NAME verify <input> <signature> [options]"
+                echo "Options:"
+                echo "  --public-key <key>   Public key for verification"
+                echo "  --certificate <cert> Certificate for verification"
+                echo "  --check-chain        Verify full certificate chain"
+                return 0
+                ;;
+            *)
+                if [[ -z "$input" ]]; then
+                    input="$1"
+                elif [[ -z "$signature" ]]; then
+                    signature="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input" || -z "$signature" ]]; then
+        echo -e "${RED}Error: Input data and signature required${NC}" >&2
+        return 1
+    fi
+    
+    # Check if input is a file
+    if [[ -f "$input" ]]; then
+        input=$(cat "$input" | base64 -w 0)
+    fi
+    
+    # Check if signature is a file
+    if [[ -f "$signature" ]]; then
+        signature=$(cat "$signature")
+    fi
+    
+    local data=$(jq -n \
+        --arg data "$input" \
+        --arg signature "$signature" \
+        --arg public_key "$public_key" \
+        --argjson check_chain "$check_chain" \
+        '{
+            data: $data,
+            signature: $signature,
+            public_key: (if $public_key != "" then $public_key else null end),
+            options: {
+                check_certificate_chain: $check_chain
+            }
+        }')
+    
+    response=$(api_request POST "/api/v1/crypto/verify" "$data")
+    if [[ $? -eq 0 ]]; then
+        local is_valid=$(echo "$response" | jq -r '.is_valid')
+        if [[ "$is_valid" == "true" ]]; then
+            echo -e "${GREEN}✓${NC} Signature is valid"
+        else
+            echo -e "${RED}✗${NC} Signature is invalid"
+        fi
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Verification failed" >&2
+        return 1
+    fi
+}
+
+# Main command router
+main() {
+    init_config
+    load_config
+    
+    # Parse global options
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --api-base)
+                API_BASE="$2"
+                shift 2
+                ;;
+            --token)
+                API_TOKEN="$2"
+                shift 2
+                ;;
+            --format)
+                OUTPUT_FORMAT="$2"
+                shift 2
+                ;;
+            --verbose)
+                set -x
+                shift
+                ;;
+            --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    
+    # Route to command
+    case "${1:-}" in
+        hash)
+            shift
+            cmd_hash "$@"
+            ;;
+        encrypt)
+            shift
+            cmd_encrypt "$@"
+            ;;
+        decrypt)
+            shift
+            cmd_decrypt "$@"
+            ;;
+        sign)
+            shift
+            cmd_sign "$@"
+            ;;
+        verify)
+            shift
+            cmd_verify "$@"
+            ;;
+        keygen)
+            shift
+            cmd_keygen "$@"
+            ;;
+        keys)
+            shift
+            cmd_keys "$@"
+            ;;
+        status)
+            shift
+            cmd_status "$@"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        version|--version|-v)
+            echo "${CLI_NAME} v${CLI_VERSION}"
+            ;;
+        "")
+            echo -e "${RED}✗${NC} No command specified" >&2
+            echo "Use '${CLI_NAME} help' to see available commands"
+            exit 1
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown command: $1" >&2
+            echo "Use '${CLI_NAME} help' to see available commands"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

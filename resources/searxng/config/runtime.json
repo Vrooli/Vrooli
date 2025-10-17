@@ -1,0 +1,8 @@
+{
+  "startup_order": 400,
+  "startup_timeout": 20,
+  "startup_time_estimate": "5-15s",
+  "dependencies": ["redis"],
+  "recovery_attempts": 2,
+  "priority": "low"
+}

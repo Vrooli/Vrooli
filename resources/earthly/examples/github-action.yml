@@ -1,0 +1,139 @@
+name: Build with Earthly - Vrooli Optimized
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Scenario to build'
+        required: false
+        default: 'all'
+
+env:
+  EARTHLY_VERSION: v0.8.15
+  EARTHLY_USE_INLINE_CACHE: true
+  EARTHLY_CACHE_SIZE_MB: 20480
+  FORCE_COLOR: 1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scenario: [ecosystem-manager, resource-generator, api-manager]
+        platform: [linux/amd64, linux/arm64]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+            image=moby/buildkit:latest
+      
+      - name: Install Earthly
+        run: |
+          wget -q https://github.com/earthly/earthly/releases/download/${EARTHLY_VERSION}/earthly-linux-amd64
+          chmod +x earthly-linux-amd64
+          sudo mv earthly-linux-amd64 /usr/local/bin/earthly
+          earthly bootstrap --with-autocomplete
+      
+      - name: Configure Earthly for CI
+        run: |
+          mkdir -p ~/.earthly
+          cat > ~/.earthly/config.yml << EOF
+          global:
+            disable_analytics: true
+            disable_log_upload: true
+            cache_size_mb: 20480
+            conversion_parallelism: $(nproc)
+            buildkit_additional_args: [
+              "--oci-worker-gc",
+              "--oci-worker-gc-keepstorage", "10000"
+            ]
+          buildkit:
+            max_parallelism: $(nproc)
+            cache_inline_size_mb: 500
+          cache:
+            mode: "max"
+          EOF
+      
+      - name: Cache Earthly
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.earthly/cache
+            ~/.earthly/buildkit
+          key: earthly-${{ runner.os }}-${{ matrix.platform }}-${{ hashFiles('**/Earthfile') }}
+          restore-keys: |
+            earthly-${{ runner.os }}-${{ matrix.platform }}-
+            earthly-${{ runner.os }}-
+      
+      - name: Build Scenario
+        run: |
+          earthly --ci \
+            --platform=${{ matrix.platform }} \
+            --use-inline-cache \
+            --save-inline-cache \
+            --max-remote-cache \
+            +build-scenario \
+            --SCENARIO_NAME=${{ matrix.scenario }}
+      
+      - name: Test Scenario
+        run: |
+          earthly --ci \
+            --platform=${{ matrix.platform }} \
+            +test-scenario \
+            --SCENARIO_NAME=${{ matrix.scenario }}
+      
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.scenario }}-${{ matrix.platform }}
+          path: |
+            build/
+            dist/
+          retention-days: 7
+      
+      - name: Performance Report
+        if: always()
+        run: |
+          echo "## Build Performance Report" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Scenario | ${{ matrix.scenario }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | ${{ matrix.platform }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cache Size | ${EARTHLY_CACHE_SIZE_MB}MB |" >> $GITHUB_STEP_SUMMARY
+          echo "| Parallelism | $(nproc) cores |" >> $GITHUB_STEP_SUMMARY
+          
+          # Add timing information if available
+          if [ -f ~/.earthly/logs/metrics.csv ]; then
+            tail -1 ~/.earthly/logs/metrics.csv | while IFS=',' read -r target duration timestamp status; do
+              echo "| Build Time | ${duration}s |" >> $GITHUB_STEP_SUMMARY
+              echo "| Status | ${status} |" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: Deploy to Production
+        run: |
+          echo "Deploying artifacts to production..."
+          # Add deployment logic here

@@ -1,0 +1,719 @@
+{
+  "value": {
+    "grid": [
+      {
+        "id": "header",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "Secure Document Processing Portal",
+            "subtitle": "Enterprise-grade document processing with encryption and compliance",
+            "style": {
+              "backgroundColor": "#1e293b",
+              "color": "#f1f5f9",
+              "padding": "1.5rem",
+              "borderRadius": "0",
+              "marginBottom": "0"
+            }
+          },
+          "componentInput": {},
+          "customCss": {},
+          "tabs": [],
+          "subgrids": []
+        }
+      },
+      
+      {
+        "id": "document-intake",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "Document Intake",
+            "style": {
+              "padding": "1.5rem",
+              "backgroundColor": "#ffffff",
+              "borderRadius": "0.5rem",
+              "border": "1px solid #e2e8f0",
+              "marginTop": "1rem"
+            }
+          },
+          "componentInput": {},
+          "customCss": {},
+          "tabs": [
+            {
+              "id": "upload-tab",
+              "label": "Upload",
+              "content": {
+                "subgrids": [
+                  {
+                    "id": "upload-area",
+                    "data": [
+                      {
+                        "id": "file-dropzone",
+                        "data": {
+                          "type": "fileinputcomponent",
+                          "configuration": {
+                            "label": "Drop files here or click to browse",
+                            "acceptedFileTypes": ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain", "image/*"],
+                            "multiple": true,
+                            "dragAndDrop": true,
+                            "maxFileSize": 104857600
+                          },
+                          "componentInput": {
+                            "onSuccess": {
+                              "type": "runscript",
+                              "script": "document-processing/handle-upload"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "url-tab",
+              "label": "Fetch from URL",
+              "content": {
+                "subgrids": [
+                  {
+                    "id": "url-input-area",
+                    "data": [
+                      {
+                        "id": "url-input",
+                        "data": {
+                          "type": "textinputcomponent",
+                          "configuration": {
+                            "label": "Document URL",
+                            "placeholder": "https://example.com/document.pdf",
+                            "validation": {
+                              "pattern": "^https?://.*",
+                              "message": "Please enter a valid URL"
+                            }
+                          },
+                          "componentInput": {
+                            "defaultValue": ""
+                          }
+                        }
+                      },
+                      {
+                        "id": "fetch-button",
+                        "data": {
+                          "type": "buttoncomponent",
+                          "configuration": {
+                            "label": "Fetch Document",
+                            "color": "blue",
+                            "size": "md",
+                            "beforeIcon": "Download"
+                          },
+                          "componentInput": {
+                            "onSuccess": {
+                              "type": "runscript",
+                              "script": "document-processing/fetch-from-url"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      
+      {
+        "id": "processing-config",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "Processing Configuration",
+            "style": {
+              "padding": "1.5rem",
+              "backgroundColor": "#ffffff",
+              "borderRadius": "0.5rem",
+              "border": "1px solid #e2e8f0",
+              "marginTop": "1rem"
+            }
+          },
+          "componentInput": {},
+          "customCss": {},
+          "tabs": [],
+          "subgrids": [
+            {
+              "id": "processing-options",
+              "data": [
+                {
+                  "id": "processing-type",
+                  "data": {
+                    "type": "selectcomponent",
+                    "configuration": {
+                      "label": "Processing Type",
+                      "placeholder": "Select processing method"
+                    },
+                    "componentInput": {
+                      "items": [
+                        {"value": "prompt", "label": "Custom Prompt"},
+                        {"value": "workflow", "label": "Saved Workflow"}
+                      ],
+                      "defaultValue": "prompt"
+                    }
+                  }
+                },
+                
+                {
+                  "id": "prompt-input",
+                  "data": {
+                    "type": "textareainputcomponent",
+                    "configuration": {
+                      "label": "Processing Instructions",
+                      "placeholder": "Enter instructions for how to process the document (e.g., 'Extract all email addresses', 'Summarize key points', 'Redact PII')",
+                      "rows": 4,
+                      "showIf": "processing-type.value === 'prompt'"
+                    },
+                    "componentInput": {
+                      "defaultValue": ""
+                    }
+                  }
+                },
+                
+                {
+                  "id": "workflow-selector",
+                  "data": {
+                    "type": "selectcomponent",
+                    "configuration": {
+                      "label": "Select Workflow",
+                      "placeholder": "Choose a saved workflow",
+                      "showIf": "processing-type.value === 'workflow'"
+                    },
+                    "componentInput": {
+                      "items": [],
+                      "loadFrom": {
+                        "type": "database",
+                        "query": "SELECT id as value, name as label FROM secure_doc_processing.workflows WHERE is_active = true ORDER BY usage_count DESC"
+                      }
+                    }
+                  }
+                },
+                
+                {
+                  "id": "save-as-workflow-checkbox",
+                  "data": {
+                    "type": "checkboxcomponent",
+                    "configuration": {
+                      "label": "Save as Reusable Workflow",
+                      "showIf": "processing-type.value === 'prompt'"
+                    },
+                    "componentInput": {
+                      "defaultValue": false
+                    }
+                  }
+                },
+                
+                {
+                  "id": "workflow-name-input",
+                  "data": {
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Workflow Name",
+                      "placeholder": "Enter a name for this workflow",
+                      "showIf": "save-as-workflow-checkbox.value === true"
+                    },
+                    "componentInput": {
+                      "defaultValue": ""
+                    }
+                  }
+                },
+                
+                {
+                  "id": "output-folder-input",
+                  "data": {
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Output Folder",
+                      "placeholder": "Leave empty for auto-generated folder"
+                    },
+                    "componentInput": {
+                      "defaultValue": ""
+                    }
+                  }
+                },
+                
+                {
+                  "id": "enable-semantic-search",
+                  "data": {
+                    "type": "checkboxcomponent",
+                    "configuration": {
+                      "label": "Enable Semantic Search for this Document"
+                    },
+                    "componentInput": {
+                      "defaultValue": true
+                    }
+                  }
+                },
+                
+                {
+                  "id": "process-button",
+                  "data": {
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "label": "Process Documents",
+                      "color": "green",
+                      "size": "lg",
+                      "beforeIcon": "Play",
+                      "loading": false,
+                      "disabled": false
+                    },
+                    "componentInput": {
+                      "onSuccess": {
+                        "type": "runscript",
+                        "script": "document-processing/start-processing"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      
+      {
+        "id": "processing-status",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "Processing Status",
+            "collapsible": true,
+            "style": {
+              "padding": "1rem",
+              "backgroundColor": "#f0f9ff",
+              "borderRadius": "0.5rem",
+              "border": "1px solid #0ea5e9",
+              "marginTop": "1rem"
+            }
+          },
+          "componentInput": {},
+          "customCss": {},
+          "tabs": [],
+          "subgrids": [
+            {
+              "id": "status-display",
+              "data": [
+                {
+                  "id": "current-status",
+                  "data": {
+                    "type": "displaycomponent",
+                    "configuration": {
+                      "label": "Current Status"
+                    },
+                    "componentInput": {
+                      "value": "Ready"
+                    }
+                  }
+                },
+                {
+                  "id": "progress-bar",
+                  "data": {
+                    "type": "progresscomponent",
+                    "configuration": {
+                      "label": "Processing Progress",
+                      "color": "blue",
+                      "showPercentage": true
+                    },
+                    "componentInput": {
+                      "value": 0
+                    }
+                  }
+                },
+                {
+                  "id": "processing-log",
+                  "data": {
+                    "type": "textareainputcomponent",
+                    "configuration": {
+                      "label": "Processing Log",
+                      "readonly": true,
+                      "rows": 3
+                    },
+                    "componentInput": {
+                      "defaultValue": ""
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      
+      {
+        "id": "results-viewer",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "Processed Documents",
+            "style": {
+              "padding": "1.5rem",
+              "backgroundColor": "#ffffff",
+              "borderRadius": "0.5rem",
+              "border": "1px solid #e2e8f0",
+              "marginTop": "1rem",
+              "minHeight": "400px"
+            }
+          },
+          "componentInput": {},
+          "customCss": {},
+          "tabs": [],
+          "subgrids": [
+            {
+              "id": "job-folders",
+              "data": [
+                {
+                  "id": "folder-tree",
+                  "data": {
+                    "type": "treecomponent",
+                    "configuration": {
+                      "label": "Processing Jobs",
+                      "expandable": true,
+                      "selectable": true
+                    },
+                    "componentInput": {
+                      "items": [],
+                      "loadFrom": {
+                        "type": "database",
+                        "query": "SELECT id, job_name as label, output_folder, status, created_at FROM secure_doc_processing.processing_jobs ORDER BY created_at DESC LIMIT 50"
+                      },
+                      "onSelect": {
+                        "type": "runscript",
+                        "script": "document-processing/load-job-documents"
+                      }
+                    }
+                  }
+                },
+                
+                {
+                  "id": "document-list",
+                  "data": {
+                    "type": "tablecomponent",
+                    "configuration": {
+                      "label": "Documents in Selected Job",
+                      "columns": [
+                        {"field": "filename", "header": "Document", "sortable": true},
+                        {"field": "status", "header": "Status", "sortable": true},
+                        {"field": "processing_time", "header": "Processing Time", "sortable": true},
+                        {"field": "actions", "header": "Actions", "type": "actions"}
+                      ],
+                      "pagination": true,
+                      "pageSize": 20
+                    },
+                    "componentInput": {
+                      "data": [],
+                      "actions": [
+                        {
+                          "label": "View",
+                          "icon": "Eye",
+                          "action": "view-document"
+                        },
+                        {
+                          "label": "Download",
+                          "icon": "Download",
+                          "action": "download-document"
+                        },
+                        {
+                          "label": "Reprocess",
+                          "icon": "Refresh",
+                          "action": "reprocess-document"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      
+      {
+        "id": "search-panel",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "Document Search",
+            "collapsible": true,
+            "collapsed": true,
+            "style": {
+              "padding": "1rem",
+              "backgroundColor": "#fefce8",
+              "borderRadius": "0.5rem",
+              "border": "1px solid #eab308",
+              "marginTop": "1rem"
+            }
+          },
+          "componentInput": {},
+          "customCss": {},
+          "tabs": [],
+          "subgrids": [
+            {
+              "id": "search-controls",
+              "data": [
+                {
+                  "id": "search-type",
+                  "data": {
+                    "type": "selectcomponent",
+                    "configuration": {
+                      "label": "Search Type",
+                      "placeholder": "Select search method"
+                    },
+                    "componentInput": {
+                      "items": [
+                        {"value": "semantic", "label": "Semantic Search"},
+                        {"value": "keyword", "label": "Keyword Search"},
+                        {"value": "metadata", "label": "Metadata Search"}
+                      ],
+                      "defaultValue": "semantic"
+                    }
+                  }
+                },
+                
+                {
+                  "id": "search-input",
+                  "data": {
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Search Query",
+                      "placeholder": "Enter your search query..."
+                    },
+                    "componentInput": {
+                      "defaultValue": ""
+                    }
+                  }
+                },
+                
+                {
+                  "id": "search-button",
+                  "data": {
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "label": "Search",
+                      "color": "yellow",
+                      "beforeIcon": "Search"
+                    },
+                    "componentInput": {
+                      "onSuccess": {
+                        "type": "runscript",
+                        "script": "document-processing/search-documents"
+                      }
+                    }
+                  }
+                },
+                
+                {
+                  "id": "search-results",
+                  "data": {
+                    "type": "listcomponent",
+                    "configuration": {
+                      "label": "Search Results",
+                      "itemTemplate": {
+                        "title": "{{filename}}",
+                        "subtitle": "{{created_at}} - Score: {{score}}",
+                        "description": "{{snippet}}"
+                      }
+                    },
+                    "componentInput": {
+                      "items": []
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      
+      {
+        "id": "workflow-manager",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "title": "Workflow Management",
+            "collapsible": true,
+            "collapsed": true,
+            "style": {
+              "padding": "1rem",
+              "backgroundColor": "#f1f5f9",
+              "borderRadius": "0.5rem",
+              "border": "1px solid #64748b",
+              "marginTop": "1rem"
+            }
+          },
+          "componentInput": {},
+          "customCss": {},
+          "tabs": [],
+          "subgrids": [
+            {
+              "id": "workflow-list",
+              "data": [
+                {
+                  "id": "workflows-table",
+                  "data": {
+                    "type": "tablecomponent",
+                    "configuration": {
+                      "label": "Saved Workflows",
+                      "columns": [
+                        {"field": "name", "header": "Workflow Name", "sortable": true},
+                        {"field": "category", "header": "Category", "sortable": true},
+                        {"field": "usage_count", "header": "Usage", "sortable": true},
+                        {"field": "success_rate", "header": "Success Rate", "sortable": true},
+                        {"field": "last_used_at", "header": "Last Used", "sortable": true},
+                        {"field": "actions", "header": "Actions", "type": "actions"}
+                      ]
+                    },
+                    "componentInput": {
+                      "data": [],
+                      "loadFrom": {
+                        "type": "database",
+                        "query": "SELECT * FROM secure_doc_processing.workflow_usage_stats"
+                      },
+                      "actions": [
+                        {
+                          "label": "Edit",
+                          "icon": "Edit",
+                          "action": "edit-workflow"
+                        },
+                        {
+                          "label": "Delete",
+                          "icon": "Trash",
+                          "action": "delete-workflow"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      
+      {
+        "id": "footer",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "padding": "1rem",
+              "backgroundColor": "#1e293b",
+              "color": "#94a3b8",
+              "textAlign": "center",
+              "marginTop": "2rem",
+              "fontSize": "0.875rem"
+            }
+          },
+          "componentInput": {},
+          "customCss": {},
+          "tabs": [],
+          "subgrids": [
+            {
+              "id": "footer-content",
+              "data": [
+                {
+                  "id": "footer-text",
+                  "data": {
+                    "type": "displaycomponent",
+                    "configuration": {
+                      "label": ""
+                    },
+                    "componentInput": {
+                      "value": "Secure Document Processing Pipeline v1.0.0 | Zero-Trust Architecture | HIPAA, GDPR, SOX Compliant"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  
+  "summary": "Secure Document Processing Portal - Professional Enterprise Application",
+  
+  "path": "secure-document-processing",
+  
+  "policy": {
+    "on_behalf_of": "u/admin",
+    "on_behalf_of_email": "admin@vrooli.com"
+  },
+  
+  "versions": [],
+  
+  "schema": {
+    "type": "object",
+    "properties": {
+      "documents": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "format": "binary"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      },
+      "processing": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["prompt", "workflow"]
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "saveAsWorkflow": {
+            "type": "boolean"
+          },
+          "workflowName": {
+            "type": "string"
+          },
+          "outputFolder": {
+            "type": "string"
+          },
+          "enableSemanticSearch": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "required": []
+  },
+  
+  "extra_perms": {},
+  
+  "execution_mode": "viewer",
+  
+  "draft_only": false,
+  
+  "tag": "secure-document-processing-portal",
+  
+  "ws_error_handler_muted": false,
+  
+  "bg_runs_enabled": true,
+  
+  "visible_to_runner_only": false,
+  
+  "no_logs": false
+}

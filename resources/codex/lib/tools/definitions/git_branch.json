@@ -1,0 +1,38 @@
+{
+  "type": "function",
+  "category": "git",
+  "function": {
+    "name": "git_branch",
+    "description": "Manage git branches (list, create, switch, delete)",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["list", "create", "switch", "delete"],
+          "description": "Branch operation to perform"
+        },
+        "branch_name": {
+          "type": "string",
+          "description": "Branch name for create/switch/delete operations"
+        },
+        "base_branch": {
+          "type": "string",
+          "description": "Base branch for new branch creation",
+          "default": "main"
+        },
+        "force": {
+          "type": "boolean",
+          "description": "Force operation (use with caution)",
+          "default": false
+        },
+        "path": {
+          "type": "string",
+          "description": "Repository path",
+          "default": "."
+        }
+      },
+      "required": ["action"]
+    }
+  }
+}

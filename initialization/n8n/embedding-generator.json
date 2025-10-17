@@ -1,0 +1,373 @@
+{
+  "name": "Shared Text Embedding Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "embed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for embedding generation\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.text) {\n  throw new Error('Missing required field: text');\n}\n\n// Extract and validate inputs\nconst text = input.text.trim();\nif (text.length === 0) {\n  throw new Error('Text field cannot be empty');\n}\n\nif (text.length > 8192) {\n  throw new Error('Text exceeds maximum length of 8192 characters');\n}\n\n// Validate model selection\nconst model = input.model || 'mxbai-embed-large';\nconst supportedModels = [\n  'mxbai-embed-large',\n  'nomic-embed-text', \n  'all-minilm'\n];\n\nif (!supportedModels.includes(model)) {\n  throw new Error(`Unsupported model: ${model}. Supported models: ${supportedModels.join(', ')}`);\n}\n\n// Set expected vector dimensions based on model\nconst vectorDimensions = {\n  'mxbai-embed-large': 1024,\n  'nomic-embed-text': 1024,\n  'all-minilm': 384\n};\n\n// Validate Qdrant storage parameters if storage is requested\nconst storeInQdrant = input.store_in_qdrant === true;\nif (storeInQdrant) {\n  if (!input.collection) {\n    throw new Error('Collection name is required when store_in_qdrant is true');\n  }\n  if (input.collection.length === 0) {\n    throw new Error('Collection name cannot be empty');\n  }\n}\n\n// Prepare metadata\nconst metadata = {\n  text_length: text.length,\n  model_used: model,\n  expected_dimensions: vectorDimensions[model],\n  generated_at: new Date().toISOString(),\n  collection: input.collection || 'general_embeddings',\n  point_id: input.point_id || `emb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\n// Include additional payload if provided\nconst payload = input.payload || {};\n\nreturn {\n  text: text,\n  model: model,\n  metadata: metadata,\n  store_in_qdrant: storeInQdrant,\n  payload: payload,\n  original_request: input\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.ollama.url}/api/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"model\": \"={{ $json.model }}\",\n  \"prompt\": \"={{ $json.text }}\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate_embedding",
+      "name": "Generate Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process the embedding response and prepare for potential storage\nconst embeddingResponse = $input.item.json;\nconst prevNodeData = $('Validate Input').item.json;\n\n// Extract embedding vector from response\nlet embedding;\nif (embeddingResponse.embedding) {\n  embedding = embeddingResponse.embedding;\n} else if (Array.isArray(embeddingResponse)) {\n  embedding = embeddingResponse;\n} else {\n  throw new Error('Invalid embedding response format from Ollama');\n}\n\n// Validate embedding dimensions\nif (!Array.isArray(embedding)) {\n  throw new Error('Embedding is not an array');\n}\n\nconst expectedDim = prevNodeData.metadata.expected_dimensions;\nif (embedding.length !== expectedDim) {\n  console.warn(`Unexpected embedding dimension: ${embedding.length}, expected ${expectedDim}`);\n}\n\n// Prepare base response data\nconst response = {\n  success: true,\n  embedding: embedding,\n  dimensions: embedding.length,\n  model: prevNodeData.model,\n  text: prevNodeData.text,\n  text_length: prevNodeData.metadata.text_length,\n  collection: prevNodeData.metadata.collection,\n  point_id: prevNodeData.metadata.point_id,\n  generated_at: prevNodeData.metadata.generated_at,\n  processing_time_ms: Date.now() - new Date(prevNodeData.metadata.generated_at).getTime(),\n  store_in_qdrant: prevNodeData.store_in_qdrant,\n  payload: prevNodeData.payload\n};\n\n// Prepare Qdrant point structure for storage or display\nresponse.qdrant_point = {\n  id: prevNodeData.metadata.point_id,\n  vector: embedding,\n  payload: {\n    ...prevNodeData.payload,\n    text: prevNodeData.text,\n    model: prevNodeData.model,\n    text_length: prevNodeData.metadata.text_length,\n    generated_at: prevNodeData.metadata.generated_at\n  }\n};\n\nreturn response;"
+      },
+      "id": "process_embedding",
+      "name": "Process Embedding",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.store_in_qdrant }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_storage",
+      "name": "Check Storage",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "${service.qdrant.url}/collections/={{ $json.collection }}/points",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"points\": [\n    {\n      \"id\": \"={{ $json.qdrant_point.id }}\",\n      \"vector\": ={{ JSON.stringify($json.qdrant_point.vector) }},\n      \"payload\": ={{ JSON.stringify($json.qdrant_point.payload) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 10000,
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "store_in_qdrant",
+      "name": "Store in Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1250,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare final response with storage status\nconst embeddingData = $('Process Embedding').item.json;\nlet storageResult = null;\nlet storageError = null;\n\n// Check if storage was attempted\nif (embeddingData.store_in_qdrant) {\n  try {\n    // Get the storage response from Qdrant\n    const qdrantResponse = $input.item.json;\n    \n    // Check if storage was successful\n    if (qdrantResponse.status && qdrantResponse.status === 'ok') {\n      storageResult = {\n        success: true,\n        message: 'Embedding stored successfully in Qdrant',\n        collection: embeddingData.collection,\n        point_id: embeddingData.point_id\n      };\n    } else if (qdrantResponse.statusCode && qdrantResponse.statusCode >= 400) {\n      // Handle error response\n      storageError = qdrantResponse.body || 'Failed to store embedding in Qdrant';\n      storageResult = {\n        success: false,\n        error: storageError,\n        status_code: qdrantResponse.statusCode\n      };\n    } else {\n      // Assume success if we got here without errors\n      storageResult = {\n        success: true,\n        message: 'Embedding stored in Qdrant',\n        collection: embeddingData.collection,\n        point_id: embeddingData.point_id\n      };\n    }\n  } catch (error) {\n    storageResult = {\n      success: false,\n      error: error.message || 'Unknown storage error'\n    };\n  }\n}\n\n// Build final response\nconst finalResponse = {\n  success: true,\n  embedding: embeddingData.embedding,\n  dimensions: embeddingData.dimensions,\n  model: embeddingData.model,\n  text_length: embeddingData.text_length,\n  collection: embeddingData.collection,\n  point_id: embeddingData.point_id,\n  generated_at: embeddingData.generated_at,\n  processing_time_ms: embeddingData.processing_time_ms\n};\n\n// Add storage result if storage was attempted\nif (storageResult) {\n  finalResponse.storage = storageResult;\n}\n\n// Include Qdrant point structure if requested in original request\nif (embeddingData.payload && embeddingData.payload.include_qdrant_point) {\n  finalResponse.qdrant_point = embeddingData.qdrant_point;\n}\n\nreturn finalResponse;"
+      },
+      "id": "prepare_final_response",
+      "name": "Prepare Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.text) {\n  return {\n    text: \"This is a sample text for generating embeddings during manual testing.\",\n    model: \"mxbai-embed-large\",\n    store_in_qdrant: false,\n    collection: \"test_embeddings\"\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        380,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Shared Text Embedding Generator Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1850,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Generate Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embedding": {
+      "main": [
+        [
+          {
+            "node": "Process Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Embedding": {
+      "main": [
+        [
+          {
+            "node": "Check Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Storage": {
+      "main": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Response": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "shared-v4.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "description": "Universal embedding generator with optional Qdrant storage. Supports generation-only mode for comparisons or storage mode for persistence."
+  },
+  "id": "embedding-generator",
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "embeddings",
+      "name": "embeddings"
+    },
+    {
+      "createdAt": "2025-01-14T00:00:00.000Z",
+      "updatedAt": "2025-01-14T00:00:00.000Z",
+      "id": "qdrant",
+      "name": "qdrant"
+    }
+  ]
+}

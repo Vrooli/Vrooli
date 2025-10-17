@@ -2,6 +2,11 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=react,node
 # NOTE: Currently identical to the `.cursorignore` file. If you change one, consider changing the other
 
+### Kubernetes configs ###
+k8s/kubeconfig-*.yaml
+k8s/ca-certificate.crt
+k8s/simple-deploy.yaml
+
 ### Zipped ###
 *.tar
 *.tar.gz
@@ -14,9 +19,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+scenarios/system-monitor/investigations/results/
 
 # Source map analytics
 source-tree*.html
+
+# TypeScript build info
+*.tsbuildinfo
+.tsbuildinfo
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
@@ -33,9 +43,41 @@ lib-cov
 # Coverage directory used by tools like istanbul
 coverage
 *.lcov
+**/coverage*.html
+**/coverage*_report.*
+**/coverage-report.*
+**/TEST_COVERAGE_REPORT.*
+**/coverage-detailed.*
+**/coverage*.out
+**/test-output*.txt
+**/*test-output*.txt
+**/test.bin
+**/test-build
+scenarios/**/bin/
+api/*-api
+scenarios/**/api/*-api
+bin/
+.vrooli/*-agents.json
+.vrooli/*.lock
+.vrooli/browserless/
+.vrooli/running-resources.json
+.vrooli/schemas/resource-catalog.json
+.vrooli/schemas/resource-definitions.json
 
 # nyc test coverage
 .nyc_output
+
+# Vitest cache
+.vitest
+packages/*/.vitest
+
+# V8 compile cache
+v8-compile-cache-*/
+
+# Other caches
+__test/cache/
+scenarios/**/test/artifacts/
+.lycheecache
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
@@ -61,9 +103,13 @@ typings/
 
 # Optional npm cache directory
 .npm
+.pnpm-store
 
 # Optional eslint cache
 .eslintcache
+.eslintcache.test
+packages/**/.eslintcache
+packages/**/.eslintcache.test
 
 # Optional stylelint cache
 .stylelintcache
@@ -107,6 +153,7 @@ storybook-static
 # rollup.js default build output
 dist/
 test-dist/
+*.map
 
 # Gatsby files
 .cache/
@@ -132,14 +179,22 @@ test-dist/
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
-# Temporary folders
+# Temporary files
 tmp/
 temp/
+*.tmp
+*.backup
+*.bak
 
 ### react ###
 .DS_*
 **/*.backup.*
 **/*.back.*
+**/*.backup
+
+# Editor lock files
+.~lock.*
+**/.~lock.*
 
 node_modules
 
@@ -151,17 +206,16 @@ sketch
 
 # End of https://www.toptal.com/developers/gitignore/api/react,node
 
+# Windows Zone.Identifier files
+*:Zone.Identifier
+
 build/
 
 #Database
 *.db
 
 #Persistent data
-data/logs*
-data/postgres*
-data/redis/
-data/stats/
-data/uploads/
+data/
 
 #Backups
 backups/
@@ -179,8 +233,7 @@ packages/ui/public/sitemaps/
 **/*.0x/
 
 # JWT keys
-jwt_pub.pem
-jwt_priv.pem
+*.pem
 
 # Vault keys
 .vault*
@@ -190,6 +243,169 @@ upload_certificate.pem
 upload-keystore.jks
 
 # Bats test helpers (e.g. bats-core)
-scripts/tests/helpers
-scripts/tests/tmp
+__test/helpers
+__tests/helpers
+test/helpers
+tests/helpers
 
+# Local configuration
+.vrooli/*.local.json
+.vrooli/secrets.json
+.vrooli/resource-registry/
+.vrooli/app-identity.json
+
+# Node-RED test artifacts
+node-red-flows-export-*.json
+
+# Go
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.gocache
+
+# Test binary, built with `go test -c`
+*.test
+
+# Go compiled binaries
+api/api-server
+scenarios/*/api/*-api
+
+# Output of the go coverage tool
+*.out
+*.prof
+
+# Dependency directories (when vendoring is used)
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Air live reload (tmp/ already covered above)
+
+# Go build cache
+go.sum.backup
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging (Python)
+.Python
+develop-eggs/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports (Python)
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# PostgreSQL instance configurations - SECURITY CRITICAL
+# These contain passwords and should NEVER be committed
+resources/postgres/instances/
+**/instances/*/config/instance.conf
+**/instance.conf.backup
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Python virtual environments (additional)
+.venv/
+venv/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/

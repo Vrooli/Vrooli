@@ -1,0 +1,215 @@
+{
+  "service": {
+    "name": "kids-dashboard",
+    "displayName": "Kids Dashboard",
+    "description": "Safe, fun dashboard for children to access kid-friendly Vrooli scenarios",
+    "version": "1.0.0",
+    "tags": ["kids", "children", "family", "dashboard", "safe-browsing"]
+  },
+  "version": "1.0.0",
+  "category": [
+    "interface",
+    "family"
+  ],
+   "status": "active",
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "range": "35000-39999"
+     }
+   },
+   "metadata": {
+    "author": "Vrooli Team",
+    "created": "2025-01-06",
+    "updated": "2025-01-06",
+    "tags": [
+      "kids",
+      "children",
+      "family",
+      "dashboard",
+      "safe-browsing"
+    ],
+    "targetAudience": {
+      "ageRange": "5-12",
+      "userType": "children",
+      "parentalSupervision": "recommended"
+    },
+    "uiStyle": {
+      "theme": "playful",
+      "colorScheme": "bright",
+      "animations": "enabled",
+      "soundEffects": "optional"
+    }
+  },
+  "deployment": {
+    "type": "web",
+    "port": "${PORT:-3500}",
+    "healthCheck": {
+      "endpoint": "/health",
+      "interval": 30,
+      "timeout": 5
+    }
+  },
+  "ui": {
+    "type": "react",
+    "path": "ui/",
+    "build": {
+      "command": "npm run build",
+      "outputDir": "ui/dist"
+    },
+    "dev": {
+      "command": "npm run dev",
+      "port": "${PORT:-3500}"
+    }
+  },
+  "filtering": {
+    "categoryWhitelist": [
+      "kid-friendly"
+    ],
+    "categoryBlacklist": [
+      "system",
+      "development",
+      "admin",
+      "financial"
+    ],
+    "ageRanges": {
+      "young": "5-8",
+      "middle": "9-12",
+      "teen": "13+"
+    }
+  },
+  "features": {
+    "mascot": {
+      "enabled": true,
+      "name": "Vrooli the Robot",
+      "personality": "friendly helper"
+    },
+    "sounds": {
+      "enabled": false,
+      "volume": 0.3
+    },
+    "animations": {
+      "enabled": true,
+      "speed": "normal"
+    },
+    "sessionTracking": {
+      "enabled": true,
+      "maxDuration": 3600
+    }
+  },
+  "security": {
+    "iframeIsolation": true,
+    "sandboxAttributes": [
+      "allow-scripts",
+      "allow-same-origin",
+      "allow-forms"
+    ],
+    "preventSystemAccess": true,
+    "dataCollection": "none"
+  },
+  "discovery": {
+    "scanInterval": 60,
+    "scenarioPattern": "../../scenarios/*/.vrooli/service.json",
+    "method": "filesystem"
+   },
+   "lifecycle": {
+     "setup": {
+       "description": "Initialize Kids Dashboard",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "kids-dashboard-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "kids-dashboard"
+             ]
+           }
+         ]
+       },
+       "steps": [
+         {
+           "name": "build-api",
+           "run": "cd api && go mod download && go build -o kids-dashboard-api .",
+           "description": "Build Go API binary"
+         },
+         {
+           "name": "setup-ui",
+           "run": "cd ui && npm install",
+           "description": "Install UI dependencies"
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🎮 Kids Dashboard initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+      "develop": {
+       "description": "Start kids dashboard services",
+       "steps": [
+           {
+             "name": "start-api",
+             "run": "cd api && ./kids-dashboard-api",
+             "description": "Start Go API server in background",
+             "background": true,
+             "condition": {
+               "file_exists": "api/kids-dashboard-api"
+             }
+           },
+         {
+           "name": "start-ui",
+           "run": "cd ui && npm install && npm run dev",
+           "description": "Start React dashboard UI",
+           "background": true,
+           "condition": {
+             "file_exists": "ui/package.json"
+           }
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Kids Dashboard running:\\n  🎮 Dashboard: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT'",
+           "description": "Display service URLs"
+         }
+       ]
+     },
+     "stop": {
+      "description": "Stop kids-dashboard services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"kids-dashboard-api\" || true; sleep 1; pkill -9 -f \"kids-dashboard-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/kids-dashboard.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/kids-dashboard.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run kids-dashboard test suite",
+      "steps": [
+        {
+          "name": "run-unit-tests",
+          "run": "cd api && go test -v -cover -coverprofile=coverage.out ./...",
+          "description": "Run Go unit tests with coverage"
+        },
+        {
+          "name": "show-coverage",
+          "run": "cd api && go tool cover -func=coverage.out | tail -1",
+          "description": "Display coverage summary"
+        }
+      ]
+    }
+  }
+}

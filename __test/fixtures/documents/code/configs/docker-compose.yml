@@ -1,0 +1,367 @@
+# Vrooli Development Environment
+# Docker Compose configuration for local development and testing
+# Test fixture for infrastructure configuration analysis
+
+version: '3.8'
+
+services:
+  # Main Application Services
+  vrooli-server:
+    build:
+      context: ./packages/server
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+        BUILD_VERSION: ${BUILD_VERSION:-dev}
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Debug port
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/vrooli_dev
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key}
+      LOG_LEVEL: debug
+      ENABLE_CORS: true
+      OLLAMA_BASE_URL: http://ollama:11434
+      N8N_BASE_URL: http://n8n:5678
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - ./packages/server:/app
+      - /app/node_modules
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+      - ollama
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  vrooli-ui:
+    build:
+      context: ./packages/ui
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+        REACT_APP_API_URL: http://localhost:3000/api
+        REACT_APP_WS_URL: ws://localhost:3000
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: true
+      REACT_APP_API_URL: http://localhost:3000/api
+      REACT_APP_WS_URL: ws://localhost:3000
+      REACT_APP_VERSION: ${BUILD_VERSION:-dev}
+    volumes:
+      - ./packages/ui:/app
+      - /app/node_modules
+      - /app/build
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+
+  # Database Services
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: vrooli_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/db/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vrooli_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # AI Services
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+      OLLAMA_MODELS: /root/.ollama/models
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./scripts/ai/models:/models
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  whisper:
+    build:
+      context: ./resources/whisper
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    environment:
+      MODEL_SIZE: base
+      DEVICE: cpu
+      COMPUTE_TYPE: int8
+    volumes:
+      - whisper_models:/app/models
+      - ./temp/audio:/app/temp
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Automation Services
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: false
+      N8N_HOST: 0.0.0.0
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      NODE_ENV: development
+      WEBHOOK_URL: http://localhost:5678
+      GENERIC_TIMEZONE: UTC
+      N8N_LOG_LEVEL: debug
+      N8N_USER_FOLDER: /home/node/.n8n
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-n8n-dev-encryption-key}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows/n8n:/home/node/.n8n/workflows
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  node-red:
+    image: nodered/node-red:latest
+    ports:
+      - "1880:1880"
+    environment:
+      NODE_RED_ENABLE_PROJECTS: true
+      NODE_RED_ENABLE_SAFE_MODE: false
+      TZ: UTC
+    volumes:
+      - node_red_data:/data
+      - ./workflows/node-red:/data/flows
+      - ./resources/node-red/settings.js:/data/settings.js
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    user: "1000:1000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1880"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Storage Services
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Search Services
+  searxng:
+    image: searxng/searxng:latest
+    ports:
+      - "8100:8080"
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-dev-secret-key}
+      BASE_URL: http://localhost:8100
+      INSTANCE_NAME: "Vrooli Search"
+    volumes:
+      - ./config/searxng:/etc/searxng
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Agent Services
+  browserless:
+    image: browserless/chrome:latest
+    ports:
+      - "4110:3000"
+    environment:
+      CONCURRENT: 5
+      TOKEN: ${BROWSERLESS_TOKEN:-dev-token}
+      EXIT_ON_HEALTH_FAILURE: true
+      PRE_REQUEST_HEALTH_CHECK: true
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    shm_size: 2gb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/pressure"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring Services
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    depends_on:
+      - prometheus
+
+  # Development Tools
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@vrooli.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+    depends_on:
+      - postgres
+
+# Shared volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  ollama_data:
+    driver: local
+  whisper_models:
+    driver: local
+  n8n_data:
+    driver: local
+  node_red_data:
+    driver: local
+  minio_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# Network configuration
+networks:
+  vrooli-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

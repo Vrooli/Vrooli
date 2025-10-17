@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --flow-bg: #0d0e14;
+    --flow-node: #1a1d29;
+    --flow-node-hover: #252837;
+    --flow-edge: #4a5568;
+    --flow-accent: #3b82f6;
+  }
+  
+  * {
+    border-color: theme('colors.gray.700');
+  }
+  
+  body {
+    @apply bg-flow-bg text-gray-100 font-mono;
+  }
+}
+
+@layer components {
+  .workflow-node {
+    @apply bg-flow-node border border-gray-700 rounded-lg p-3 min-w-[200px] shadow-lg hover:shadow-xl transition-all hover:border-flow-accent;
+  }
+  
+  .workflow-node.selected {
+    @apply border-flow-accent shadow-xl shadow-blue-500/20;
+  }
+  
+  .node-handle {
+    @apply w-3 h-3 bg-flow-accent border-2 border-flow-bg rounded-full;
+  }
+  
+  .terminal-output {
+    @apply bg-terminal-bg text-terminal-text p-4 rounded-lg font-mono text-sm overflow-auto;
+    max-height: 400px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  
+  .screenshot-viewer {
+    @apply bg-gray-900 rounded-lg overflow-hidden;
+  }
+  
+  .workflow-toolbar {
+    @apply bg-flow-node/90 backdrop-blur-sm border border-gray-700 rounded-lg p-2 flex gap-2;
+  }
+  
+  .toolbar-button {
+    @apply p-2 rounded-md bg-flow-bg hover:bg-flow-node-hover transition-colors text-gray-400 hover:text-white;
+  }
+  
+  .toolbar-button.active {
+    @apply bg-flow-accent text-white;
+  }
+  
+  .folder-tree {
+    @apply bg-flow-node rounded-lg p-4;
+  }
+  
+  .folder-item {
+    @apply flex items-center gap-2 py-1 px-2 rounded hover:bg-flow-node-hover cursor-pointer transition-colors;
+  }
+  
+  .folder-item.selected {
+    @apply bg-flow-accent/20 text-flow-accent;
+  }
+}
+
+.react-flow__node.selected {
+  outline: none !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--flow-accent) !important;
+  stroke-width: 2 !important;
+}
+
+.react-flow__edge-path {
+  stroke: var(--flow-edge);
+  stroke-width: 1.5;
+}
+
+.react-flow__controls {
+  @apply bg-flow-node border border-gray-700 rounded-lg;
+}
+
+.react-flow__controls-button {
+  @apply bg-flow-bg border-gray-700 text-gray-400 hover:bg-flow-node-hover hover:text-white;
+}
+
+.react-flow__minimap {
+  @apply bg-flow-node border border-gray-700 rounded-lg;
+}
+
+.react-flow__minimap-mask {
+  fill: var(--flow-accent);
+  opacity: 0.2;
+}
+
+.split-pane-divider {
+  @apply bg-gray-800 hover:bg-gray-700 transition-colors;
+  width: 3px !important;
+  cursor: col-resize;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-flow-bg;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-700 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-600;
+}

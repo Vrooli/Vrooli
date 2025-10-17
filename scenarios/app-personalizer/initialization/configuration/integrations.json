@@ -1,0 +1,124 @@
+{
+  "integrations": {
+    "personal-digital-twin": {
+      "name": "Personal Digital Twin Service",
+      "endpoint": "http://localhost:8200",
+      "auth": {
+        "type": "api_token",
+        "header": "Authorization",
+        "prefix": "Bearer"
+      },
+      "endpoints": {
+        "export_persona": "/api/twin/export",
+        "chat": "/api/chat",
+        "search": "/api/search",
+        "get_preferences": "/api/persona/preferences"
+      },
+      "rate_limits": {
+        "requests_per_minute": 60,
+        "burst": 10
+      },
+      "retry": {
+        "max_attempts": 3,
+        "backoff_ms": 1000
+      }
+    },
+    "brand-manager": {
+      "name": "Brand Manager Service",
+      "endpoint": "http://localhost:8100",
+      "auth": {
+        "type": "api_key",
+        "header": "X-API-Key"
+      },
+      "endpoints": {
+        "export_brand": "/api/brand/export",
+        "get_assets": "/api/brand/assets",
+        "get_theme": "/api/brand/theme",
+        "get_manifest": "/api/brand/manifest"
+      },
+      "rate_limits": {
+        "requests_per_minute": 100,
+        "burst": 20
+      },
+      "retry": {
+        "max_attempts": 3,
+        "backoff_ms": 500
+      }
+    },
+    "claude-code": {
+      "name": "Claude Code Agent",
+      "endpoint": "http://claude-code:8080",
+      "auth": {
+        "type": "none"
+      },
+      "endpoints": {
+        "modify": "/api/modify",
+        "analyze": "/api/analyze",
+        "validate": "/api/validate"
+      },
+      "timeouts": {
+        "modify": 300000,
+        "analyze": 60000,
+        "validate": 30000
+      }
+    }
+  },
+  "personalization_mappings": {
+    "ui_theme": {
+      "source": "brand-manager",
+      "endpoints": ["get_theme", "get_assets"],
+      "target_files": [
+        "src/styles/theme.js",
+        "src/styles/variables.css",
+        "tailwind.config.js"
+      ]
+    },
+    "branding": {
+      "source": "brand-manager",
+      "endpoints": ["export_brand", "get_manifest"],
+      "target_files": [
+        "public/manifest.json",
+        "public/favicon.ico",
+        "public/logo*.{svg,png}",
+        "src/config/brand.js"
+      ]
+    },
+    "content": {
+      "source": "personal-digital-twin",
+      "endpoints": ["export_persona", "get_preferences"],
+      "target_files": [
+        "src/data/defaults.js",
+        "src/config/prompts.js",
+        "src/components/persona/*.jsx"
+      ]
+    },
+    "behavior": {
+      "source": "personal-digital-twin",
+      "endpoints": ["export_persona", "chat"],
+      "target_files": [
+        "src/config/ai.config.js",
+        "src/services/chatService.js",
+        "src/utils/personality.js"
+      ]
+    }
+  },
+  "validation_commands": {
+    "react": {
+      "build": "npm run build",
+      "lint": "npm run lint",
+      "test": "npm test",
+      "type_check": "npm run type-check"
+    },
+    "next.js": {
+      "build": "npm run build",
+      "lint": "npm run lint",
+      "test": "npm test",
+      "type_check": "npm run type-check"
+    },
+    "vue": {
+      "build": "npm run build",
+      "lint": "npm run lint",
+      "test": "npm run test:unit"
+    }
+  }
+}

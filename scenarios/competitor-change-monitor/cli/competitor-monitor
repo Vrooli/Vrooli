@@ -1,0 +1,268 @@
+#!/bin/bash
+
+# Competitor Change Monitor CLI
+# Track and analyze competitor changes
+
+set -e
+
+# Configuration
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/competitor-change-monitor/cli"
+PROJECT_ROOT="${APP_ROOT}"
+API_URL="${API_URL:-http://localhost:8140}"
+
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_color() {
+    local color=$1
+    shift
+    echo -e "${color}$@${NC}"
+}
+
+# Show usage
+show_usage() {
+    cat << EOF
+$(print_color "$CYAN" "🔍 Competitor Change Monitor CLI")
+
+$(print_color "$GREEN" "USAGE:")
+    competitor-monitor <command> [options]
+
+$(print_color "$GREEN" "COMMANDS:")
+    list                    List all competitors
+    add <name> <url>       Add a new competitor
+    targets <id>           Show monitoring targets for a competitor
+    add-target <id> <url>  Add monitoring target to competitor
+    alerts [--status]      Show recent alerts
+    scan                   Trigger manual scan
+    analyses [--id]        Show recent change analyses
+    dashboard              Open web dashboard
+    help                   Show this help message
+
+$(print_color "$GREEN" "EXAMPLES:")
+    competitor-monitor list
+    competitor-monitor add "TechCorp" "https://techcorp.com"
+    competitor-monitor targets abc-123
+    competitor-monitor add-target abc-123 "https://techcorp.com/pricing"
+    competitor-monitor alerts --status=unread
+    competitor-monitor scan
+    competitor-monitor analyses --id=abc-123
+
+$(print_color "$YELLOW" "ENVIRONMENT:")
+    API_URL: $API_URL
+EOF
+}
+
+# List competitors
+list_competitors() {
+    print_color "$CYAN" "📊 Active Competitors:"
+    
+    response=$(curl -s "$API_URL/api/competitors")
+    
+    if [ -z "$response" ] || [ "$response" = "[]" ]; then
+        print_color "$YELLOW" "No competitors found. Add one with: competitor-monitor add <name> <url>"
+        return
+    fi
+    
+    echo "$response" | jq -r '.[] | "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nID: \(.id)\nName: \(.name)\nCategory: \(.category)\nImportance: \(.importance)\nDescription: \(.description)"'
+}
+
+# Add competitor
+add_competitor() {
+    local name="$1"
+    local description="$2"
+    
+    if [ -z "$name" ]; then
+        print_color "$RED" "Error: Name is required"
+        echo "Usage: competitor-monitor add <name> <description>"
+        exit 1
+    fi
+    
+    print_color "$CYAN" "➕ Adding competitor: $name"
+    
+    response=$(curl -s -X POST "$API_URL/api/competitors" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"name\": \"$name\",
+            \"description\": \"$description\",
+            \"category\": \"general\",
+            \"importance\": \"medium\"
+        }")
+    
+    if [ $? -eq 0 ]; then
+        print_color "$GREEN" "✅ Competitor added successfully!"
+        echo "$response" | jq '.'
+    else
+        print_color "$RED" "❌ Failed to add competitor"
+    fi
+}
+
+# Show targets
+show_targets() {
+    local competitor_id="$1"
+    
+    if [ -z "$competitor_id" ]; then
+        print_color "$RED" "Error: Competitor ID is required"
+        echo "Usage: competitor-monitor targets <competitor_id>"
+        exit 1
+    fi
+    
+    print_color "$CYAN" "🎯 Monitoring Targets:"
+    
+    response=$(curl -s "$API_URL/api/competitors/$competitor_id/targets")
+    
+    if [ -z "$response" ] || [ "$response" = "[]" ]; then
+        print_color "$YELLOW" "No targets found for this competitor"
+        return
+    fi
+    
+    echo "$response" | jq -r '.[] | "\nURL: \(.url)\nType: \(.target_type)\nFrequency: \(.check_frequency)s\nLast Checked: \(.last_checked // "Never")"'
+}
+
+# Add target
+add_target() {
+    local competitor_id="$1"
+    local url="$2"
+    local target_type="${3:-website}"
+    
+    if [ -z "$competitor_id" ] || [ -z "$url" ]; then
+        print_color "$RED" "Error: Competitor ID and URL are required"
+        echo "Usage: competitor-monitor add-target <competitor_id> <url> [type]"
+        exit 1
+    fi
+    
+    print_color "$CYAN" "🎯 Adding monitoring target: $url"
+    
+    response=$(curl -s -X POST "$API_URL/api/targets" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"competitor_id\": \"$competitor_id\",
+            \"url\": \"$url\",
+            \"target_type\": \"$target_type\",
+            \"check_frequency\": 3600
+        }")
+    
+    if [ $? -eq 0 ]; then
+        print_color "$GREEN" "✅ Target added successfully!"
+        echo "$response" | jq '.'
+    else
+        print_color "$RED" "❌ Failed to add target"
+    fi
+}
+
+# Show alerts
+show_alerts() {
+    local status="${1:-}"
+    local url="$API_URL/api/alerts"
+    
+    if [ -n "$status" ]; then
+        url="$url?status=${status#--status=}"
+    fi
+    
+    print_color "$CYAN" "🚨 Recent Alerts:"
+    
+    response=$(curl -s "$url")
+    
+    if [ -z "$response" ] || [ "$response" = "[]" ]; then
+        print_color "$GREEN" "No alerts found"
+        return
+    fi
+    
+    echo "$response" | jq -r '.[] | "\n[\(.priority | ascii_upcase)] \(.title)\nStatus: \(.status)\nRelevance: \(.relevance_score)/100\nSummary: \(.summary)\nCreated: \(.created_at)"'
+}
+
+# Trigger scan
+trigger_scan() {
+    print_color "$CYAN" "🔄 Triggering manual scan..."
+    
+    response=$(curl -s -X POST "$API_URL/api/scan")
+    
+    if [ $? -eq 0 ]; then
+        print_color "$GREEN" "✅ Scan initiated!"
+        echo "$response" | jq '.'
+    else
+        print_color "$RED" "❌ Failed to trigger scan"
+    fi
+}
+
+# Show analyses
+show_analyses() {
+    local competitor_id="${1:-}"
+    local url="$API_URL/api/analyses"
+    
+    if [ -n "$competitor_id" ]; then
+        url="$url?competitor_id=${competitor_id#--id=}"
+    fi
+    
+    print_color "$CYAN" "📈 Recent Change Analyses:"
+    
+    response=$(curl -s "$url")
+    
+    if [ -z "$response" ] || [ "$response" = "[]" ]; then
+        print_color "$YELLOW" "No analyses found"
+        return
+    fi
+    
+    echo "$response" | jq -r '.[] | "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nURL: \(.target_url)\nCategory: \(.change_category)\nImpact: \(.impact_level)\nRelevance: \(.relevance_score)/100\nSummary: \(.summary)\nDate: \(.created_at)"'
+}
+
+# Open dashboard
+open_dashboard() {
+    local ui_port="${UI_PORT:-5240}"
+    local url="http://localhost:$ui_port"
+    
+    print_color "$CYAN" "🌐 Opening dashboard at $url"
+    
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "$url"
+    elif command -v open &> /dev/null; then
+        open "$url"
+    else
+        print_color "$YELLOW" "Please open $url in your browser"
+    fi
+}
+
+# Main command handler
+case "${1:-}" in
+    list)
+        list_competitors
+        ;;
+    add)
+        add_competitor "$2" "$3"
+        ;;
+    targets)
+        show_targets "$2"
+        ;;
+    add-target)
+        add_target "$2" "$3" "$4"
+        ;;
+    alerts)
+        show_alerts "$2"
+        ;;
+    scan)
+        trigger_scan
+        ;;
+    analyses)
+        show_analyses "$2"
+        ;;
+    dashboard)
+        open_dashboard
+        ;;
+    help|--help|-h)
+        show_usage
+        ;;
+    *)
+        if [ -n "$1" ]; then
+            print_color "$RED" "Unknown command: $1"
+        fi
+        show_usage
+        exit 1
+        ;;
+esac

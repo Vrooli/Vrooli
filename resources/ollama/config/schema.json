@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "resource:ollama",
+  "title": "Ollama Resource Configuration",
+  "description": "Local LLM inference server for running open-source language models",
+  "type": "object",
+  "extends": "baseResource",
+  "properties": {
+    "models": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Model name to pull"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Model name"
+              },
+              "tag": {
+                "type": "string",
+                "default": "latest",
+                "description": "Model tag/version"
+              },
+              "size": {
+                "type": "string",
+                "enum": ["7b", "13b", "32b", "70b"],
+                "description": "Model size variant"
+              },
+              "quantization": {
+                "type": "string",
+                "enum": ["q4_0", "q4_1", "q5_0", "q5_1", "q8_0", "f16"],
+                "description": "Quantization level"
+              }
+            },
+            "required": ["name"]
+          }
+        ]
+      },
+      "default": [],
+      "examples": [["qwen2.5:32b", "nomic-embed-text", "llama3.2:3b"]],
+      "description": "Models to pull and make available"
+    }
+  },
+  "examples": [
+    {
+      "title": "Minimal",
+      "config": {
+        "enabled": true
+      }
+    },
+    {
+      "title": "Development",
+      "config": {
+        "enabled": true,
+        "models": ["qwen2.5:7b"]
+      }
+    },
+    {
+      "title": "Production",
+      "config": {
+        "enabled": true,
+        "models": [
+          { "name": "qwen2.5", "size": "32b" },
+          "nomic-embed-text",
+          "llama3.2:3b"
+        ],
+        "purpose": "AI model inference for applications"
+      }
+    },
+    {
+      "title": "Embedding Service",
+      "config": {
+        "enabled": true,
+        "models": ["nomic-embed-text", "mxbai-embed-large"],
+        "purpose": "Text embedding generation for vector search"
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "kids-mode-dashboard",
+  "version": "1.0.0",
+  "description": "A safe, engaging dashboard for kids mode applications",
+  "lifecycle": {
+    "health": {
+      "endpoints": {
+        "api": "/api/v1/health",
+        "ui": "/"
+      }
+    }
+  },
+  "setup": {
+    "steps": [
+      {
+        "name": "install-cli",
+        "run": "cd cli && ./install.sh"
+      },
+      {
+        "name": "build-api",
+        "run": "cd api && go build -o kids-mode-dashboard-api ."
+      }
+    ]
+  }
+}

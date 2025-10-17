@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MEEP Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8193
+    },
+    "host": {
+      "type": "string",
+      "description": "API server host",
+      "default": "0.0.0.0"
+    },
+    "mpi": {
+      "type": "object",
+      "description": "MPI configuration",
+      "properties": {
+        "processes": {
+          "type": "integer",
+          "description": "Number of MPI processes",
+          "minimum": 1,
+          "maximum": 128,
+          "default": 4
+        },
+        "threads_per_process": {
+          "type": "integer",
+          "description": "OpenMP threads per MPI process",
+          "minimum": 1,
+          "maximum": 64,
+          "default": 2
+        }
+      }
+    },
+    "simulation": {
+      "type": "object",
+      "description": "Default simulation parameters",
+      "properties": {
+        "resolution": {
+          "type": "number",
+          "description": "Default resolution (points per unit length)",
+          "minimum": 10,
+          "maximum": 200,
+          "default": 50
+        },
+        "runtime": {
+          "type": "number",
+          "description": "Default simulation time",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 100
+        },
+        "max_time": {
+          "type": "integer",
+          "description": "Maximum simulation time in seconds",
+          "minimum": 60,
+          "maximum": 86400,
+          "default": 3600
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Base data directory"
+        },
+        "results_dir": {
+          "type": "string",
+          "description": "Results storage directory"
+        },
+        "templates_dir": {
+          "type": "string",
+          "description": "Templates directory"
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "External service integrations",
+      "properties": {
+        "minio": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "bucket": {
+              "type": "string",
+              "default": "meep-results"
+            }
+          }
+        },
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "connection_string": {
+              "type": "string"
+            }
+          }
+        },
+        "questdb": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "endpoint": {
+              "type": "string"
+            }
+          }
+        },
+        "qdrant": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "collection": {
+              "type": "string",
+              "default": "meep-simulations"
+            }
+          }
+        }
+      }
+    },
+    "gpu": {
+      "type": "object",
+      "description": "GPU acceleration configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "device": {
+          "type": "integer",
+          "description": "CUDA device ID",
+          "default": 0
+        }
+      }
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

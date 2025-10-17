@@ -1,0 +1,34 @@
+{
+  "startup_order": 550,
+  "dependencies": [],
+  "optional_dependencies": ["redis", "minio", "postgres", "qdrant"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "ai",
+  "api": {
+    "port": 11454,
+    "protocol": "http",
+    "health_endpoint": "/health",
+    "base_path": "/api/v1"
+  },
+  "resource_requirements": {
+    "min_memory": "4GB",
+    "recommended_memory": "8GB",
+    "gpu_optional": true,
+    "disk_space": "10GB"
+  },
+  "features": {
+    "supports_gpu": true,
+    "supports_cpu": true,
+    "supports_batch": true,
+    "supports_streaming": false,
+    "supports_caching": true
+  },
+  "models": {
+    "available": ["sam2-tiny", "sam2-small", "sam2-base", "sam2-large", "hq-sam"],
+    "default": "sam2-base",
+    "auto_download": true
+  }
+}

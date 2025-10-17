@@ -1,0 +1,249 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "workflow-scheduler",
+    "displayName": "Workflow Scheduler",
+    "description": "Enterprise-grade cron scheduling platform for orchestrating Vrooli workflows with centralized management, execution tracking, and intelligent retry handling",
+    "version": "1.0.0",
+    "tags": [
+      "infrastructure",
+      "automation-tools",
+      "scheduling",
+      "cron",
+      "automation",
+      "workflow-orchestration",
+      "time-based-triggers",
+      "job-scheduler",
+      "task-automation",
+      "go-api",
+      "postgres-storage",
+      "redis-cache"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Workflow Scheduler REST API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Workflow Scheduler UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store schedule definitions, execution history, metrics, and configuration",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Workflow Scheduler health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Workflow Scheduler platform",
+       "condition": {
+         "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "api/workflow-scheduler-api",
+                "cli/workflow-scheduler"
+              ]
+            },
+           {
+             "type": "cli",
+             "targets": [
+               "workflow-scheduler"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash ../../scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources (database schema, workflows)"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install scheduler CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o workflow-scheduler-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Workflow Scheduler initialized\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Workflow Scheduler with API server and scheduling engine",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./workflow-scheduler-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/workflow-scheduler-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "ui/server.js"
+           }
+         },
+         {
+           "name": "configure-redis",
+           "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || true",
+           "description": "Configure Redis for keyspace notifications"
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Workflow Scheduler API and scheduling engine",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-database-connection",
+          "run": "curl -sf http://localhost:$API_PORT/api/system/db-status",
+          "description": "Test database connectivity"
+        },
+        {
+          "name": "test-redis-connection",
+          "run": "curl -sf http://localhost:$API_PORT/api/system/redis-status",
+          "description": "Test Redis connectivity"
+        },
+        {
+          "name": "test-schedule-endpoints",
+          "run": "curl -sf http://localhost:$API_PORT/api/schedules && curl -sf http://localhost:$API_PORT/api/executions",
+          "description": "Test main API endpoints"
+        },
+        {
+          "name": "test-cron-validation",
+          "run": "curl -sf \"http://localhost:$API_PORT/api/cron/validate?expression=0%209%20*%20*%20*\"",
+          "description": "Test cron expression validation"
+        },
+        {
+          "name": "test-schedule-creation",
+          "run": "bash test/test-schedule-creation.sh",
+          "description": "Test schedule creation workflow"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats scheduler-cli.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/scheduler-cli.bats"
+          }
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "bash test/integration-test.sh",
+          "description": "Run comprehensive integration tests",
+          "condition": {
+            "file_exists": "test/integration-test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"workflow-scheduler-api\" || true; sleep 1; pkill -9 -f \"workflow-scheduler-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/workflow-scheduler.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/workflow-scheduler.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

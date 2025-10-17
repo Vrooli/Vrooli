@@ -1,0 +1,284 @@
+{
+  "name": "AI Analysis Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-analysis",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "httpMethod": "POST"
+        }
+      },
+      "id": "webhook-analysis-request",
+      "name": "AI Analysis Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "ai-analysis"
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and process AI analysis request\nconst inputData = $input.first().json;\n\n// Validate required fields\nif (!inputData.transcriptionId) {\n  throw new Error('Missing required field: transcriptionId');\n}\n\nif (!inputData.analysisType) {\n  throw new Error('Missing required field: analysisType');\n}\n\n// Validate analysis type\nconst validTypes = ['summary', 'key_insights', 'custom'];\nif (!validTypes.includes(inputData.analysisType)) {\n  throw new Error(`Invalid analysis type: ${inputData.analysisType}. Valid types: ${validTypes.join(', ')}`);\n}\n\n// Validate custom prompt if needed\nif (inputData.analysisType === 'custom' && !inputData.customPrompt) {\n  throw new Error('Custom prompt is required when analysisType is \"custom\"');\n}\n\n// Prepare analysis request data\nconst analysisData = {\n  transcriptionId: inputData.transcriptionId,\n  analysisType: inputData.analysisType,\n  customPrompt: inputData.customPrompt || null,\n  sessionId: inputData.sessionId || 'anonymous-session',\n  userIdentifier: inputData.userIdentifier || 'anonymous',\n  aiModel: inputData.aiModel || 'llama3.1:8b',\n  temperature: inputData.temperature || 0.7,\n  maxTokens: inputData.maxTokens || 2048,\n  processingStartTime: Date.now()\n};\n\nreturn analysisData;"
+      },
+      "id": "validate-analysis-request",
+      "name": "Validate Analysis Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, transcription_text, filename, created_at FROM audio_intelligence_platform.transcriptions WHERE id = $1",
+        "additionalFields": {
+          "mode": "independently"
+        }
+      },
+      "id": "fetch-transcription",
+      "name": "Fetch Transcription (PostgreSQL)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-audio-intelligence",
+          "name": "PostgreSQL - Audio Intelligence"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare AI prompt based on analysis type\nconst requestData = $input.all()[0].json;\nconst transcriptionData = $input.all()[1].json[0]; // PostgreSQL returns array\n\nif (!transcriptionData) {\n  throw new Error(`Transcription not found with ID: ${requestData.transcriptionId}`);\n}\n\nconst transcriptionText = transcriptionData.transcription_text;\nconst filename = transcriptionData.filename;\n\n// Define prompts for different analysis types\nconst prompts = {\n  summary: `Please provide a concise and informative summary of the following transcription from \"${filename}\":\n\n${transcriptionText}\n\nSummary:`,\n  \n  key_insights: `Extract the key insights, main points, and important takeaways from the following transcription from \"${filename}\". Format your response as bullet points:\n\n${transcriptionText}\n\nKey Insights:`,\n  \n  custom: requestData.customPrompt + `\n\nTranscription from \"${filename}\":\n\n${transcriptionText}\n\nResponse:`\n};\n\nconst selectedPrompt = prompts[requestData.analysisType];\n\nif (!selectedPrompt) {\n  throw new Error(`No prompt defined for analysis type: ${requestData.analysisType}`);\n}\n\n// Prepare data for AI processing\nconst aiRequestData = {\n  model: requestData.aiModel,\n  prompt: selectedPrompt,\n  temperature: requestData.temperature,\n  max_tokens: requestData.maxTokens,\n  stream: false,\n  \n  // Metadata for response processing\n  analysisType: requestData.analysisType,\n  transcriptionId: requestData.transcriptionId,\n  filename: filename,\n  sessionId: requestData.sessionId,\n  userIdentifier: requestData.userIdentifier,\n  customPrompt: requestData.customPrompt,\n  processingStartTime: requestData.processingStartTime\n};\n\nreturn aiRequestData;"
+      },
+      "id": "prepare-ai-prompt",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    
+    {
+      "parameters": {
+        "workflowId": "ollama",
+        "waitTillFinish": true,
+        "source": "parameter",
+        "parameters": {
+          "prompt": "={{ $json.prompt }}",
+          "model": "={{ $json.model }}",
+          "type": "reasoning",
+          "quiet": true,
+          "timeout_seconds": 120
+        }
+      },
+      "id": "generate-ai-analysis",
+      "name": "Generate AI Analysis (Ollama)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process AI response and prepare for database storage\nconst aiResponse = $input.first().json;\nconst requestData = $('Prepare AI Prompt').first().json;\n\n// Extract AI response text from shared workflow format\nconst aiResult = aiResponse.response || '';\nif (!aiResult.trim()) {\n  throw new Error('AI analysis returned empty response');\n}\n\n// Calculate processing metrics\nconst processingEndTime = Date.now();\nconst processingTime = processingEndTime - requestData.processingStartTime;\n\n// Use execution metrics from shared workflow if available\nconst executionTime = aiResponse.execution?.execution_time_ms || processingTime;\nconst tokensUsed = aiResponse.response_length ? Math.ceil(aiResponse.response_length / 4) : Math.ceil((requestData.prompt.length + aiResult.length) / 4);\n\n// Prepare database record\nconst analysisRecord = {\n  id: crypto.randomUUID(),\n  transcription_id: requestData.transcriptionId,\n  analysis_type: requestData.analysisType,\n  prompt_used: requestData.customPrompt || `Default ${requestData.analysisType} prompt`,\n  result_text: aiResult.trim(),\n  ai_model_used: requestData.model,\n  processing_time_ms: executionTime,\n  tokens_used: tokensUsed,\n  confidence_score: aiResponse.success ? 0.9 : 0.5,\n  session_id: requestData.sessionId,\n  user_identifier: requestData.userIdentifier,\n  created_at: new Date().toISOString()\n};\n\nreturn {\n  analysisRecord: analysisRecord,\n  aiResult: aiResult,\n  filename: requestData.filename,\n  analysisType: requestData.analysisType,\n  processingTime: executionTime\n};"
+      },
+      "id": "process-ai-response",
+      "name": "Process AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO audio_intelligence_platform.ai_analyses (id, transcription_id, analysis_type, prompt_used, result_text, ai_model_used, processing_time_ms, tokens_used, confidence_score, session_id, user_identifier, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+        "additionalFields": {
+          "mode": "independently"
+        }
+      },
+      "id": "store-analysis",
+      "name": "Store Analysis (PostgreSQL)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-audio-intelligence",
+          "name": "PostgreSQL - Audio Intelligence"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build final response for the analysis request\nconst processedData = $input.all().find(item => item.json.analysisRecord);\nconst dbResult = $input.all().find(item => item.json.id);\n\nconst response = {\n  success: true,\n  message: 'AI analysis completed successfully',\n  analysisId: processedData.json.analysisRecord.id,\n  transcriptionId: processedData.json.analysisRecord.transcription_id,\n  analysisType: processedData.json.analysisType,\n  filename: processedData.json.filename,\n  result: processedData.json.aiResult,\n  \n  // Metadata\n  aiModel: processedData.json.analysisRecord.ai_model_used,\n  processingTime: processedData.json.processingTime,\n  tokensUsed: processedData.json.analysisRecord.tokens_used,\n  confidence: processedData.json.analysisRecord.confidence_score,\n  createdAt: processedData.json.analysisRecord.created_at,\n  \n  // Quick actions for UI\n  actions: {\n    viewTranscription: `http://localhost:5681/transcription/${processedData.json.analysisRecord.transcription_id}`,\n    copyResult: processedData.json.aiResult,\n    exportAnalysis: `http://localhost:5681/analysis/${processedData.json.analysisRecord.id}/export`\n  }\n};\n\nreturn response;"
+      },
+      "id": "build-analysis-response",
+      "name": "Build Analysis Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "analysis-response",
+      "name": "Analysis Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  
+  "connections": {
+    "AI Analysis Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Analysis Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Validate Analysis Request": {
+      "main": [
+        [
+          {
+            "node": "Fetch Transcription (PostgreSQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Fetch Transcription (PostgreSQL)": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Prepare AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Analysis (Ollama)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Generate AI Analysis (Ollama)": {
+      "main": [
+        [
+          {
+            "node": "Process AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Process AI Response": {
+      "main": [
+        [
+          {
+            "node": "Store Analysis (PostgreSQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Store Analysis (PostgreSQL)": {
+      "main": [
+        [
+          {
+            "node": "Build Analysis Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Build Analysis Response": {
+      "main": [
+        [
+          {
+            "node": "Analysis Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": {
+      "id": "error-handler-workflow"
+    }
+  },
+  
+  "versionId": "ai-analysis-workflow-v1",
+  "id": "ai-analysis-workflow",
+  
+  "meta": {
+    "templateCreatedBy": "audio-intelligence-platform",
+    "instanceId": "ai-analysis-workflow"
+  },
+  
+  "tags": [
+    {
+      "id": "audio-intelligence",
+      "name": "Audio Intelligence"
+    },
+    {
+      "id": "ai-analysis",
+      "name": "AI Analysis"
+    },
+    {
+      "id": "content-processing",
+      "name": "Content Processing"
+    }
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "picker-wheel",
+    "displayName": "Picker Wheel",
+    "description": "Fun, interactive decision-making tool with customizable spinning wheels and weighted random selection",
+    "version": "1.0.0",
+    "tags": [
+      "utility",
+      "decision-tools",
+      "decision-making",
+      "random-selection",
+      "interactive",
+      "weighted-probability",
+      "arcade-style",
+      "api-available",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "ollama-ai",
+      "kid-friendly"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Main API port for wheel operations",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Web UI server port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/wheel-spinner.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/wheel-manager.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/history-tracker.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/option-suggester.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "Intelligent option suggestions via shared ollama workflow",
+      "models": [
+        "phi3.5:3.8b"
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store wheels, options, and spin history",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Picker Wheel health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Picker Wheel",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "picker-wheel-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "picker-wheel"
+             ]
+           },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/picker-wheel && ln -sf $(pwd)/cli/picker-wheel ~/.local/bin/picker-wheel 2>/dev/null || true",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o picker-wheel-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Picker Wheel initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: picker-wheel --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Picker Wheel with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./picker-wheel-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/picker-wheel-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: picker-wheel --help'",
+           "description": "Display all running service URLs"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test Picker Wheel API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-spin-endpoint",
+          "run": "curl -sf -X POST http://localhost:$API_PORT/api/spin -H 'Content-Type: application/json' -d '{\"wheel_id\":\"yes-or-no\"}'",
+          "description": "Test API spin endpoint"
+        },
+        {
+          "name": "test-cli-spin",
+          "run": "picker-wheel spin yes-or-no",
+          "description": "Test CLI spin command"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"picker-wheel-api\" || true; sleep 1; pkill -9 -f \"picker-wheel-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/picker-wheel.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/picker-wheel.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

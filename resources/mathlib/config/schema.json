@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mathlib Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 11458
+    },
+    "workDir": {
+      "type": "string",
+      "description": "Working directory for proof execution",
+      "default": "/tmp/mathlib"
+    },
+    "cacheDir": {
+      "type": "string",
+      "description": "Cache directory for compiled modules",
+      "default": "~/.cache/mathlib"
+    },
+    "installDir": {
+      "type": "string",
+      "description": "Installation directory for Lean and Mathlib",
+      "default": "~/.mathlib"
+    },
+    "timeout": {
+      "type": "integer",
+      "description": "Proof verification timeout in seconds",
+      "minimum": 1,
+      "maximum": 3600,
+      "default": 30
+    },
+    "maxMemory": {
+      "type": "integer",
+      "description": "Maximum memory in MB",
+      "minimum": 1024,
+      "maximum": 32768,
+      "default": 4096
+    },
+    "maxThreads": {
+      "type": "integer",
+      "description": "Maximum number of threads",
+      "minimum": 1,
+      "maximum": 32,
+      "default": 4
+    },
+    "enableApi": {
+      "type": "boolean",
+      "description": "Enable REST API server",
+      "default": true
+    },
+    "enableCache": {
+      "type": "boolean",
+      "description": "Enable module caching",
+      "default": true
+    },
+    "enableMetrics": {
+      "type": "boolean",
+      "description": "Enable performance metrics",
+      "default": false
+    },
+    "logLevel": {
+      "type": "string",
+      "description": "Logging level",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info"
+    },
+    "apiKey": {
+      "type": "string",
+      "description": "Optional API authentication key",
+      "default": ""
+    }
+  },
+  "required": ["port", "workDir"],
+  "additionalProperties": false
+}

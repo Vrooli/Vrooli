@@ -1,0 +1,122 @@
+{
+  "name": "jupyterhub",
+  "display_name": "JupyterHub",
+  "description": "Multi-user server for Jupyter notebooks enabling collaborative data science and interactive computing",
+  "category": "productivity",
+  "version": "4.0.0",
+  "startup_order": 600,
+  "dependencies": [
+    "postgres",
+    "docker"
+  ],
+  "optional_dependencies": [
+    "redis",
+    "ollama",
+    "minio"
+  ],
+  "startup_timeout": 120,
+  "startup_time_estimate": "45-60s",
+  "shutdown_timeout": 60,
+  "recovery_attempts": 3,
+  "recovery_delay": 10,
+  "priority": "high",
+  "resource_requirements": {
+    "minimum": {
+      "cpu": 2,
+      "memory": "4G",
+      "disk": "20G"
+    },
+    "recommended": {
+      "cpu": 4,
+      "memory": "8G",
+      "disk": "50G"
+    }
+  },
+  "health_check": {
+    "endpoint": "/hub/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "features": {
+    "multi_user": true,
+    "authentication": ["native", "oauth", "github", "google"],
+    "spawners": ["docker", "kubernetes"],
+    "persistent_storage": true,
+    "resource_limits": true,
+    "extensions": true,
+    "gpu_support": false
+  },
+  "ports": {
+    "hub": 8000,
+    "api": 8001,
+    "proxy": 8081
+  },
+  "volumes": [
+    "/data/resources/jupyterhub/users",
+    "/data/resources/jupyterhub/shared",
+    "/data/resources/jupyterhub/config"
+  ],
+  "environment": {
+    "JUPYTERHUB_CRYPT_KEY": "generated",
+    "JUPYTERHUB_API_TOKEN": "generated",
+    "JUPYTERHUB_PROXY_AUTH_TOKEN": "generated"
+  },
+  "networks": [
+    "vrooli-network",
+    "jupyterhub-network"
+  ],
+  "integration_points": [
+    {
+      "resource": "postgres",
+      "type": "database",
+      "purpose": "User database and hub state"
+    },
+    {
+      "resource": "docker",
+      "type": "runtime",
+      "purpose": "Container-based user isolation"
+    },
+    {
+      "resource": "redis",
+      "type": "cache",
+      "purpose": "Session caching and real-time updates",
+      "optional": true
+    },
+    {
+      "resource": "ollama",
+      "type": "ai",
+      "purpose": "AI model access in notebooks",
+      "optional": true
+    }
+  ],
+  "lifecycle_hooks": {
+    "pre_install": "check_dependencies",
+    "post_install": "initialize_database",
+    "pre_start": "generate_tokens",
+    "post_start": "verify_proxy",
+    "pre_stop": "notify_users",
+    "post_stop": "cleanup_containers"
+  },
+  "monitoring": {
+    "metrics": [
+      "active_users",
+      "running_servers",
+      "spawn_time",
+      "resource_usage"
+    ],
+    "logs": [
+      "hub.log",
+      "proxy.log",
+      "spawner.log"
+    ]
+  },
+  "backup": {
+    "paths": [
+      "/data/resources/jupyterhub/users",
+      "/data/resources/jupyterhub/config"
+    ],
+    "frequency": "daily",
+    "retention": "30d"
+  }
+}

@@ -1,0 +1,486 @@
+{
+  "name": "Idea Generator Platform",
+  "version": "1.0.0",
+  "description": "Interactive AI-powered idea generation platform with document intelligence and real-time chat refinement",
+  "type": "app",
+  "theme": {
+    "primaryColor": "#3B82F6",
+    "secondaryColor": "#10B981",
+    "accentColor": "#8B5CF6",
+    "fontFamily": "Inter, system-ui, sans-serif"
+  },
+  "layout": {
+    "type": "responsive",
+    "breakpoints": {
+      "mobile": 640,
+      "tablet": 1024,
+      "desktop": 1280
+    }
+  },
+  "components": [
+    {
+      "id": "header",
+      "type": "container",
+      "properties": {
+        "layout": "horizontal",
+        "padding": "16px",
+        "backgroundColor": "#FFFFFF",
+        "borderBottom": "1px solid #E5E7EB",
+        "height": "64px",
+        "alignItems": "center",
+        "justifyContent": "space-between"
+      },
+      "children": [
+        {
+          "id": "app_title",
+          "type": "text",
+          "properties": {
+            "text": "💡 Idea Generator",
+            "fontSize": "24px",
+            "fontWeight": "bold",
+            "color": "#111827"
+          }
+        },
+        {
+          "id": "user_menu",
+          "type": "dropdown",
+          "properties": {
+            "placeholder": "User",
+            "options": ["Profile", "Settings", "Logout"],
+            "icon": "user-circle"
+          }
+        }
+      ]
+    },
+    {
+      "id": "campaign_tabs",
+      "type": "tabs",
+      "properties": {
+        "variant": "chips",
+        "scrollable": true,
+        "height": "48px",
+        "padding": "8px 16px",
+        "backgroundColor": "#F9FAFB"
+      },
+      "dataSource": {
+        "type": "query",
+        "query": "SELECT id, name, color FROM campaigns WHERE owner_id = $user_id AND is_active = true ORDER BY created_at DESC",
+        "refresh": 30000
+      },
+      "tabTemplate": {
+        "id": "campaign_tab_{{id}}",
+        "label": "{{name}}",
+        "color": "{{color}}",
+        "closable": true,
+        "onClick": "scripts/campaign-manager.ts:switchCampaign"
+      },
+      "addButton": {
+        "enabled": true,
+        "label": "+ New Campaign",
+        "onClick": "scripts/campaign-manager.ts:createCampaign"
+      }
+    },
+    {
+      "id": "main_content",
+      "type": "container",
+      "properties": {
+        "layout": "grid",
+        "gridTemplateColumns": "320px 1fr 400px",
+        "height": "calc(100vh - 160px)",
+        "gap": "0"
+      },
+      "children": [
+        {
+          "id": "ideas_sidebar",
+          "type": "container",
+          "properties": {
+            "backgroundColor": "#FFFFFF",
+            "borderRight": "1px solid #E5E7EB",
+            "overflow": "auto",
+            "padding": "16px"
+          },
+          "children": [
+            {
+              "id": "search_bar",
+              "type": "input",
+              "properties": {
+                "placeholder": "🔍 Search ideas...",
+                "type": "search",
+                "debounce": 300,
+                "onChange": "scripts/semantic-search.ts:searchIdeas"
+              }
+            },
+            {
+              "id": "filter_chips",
+              "type": "chipGroup",
+              "properties": {
+                "options": ["All", "Draft", "Refined", "Finalized"],
+                "multiSelect": false,
+                "margin": "12px 0"
+              }
+            },
+            {
+              "id": "ideas_list",
+              "type": "list",
+              "properties": {
+                "virtualScroll": true,
+                "itemHeight": 120,
+                "gap": "8px"
+              },
+              "dataSource": {
+                "type": "query",
+                "query": "SELECT id, title, content, status, tags, created_at FROM ideas WHERE campaign_id = $campaign_id ORDER BY created_at DESC",
+                "refresh": 10000
+              },
+              "itemTemplate": {
+                "type": "card",
+                "properties": {
+                  "padding": "12px",
+                  "cursor": "pointer",
+                  "hoverEffect": true,
+                  "onClick": "scripts/chat-handler.ts:openIdeaChat"
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "properties": {
+                      "text": "{{title}}",
+                      "fontWeight": "600",
+                      "fontSize": "14px",
+                      "marginBottom": "4px"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "properties": {
+                      "text": "{{content}}",
+                      "fontSize": "12px",
+                      "color": "#6B7280",
+                      "maxLines": 2,
+                      "ellipsis": true
+                    }
+                  },
+                  {
+                    "type": "container",
+                    "properties": {
+                      "layout": "horizontal",
+                      "marginTop": "8px",
+                      "gap": "4px"
+                    },
+                    "children": [
+                      {
+                        "type": "chip",
+                        "properties": {
+                          "label": "{{status}}",
+                          "size": "small",
+                          "variant": "outlined"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "center_workspace",
+          "type": "container",
+          "properties": {
+            "backgroundColor": "#F9FAFB",
+            "padding": "32px",
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center"
+          },
+          "children": [
+            {
+              "id": "campaign_context",
+              "type": "card",
+              "properties": {
+                "width": "100%",
+                "maxWidth": "600px",
+                "padding": "20px",
+                "marginBottom": "32px",
+                "backgroundColor": "#FFFFFF"
+              },
+              "children": [
+                {
+                  "id": "campaign_title",
+                  "type": "text",
+                  "properties": {
+                    "text": "{{current_campaign.name}}",
+                    "fontSize": "20px",
+                    "fontWeight": "bold",
+                    "marginBottom": "8px"
+                  }
+                },
+                {
+                  "id": "campaign_description",
+                  "type": "text",
+                  "properties": {
+                    "text": "{{current_campaign.description}}",
+                    "fontSize": "14px",
+                    "color": "#6B7280",
+                    "marginBottom": "16px"
+                  }
+                },
+                {
+                  "id": "document_upload",
+                  "type": "fileUpload",
+                  "properties": {
+                    "accept": ".pdf,.docx,.doc,.txt,.pptx,.xlsx,.csv",
+                    "multiple": true,
+                    "maxSize": 10485760,
+                    "dragDrop": true,
+                    "height": "80px",
+                    "border": "2px dashed #D1D5DB",
+                    "borderRadius": "8px",
+                    "onUpload": "scripts/document-processor.ts:uploadDocument"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "dice_container",
+              "type": "container",
+              "properties": {
+                "position": "relative",
+                "width": "200px",
+                "height": "200px",
+                "cursor": "pointer",
+                "onClick": "scripts/idea-generator.ts:rollDice"
+              },
+              "children": [
+                {
+                  "id": "dice_button",
+                  "type": "customComponent",
+                  "properties": {
+                    "componentType": "animatedDice",
+                    "size": 200,
+                    "color": "#FFFFFF",
+                    "hoverColor": "#F3F4F6",
+                    "animation": "roll",
+                    "duration": 1500,
+                    "sound": true
+                  }
+                },
+                {
+                  "id": "dice_loading",
+                  "type": "spinner",
+                  "properties": {
+                    "size": 48,
+                    "color": "#3B82F6",
+                    "visible": false,
+                    "position": "absolute",
+                    "top": "50%",
+                    "left": "50%",
+                    "transform": "translate(-50%, -50%)"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "generated_idea_box",
+              "type": "container",
+              "properties": {
+                "width": "100%",
+                "maxWidth": "600px",
+                "marginTop": "32px"
+              },
+              "children": [
+                {
+                  "id": "idea_input",
+                  "type": "textarea",
+                  "properties": {
+                    "placeholder": "Your idea will appear here... or type your own",
+                    "rows": 4,
+                    "width": "100%",
+                    "fontSize": "16px",
+                    "padding": "16px",
+                    "borderRadius": "8px",
+                    "border": "1px solid #D1D5DB",
+                    "backgroundColor": "#FFFFFF"
+                  }
+                },
+                {
+                  "id": "action_buttons",
+                  "type": "container",
+                  "properties": {
+                    "layout": "horizontal",
+                    "justifyContent": "flex-end",
+                    "marginTop": "12px",
+                    "gap": "8px"
+                  },
+                  "children": [
+                    {
+                      "id": "save_idea_btn",
+                      "type": "button",
+                      "properties": {
+                        "label": "💾 Save Idea",
+                        "variant": "outlined",
+                        "onClick": "scripts/idea-generator.ts:saveIdea"
+                      }
+                    },
+                    {
+                      "id": "refine_idea_btn",
+                      "type": "button",
+                      "properties": {
+                        "label": "✨ Start Refining",
+                        "variant": "primary",
+                        "onClick": "scripts/chat-handler.ts:startRefinement"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "chat_panel",
+          "type": "container",
+          "properties": {
+            "backgroundColor": "#FFFFFF",
+            "borderLeft": "1px solid #E5E7EB",
+            "display": "flex",
+            "flexDirection": "column",
+            "visible": false
+          },
+          "children": [
+            {
+              "id": "chat_header",
+              "type": "container",
+              "properties": {
+                "padding": "16px",
+                "borderBottom": "1px solid #E5E7EB",
+                "layout": "horizontal",
+                "alignItems": "center",
+                "justifyContent": "space-between"
+              },
+              "children": [
+                {
+                  "id": "chat_title",
+                  "type": "text",
+                  "properties": {
+                    "text": "Idea Refinement",
+                    "fontSize": "16px",
+                    "fontWeight": "600"
+                  }
+                },
+                {
+                  "id": "close_chat_btn",
+                  "type": "button",
+                  "properties": {
+                    "icon": "x",
+                    "variant": "ghost",
+                    "size": "small",
+                    "onClick": "scripts/chat-handler.ts:closeChat"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "agent_selector",
+              "type": "chipGroup",
+              "properties": {
+                "options": [
+                  {"value": "auto", "label": "🤖 Auto"},
+                  {"value": "revise", "label": "🔧 Revise"},
+                  {"value": "investigate", "label": "🔍 Research"},
+                  {"value": "critique", "label": "⚖️ Critique"},
+                  {"value": "expand", "label": "💡 Expand"}
+                ],
+                "value": "auto",
+                "padding": "8px 16px",
+                "borderBottom": "1px solid #E5E7EB"
+              }
+            },
+            {
+              "id": "chat_messages",
+              "type": "scrollContainer",
+              "properties": {
+                "flex": 1,
+                "padding": "16px",
+                "autoScroll": true
+              },
+              "children": [
+                {
+                  "id": "messages_list",
+                  "type": "messageList",
+                  "dataSource": {
+                    "type": "state",
+                    "key": "chat_messages"
+                  },
+                  "messageTemplate": {
+                    "type": "message",
+                    "properties": {
+                      "sender": "{{sender_type}}",
+                      "text": "{{message_text}}",
+                      "timestamp": "{{created_at}}",
+                      "avatar": "{{sender_type === 'agent' ? agent_avatar : user_avatar}}",
+                      "color": "{{sender_type === 'agent' ? agent_color : '#3B82F6'}}"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "chat_input_container",
+              "type": "container",
+              "properties": {
+                "padding": "16px",
+                "borderTop": "1px solid #E5E7EB"
+              },
+              "children": [
+                {
+                  "id": "chat_input",
+                  "type": "textarea",
+                  "properties": {
+                    "placeholder": "Ask a question or request refinement...",
+                    "rows": 2,
+                    "width": "100%",
+                    "onEnter": "scripts/chat-handler.ts:sendMessage"
+                  }
+                },
+                {
+                  "id": "send_btn",
+                  "type": "button",
+                  "properties": {
+                    "label": "Send",
+                    "variant": "primary",
+                    "width": "100%",
+                    "marginTop": "8px",
+                    "onClick": "scripts/chat-handler.ts:sendMessage"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "state": {
+    "current_campaign": null,
+    "current_idea": null,
+    "chat_session": null,
+    "chat_messages": [],
+    "selected_agent": "auto",
+    "search_query": "",
+    "filter_status": "All"
+  },
+  "scripts": [
+    "scripts/campaign-manager.ts",
+    "scripts/document-processor.ts",
+    "scripts/idea-generator.ts",
+    "scripts/semantic-search.ts",
+    "scripts/chat-handler.ts"
+  ],
+  "permissions": {
+    "public": false,
+    "authenticated": true,
+    "roles": ["user", "admin"]
+  }
+}

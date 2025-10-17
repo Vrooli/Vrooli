@@ -1,0 +1,139 @@
+version: 1.0
+scenario: vrooli-assistant
+
+# Structure validation - required files and directories
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - ui/electron/main.js
+    - ui/electron/package.json
+    - ui/electron/preload.js
+    - ui/electron/overlay.html
+    - ui/electron/renderer.js
+    - cli/vrooli-assistant
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - ui/electron
+    - ui/electron/assets
+    - initialization/storage/postgres
+    - data
+    - test
+
+# Resource validation
+resources:
+  required: 
+    - postgres
+  optional: 
+    - qdrant
+    - browserless
+  health_timeout: 30
+
+# Declarative tests
+tests:
+  # API tests
+  - name: "API health check"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        
+  - name: "API status endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/assistant/status
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["status", "operational"]
+      
+  - name: "Issue capture endpoint exists"
+    type: http
+    service: api
+    endpoint: /api/v1/assistant/capture
+    method: OPTIONS
+    expect:
+      status: 200
+      
+  # CLI tests
+  - name: "CLI is executable"
+    type: exec
+    command: ./cli/vrooli-assistant help
+    expect:
+      exit_code: 0
+      output_contains: ["Vrooli Assistant", "Commands", "capture"]
+      
+  - name: "CLI version command"
+    type: exec
+    command: ./cli/vrooli-assistant version
+    expect:
+      exit_code: 0
+      output_contains: ["Vrooli Assistant", "v1.0.0"]
+      
+  - name: "CLI status command"
+    type: exec
+    command: ./cli/vrooli-assistant status --json
+    expect:
+      exit_code: 0
+      output_contains: ["daemon", "api"]
+      
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('issues', 'agent_sessions', 'patterns')"
+    expect:
+      rows:
+        - count: 3
+        
+  - name: "Issues table exists"
+    type: sql
+    service: postgres
+    query: "SELECT column_name FROM information_schema.columns WHERE table_name = 'issues' ORDER BY ordinal_position LIMIT 1"
+    expect:
+      rows:
+        - column_name: id
+        
+  # Electron app tests
+  - name: "Electron package.json is valid"
+    type: exec
+    command: cd ui/electron && npm list --depth=0
+    expect:
+      exit_code: 0
+      
+  - name: "Electron dependencies installed"
+    type: file
+    path: ui/electron/node_modules/electron/package.json
+    expect:
+      exists: true
+      
+# Performance criteria
+performance:
+  api_response_time: 500ms
+  screenshot_capture: 1000ms
+  memory_usage: 100MB
+  
+# Integration points
+integrations:
+  - name: "Task creation in backlog"
+    type: file
+    path: /home/matthalloran8/Vrooli/docs/tasks/backlog.md
+    on_capture: append
+    
+  - name: "Agent spawning"
+    type: cli
+    commands:
+      - claude-code
+      - agent-s2
+    availability: optional

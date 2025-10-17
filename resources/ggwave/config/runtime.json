@@ -1,0 +1,97 @@
+{
+  "startup_order": 600,
+  "dependencies": [],
+  "optional_dependencies": ["ffmpeg"],
+  "startup_timeout": 30,
+  "startup_time_estimate": "5-10s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "category": "communication",
+  "capabilities": [
+    "air-gap",
+    "audio-transmission",
+    "error-correction",
+    "ultrasonic",
+    "offline"
+  ],
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "resource_requirements": {
+    "minimum": {
+      "cpu": "0.5",
+      "memory": "256M",
+      "disk": "100M"
+    },
+    "recommended": {
+      "cpu": "1.0",
+      "memory": "512M",
+      "disk": "500M"
+    }
+  },
+  "networking": {
+    "ports": [
+      {
+        "internal": 8196,
+        "external": 8196,
+        "protocol": "tcp",
+        "description": "REST API and WebSocket"
+      }
+    ],
+    "networks": ["vrooli-network"]
+  },
+  "volumes": [
+    {
+      "name": "ggwave-data",
+      "mount": "/data",
+      "type": "persistent"
+    }
+  ],
+  "environment": {
+    "required": [],
+    "optional": [
+      "GGWAVE_MODE",
+      "GGWAVE_SAMPLE_RATE",
+      "GGWAVE_VOLUME",
+      "GGWAVE_ERROR_CORRECTION",
+      "GGWAVE_LOG_LEVEL"
+    ]
+  },
+  "monitoring": {
+    "metrics": [
+      "transmission_success_rate",
+      "decoding_latency",
+      "active_sessions",
+      "error_rate"
+    ],
+    "logs": {
+      "location": "/data/logs",
+      "level": "info",
+      "rotation": "daily"
+    }
+  },
+  "api": {
+    "version": "1.0",
+    "base_path": "/api",
+    "endpoints": [
+      {
+        "path": "/encode",
+        "method": "POST",
+        "description": "Encode data to audio"
+      },
+      {
+        "path": "/decode",
+        "method": "POST",
+        "description": "Decode audio to data"
+      },
+      {
+        "path": "/health",
+        "method": "GET",
+        "description": "Health status"
+      }
+    ]
+  }
+}

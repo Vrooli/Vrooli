@@ -1,0 +1,8 @@
+{
+  "startup_order": 890,
+  "startup_timeout": 120,
+  "startup_time_estimate": "30-90s",
+  "dependencies": [],
+  "recovery_attempts": 3,
+  "priority": "medium"
+}

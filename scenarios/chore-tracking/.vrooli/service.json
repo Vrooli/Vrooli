@@ -1,0 +1,201 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "chore-tracking",
+    "displayName": "ChoreQuest",
+    "description": "Gamified chore tracking with points, achievements, and cute quirky UX for making cleaning fun",
+    "version": "1.0.0",
+    "tags": [
+      "personal-assistant",
+      "lifestyle",
+      "chores",
+      "gamification",
+      "cleaning",
+      "tasks",
+      "points",
+      "achievements",
+      "family",
+      "javascript-ui",
+      "fun",
+      "nodejs-ui",
+      "go-api",
+      "postgres-storage",
+      "redis-cache"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "ChoreQuest API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "ChoreQuest UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store users, chores, points, achievements, rewards, and schedules",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache leaderboard, active sessions, and real-time point updates"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Chore Tracking health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize ChoreQuest",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "chore-tracking-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "chore-tracking"
+             ]
+           },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x chore-tracker && ln -sf $(pwd)/chore-tracker ~/.local/bin/chore-tracker",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o chore-tracker-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🎮 ChoreQuest initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start ChoreQuest services",
+      "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./chore-tracking-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/chore-tracking-api"
+           }
+         },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server",
+          "background": true
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 ChoreQuest running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test ChoreQuest services",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health"
+        },
+        {
+          "name": "test-chores",
+          "run": "curl -sf http://localhost:$API_PORT/api/chores",
+          "description": "Test chores endpoint"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"chore-tracking-api\" || true; sleep 1; pkill -9 -f \"chore-tracking-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/chore-tracking.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/chore-tracking.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

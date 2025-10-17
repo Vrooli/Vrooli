@@ -1,0 +1,549 @@
+#!/usr/bin/env bash
+################################################################################
+# Ollama Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Local AI model inference server for running large language models
+#
+# Usage:
+#   resource-ollama <command> [options]
+#   resource-ollama <group> <subcommand> [options]
+#
+################################################################################
+
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    OLLAMA_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${OLLAMA_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
+
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/ollama/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/ollama/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
+OLLAMA_CLI_DIR="${APP_ROOT}/resources/ollama"
+
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+# shellcheck disable=SC1091
+source "${OLLAMA_CLI_DIR}/config/defaults.sh"
+
+# Source Ollama libraries
+for lib in common api models status install inject agents; do
+    lib_file="${OLLAMA_CLI_DIR}/lib/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
+
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "ollama" "Ollama AI inference server management" "v2"
+
+# ==============================================================================
+# REQUIRED HANDLERS - Direct mapping to existing functions
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="ollama::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="ollama::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="ollama::start"  
+CLI_COMMAND_HANDLERS["manage::stop"]="ollama::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="ollama::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="ollama::test"
+
+# Content handlers - AI business operations
+CLI_COMMAND_HANDLERS["content::add"]="ollama_pull_model"
+CLI_COMMAND_HANDLERS["content::list"]="ollama_list_models"
+CLI_COMMAND_HANDLERS["content::get"]="ollama_show_model"
+CLI_COMMAND_HANDLERS["content::remove"]="ollama_remove_model"
+CLI_COMMAND_HANDLERS["content::execute"]="ollama_generate"
+
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed resource status" "ollama::status"
+cli::register_command "logs" "Show resource logs" "ollama::logs"
+
+# ==============================================================================
+# OLLAMA-SPECIFIC CONTENT COMMANDS (AI Model Operations)
+# ==============================================================================
+# Model management - these are the critical AI features
+cli::register_subcommand "content" "pull" "Pull AI model from registry" "ollama_pull_model" "modifies-system"
+cli::register_subcommand "content" "show" "Show details about a model" "ollama_show_model"
+cli::register_subcommand "content" "chat" "Start interactive chat with model" "ollama_chat"
+cli::register_subcommand "content" "generate" "Generate text using model" "ollama_generate"
+cli::register_subcommand "content" "inject" "Inject models from JSON file" "ollama_inject_handler" "modifies-system"
+
+# ==============================================================================
+# OPTIONAL RESOURCE-SPECIFIC COMMANDS
+# ==============================================================================
+cli::register_command "info" "Show comprehensive Ollama information" "ollama::info"
+
+# Agent management commands
+# Create wrapper for agents command that delegates to manager
+ollama::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="ollama" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f ollama::agents::command
+
+cli::register_command "agents" "Manage running Ollama agents" "ollama::agents::command"
+cli::register_command "query" "Execute prompt and return raw model output" "ollama_query"
+
+################################################################################
+# Agent cleanup function
+################################################################################
+
+#######################################
+# Setup agent cleanup on signals
+# Arguments:
+#   $1 - Agent ID
+#######################################
+ollama::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export OLLAMA_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    ollama::agent_cleanup() {
+        if [[ -n "${OLLAMA_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
+            agent_manager::unregister "${OLLAMA_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'ollama::agent_cleanup' EXIT SIGTERM SIGINT
+}
+
+################################################################################
+# Legacy wrapper functions - preserve ALL original functionality exactly
+################################################################################
+
+ollama_list_models() {
+    if command -v ollama &>/dev/null; then
+        ollama list
+    else
+        log::error "Ollama CLI not available"
+        return 1
+    fi
+}
+
+# Internal pull function (wrapped by agent manager)
+ollama_pull_model_internal() {
+    local model="$1"
+    
+    if command -v ollama &>/dev/null; then
+        ollama pull "$model"
+    else
+        log::error "Ollama CLI not available"
+        return 1
+    fi
+}
+
+ollama_pull_model() {
+    local model="${1:-}"
+    if [[ -z "$model" ]]; then
+        log::error "Model name required"
+        echo "Usage: resource-ollama content pull <model-name>"
+        echo ""
+        echo "Popular models:"
+        echo "  • llama3.2:3b      - Latest Llama 3.2 (3B params, fast)"
+        echo "  • llama3.2:8b      - Latest Llama 3.2 (8B params, balanced)"
+        echo "  • mistral:7b       - Mistral 7B (excellent performance)"
+        echo "  • codellama:7b     - Code-focused Llama model"
+        echo "  • qwen2.5:7b       - Qwen 2.5 (multilingual)"
+        echo ""
+        echo "Example: resource-ollama content pull llama3.2:3b"
+        return 1
+    fi
+    
+    # Use agent wrapper for long-running model download
+    if type -t agents::with_agent &>/dev/null; then
+        agents::with_agent "content-pull" "ollama_pull_model_internal" "$model"
+    else
+        # Fallback if agent management not available
+        ollama_pull_model_internal "$model"
+    fi
+}
+
+ollama_remove_model() {
+    local model="${1:-}"
+    if [[ -z "$model" ]]; then
+        log::error "Model name required"
+        echo "Usage: resource-ollama content remove <model-name>"
+        echo "Example: resource-ollama content remove llama3.2:3b"
+        return 1
+    fi
+    
+    if command -v ollama &>/dev/null; then
+        ollama rm "$model"
+    else
+        log::error "Ollama CLI not available"
+        return 1
+    fi
+}
+
+ollama_show_model() {
+    local model="${1:-}"
+    if [[ -z "$model" ]]; then
+        log::error "Model name required"
+        echo "Usage: resource-ollama content show <model-name>"
+        echo "Example: resource-ollama content show llama3.2:3b"
+        return 1
+    fi
+    
+    if command -v ollama &>/dev/null; then
+        ollama show "$model"
+    else
+        log::error "Ollama CLI not available"
+        return 1
+    fi
+}
+
+# Internal chat function (wrapped by agent manager)
+ollama_chat_internal() {
+    local model="$1"
+    
+    if command -v ollama &>/dev/null; then
+        log::info "Starting chat with $model (type /bye to exit)"
+        ollama run "$model"
+    else
+        log::error "Ollama CLI not available"
+        return 1
+    fi
+}
+
+ollama_chat() {
+    local model="${1:-}"
+    if [[ -z "$model" ]]; then
+        log::error "Model name required"
+        echo "Usage: resource-ollama content chat <model-name>"
+        echo ""
+        echo "Available models:"
+        ollama_list_models
+        echo ""
+        echo "Example: resource-ollama content chat llama3.2:3b"
+        return 1
+    fi
+    
+    # Use agent wrapper for interactive chat session
+    if type -t agents::with_agent &>/dev/null; then
+        agents::with_agent "content-chat" "ollama_chat_internal" "$model"
+    else
+        # Fallback if agent management not available
+        ollama_chat_internal "$model"
+    fi
+}
+
+ollama_generate() {
+    local model=""
+    local prompt=""
+    local quiet=false
+    
+    # Auto-enable quiet mode in non-TTY environments (automation context)
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        quiet=true
+    fi
+    
+    # Register agent if agent management is available
+    local agent_id=""
+    if type -t agent_manager::register &>/dev/null; then
+        agent_id=$(agent_manager::generate_id)
+        local command_string="resource-ollama content generate $*"
+        if agent_manager::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            ollama::setup_agent_cleanup "$agent_id"
+            
+            # Metrics will be tracked during actual operation execution
+        fi
+    fi
+    
+    # Simple argument parsing for core functionality
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --model)
+                model="$2"
+                shift 2
+                ;;
+            --quiet)
+                quiet=true
+                shift
+                ;;
+            *)
+                if [[ -z "$model" ]]; then
+                    model="$1"
+                elif [[ -z "$prompt" ]]; then
+                    prompt="$1"
+                else
+                    prompt="$prompt $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Check if we need to read from stdin
+    if [[ -z "$prompt" && ! -t 0 ]]; then
+        prompt=$(cat)
+    fi
+    
+    # Validate inputs
+    if [[ -z "$model" ]]; then
+        if [[ "$quiet" == false ]]; then
+            log::error "Model name required"
+            echo "Usage: resource-ollama content generate <model-name> [\"<prompt>\"]"
+            echo "Example: resource-ollama content generate llama3.2:3b \"Write a haiku about AI\""
+        fi
+        return 1
+    fi
+    
+    if [[ -z "$prompt" ]]; then
+        if [[ "$quiet" == false ]]; then
+            log::error "Prompt required"
+            echo "Usage: resource-ollama content generate <model-name> [\"<prompt>\"]"
+            echo "Example: resource-ollama content generate llama3.2:3b \"Write a haiku about AI\""
+        fi
+        return 1
+    fi
+    
+    # Check if Ollama is available
+    if ! command -v ollama &>/dev/null; then
+        if [[ "$quiet" == false ]]; then
+            log::error "Ollama CLI not available"
+        fi
+        return 1
+    fi
+    
+    # Use ollama run for generation with metrics tracking
+    if [[ "$quiet" == false ]]; then
+        log::info "Generating text with $model"
+    fi
+    
+    local result=0
+    local start_time=$(date +%s%3N)  # Milliseconds
+    
+    # Track operation start metrics
+    if [[ -n "$agent_id" ]] && type -t agents::metrics::increment &>/dev/null; then
+        agents::metrics::increment "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "requests" 1
+    fi
+    
+    ollama run "$model" "$prompt"
+    result=$?
+    
+    # Track operation completion metrics
+    if [[ -n "$agent_id" ]] && type -t agents::metrics::histogram &>/dev/null; then
+        local end_time=$(date +%s%3N)
+        local duration=$((end_time - start_time))
+        agents::metrics::histogram "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "request_duration_ms" "$duration"
+        
+        # Track success/error
+        if [[ $result -eq 0 ]]; then
+            log::debug "Ollama generation completed successfully"
+        else
+            type -t agents::metrics::increment &>/dev/null && \
+                agents::metrics::increment "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "errors" 1
+        fi
+        
+        # Update process metrics
+        if type -t agents::metrics::gauge &>/dev/null; then
+            # Get current process memory usage (in MB)
+            local memory_kb=$(ps -o rss= -p $$ 2>/dev/null | awk '{print $1}' || echo "0")
+            local memory_mb=$((memory_kb / 1024))
+            agents::metrics::gauge "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "memory_mb" "$memory_mb"
+        fi
+    fi
+    
+    # Unregister agent on completion
+    if [[ -n "$agent_id" ]] && type -t agent_manager::unregister &>/dev/null; then
+        agent_manager::unregister "$agent_id" >/dev/null 2>&1
+    fi
+    
+    return $result
+}
+
+ollama_inject_handler() {
+    local file="${1:-}"
+    
+    if [[ -z "$file" ]]; then
+        log::error "Injection file required"
+        echo "Usage: resource-ollama content inject <file.json>"
+        echo ""
+        echo "Example file format:"
+        echo '{'
+        echo '  "models": ['
+        echo '    {"name": "llama3.2:3b", "alias": "llama-small"},'
+        echo '    {"name": "qwen2.5-coder:7b"}'
+        echo '  ]'
+        echo '}'
+        return 1
+    fi
+    
+    # Handle shared: prefix for scenario files
+    if [[ "$file" == shared:* ]]; then
+        file="${var_VROOLI_ROOT}/${file#shared:}"
+    fi
+    
+    # Call the injection function
+    if command -v ollama::inject &>/dev/null; then
+        ollama::inject "$file"
+    else
+        log::error "Ollama injection function not available"
+        return 1
+    fi
+}
+
+ollama_query() {
+    local model=""
+    local prompt=""
+    local use_case="general"
+    local expect_json=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --model)
+                model="$2"
+                shift 2
+                ;;
+            --type)
+                use_case="$2"
+                shift 2
+                ;;
+            --json)
+                expect_json=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: resource-ollama query [--model <name>] [--type <general|code|reasoning|vision>] [--json] <prompt>"
+                echo "       resource-ollama query [--model <name>] [options] -- <prompt>"
+                echo "       echo 'prompt' | resource-ollama query [--model <name>]"
+                return 0
+                ;;
+            --)
+                shift
+                while [[ $# -gt 0 ]]; do
+                    prompt="${prompt:+$prompt }$1"
+                    shift
+                done
+                break
+                ;;
+            *)
+                prompt="${prompt:+$prompt }$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$prompt" && ! -t 0 ]]; then
+        prompt=$(cat)
+    fi
+
+    if [[ -z "$prompt" ]]; then
+        log::error "Prompt text required"
+        echo "Usage: resource-ollama query [--model <name>] [--type <general|code|reasoning|vision>] [--json] <prompt>"
+        return 1
+    fi
+
+    local previous_format="${OUTPUT_FORMAT:-text}"
+    OUTPUT_FORMAT="json"
+
+    local restore_temperature=false
+    local restore_max_tokens=false
+    local restore_top_p=false
+    local restore_top_k=false
+    local restore_seed=false
+    local restore_system_prompt=false
+
+    if [[ -z ${TEMPERATURE+x} ]]; then
+        TEMPERATURE="0.8"
+        restore_temperature=true
+    fi
+    if [[ -z ${MAX_TOKENS+x} ]]; then
+        MAX_TOKENS=""
+        restore_max_tokens=true
+    fi
+    if [[ -z ${TOP_P+x} ]]; then
+        TOP_P="0.9"
+        restore_top_p=true
+    fi
+    if [[ -z ${TOP_K+x} ]]; then
+        TOP_K="40"
+        restore_top_k=true
+    fi
+    if [[ -z ${SEED+x} ]]; then
+        SEED=""
+        restore_seed=true
+    fi
+    if [[ -z ${SYSTEM_PROMPT+x} ]]; then
+        SYSTEM_PROMPT=""
+        restore_system_prompt=true
+    fi
+
+    local response
+    if ! response=$(ollama::send_prompt "$prompt" "$model" "$use_case"); then
+        OUTPUT_FORMAT="$previous_format"
+        if [[ "$restore_temperature" == true ]]; then unset TEMPERATURE; fi
+        if [[ "$restore_max_tokens" == true ]]; then unset MAX_TOKENS; fi
+        if [[ "$restore_top_p" == true ]]; then unset TOP_P; fi
+        if [[ "$restore_top_k" == true ]]; then unset TOP_K; fi
+        if [[ "$restore_seed" == true ]]; then unset SEED; fi
+        if [[ "$restore_system_prompt" == true ]]; then unset SYSTEM_PROMPT; fi
+        return 1
+    fi
+
+    OUTPUT_FORMAT="$previous_format"
+    if [[ "$restore_temperature" == true ]]; then unset TEMPERATURE; fi
+    if [[ "$restore_max_tokens" == true ]]; then unset MAX_TOKENS; fi
+    if [[ "$restore_top_p" == true ]]; then unset TOP_P; fi
+    if [[ "$restore_top_k" == true ]]; then unset TOP_K; fi
+    if [[ "$restore_seed" == true ]]; then unset SEED; fi
+    if [[ "$restore_system_prompt" == true ]]; then unset SYSTEM_PROMPT; fi
+
+    local generated=""
+    if system::is_command "jq"; then
+        generated=$(echo "$response" | jq -r '.response // empty')
+    elif command -v python3 >/dev/null 2>&1; then
+        generated=$(printf '%s' "$response" | python3 - <<'PY'
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    text = data.get("response")
+    if text:
+        print(text)
+except Exception:
+    sys.exit(1)
+PY
+)
+    fi
+
+    if [[ -z "$generated" || "$generated" == "null" ]]; then
+        log::error "Ollama returned empty response"
+        return 1
+    fi
+
+    printf '%s\n' "$generated"
+
+    if [[ "$expect_json" == true ]]; then
+        return 0
+    fi
+}
+
+# Only execute if script is run directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

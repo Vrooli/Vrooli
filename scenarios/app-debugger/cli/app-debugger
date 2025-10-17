@@ -1,0 +1,436 @@
+#!/bin/bash
+################################################################################
+# App Debugger CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
+
+set -e
+
+# Configuration
+SCENARIO_NAME="app-debugger"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}App Debugger CLI${NC}"
+    echo "Debug and analyze Vrooli apps with powerful diagnostics"
+    echo ""
+    echo "Usage: app-debugger [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}list${NC}            List all running apps with health status"
+    echo -e "  ${GREEN}debug${NC}           Start debug session for an app"
+    echo -e "  ${GREEN}error${NC}           Report and analyze an error"
+    echo -e "  ${GREEN}health${NC}          Check service health status"
+    echo ""
+    echo "Examples:"
+    echo "  app-debugger list"
+    echo "  app-debugger debug app-monitor --type errors"
+    echo "  app-debugger error prompt-manager --message \"Connection failed\""
+    echo "  app-debugger health"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo ""
+    echo "For more information: app-debugger <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# List apps command
+cmd_list() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-debugger list [OPTIONS]"
+                echo ""
+                echo "List all running apps with their health status"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  app-debugger list"
+                echo "  app-debugger list --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📱 Fetching running apps...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/apps")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count apps:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "\(.name): \(.status) (\(.health))"' 2>/dev/null | while read -r line; do
+                # Color code based on status
+                if [[ $line =~ running.*healthy ]]; then
+                    echo -e "  ${GREEN}$line${NC}"
+                elif [[ $line =~ running.*warning ]]; then
+                    echo -e "  ${YELLOW}$line${NC}"
+                elif [[ $line =~ stopped ]]; then
+                    echo -e "  ${RED}$line${NC}"
+                else
+                    echo "  $line"
+                fi
+            done
+        else
+            echo -e "${YELLOW}No running apps found${NC}"
+        fi
+    fi
+}
+
+# Debug command
+cmd_debug() {
+    local app_name=""
+    local debug_type=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type)
+                debug_type="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-debugger debug <app-name> [OPTIONS]"
+                echo ""
+                echo "Start a debug session for a specific app"
+                echo ""
+                echo "Options:"
+                echo "  --type <type>    Debug type (errors, logs, performance, fix)"
+                echo "  --json           Output in JSON format"
+                echo ""
+                echo "Debug Types:"
+                echo "  errors           Analyze error patterns and logs"
+                echo "  logs             Stream and analyze app logs"
+                echo "  performance      Monitor performance metrics"
+                echo "  fix              Auto-fix common issues"
+                echo ""
+                echo "Examples:"
+                echo "  app-debugger debug app-monitor --type errors"
+                echo "  app-debugger debug prompt-manager --type performance"
+                echo "  app-debugger debug idea-generator --type fix"
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$app_name" ]]; then
+                    app_name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$app_name" ]]; then
+        echo -e "${RED}❌ Error: App name is required${NC}" >&2
+        echo "   Usage: app-debugger debug <app-name> --type <type>" >&2
+        return 1
+    fi
+    
+    # Interactive mode if debug_type not provided
+    if [[ -z "$debug_type" ]]; then
+        echo "Available debug types:"
+        echo "1. errors - Analyze error patterns and logs"
+        echo "2. logs - Stream and analyze app logs"
+        echo "3. performance - Monitor performance metrics"
+        echo "4. fix - Auto-fix common issues"
+        echo ""
+        read -p "Select debug type [errors/logs/performance/fix]: " debug_type
+        
+        # Default to errors if empty
+        [[ -z "$debug_type" ]] && debug_type="errors"
+    fi
+    
+    # Build request JSON
+    local request_body=$(jq -n \
+        --arg app_name "$app_name" \
+        --arg debug_type "$debug_type" \
+        '{
+            app_name: $app_name,
+            debug_type: $debug_type
+        }')
+    
+    echo -e "${BLUE}🔧 Starting debug session for $app_name (mode: $debug_type)...${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/debug" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Debug session started:${NC}"
+        echo "$response" | format_json
+    fi
+}
+
+# Error reporting command
+cmd_error() {
+    local app_name=""
+    local error_message=""
+    local stack_trace=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --message)
+                error_message="$2"
+                shift 2
+                ;;
+            --stack)
+                stack_trace="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-debugger error <app-name> [OPTIONS]"
+                echo ""
+                echo "Report an error for analysis and get diagnostic insights"
+                echo ""
+                echo "Options:"
+                echo "  --message <msg>     Error message to analyze"
+                echo "  --stack <trace>     Stack trace (optional)"
+                echo "  --json              Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  app-debugger error app-monitor --message \"Database connection failed\""
+                echo "  app-debugger error prompt-manager --message \"Timeout error\" --stack \"...\""
+                echo ""
+                echo "Interactive mode:"
+                echo "  If --message is not provided, you'll be prompted to enter the error details"
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$app_name" ]]; then
+                    app_name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$app_name" ]]; then
+        echo -e "${RED}❌ Error: App name is required${NC}" >&2
+        echo "   Usage: app-debugger error <app-name> --message \"<error>\"" >&2
+        return 1
+    fi
+    
+    # Interactive mode if error_message not provided
+    if [[ -z "$error_message" ]]; then
+        read -p "Enter error message: " error_message
+        [[ -z "$error_message" ]] && { echo -e "${RED}❌ Error message is required${NC}" >&2; return 1; }
+        
+        read -p "Stack trace (optional, press enter to skip): " stack_trace
+    fi
+    
+    # Build request JSON
+    local request_body=$(jq -n \
+        --arg app_name "$app_name" \
+        --arg error_message "$error_message" \
+        --arg stack_trace "$stack_trace" \
+        '{
+            app_name: $app_name,
+            error_message: $error_message,
+            stack_trace: $stack_trace,
+            context: {}
+        }')
+    
+    echo -e "${BLUE}🚨 Reporting error for analysis...${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/report-error" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Error reported for analysis:${NC}"
+        echo "$response" | jq -r '"Status: \(.status)\nApp: \(.app_name)\nAnalysis: \(.error_type)"' 2>/dev/null
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-debugger health [OPTIONS]"
+                echo ""
+                echo "Check the health status of the App Debugger service"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🏥 Checking App Debugger health...${NC}"
+    
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health" 2>/dev/null)
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "healthy"; then
+            echo -e "${GREEN}✅ App Debugger is healthy${NC}"
+            echo "   API: ${api_url}"
+            echo "   Status: $(echo "$response" | jq -r '.status' 2>/dev/null)"
+            echo "   Message: $(echo "$response" | jq -r '.message' 2>/dev/null)"
+        else
+            echo -e "${RED}❌ App Debugger health check failed${NC}"
+            echo "   Response: $response"
+            return 1
+        fi
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
+        list)
+            cmd_list "$@"
+            ;;
+        debug)
+            cmd_debug "$@"
+            ;;
+        error)
+            cmd_error "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        --version|-v|version)
+            echo "App Debugger CLI v2.0.0 (thin wrapper)"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

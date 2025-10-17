@@ -1,0 +1,20 @@
+{
+  "name": "ecosystem-manager-ui",
+  "version": "1.0.0",
+  "description": "Trello-like UI for Ecosystem Manager - unified resource and scenario management",
+  "type": "module",
+  "scripts": {
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "python3 -m http.server ${UI_PORT}"
+  },
+  "dependencies": {
+    "sortablejs": "^1.15.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-legacy": "^5.2.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.0"
+  }
+}

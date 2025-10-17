@@ -1,0 +1,234 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: minio
+  category: storage
+  subcategory: object-storage
+  description: "S3-compatible object storage for files, documents, and media with enterprise features"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - object-storage
+      - s3-compatible-api
+      - file-management
+      - bucket-operations
+    secondary:
+      - versioning
+      - encryption
+      - access-policies
+      - metadata-management
+    specialized:
+      - enterprise-features
+      - multi-tenant-support
+      - replication
+      - lifecycle-management
+  
+  # API interfaces available
+  interfaces:
+    - name: s3-api
+      endpoint: "/"
+      method: [GET, PUT, POST, DELETE, HEAD]
+      inputTypes: [application/octet-stream, multipart/form-data, application/xml]
+      outputTypes: [application/octet-stream, application/xml, application/json]
+      description: "S3-compatible REST API for object operations"
+    - name: admin-api
+      endpoint: "/minio/admin/v3/"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [application/json]
+      outputTypes: [application/json]
+      description: "Administrative API for server management"
+    - name: web-console
+      endpoint: "/minio/ui/"
+      method: [GET, POST]
+      inputTypes: [text/html, application/json]
+      outputTypes: [text/html, application/json]
+      description: "Web-based management console"
+    - name: health-check
+      endpoint: "/minio/health/live"
+      method: [GET]
+      inputTypes: []
+      outputTypes: [text/plain]
+      description: "Health and liveness check endpoint"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required:
+      - docker
+    optional:
+      - tls-certificates
+      - external-storage
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - document-manager
+      - brand-manager
+      - image-generation-pipeline
+    secondary:
+      - smart-file-photo-manager
+      - web-scraper-manager
+      - secure-document-processing
+    optimal_combinations:
+      - [minio, postgres, n8n]              # Complete data management stack
+      - [minio, unstructured-io, qdrant]    # Document processing pipeline
+      - [minio, comfyui, whisper]          # Media processing and storage
+      - [minio, vault, agent-s2]           # Secure automated file management
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 5000
+      max: 30000
+      currency: USD
+    complexity_score: 5  # 1-10 scale
+    implementation_time: "1-3 days"
+    upwork_demand: high
+    target_industries:
+      - cloud-storage
+      - data-management
+      - media-production
+      - enterprise-backup
+      - saas-platforms
+      - content-management
+    common_project_types:
+      - "Enterprise file storage system"
+      - "Media asset management platform"
+      - "Document management solution"
+      - "Backup and archival system"
+      - "Content delivery backend"
+  
+  # Technical specifications
+  technical:
+    ports: [9000, 9001]
+    protocols: [http, https, s3]
+    data_formats: [binary, json, xml, multipart]
+    resource_requirements:
+      memory:
+        minimum: "1GB"
+        recommended: "2GB"
+        optimal: "4GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "4+ cores"
+      storage:
+        minimum: "5GB"
+        recommended: "100GB"
+        optimal: "1TB+"
+      database:
+        required: false
+        recommended: false
+        supported: []
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_connections: 1000
+      execution_modes: [standalone, distributed, gateway]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - file-storage-systems
+      - media-management-platforms
+      - document-repositories
+      - backup-solutions
+    integration_targets:
+      preferred: [postgres, n8n, unstructured-io, comfyui]
+      compatible: [whisper, vault, agent-s2, qdrant]
+      avoid: [computation-tasks, database-operations]
+    workflow_templates:
+      storage: "Upload files → Store in buckets → Apply policies → Enable access → Monitor usage"
+      processing: "Receive files → Process with AI → Store results → Generate thumbnails → Index content"
+      backup: "Monitor source → Backup files → Verify integrity → Manage lifecycle → Report status"
+    complexity_indicators:
+      simple: ["basic file storage", "single bucket", "simple policies"]
+      intermediate: ["multi-bucket architecture", "versioning", "access controls", "lifecycle policies"]
+      advanced: ["enterprise features", "replication", "advanced security", "multi-tenant deployments"]
+  
+  # Specialized features
+  features:
+    s3_compatibility:
+      enabled: true
+      description: "Full S3 API compatibility for seamless integration"
+      compatibility: "AWS S3 API v4"
+    encryption:
+      enabled: true
+      description: "Server-side encryption with multiple key management options"
+      methods: ["SSE-S3", "SSE-KMS", "SSE-C"]
+    versioning:
+      enabled: true
+      description: "Object versioning and lifecycle management"
+      features: ["version-control", "lifecycle-rules", "transition-policies"]
+    access_control:
+      enabled: true
+      description: "Fine-grained access control and policies"
+      features: ["IAM-policies", "bucket-policies", "ACLs"]
+  
+  # Integration capabilities
+  integrations:
+    s3_features:
+      - bucket_operations
+      - object_operations
+      - multipart_uploads
+      - presigned_urls
+      - server_side_encryption
+    management_features:
+      - web_console
+      - admin_api
+      - metrics_monitoring
+      - audit_logging
+    enterprise_features:
+      - replication
+      - versioning
+      - lifecycle_management
+      - compliance_features
+  
+  # Testing and validation
+  testing:
+    test_file: "resources/minio/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - bucket_operations
+      - object_storage_retrieval
+      - api_compatibility
+      - access_control
+    fixtures:
+      - sample_files
+      - test_buckets
+      - policy_configurations
+    integration_tests:
+      - minio_s3_compatibility
+      - minio_postgres_metadata
+      - file_processing_workflow
+  
+  # Documentation and examples
+  documentation:
+    readme: "resources/minio/README.md"
+    api_reference: "resources/minio/docs/API.md"
+    examples_dir: "resources/minio/examples/"
+    configuration: "resources/minio/docs/CONFIGURATION.md"
+    troubleshooting: "resources/minio/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "2023.0.0"
+    tested_version: "latest"
+    api_version: "v4"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      s3_api: "v4"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "storage"
+  resource.vrooli.com/type: "object-storage"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/s3-compatible: "true"

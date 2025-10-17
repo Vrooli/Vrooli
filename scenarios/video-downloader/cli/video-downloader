@@ -1,0 +1,305 @@
+#!/bin/bash
+
+# Video Downloader CLI
+# Smart media retrieval tool
+
+API_URL="${VIDEO_DOWNLOADER_API_URL:-http://localhost:8850}"
+USER_ID="${USER_ID:-cli_user}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Display usage
+usage() {
+    echo "Usage: video-downloader <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  download <url>           Download a video from URL"
+    echo "  batch <file>            Download videos from URLs in file"
+    echo "  queue                   View download queue"
+    echo "  history [search]        View download history"
+    echo "  cancel <id>             Cancel a download"
+    echo "  analyze <url>           Analyze URL for available formats"
+    echo "  status                  Show queue status"
+    echo ""
+    echo "Options:"
+    echo "  --quality <quality>     Video quality (4k, 1080p, 720p, 480p, best)"
+    echo "  --format <format>       Output format (mp4, webm, mkv)"
+    echo "  --audio-only           Download audio only"
+    echo "  --user <user_id>       User identifier"
+    echo ""
+    echo "Examples:"
+    echo "  video-downloader download 'https://youtube.com/watch?v=...' --quality 1080p"
+    echo "  video-downloader batch urls.txt --format mp4"
+    echo "  video-downloader history 'tutorial'"
+    exit 0
+}
+
+# Parse command line arguments
+parse_args() {
+    QUALITY=""
+    FORMAT=""
+    AUDIO_ONLY="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --quality)
+                QUALITY="$2"
+                shift 2
+                ;;
+            --format)
+                FORMAT="$2"
+                shift 2
+                ;;
+            --audio-only)
+                AUDIO_ONLY="true"
+                shift
+                ;;
+            --user)
+                USER_ID="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+}
+
+# Download a single video
+download_video() {
+    local url="$1"
+    shift
+    parse_args "$@"
+    
+    if [ -z "$url" ]; then
+        echo -e "${RED}Error: URL is required${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Starting download...${NC}"
+    
+    # Build JSON payload
+    json_data=$(cat <<EOF
+{
+    "url": "$url",
+    "quality": "${QUALITY:-best}",
+    "format": "${FORMAT:-mp4}",
+    "audio_only": $AUDIO_ONLY,
+    "user_id": "$USER_ID"
+}
+EOF
+)
+    
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$json_data" \
+        "$API_URL/api/download")
+    
+    if [ $? -eq 0 ]; then
+        download_id=$(echo "$response" | grep -o '"download_id":[0-9]*' | cut -d: -f2)
+        echo -e "${GREEN}✓ Download queued successfully (ID: $download_id)${NC}"
+        echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"
+    else
+        echo -e "${RED}✗ Failed to queue download${NC}"
+        exit 1
+    fi
+}
+
+# Batch download from file
+batch_download() {
+    local file="$1"
+    shift
+    
+    if [ ! -f "$file" ]; then
+        echo -e "${RED}Error: File not found: $file${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Processing batch download...${NC}"
+    
+    count=0
+    while IFS= read -r url; do
+        # Skip empty lines and comments
+        [[ -z "$url" || "$url" =~ ^# ]] && continue
+        
+        echo -e "${YELLOW}Downloading: $url${NC}"
+        download_video "$url" "$@"
+        ((count++))
+        
+        # Small delay between requests
+        sleep 1
+    done < "$file"
+    
+    echo -e "${GREEN}✓ Queued $count downloads${NC}"
+}
+
+# View download queue
+view_queue() {
+    echo -e "${BLUE}Download Queue:${NC}"
+    
+    response=$(curl -s "$API_URL/api/queue?user_id=$USER_ID")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+if not data:
+    print('Queue is empty')
+else:
+    print(f'{'Pos':<5} {'ID':<8} {'Status':<12} {'Progress':<10} {'URL':<50}')
+    print('-' * 85)
+    for item in data:
+        url = item.get('url', '')[:47] + '...' if len(item.get('url', '')) > 50 else item.get('url', '')
+        print(f\"{item['position']:<5} {item['download_id']:<8} {item['status']:<12} {item['progress']}%{'':8} {url}\")
+" 2>/dev/null || echo "$response"
+    else
+        echo -e "${RED}✗ Failed to get queue${NC}"
+        exit 1
+    fi
+}
+
+# View download history
+view_history() {
+    local search="${1:-}"
+    
+    echo -e "${BLUE}Download History:${NC}"
+    
+    url="$API_URL/api/history?user_id=$USER_ID"
+    [ -n "$search" ] && url="${url}&search=$search"
+    
+    response=$(curl -s "$url")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | python3 -c "
+import json, sys
+from datetime import datetime
+data = json.load(sys.stdin)
+if not data:
+    print('No downloads found')
+else:
+    print(f'{'ID':<8} {'Status':<12} {'Title':<40} {'Size':<10} {'Date':<20}')
+    print('-' * 90)
+    for item in data:
+        title = (item.get('title', 'Unknown')[:37] + '...') if len(item.get('title', '')) > 40 else item.get('title', 'Unknown')
+        size_mb = item.get('file_size', 0) / 1048576
+        size_str = f'{size_mb:.1f}MB' if size_mb > 0 else '-'
+        date = item.get('created_at', '')[:19]
+        print(f\"{item['id']:<8} {item['status']:<12} {title:<40} {size_str:<10} {date:<20}\")
+" 2>/dev/null || echo "$response"
+    else
+        echo -e "${RED}✗ Failed to get history${NC}"
+        exit 1
+    fi
+}
+
+# Cancel a download
+cancel_download() {
+    local download_id="$1"
+    
+    if [ -z "$download_id" ]; then
+        echo -e "${RED}Error: Download ID is required${NC}"
+        exit 1
+    fi
+    
+    echo -e "${YELLOW}Cancelling download $download_id...${NC}"
+    
+    response=$(curl -s -X DELETE "$API_URL/api/download/$download_id")
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Download cancelled${NC}"
+    else
+        echo -e "${RED}✗ Failed to cancel download${NC}"
+        exit 1
+    fi
+}
+
+# Analyze URL
+analyze_url() {
+    local url="$1"
+    
+    if [ -z "$url" ]; then
+        echo -e "${RED}Error: URL is required${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Analyzing URL...${NC}"
+    
+    response=$(curl -s "$API_URL/api/analyze?url=$(echo "$url" | sed 's/ /%20/g')")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"
+    else
+        echo -e "${RED}✗ Failed to analyze URL${NC}"
+        exit 1
+    fi
+}
+
+# Show queue status
+show_status() {
+    echo -e "${BLUE}Queue Status:${NC}"
+    
+    response=$(curl -s "$API_URL/api/queue?user_id=$USER_ID")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+total = len(data)
+pending = len([d for d in data if d['status'] == 'pending'])
+downloading = len([d for d in data if d['status'] == 'downloading'])
+completed = len([d for d in data if d['status'] == 'completed'])
+failed = len([d for d in data if d['status'] == 'failed'])
+
+print(f'Total in queue: {total}')
+print(f'  Pending: {pending}')
+print(f'  Downloading: {downloading}')
+print(f'  Completed: {completed}')
+print(f'  Failed: {failed}')
+" 2>/dev/null || echo "Queue items: $(echo "$response" | grep -o '{' | wc -l)"
+    else
+        echo -e "${RED}✗ Failed to get status${NC}"
+        exit 1
+    fi
+}
+
+# Main command handler
+case "${1:-}" in
+    download)
+        shift
+        download_video "$@"
+        ;;
+    batch)
+        shift
+        batch_download "$@"
+        ;;
+    queue)
+        view_queue
+        ;;
+    history)
+        shift
+        view_history "$1"
+        ;;
+    cancel)
+        shift
+        cancel_download "$1"
+        ;;
+    analyze)
+        shift
+        analyze_url "$1"
+        ;;
+    status)
+        show_status
+        ;;
+    help|--help|-h|"")
+        usage
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        usage
+        ;;
+esac

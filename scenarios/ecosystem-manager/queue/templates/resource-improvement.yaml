@@ -1,0 +1,62 @@
+# Resource Improvement Task Template
+id: "resource-improver-CHANGEME-{{ timestamp }}"
+title: "Improve [RESOURCE_NAME] resource - [IMPROVEMENT_AREA]"
+
+# Core classification
+type: "resource"
+operation: "improver"
+category: "improvement"  # Always improvement for improver tasks
+
+# Priority and scheduling
+priority: "medium"
+effort_estimate: "2h"
+urgency: "normal"
+
+# Dependencies and relationships
+dependencies: []
+blocks: []
+related_scenarios: []  # scenarios affected by this resource
+related_resources: []  # other resources that might be impacted
+
+# Progress tracking
+status: "pending"
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 0
+last_completed_at: ""
+
+# Quality gates for resource improvement
+validation_criteria:
+  - "PRD.md accurately reflects current state"
+  - "Health checks are robust with proper error handling"
+  - "CLI commands follow standard patterns"
+  - "All improvements are backward compatible"
+  - "Documentation is updated and accurate"
+  - "No regressions introduced"
+
+# Metadata
+created_by: "user"
+created_at: "{{ timestamp }}"
+updated_at: "{{ timestamp }}"
+tags: ["resource-improvement", "maintenance"]
+notes: |
+  Template guidance for resource improvements. Fill in the CHANGEME placeholders before execution:
+    • Target resource and focus area (v2 contract compliance, health checks, CLI, docs, performance)
+    • Assessment focus (contract accuracy, PRD validation, health checks, CLI coverage, docs quality)
+    • Expected deliverables (updated PRD.md, health checks, CLI polish, resilience improvements, refreshed docs)
+    • PRD focus (verify checkmarks, complete missing P0 items, capture new requirements, update completion summaries)
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    improvements_made: 0
+    regression_tests_passed: 0
+  artifacts:
+    prd_location: ""
+    improvement_summary: ""
+    test_results: ""

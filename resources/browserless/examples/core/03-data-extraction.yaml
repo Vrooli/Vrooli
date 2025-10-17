@@ -1,0 +1,114 @@
+workflow:
+  name: "data-extraction"
+  description: "Extract structured data from a website with pagination support"
+  version: "1.0.0"
+  debug_level: "verbose"
+  
+  parameters:
+    url:
+      type: string
+      required: true
+      description: "URL to extract data from"
+    table_selector:
+      type: string
+      required: false
+      description: "CSS selector for the data table"
+      default: "table, .table, [role='table']"
+    next_button_selector:
+      type: string
+      required: false
+      description: "CSS selector for pagination next button"
+      default: ".next, [aria-label='Next'], button:contains('Next')"
+    max_pages:
+      type: number
+      required: false
+      description: "Maximum number of pages to extract"
+      default: 5
+  
+  steps:
+    - name: "navigate-to-page"
+      action: "navigate"
+      url: "${params.url}"
+      wait_for: "networkidle2"
+      timeout: 30000
+      debug:
+        screenshot: true
+        network: true
+    
+    - name: "wait-for-table"
+      action: "wait_for_element"
+      selector: "${params.table_selector}"
+      timeout: 10000
+      visible: true
+      debug:
+        screenshot: true
+    
+    - name: "extract-page-1-data"
+      action: "extract_table"
+      selector: "${params.table_selector}"
+      output: "${context.outputDir}/data-page-1.json"
+      format: "json"
+      debug:
+        screenshot: true
+    
+    - name: "check-pagination"
+      action: "assert_element"
+      selector: "${params.next_button_selector}"
+      on_error: "continue"
+      debug:
+        screenshot: false
+    
+    - name: "click-next-page-2"
+      action: "click"
+      selector: "${params.next_button_selector}"
+      wait_for_navigation: false
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "wait-for-page-2-load"
+      action: "wait_for_network_idle"
+      idle_time: 1000
+      on_error: "continue"
+      debug:
+        screenshot: false
+    
+    - name: "extract-page-2-data"
+      action: "extract_table"
+      selector: "${params.table_selector}"
+      output: "${context.outputDir}/data-page-2.json"
+      format: "json"
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "click-next-page-3"
+      action: "click"
+      selector: "${params.next_button_selector}"
+      wait_for_navigation: false
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "wait-for-page-3-load"
+      action: "wait_for_network_idle"
+      idle_time: 1000
+      on_error: "continue"
+      debug:
+        screenshot: false
+    
+    - name: "extract-page-3-data"
+      action: "extract_table"
+      selector: "${params.table_selector}"
+      output: "${context.outputDir}/data-page-3.json"
+      format: "json"
+      on_error: "continue"
+      debug:
+        screenshot: true
+    
+    - name: "capture-final-state"
+      action: "screenshot"
+      output: "${context.outputDir}/final-extraction-state.png"
+      full_page: true
+      debug:
+        screenshot: true

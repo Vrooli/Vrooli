@@ -1,0 +1,544 @@
+{
+  "name": "Smart Semantic Search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smart-search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare input for smart semantic search\nconst input = $input.item.json;\n\n// Required field validation\nif (!input.text) {\n  throw new Error('Missing required field: text');\n}\n\n// Extract and validate inputs\nconst text = input.text.trim();\nif (text.length === 0) {\n  throw new Error('Text field cannot be empty');\n}\n\nif (text.length > 50000) {\n  throw new Error('Text exceeds maximum length of 50,000 characters');\n}\n\n// Validate and set defaults\nconst collection = input.collection || 'default';\nconst mode = input.mode || 'comprehensive';\nconst supportedModes = ['quick', 'comprehensive', 'deep'];\n\nif (!supportedModes.includes(mode)) {\n  throw new Error(`Unsupported mode: ${mode}. Supported modes: ${supportedModes.join(', ')}`);\n}\n\n// Set mode-specific parameters\nlet maxQueries, maxResultsPerQuery, timeLimit;\nswitch (mode) {\n  case 'quick':\n    maxQueries = 3;\n    maxResultsPerQuery = 5;\n    timeLimit = 30000; // 30 seconds\n    break;\n  case 'comprehensive':\n    maxQueries = 7;\n    maxResultsPerQuery = 10;\n    timeLimit = 60000; // 60 seconds\n    break;\n  case 'deep':\n    maxQueries = 12;\n    maxResultsPerQuery = 15;\n    timeLimit = 120000; // 2 minutes\n    break;\n}\n\n// Override with user-provided values if specified\nmaxQueries = input.max_queries || maxQueries;\nmaxResultsPerQuery = input.max_results_per_query || maxResultsPerQuery;\n\n// Additional parameters\nconst includeSynthesis = input.include_synthesis !== false; // default true\nconst diversityThreshold = input.diversity_threshold || 0.7;\nconst confidenceThreshold = input.confidence_threshold || 0.3;\n\n// Prepare metadata\nconst metadata = {\n  text_length: text.length,\n  mode: mode,\n  collection: collection,\n  max_queries: maxQueries,\n  max_results_per_query: maxResultsPerQuery,\n  include_synthesis: includeSynthesis,\n  diversity_threshold: diversityThreshold,\n  confidence_threshold: confidenceThreshold,\n  time_limit: timeLimit,\n  generated_at: new Date().toISOString(),\n  search_id: `search_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn {\n  text: text,\n  collection: collection,\n  mode: mode,\n  metadata: metadata\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"prompt\": {{ JSON.stringify(\"You are a semantic search expert. Analyze the following text and generate specific, targeted search queries that would find highly relevant information.\\n\\nFocus on:\\n- Distinct key concepts and topics\\n- Technical terms and methodologies\\n- Potential problems or questions raised\\n- Background context needed\\n- Different perspectives or angles\\n- Specific details that might be lost in a single embedding\\n\\nAvoid:\\n- Overly broad queries\\n- Duplicate concepts\\n- Irrelevant tangents\\n- Generic terms\\n\\nGenerate exactly =\" + $json.metadata.max_queries + \" specific search queries for:\\n\\n\" + $json.text + \"\\n\\nRespond with ONLY a JSON array of strings, no other text:\\n[\\\"specific query 1\\\", \\\"technical query 2\\\", \\\"contextual query 3\\\"]\") }},\n  \"model\": {{ JSON.stringify(\"llama3.2\") }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 50\n}",
+        "options": {
+          "timeout": 50000
+        }
+      },
+      "id": "generate_queries",
+      "name": "Generate Search Queries",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process and validate generated queries\nconst ollama_response = $input.item.json;\nconst prevData = $('Validate Input').item.json;\n\nlet queries;\ntry {\n  // Check if response is successful from universal executor\n  if (!ollama_response.success) {\n    throw new Error('Universal executor failed: ' + (ollama_response.error || 'Unknown error'));\n  }\n  \n  // Extract response text from universal executor format\n  const responseText = ollama_response.response || ollama_response.text || '';\n  \n  // Try to parse as JSON array\n  queries = JSON.parse(responseText.trim());\n  \n  if (!Array.isArray(queries)) {\n    throw new Error('Response is not an array');\n  }\n  \n  // Validate queries\n  queries = queries\n    .filter(q => typeof q === 'string' && q.trim().length > 0)\n    .map(q => q.trim())\n    .slice(0, prevData.metadata.max_queries); // Limit to max queries\n    \n  if (queries.length === 0) {\n    throw new Error('No valid queries generated');\n  }\n  \n} catch (error) {\n  console.warn('Failed to parse LLM queries, using fallback strategy:', error.message);\n  \n  // Fallback: Generate basic queries from text analysis\n  const text = prevData.text;\n  const words = text.split(/\\s+/).filter(w => w.length > 3);\n  \n  // Create simple queries from important terms\n  queries = [\n    text.substring(0, 100), // First part of text\n    words.slice(0, 10).join(' '), // First 10 significant words\n    words.slice(-10).join(' ') // Last 10 significant words\n  ].slice(0, prevData.metadata.max_queries);\n}\n\n// Remove duplicates and ensure minimum query length\nconst uniqueQueries = [...new Set(queries)]\n  .filter(q => q.length >= 10)\n  .slice(0, prevData.metadata.max_queries);\n\nif (uniqueQueries.length === 0) {\n  throw new Error('No valid unique queries could be generated');\n}\n\n// Prepare for parallel execution\nconst searchTasks = uniqueQueries.map((query, index) => ({\n  query: query,\n  query_index: index,\n  collection: prevData.collection,\n  max_results: prevData.metadata.max_results_per_query,\n  metadata: prevData.metadata\n}));\n\nreturn {\n  search_tasks: searchTasks,\n  queries_generated: uniqueQueries,\n  original_text: prevData.text,\n  metadata: {\n    ...prevData.metadata,\n    queries_count: uniqueQueries.length,\n    query_generation_completed_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "process_queries",
+      "name": "Process Generated Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Split search tasks for parallel execution\nconst data = $input.item.json;\n\n// Return each search task as a separate item for parallel processing\nconst tasks = data.search_tasks || [];\n\n// Add shared metadata to each task\nreturn tasks.map(task => ({\n  ...task,\n  original_data: {\n    queries_generated: data.queries_generated,\n    original_text: data.original_text,\n    metadata: data.metadata\n  }\n}));"
+      },
+      "id": "split_search_tasks",
+      "name": "Split Search Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.ollama.url}/api/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"={{ $json.query }}\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate_query_embedding",
+      "name": "Generate Query Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.qdrant.url}/collections/={{ $json.collection }}/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"vector\": ={{ JSON.stringify($('Generate Query Embedding').item.json.embedding) }},\n  \"limit\": ={{ $json.max_results }},\n  \"with_payload\": true,\n  \"with_vector\": false,\n  \"score_threshold\": ={{ $json.metadata.confidence_threshold || 0.3 }}\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "execute_semantic_search",
+      "name": "Execute Semantic Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process search results for each query\nconst searchResults = $input.item.json;\nconst taskData = $('Split Search Tasks').item.json;\nconst embedding = $('Generate Query Embedding').item.json;\n\n// Extract results from Qdrant response\nconst results = searchResults.result || [];\n\n// Process each result\nconst processedResults = results.map(result => ({\n  id: result.id,\n  score: result.score,\n  payload: result.payload || {},\n  // Add query context\n  matched_query: taskData.query,\n  query_index: taskData.query_index\n}));\n\nreturn {\n  query: taskData.query,\n  query_index: taskData.query_index,\n  results: processedResults,\n  result_count: processedResults.length,\n  max_score: processedResults.length > 0 ? Math.max(...processedResults.map(r => r.score)) : 0,\n  min_score: processedResults.length > 0 ? Math.min(...processedResults.map(r => r.score)) : 0,\n  original_data: taskData.original_data\n};"
+      },
+      "id": "process_search_results",
+      "name": "Process Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_search_results",
+        "include": "allFields",
+        "options": {}
+      },
+      "id": "aggregate_results",
+      "name": "Aggregate All Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Aggregate and deduplicate all search results\nconst allResults = $input.item.json.all_search_results || [];\n\nif (allResults.length === 0) {\n  throw new Error('No search results to aggregate');\n}\n\n// Get metadata from first result\nconst metadata = allResults[0].original_data.metadata;\nconst queriesGenerated = allResults[0].original_data.queries_generated;\nconst originalText = allResults[0].original_data.original_text;\n\n// Flatten all results with query context\nlet flatResults = [];\nallResults.forEach(queryResult => {\n  queryResult.results.forEach(result => {\n    flatResults.push({\n      ...result,\n      query_source: queryResult.query,\n      query_index: queryResult.query_index\n    });\n  });\n});\n\n// Deduplicate by ID, keeping highest score\nconst resultMap = new Map();\nflatResults.forEach(result => {\n  const id = result.id;\n  if (!resultMap.has(id) || resultMap.get(id).score < result.score) {\n    resultMap.set(id, result);\n  }\n});\n\n// Convert back to array and sort by score\nconst deduplicatedResults = Array.from(resultMap.values())\n  .sort((a, b) => b.score - a.score);\n\n// Apply diversity filtering if needed\nconst diversityThreshold = metadata.diversity_threshold;\nlet finalResults = [];\nconst usedQueries = new Set();\n\ndeduplicatedResults.forEach(result => {\n  // Simple diversity check - don't over-represent any single query\n  const queryCount = finalResults.filter(r => r.query_source === result.query_source).length;\n  const maxPerQuery = Math.ceil(metadata.max_results_per_query / 2);\n  \n  if (queryCount < maxPerQuery) {\n    finalResults.push(result);\n  }\n});\n\n// Limit total results\nfinalResults = finalResults.slice(0, 50);\n\n// Calculate statistics\nconst stats = {\n  total_queries_executed: allResults.length,\n  total_raw_results: flatResults.length,\n  deduplicated_results: deduplicatedResults.length,\n  final_results: finalResults.length,\n  avg_score: finalResults.length > 0 ? finalResults.reduce((sum, r) => sum + r.score, 0) / finalResults.length : 0,\n  max_score: finalResults.length > 0 ? Math.max(...finalResults.map(r => r.score)) : 0,\n  query_coverage: allResults.map(qr => ({\n    query: qr.query,\n    result_count: qr.result_count,\n    max_score: qr.max_score\n  }))\n};\n\nreturn {\n  success: true,\n  queries_generated: queriesGenerated,\n  original_text: originalText,\n  results_by_query: allResults.map(qr => ({\n    query: qr.query,\n    results: qr.results,\n    result_count: qr.result_count\n  })),\n  aggregated_results: finalResults,\n  metadata: {\n    ...metadata,\n    search_completed_at: new Date().toISOString(),\n    processing_stage: 'aggregation_completed'\n  },\n  stats: stats\n};"
+      },
+      "id": "aggregate_and_deduplicate",
+      "name": "Aggregate and Deduplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.metadata.include_synthesis }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_synthesis_needed",
+      "name": "Check if Synthesis Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "${service.n8n.url}/webhook/ollama",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"prompt\": {{ JSON.stringify(\"You are a research synthesis expert. Analyze the search results and provide insights.\\n\\nOriginal Query Context:\\n\" + $json.original_text + \"\\n\\nGenerated Search Queries:\\n\" + $json.queries_generated.join('\\n- ') + \"\\n\\nSearch Results Summary:\\n\" + $json.stats.final_results + \" relevant documents found from \" + $json.stats.total_queries_executed + \" queries.\\nAverage relevance score: \" + $json.stats.avg_score.toFixed(3) + \"\\n\\nTop Results:\\n\" + $json.aggregated_results.slice(0, 5).map((r, i) => `${i+1}. [Score: ${r.score.toFixed(3)}] Query: \\\"${r.query_source}\\\" - ${JSON.stringify(r.payload).substring(0, 200)}...`).join('\\n') + \"\\n\\nProvide a concise synthesis that includes:\\n1. Key insights from the search results\\n2. How well the queries covered different aspects\\n3. Notable patterns or themes\\n4. Confidence in result quality\\n5. Suggestions for further research if applicable\\n\\nKeep response under 500 words and focus on actionable insights.\") }},\n  \"model\": {{ JSON.stringify(\"llama3.2\") }},\n  \"type\": \"reasoning\",\n  \"quiet\": true,\n  \"timeout_seconds\": 50\n}",
+        "options": {
+          "timeout": 50000
+        }
+      },
+      "id": "generate_synthesis",
+      "name": "Generate LLM Synthesis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2450, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format final response with synthesis\nconst searchData = $('Aggregate and Deduplicate').item.json;\nconst synthesisResponse = $input.item.json;\n\n// Extract synthesis from universal executor response\nlet synthesis;\nif (synthesisResponse.success) {\n  synthesis = synthesisResponse.response || synthesisResponse.text || 'Synthesis generation succeeded but no content returned';\n} else {\n  synthesis = 'Synthesis generation failed: ' + (synthesisResponse.error || 'Unknown error');\n}\n\n// Calculate confidence score based on multiple factors\nconst stats = searchData.stats;\nconst confidenceFactors = {\n  query_coverage: Math.min(stats.total_queries_executed / 5, 1), // Ideal 5+ queries\n  result_quality: Math.min(stats.avg_score / 0.7, 1), // Ideal 0.7+ avg score\n  result_quantity: Math.min(stats.final_results / 10, 1), // Ideal 10+ results\n  diversity: Math.min(stats.query_coverage.filter(q => q.result_count > 0).length / stats.total_queries_executed, 1) // All queries should find something\n};\n\nconst confidenceScore = Object.values(confidenceFactors).reduce((sum, factor) => sum + factor, 0) / Object.keys(confidenceFactors).length;\n\n// Calculate processing time\nconst startTime = new Date(searchData.metadata.generated_at).getTime();\nconst endTime = Date.now();\nconst processingTime = endTime - startTime;\n\nreturn {\n  success: true,\n  search_id: searchData.metadata.search_id,\n  mode: searchData.metadata.mode,\n  original_text: searchData.original_text,\n  queries_generated: searchData.queries_generated,\n  results_by_query: searchData.results_by_query,\n  aggregated_results: searchData.aggregated_results,\n  synthesis: synthesis,\n  confidence_score: Math.round(confidenceScore * 100) / 100,\n  confidence_factors: confidenceFactors,\n  processing_time_ms: processingTime,\n  stats: {\n    ...stats,\n    synthesis_included: true\n  },\n  metadata: {\n    ...searchData.metadata,\n    synthesis_completed_at: new Date().toISOString(),\n    processing_stage: 'completed_with_synthesis'\n  }\n};"
+      },
+      "id": "format_response_with_synthesis",
+      "name": "Format Response with Synthesis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2650, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format final response without synthesis\nconst searchData = $input.item.json;\n\n// Calculate confidence score based on multiple factors\nconst stats = searchData.stats;\nconst confidenceFactors = {\n  query_coverage: Math.min(stats.total_queries_executed / 5, 1),\n  result_quality: Math.min(stats.avg_score / 0.7, 1),\n  result_quantity: Math.min(stats.final_results / 10, 1),\n  diversity: Math.min(stats.query_coverage.filter(q => q.result_count > 0).length / stats.total_queries_executed, 1)\n};\n\nconst confidenceScore = Object.values(confidenceFactors).reduce((sum, factor) => sum + factor, 0) / Object.keys(confidenceFactors).length;\n\n// Calculate processing time\nconst startTime = new Date(searchData.metadata.generated_at).getTime();\nconst endTime = Date.now();\nconst processingTime = endTime - startTime;\n\nreturn {\n  success: true,\n  search_id: searchData.metadata.search_id,\n  mode: searchData.metadata.mode,\n  original_text: searchData.original_text,\n  queries_generated: searchData.queries_generated,\n  results_by_query: searchData.results_by_query,\n  aggregated_results: searchData.aggregated_results,\n  confidence_score: Math.round(confidenceScore * 100) / 100,\n  confidence_factors: confidenceFactors,\n  processing_time_ms: processingTime,\n  stats: {\n    ...stats,\n    synthesis_included: false\n  },\n  metadata: {\n    ...searchData.metadata,\n    completed_at: new Date().toISOString(),\n    processing_stage: 'completed_without_synthesis'\n  }\n};"
+      },
+      "id": "format_response_without_synthesis",
+      "name": "Format Response without Synthesis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2450, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"={{ $json.error || 'Smart semantic search failed' }}\",\n  \"search_id\": \"={{ $json.search_id || 'unknown' }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\",\n  \"stage\": \"={{ $json.processing_stage || 'unknown' }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $input.item.json;\nif (!input || Object.keys(input).length === 0 || !input.query) {\n  return {\n    query: \"How do neural networks learn from data?\",\n    collection: \"knowledge_base\",\n    top_k: 10,\n    min_score: 0.7\n  };\n}\nreturn input;"
+      },
+      "id": "handle_empty_input",
+      "name": "Handle Empty Input (Manual Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [380, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "output_type",
+              "value": "Smart Semantic Search Complete"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final_output",
+      "name": "Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [3050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Input (Manual Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Input (Manual Only)": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Generate Search Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Search Queries": {
+      "main": [
+        [
+          {
+            "node": "Process Generated Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Generated Queries": {
+      "main": [
+        [
+          {
+            "node": "Split Search Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Search Tasks": {
+      "main": [
+        [
+          {
+            "node": "Generate Query Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Query Embedding": {
+      "main": [
+        [
+          {
+            "node": "Execute Semantic Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Semantic Search": {
+      "main": [
+        [
+          {
+            "node": "Process Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Search Results": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Aggregate and Deduplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate and Deduplicate": {
+      "main": [
+        [
+          {
+            "node": "Check if Synthesis Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Synthesis Needed": {
+      "main": [
+        [
+          {
+            "node": "Generate LLM Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Response without Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate LLM Synthesis": {
+      "main": [
+        [
+          {
+            "node": "Format Response with Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response with Synthesis": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response without Synthesis": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "smart-semantic-search-v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "smart-semantic-search",
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "semantic-search",
+      "name": "semantic-search"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "ai-enhanced",
+      "name": "ai-enhanced"
+    }
+  ]
+}

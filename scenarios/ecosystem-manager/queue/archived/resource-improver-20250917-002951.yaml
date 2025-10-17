@@ -1,0 +1,37 @@
+id: resource-improver-20250917-002951
+title: Update ultralytics-yolo
+type: resource
+operation: improver
+category: misc
+priority: low
+effort_estimate: 4h
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: failed
+current_phase: failed
+started_at: "2025-09-30T02:11:06-04:00"
+completed_at: "2025-09-30T02:11:36-04:00"
+completion_count: 1
+last_completed_at: "2025-09-17T02:59:26-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-17T00:29:51-04:00"
+updated_at: "2025-09-30T02:11:36-04:00"
+tags: []
+notes: "Already pretty good, but could use some additional validation/tidying. Notes from last time:\n\n**What was accomplished:**\n- Verified and fixed ultralytics-yolo implementation  \n- Docker image builds and runs successfully with CUDA support\n- API server fully functional with all endpoints working\n- Object detection tested and validated (bus + 4 people detected)\n- Health monitoring and model status endpoints operational\n- Fixed test suite issues (container name matching problem)\n- Created PROBLEMS.md to document known issues\n- Updated PRD with accurate progress (20% → 85%)\n\n**Current status:**\n- Resource is **working and improved**\n- Docker container runs with GPU acceleration\n- All API endpoints functional\n- Detection performs at ~100-500ms per image\n- 6 out of 7 P0 requirements completed\n\n**Remaining issues or limitations:**\n- Storage Integration: Qdrant/Postgres/MinIO connections (framework exists but not activated)\n\n**Suggested next actions:**\n1. Complete storage integrations (Qdrant embeddings, Postgres metadata)\n2. Add batch processing capabilities\n3. Implement model caching to reduce startup time\n4. Add support for video stream processing\n5. Create N8n/Windmill workflow examples\n\n**Validation evidence:**\n```bash\n# Service running with GPU\nvrooli resource ultralytics-yolo status\n# Output: Service: Running ✓, Health: Healthy ✓, GPU: Available ✓\n\n# Detection working\n# Bus detected with 95.65% confidence\n# 4 people detected with 75-93% confidence\n# Inference time: 101-492ms on GPU\n```"
+results:
+    error: "Claude Code execution failed (exit code 1): [INFO]    Started health monitor for claude-code (PID: 1566424, interval: 30s)\n[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 5280 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 27937 chars)\n\nSession limit reached ∙ resets 3am\n"
+    execution_time: 30s
+    failed_at: "2025-09-30T02:11:36-04:00"
+    output: "[INFO]    Started health monitor for claude-code (PID: 1566424, interval: 30s)\n[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 5280 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 27937 chars)\n\nSession limit reached ∙ resets 3am\n"
+    prompt_size: 28116 chars (27.46 KB)
+    started_at: "2025-09-30T02:11:06-04:00"
+    success: false
+    timeout_allowed: 1h28m0s
+    timeout_failure: true
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

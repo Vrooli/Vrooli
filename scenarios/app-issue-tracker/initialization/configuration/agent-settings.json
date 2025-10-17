@@ -1,0 +1,87 @@
+{
+  "$schema": "agent-settings-schema",
+  "agent_backend": {
+    "auto_fallback": true,
+    "fallback_order": [
+      "codex",
+      "claude-code"
+    ],
+    "provider": "codex",
+    "skip_permissions": true
+  },
+  "description": "Agent backend configuration for AI-powered investigation and fix generation",
+  "providers": {
+    "claude-code": {
+      "capabilities": [
+        "investigation",
+        "fix_generation",
+        "code_analysis",
+        "pattern_detection",
+        "interactive_fixes"
+      ],
+      "cli_command": "resource-claude-code",
+      "config_file": null,
+      "enabled": true,
+      "operations": {
+        "fix": {
+          "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
+          "command": "run --tag {{TAG}} -",
+          "max_turns": 80,
+          "timeout_seconds": 1800
+        },
+        "investigate": {
+          "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
+          "command": "run --tag {{TAG}} -",
+          "max_turns": 80,
+          "timeout_seconds": 1800
+        }
+      }
+    },
+    "codex": {
+      "capabilities": [
+        "investigation",
+        "fix_generation",
+        "code_analysis",
+        "pattern_detection"
+      ],
+      "cli_command": "resource-codex",
+      "config_file": "codex-config.json",
+      "enabled": true,
+      "operations": {
+        "fix": {
+          "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
+          "command": "run --tag {{TAG}} -",
+          "max_turns": 80,
+          "timeout_seconds": 4800
+        },
+        "investigate": {
+          "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
+          "command": "run --tag {{TAG}} -",
+          "max_turns": 80,
+          "timeout_seconds": 4800
+        }
+      }
+    }
+  },
+  "shared_settings": {
+    "fix_generation_settings": {
+      "backup_before_fix": true,
+      "create_pull_request": false,
+      "require_human_approval": true,
+      "rollback_on_failure": true,
+      "run_tests_before_commit": true
+    },
+    "investigation_settings": {
+      "context_window_files": 20,
+      "include_dependencies": true,
+      "include_git_history": true,
+      "include_test_results": true,
+      "max_retries": 2,
+      "timeout_seconds": 300
+    },
+    "rate_limits": {
+      "concurrent_investigations": 3,
+      "requests_per_minute": 10
+    }
+  }
+}

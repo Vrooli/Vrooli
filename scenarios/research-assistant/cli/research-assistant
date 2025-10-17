@@ -1,0 +1,429 @@
+#!/usr/bin/env bash
+# Research Assistant CLI
+# Command-line interface for managing research reports, searches, and AI analysis
+
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/research-assistant/cli"
+CLI_NAME="research-assistant"
+VERSION="1.0.0"
+
+# Default API URL - can be overridden via environment
+# Use scenario-specific env var to avoid conflicts with other scenarios
+if [ -n "${RESEARCH_ASSISTANT_API_PORT:-}" ]; then
+    API_URL="${RESEARCH_API_URL:-http://localhost:${RESEARCH_ASSISTANT_API_PORT}}"
+else
+    # Try to find running API port from process
+    # Look for the exact binary name with word boundaries to avoid matching ecosystem-manager
+    API_PID=$(ps aux | grep -w "\./research-assistant-api" | grep -v grep | head -1 | awk '{print $2}')
+    if [ -n "${API_PID:-}" ]; then
+        API_PORT=$(lsof -i -P | grep "${API_PID}" | grep LISTEN | head -1 | grep -oE ':([0-9]+)' | cut -d: -f2 || echo "16814")
+    else
+        API_PORT="16814"
+    fi
+    API_URL="${RESEARCH_API_URL:-http://localhost:${API_PORT}}"
+fi
+
+# Color codes for professional styling
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+MAGENTA='\033[1;35m'
+CYAN='\033[1;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Professional banner
+show_banner() {
+    echo -e "${BLUE}"
+    cat << 'EOF'
+    ██████╗ ███████╗███████╗███████╗ █████╗ ██████╗  ██████╗██╗  ██╗
+    ██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝██║  ██║
+    ██████╔╝█████╗  ███████╗█████╗  ███████║██████╔╝██║     ███████║
+    ██╔══██╗██╔══╝  ╚════██║██╔══╝  ██╔══██║██╔══██╗██║     ██╔══██║
+    ██║  ██║███████╗███████║███████╗██║  ██║██║  ██║╚██████╗██║  ██║
+    ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+                                                                     
+     █████╗ ███████╗███████╗██╗███████╗████████╗ █████╗ ███╗   ██╗████████╗
+    ██╔══██╗██╔════╝██╔════╝██║██╔════╝╚══██╔══╝██╔══██╗████╗  ██║╚══██╔══╝
+    ███████║███████╗███████╗██║███████╗   ██║   ███████║██╔██╗ ██║   ██║   
+    ██╔══██║╚════██║╚════██║██║╚════██║   ██║   ██╔══██║██║╚██╗██║   ██║   
+    ██║  ██║███████║███████║██║███████║   ██║   ██║  ██║██║ ╚████║   ██║   
+    ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   
+                                                                            
+       🔍 AI-Powered Research Intelligence Platform v${VERSION} 🔍
+EOF
+    echo -e "${NC}"
+}
+
+# Error handling
+error() {
+    echo -e "${RED}❌ Error: $1${NC}" >&2
+    exit 1
+}
+
+success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+info() {
+    echo -e "${CYAN}ℹ️  $1${NC}"
+}
+
+warn() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# API helper functions
+api_get() {
+    local endpoint="$1"
+    curl -s "${API_URL}${endpoint}" || error "Failed to connect to API at ${API_URL}"
+}
+
+api_post() {
+    local endpoint="$1"
+    local data="$2"
+    curl -s -X POST -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" || error "Failed to post to API"
+}
+
+# Check if API is available
+check_api() {
+    if ! api_get "/health" > /dev/null 2>&1; then
+        error "Research Assistant API is not running at ${API_URL}. Please start it first."
+    fi
+}
+
+# Command implementations
+cmd_status() {
+    info "Checking Research Assistant status..."
+    
+    local health
+    health=$(api_get "/health")
+    
+    if [[ -n "$health" ]]; then
+        success "API is running at ${API_URL}"
+        echo -e "${WHITE}Health Status:${NC}"
+        echo "$health" | jq '.'
+        
+        echo -e "\n${WHITE}Service Endpoints:${NC}"
+        echo -e "  ${CYAN}API:${NC} ${API_URL}"
+        echo -e "  ${CYAN}Dashboard:${NC} http://localhost:8000"
+        echo -e "  ${CYAN}n8n Workflows:${NC} http://localhost:5678"
+        echo -e "  ${CYAN}SearXNG:${NC} http://localhost:8080"
+    else
+        error "API is not responding"
+    fi
+}
+
+cmd_dashboard() {
+    info "Fetching dashboard statistics..."
+    check_api
+    
+    local stats
+    stats=$(api_get "/api/dashboard/stats")
+    
+    if [[ -n "$stats" ]]; then
+        echo -e "${WHITE}📊 Dashboard Overview:${NC}"
+        echo -e "  ${GREEN}Total Reports:${NC} $(echo "$stats" | jq -r '.total_reports')"
+        echo -e "  ${GREEN}Completed This Month:${NC} $(echo "$stats" | jq -r '.completed_this_month')"
+        
+        echo -e "\n${WHITE}🎯 Active Projects:${NC}"
+        echo -e "  ${RED}High Priority:${NC} $(echo "$stats" | jq -r '.active_projects.high_priority')"
+        echo -e "  ${YELLOW}Medium Priority:${NC} $(echo "$stats" | jq -r '.active_projects.medium_priority')"
+        echo -e "  ${GREEN}Low Priority:${NC} $(echo "$stats" | jq -r '.active_projects.low_priority')"
+        
+        echo -e "\n${WHITE}🔍 Search Activity:${NC}"
+        echo -e "  ${CYAN}Searches Today:${NC} $(echo "$stats" | jq -r '.search_activity.searches_today')"
+        echo -e "  ${CYAN}Success Rate:${NC} $(echo "$stats" | jq -r '.search_activity.success_rate * 100')%"
+        echo -e "  ${CYAN}Results Analyzed:${NC} $(echo "$stats" | jq -r '.search_activity.results_analyzed')"
+        
+        echo -e "\n${WHITE}🤖 AI Insights:${NC}"
+        echo -e "  ${MAGENTA}Confidence:${NC} $(echo "$stats" | jq -r '.ai_insights.confidence * 100')%"
+        echo -e "  ${MAGENTA}High Priority:${NC} $(echo "$stats" | jq -r '.ai_insights.high_priority_insights')"
+        
+        echo -e "\n${WHITE}🗄️ Knowledge Base:${NC}"
+        echo -e "  ${BLUE}Documents:${NC} $(echo "$stats" | jq -r '.knowledge_base.documents_indexed')"
+        echo -e "  ${BLUE}Collections:${NC} $(echo "$stats" | jq -r '.knowledge_base.collections')"
+        echo -e "  ${BLUE}Accuracy:${NC} $(echo "$stats" | jq -r '.knowledge_base.retrieval_accuracy * 100')%"
+    else
+        error "Failed to fetch dashboard data"
+    fi
+}
+
+cmd_reports() {
+    local action="${1:-list}"
+    
+    case "$action" in
+        "list")
+            info "Fetching research reports..."
+            check_api
+            
+            local reports
+            reports=$(api_get "/api/reports")
+            
+            if [[ "$reports" == "[]" ]]; then
+                warn "No reports found"
+                return 0
+            fi
+            
+            echo -e "${WHITE}📄 Research Reports:${NC}"
+            echo "$reports" | jq -r '.[] | "\(.title) - \(.status) - \(.created_at) - ID: \(.id)"' | while read -r line; do
+                echo -e "${GREEN}  • ${NC}$line"
+            done
+            ;;
+        "create")
+            cmd_create_report "${@:2}"
+            ;;
+        *)
+            error "Unknown reports action: $action. Use 'list' or 'create'."
+            ;;
+    esac
+}
+
+cmd_create_report() {
+    local topic="$1"
+    local depth="${2:-standard}"
+    local length="${3:-5}"
+    
+    [[ -z "$topic" ]] && error "Research topic required"
+    
+    info "Creating research report on: $topic"
+    info "Depth: $depth, Target Length: $length pages"
+    check_api
+    
+    local request
+    request=$(jq -n \
+        --arg topic "$topic" \
+        --arg depth "$depth" \
+        --argjson length "$length" \
+        --arg requested_by "cli-user" \
+        '{
+            topic: $topic,
+            depth: $depth,
+            target_length: $length,
+            language: "en",
+            requested_by: $requested_by,
+            tags: ["cli-generated"]
+        }')
+    
+    local response
+    response=$(api_post "/api/reports" "$request")
+    
+    if [[ -n "$response" ]]; then
+        success "Research report request created!"
+        echo -e "${WHITE}Report Details:${NC}"
+        echo "$response" | jq '.'
+        
+        local report_id
+        report_id=$(echo "$response" | jq -r '.id')
+        info "Track progress with: $CLI_NAME show-report $report_id"
+    else
+        error "Failed to create research report"
+    fi
+}
+
+cmd_show_report() {
+    local report_id="$1"
+    [[ -z "$report_id" ]] && error "Report ID required"
+    
+    info "Fetching report details..."
+    check_api
+    
+    local report
+    report=$(api_get "/api/reports/$report_id")
+    
+    if [[ -z "$report" ]] || [[ "$report" == "null" ]]; then
+        error "Report not found: $report_id"
+    fi
+    
+    echo -e "${WHITE}📄 Report Details:${NC}"
+    echo -e "${CYAN}Title:${NC} $(echo "$report" | jq -r '.title')"
+    echo -e "${CYAN}Topic:${NC} $(echo "$report" | jq -r '.topic')"
+    echo -e "${CYAN}Status:${NC} $(echo "$report" | jq -r '.status')"
+    echo -e "${CYAN}Depth:${NC} $(echo "$report" | jq -r '.depth')"
+    echo -e "${CYAN}Target Length:${NC} $(echo "$report" | jq -r '.target_length') pages"
+    echo -e "${CYAN}Sources Count:${NC} $(echo "$report" | jq -r '.sources_count')"
+    echo -e "${CYAN}Word Count:${NC} $(echo "$report" | jq -r '.word_count')"
+    echo -e "${CYAN}Confidence:${NC} $(echo "$report" | jq -r '.confidence_score // "N/A"')"
+    echo -e "${CYAN}Requested:${NC} $(echo "$report" | jq -r '.requested_at')"
+    echo -e "${CYAN}ID:${NC} $(echo "$report" | jq -r '.id')"
+    
+    local status
+    status=$(echo "$report" | jq -r '.status')
+    if [[ "$status" == "completed" ]]; then
+        success "Report completed successfully!"
+        local pdf_url
+        pdf_url=$(echo "$report" | jq -r '.pdf_url // empty')
+        if [[ -n "$pdf_url" ]]; then
+            info "PDF available at: $pdf_url"
+        fi
+    elif [[ "$status" == "failed" ]]; then
+        error "Report generation failed: $(echo "$report" | jq -r '.error_message // "Unknown error"')"
+    else
+        info "Report is still processing..."
+    fi
+}
+
+cmd_search() {
+    local query="$1"
+    [[ -z "$query" ]] && error "Search query required"
+    
+    info "Performing research search for: $query"
+    check_api
+    
+    # For now, this is a placeholder since search endpoint is not implemented
+    local request
+    request=$(jq -n \
+        --arg query "$query" \
+        '{
+            query: $query,
+            engines: ["all"],
+            category: "general",
+            time_range: "",
+            limit: 50
+        }')
+    
+    warn "Search functionality is under development"
+    info "Your search query: $query"
+    info "In the full system, this would:"
+    echo -e "  ${GREEN}• ${NC}Search across privacy-respecting engines"
+    echo -e "  ${GREEN}• ${NC}Analyze source credibility"
+    echo -e "  ${GREEN}• ${NC}Extract relevant information"
+    echo -e "  ${GREEN}• ${NC}Generate comprehensive results"
+}
+
+cmd_analyze() {
+    local content_file="$1"
+    local analysis_type="${2:-comprehensive}"
+    
+    [[ -z "$content_file" ]] && error "Content file path required"
+    [[ ! -f "$content_file" ]] && error "File not found: $content_file"
+    
+    info "Analyzing content from: $content_file"
+    info "Analysis type: $analysis_type"
+    check_api
+    
+    local content
+    content=$(cat "$content_file")
+    
+    local request
+    request=$(jq -n \
+        --arg content "$content" \
+        --arg analysis_type "$analysis_type" \
+        '{
+            content: $content,
+            analysis_type: $analysis_type,
+            output_format: "executive",
+            confidence_threshold: 0.7,
+            max_insights: 15
+        }')
+    
+    warn "Analysis functionality is under development"
+    info "Content length: $(echo "$content" | wc -c) characters"
+    info "In the full system, this would:"
+    echo -e "  ${GREEN}• ${NC}Extract key insights and patterns"
+    echo -e "  ${GREEN}• ${NC}Identify trends and correlations"
+    echo -e "  ${GREEN}• ${NC}Generate strategic recommendations"
+    echo -e "  ${GREEN}• ${NC}Provide confidence scores"
+}
+
+cmd_collections() {
+    info "Fetching knowledge base collections..."
+    check_api
+    
+    local collections
+    collections=$(api_get "/api/knowledge/collections")
+    
+    if [[ "$collections" == "[]" ]]; then
+        warn "No collections found"
+        return 0
+    fi
+    
+    echo -e "${WHITE}📚 Knowledge Base Collections:${NC}"
+    echo "$collections" | jq -r '.[] | "\(.name) - \(.documents) docs - \(.relevance * 100)% relevance - Updated: \(.last_updated)"' | while read -r line; do
+        echo -e "${BLUE}  • ${NC}$line"
+    done
+}
+
+cmd_help() {
+    show_banner
+    echo -e "${WHITE}Usage: $CLI_NAME <command> [arguments]${NC}"
+    echo
+    echo -e "${CYAN}Commands:${NC}"
+    echo -e "  ${GREEN}status${NC}                           Check API and service status"
+    echo -e "  ${GREEN}dashboard${NC}                        Show dashboard statistics"
+    echo -e "  ${GREEN}reports list${NC}                     List all research reports"
+    echo -e "  ${GREEN}reports create${NC} <topic> [depth] [pages]  Create new research report"
+    echo -e "  ${GREEN}show-report${NC} <report-id>          Show detailed report information"
+    echo -e "  ${GREEN}search${NC} <query>                   Perform research search"
+    echo -e "  ${GREEN}analyze${NC} <file> [type]            Analyze content from file"
+    echo -e "  ${GREEN}collections${NC}                      List knowledge base collections"
+    echo -e "  ${GREEN}help${NC}                             Show this help message"
+    echo
+    echo -e "${CYAN}Examples:${NC}"
+    echo -e "  $CLI_NAME dashboard"
+    echo -e "  $CLI_NAME reports create \"AI adoption in healthcare 2024\" deep 10"
+    echo -e "  $CLI_NAME search \"blockchain technology trends\""
+    echo -e "  $CLI_NAME analyze ./research-data.txt insights"
+    echo -e "  $CLI_NAME show-report 123e4567-e89b-12d3-a456-426614174000"
+    echo
+    echo -e "${CYAN}Report Depth Options:${NC}"
+    echo -e "  ${YELLOW}quick${NC}        Fast overview (1-3 pages)"
+    echo -e "  ${YELLOW}standard${NC}     Balanced analysis (5-10 pages)"
+    echo -e "  ${YELLOW}deep${NC}         Comprehensive research (15+ pages)"
+    echo
+    echo -e "${CYAN}Analysis Types:${NC}"
+    echo -e "  ${YELLOW}comprehensive${NC}  Complete analysis with all insights"
+    echo -e "  ${YELLOW}insights${NC}       Key insights and findings only"
+    echo -e "  ${YELLOW}trends${NC}         Trend analysis and patterns"
+    echo -e "  ${YELLOW}competitive${NC}    Competitive intelligence focus"
+    echo
+    echo -e "${CYAN}Environment Variables:${NC}"
+    echo -e "  ${YELLOW}RESEARCH_ASSISTANT_API_PORT${NC}  Override API port (auto-detected by default)"
+    echo -e "  ${YELLOW}RESEARCH_API_URL${NC}              Full API URL override"
+    echo
+    echo -e "${BLUE}🔍 Intelligent Research at Your Fingertips! 🔍${NC}"
+}
+
+# Main command dispatch
+main() {
+    local command="${1:-help}"
+    
+    case "$command" in
+        "status")
+            cmd_status
+            ;;
+        "dashboard")
+            cmd_dashboard
+            ;;
+        "reports")
+            cmd_reports "${@:2}"
+            ;;
+        "show-report"|"report")
+            cmd_show_report "${2:-}"
+            ;;
+        "search")
+            cmd_search "${2:-}"
+            ;;
+        "analyze")
+            cmd_analyze "${2:-}" "${3:-comprehensive}"
+            ;;
+        "collections"|"knowledge")
+            cmd_collections
+            ;;
+        "help"|"--help"|"-h")
+            cmd_help
+            ;;
+        "version"|"--version")
+            echo "$CLI_NAME version $VERSION"
+            ;;
+        *)
+            error "Unknown command: $command. Run '$CLI_NAME help' for usage."
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

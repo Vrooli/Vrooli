@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+################################################################################
+# Gemini Resource CLI - v2.0 Universal Contract Compliant
+# 
+# Google Gemini AI API integration for text generation and chat
+#
+# Usage:
+#   resource-gemini <command> [options]
+#   resource-gemini <group> <subcommand> [options]
+#
+################################################################################
+
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    GEMINI_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${GEMINI_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
+GEMINI_CLI_DIR="${APP_ROOT}/resources/gemini"
+
+# Source standard variables
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+
+# Source utilities
+source "${var_LOG_FILE}"
+source "${var_RESOURCES_COMMON_FILE}"
+
+# Source v2.0 CLI Command Framework
+source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+
+# Source resource configuration
+source "${GEMINI_CLI_DIR}/config/defaults.sh"
+
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/gemini/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/gemini/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
+
+# Source resource libraries (only what exists)
+for lib in core install status content inject test agents; do
+    lib_file="${GEMINI_CLI_DIR}/lib/${lib}.sh"
+    [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
+done
+
+# Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
+cli::init "gemini" "Google Gemini AI API integration" "v2"
+
+# ==============================================================================
+# REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
+# ==============================================================================
+CLI_COMMAND_HANDLERS["manage::install"]="gemini::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="gemini::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="gemini::docker::start_noop"  
+CLI_COMMAND_HANDLERS["manage::stop"]="gemini::docker::stop_noop"
+CLI_COMMAND_HANDLERS["manage::restart"]="gemini::docker::restart_noop"
+CLI_COMMAND_HANDLERS["test::smoke"]="gemini::test::smoke_wrapper"
+CLI_COMMAND_HANDLERS["test::integration"]="gemini::test::integration_wrapper"
+CLI_COMMAND_HANDLERS["test::unit"]="gemini::test::unit_wrapper"
+CLI_COMMAND_HANDLERS["test::all"]="gemini::test::all_wrapper"
+
+# Test wrapper functions to delegate to test runner
+gemini::test::smoke_wrapper() {
+    exec "${GEMINI_CLI_DIR}/test/run-tests.sh" smoke
+}
+
+gemini::test::integration_wrapper() {
+    exec "${GEMINI_CLI_DIR}/test/run-tests.sh" integration
+}
+
+gemini::test::unit_wrapper() {
+    exec "${GEMINI_CLI_DIR}/test/run-tests.sh" unit
+}
+
+gemini::test::all_wrapper() {
+    exec "${GEMINI_CLI_DIR}/test/run-tests.sh" all
+}
+
+# Content handlers - required but can use framework defaults if not applicable
+CLI_COMMAND_HANDLERS["content::add"]="gemini::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="gemini::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="gemini::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="gemini::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="gemini::content::execute"
+
+# ==============================================================================
+# REQUIRED INFORMATION COMMANDS
+# ==============================================================================
+cli::register_command "status" "Show detailed resource status" "gemini::status"
+cli::register_command "logs" "Show resource logs (N/A for API service)" "gemini::logs_noop"
+# Create wrapper for agents command that delegates to manager
+gemini::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="gemini" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f gemini::agents::command
+
+cli::register_command "agents" "Manage running gemini agents" "gemini::agents::command"
+
+# ==============================================================================
+# OPTIONAL RESOURCE-SPECIFIC COMMANDS
+# ==============================================================================
+cli::register_command "list-models" "List available Gemini models" "gemini::list_models"
+cli::register_command "generate" "Generate content using Gemini" "gemini::generate_cli"
+cli::register_command "cache-stats" "Show cache statistics" "gemini::cache::stats"
+cli::register_command "cache-clear" "Clear all cached responses" "gemini::cache::clear_all"
+cli::register_command "token-stats" "Show token usage statistics" "gemini::tokens::get_stats"
+cli::register_command "token-cost" "Estimate token usage costs" "gemini::tokens::estimate_cost"
+cli::register_command "token-clear" "Clear token usage history" "gemini::tokens::clear_history"
+
+# Add no-op handlers for API service (since Gemini doesn't have Docker containers)
+gemini::docker::start_noop() {
+    log::info "Gemini is an API service (no start needed)"
+    return 0
+}
+
+gemini::docker::stop_noop() {
+    log::info "Gemini is an API service (cannot be stopped)"
+    return 0
+}
+
+gemini::docker::restart_noop() {
+    log::info "Gemini is an API service (no restart needed)"
+    return 0
+}
+
+gemini::logs_noop() {
+    log::info "Gemini is an API service (no logs available)"
+    return 0
+}
+
+#######################################
+# Setup agent cleanup trap for the current process
+# Arguments:
+#   $1 - Agent ID
+#######################################
+gemini::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export GEMINI_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    gemini::agent_cleanup() {
+        if [[ -n "${GEMINI_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
+            agent_manager::unregister "${GEMINI_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'gemini::agent_cleanup' EXIT SIGTERM SIGINT
+}
+
+# CLI wrapper for generate command
+gemini::generate_cli() {
+    local prompt="${1:-}"
+    local model="${2:-}"
+    
+    if [[ -z "$prompt" ]]; then
+        log::error "Usage: resource-gemini generate <prompt> [model]"
+        return 1
+    fi
+    
+    # Register agent if tracking is available
+    local agent_id
+    if type -t agent_manager::register &>/dev/null; then
+        agent_id=$(agent_manager::generate_id)
+        local command_string="resource-gemini generate \"$prompt\" \"$model\""
+        if agent_manager::register "$agent_id" $$ "$command_string"; then
+            export GEMINI_CURRENT_AGENT_ID="$agent_id"
+            gemini::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
+    # Execute the generation
+    local result
+    result=$(gemini::generate "$prompt" "$model")
+    local exit_code=$?
+    
+    # Clean up agent registration
+    if [[ -n "$agent_id" ]] && type -t agent_manager::unregister &>/dev/null; then
+        agent_manager::unregister "$agent_id" >/dev/null 2>&1
+    fi
+    
+    # Output result and return exit code
+    echo "$result"
+    return $exit_code
+}
+
+# Only execute if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cli::dispatch "$@"
+fi

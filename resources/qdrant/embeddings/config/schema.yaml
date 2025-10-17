@@ -1,0 +1,196 @@
+# Qdrant Embeddings Schema Configuration
+# Defines what content to extract and how to organize it
+
+version: 1.0.0
+
+# Default embedding model to use
+default_model: mxbai-embed-large
+default_dimensions: 1024
+
+# Knowledge source definitions
+knowledge_sources:
+  # N8n workflows
+  workflows:
+    description: "N8n workflow definitions and automation logic"
+    patterns:
+      - "**/initialization/**/*.json"
+      - "**/initialization/n8n/*.json"
+      - "**/initialization/automation/**/*.json"
+    extractor: workflows
+    collection_suffix: workflows
+    metadata_fields:
+      - name
+      - description
+      - nodes
+      - connections
+      - tags
+    
+  # Scenario definitions
+  scenarios:
+    description: "Scenario requirements and business logic"
+    patterns:
+      - "scenarios/*/PRD.md"
+      - "scenarios/*/.scenario.yaml"
+      - "scripts/scenarios/*/PRD.md"
+      - "scripts/scenarios/*/.scenario.yaml"
+    extractor: scenarios
+    collection_suffix: scenarios
+    metadata_fields:
+      - title
+      - description
+      - value_proposition
+      - target_users
+      - success_metrics
+    
+  # Documentation files
+  documentation:
+    description: "Structured project knowledge and decisions"
+    files:
+      - path: "docs/ARCHITECTURE.md"
+        sections:
+          - "Design Decisions"
+          - "Trade-offs"
+          - "Patterns"
+          - "System Components"
+        required: true
+        
+      - path: "docs/SECURITY.md"
+        sections:
+          - "Security Principles"
+          - "Known Vulnerabilities"
+          - "Mitigation Strategies"
+          - "Best Practices"
+        required: true
+        
+      - path: "docs/LESSONS_LEARNED.md"
+        sections:
+          - "What Worked"
+          - "What Failed"
+          - "Why"
+          - "Recommendations"
+        required: false
+        
+      - path: "docs/BREAKING_CHANGES.md"
+        sections:
+          - "Version History"
+          - "Migration Guides"
+          - "Deprecations"
+        required: false
+        
+      - path: "docs/PERFORMANCE.md"
+        sections:
+          - "Optimizations"
+          - "Bottlenecks"
+          - "Benchmarks"
+          - "Monitoring"
+        required: false
+        
+      - path: "docs/PATTERNS.md"
+        sections:
+          - "Code Patterns"
+          - "Integration Patterns"
+          - "Anti-patterns"
+          - "Best Practices"
+        required: false
+    extractor: docs
+    collection_suffix: knowledge
+    
+  # Code files
+  code:
+    description: "Source code with functions, APIs, and logic"
+    patterns:
+      - "**/*.sh"
+      - "**/*.ts"
+      - "**/*.js"
+      - "**/*.py"
+      - "**/*.go"
+    exclude_patterns:
+      - "**/node_modules/**"
+      - "**/dist/**"
+      - "**/build/**"
+      - "**/.git/**"
+      - "**/vendor/**"
+    extractor: code
+    collection_suffix: code
+    metadata_fields:
+      - file_type
+      - functions
+      - exports
+      - imports
+      - comments
+    
+  # Resource definitions
+  resources:
+    description: "Resource capabilities and integration guides"
+    patterns:
+      - "scripts/resources/*/README.md"
+      - "scripts/resources/*/docs/*.md"
+      - "resources/*/README.md"
+    extractor: resources
+    collection_suffix: resources
+    metadata_fields:
+      - resource_name
+      - category
+      - capabilities
+      - api_endpoints
+      - configuration
+
+# Embedding section markers for fine-grained control
+embedding_markers:
+  start_patterns:
+    - "<!-- EMBED:*:START -->"
+    - "# EMBED:START"
+    - "// EMBED:START"
+  end_patterns:
+    - "<!-- EMBED:*:END -->"
+    - "# EMBED:END"
+    - "// EMBED:END"
+
+# Collection naming convention
+collection_naming:
+  pattern: "{app_id}-{suffix}"
+  examples:
+    - "vrooli-main-workflows"
+    - "travel-map-v1-scenarios"
+    - "study-buddy-v2-knowledge"
+
+# Validation rules
+validation:
+  required_docs:
+    - "docs/ARCHITECTURE.md"
+    - "docs/SECURITY.md"
+  recommended_docs:
+    - "docs/LESSONS_LEARNED.md"
+    - "docs/BREAKING_CHANGES.md"
+    - "docs/PERFORMANCE.md"
+    - "docs/PATTERNS.md"
+  min_sections_per_doc: 1
+  max_embedding_size_chars: 8000
+
+# Search configuration
+search:
+  default_limit: 10
+  max_limit: 100
+  score_threshold: 0.7
+  enable_cross_app: true
+  result_metadata:
+    - app_id
+    - source_file
+    - last_updated
+    - relevance_score
+
+# Refresh configuration
+refresh:
+  batch_size: 50
+  parallel_extractors: 4
+  cache_embeddings: true
+  cache_ttl_hours: 24
+  on_git_change: true
+  on_file_change: false  # Use git changes instead
+
+# Garbage collection
+garbage_collection:
+  remove_orphaned: true
+  retention_days: 30
+  archive_old_versions: false
+  max_versions_per_item: 1  # Using full refresh strategy

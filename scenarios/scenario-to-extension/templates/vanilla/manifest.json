@@ -1,0 +1,48 @@
+{
+    "manifest_version": 3,
+    "name": "{{APP_NAME}}",
+    "version": "{{VERSION}}",
+    "description": "{{APP_DESCRIPTION}}",
+    "author": "{{AUTHOR_NAME}}",
+    
+    "_comment_permissions": "Browser permissions - only request what's needed for your scenario",
+    "permissions": {{PERMISSIONS}},
+    
+    "_comment_host_permissions": "Website access patterns - be specific to avoid broad permissions",
+    "host_permissions": {{HOST_PERMISSIONS}},
+    
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    
+    "content_scripts": {{CONTENT_SCRIPTS}},
+    
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "{{APP_NAME}}",
+        "default_icon": {
+            "16": "icons/icon-16.png",
+            "32": "icons/icon-32.png", 
+            "48": "icons/icon-48.png",
+            "128": "icons/icon-128.png"
+        }
+    },
+    
+    "icons": {
+        "16": "icons/icon-16.png",
+        "32": "icons/icon-32.png",
+        "48": "icons/icon-48.png",
+        "128": "icons/icon-128.png"
+    },
+    
+    "commands": {{COMMANDS}},
+    
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' {{API_ENDPOINT}} https://*.vrooli.com"
+    },
+    
+    "web_accessible_resources": {{WEB_ACCESSIBLE_RESOURCES}},
+    
+    "minimum_chrome_version": "88"
+}

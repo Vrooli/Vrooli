@@ -1,0 +1,80 @@
+{
+  "name": "earthly",
+  "version": "2.0",
+  "description": "Containerized build automation with automatic parallelization",
+  "category": "devops",
+  "priority": "high",
+  "startup_order": 250,
+  "dependencies": [],
+  "startup_timeout": 30,
+  "startup_time_estimate": "10-30s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "health_check": {
+    "enabled": true,
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "resource_requirements": {
+    "cpu": "2 cores recommended",
+    "memory": "4GB minimum",
+    "disk": "20GB for cache",
+    "network": "Docker socket access"
+  },
+  "features": [
+    "containerized-builds",
+    "automatic-parallelization",
+    "layer-caching",
+    "multi-platform",
+    "artifact-management",
+    "remote-caching",
+    "secret-management"
+  ],
+  "integrations": [
+    "docker",
+    "kubernetes",
+    "github-actions",
+    "gitlab-ci",
+    "jenkins",
+    "circleci"
+  ],
+  "performance": {
+    "build_speed_improvement": "2-20x",
+    "cache_hit_rate": ">80%",
+    "parallel_factor": "CPU cores",
+    "startup_time": "<10s"
+  },
+  "security": {
+    "container_isolation": true,
+    "secret_encryption": true,
+    "minimal_privileges": true,
+    "audit_logging": true
+  },
+  "lifecycle_hooks": {
+    "pre_install": [],
+    "post_install": ["earthly bootstrap"],
+    "pre_start": ["docker ps"],
+    "post_start": ["earthly --version"],
+    "pre_stop": [],
+    "post_stop": [],
+    "health_check": ["earthly --version"]
+  },
+  "configuration": {
+    "files": [
+      "config/defaults.sh",
+      "config/earthly.yml"
+    ],
+    "environment_variables": [
+      "EARTHLY_VERSION",
+      "EARTHLY_CACHE_DIR",
+      "EARTHLY_PARALLEL_LIMIT"
+    ]
+  },
+  "documentation": {
+    "readme": "README.md",
+    "prd": "PRD.md",
+    "examples": "examples/",
+    "external": "https://docs.earthly.dev/"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Document title or subject"
+    },
+    "author": {
+      "type": "string",
+      "description": "Document author or creator"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Document date (YYYY-MM-DD format)"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Brief summary of the document content"
+    },
+    "key_points": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Main points or takeaways from the document"
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Primary topics or themes discussed"
+    },
+    "entities": {
+      "type": "object",
+      "properties": {
+        "people": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "People mentioned in the document"
+        },
+        "organizations": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Organizations mentioned"
+        },
+        "locations": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Locations mentioned"
+        }
+      }
+    },
+    "document_type": {
+      "type": "string",
+      "enum": ["email", "report", "article", "memo", "proposal", "other"],
+      "description": "Type of document"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "urgent"],
+      "description": "Document priority or importance"
+    }
+  },
+  "required": ["title", "summary"],
+  "additionalProperties": false
+}

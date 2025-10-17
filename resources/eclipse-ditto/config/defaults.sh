@@ -1,0 +1,34 @@
+#!/bin/bash
+# Eclipse Ditto Configuration Defaults
+
+# Service configuration
+export DITTO_GATEWAY_PORT="${ECLIPSE_DITTO_PORT:-8094}"
+export DITTO_MONGODB_PORT="${DITTO_MONGODB_PORT:-27017}"
+export DITTO_MONGODB_HOST="${DITTO_MONGODB_HOST:-localhost}"
+export DITTO_MONGODB_DB="${DITTO_MONGODB_DB:-ditto}"
+
+# API configuration
+export DITTO_API_VERSION="${DITTO_API_VERSION:-2}"
+export DITTO_USERNAME="${DITTO_USERNAME:-ditto}"
+export DITTO_PASSWORD="${DITTO_PASSWORD:-ditto}"
+
+# Memory settings
+export DITTO_MEMORY_LIMIT="${DITTO_MEMORY_LIMIT:-2g}"
+export DITTO_CPU_LIMIT="${DITTO_CPU_LIMIT:-2}"
+
+# Timeout settings
+export DITTO_STARTUP_TIMEOUT="${DITTO_STARTUP_TIMEOUT:-120}"
+export DITTO_SHUTDOWN_TIMEOUT="${DITTO_SHUTDOWN_TIMEOUT:-30}"
+export DITTO_HEALTH_CHECK_INTERVAL="${DITTO_HEALTH_CHECK_INTERVAL:-5}"
+
+# Debug mode
+export DITTO_DEBUG="${DITTO_DEBUG:-false}"
+
+# Docker settings
+export DITTO_DOCKER_NETWORK="${DITTO_DOCKER_NETWORK:-ditto-network}"
+export DITTO_DOCKER_TAG="${DITTO_DOCKER_TAG:-3.5.6}"
+
+# Feature flags
+export DITTO_ENABLE_WEBSOCKET="${DITTO_ENABLE_WEBSOCKET:-true}"
+export DITTO_ENABLE_MQTT="${DITTO_ENABLE_MQTT:-false}"
+export DITTO_ENABLE_AMQP="${DITTO_ENABLE_AMQP:-false}"

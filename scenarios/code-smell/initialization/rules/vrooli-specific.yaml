@@ -1,0 +1,215 @@
+# Vrooli-Specific Code Smell Rules
+# These rules detect patterns specific to Vrooli's architecture and conventions
+
+rules:
+  - id: hardcoded-port
+    name: "Hard-coded Port Number"
+    description: "Ports should use environment variables or service.json configuration"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: '(?:localhost:|127\.0\.0\.1:|0\.0\.0\.0:)\d{4,5}(?!\})'
+      file_types: [js, ts, jsx, tsx, go, py, yaml, json]
+    fix_template: |
+      Replace with: ${SERVICE_PORT:-DEFAULT_PORT}
+      Or use: service.json configuration
+    examples:
+      - bad: "http://localhost:3000/api"
+      - good: "http://localhost:${API_PORT:-3000}/api"
+    message: "Hard-coded port found. Use environment variable or service.json instead"
+
+  - id: hardcoded-home-path
+    name: "Hard-coded Home Directory"
+    description: "Home directories should use environment variables"
+    category: auto-fix
+    risk_level: safe
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: '/home/matthalloran8(/|\s|"|''|$)'
+      file_types: [js, ts, jsx, tsx, go, py, sh, yaml, json]
+    fix_template: "${HOME}"
+    auto_fix:
+      search: "/home/matthalloran8"
+      replace: "${HOME}"
+    examples:
+      - bad: "/home/matthalloran8/Vrooli"
+      - good: "${HOME}/Vrooli"
+    message: "Hard-coded home directory found. Use ${HOME} instead"
+
+  - id: hardcoded-vrooli-root
+    name: "Hard-coded Vrooli Root Path"
+    description: "Vrooli root should use VROOLI_ROOT environment variable"
+    category: auto-fix
+    risk_level: safe
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: '(/home/\w+/Vrooli|~/Vrooli)(?!/\$)'
+      file_types: [js, ts, jsx, tsx, go, py, sh, yaml, json]
+    fix_template: "${VROOLI_ROOT:-${HOME}/Vrooli}"
+    auto_fix:
+      patterns:
+        - search: "~/Vrooli"
+          replace: "${VROOLI_ROOT:-${HOME}/Vrooli}"
+        - search_regex: "/home/\\w+/Vrooli"
+          replace: "${VROOLI_ROOT:-${HOME}/Vrooli}"
+    examples:
+      - bad: "/home/user/Vrooli/scripts"
+      - good: "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts"
+    message: "Hard-coded Vrooli path. Use ${VROOLI_ROOT:-${HOME}/Vrooli} instead"
+
+  - id: direct-n8n-workflow
+    name: "Direct n8n Workflow Creation"
+    description: "Avoid direct n8n workflows; use CLI or shared workflows instead"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: ai
+      prompt: "Detect code that directly creates or modifies n8n workflows instead of using shared workflows or CLI commands"
+    message: "Direct n8n workflow detected. Use shared workflows or resource CLI instead"
+    
+  - id: missing-prd
+    name: "Scenario Missing PRD.md"
+    description: "Every scenario must have a PRD.md file"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: file-existence
+      required_file: "PRD.md"
+      scope: scenario-root
+    message: "Scenario missing PRD.md. Create from template at scripts/scenarios/templates/full/PRD.md"
+
+  - id: resource-api-instead-of-cli
+    name: "Direct Resource API Instead of CLI"
+    description: "Prefer resource CLI commands over direct API calls"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: '(http://localhost:\$?\{?[A-Z_]+|fetch\([''"]http://localhost|axios\.(get|post|put|delete)\([''"]http://localhost)'
+      file_types: [js, ts, jsx, tsx]
+      exclude_patterns: ["resource-*.js", "*.test.js", "*.spec.js"]
+    fix_template: |
+      Use resource CLI instead:
+      resource-[name] [action] [args]
+    examples:
+      - bad: "fetch('http://localhost:8080/api/resource')"
+      - good: "exec('resource-name action')"
+    message: "Direct resource API call. Use resource CLI for better reliability"
+
+  - id: scenario-port-collision
+    name: "Potential Port Collision"
+    description: "Scenario using common port that may collide"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: '(300[0-9]|808[0-9]|900[0-9]|5432|6379|27017)(?!})'
+      file_types: [json, yaml]
+      file_pattern: "service.json"
+    message: "Common port number detected. Ensure no collision with other services"
+
+  - id: missing-service-json
+    name: "Scenario Missing service.json"
+    description: "Every scenario must have .vrooli/service.json"
+    category: needs-approval
+    risk_level: high
+    vrooli_specific: true
+    pattern:
+      type: file-existence
+      required_file: ".vrooli/service.json"
+      scope: scenario-root
+    message: "Scenario missing .vrooli/service.json configuration"
+
+  - id: legacy-placeholder-code
+    name: "Legacy or Placeholder Code"
+    description: "Remove TODO, FIXME, HACK, and placeholder code"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: '(TODO|FIXME|HACK|PLACEHOLDER|TEMPORARY|// REMOVE|/\* REMOVE)'
+      file_types: [js, ts, jsx, tsx, go, py]
+    message: "Legacy/placeholder code found. Should be resolved before deployment"
+
+  - id: scenario-name-mismatch
+    name: "Scenario Name Mismatch"
+    description: "Scenario name in service.json must match directory name"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: custom
+      validator: "validateScenarioName"
+    message: "Scenario name in service.json doesn't match directory name"
+
+  - id: shared-workflow-in-scenario
+    name: "Shared Workflow in Wrong Location"
+    description: "Truly shared workflows belong in initialization/n8n/ not in scenarios"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: ai
+      prompt: "Detect n8n workflows in scenario directories that are generic enough to be shared across multiple scenarios"
+    message: "This workflow appears reusable. Move to initialization/n8n/ for sharing"
+
+  - id: insecure-secret-handling
+    name: "Insecure Secret Handling"
+    description: "Secrets should use environment variables or secure storage"
+    category: needs-approval
+    risk_level: high
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: '(api[_-]?key|secret|password|token|credential)["\s]*[:=]["\s]*["\'][^$][^{]'
+      file_types: [js, ts, jsx, tsx, go, py, yaml, json, env]
+      exclude_patterns: ["*.example", "*.template"]
+    message: "Potential hardcoded secret. Use environment variables or secure storage"
+
+  - id: no-error-handling
+    name: "Missing Error Handling in Resource Calls"
+    description: "Resource calls should have proper error handling"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: ai
+      prompt: "Detect resource CLI calls or API calls without try-catch or error handling"
+    message: "Resource call without error handling. Add try-catch or error check"
+
+  - id: console-log-in-production
+    name: "Console.log in Production Code"
+    description: "Use proper logging instead of console.log"
+    category: auto-fix
+    risk_level: safe
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: 'console\.(log|debug|info|warn|error)'
+      file_types: [js, ts, jsx, tsx]
+      exclude_patterns: ["*.test.js", "*.spec.js", "*.dev.js"]
+    auto_fix:
+      search: "console.log"
+      replace: "logger.info"
+    message: "Console.log found. Use proper logging library instead"
+
+  - id: absolute-import-path
+    name: "Absolute Import Path"
+    description: "Use relative imports within scenarios"
+    category: needs-approval
+    risk_level: moderate
+    vrooli_specific: true
+    pattern:
+      type: regex
+      value: 'from ["\'']/home/|from ["\'']~/|require\(["\'']/home/|require\(["\'']~/'
+      file_types: [js, ts, jsx, tsx, py]
+    message: "Absolute import path found. Use relative imports instead"

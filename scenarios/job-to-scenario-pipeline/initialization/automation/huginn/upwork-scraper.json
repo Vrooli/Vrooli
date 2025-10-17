@@ -1,0 +1,127 @@
+{
+  "name": "Upwork Job Scraper",
+  "description": "Scrapes Upwork for relevant job postings and sends them to the job pipeline",
+  "agents": [
+    {
+      "type": "Agents::RssAgent",
+      "name": "Upwork RSS Feed Monitor",
+      "schedule": "every_30m",
+      "options": {
+        "expected_update_period_in_days": "1",
+        "clean": "false",
+        "url": [
+          "https://www.upwork.com/ab/feed/jobs/rss?q=react+dashboard&sort=recency&paging=0-50",
+          "https://www.upwork.com/ab/feed/jobs/rss?q=automation+workflow&sort=recency&paging=0-50",
+          "https://www.upwork.com/ab/feed/jobs/rss?q=web+scraping&sort=recency&paging=0-50",
+          "https://www.upwork.com/ab/feed/jobs/rss?q=AI+application&sort=recency&paging=0-50",
+          "https://www.upwork.com/ab/feed/jobs/rss?q=SaaS+development&sort=recency&paging=0-50",
+          "https://www.upwork.com/ab/feed/jobs/rss?q=MVP+development&sort=recency&paging=0-50"
+        ]
+      }
+    },
+    {
+      "type": "Agents::EventFormattingAgent",
+      "name": "Job Data Formatter",
+      "sources": ["Upwork RSS Feed Monitor"],
+      "options": {
+        "instructions": {
+          "source": "upwork",
+          "title": "{{title}}",
+          "description": "{{description | strip_html}}",
+          "url": "{{url}}",
+          "published_at": "{{pubDate}}",
+          "budget": "{{description | regex_extract: 'Budget: \\$([0-9,]+)'}}",
+          "hourly_range": "{{description | regex_extract: 'Hourly Range: \\$([0-9\\.-]+)'}}",
+          "experience_level": "{{description | regex_extract: 'Experience Level: (\\w+)'}}",
+          "job_type": "{{description | regex_extract: 'Posted On:.*?(Hourly|Fixed)'}}",
+          "skills": "{{description | regex_extract: 'Skills:([^<]+)' | strip}}"
+        },
+        "mode": "clean"
+      }
+    },
+    {
+      "type": "Agents::DeduplicationAgent",
+      "name": "Duplicate Job Filter",
+      "sources": ["Job Data Formatter"],
+      "options": {
+        "property": "url",
+        "lookback": "500"
+      }
+    },
+    {
+      "type": "Agents::JavaScriptAgent",
+      "name": "Job Relevance Filter",
+      "sources": ["Duplicate Job Filter"],
+      "options": {
+        "code": "// Filter for relevant jobs based on keywords and budget\nvar relevantKeywords = ['react', 'dashboard', 'automation', 'workflow', 'scraping', 'AI', 'SaaS', 'MVP', 'app', 'platform', 'tool', 'system'];\nvar minBudget = 500;\n\nvar title = (event.title || '').toLowerCase();\nvar description = (event.description || '').toLowerCase();\nvar budget = parseInt((event.budget || '0').replace(/[^0-9]/g, ''));\nvar hourlyRange = event.hourly_range || '';\n\n// Check if job contains relevant keywords\nvar isRelevant = relevantKeywords.some(function(keyword) {\n  return title.includes(keyword.toLowerCase()) || description.includes(keyword.toLowerCase());\n});\n\n// Check budget (fixed price or hourly)\nvar hasSufficientBudget = budget >= minBudget || hourlyRange.includes('-');\n\n// Filter out certain types of jobs\nvar blacklistTerms = ['wordpress', 'shopify', 'data entry', 'virtual assistant', 'content writing', 'SEO only'];\nvar isBlacklisted = blacklistTerms.some(function(term) {\n  return title.includes(term.toLowerCase()) || description.includes(term.toLowerCase());\n});\n\nif (isRelevant && hasSufficientBudget && !isBlacklisted) {\n  // Parse budget info\n  if (budget > 0) {\n    event.budget_min = budget;\n    event.budget_max = budget;\n  } else if (hourlyRange) {\n    var range = hourlyRange.match(/\\$([0-9.]+)-\\$([0-9.]+)/);\n    if (range) {\n      event.budget_min = parseFloat(range[1]) * 40; // Assume 40 hours minimum\n      event.budget_max = parseFloat(range[2]) * 160; // Assume 160 hours maximum\n    }\n  }\n  \n  // Clean up skills\n  if (event.skills) {\n    event.skills_array = event.skills.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });\n  }\n  \n  this.createEvent(event);\n}"
+      }
+    },
+    {
+      "type": "Agents::PostAgent",
+      "name": "Send to Job Pipeline",
+      "sources": ["Job Relevance Filter"],
+      "options": {
+        "post_url": "http://localhost:{{ENV.API_PORT}}/api/v1/jobs/import",
+        "expected_receive_period_in_days": "1",
+        "content_type": "json",
+        "method": "post",
+        "payload": {
+          "source": "upwork",
+          "title": "{{title}}",
+          "description": "{{description}}",
+          "budget": {
+            "min": "{{budget_min}}",
+            "max": "{{budget_max}}",
+            "currency": "USD"
+          },
+          "skills_required": "{{skills_array}}",
+          "metadata": {
+            "source_url": "{{url}}",
+            "job_type": "{{job_type}}",
+            "experience_level": "{{experience_level}}",
+            "published_at": "{{published_at}}"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Source": "huginn-upwork-scraper"
+        },
+        "emit_events": "true",
+        "no_merge": "true"
+      }
+    },
+    {
+      "type": "Agents::EmailDigestAgent",
+      "name": "Daily Job Summary",
+      "sources": ["Send to Job Pipeline"],
+      "schedule": "9am",
+      "options": {
+        "subject": "Daily Upwork Job Pipeline Summary",
+        "headline": "Jobs Imported in Last 24 Hours",
+        "expected_receive_period_in_days": "1"
+      }
+    }
+  ],
+  "links": [
+    {
+      "source": 0,
+      "receiver": 1
+    },
+    {
+      "source": 1,
+      "receiver": 2
+    },
+    {
+      "source": 2,
+      "receiver": 3
+    },
+    {
+      "source": 3,
+      "receiver": 4
+    },
+    {
+      "source": 4,
+      "receiver": 5
+    }
+  ]
+}

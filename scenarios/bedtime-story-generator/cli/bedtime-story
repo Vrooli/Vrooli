@@ -1,0 +1,626 @@
+#!/bin/bash
+################################################################################
+# Bedtime Story Generator CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
+
+set -e
+
+# Configuration
+SCENARIO_NAME="bedtime-story-generator"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}Bedtime Story Generator CLI${NC}"
+    echo "Interactive story creation for children"
+    echo ""
+    echo "Usage: bedtime-story [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}generate${NC}    Generate a new bedtime story"
+    echo -e "  ${GREEN}list${NC}        List all stories"
+    echo -e "  ${GREEN}read${NC}        Read a specific story"
+    echo -e "  ${GREEN}favorite${NC}    Toggle story as favorite"
+    echo -e "  ${GREEN}delete${NC}      Delete a story"
+    echo -e "  ${GREEN}themes${NC}      List available story themes"
+    echo -e "  ${GREEN}health${NC}      Check service health"
+    echo -e "  ${GREEN}status${NC}      Check service status"
+    echo ""
+    echo "Examples:"
+    echo "  bedtime-story generate --age-group \"6-8\" --theme \"Adventure\""
+    echo "  bedtime-story list --favorites"
+    echo "  bedtime-story read <story-id>"
+    echo "  bedtime-story favorite <story-id>"
+    echo ""
+    echo "Options for 'generate':"
+    echo "  --age-group    Age group: 3-5, 6-8, or 9-12 (default: 6-8)"
+    echo "  --theme        Story theme (default: Adventure)"
+    echo "  --length       Story length: short, medium, or long (default: medium)"
+    echo "  --characters   Comma-separated character names"
+    echo ""
+    echo "Options for 'list':"
+    echo "  --age-group    Filter by age group"
+    echo "  --favorites    Show only favorite stories"
+    echo "  --json         Output in JSON format"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo ""
+    echo "For more information: bedtime-story <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# Generate story command
+cmd_generate() {
+    local age_group="6-8"
+    local theme="Adventure"
+    local length="medium"
+    local characters=""
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --age-group)
+                age_group="$2"
+                shift 2
+                ;;
+            --theme)
+                theme="$2"
+                shift 2
+                ;;
+            --length)
+                length="$2"
+                shift 2
+                ;;
+            --characters)
+                characters="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bedtime-story generate [OPTIONS]"
+                echo ""
+                echo "Generate a new bedtime story"
+                echo ""
+                echo "Options:"
+                echo "  --age-group <group>    Age group: 3-5, 6-8, or 9-12 (default: 6-8)"
+                echo "  --theme <theme>        Story theme (default: Adventure)"
+                echo "  --length <length>      Story length: short, medium, or long (default: medium)"
+                echo "  --characters <names>   Comma-separated character names"
+                echo "  --json                 Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  bedtime-story generate --age-group \"3-5\" --theme \"Animals\""
+                echo "  bedtime-story generate --length long --characters \"Alice,Bob\""
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    # Build request JSON
+    local char_array="[]"
+    if [[ -n "$characters" ]]; then
+        char_array=$(echo "$characters" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    fi
+    
+    local request_body=$(jq -n \
+        --arg age "$age_group" \
+        --arg theme "$theme" \
+        --arg length "$length" \
+        --argjson chars "$char_array" \
+        '{
+            age_group: $age,
+            theme: $theme,
+            length: $length,
+            character_names: $chars
+        }')
+    
+    echo -e "${BLUE}📖 Generating a ${length} ${theme} story for ages ${age_group}...${NC}"
+    echo -e "${YELLOW}⏳ This may take a few moments while the AI creates your story...${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/stories/generate" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Parse and display story info
+        local title=$(echo "$response" | jq -r '.title // "Generated Story"' 2>/dev/null)
+        local story_id=$(echo "$response" | jq -r '.id // "unknown"' 2>/dev/null)
+        local reading_time=$(echo "$response" | jq -r '.reading_time_minutes // 0' 2>/dev/null)
+        
+        echo -e "${GREEN}✅ Story generated successfully!${NC}"
+        echo ""
+        echo -e "${PURPLE}📖 Title: ${title}${NC}"
+        echo -e "⏱️  Reading time: ${reading_time} minutes"
+        echo -e "🆔 Story ID: ${story_id}"
+        echo ""
+        echo -e "Read it with: ${GREEN}bedtime-story read ${story_id}${NC}"
+    fi
+}
+
+# List stories command
+cmd_list() {
+    local json_output=false
+    local favorites_only=false
+    local age_group=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --favorites)
+                favorites_only=true
+                shift
+                ;;
+            --age-group)
+                age_group="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bedtime-story list [OPTIONS]"
+                echo ""
+                echo "List all stories"
+                echo ""
+                echo "Options:"
+                echo "  --age-group <group>    Filter by age group"
+                echo "  --favorites            Show only favorite stories"
+                echo "  --json                 Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  bedtime-story list --favorites"
+                echo "  bedtime-story list --age-group \"6-8\""
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response
+    response=$(api_request "GET" "/api/v1/stories")
+    
+    if [[ $json_output == true ]]; then
+        # For JSON output, no decorative text
+        echo "$response" | format_json
+    else
+        # Pretty print stories
+        echo -e "${BLUE}📚 Your Story Library${NC}"
+        echo ""
+        local count=$(echo "$response" | jq 'length' 2>/dev/null || echo "0")
+        echo -e "${CYAN}📋 Stories: $count${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | 
+                select(
+                    ('"$(if [[ "$favorites_only" == true ]]; then echo "true"; else echo "false"; fi)"' == false or .is_favorite == true) and
+                    ('"$(if [[ -n "$age_group" ]]; then echo "\"$age_group\""; else echo "\"\""; fi)"' == "" or .age_group == '"$(if [[ -n "$age_group" ]]; then echo "\"$age_group\""; else echo "\"\""; fi)"')
+                ) |
+                "\(.id)|\(.title)|\(.age_group)|\(.theme)|\(.reading_time_minutes)min|\(if .is_favorite then "⭐" else "" end)"' 2>/dev/null | 
+                while IFS='|' read -r id title age_group theme reading_time favorite; do
+                    if [[ ${#title} -gt 40 ]]; then
+                        title="${title:0:37}..."
+                    fi
+                    printf "  📖 %-15s %-40s %s %s %s %s\n" "$id" "$title" "$age_group" "$theme" "$reading_time" "$favorite"
+                done
+        else
+            echo "No stories found."
+        fi
+        echo ""
+        echo "Use 'bedtime-story read <story-id>' to read a story"
+    fi
+}
+
+# Read story command
+cmd_read() {
+    local story_id="$1"
+    local json_output=false
+    
+    if [[ -z "$story_id" ]]; then
+        echo -e "${RED}❌ Error: Story ID required${NC}" >&2
+        echo "Usage: bedtime-story read <story-id>" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bedtime-story read <story-id> [OPTIONS]"
+                echo ""
+                echo "Read a specific story"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  bedtime-story read abc-123"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Start reading session
+    api_request "POST" "/api/v1/stories/${story_id}/read" >/dev/null 2>&1
+    
+    # Get story content
+    local response
+    response=$(api_request "GET" "/api/v1/stories/${story_id}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Parse and display story
+        local title=$(echo "$response" | jq -r '.title // "Story"' 2>/dev/null)
+        local content=$(echo "$response" | jq -r '.content // "Story not found"' 2>/dev/null)
+        
+        if [[ "$content" == "Story not found" ]]; then
+            echo -e "${RED}❌ Story not found${NC}"
+            return 1
+        fi
+        
+        clear
+        echo -e "${PURPLE}╔════════════════════════════════════════╗${NC}"
+        echo -e "${PURPLE}║         📖 $title${NC}"
+        echo -e "${PURPLE}╚════════════════════════════════════════╝${NC}"
+        echo ""
+        
+        # Display content with formatting
+        echo -e "$content"
+        
+        echo ""
+        echo -e "${GREEN}The End 🌙${NC}"
+    fi
+}
+
+# Toggle favorite command
+cmd_favorite() {
+    local story_id="$1"
+    local json_output=false
+    
+    if [[ -z "$story_id" ]]; then
+        echo -e "${RED}❌ Error: Story ID required${NC}" >&2
+        echo "Usage: bedtime-story favorite <story-id>" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bedtime-story favorite <story-id> [OPTIONS]"
+                echo ""
+                echo "Toggle story as favorite"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  bedtime-story favorite abc-123"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response
+    response=$(api_request "POST" "/api/v1/stories/${story_id}/favorite")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+            echo -e "${GREEN}⭐ Favorite status updated${NC}"
+        else
+            echo -e "${RED}❌ Failed to update favorite status${NC}"
+            return 1
+        fi
+    fi
+}
+
+# Delete story command
+cmd_delete() {
+    local story_id="$1"
+    local json_output=false
+    
+    if [[ -z "$story_id" ]]; then
+        echo -e "${RED}❌ Error: Story ID required${NC}" >&2
+        echo "Usage: bedtime-story delete <story-id>" >&2
+        return 1
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bedtime-story delete <story-id> [OPTIONS]"
+                echo ""
+                echo "Delete a story"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  bedtime-story delete abc-123"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${YELLOW}⚠️  Are you sure you want to delete this story? [y/N]${NC}"
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "Delete cancelled."
+        return 0
+    fi
+    
+    local response
+    response=$(api_request "DELETE" "/api/v1/stories/${story_id}")
+    
+    if [[ $json_output == true ]]; then
+        echo '{"success": true, "message": "Story deleted"}' | format_json
+    else
+        echo -e "${GREEN}✅ Story deleted successfully${NC}"
+    fi
+}
+
+# List themes command
+cmd_themes() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bedtime-story themes [OPTIONS]"
+                echo ""
+                echo "List available story themes"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  bedtime-story themes"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🎨 Available Story Themes${NC}"
+    echo ""
+    
+    local response
+    response=$(api_request "GET" "/api/v1/themes")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | jq -e '. | length > 0' >/dev/null 2>&1; then
+            echo "$response" | jq -r '.[] | "  \(.emoji // "🎨") \(.name)"' 2>/dev/null
+        else
+            # Default themes if API fails or no themes configured
+            echo "  🗺️ Adventure"
+            echo "  🦁 Animals"
+            echo "  🦄 Fantasy"
+            echo "  🚀 Space"
+            echo "  🐠 Ocean"
+            echo "  🌲 Forest"
+            echo "  🤝 Friendship"
+            echo "  🌙 Bedtime"
+        fi
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health")
+    
+    if echo "$response" | grep -q "healthy"; then
+        echo -e "${GREEN}✅ Bedtime Story Generator is healthy${NC}"
+        echo "   API: ${api_url}"
+        echo "   Service: $(echo "$response" | jq -r '.service // "bedtime-story-generator"' 2>/dev/null)"
+    else
+        echo -e "${RED}❌ Health check failed${NC}"
+        echo "   Response: $response"
+        return 1
+    fi
+}
+
+# Status check command
+cmd_status() {
+    echo -e "${CYAN}📊 Bedtime Story Generator Status${NC}"
+    echo ""
+    
+    # Check API
+    if api_url=$(get_api_url 2>/dev/null); then
+        echo -e "API Server: ${GREEN}✅ Running${NC}"
+        echo "   URL: $api_url"
+        
+        # Get health info
+        local health_response
+        health_response=$(curl -s "${api_url}/health" 2>/dev/null)
+        if [[ -n "$health_response" ]]; then
+            local timestamp=$(echo "$health_response" | jq -r '.timestamp // "unknown"' 2>/dev/null)
+            echo "   Last Health Check: $timestamp"
+        fi
+    else
+        echo -e "API Server: ${RED}❌ Not Running${NC}"
+        echo "   Start with: vrooli scenario run bedtime-story-generator"
+    fi
+    
+    # Check UI if available
+    local ui_port
+    ui_port=$(vrooli scenario port "${SCENARIO_NAME}" UI_PORT 2>/dev/null)
+    if [[ -n "$ui_port" ]]; then
+        if curl -sf "http://localhost:${ui_port}" >/dev/null 2>&1; then
+            echo -e "UI Server:  ${GREEN}✅ Running${NC} (port $ui_port)"
+            echo "   Web UI: http://localhost:${ui_port}"
+        else
+            echo -e "UI Server:  ${YELLOW}⚠️ Check connection${NC}"
+        fi
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
+        generate)
+            cmd_generate "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        read)
+            cmd_read "$@"
+            ;;
+        favorite)
+            cmd_favorite "$@"
+            ;;
+        delete)
+            cmd_delete "$@"
+            ;;
+        themes)
+            cmd_themes "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        version|--version|-v)
+            echo "Bedtime Story Generator CLI v2.0.0 (thin wrapper)"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

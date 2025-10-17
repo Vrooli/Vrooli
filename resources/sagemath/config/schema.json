@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SageMath Resource Configuration Schema",
+  "description": "Configuration schema for the SageMath open-source mathematics software system resource",
+  "type": "object",
+  "properties": {
+    "data_dir": {
+      "type": "string",
+      "description": "Base directory for SageMath data storage",
+      "default": "${VROOLI_DATA_DIR}/resources/sagemath"
+    },
+    "scripts_dir": {
+      "type": "string",
+      "description": "Directory for SageMath scripts (.sage files)",
+      "default": "${SAGEMATH_DATA_DIR}/scripts"
+    },
+    "notebooks_dir": {
+      "type": "string",
+      "description": "Directory for Jupyter notebooks (.ipynb files)",
+      "default": "${SAGEMATH_DATA_DIR}/notebooks"
+    },
+    "outputs_dir": {
+      "type": "string",
+      "description": "Directory for computation outputs and plots",
+      "default": "${SAGEMATH_DATA_DIR}/outputs"
+    },
+    "logs_dir": {
+      "type": "string",
+      "description": "Directory for SageMath logs",
+      "default": "${SAGEMATH_DATA_DIR}/logs"
+    },
+    "jupyter_port": {
+      "type": "integer",
+      "description": "Port for Jupyter notebook interface",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8888
+    },
+    "api_port": {
+      "type": "integer",
+      "description": "Port for REST API endpoint",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8889
+    },
+    "container_name": {
+      "type": "string",
+      "description": "Name of the SageMath Docker container",
+      "default": "sagemath-main"
+    },
+    "image": {
+      "type": "string",
+      "description": "Docker image for SageMath",
+      "default": "sagemath/sagemath:latest"
+    },
+    "memory_limit": {
+      "type": "string",
+      "description": "Memory limit for container (e.g., '4g')",
+      "default": "4g"
+    },
+    "cpu_limit": {
+      "type": "string",
+      "description": "CPU limit for container (e.g., '2.0')",
+      "default": "2.0"
+    },
+    "enable_gpu": {
+      "type": "boolean",
+      "description": "Enable GPU acceleration if available",
+      "default": false
+    },
+    "enable_parallel": {
+      "type": "boolean",
+      "description": "Enable parallel processing for large computations",
+      "default": false
+    },
+    "jupyter_token": {
+      "type": "string",
+      "description": "Security token for Jupyter access (empty for no auth)",
+      "default": ""
+    },
+    "max_calculation_time": {
+      "type": "integer",
+      "description": "Maximum time in seconds for a single calculation",
+      "default": 30
+    },
+    "performance_mode": {
+      "type": "string",
+      "description": "Performance optimization mode",
+      "enum": ["standard", "optimized", "memory_efficient"],
+      "default": "standard"
+    }
+  },
+  "required": ["data_dir", "jupyter_port", "container_name", "image"],
+  "additionalProperties": false
+}

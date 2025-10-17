@@ -1,0 +1,3741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Genie - AI-Powered Test Management</title>
+    <meta name="description" content="Comprehensive AI-powered test generation, execution, and management platform">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="lucide.js"></script>
+    <script>
+        // Debug: Log when lucide loads
+        window.addEventListener('load', () => {
+            console.log('Lucide available:', typeof lucide !== 'undefined');
+            if (typeof lucide !== 'undefined') {
+                console.log('Creating lucide icons...');
+                lucide.createIcons();
+                console.log('Lucide icons created');
+            } else {
+                console.error('Lucide not loaded');
+            }
+        });
+    </script>
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__testGenieBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[TestGenie] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'test-genie' });
+            window.__testGenieBridgeInitialized = true;
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Color Scheme */
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-panel: #2a2a2a;
+            --bg-card: #333333;
+            --accent-primary: #00ff41;
+            --accent-secondary: #00d4ff;
+            --accent-warning: #ff6b35;
+            --accent-error: #ff0040;
+            --accent-success: #39ff14;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #606060;
+            --border: rgba(255, 255, 255, 0.1);
+            --glow-primary: rgba(0, 255, 65, 0.3);
+            --glow-secondary: rgba(0, 212, 255, 0.3);
+            
+            /* Typography */
+            --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+            --font-sans: 'Inter', 'Arial', sans-serif;
+            
+            /* Spacing */
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+            
+            /* Dimensions */
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --panel-border-radius: 8px;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            background-image: 
+                linear-gradient(rgba(0, 255, 65, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        body.dialog-open {
+            overflow: hidden;
+        }
+
+        body.sidebar-open {
+            overflow: hidden;
+        }
+
+        body.suite-detail-open {
+            overflow: hidden;
+        }
+
+        body.execution-detail-open {
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--spacing-lg);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .sidebar-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-toggle:hover,
+        .sidebar-toggle:focus-visible {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .sidebar-toggle i {
+            width: 20px;
+            height: 20px;
+        }
+
+        body.sidebar-collapsed .sidebar-toggle,
+        body.sidebar-open .sidebar-toggle {
+            border-color: var(--accent-secondary);
+            color: var(--accent-secondary);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.25);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            text-shadow: 0 0 10px var(--glow-primary);
+        }
+        
+        .logo i {
+            width: 24px;
+            height: 24px;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.25rem 0.75rem;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .system-status:focus-visible,
+        .system-status:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px var(--glow-primary);
+            outline: none;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-success);
+            box-shadow: 0 0 10px var(--accent-success);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .header-stats {
+            display: flex;
+            gap: var(--spacing-lg);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--accent-secondary);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Main Layout */
+        .main-container {
+            margin-top: var(--header-height);
+            display: flex;
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            flex: 0 0 var(--sidebar-width);
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: var(--spacing-lg);
+            position: sticky;
+            top: var(--header-height);
+            height: calc(100vh - var(--header-height));
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-mobile-header {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .sidebar-mobile-title {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+
+        .sidebar-close {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-close:hover,
+        .sidebar-close:focus-visible {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .sidebar-close i {
+            width: 18px;
+            height: 18px;
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1005;
+            display: none;
+        }
+
+        .nav-section {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .nav-title {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: 0.75rem var(--spacing-sm);
+            border-radius: var(--panel-border-radius);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-panel);
+            border-color: var(--border);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--bg-panel);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            box-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            min-width: 0;
+            padding: var(--spacing-lg);
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .page-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .page-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .page-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .toolbar-input,
+        .toolbar-select {
+            padding: 0.6rem 0.9rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font: inherit;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .toolbar-input:focus,
+        .toolbar-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        .page-controls .toolbar-input {
+            min-width: 220px;
+        }
+
+        .page-controls .toolbar-select {
+            min-width: 180px;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .metric-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-lg);
+            transition: all 0.2s ease;
+        }
+
+        .metric-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px var(--glow-primary);
+            transform: translateY(-2px);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .metric-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .metric-icon i {
+            width: 20px;
+            height: 20px;
+        }
+
+        .metric-icon.primary {
+            background: var(--glow-primary);
+            color: var(--accent-primary);
+        }
+
+        .metric-icon.secondary {
+            background: var(--glow-secondary);
+            color: var(--accent-secondary);
+        }
+
+        .metric-icon.warning {
+            background: rgba(255, 107, 53, 0.3);
+            color: var(--accent-warning);
+        }
+
+        .metric-title {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-value {
+            font-family: var(--font-mono);
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .metric-change {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .change-positive {
+            color: var(--accent-success);
+        }
+
+        .change-negative {
+            color: var(--accent-error);
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .panel-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .panel-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .panel-body {
+            padding: var(--spacing-lg);
+            overflow-x: auto;
+        }
+
+        .panel--flush,
+        .panel.panel--flush {
+            padding: 0;
+        }
+
+        .panel--flush .panel-body {
+            padding: 0;
+        }
+
+        .panel-body--flush {
+            padding: 0 !important;
+        }
+
+        .coverage-hint .panel-body {
+            padding: var(--spacing-lg) !important;
+        }
+
+        .panel-subtext {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Reports */
+        .reports-content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .reports-window-meta {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+        }
+
+        .reports-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .report-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            padding: var(--spacing-md);
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.05);
+        }
+
+        .report-card-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .report-card-value {
+            font-family: var(--font-mono);
+            font-size: 2.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.1;
+        }
+
+        .report-card-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .reports-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .reports-trend-body {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        #reports-trend-canvas {
+            width: 100%;
+            border-radius: var(--panel-border-radius);
+            background: var(--bg-secondary);
+        }
+
+        .chart-legend {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .legend-swatch.pass {
+            background: #00ff41;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.25);
+        }
+
+        .legend-swatch.fail {
+            background: rgba(255, 0, 64, 0.7);
+            box-shadow: 0 0 10px rgba(255, 0, 64, 0.25);
+        }
+
+        .reports-empty,
+        .reports-error {
+            padding: var(--spacing-lg);
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .reports-error {
+            color: var(--accent-error);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .reports-table th,
+        .reports-table td {
+            white-space: nowrap;
+        }
+
+        .reports-cell-scenario {
+            min-width: 220px;
+        }
+
+        .reports-cell-scenario .scenario-name {
+            font-weight: 600;
+        }
+
+        .reports-cell-scenario .scenario-meta {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 0.35rem;
+        }
+
+        .reports-cell-health {
+            min-width: 140px;
+        }
+
+        .reports-cell-health .progress {
+            margin-bottom: 0.35rem;
+        }
+
+        .reports-cell-health .health-score {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .reports-cell-pass {
+            min-width: 90px;
+        }
+
+        .reports-cell-fail {
+            min-width: 120px;
+        }
+
+        .reports-cell-coverage {
+            min-width: 200px;
+        }
+
+        .reports-cell-coverage .coverage-target {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .reports-cell-vault {
+            min-width: 170px;
+        }
+
+        .vault-summary {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .vault-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .reports-cell-last {
+            min-width: 220px;
+        }
+
+        .reports-cell-last .last-status {
+            margin-bottom: 0.35rem;
+        }
+
+        .reports-cell-last .last-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .code {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .insight-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-md);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .insight-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: var(--spacing-sm);
+        }
+
+        .insight-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .insight-meta {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 0.25rem;
+        }
+
+        .insight-scenario {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-secondary);
+            font-size: 0.75rem;
+        }
+
+        .insight-severity {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+        }
+
+        .insight-severity-high {
+            background: rgba(255, 0, 64, 0.15);
+            color: var(--accent-error);
+        }
+
+        .insight-severity-medium {
+            background: rgba(255, 107, 53, 0.15);
+            color: var(--accent-warning);
+        }
+
+        .insight-severity-info {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent-secondary);
+        }
+
+        .insight-severity-low {
+            background: rgba(57, 255, 20, 0.15);
+            color: var(--accent-success);
+        }
+
+        .insight-detail {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .insight-actions {
+            margin-left: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        .insight-actions li {
+            margin-bottom: 0.35rem;
+        }
+
+        .reports-window-select {
+            width: auto;
+            min-width: 150px;
+            padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+        }
+
+        #suites .panel-body {
+            padding: 0;
+        }
+
+        #executions .panel-body {
+            padding: 0;
+        }
+
+        #recent-executions {
+            padding: 0;
+        }
+
+        #recent-executions.loading {
+            padding: 0;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem var(--spacing-sm);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: var(--font-mono);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+
+        .scenario-name-display {
+            padding: 0.75rem var(--spacing-sm);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            color: var(--text-primary);
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+        }
+
+        .scenario-name-display.placeholder {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .scenario-checklist {
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            background: var(--bg-secondary);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .scenario-checklist-header {
+            padding: 0.75rem var(--spacing-sm);
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .scenario-checklist-select-all {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--accent-primary);
+        }
+
+        .scenario-checklist-select-all input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .scenario-checklist-items {
+            padding: var(--spacing-xs);
+        }
+
+        .scenario-checklist-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.5rem var(--spacing-sm);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .scenario-checklist-item:hover {
+            background: var(--bg-panel);
+        }
+
+        .scenario-checklist-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .scenario-checklist-item label {
+            flex: 1;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+
+        /* Dialog Tabs */
+        .dialog-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .dialog-tab {
+            flex: 1;
+            padding: 0.75rem var(--spacing-sm);
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-xs);
+        }
+
+        .dialog-tab:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .dialog-tab.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .dialog-tab svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .dialog-tab-content {
+            display: none;
+        }
+
+        .dialog-tab-content.active {
+            display: block;
+        }
+
+        .tab-explainer {
+            padding: var(--spacing-sm);
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--accent-info);
+            border-radius: var(--panel-border-radius);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .tab-explainer p {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .tab-explainer strong {
+            color: var(--text-primary);
+        }
+
+        .form-range-group {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .form-range {
+            flex: 1;
+            accent-color: var(--accent-primary);
+        }
+
+        .form-range-value {
+            min-width: 3.5rem;
+            text-align: right;
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+
+        @media (max-width: 640px) {
+            .form-range-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .form-range-value {
+                text-align: left;
+            }
+        }
+
+        .generate-form--hidden {
+            display: none;
+        }
+
+        .generate-result {
+            display: grid;
+            gap: var(--spacing-md);
+            padding: var(--spacing-lg);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+        }
+
+        .generate-result[hidden] {
+            display: none;
+        }
+
+        .generate-result-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent-secondary);
+        }
+
+        .generate-result-icon i {
+            width: 26px;
+            height: 26px;
+        }
+
+        .generate-result-icon.success {
+            background: rgba(0, 255, 149, 0.12);
+            color: var(--accent-success);
+        }
+
+        .generate-result-icon.info {
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent-secondary);
+        }
+
+        .generate-result-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .generate-result-message {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .generate-result-metadata {
+            display: grid;
+            gap: 0.35rem 1.5rem;
+            grid-template-columns: minmax(120px, auto) 1fr;
+            margin: 0;
+        }
+
+        .generate-result-metadata[hidden] {
+            display: none;
+        }
+
+        .generate-result-metadata dt {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .generate-result-metadata dd {
+            margin: 0;
+            color: var(--text-secondary);
+        }
+
+        .generate-result-links {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: center;
+        }
+
+        .generate-result-links[hidden] {
+            display: none;
+        }
+
+        .generate-result-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+
+        @media (max-width: 640px) {
+            .generate-result-metadata {
+                grid-template-columns: 1fr;
+            }
+
+            .generate-result-links,
+            .generate-result-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .generate-result-links .btn,
+            .generate-result-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.75rem var(--spacing-lg);
+            background: transparent;
+            border: 1px solid var(--accent-primary);
+            border-radius: var(--panel-border-radius);
+            color: var(--accent-primary);
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            box-shadow: 0 0 20px var(--glow-primary);
+            transform: translateY(-1px);
+        }
+
+        .btn.secondary {
+            border-color: var(--accent-secondary);
+            color: var(--accent-secondary);
+        }
+
+        .btn.secondary:hover {
+            background: var(--accent-secondary);
+            box-shadow: 0 0 20px var(--glow-secondary);
+        }
+
+        .btn.warning {
+            border-color: var(--accent-warning);
+            color: var(--accent-warning);
+        }
+
+        .btn.warning:hover {
+            background: var(--accent-warning);
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn:disabled:hover {
+            background: transparent;
+            box-shadow: none;
+        }
+        
+        .btn i {
+            width: 16px;
+            height: 16px;
+        }
+
+        .btn-compact {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+
+        .btn.icon-btn {
+            padding: 0.35rem;
+            width: 2.25rem;
+            height: 2.25rem;
+            justify-content: center;
+        }
+
+        .btn.icon-btn i {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn.icon-btn.highlighted {
+            border: 1px solid rgba(0, 212, 255, 0.35);
+            color: var(--accent-secondary);
+            background: rgba(0, 212, 255, 0.08);
+        }
+
+        .btn.icon-btn.highlighted:hover,
+        .btn.icon-btn.highlighted:focus-visible {
+            background: rgba(0, 212, 255, 0.18);
+            border-color: var(--accent-secondary);
+            color: var(--text-primary);
+            box-shadow: 0 0 16px rgba(0, 212, 255, 0.25);
+        }
+
+        .is-hidden {
+            display: none !important;
+        }
+
+        /* Tables */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+
+        .table-scroll {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+            cursor: grab;
+        }
+
+        .table-scroll.is-dragging,
+        .table-scroll:active {
+            cursor: grabbing;
+        }
+
+        .table-scroll::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .table th[data-sortable] {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 24px;
+        }
+
+        .table th[data-sortable]:hover {
+            background: var(--bg-panel);
+            color: var(--accent-primary);
+        }
+
+        .table th[data-sortable]::after {
+            content: '⇅';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.3;
+            font-size: 0.9rem;
+        }
+
+        .table th[data-sortable][data-sort-direction="asc"]::after {
+            content: '↑';
+            opacity: 1;
+            color: var(--accent-primary);
+        }
+
+        .table th[data-sortable][data-sort-direction="desc"]::after {
+            content: '↓';
+            opacity: 1;
+            color: var(--accent-primary);
+        }
+
+        .table td {
+            color: var(--text-secondary);
+        }
+
+        .table tbody tr {
+            background: rgba(255, 255, 255, 0.01);
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .table tbody tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        .table tbody tr:hover td {
+            color: var(--text-primary);
+        }
+
+        .scenario-row.missing-scenario {
+            background: rgba(255, 107, 53, 0.06);
+        }
+
+        .scenario-row.missing-scenario:hover {
+            background: rgba(255, 107, 53, 0.12);
+        }
+
+        .table .cell-scenario strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .table .cell-phases {
+            color: var(--text-secondary);
+            overflow-wrap: anywhere;
+        }
+
+        .table .cell-coverage {
+            white-space: nowrap;
+        }
+
+        .coverage-empty {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .table .cell-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-direction: row;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        #suites-table,
+        #executions-table,
+        #coverage-table {
+            padding: 0;
+            overflow-x: auto;
+        }
+
+        #coverage-table .loading {
+            padding: 0;
+        }
+
+        .suites-table,
+        .executions-table {
+            border-collapse: collapse;
+            margin: 0;
+            width: 100%;
+            min-width: 960px;
+        }
+
+        .coverage-table {
+            min-width: 960px;
+        }
+
+        .suites-table thead th,
+        .executions-table thead th,
+        .suites-table tbody td,
+        .executions-table tbody td {
+            padding: 0.75rem 1rem;
+        }
+
+        .suites-table .cell-phases {
+            max-width: 22rem;
+        }
+
+        .suites-table .cell-status,
+        .suites-table .cell-created {
+            white-space: nowrap;
+        }
+
+        .table .cell-select {
+            width: 3rem;
+            text-align: center;
+        }
+
+        .table .cell-select input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+        }
+
+        .text-success {
+            color: var(--accent-success);
+        }
+
+        .text-error {
+            color: var(--accent-error);
+        }
+
+        .text-muted {
+            color: var(--text-muted);
+        }
+
+        /* Status Indicators */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: rgba(57, 255, 20, 0.2);
+            color: var(--accent-success);
+        }
+
+        .status.warning {
+            background: rgba(255, 107, 53, 0.2);
+            color: var(--accent-warning);
+        }
+
+        .status.error {
+            background: rgba(255, 0, 64, 0.2);
+            color: var(--accent-error);
+        }
+
+        .status.info {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--accent-secondary);
+        }
+
+        /* Progress Bar */
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .coverage-meter {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            width: 140px;
+            max-width: 140px;
+        }
+
+        .coverage-meter .progress {
+            width: 100%;
+            flex-shrink: 0;
+        }
+
+        .coverage-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .coverage-percentage {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .coverage-phases {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        /* Suite Detail Panel */
+        .suite-detail-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.75);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+            z-index: 2000;
+        }
+
+        .suite-detail-overlay.active {
+            display: flex;
+        }
+
+        .suite-detail-panel {
+            width: min(960px, 100%);
+            max-height: 90vh;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #generate-dialog-overlay .suite-detail-panel {
+            max-width: 720px;
+        }
+
+        #vault-dialog-overlay .suite-detail-panel {
+            max-width: 960px;
+        }
+
+        #coverage-detail-overlay .suite-detail-panel {
+            max-width: 960px;
+        }
+
+        #health-status-overlay .suite-detail-panel {
+            max-width: 560px;
+        }
+
+        .health-status-content {
+            padding: var(--spacing-lg);
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            overflow-x: auto;
+        }
+
+        .health-status-content pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+        }
+
+        .suite-detail-header {
+            padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-md);
+            justify-content: space-between;
+        }
+
+        .suite-detail-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .suite-detail-meta .suite-id {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .suite-detail-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .suite-detail-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .suite-detail-close:hover,
+        .suite-detail-close:focus-visible {
+            border-color: var(--accent-secondary);
+            color: var(--text-primary);
+        }
+
+        .suite-detail-content {
+            padding: var(--spacing-lg);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .suite-detail-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .suite-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: var(--spacing-sm);
+        }
+
+        .suite-detail-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: var(--spacing-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .suite-detail-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .suite-detail-card .value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .suite-detail-card .value-small {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .coverage-bars {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .coverage-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .coverage-item-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .suite-detail-tests {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .suite-detail-tests table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .suite-detail-tests thead {
+            background: var(--bg-panel);
+        }
+
+        .suite-detail-tests th,
+        .suite-detail-tests td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        .suite-detail-tests td {
+            word-break: break-word;
+        }
+
+        .suite-detail-tests tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .suite-detail-tests details {
+            margin-top: 0.75rem;
+        }
+
+        .suite-detail-tests details summary {
+            cursor: pointer;
+            color: var(--accent-secondary);
+            font-size: 0.85rem;
+        }
+
+        .suite-detail-tests details[open] summary {
+            color: var(--accent-primary);
+        }
+
+        .suite-detail-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .suite-detail-tag {
+            padding: 0.2rem 0.5rem;
+            border-radius: 999px;
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent-secondary);
+            font-size: 0.7rem;
+            letter-spacing: 0.04em;
+        }
+
+        .suite-detail-code {
+            margin-top: 0.5rem;
+            background: #050505;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .suite-detail-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 2rem;
+        }
+
+        .suite-detail-subtitle {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* Execution Detail Panel */
+        .execution-detail-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .execution-detail-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .execution-detail-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .execution-detail-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .execution-detail-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .execution-detail-content h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .execution-detail-failed-tests {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .execution-detail-failed-test {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-panel);
+            padding: 0.75rem 1rem;
+        }
+
+        .execution-detail-failed-test summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+        }
+
+        .execution-detail-failed-test summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .execution-detail-failed-test strong {
+            color: var(--accent-secondary);
+        }
+
+        .execution-detail-assertions {
+            margin-top: 0.5rem;
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .execution-detail-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .execution-detail-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent-secondary);
+            font-size: 0.75rem;
+            letter-spacing: 0.02em;
+        }
+
+        .execution-detail-assertion {
+            padding: 0.75rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .execution-detail-recommendations {
+            margin-top: 0.5rem;
+            padding-left: 1.2rem;
+            color: var(--text-secondary);
+            display: grid;
+            gap: 0.35rem;
+            list-style: disc;
+            list-style-position: inside;
+        }
+
+        .execution-detail-stack {
+            margin-top: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-panel);
+            overflow: hidden;
+        }
+
+        .execution-detail-stack summary {
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .execution-detail-stack summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .execution-detail-stack pre {
+            margin: 0;
+            border-radius: 0;
+            border: none;
+        }
+
+        .execution-detail-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .suite-detail-panel {
+                width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+
+            .suite-detail-overlay {
+                padding: 0;
+            }
+
+            .suite-detail-content {
+                padding: var(--spacing-md);
+            }
+
+            .suite-detail-header {
+                padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+            }
+
+            .suite-detail-close {
+                top: 12px;
+                right: 12px;
+            }
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl);
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--bg-panel);
+            border-top: 2px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: var(--spacing-sm);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Code Display */
+        .code-block {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-md);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Responsive Design */
+        @media (min-width: 769px) {
+            body.sidebar-collapsed .sidebar {
+                display: none;
+            }
+
+            body.sidebar-collapsed .content {
+                padding: var(--spacing-lg);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            :root {
+                --sidebar-width: 240px;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+        }
+
+        /* Card Views - Mobile First */
+        .suites-cards-view,
+        .executions-cards-view {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm);
+        }
+
+        .suites-table-view,
+        .executions-table-view {
+            display: none;
+        }
+
+        .suite-card,
+        .execution-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-md);
+            transition: all 0.2s ease;
+        }
+
+        .suite-card:hover,
+        .execution-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px var(--glow-primary);
+        }
+
+        .suite-card-header,
+        .execution-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .suite-card-title,
+        .execution-card-title {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            flex: 1;
+        }
+
+        .suite-card-title strong,
+        .execution-card-title strong {
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .suite-card-checkbox,
+        .execution-card-checkbox {
+            margin-right: var(--spacing-xs);
+            flex-shrink: 0;
+        }
+
+        .suite-card-body,
+        .execution-card-body {
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .suite-card-metric,
+        .execution-card-metric {
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .suite-card-actions,
+        .execution-card-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+            flex-wrap: wrap;
+        }
+
+        .suite-card-actions .btn,
+        .execution-card-actions .btn {
+            flex: 1;
+            min-width: fit-content;
+        }
+
+        @media (min-width: 640px) {
+            .suites-cards-view,
+            .executions-cards-view {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 768px) {
+            /* Switch to table view on tablets and up */
+            .suites-cards-view,
+            .executions-cards-view {
+                display: none;
+            }
+
+            .suites-table-view,
+            .executions-table-view {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --sidebar-width: 100%;
+            }
+
+            #suites .panel-body,
+            #executions .panel-body {
+                padding: 0;
+            }
+
+            #suites-table {
+                background: transparent;
+            }
+
+            .header {
+                padding: 0 var(--spacing-md);
+            }
+
+            .content {
+                padding: var(--spacing-md);
+            }
+
+            .header-stats {
+                display: none;
+            }
+
+            .main-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: var(--header-height);
+                left: 0;
+                right: 0;
+                width: 100%;
+                flex: none;
+                height: auto;
+                max-height: calc(100vh - var(--header-height));
+                overflow-y: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                transform: translateY(-110%);
+                opacity: 0;
+                pointer-events: none;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+                padding: var(--spacing-lg);
+                z-index: 1100;
+                background: var(--bg-secondary);
+            }
+
+            .sidebar-mobile-header {
+                display: flex;
+            }
+
+            .sidebar-overlay {
+                display: block;
+            }
+
+            body.sidebar-open .sidebar {
+                transform: translateY(0);
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            body.sidebar-open .sidebar-overlay {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            .reports-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .reports-grid {
+                gap: var(--spacing-sm);
+            }
+
+            .report-card {
+                padding: var(--spacing-sm);
+            }
+
+            .content {
+                padding: var(--spacing-md);
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            body.sidebar-collapsed .sidebar {
+                display: block;
+            }
+        }
+
+        /* Vault Enhancements */
+        .vault-overview {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .vault-overview .panel-body {
+            display: grid;
+            gap: var(--spacing-md);
+        }
+
+        .vault-overview-grid {
+            display: grid;
+            gap: var(--spacing-md);
+        }
+
+        @media (min-width: 960px) {
+            .vault-overview-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .vault-overview-card {
+            padding: var(--spacing-md);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(26, 26, 26, 0.8);
+        }
+
+        .vault-overview-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-primary);
+        }
+
+        .vault-overview-card p,
+        .vault-overview-card ul {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        .vault-overview-card ul {
+            padding-left: 1.2rem;
+            margin: 0;
+        }
+
+        .vault-inline-list {
+            margin: var(--spacing-sm) 0 0;
+            padding-left: 1.25rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .vault-inline-list li {
+            margin-bottom: 0.35rem;
+        }
+
+        .vault-activity-panel {
+            overflow: hidden;
+        }
+
+        .vault-activity-panel .panel-body {
+            overflow-x: auto;
+        }
+
+        .vault-main-layout {
+            display: grid;
+            gap: var(--spacing-lg);
+            grid-template-columns: 1fr;
+        }
+
+        @media (max-width: 1180px) {
+            .vault-main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-helper {
+            display: block;
+            margin-top: 0.35rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .vault-phase-selector {
+            display: grid;
+            gap: var(--spacing-sm);
+        }
+
+        .phase-option {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-secondary);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .phase-option input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-top: 4px;
+            accent-color: var(--accent-primary);
+        }
+
+        .phase-option:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px rgba(0, 255, 65, 0.15);
+        }
+
+        .phase-option:focus-within {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px rgba(0, 255, 65, 0.25);
+        }
+
+        .phase-option-body {
+            flex: 1;
+        }
+
+        .phase-option-body .phase-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .phase-option-body .phase-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .vault-phase-configurations {
+            margin-top: var(--spacing-md);
+        }
+
+        .vault-phase-configurations .phase-config {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .vault-phase-configurations .phase-config:last-child {
+            margin-bottom: 0;
+        }
+
+        .phase-config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .phase-timeout {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .vault-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .vault-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .vault-item:hover {
+            border-color: var(--accent-primary);
+            transform: translateX(4px);
+        }
+
+        .vault-item.is-active {
+            border-color: var(--accent-secondary);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.18);
+        }
+
+        .vault-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .vault-item-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            #vault-list {
+                min-width: 560px;
+            }
+
+            .vault-item-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-xs);
+            }
+
+            .vault-item-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.4rem;
+            }
+        }
+
+        .vault-timeline {
+            margin-top: var(--spacing-lg);
+        }
+
+        .timeline-indicator.pending {
+            background: transparent;
+            color: var(--text-muted);
+            border-color: var(--border);
+        }
+
+        .vault-history {
+            margin-top: var(--spacing-lg);
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table th,
+        .history-table td {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+        }
+
+        .history-table th {
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .history-table tr[data-latest="true"] td {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .history-empty,
+        .loading-message,
+        .error-message,
+        .empty-message {
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .error-message {
+            color: var(--accent-error);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+        }
+
+        .status-pill[data-status="completed"],
+        .status-pill[data-status="passed"] {
+            background: rgba(57, 255, 20, 0.15);
+            color: var(--accent-success);
+        }
+
+        .status-pill[data-status="running"],
+        .status-pill[data-status="in_progress"] {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent-secondary);
+        }
+
+        .status-pill[data-status="failed"],
+        .status-pill[data-status="error"] {
+            background: rgba(255, 0, 64, 0.15);
+            color: var(--accent-error);
+        }
+
+        .vault-result-card {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-md);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            background: rgba(0, 255, 65, 0.05);
+            display: none;
+        }
+
+        .vault-result-card.visible {
+            display: block;
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus indicators */
+        .nav-item:focus,
+        .btn:focus,
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: 2px solid var(--accent-primary);
+            outline-offset: 2px;
+        }
+
+        .coverage-warning {
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--accent-warning);
+        }
+
+        .coverage-detail {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .coverage-detail-empty {
+            color: var(--text-muted);
+            text-align: center;
+            padding: var(--spacing-lg) 0;
+        }
+
+        .coverage-detail-grid {
+            display: grid;
+            gap: var(--spacing-lg);
+            grid-template-columns: 2fr 1fr;
+        }
+
+        .coverage-detail-column {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .coverage-detail-column h4 {
+            margin-bottom: 0.5rem;
+            color: var(--accent-primary);
+        }
+
+        .coverage-detail-column ul {
+            margin: 0 0 var(--spacing-sm);
+            padding-left: 1.25rem;
+            color: var(--text-secondary);
+        }
+
+        .coverage-gap-section {
+            margin-top: var(--spacing-sm);
+        }
+
+        .table.compact td,
+        .table.compact th {
+            padding: 0.4rem 0.6rem;
+        }
+
+        @media (max-width: 1024px) {
+            .coverage-detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .reports-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .reports-metrics {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            }
+
+            .report-card-value {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="true">
+                <i data-lucide="menu"></i>
+            </button>
+            <div class="logo">
+                <i data-lucide="flask-conical"></i>
+                <span>TEST GENIE</span>
+            </div>
+            <div class="system-status" id="system-status-chip" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false">
+                <div class="status-dot"></div>
+                <span>System Healthy</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="header-stats">
+                <div class="stat">
+                    <div class="stat-value" id="active-suites">0</div>
+                    <div class="stat-label">Active Suites</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="running-tests">0</div>
+                    <div class="stat-label">Running Tests</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="avg-coverage">0%</div>
+                    <div class="stat-label">Avg Coverage</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar" aria-label="Primary navigation">
+            <div class="sidebar-mobile-header">
+                <span class="sidebar-mobile-title">Navigation</span>
+                <button class="sidebar-close" id="sidebar-close" aria-label="Close navigation">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="nav-section">
+                <h3 class="nav-title">Main</h3>
+                <div class="nav-item active" data-page="dashboard">
+                    <i class="nav-icon" data-lucide="bar-chart-3"></i>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" data-page="suites">
+                    <i class="nav-icon" data-lucide="flask-conical"></i>
+                    <span>Test Suites</span>
+                </div>
+                <div class="nav-item" data-page="executions">
+                    <i class="nav-icon" data-lucide="rocket"></i>
+                    <span>Executions</span>
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <h3 class="nav-title">Analysis</h3>
+                <div class="nav-item" data-page="coverage">
+                    <i class="nav-icon" data-lucide="trending-up"></i>
+                    <span>Coverage Analysis</span>
+                </div>
+                <div class="nav-item" data-page="vault">
+                    <i class="nav-icon" data-lucide="building-2"></i>
+                    <span>Test Vaults</span>
+                </div>
+                <div class="nav-item" data-page="reports">
+                    <i class="nav-icon" data-lucide="clipboard"></i>
+                    <span>Reports</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h3 class="nav-title">System</h3>
+                <div class="nav-item" data-page="settings">
+                    <i class="nav-icon" data-lucide="settings"></i>
+                    <span>Settings</span>
+                </div>
+                <div class="nav-item" data-page="help">
+                    <i class="nav-icon" data-lucide="help-circle"></i>
+                    <span>Help</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Content Area -->
+        <main class="content">
+            <!-- Dashboard Page -->
+            <div class="page active" id="dashboard">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Dashboard</h1>
+                        <p class="page-subtitle">Comprehensive overview of your testing ecosystem</p>
+                    </div>
+                </div>
+
+                <!-- Dashboard Metrics -->
+                <div class="dashboard-grid">
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <div class="metric-icon primary">
+                                <i data-lucide="flask-conical"></i>
+                            </div>
+                            <div class="metric-title">Total Test Suites</div>
+                        </div>
+                        <div class="metric-value" id="metric-total-suites">0</div>
+                        <div class="metric-change">
+                            <span class="change-positive">↗ +5 this week</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <div class="metric-icon secondary">
+                                <i data-lucide="zap"></i>
+                            </div>
+                            <div class="metric-title">Tests Generated</div>
+                        </div>
+                        <div class="metric-value" id="metric-tests-generated">0</div>
+                        <div class="metric-change">
+                            <span class="change-positive">↗ +127 today</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <div class="metric-icon primary">
+                                <i data-lucide="bar-chart-3"></i>
+                            </div>
+                            <div class="metric-title">Average Coverage</div>
+                        </div>
+                        <div class="metric-value" id="metric-avg-coverage">0%</div>
+                        <div class="metric-change">
+                            <span class="change-positive">↗ +2.3% improvement</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <div class="metric-icon warning">
+                                <i data-lucide="triangle-alert"></i>
+                            </div>
+                            <div class="metric-title">Failed Tests</div>
+                        </div>
+                        <div class="metric-value" id="metric-failed-tests">0</div>
+                        <div class="metric-change">
+                            <span class="change-negative">↘ -5 from yesterday</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Panel -->
+                <div class="panel panel--flush">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Recent Test Executions</h2>
+                        <button class="btn" onclick="refreshDashboard()">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="panel-body panel-body--flush">
+                        <div id="recent-executions" class="loading">
+                            <div class="spinner"></div>
+                            Loading recent executions...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Suites Page -->
+            <div class="page" id="suites">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Test Suites</h1>
+                        <p class="page-subtitle">Inspect every scenario, generate suites, and monitor readiness</p>
+                    </div>
+                    <div class="page-toolbar">
+                        <div class="page-controls">
+                            <input type="search" id="suites-search-input" class="toolbar-input" placeholder="Search suites" aria-label="Search suites">
+                            <select id="suites-status-filter" class="toolbar-select" aria-label="Filter suites by status">
+                                <option value="all">All statuses</option>
+                                <option value="success">Ready</option>
+                                <option value="info">Running</option>
+                                <option value="warning">Needs attention</option>
+                                <option value="error">Failed</option>
+                            </select>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn is-hidden" type="button" id="suites-run-selected-btn">
+                                <i data-lucide="play"></i>
+                                <span id="suites-run-selected-label">Run Selected</span>
+                            </button>
+                            <button class="btn secondary" type="button" id="suites-bulk-generate-btn">
+                                <i data-lucide="sparkles"></i>
+                                Bulk Request Tests
+                            </button>
+                            <button class="btn" type="button" id="suites-refresh-btn">
+                                <i data-lucide="refresh-cw"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-body">
+                        <div id="suites-table" class="loading">
+                            <div class="spinner"></div>
+                            Loading test suites...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Executions Page -->
+            <div class="page" id="executions">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Test Executions</h1>
+                        <p class="page-subtitle">Monitor active and completed test runs</p>
+                    </div>
+                    <div class="page-toolbar">
+                        <div class="page-controls">
+                            <input type="search" id="executions-search-input" class="toolbar-input" placeholder="Search executions" aria-label="Search executions">
+                            <select id="executions-status-filter" class="toolbar-select" aria-label="Filter executions by status">
+                                <option value="all">All statuses</option>
+                                <option value="success">Ready</option>
+                                <option value="info">Running</option>
+                                <option value="warning">Needs attention</option>
+                                <option value="error">Failed</option>
+                            </select>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn secondary" type="button" id="executions-clear-btn">
+                                <i data-lucide="trash-2"></i>
+                                Clear All
+                            </button>
+                            <button class="btn warning is-hidden" type="button" id="executions-delete-selected-btn">
+                                <i data-lucide="trash-2"></i>
+                                Delete Selected
+                            </button>
+                            <button class="btn" type="button" id="executions-refresh-btn">
+                                <i data-lucide="refresh-cw"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-body">
+                        <div id="executions-table" class="loading">
+                            <div class="spinner"></div>
+                            Loading test executions...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coverage Analysis Page -->
+            <div class="page" id="coverage">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Coverage Analysis</h1>
+                        <p class="page-subtitle">Monitor per-scenario coverage and trigger new analyses</p>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn" type="button" id="coverage-refresh-btn">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel panel--flush">
+                    <div class="panel-body panel-body--flush">
+                        <div id="coverage-table" class="loading">
+                            <div class="spinner"></div>
+                            Loading coverage summaries...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel coverage-hint panel--flush">
+                    <div class="panel-body panel-body--flush">
+                        <p class="panel-subtext">Select <strong>View</strong> to open coverage details in a dialog, or trigger a new analysis without leaving the summary grid.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Vaults Page -->
+            <div class="page" id="vault">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Test Vaults</h1>
+                        <p class="page-subtitle">Codify the phases that must pass before you ship.</p>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn" type="button" id="vault-dialog-open">
+                            <i data-lucide="plus"></i>
+                            New Vault
+                        </button>
+                        <button class="btn" type="button" id="vault-refresh-btn">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel vault-overview">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Why vaults matter</h2>
+                    </div>
+                    <div class="panel-body">
+                        <p>Vaults orchestrate multi-phase validation so you can replay the same end-to-end gate—setup, develop, test, deploy, monitor—whenever you need confidence. Configure once, execute forever.</p>
+                        <div class="vault-overview-grid">
+                            <div class="vault-overview-card">
+                                <h3>When to use them</h3>
+                                <ul>
+                                    <li>Release sign-off that must run through every phase.</li>
+                                    <li>Customer environments with bespoke smoke checks.</li>
+                                    <li>Incident or chaos drills where nothing can be skipped.</li>
+                                </ul>
+                            </div>
+                            <div class="vault-overview-card">
+                                <h3>What you define</h3>
+                                <ul>
+                                    <li>Scenario and vault identity for traceability.</li>
+                                    <li>Phase order, time budgets, and key notes.</li>
+                                    <li>Success criteria and fail-fast thresholds.</li>
+                                </ul>
+                            </div>
+                            <div class="vault-overview-card">
+                                <h3>What you get</h3>
+                                <p>A reusable asset you can trigger via UI or API. Test Genie tracks history, enforces sequencing, and blocks completion until every requirement is satisfied.</p>
+                            </div>
+                        </div>
+                        <ul class="vault-inline-list">
+                            <li>Launch the dialog when you need to define a new gate for a scenario.</li>
+                            <li>Select the phases to enforce and tune time budgets before saving.</li>
+                            <li>Capture the success criteria once—every execution must honor it.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="vault-main-layout">
+                    <div class="panel vault-activity-panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Existing Vaults</h2>
+                        </div>
+                        <div class="panel-body">
+                            <p class="form-helper" style="margin-bottom: var(--spacing-md);">Select a vault to inspect live phase progress and historical runs. We'll pull execution data from the API.</p>
+                            <div class="vault-list" id="vault-list"></div>
+
+                            <div class="vault-timeline" id="execution-timeline" style="display: none;">
+                                <h3 style="margin-bottom: var(--spacing-md);">Execution progress</h3>
+                                <div id="timeline-phases"></div>
+                            </div>
+
+                            <div class="vault-history" id="vault-history" style="display: none;">
+                                <h3 style="margin-bottom: var(--spacing-md);">Execution history</h3>
+                                <div id="vault-history-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Page -->
+            <div class="page" id="reports">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Reports & Analytics</h1>
+                        <p class="page-subtitle">Real-time quality intelligence across every scenario</p>
+                    </div>
+                </div>
+
+                <div class="reports-content">
+                    <div class="reports-window-meta" id="reports-window-meta"></div>
+
+                    <div class="reports-metrics">
+                        <div class="report-card">
+                            <span class="report-card-label">Quality Index</span>
+                            <span class="report-card-value" id="report-quality-index">--</span>
+                            <span class="report-card-subtitle" id="report-quality-subtitle">Loading…</span>
+                        </div>
+                        <div class="report-card">
+                            <span class="report-card-label">Active Regressions</span>
+                            <span class="report-card-value" id="report-regressions">--</span>
+                            <span class="report-card-subtitle" id="report-regressions-subtitle">Loading…</span>
+                        </div>
+                        <div class="report-card">
+                            <span class="report-card-label">Coverage vs Target</span>
+                            <span class="report-card-value" id="report-coverage">--</span>
+                            <span class="report-card-subtitle" id="report-coverage-subtitle">Loading…</span>
+                        </div>
+                        <div class="report-card">
+                            <span class="report-card-label">Vault Health</span>
+                            <span class="report-card-value" id="report-vault">--</span>
+                            <span class="report-card-subtitle" id="report-vault-subtitle">Loading…</span>
+                        </div>
+                    </div>
+
+                    <div class="reports-grid">
+                        <div class="panel reports-trend-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title">Quality Trends</h2>
+                                <div class="panel-actions">
+                                    <select id="reports-window-select" class="form-select reports-window-select">
+                                        <option value="7">Last 7 days</option>
+                                        <option value="30" selected>Last 30 days</option>
+                                        <option value="90">Last 90 days</option>
+                                    </select>
+                                    <button class="btn icon-btn" type="button" id="reports-refresh" aria-label="Refresh reports">
+                                        <i data-lucide="refresh-ccw"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="panel-body reports-trend-body" id="reports-trend-body">
+                                <div class="loading"><div class="spinner"></div>Loading analytics…</div>
+                            </div>
+                        </div>
+
+                        <div class="panel reports-insights-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title">Insights</h2>
+                            </div>
+                            <div class="panel-body" id="reports-insights">
+                                <div class="loading"><div class="spinner"></div>Loading analytics…</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel reports-scenarios-panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Scenario Quality Matrix</h2>
+                        </div>
+                        <div class="panel-body" id="reports-scenarios">
+                            <div class="loading"><div class="spinner"></div>Loading analytics…</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div class="page" id="settings">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Settings</h1>
+                        <p class="page-subtitle">Configure Test Genie preferences</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Default Settings</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="form-label" for="settings-default-coverage">Default Coverage Target</label>
+                            <div class="form-range-group">
+                                <input type="range" id="settings-default-coverage" class="form-range" min="50" max="100" value="80" step="5">
+                                <div class="form-range-value" id="settings-default-coverage-display">80%</div>
+                            </div>
+                            <span class="form-helper">Set the baseline coverage goal applied to new generation runs.</span>
+                        </div>
+                        <div class="form-group">
+                            <span class="form-label">Default Phases</span>
+                            <div class="vault-phase-selector" id="settings-default-phases">
+                                <label class="phase-option">
+                                    <input type="checkbox" value="dependencies" data-phase="dependencies">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Dependencies</span>
+                                        <span class="phase-description">Verify resources, secrets, and supporting services are wired.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="structure" data-phase="structure">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Structure</span>
+                                        <span class="phase-description">Validate project scaffolding, file layout, and naming discipline.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="unit" data-phase="unit">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Unit</span>
+                                        <span class="phase-description">Target isolated logic with deterministic, fast tests.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="integration" data-phase="integration">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Integration</span>
+                                        <span class="phase-description">Exercise resource orchestration and multi-service flows.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="business" data-phase="business">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Business</span>
+                                        <span class="phase-description">Assert revenue-critical scenarios and success metrics.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="performance" data-phase="performance">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Performance</span>
+                                        <span class="phase-description">Stress test throughput, latency, and scaling guardrails.</span>
+                                    </div>
+                                </label>
+                            </div>
+                            <span class="form-helper">Checked phases appear pre-selected in the test generation dialog.</span>
+                        </div>
+                        <div class="form-group">
+                            <button class="btn" type="button" id="settings-save-btn">
+                                <i data-lucide="save"></i>
+                                Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Page -->
+            <div class="page" id="help">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Help & Documentation</h1>
+                        <p class="page-subtitle">Get started with Test Genie</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Quick Start Guide</h2>
+                    </div>
+                    <div class="panel-body">
+                        <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">1. Generate Your First Test Suite</h3>
+                        <p style="margin-bottom: 1rem;">Open the "Test Suites" page, find your scenario, and press the <strong>Generate</strong> action. Configure the dialog (scenario name, test types, coverage target) and launch the run.</p>
+
+                        <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">2. Execute Tests</h3>
+                        <p style="margin-bottom: 1rem;">Use the play icon on the same row to execute the latest suite. Monitor live status from the "Executions" page.</p>
+
+                        <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">3. Analyze Coverage</h3>
+                        <p style="margin-bottom: 1rem;">Open the "Coverage Analysis" page and select <strong>View</strong> to launch the coverage detail dialog with file-level insights.</p>
+
+                        <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">4. Create Test Vaults</h3>
+                        <p style="margin-bottom: 1rem;">From the "Test Vaults" page, click <strong>New Vault</strong> to configure phases, success criteria, and timeouts in the dialog.</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">CLI Commands</h2>
+                    </div>
+                    <div class="panel-body panel-body--flush">
+                        <div class="code-block">
+# Generate test suite
+test-genie generate my-scenario --types unit,integration --coverage 95
+
+# Execute test suite
+test-genie execute [suite-id] --type full --environment local
+
+# Analyze coverage
+test-genie coverage my-scenario --depth comprehensive --report
+
+# Create test vault
+test-genie vault my-scenario --phases setup,develop,test
+
+# Check system status
+test-genie status
+
+# Get help
+test-genie help
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="coverage-detail-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel coverage-detail-panel" role="dialog" aria-modal="true" aria-labelledby="coverage-detail-title">
+            <button class="suite-detail-close" type="button" id="coverage-detail-close" aria-label="Close coverage details">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="coverage-detail-title">Coverage Analysis</h2>
+                    <p class="suite-detail-subtitle">Deep dive into file-level coverage, gaps, and recommendations.</p>
+                </div>
+            </div>
+            <div class="suite-detail-content" id="coverage-detail-content">
+                <div class="coverage-detail-empty">Select a scenario to view coverage breakdown.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="health-status-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel health-status-panel" role="dialog" aria-modal="true" aria-labelledby="health-status-title">
+            <button class="suite-detail-close" type="button" id="health-status-close" aria-label="Close system health details">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="health-status-title">System Health</h2>
+                    <p class="suite-detail-subtitle" id="health-status-subtitle">Latest heartbeat from the Test Genie API.</p>
+                </div>
+            </div>
+            <div class="health-status-content" id="health-status-content">
+                <div class="loading" style="padding: var(--spacing-md);">
+                    <div class="spinner"></div>
+                    Loading health details…
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="generate-dialog-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel generate-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="generate-dialog-title">
+            <button class="suite-detail-close" type="button" id="generate-dialog-close" aria-label="Close test generation dialog">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="generate-dialog-title">Request Tests</h2>
+                    <div class="suite-detail-subtitle" id="generate-dialog-subtitle">Configure AI-powered test creation and enhancement.</div>
+                </div>
+            </div>
+            <div class="suite-detail-content">
+                <!-- Tab Navigation -->
+                <div class="dialog-tabs">
+                    <button type="button" class="dialog-tab active" id="tab-create" data-tab="create">
+                        <i data-lucide="plus-circle"></i>
+                        <span>Create Tests</span>
+                    </button>
+                    <button type="button" class="dialog-tab" id="tab-enhance" data-tab="enhance">
+                        <i data-lucide="trending-up"></i>
+                        <span>Enhance Tests</span>
+                    </button>
+                </div>
+
+                <!-- Tab Content - Create -->
+                <div class="dialog-tab-content active" id="tab-content-create">
+                    <div class="tab-explainer">
+                        <p><strong>Create new test suites</strong> for scenarios that don't have tests yet. Test Genie will generate comprehensive test coverage from scratch.</p>
+                    </div>
+                    <form id="generate-form" class="generate-form">
+                        <div class="form-group">
+                            <span class="form-label">Scenario<span id="scenarios-label-suffix-create"></span></span>
+                        <div id="scenario-name-display" class="scenario-name-display placeholder">Select a scenario from the table to generate a test suite.</div>
+                        <div id="scenario-checklist" class="scenario-checklist" hidden>
+                            <div class="scenario-checklist-header">
+                                <label class="scenario-checklist-select-all">
+                                    <input type="checkbox" id="scenario-select-all">
+                                    <span>Select All</span>
+                                </label>
+                            </div>
+                            <div class="scenario-checklist-items" id="scenario-checklist-items">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <span class="form-label">Phases</span>
+                        <div class="vault-phase-selector" id="generate-phase-selector">
+                            <label class="phase-option">
+                                <input type="checkbox" value="dependencies" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Dependencies</span>
+                                    <span class="phase-description">Verify resources, secrets, and supporting services are wired.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" value="structure" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Structure</span>
+                                    <span class="phase-description">Validate project scaffolding, file layout, and naming discipline.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" value="unit" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Unit</span>
+                                    <span class="phase-description">Target isolated logic with deterministic, fast tests.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" value="integration" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Integration</span>
+                                    <span class="phase-description">Exercise resource orchestration and multi-service flows.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" value="business" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Business</span>
+                                    <span class="phase-description">Assert revenue-critical scenarios and success metrics.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" value="performance" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Performance</span>
+                                    <span class="phase-description">Stress test throughput, latency, and scaling guardrails.</span>
+                                </div>
+                            </label>
+                        </div>
+                        <span class="form-helper">Phases mirror the visited-tracker playbook; uncheck any that are out of scope.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="coverage-target">Coverage Target</label>
+                        <div class="form-range-group">
+                            <input type="range" id="coverage-target" class="form-range" min="50" max="100" value="80" step="5">
+                            <div class="form-range-value" id="coverage-target-display">80%</div>
+                        </div>
+                        <span class="form-helper">Aim for at least 80% to unlock quality gating insights.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn" id="generate-btn">
+                            <i data-lucide="zap"></i>
+                            <span id="generate-btn-text">Create Request</span>
+                        </button>
+                    </div>
+                    </form>
+                </div>
+
+                <!-- Tab Content - Enhance -->
+                <div class="dialog-tab-content" id="tab-content-enhance">
+                    <div class="tab-explainer">
+                        <p><strong>Enhance existing test suites</strong> to improve coverage and quality. Test Genie will assess current tests and add missing coverage.</p>
+                    </div>
+                    <form id="enhance-form" class="generate-form">
+                        <div class="form-group">
+                            <span class="form-label">Scenario<span id="scenarios-label-suffix-enhance"></span></span>
+                            <div id="scenario-name-display-enhance" class="scenario-name-display placeholder">Select a scenario from the table to enhance tests.</div>
+                            <div id="scenario-checklist-enhance" class="scenario-checklist" hidden>
+                                <div class="scenario-checklist-header">
+                                    <label class="scenario-checklist-select-all">
+                                        <input type="checkbox" id="scenario-select-all-enhance">
+                                        <span>Select All</span>
+                                    </label>
+                                </div>
+                                <div class="scenario-checklist-items" id="scenario-checklist-items-enhance">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <span class="form-label">Focus Areas</span>
+                            <div class="vault-phase-selector" id="enhance-phase-selector">
+                                <label class="phase-option">
+                                    <input type="checkbox" value="dependencies" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Dependencies</span>
+                                        <span class="phase-description">Verify resources, secrets, and supporting services are wired.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="structure" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Structure</span>
+                                        <span class="phase-description">Validate project scaffolding, file layout, and naming discipline.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="unit" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Unit</span>
+                                        <span class="phase-description">Target isolated logic with deterministic, fast tests.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="integration" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Integration</span>
+                                        <span class="phase-description">Exercise resource orchestration and multi-service flows.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="business" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Business</span>
+                                        <span class="phase-description">Assert revenue-critical scenarios and success metrics.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="performance" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Performance</span>
+                                        <span class="phase-description">Stress test throughput, latency, and scaling guardrails.</span>
+                                    </div>
+                                </label>
+                            </div>
+                            <span class="form-helper">Select areas to enhance. Agent will assess existing tests and add missing coverage.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="coverage-target-enhance">Coverage Target</label>
+                            <div class="form-range-group">
+                                <input type="range" id="coverage-target-enhance" class="form-range" min="50" max="100" value="80" step="5">
+                                <div class="form-range-value" id="coverage-target-display-enhance">80%</div>
+                            </div>
+                            <span class="form-helper">Aim for at least 80% to unlock quality gating insights.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn" id="enhance-btn">
+                                <i data-lucide="trending-up"></i>
+                                <span id="enhance-btn-text">Create Enhancement Request</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="generation-result" class="generate-result" hidden>
+                    <div class="generate-result-icon success" id="generate-result-icon" aria-hidden="true">
+                        <i data-lucide="check-circle"></i>
+                    </div>
+                    <h3 class="generate-result-title" id="generate-result-title"></h3>
+                    <p class="generate-result-message" id="generate-result-message"></p>
+                    <dl class="generate-result-metadata" id="generate-result-metadata" hidden></dl>
+                    <div class="generate-result-links" id="generate-result-links" hidden>
+                        <button type="button" class="btn" id="generate-open-issue-btn" hidden>
+                            <i data-lucide="external-link"></i>
+                            <span>Open Issue Tracker</span>
+                        </button>
+                    </div>
+                    <div class="generate-result-actions">
+                        <button type="button" class="btn" id="generate-another-btn">
+                            <i data-lucide="refresh-ccw"></i>
+                            <span>Generate Another Suite</span>
+                        </button>
+                        <button type="button" class="btn" id="generate-close-btn">
+                            <i data-lucide="x"></i>
+                            <span>Close</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="vault-dialog-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel vault-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="vault-dialog-title">
+            <button class="suite-detail-close" type="button" id="vault-dialog-close" aria-label="Close create vault dialog">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="vault-dialog-title">Create Vault</h2>
+                    <div class="suite-detail-subtitle">Curate the phases and guardrails required before shipping.</div>
+                </div>
+            </div>
+            <div class="suite-detail-content">
+                <form id="vault-form">
+                    <div class="form-group">
+                        <label class="form-label" for="vault-scenario">Scenario</label>
+                        <input type="text" id="vault-scenario" class="form-input" placeholder="Start typing to find a scenario" list="vault-scenario-options" autocomplete="off" required>
+                        <datalist id="vault-scenario-options"></datalist>
+                        <span class="form-helper">We bubble up recently generated scenarios; you can also type a new identifier.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="vault-name">Vault Name</label>
+                        <input type="text" id="vault-name" class="form-input" placeholder="e.g., release-candidate-vault" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Phases to enforce</label>
+                        <div class="vault-phase-selector" id="vault-phase-selector">
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="setup" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Setup</span>
+                                    <span class="phase-description">Provision dependencies, seed data, confirm configuration isn't drifting.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="develop" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Develop</span>
+                                    <span class="phase-description">Execute developer-focused checks (lint, unit, integration) that must stay green.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="test" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Test</span>
+                                    <span class="phase-description">Run the regression, smoke, and vault suites that guard critical paths.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="deploy">
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Deploy</span>
+                                    <span class="phase-description">Validate rollout scripts, migrations, and packaging steps.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="monitor">
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Monitor</span>
+                                    <span class="phase-description">Watch health metrics, load, or canary signals after deployment.</span>
+                                </div>
+                            </label>
+                        </div>
+                        <span class="form-helper">Select every phase that must complete successfully. We'll create configuration blocks for each.</span>
+                    </div>
+
+                    <div class="vault-phase-configurations" id="vault-phase-configurations"></div>
+
+                    <div class="form-group">
+                        <label class="form-label">Success criteria</label>
+                        <div class="success-criteria">
+                            <div class="criteria-item">
+                                <input type="checkbox" id="vault-criteria-all" class="criteria-checkbox" checked>
+                                <label for="vault-criteria-all">All phases must complete</label>
+                            </div>
+                            <div class="criteria-item">
+                                <input type="checkbox" id="vault-criteria-no-critical" class="criteria-checkbox" checked>
+                                <label for="vault-criteria-no-critical">No critical failures allowed</label>
+                            </div>
+                            <div class="criteria-item">
+                                <input type="checkbox" id="vault-criteria-coverage" class="criteria-checkbox">
+                                <label for="vault-criteria-coverage">Require coverage ≥ 95%</label>
+                            </div>
+                            <div class="criteria-item">
+                                <input type="checkbox" id="vault-criteria-performance" class="criteria-checkbox">
+                                <label for="vault-criteria-performance">Meet performance baseline</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="vault-total-timeout">Total vault timeout (seconds)</label>
+                        <input type="number" id="vault-total-timeout" class="form-input" value="3600" min="60" required>
+                        <span class="form-helper">Acts as a failsafe—if the combined phases run longer than this, we'll abort.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn">
+                            <i data-lucide="building-2"></i>
+                            Create Vault
+                        </button>
+                        <button type="reset" class="btn secondary">
+                            <i data-lucide="rotate-ccw"></i>
+                            Reset
+                        </button>
+                    </div>
+                </form>
+
+                <div id="vault-result" class="vault-result-card"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="execution-detail-overlay" class="suite-detail-overlay execution-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel execution-detail-panel" role="dialog" aria-modal="true" aria-labelledby="execution-detail-title">
+            <button class="suite-detail-close" type="button" id="execution-detail-close" aria-label="Close test execution details">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header execution-detail-header">
+                <div class="execution-detail-meta">
+                    <h2 id="execution-detail-title">Test Execution</h2>
+                    <div class="suite-id" id="execution-detail-id"></div>
+                    <div class="execution-detail-subtitle" id="execution-detail-subtitle"></div>
+                    <div class="execution-detail-status" id="execution-detail-status"></div>
+                </div>
+            </div>
+            <div class="suite-detail-content execution-detail-content" id="execution-detail-content">
+                <div class="execution-detail-empty">Select a test execution to view details.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="suite-detail-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel" role="dialog" aria-modal="true" aria-labelledby="suite-detail-title">
+            <button class="suite-detail-close" type="button" id="suite-detail-close" aria-label="Close test suite details">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="suite-detail-title">Test Suite</h2>
+                    <div class="suite-id" id="suite-detail-id"></div>
+                    <div class="suite-detail-subtitle" id="suite-detail-subtitle"></div>
+                </div>
+                <div class="suite-detail-actions">
+                    <button class="btn" type="button" id="suite-detail-execute">
+                        <i data-lucide="play"></i>
+                        Run Suite
+                    </button>
+                </div>
+            </div>
+            <div class="suite-detail-content" id="suite-detail-content">
+                <div class="suite-detail-empty">Select a test suite to view details.</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+    <script>
+        // Initialize Lucide icons with multiple fallbacks
+        function initLucideIcons() {
+            if (typeof lucide !== 'undefined') {
+                console.log('Initializing lucide icons...');
+                lucide.createIcons();
+                console.log('Lucide icons initialized');
+                return true;
+            }
+            return false;
+        }
+        
+        // Try multiple initialization methods
+        document.addEventListener('DOMContentLoaded', initLucideIcons);
+        window.addEventListener('load', initLucideIcons);
+        
+        // Fallback with timeout
+        setTimeout(() => {
+            if (!initLucideIcons()) {
+                console.error('Lucide failed to load after timeout');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

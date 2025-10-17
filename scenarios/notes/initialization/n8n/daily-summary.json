@@ -1,0 +1,424 @@
+{
+  "name": "daily-summary",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notes/daily-summary",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300],
+      "id": "webhook-1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "triggerAtHour": 21
+            }
+          ]
+        }
+      },
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [260, 500],
+      "id": "schedule-1"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id || 'default-user' }}"
+            },
+            {
+              "name": "date",
+              "value": "={{ $json.date || new Date().toISOString().split('T')[0] }}"
+            }
+          ]
+        }
+      },
+      "name": "Set Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 400],
+      "id": "set-params"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  COUNT(*) FILTER (WHERE DATE(created_at) = $2::date) as notes_created,\n  COUNT(*) FILTER (WHERE DATE(updated_at) = $2::date AND DATE(created_at) != $2::date) as notes_updated,\n  SUM(CASE WHEN DATE(created_at) = $2::date THEN word_count ELSE 0 END) as words_written,\n  array_agg(DISTINCT t.name) FILTER (WHERE nt.note_id IS NOT NULL) as tags_used\nFROM notes n\nLEFT JOIN note_tags nt ON n.id = nt.note_id\nLEFT JOIN tags t ON nt.tag_id = t.id\nWHERE n.user_id = $1\n  AND (DATE(n.created_at) = $2::date OR DATE(n.updated_at) = $2::date)",
+        "additionalFields": {
+          "queryParameters": "={{ [$json.user_id, $json.date] }}"
+        }
+      },
+      "name": "Get Daily Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [660, 400],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-stats"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  n.id, n.title, n.summary, n.content, n.word_count,\n  f.name as folder_name,\n  array_agg(t.name) as tags\nFROM notes n\nLEFT JOIN folders f ON n.folder_id = f.id\nLEFT JOIN note_tags nt ON n.id = nt.note_id\nLEFT JOIN tags t ON nt.tag_id = t.id\nWHERE n.user_id = $1\n  AND (DATE(n.created_at) = $2::date OR DATE(n.updated_at) = $2::date)\nGROUP BY n.id, f.name\nORDER BY n.updated_at DESC",
+        "additionalFields": {
+          "queryParameters": "={{ [$('set-params').item.json.user_id, $('set-params').item.json.date] }}"
+        }
+      },
+      "name": "Get Today's Notes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [660, 600],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-notes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for AI summary\nconst stats = $('postgres-stats').item.json;\nconst notes = $('postgres-notes').all().map(n => n.json);\nconst date = $('set-params').item.json.date;\n\n// Format notes for AI\nconst notesSummary = notes.map(note => ({\n  title: note.title,\n  summary: note.summary || note.content.substring(0, 200),\n  tags: note.tags,\n  folder: note.folder_name,\n  word_count: note.word_count\n}));\n\nreturn {\n  date: date,\n  stats: {\n    notes_created: parseInt(stats.notes_created) || 0,\n    notes_updated: parseInt(stats.notes_updated) || 0,\n    total_words: parseInt(stats.words_written) || 0,\n    tags_used: stats.tags_used || []\n  },\n  notes: notesSummary,\n  has_activity: notesSummary.length > 0\n};"
+      },
+      "name": "Prepare Summary Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 500],
+      "id": "code-prepare"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_activity }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Has Activity?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1060, 500],
+      "id": "if-activity"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build prompt for daily summary\nconst date = $json.date;\nconst stats = $json.stats;\nconst notes = $json.notes;\n\nconst prompt = `Generate a thoughtful daily summary of note-taking activity.\n\nDate: ${date}\n\nStatistics:\n- Notes created: ${stats.notes_created}\n- Notes updated: ${stats.notes_updated}\n- Total words written: ${stats.total_words}\n- Tags used: ${stats.tags_used.join(', ')}\n\nNotes worked on today:\n${notes.map(n => `- ${n.title} (${n.word_count} words, tags: ${n.tags.join(', ')})`).join('\\n')}\n\nProvide:\n1. A narrative summary (2-3 sentences) of the day's note-taking activity\n2. Key themes or topics that emerged\n3. Productivity insights\n4. Suggestions for tomorrow\n\nRespond in JSON format:\n{\n  \"summary\": \"...\",\n  \"key_themes\": [\"theme1\", \"theme2\"],\n  \"productivity_insight\": \"...\",\n  \"tomorrow_suggestion\": \"...\"\n}`;\n\nreturn { prompt };"
+      },
+      "name": "Build AI Summary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 400],
+      "id": "build-ai-prompt"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.SHARED_WORKFLOW_OLLAMA_ID }}",
+        "source": "parameter",
+        "workflowData": "={{ { prompt: $json.prompt, model: 'llama3.2:3b', type: 'reasoning', quiet: true, timeout_seconds: 120 } }}"
+      },
+      "name": "Generate AI Summary",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1460, 400],
+      "id": "generate-ai-summary"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response from shared ollama workflow\nconst ollamaResult = $json;\nlet aiResponse;\n\n// The shared ollama workflow returns a response field\nconst aiResponseText = ollamaResult.response || '{}';\n\ntry {\n  // Try to parse JSON if the response looks like JSON\n  if (typeof aiResponseText === 'string' && aiResponseText.trim().startsWith('{')) {\n    aiResponse = JSON.parse(aiResponseText);\n  } else {\n    // If not JSON, create a basic response using the text\n    aiResponse = {\n      summary: aiResponseText || 'Daily summary generated successfully.',\n      key_themes: [],\n      productivity_insight: 'Continue building on today\\'s progress.',\n      tomorrow_suggestion: 'Review and expand on today\\'s notes.'\n    };\n  }\n} catch (e) {\n  // If parsing fails, create a fallback response\n  console.error('Failed to parse AI response:', e);\n  aiResponse = {\n    summary: 'Daily summary generated successfully.',\n    key_themes: [],\n    productivity_insight: 'Continue building on today\\'s progress.',\n    tomorrow_suggestion: 'Review and expand on today\\'s notes.'\n  };\n}\n\n// Get the original data\nconst originalData = $('code-prepare').item.json;\n\n// Combine AI response with stats for saving\nreturn {\n  user_id: $('set-params').item.json.user_id,\n  summary_date: originalData.date,\n  content: aiResponse.summary || 'No summary available',\n  key_points: aiResponse.key_themes || [],\n  notes_created: originalData.stats.notes_created,\n  notes_updated: originalData.stats.notes_updated,\n  total_words: originalData.stats.total_words,\n  productivity_insight: aiResponse.productivity_insight || '',\n  tomorrow_suggestion: aiResponse.tomorrow_suggestion || ''\n};"
+      },
+      "name": "Process AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1660, 400],
+      "id": "process-ai-response"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "summary",
+              "value": "No note-taking activity today. Start fresh tomorrow!"
+            },
+            {
+              "name": "tomorrow_suggestion",
+              "value": "Begin your day by capturing your thoughts or planning your tasks."
+            }
+          ],
+          "object": [
+            {
+              "name": "key_themes",
+              "value": "=[]"
+            }
+          ]
+        }
+      },
+      "name": "No Activity Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1260, 600],
+      "id": "set-no-activity"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the no-activity data\nconst originalData = $('code-prepare').item.json;\n\n// Create summary data for no activity\nreturn {\n  user_id: $('set-params').item.json.user_id,\n  summary_date: originalData.date,\n  content: $json.summary,\n  key_points: $json.key_themes || [],\n  notes_created: 0,\n  notes_updated: 0,\n  total_words: 0,\n  productivity_insight: 'No activity today',\n  tomorrow_suggestion: $json.tomorrow_suggestion\n};"
+      },
+      "name": "Process No Activity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1460, 600],
+      "id": "process-no-activity"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "name": "Merge Summaries",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1860, 500],
+      "id": "merge-summaries"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": "daily_summaries",
+        "columns": "user_id, summary_date, content, key_points, notes_created, notes_updated, total_words",
+        "updateKey": "user_id, summary_date",
+        "additionalFields": {},
+        "returnFields": "*"
+      },
+      "name": "Save Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2060, 500],
+      "credentials": {
+        "postgres": {
+          "id": "vrooli-postgres",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "id": "postgres-save"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "=Daily summary generated for {{ $('set-params').item.json.date }}"
+            }
+          ],
+          "object": [
+            {
+              "name": "summary",
+              "value": "={{ $json }}"
+            }
+          ]
+        }
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [2260, 300],
+      "id": "format-response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Parameters": {
+      "main": [
+        [
+          {
+            "node": "Get Daily Stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Today's Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily Stats": {
+      "main": [
+        [
+          {
+            "node": "Prepare Summary Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today's Notes": {
+      "main": [
+        [
+          {
+            "node": "Prepare Summary Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Summary Data": {
+      "main": [
+        [
+          {
+            "node": "Has Activity?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Activity?": {
+      "main": [
+        [
+          {
+            "node": "Build AI Summary Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Activity Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Summary Command": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Summary": {
+      "main": [
+        [
+          {
+            "node": "Process AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process AI Response": {
+      "main": [
+        [
+          {
+            "node": "Merge Summaries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Activity Summary": {
+      "main": [
+        [
+          {
+            "node": "Process No Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process No Activity": {
+      "main": [
+        [
+          {
+            "node": "Merge Summaries",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Summaries": {
+      "main": [
+        [
+          {
+            "node": "Save Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Summary": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}

@@ -1,0 +1,66 @@
+# Scenario Improvement Task Template
+id: "scenario-improver-CHANGEME-{{ timestamp }}"
+title: "Improve [SCENARIO_NAME] scenario - [IMPROVEMENT_AREA]"
+
+# Core classification
+type: "scenario"
+operation: "improver"
+category: "improvement"  # Always improvement for improver tasks
+
+# Priority and scheduling  
+priority: "medium"
+effort_estimate: "3h"
+urgency: "normal"
+
+# Dependencies and relationships
+dependencies: []
+blocks: []
+related_scenarios: []  # scenarios that might benefit from these improvements
+related_resources: []  # resources that might need updates
+
+# Progress tracking
+status: "pending"
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 0
+last_completed_at: ""
+
+# Quality gates for scenario improvement
+validation_criteria:
+  - "PRD.md accurately reflects current implementation"
+  - "All P0 requirements are completed"  
+  - "User workflows are smooth and intuitive"
+  - "API response times are acceptable"
+  - "UI is polished and user-friendly"
+  - "Test coverage meets or exceeds target"
+  - "No regressions in existing functionality"
+  - "Revenue metrics show improvement"
+
+# Metadata
+created_by: "user"
+created_at: "{{ timestamp }}"
+updated_at: "{{ timestamp }}"
+tags: ["scenario-improvement", "enhancement"]
+notes: |
+  Template guidance for scenario improvements. Before execution define:
+    • Target scenario and improvement focus (PRD, UI, API, tests, documentation, revenue)
+    • Assessment focus areas (current PRD accuracy, workflow pain points, API reliability, UX gaps, test depth, revenue health)
+    • Expected deliverables (updated PRD, UX refinements, performance enhancements, broader tests, refreshed documentation)
+    • Any specific features or requirements to implement or validate during the iteration
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    performance_improvement: ""
+    user_satisfaction_score: 0
+    revenue_impact: ""
+  artifacts:
+    prd_location: ""
+    improvement_summary: ""
+    performance_report: ""
+    user_feedback: ""

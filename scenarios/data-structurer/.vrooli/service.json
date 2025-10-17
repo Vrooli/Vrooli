@@ -1,0 +1,283 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "data-structurer",
+    "displayName": "Data Structurer",
+    "description": "Universal data transformation pipeline that converts unstructured data (text, PDFs, images, documents) into schema-defined structured data using AI interpretation",
+    "version": "1.0.0",
+    "tags": [
+      "data-transformation",
+      "ai-interpretation",
+      "document-processing",
+      "schema-management",
+      "unstructured-data",
+      "foundational-capability",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "ollama-ai",
+      "unstructured-io"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Data processing API port",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Storage of schemas and structured data with dynamic table creation",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI interpretation for content analysis and schema mapping",
+      "models": [
+        "llama3.2",
+        "mistral",
+        "nomic-embed-text"
+      ]
+    },
+    "unstructured-io": {
+      "type": "unstructured-io",
+      "enabled": true,
+      "required": true,
+      "purpose": "Extract raw content from PDFs, images, documents, and various file formats"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "purpose": "Workflow orchestration for processing pipeline",
+      "initialization": [
+        {
+          "file": "initialization/n8n/data-processing-pipeline.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/schema-validation.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Semantic search and similarity matching of structured data - enables AI-powered content discovery and duplicate detection"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Data Structurer health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "resource",
+          "target": "postgres",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "ollama_availability",
+          "type": "resource",
+          "target": "ollama",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 60000
+        },
+        {
+          "name": "unstructured_io_availability",
+          "type": "resource",
+          "target": "unstructured-io",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Data Structurer with all dependencies",
+      "condition": {
+        "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api/data-structurer-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["data-structurer"]
+           },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o data-structurer-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize database schema and seed data"
+        },
+        {
+          "name": "test-ollama-models",
+          "run": "resource-ollama content pull llama3.2 && resource-ollama content pull mistral && resource-ollama content pull nomic-embed-text",
+          "description": "Ensure required AI models are available"
+        },
+        {
+          "name": "validate-unstructured-io",
+          "run": "resource-unstructured-io status || echo 'Unstructured-io validation skipped'",
+          "description": "Verify document processing capability"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Data Structurer initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help'",
+          "description": "Display service access information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start data structurer with API server and processing workers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./data-structurer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/data-structurer-api"
+          }
+        },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
+           "description": "Display running service information and usage examples"
+         }
+      ]
+    },
+    "test": {
+      "description": "Test data structurer API, CLI, and processing pipeline",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-schema-endpoints",
+          "run": "bash tests/test-schema-api.sh",
+          "description": "Test schema CRUD operations",
+          "condition": {
+            "file_exists": "tests/test-schema-api.sh"
+          }
+        },
+        {
+          "name": "test-processing-pipeline",
+          "run": "bash tests/test-processing.sh",
+          "description": "Test document processing pipeline",
+          "condition": {
+            "file_exists": "tests/test-processing.sh"
+          }
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats data-structurer.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/data-structurer.bats"
+          }
+        },
+        {
+          "name": "test-resource-integration",
+          "run": "bash tests/test-resource-integration.sh",
+          "description": "Test postgres, ollama, and unstructured-io integration",
+          "condition": {
+            "file_exists": "tests/test-resource-integration.sh"
+          }
+        },
+        {
+          "name": "test-export-functionality",
+          "run": "bash tests/test-export.sh",
+          "description": "Test data export in JSON, CSV, and YAML formats",
+          "condition": {
+            "file_exists": "tests/test-export.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop data structurer services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"data-structurer-api\" || true; sleep 1; pkill -9 -f \"data-structurer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        },
+        {
+          "name": "cleanup-temp-files",
+          "run": "rm -rf /tmp/data-structurer-* 2>/dev/null || true",
+          "description": "Clean up temporary processing files"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,219 @@
+{
+  "description": "Resource endpoint configurations for Task Planner scenario",
+  "version": "1.0.0",
+  "updated_at": "2024-01-01T00:00:00.000Z",
+  
+  "resources": {
+    "storage": {
+      "postgresql": {
+        "host": "localhost",
+        "port": 5434,
+        "database": "task_planner",
+        "connection_url": "postgresql://taskplanner_user:${POSTGRES_PASSWORD}@localhost:5434/task_planner",
+        "health_check_endpoint": "postgresql://localhost:5434/task_planner",
+        "max_connections": 20,
+        "connection_timeout_ms": 5000
+      },
+      "redis": {
+        "host": "localhost", 
+        "port": 6380,
+        "database": 0,
+        "key_prefix": "task_planner:",
+        "connection_url": "redis://localhost:6380/0",
+        "health_check_endpoint": "redis://localhost:6380/ping"
+      },
+      "qdrant": {
+        "host": "localhost",
+        "port": 6334,
+        "collection_prefix": "task_planner_",
+        "base_url": "http://localhost:6334",
+        "health_check_endpoint": "http://localhost:6334/health",
+        "vector_size": 1536,
+        "collections": {
+          "task_embeddings": {
+            "name": "task_embeddings",
+            "vector_size": 1536,
+            "distance": "cosine"
+          },
+          "research_embeddings": {
+            "name": "research_embeddings", 
+            "vector_size": 1536,
+            "distance": "cosine"
+          }
+        }
+      }
+    },
+    
+    "automation": {
+      "n8n": {
+        "host": "localhost",
+        "port": 5679,
+        "base_url": "http://localhost:5679",
+        "webhook_base_url": "http://localhost:5679/webhook",
+        "health_check_endpoint": "http://localhost:5679/healthz",
+        "api_endpoint": "http://localhost:5679/api/v1",
+        "workflows": {
+          "text_parser": {
+            "webhook_url": "http://localhost:5679/webhook/parse-text",
+            "method": "POST",
+            "timeout_ms": 120000
+          },
+          "research_workflow": {
+            "webhook_url": "http://localhost:5679/webhook/research-task",
+            "method": "POST", 
+            "timeout_ms": 300000
+          },
+          "implementation_workflow": {
+            "webhook_url": "http://localhost:5679/webhook/implement-task",
+            "method": "POST",
+            "timeout_ms": 600000
+          },
+          "status_monitor": {
+            "webhook_url": "http://localhost:5679/webhook/status-update",
+            "method": "POST",
+            "timeout_ms": 30000
+          },
+          "bulk_status_update": {
+            "webhook_url": "http://localhost:5679/webhook/bulk-status-update",
+            "method": "POST",
+            "timeout_ms": 60000
+          }
+        }
+      },
+      
+      "windmill": {
+        "host": "localhost",
+        "port": 8001,
+        "base_url": "http://localhost:8001",
+        "workspace": "task_planner",
+        "api_endpoint": "http://localhost:8001/api/w/task_planner",
+        "health_check_endpoint": "http://localhost:8001/api/version",
+        "dashboard_url": "http://localhost:8001/apps/get/task-dashboard",
+        "scripts": {
+          "parse_unstructured": "f/task_planner/parse-unstructured",
+          "research_task": "f/task_planner/research-task",
+          "implement_task": "f/task_planner/implement-task",
+          "api_handlers": "f/task_planner/api-handlers"
+        }
+      }
+    },
+
+    "ai": {
+      "ollama": {
+        "host": "localhost",
+        "port": 11434,
+        "base_url": "http://localhost:11434",
+        "health_check_endpoint": "http://localhost:11434/api/tags",
+        "api_endpoint": "http://localhost:11434/api",
+        "models": {
+          "primary_llm": "llama3.2",
+          "embedding_model": "nomic-embed-text"
+        },
+        "endpoints": {
+          "generate": "http://localhost:11434/api/generate",
+          "chat": "http://localhost:11434/api/chat", 
+          "embeddings": "http://localhost:11434/api/embeddings",
+          "tags": "http://localhost:11434/api/tags"
+        }
+      },
+      
+      "claude_code": {
+        "host": "localhost",
+        "port": 8080,
+        "base_url": "http://localhost:8080",
+        "api_endpoint": "http://localhost:8080/api/claude-code",
+        "health_check_endpoint": "http://localhost:8080/api/health",
+        "endpoints": {
+          "implement": "http://localhost:8080/api/claude-code/implement",
+          "review": "http://localhost:8080/api/claude-code/review",
+          "test": "http://localhost:8080/api/claude-code/test"
+        },
+        "default_model": "claude-3-opus-20240229",
+        "timeout_ms": 300000
+      }
+    },
+
+    "search": {
+      "searxng": {
+        "host": "localhost",
+        "port": 9201, 
+        "base_url": "http://localhost:9201",
+        "search_endpoint": "http://localhost:9201/search",
+        "health_check_endpoint": "http://localhost:9201/healthz",
+        "default_engines": ["duckduckgo", "github", "stackoverflow", "wikipedia"],
+        "categories": ["it", "stackoverflow", "github"],
+        "format": "json",
+        "safe_search": 0
+      }
+    },
+
+    "agents": {
+      "agent_s2": {
+        "host": "localhost", 
+        "port": 4113,
+        "base_url": "http://localhost:4113",
+        "api_endpoint": "http://localhost:4113/api",
+        "health_check_endpoint": "http://localhost:4113/api/health",
+        "endpoints": {
+          "search": "http://localhost:4113/api/search",
+          "browse": "http://localhost:4113/api/browse",
+          "screenshot": "http://localhost:4113/api/screenshot"
+        },
+        "max_instances": 3,
+        "timeout_ms": 120000
+      }
+    }
+  },
+
+  "task_planner_api": {
+    "host": "localhost",
+    "port": 8092,
+    "base_url": "http://localhost:8092",
+    "health_check_endpoint": "http://localhost:8092/api/health",
+    "endpoints": {
+      "parse_text": "http://localhost:8092/api/parse-text",
+      "research_task": "http://localhost:8092/api/research-task", 
+      "implement_task": "http://localhost:8092/api/implement-task",
+      "get_tasks": "http://localhost:8092/api/tasks",
+      "get_apps": "http://localhost:8092/api/apps",
+      "task_status": "http://localhost:8092/api/tasks/{id}/status",
+      "task_details": "http://localhost:8092/api/tasks/{id}",
+      "similar_tasks": "http://localhost:8092/api/tasks/{id}/similar",
+      "app_stats": "http://localhost:8092/api/apps/{id}/stats"
+    }
+  },
+
+  "development": {
+    "mock_services": {
+      "enabled": false,
+      "mock_ai_responses": false,
+      "mock_search_results": false,
+      "response_delay_ms": 1000
+    },
+    "local_overrides": {
+      "enabled": true,
+      "override_file": "local-resource-overrides.json"
+    }
+  },
+
+  "monitoring": {
+    "health_check": {
+      "enabled": true,
+      "check_interval_seconds": 30,
+      "timeout_ms": 5000,
+      "critical_services": [
+        "postgresql",
+        "redis", 
+        "n8n",
+        "windmill",
+        "ollama"
+      ]
+    },
+    "circuit_breaker": {
+      "enabled": true,
+      "failure_threshold": 5,
+      "timeout_ms": 60000,
+      "reset_timeout_ms": 300000
+    }
+  }
+}

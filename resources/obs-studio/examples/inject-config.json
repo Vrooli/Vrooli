@@ -1,0 +1,22 @@
+{
+  "scenes": [
+    {
+      "name": "Main Stream",
+      "file": "resources/obs-studio/examples/basic-scene.json"
+    },
+    {
+      "name": "BRB Screen",
+      "file": "resources/obs-studio/examples/brb-scene.json"
+    }
+  ],
+  "recordings": {
+    "output_path": "/home/user/.vrooli/obs-studio/recordings",
+    "format": "mp4",
+    "quality": "high"
+  },
+  "streaming": {
+    "service": "twitch",
+    "server": "auto",
+    "bitrate": 2500
+  }
+}

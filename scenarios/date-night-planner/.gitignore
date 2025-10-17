@@ -1,0 +1,20 @@
+# Test coverage files
+coverage.html
+coverage.txt
+*.coverprofile
+*.out
+
+# Build artifacts
+api/date-night-planner-api
+api/test-build
+ui/dist/
+ui/build/
+*.log
+
+# Dependencies
+node_modules/
+ui/node_modules/
+
+# Environment files
+.env
+.env.local
