@@ -1,7 +1,7 @@
 import type { IssueStatus } from '../data/sampleData';
-import type { CreateIssueInput } from '../types/issueCreation';
+import type { CreateIssueInput, UpdateIssueInput, CreateIssueAttachmentPayload } from '../types/issueCreation';
 import { apiJsonRequest, apiVoidRequest } from '../utils/api';
-import { buildApiUrl, type ApiIssue, type ApiStatsPayload } from '../utils/issues';
+import { buildApiUrl, type ApiIssue, type ApiStatsPayload, formatStatusLabel } from '../utils/issues';
 
 export interface RateLimitStatusPayload {
   rate_limited: boolean;
@@ -21,6 +21,38 @@ export interface ProcessorEndpointPayload {
 export interface AgentSettingsPayload {
   data: Record<string, unknown> | null;
   raw: unknown;
+}
+
+export interface IssueStatusMetadata {
+  id: IssueStatus;
+  label: string;
+}
+
+export async function fetchIssueStatuses(baseUrl: string): Promise<IssueStatusMetadata[]> {
+  return apiJsonRequest<IssueStatusMetadata[]>(buildApiUrl(baseUrl, '/metadata/statuses'), {
+    selector: (payload) => {
+      const statuses = (payload as { data?: { statuses?: Array<Record<string, unknown>> } } | null | undefined)
+        ?.data?.statuses;
+      if (!Array.isArray(statuses)) {
+        return [];
+      }
+
+      return statuses
+        .map((entry) => {
+          const idRaw = typeof entry.id === 'string' ? entry.id.trim().toLowerCase() : '';
+          if (!idRaw) {
+            return null;
+          }
+          const labelRaw = typeof entry.label === 'string' ? entry.label.trim() : '';
+          return {
+            id: idRaw as IssueStatus,
+            label: labelRaw || formatStatusLabel(idRaw),
+          } satisfies IssueStatusMetadata;
+        })
+        .filter((entry): entry is IssueStatusMetadata => Boolean(entry));
+    },
+    fallback: [],
+  });
 }
 
 export async function listIssues(baseUrl: string, limit: number): Promise<ApiIssue[]> {
@@ -132,13 +164,7 @@ export async function createIssue(
     tags: input.tags,
     reporter_name: input.reporterName?.trim(),
     reporter_email: input.reporterEmail?.trim(),
-    artifacts: input.attachments.map((attachment) => ({
-      name: attachment.name,
-      category: attachment.category ?? 'attachment',
-      content: attachment.content,
-      encoding: attachment.encoding,
-      content_type: attachment.contentType,
-    })),
+    artifacts: input.attachments.map(mapAttachmentPayload),
   };
 
   const response = await apiJsonRequest<Record<string, unknown>>(buildApiUrl(baseUrl, '/issues'), {
@@ -172,6 +198,72 @@ export async function updateIssueStatus(
     },
     body: JSON.stringify({ status: nextStatus }),
   });
+
+  const responseData = (response?.data ?? response) as Record<string, unknown> | undefined;
+  const issue = (responseData?.issue ?? null) as ApiIssue | null;
+
+  return {
+    issue,
+    raw: response,
+  };
+}
+
+function mapAttachmentPayload(attachment: CreateIssueAttachmentPayload) {
+  return {
+    name: attachment.name,
+    category: attachment.category ?? 'attachment',
+    content: attachment.content,
+    encoding: attachment.encoding,
+    content_type: attachment.contentType,
+  };
+}
+
+export async function updateIssue(
+  baseUrl: string,
+  input: UpdateIssueInput,
+): Promise<{ issue: ApiIssue | null; raw: unknown }> {
+  const body: Record<string, unknown> = {};
+
+  if (typeof input.title === 'string') {
+    body.title = input.title.trim();
+  }
+  if (typeof input.description === 'string') {
+    body.description = input.description.trim();
+  }
+  if (typeof input.priority === 'string') {
+    body.priority = input.priority.toLowerCase();
+  }
+  if (typeof input.status === 'string') {
+    body.status = input.status.toLowerCase();
+  }
+  if (typeof input.appId === 'string') {
+    body.app_id = input.appId.trim();
+  }
+  if (Array.isArray(input.tags)) {
+    body.tags = input.tags;
+  }
+
+  if (typeof input.reporterName === 'string' || typeof input.reporterEmail === 'string') {
+    body.reporter = {
+      ...(typeof input.reporterName === 'string' ? { name: input.reporterName.trim() } : {}),
+      ...(typeof input.reporterEmail === 'string' ? { email: input.reporterEmail.trim() } : {}),
+    };
+  }
+
+  if (Array.isArray(input.attachments) && input.attachments.length > 0) {
+    body.artifacts = input.attachments.map(mapAttachmentPayload);
+  }
+
+  const response = await apiJsonRequest<Record<string, unknown>>(
+    buildApiUrl(baseUrl, `/issues/${encodeURIComponent(input.issueId)}`),
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    },
+  );
 
   const responseData = (response?.data ?? response) as Record<string, unknown> | undefined;
   const issue = (responseData?.issue ?? null) as ApiIssue | null;

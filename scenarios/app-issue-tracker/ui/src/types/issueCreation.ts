@@ -47,4 +47,17 @@ export interface CreateIssueInput {
   attachments: CreateIssueAttachmentPayload[];
 }
 
+export interface UpdateIssueInput {
+  issueId: string;
+  title?: string;
+  description?: string;
+  priority?: Priority;
+  status?: IssueStatus;
+  appId?: string;
+  tags?: string[];
+  reporterName?: string;
+  reporterEmail?: string;
+  attachments?: CreateIssueAttachmentPayload[];
+}
+
 export type PriorityFilterValue = Priority | 'all';

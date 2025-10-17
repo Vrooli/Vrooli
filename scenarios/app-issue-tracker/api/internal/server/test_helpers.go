@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ import (
 // setupTestLogger initializes the global logger for testing
 func setupTestLogger() func() {
 	handler := slog.NewTextHandler(io.Discard, nil)
-	return withLogger(slog.New(handler))
+	return WithLogger(slog.New(handler))
 }
 
 // TestEnvironment manages isolated test environment
@@ -39,7 +39,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	issuesDir := filepath.Join(tempDir, "issues")
 
 	// Create folder structure
-	folders := []string{"open", "active", "waiting", "completed", "failed", "archived", "templates"}
+	folders := append(ValidIssueStatuses(), "templates")
 	for _, folder := range folders {
 		if err := os.MkdirAll(filepath.Join(issuesDir, folder), 0755); err != nil {
 			t.Fatalf("Failed to create test folder %s: %v", folder, err)
@@ -54,12 +54,10 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		ScenarioRoot: tempDir,
 	}
 
-	server := &Server{
-		config:           cfg,
-		runningProcesses: make(map[string]*RunningProcess),
-		hub:              NewHub(), // Initialize hub for WebSocket tests
+	server, _, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("failed to initialize server: %v", err)
 	}
-	server.initializeProcessorState()
 
 	return &TestEnvironment{
 		TempDir:   tempDir,

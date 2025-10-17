@@ -13,11 +13,14 @@ import {
   fetchIssueStats,
   fetchProcessorState,
   fetchRateLimitStatus,
+  fetchIssueStatuses,
   createIssue as createIssueRequest,
   deleteIssue as deleteIssueRequest,
   listIssues,
   updateIssueStatus as updateIssueStatusRequest,
+  updateIssue as updateIssueRequest,
   type RateLimitStatusPayload,
+  type IssueStatusMetadata,
 } from '../services/issues';
 export type { RateLimitStatusPayload } from '../services/issues';
 import {
@@ -25,9 +28,12 @@ import {
   type ApiStatsPayload,
   buildDashboardStats,
   transformIssue,
+  getFallbackStatuses,
+  setValidStatuses,
+  formatStatusLabel,
 } from '../utils/issues';
 import type { SnackVariant } from '../notifications/snackBus';
-import type { CreateIssueInput } from '../types/issueCreation';
+import type { CreateIssueInput, UpdateIssueInput } from '../types/issueCreation';
 import { useProcessorSettingsManager } from './useProcessorSettingsManager';
 import { useAgentSettingsManager } from './useAgentSettingsManager';
 import {
@@ -50,6 +56,11 @@ const DEFAULT_STATS: DashboardStats = {
   statusTrend: buildDashboardStats([], null).statusTrend,
 };
 
+const DEFAULT_STATUS_CATALOG: IssueStatusMetadata[] = getFallbackStatuses().map((status) => ({
+  id: status,
+  label: formatStatusLabel(status),
+}));
+
 interface IssueTrackerDataProviderProps {
   apiBaseUrl: string;
   issueFetchLimit: number;
@@ -62,6 +73,8 @@ interface IssueTrackerDataContextValue {
   dashboardStats: DashboardStats;
   loading: boolean;
   loadError: string | null;
+  statusCatalog: IssueStatusMetadata[];
+  validStatuses: IssueStatus[];
   processorError: string | null;
   processorSettings: ProcessorSettings;
   updateProcessorSettings: (updater: React.SetStateAction<ProcessorSettings>) => void;
@@ -74,6 +87,7 @@ interface IssueTrackerDataContextValue {
   toggleProcessorActive: () => void;
   createIssue: (input: CreateIssueInput) => Promise<string | null>;
   updateIssueStatus: (issueId: string, nextStatus: IssueStatus) => Promise<void>;
+  updateIssueDetails: (input: UpdateIssueInput) => Promise<void>;
   deleteIssue: (issueId: string) => Promise<void>;
   runningProcesses: RunningProcessMap;
   connectionStatus: ConnectionStatus;
@@ -96,6 +110,12 @@ export function IssueTrackerDataProvider({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rateLimitStatus, setRateLimitStatus] = useState<RateLimitStatusPayload | null>(null);
   const [realtimeReady, setRealtimeReady] = useState(false);
+  const [statusCatalog, setStatusCatalog] = useState<IssueStatusMetadata[]>(DEFAULT_STATUS_CATALOG);
+
+  const validStatuses = useMemo<IssueStatus[]>(
+    () => statusCatalog.map((status) => status.id as IssueStatus),
+    [statusCatalog],
+  );
 
   const lastStatsFromApiRef = useRef<ApiStatsPayload | null>(null);
 
@@ -126,6 +146,33 @@ export function IssueTrackerDataProvider({
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStatuses() {
+      try {
+        const fetched = await fetchIssueStatuses(apiBaseUrl);
+        const nextCatalog = fetched.length > 0 ? fetched : DEFAULT_STATUS_CATALOG;
+        if (!cancelled) {
+          setStatusCatalog(nextCatalog);
+          setValidStatuses(nextCatalog.map((status) => status.id));
+        }
+      } catch (error) {
+        console.warn('Failed to load issue status catalog', error);
+        if (!cancelled) {
+          setStatusCatalog(DEFAULT_STATUS_CATALOG);
+          setValidStatuses(DEFAULT_STATUS_CATALOG.map((status) => status.id));
+        }
+      }
+    }
+
+    loadStatuses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBaseUrl]);
 
   const updateIssuesState = useCallback(
     (
@@ -245,6 +292,8 @@ export function IssueTrackerDataProvider({
       dashboardStats,
       loading,
       loadError,
+      statusCatalog,
+      validStatuses,
       processorError,
       processorSettings,
       updateProcessorSettings,
@@ -272,6 +321,17 @@ export function IssueTrackerDataProvider({
           await fetchAllData();
         }
         return issueId;
+      },
+      updateIssueDetails: async (input: UpdateIssueInput) => {
+        const { issue: updatedIssue } = await updateIssueRequest(apiBaseUrl, input);
+        if (updatedIssue) {
+          const transformed = transformIssue(updatedIssue, { apiBaseUrl });
+          updateIssuesState((previous) =>
+            previous.map((issue) => (issue.id === transformed.id ? transformed : issue)),
+          );
+        } else {
+          await fetchAllData();
+        }
       },
       updateIssueStatus: async (issueId: string, nextStatus: IssueStatus) => {
         const { issue: updatedIssue } = await updateIssueStatusRequest(apiBaseUrl, issueId, nextStatus);
@@ -308,6 +368,8 @@ export function IssueTrackerDataProvider({
       dashboardStats,
       loading,
       loadError,
+      statusCatalog,
+      validStatuses,
       processorError,
       processorSettings,
       issuesProcessed,

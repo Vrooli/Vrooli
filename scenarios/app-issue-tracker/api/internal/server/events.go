@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -69,12 +69,12 @@ type AgentCompletedData struct {
 
 // ProcessorStateData contains processor state information
 type ProcessorStateData struct {
-	Active          bool `json:"active"`
-	ConcurrentSlots int  `json:"concurrent_slots"`
-	RefreshInterval int  `json:"refresh_interval"`
-	MaxIssues       int  `json:"max_issues"`
-	IssuesProcessed int  `json:"issues_processed"`
-	IssuesRemaining *int `json:"issues_remaining,omitempty"`
+	Active            bool `json:"active"`
+	ConcurrentSlots   int  `json:"concurrent_slots"`
+	RefreshInterval   int  `json:"refresh_interval"`
+	MaxIssues         int  `json:"max_issues"`
+	IssuesProcessed   int  `json:"issues_processed"`
+	IssuesRemaining   *int `json:"issues_remaining,omitempty"`
 	MaxIssuesDisabled bool `json:"max_issues_disabled"`
 }
 

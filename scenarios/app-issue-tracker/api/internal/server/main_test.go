@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -463,7 +463,6 @@ func TestGetIssueAgentConversationHandlerWithoutTranscript(t *testing.T) {
 
 func TestProcessorStateInitialization(t *testing.T) {
 	server := newTestServer(t)
-	server.initializeProcessorState()
 
 	state := server.currentProcessorState()
 
@@ -486,7 +485,6 @@ func TestProcessorStateInitialization(t *testing.T) {
 
 func TestProcessorStateUpdates(t *testing.T) {
 	server := newTestServer(t)
-	server.initializeProcessorState()
 
 	active := true
 	slots := 4

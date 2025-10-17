@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ func (s *Server) exportIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	// Get all matching issues
 	issues, err := s.getAllIssues(status, priority, issueType, appID, 1000)
 	if err != nil {
-		logErrorErr("Failed to load issues for export", err,
+		LogErrorErr("Failed to load issues for export", err,
 			"status", status,
 			"priority", priority,
 			"type", issueType,

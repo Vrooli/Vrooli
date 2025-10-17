@@ -1,7 +1,7 @@
 //go:build testing
 // +build testing
 
-package main
+package server
 
 import (
 	"fmt"
@@ -297,9 +297,9 @@ func TestResetIssueCounterHandler(t *testing.T) {
 	defer env.Cleanup()
 
 	// Set a counter value
-	env.Server.issuesProcessedMutex.Lock()
-	env.Server.issuesProcessedCount = 10
-	env.Server.issuesProcessedMutex.Unlock()
+	for i := 0; i < 10; i++ {
+		env.Server.processor.IncrementProcessedCount()
+	}
 
 	req := HTTPTestRequest{
 		Method: http.MethodPost,
@@ -312,9 +312,7 @@ func TestResetIssueCounterHandler(t *testing.T) {
 	}
 
 	// Verify counter was reset
-	env.Server.issuesProcessedMutex.RLock()
-	count := env.Server.issuesProcessedCount
-	env.Server.issuesProcessedMutex.RUnlock()
+	count := env.Server.processor.ProcessedCount()
 
 	if count != 0 {
 		t.Errorf("Expected counter to be 0, got %d", count)

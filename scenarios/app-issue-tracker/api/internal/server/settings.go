@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -66,7 +66,7 @@ func reloadAgentSettings() {
 	configPath := filepath.Join(scenarioRootPath, "initialization", "configuration", "agent-settings.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		logWarn("Could not load agent settings file", "path", configPath, "error", err)
+		LogWarn("Could not load agent settings file", "path", configPath, "error", err)
 		return
 	}
 
@@ -87,7 +87,7 @@ func reloadAgentSettings() {
 	}
 
 	if err := json.Unmarshal(data, &config); err != nil {
-		logWarn("Failed to parse agent settings file", "path", configPath, "error", err)
+		LogWarn("Failed to parse agent settings file", "path", configPath, "error", err)
 		return
 	}
 
@@ -103,7 +103,7 @@ func reloadAgentSettings() {
 
 	providerConfig, ok := config.Providers[provider]
 	if !ok {
-		logWarn("Provider missing from agent settings", "provider", provider)
+		LogWarn("Provider missing from agent settings", "provider", provider)
 		return
 	}
 
@@ -121,7 +121,7 @@ func reloadAgentSettings() {
 		}
 		if command := strings.TrimSpace(investigateOp.Command); command != "" {
 			if parts, err := parseCommandParts(command); err != nil {
-				logWarn("Failed to parse investigate command", "raw_command", command, "error", err)
+				LogWarn("Failed to parse investigate command", "raw_command", command, "error", err)
 			} else if len(parts) > 0 {
 				agentSettings.Command = parts
 			}
@@ -133,7 +133,7 @@ func reloadAgentSettings() {
 		agentSettings.CLICommand = providerConfig.CLICommand
 	}
 
-	logInfo(
+	LogInfo(
 		"Agent settings loaded",
 		"provider", agentSettings.Provider,
 		"cli_command", agentSettings.CLICommand,

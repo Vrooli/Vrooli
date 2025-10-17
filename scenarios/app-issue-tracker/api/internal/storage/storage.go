@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"errors"
@@ -12,28 +12,46 @@ import (
 	"strings"
 	"time"
 
+	issuespkg "app-issue-tracker-api/internal/issues"
+
 	"gopkg.in/yaml.v3"
 )
 
-// issueDir returns the full path to an issue directory
-func (s *Server) issueDir(folder, issueID string) string {
-	return filepath.Join(s.config.IssuesDir, folder, issueID)
+type IssueStorage interface {
+	IssueDir(folder, issueID string) string
+	LoadIssueFromDir(issueDir string) (*issuespkg.Issue, error)
+	WriteIssueMetadata(issueDir string, issue *issuespkg.Issue) error
+	SaveIssue(issue *issuespkg.Issue, folder string) (string, error)
+	LoadIssuesFromFolder(folder string) ([]issuespkg.Issue, error)
+	FindIssueDirectory(issueID string) (string, string, error)
+	LoadIssueWithStatus(issueID string) (*issuespkg.Issue, string, string, error)
+	MoveIssue(issueID, toFolder string) (*issuespkg.Issue, string, string, error)
 }
 
-// metadataPath returns the full path to an issue's metadata file
-func (s *Server) metadataPath(issueDir string) string {
-	return filepath.Join(issueDir, metadataFilename)
+type FileIssueStore struct {
+	issuesDir string
 }
 
-// loadIssueFromDir loads an issue from a directory
-func (s *Server) loadIssueFromDir(issueDir string) (*Issue, error) {
-	metadata := s.metadataPath(issueDir)
+func NewFileIssueStore(issuesDir string) IssueStorage {
+	return &FileIssueStore{issuesDir: issuesDir}
+}
+
+func (fs *FileIssueStore) IssueDir(folder, issueID string) string {
+	return filepath.Join(fs.issuesDir, folder, issueID)
+}
+
+func (fs *FileIssueStore) metadataPath(issueDir string) string {
+	return filepath.Join(issueDir, issuespkg.MetadataFilename)
+}
+
+func (fs *FileIssueStore) LoadIssueFromDir(issueDir string) (*issuespkg.Issue, error) {
+	metadata := fs.metadataPath(issueDir)
 	data, err := ioutil.ReadFile(metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	var issue Issue
+	var issue issuespkg.Issue
 	if err := yaml.Unmarshal(data, &issue); err != nil {
 		return nil, fmt.Errorf("error parsing YAML: %v", err)
 	}
@@ -47,20 +65,20 @@ func (s *Server) loadIssueFromDir(issueDir string) (*Issue, error) {
 	return &issue, nil
 }
 
-func enrichAttachmentsFromArtifacts(issueDir string, issue *Issue) {
-	artifactsPath := filepath.Join(issueDir, artifactsDirName)
+func enrichAttachmentsFromArtifacts(issueDir string, issue *issuespkg.Issue) {
+	artifactsPath := filepath.Join(issueDir, issuespkg.ArtifactsDirName)
 	info, err := os.Stat(artifactsPath)
 	if err != nil || !info.IsDir() {
 		return
 	}
 
 	if issue.Attachments == nil {
-		issue.Attachments = []Attachment{}
+		issue.Attachments = []issuespkg.Attachment{}
 	}
 
-	attachmentIndex := make(map[string]*Attachment)
+	attachmentIndex := make(map[string]*issuespkg.Attachment)
 	for idx := range issue.Attachments {
-		normalized := normalizeAttachmentPath(issue.Attachments[idx].Path)
+		normalized := issuespkg.NormalizeAttachmentPath(issue.Attachments[idx].Path)
 		if normalized == "" {
 			continue
 		}
@@ -92,7 +110,7 @@ func enrichAttachmentsFromArtifacts(issueDir string, issue *Issue) {
 		if relErr != nil {
 			return nil
 		}
-		normalized := normalizeAttachmentPath(filepath.ToSlash(rel))
+		normalized := issuespkg.NormalizeAttachmentPath(filepath.ToSlash(rel))
 		if normalized == "" {
 			return nil
 		}
@@ -140,7 +158,7 @@ func enrichAttachmentsFromArtifacts(issueDir string, issue *Issue) {
 			category = "investigation_report"
 		}
 
-		newAttachment := Attachment{
+		newAttachment := issuespkg.Attachment{
 			Name:     filename,
 			Type:     contentType,
 			Path:     normalized,
@@ -154,8 +172,7 @@ func enrichAttachmentsFromArtifacts(issueDir string, issue *Issue) {
 	})
 }
 
-// writeIssueMetadata writes issue metadata to disk
-func (s *Server) writeIssueMetadata(issueDir string, issue *Issue) error {
+func (fs *FileIssueStore) WriteIssueMetadata(issueDir string, issue *issuespkg.Issue) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	if issue.Metadata.CreatedAt == "" {
 		issue.Metadata.CreatedAt = now
@@ -167,45 +184,42 @@ func (s *Server) writeIssueMetadata(issueDir string, issue *Issue) error {
 		return fmt.Errorf("error marshaling YAML: %v", err)
 	}
 
-	return os.WriteFile(s.metadataPath(issueDir), data, 0644)
+	return os.WriteFile(fs.metadataPath(issueDir), data, 0o644)
 }
 
-// saveIssue saves an issue to a specific folder
-func (s *Server) saveIssue(issue *Issue, folder string) (string, error) {
+func (fs *FileIssueStore) SaveIssue(issue *issuespkg.Issue, folder string) (string, error) {
 	issue.Status = folder
-	issueDir := s.issueDir(folder, issue.ID)
-	if err := os.MkdirAll(issueDir, 0755); err != nil {
+	issueDir := fs.IssueDir(folder, issue.ID)
+	if err := os.MkdirAll(issueDir, 0o755); err != nil {
 		return "", err
 	}
 
-	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+	if err := fs.WriteIssueMetadata(issueDir, issue); err != nil {
 		return "", err
 	}
 
 	return issueDir, nil
 }
 
-// loadIssuesFromFolder loads all issues from a folder
-func (s *Server) loadIssuesFromFolder(folder string) ([]Issue, error) {
-	folderPath := filepath.Join(s.config.IssuesDir, folder)
+func (fs *FileIssueStore) LoadIssuesFromFolder(folder string) ([]issuespkg.Issue, error) {
+	folderPath := filepath.Join(fs.issuesDir, folder)
 	entries, err := os.ReadDir(folderPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return []Issue{}, nil
+			return []issuespkg.Issue{}, nil
 		}
 		return nil, err
 	}
 
-	var issues []Issue
+	var issues []issuespkg.Issue
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
 
 		issueDir := filepath.Join(folderPath, entry.Name())
-		issue, err := s.loadIssueFromDir(issueDir)
+		issue, err := fs.LoadIssueFromDir(issueDir)
 		if err != nil {
-			logWarn("Failed to load issue from disk", "path", issueDir, "error", err)
 			continue
 		}
 		issue.Status = folder
@@ -219,19 +233,16 @@ func (s *Server) loadIssuesFromFolder(folder string) ([]Issue, error) {
 	return issues, nil
 }
 
-// findIssueDirectory finds an issue's directory and current folder
-func (s *Server) findIssueDirectory(issueID string) (string, string, error) {
-	folders := []string{"open", "active", "waiting", "completed", "failed", "archived"}
-
-	for _, folder := range folders {
-		directDir := s.issueDir(folder, issueID)
-		if _, err := os.Stat(s.metadataPath(directDir)); err == nil {
+func (fs *FileIssueStore) FindIssueDirectory(issueID string) (string, string, error) {
+	for _, folder := range issuespkg.ValidStatuses() {
+		directDir := fs.IssueDir(folder, issueID)
+		if _, err := os.Stat(fs.metadataPath(directDir)); err == nil {
 			return directDir, folder, nil
 		}
 	}
 
-	for _, folder := range folders {
-		folderPath := filepath.Join(s.config.IssuesDir, folder)
+	for _, folder := range issuespkg.ValidStatuses() {
+		folderPath := filepath.Join(fs.issuesDir, folder)
 		entries, err := os.ReadDir(folderPath)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -246,7 +257,7 @@ func (s *Server) findIssueDirectory(issueID string) (string, string, error) {
 			}
 
 			issueDir := filepath.Join(folderPath, entry.Name())
-			issue, err := s.loadIssueFromDir(issueDir)
+			issue, err := fs.LoadIssueFromDir(issueDir)
 			if err != nil {
 				continue
 			}
@@ -259,20 +270,34 @@ func (s *Server) findIssueDirectory(issueID string) (string, string, error) {
 	return "", "", fmt.Errorf("issue not found: %s", issueID)
 }
 
-// moveIssue moves an issue from one folder to another
-func (s *Server) moveIssue(issueID, toFolder string) error {
-	issueDir, currentFolder, err := s.findIssueDirectory(issueID)
+func (fs *FileIssueStore) LoadIssueWithStatus(issueID string) (*issuespkg.Issue, string, string, error) {
+	issueDir, statusFolder, err := fs.FindIssueDirectory(issueID)
 	if err != nil {
-		return err
+		return nil, "", "", err
+	}
+
+	issue, err := fs.LoadIssueFromDir(issueDir)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	issue.Status = statusFolder
+	return issue, issueDir, statusFolder, nil
+}
+
+func (fs *FileIssueStore) MoveIssue(issueID, toFolder string) (*issuespkg.Issue, string, string, error) {
+	issueDir, currentFolder, err := fs.FindIssueDirectory(issueID)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	issue, err := fs.LoadIssueFromDir(issueDir)
+	if err != nil {
+		return nil, "", "", err
 	}
 
 	if currentFolder == toFolder {
-		return nil
-	}
-
-	issue, err := s.loadIssueFromDir(issueDir)
-	if err != nil {
-		return err
+		return issue, currentFolder, toFolder, nil
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -290,81 +315,24 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 		}
 	}
 
-	targetDir := s.issueDir(toFolder, issue.ID)
-	if err := os.MkdirAll(filepath.Dir(targetDir), 0755); err != nil {
-		return err
+	targetDir := fs.IssueDir(toFolder, issue.ID)
+	if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil {
+		return nil, "", "", err
 	}
 
 	if _, statErr := os.Stat(targetDir); statErr == nil {
-		logWarn("Removing stale issue directory before move", "target_dir", targetDir, "issue_id", issue.ID)
 		if err := os.RemoveAll(targetDir); err != nil {
-			return fmt.Errorf("failed to clear existing target %s: %w", targetDir, err)
+			return nil, "", "", fmt.Errorf("failed to clear existing target %s: %w", targetDir, err)
 		}
 	}
 
 	if err := os.Rename(issueDir, targetDir); err != nil {
-		return err
+		return nil, "", "", err
 	}
 
-	if err := s.writeIssueMetadata(targetDir, issue); err != nil {
-		return err
+	if err := fs.WriteIssueMetadata(targetDir, issue); err != nil {
+		return nil, "", "", err
 	}
 
-	// Publish status change event for real-time updates
-	s.hub.Publish(NewEvent(EventIssueStatusChanged, IssueStatusChangedData{
-		IssueID:   issueID,
-		OldStatus: currentFolder,
-		NewStatus: toFolder,
-	}))
-
-	// Also publish issue.updated event to ensure clients have latest data
-	s.hub.Publish(NewEvent(EventIssueUpdated, IssueEventData{Issue: issue}))
-
-	return nil
-}
-
-// getAllIssues retrieves all issues with optional filters
-func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter, appIDFilter string, limit int) ([]Issue, error) {
-	var allIssues []Issue
-
-	folders := []string{"open", "active", "completed", "failed", "archived"}
-	if statusFilter != "" {
-		folders = []string{statusFilter}
-	}
-
-	for _, folder := range folders {
-		folderIssues, err := s.loadIssuesFromFolder(folder)
-		if err != nil {
-			logWarn("Failed to load issues from folder", "folder", folder, "error", err)
-			continue
-		}
-		allIssues = append(allIssues, folderIssues...)
-	}
-
-	// Apply filters
-	var filteredIssues []Issue
-	for _, issue := range allIssues {
-		if priorityFilter != "" && issue.Priority != priorityFilter {
-			continue
-		}
-		if typeFilter != "" && issue.Type != typeFilter {
-			continue
-		}
-		if appIDFilter != "" && !strings.EqualFold(issue.AppID, appIDFilter) {
-			continue
-		}
-		filteredIssues = append(filteredIssues, issue)
-	}
-
-	// Sort by creation date (newest first)
-	sort.Slice(filteredIssues, func(i, j int) bool {
-		return filteredIssues[i].Metadata.CreatedAt > filteredIssues[j].Metadata.CreatedAt
-	})
-
-	// Apply limit
-	if limit > 0 && len(filteredIssues) > limit {
-		filteredIssues = filteredIssues[:limit]
-	}
-
-	return filteredIssues, nil
+	return issue, currentFolder, toFolder, nil
 }

@@ -15,8 +15,7 @@ import {
   type ProcessorSettings,
 } from './data/sampleData';
 import './styles/app.css';
-import { VALID_STATUSES } from './utils/issues';
-import { type CreateIssueInput, type CreateIssuePrefill } from './types/issueCreation';
+import { type CreateIssueInput, type CreateIssuePrefill, type UpdateIssueInput } from './types/issueCreation';
 import { prepareFollowUpPrefill } from './utils/issueHelpers';
 import { IssueTrackerDataProvider, useIssueTrackerData } from './hooks/useIssueTrackerData';
 import { useIssueFilters } from './hooks/useIssueFilters';
@@ -96,47 +95,6 @@ function AppContent() {
   );
 
   const {
-    open: metricsDialogOpen,
-    openDialog: openMetricsDialog,
-    closeDialog: closeMetricsDialog,
-  } = useDialogState(false);
-  const {
-    open: settingsDialogOpen,
-    openDialog: openSettingsDialog,
-    closeDialog: closeSettingsDialog,
-  } = useDialogState(false);
-  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(AppSettings.display);
-  const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>(['archived']);
-  const {
-    open: createIssueOpen,
-    openDialog: openCreateIssue,
-    closeDialog: closeCreateIssue,
-  } = useDialogState(false);
-  const [createIssuePrefill, setCreateIssuePrefill] = useState<CreateIssuePrefill | null>(null);
-  const {
-    open: issueDetailOpen,
-    openDialog: openIssueDetail,
-    closeDialog: closeIssueDetail,
-    setOpen: setIssueDetailOpenState,
-  } = useDialogState(false);
-  const { getParam, getParams, setParams, subscribe } = useSearchParamSync();
-  const searchHelpers = useMemo(
-    () => ({
-      getParam,
-      setParams,
-      subscribe,
-    }),
-    [getParam, setParams, subscribe],
-  );
-  const {
-    open: filtersOpen,
-    openDialog: openFilters,
-    closeDialog: closeFilters,
-    toggleDialog: toggleFilters,
-  } = useDialogState(false);
-  const [followUpLoadingId, setFollowUpLoadingId] = useState<string | null>(null);
-
-  const {
     issues,
     dashboardStats,
     loading,
@@ -153,11 +111,75 @@ function AppContent() {
     createIssue: createIssueAction,
     deleteIssue: deleteIssueAction,
     updateIssueStatus: updateIssueStatusAction,
+    updateIssueDetails: updateIssueDetailsAction,
     runningProcesses,
     connectionStatus,
     websocketError,
     reconnectAttempts,
+    statusCatalog,
+    validStatuses,
   } = useIssueTrackerData();
+
+  const {
+    open: metricsDialogOpen,
+    openDialog: openMetricsDialog,
+    closeDialog: closeMetricsDialog,
+  } = useDialogState(false);
+  const {
+    open: settingsDialogOpen,
+    openDialog: openSettingsDialog,
+    closeDialog: closeSettingsDialog,
+  } = useDialogState(false);
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(AppSettings.display);
+  const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>(['archived']);
+  const statusOrder = useMemo(
+    () => (statusCatalog.length > 0 ? statusCatalog.map((status) => status.id) : validStatuses),
+    [statusCatalog, validStatuses],
+  );
+
+  useEffect(() => {
+    setHiddenColumns((current) => {
+      const filtered = current.filter((status) => statusOrder.includes(status));
+      if (filtered.length === 0 && statusOrder.includes('archived')) {
+        return ['archived'];
+      }
+      return filtered;
+    });
+  }, [statusOrder]);
+  const {
+    open: createIssueOpen,
+    openDialog: openCreateIssue,
+    closeDialog: closeCreateIssue,
+  } = useDialogState(false);
+  const [createIssuePrefill, setCreateIssuePrefill] = useState<CreateIssuePrefill | null>(null);
+  const {
+    open: issueDetailOpen,
+    openDialog: openIssueDetail,
+    closeDialog: closeIssueDetail,
+    setOpen: setIssueDetailOpenState,
+  } = useDialogState(false);
+  const {
+    open: editIssueOpen,
+    openDialog: openEditIssue,
+    closeDialog: closeEditIssue,
+  } = useDialogState(false);
+  const [issueBeingEdited, setIssueBeingEdited] = useState<Issue | null>(null);
+  const { getParam, getParams, setParams, subscribe } = useSearchParamSync();
+  const searchHelpers = useMemo(
+    () => ({
+      getParam,
+      setParams,
+      subscribe,
+    }),
+    [getParam, setParams, subscribe],
+  );
+  const {
+    open: filtersOpen,
+    openDialog: openFilters,
+    closeDialog: closeFilters,
+    toggleDialog: toggleFilters,
+  } = useDialogState(false);
+  const [followUpLoadingId, setFollowUpLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading) {
@@ -299,7 +321,7 @@ function AppContent() {
 
   const themeMode = displaySettings.theme === 'dark' ? 'dark' : 'light';
   useThemeClass(themeMode);
-  useBodyScrollLock(createIssueOpen || (issueDetailOpen && Boolean(selectedIssue)));
+  useBodyScrollLock(createIssueOpen || editIssueOpen || (issueDetailOpen && Boolean(selectedIssue)));
 
   useEffect(() => {
     syncAppFilterFromParams(getParams());
@@ -343,6 +365,21 @@ function AppContent() {
     [selectIssue],
   );
 
+  const handleStartEditIssue = useCallback(
+    (issue: Issue) => {
+      const freshIssue = issues.find((candidate) => candidate.id === issue.id) ?? issue;
+      setIssueBeingEdited(freshIssue);
+      clearFocus();
+      openEditIssue();
+    },
+    [clearFocus, issues, openEditIssue],
+  );
+
+  const handleCloseEditIssue = useCallback(() => {
+    setIssueBeingEdited(null);
+    closeEditIssue();
+  }, [closeEditIssue]);
+
   const handleCreateFollowUp = useCallback(
     async (issue: Issue) => {
       setFollowUpLoadingId(issue.id);
@@ -370,6 +407,15 @@ function AppContent() {
       setCreateIssuePrefill(null);
     },
     [createIssueAction, selectIssue],
+  );
+
+  const handleSubmitIssueUpdate = useCallback(
+    async (input: UpdateIssueInput) => {
+      await updateIssueDetailsAction(input);
+      showSnack('Issue updated successfully.', 'success');
+      selectIssue(input.issueId);
+    },
+    [selectIssue, showSnack, updateIssueDetailsAction],
   );
 
   const handleIssueArchive = useCallback(
@@ -482,6 +528,7 @@ function AppContent() {
           <main className="page-container page-container--issues">
             <IssuesBoard
               issues={filteredIssues}
+              statusOrder={statusOrder}
               focusedIssueId={focusedIssueId}
               runningProcesses={runningProcesses}
               onIssueSelect={handleIssueSelect}
@@ -562,6 +609,7 @@ function AppContent() {
                   hiddenColumns={hiddenColumns}
                   onToggleColumn={handleToggleColumn}
                   onResetColumns={handleResetHiddenColumns}
+                  statusOrder={statusOrder}
                 />
               </div>
             </div>
@@ -577,6 +625,7 @@ function AppContent() {
           initialData={createIssuePrefill?.initial}
           lockedAttachments={createIssuePrefill?.lockedAttachments}
           followUpInfo={createIssuePrefill?.followUpOf}
+          validStatuses={validStatuses}
         />
       )}
 
@@ -586,9 +635,21 @@ function AppContent() {
           apiBaseUrl={API_BASE_URL}
           onClose={handleIssueDetailClose}
           onStatusChange={updateIssueStatusAction}
+          onEdit={handleStartEditIssue}
           onFollowUp={handleCreateFollowUp}
           followUpLoadingId={followUpLoadingId}
-          validStatuses={VALID_STATUSES}
+          validStatuses={validStatuses}
+        />
+      )}
+
+      {editIssueOpen && issueBeingEdited && (
+        <CreateIssueModal
+          key={`edit-${issueBeingEdited.id}`}
+          mode="edit"
+          existingIssue={issueBeingEdited}
+          onClose={handleCloseEditIssue}
+          onSubmit={handleSubmitIssueUpdate}
+          validStatuses={validStatuses}
         />
       )}
 

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -162,15 +162,9 @@ func (s *Server) buildInvestigationPrompt(issue *Issue, issueDir, agentID, proje
 }
 
 func (s *Server) failInvestigation(issueID, errorMsg, output string) {
-	issueDir, _, findErr := s.findIssueDirectory(issueID)
-	if findErr != nil {
-		logErrorErr("Cannot locate issue to mark investigation failed", findErr, "issue_id", issueID)
-		return
-	}
-
-	issue, loadErr := s.loadIssueFromDir(issueDir)
-	if loadErr != nil {
-		logErrorErr("Cannot load issue to mark investigation failed", loadErr, "issue_id", issueID)
+	issue, issueDir, _, err := s.loadIssueWithStatus(issueID)
+	if err != nil {
+		LogErrorErr("Cannot load issue to mark investigation failed", err, "issue_id", issueID)
 		return
 	}
 
@@ -191,7 +185,7 @@ func (s *Server) failInvestigation(issueID, errorMsg, output string) {
 	issue.Metadata.Extra["agent_last_status"] = "failed"
 
 	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
-		logErrorErr("Failed to persist investigation failure state", err, "issue_id", issueID)
+		LogErrorErr("Failed to persist investigation failure state", err, "issue_id", issueID)
 	}
 
 	s.moveIssue(issueID, "failed")
@@ -293,13 +287,11 @@ func detectRateLimit(output string) (bool, string) {
 }
 
 func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool) error {
-	issueDir, currentFolder, err := s.findIssueDirectory(issueID)
+	issue, issueDir, currentFolder, err := s.loadIssueWithStatus(issueID)
 	if err != nil {
-		return fmt.Errorf("issue not found: %w", err)
-	}
-
-	issue, err := s.loadIssueFromDir(issueDir)
-	if err != nil {
+		if strings.Contains(err.Error(), "issue not found") {
+			return fmt.Errorf("issue not found: %w", err)
+		}
 		return fmt.Errorf("failed to load issue: %w", err)
 	}
 
@@ -307,183 +299,201 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		agentID = "unified-resolver"
 	}
 
-	logInfo("Starting investigation", "issue_id", issueID, "agent_id", agentID, "auto_resolve", autoResolve)
+	LogInfo("Starting investigation", "issue_id", issueID, "agent_id", agentID, "auto_resolve", autoResolve)
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	startedAt := time.Now().UTC().Format(time.RFC3339)
+	if err := s.persistInvestigationStart(issue, issueDir, agentID, startedAt); err != nil {
+		return err
+	}
+
+	if err := s.ensureIssueActive(issueID, currentFolder); err != nil {
+		return err
+	}
+
+	s.registerRunningProcess(issueID, agentID, startedAt)
+	go s.executeInvestigation(issueID, agentID, startedAt)
+
+	return nil
+}
+
+func (s *Server) persistInvestigationStart(issue *Issue, issueDir, agentID, startedAt string) error {
 	issue.Investigation.AgentID = agentID
-	issue.Investigation.StartedAt = now
-	issue.Metadata.UpdatedAt = now
+	issue.Investigation.StartedAt = startedAt
+	issue.Metadata.UpdatedAt = startedAt
 
 	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
 		return fmt.Errorf("failed to update issue: %w", err)
 	}
 
-	if currentFolder != "active" {
-		if err := s.moveIssue(issueID, "active"); err != nil {
-			return fmt.Errorf("failed to move issue to active: %w", err)
-		}
+	return nil
+}
+
+func (s *Server) ensureIssueActive(issueID, currentFolder string) error {
+	if currentFolder == "active" {
+		return nil
 	}
 
-	s.registerRunningProcess(issueID, agentID, now)
+	if err := s.moveIssue(issueID, "active"); err != nil {
+		return fmt.Errorf("failed to move issue to active: %w", err)
+	}
 
-	go func(issueID, agent string) {
-		defer s.unregisterRunningProcess(issueID)
+	return nil
+}
 
-		issueDir, _, findErr := s.findIssueDirectory(issueID)
-		if findErr != nil {
-			logErrorErr("Investigation failed to locate issue", findErr, "issue_id", issueID)
-			return
-		}
+func (s *Server) executeInvestigation(issueID, agentID, startedAt string) {
+	defer s.unregisterRunningProcess(issueID)
 
-		issue, loadErr := s.loadIssueFromDir(issueDir)
-		if loadErr != nil {
-			logErrorErr("Investigation failed to load issue", loadErr, "issue_id", issueID)
-			return
-		}
+	issue, issueDir, _, loadErr := s.loadIssueWithStatus(issueID)
+	if loadErr != nil {
+		LogErrorErr("Investigation failed to load issue", loadErr, "issue_id", issueID)
+		return
+	}
 
-		prompt := s.buildInvestigationPrompt(issue, issueDir, agent, s.config.ScenarioRoot, now)
+	prompt := s.buildInvestigationPrompt(issue, issueDir, agentID, s.config.ScenarioRoot, startedAt)
 
-		settings := GetAgentSettings()
-		timeoutDuration := time.Duration(settings.TimeoutSeconds) * time.Second
-		startTime := time.Now()
+	settings := GetAgentSettings()
+	timeoutDuration := time.Duration(settings.TimeoutSeconds) * time.Second
+	startTime := time.Now()
 
-		ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
+	defer cancel()
 
-		result, err := s.executeClaudeCode(ctx, prompt, issueID, startTime, timeoutDuration)
+	result, err := s.executeClaudeCode(ctx, prompt, issueID, startTime, timeoutDuration)
+	if err != nil {
+		LogErrorErr("Claude execution error", err, "issue_id", issueID)
+		s.failInvestigation(issueID, fmt.Sprintf("Execution error: %v", err), "")
+		return
+	}
 
-		if err != nil {
-			logErrorErr("Claude execution error", err, "issue_id", issueID)
-			s.failInvestigation(issueID, fmt.Sprintf("Execution error: %v", err), "")
-			return
-		}
+	if s.handleInvestigationRateLimit(issueID, agentID, result) {
+		return
+	}
 
-		if strings.Contains(result.Error, "RATE_LIMIT") {
-			isRateLimit, resetTime := detectRateLimit(result.Output)
-			if isRateLimit {
-				logWarn("Rate limit detected during investigation", "issue_id", issueID, "reset_time", resetTime)
+	if !result.Success {
+		s.handleInvestigationFailure(issueID, agentID, result)
+		return
+	}
 
-				issueDir, _, findErr := s.findIssueDirectory(issueID)
-				if findErr == nil {
-					issue, loadErr := s.loadIssueFromDir(issueDir)
-					if loadErr == nil {
-						if issue.Metadata.Extra == nil {
-							issue.Metadata.Extra = make(map[string]string)
-						}
-						issue.Metadata.Extra["rate_limit_until"] = resetTime
-						issue.Metadata.Extra["rate_limit_agent"] = agent
-						s.writeIssueMetadata(issueDir, issue)
-					}
-				}
+	s.handleInvestigationSuccess(issueID, agentID, result)
+}
 
-				s.moveIssue(issueID, "waiting")
-				return
-			}
-		}
+func (s *Server) handleInvestigationRateLimit(issueID, agentID string, result *ClaudeExecutionResult) bool {
+	if !strings.Contains(result.Error, "RATE_LIMIT") {
+		return false
+	}
 
-		if !result.Success {
-			logWarn("Investigation failed", "issue_id", issueID, "error", result.Error)
+	isRateLimit, resetTime := detectRateLimit(result.Output)
+	if !isRateLimit {
+		return false
+	}
 
-			issueDir, _, findErr := s.findIssueDirectory(issueID)
-			if findErr == nil {
-				issue, loadErr := s.loadIssueFromDir(issueDir)
-				if loadErr == nil {
-					if issue.Metadata.Extra == nil {
-						issue.Metadata.Extra = make(map[string]string)
-					}
-					issue.Metadata.Extra["agent_last_error"] = result.Error
-					if result.MaxTurnsExceeded {
-						issue.Metadata.Extra["max_turns_exceeded"] = "true"
-					}
-					if result.TranscriptPath != "" {
-						issue.Metadata.Extra["agent_transcript_path"] = result.TranscriptPath
-					}
-					if result.LastMessagePath != "" {
-						issue.Metadata.Extra["agent_last_message_path"] = result.LastMessagePath
-					}
-					issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-					s.writeIssueMetadata(issueDir, issue)
-				}
-			}
+	LogWarn("Rate limit detected during investigation", "issue_id", issueID, "reset_time", resetTime)
 
-			s.moveIssue(issueID, "failed")
-			s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
-				IssueID:   issueID,
-				AgentID:   agent,
-				Success:   false,
-				EndTime:   time.Now(),
-				NewStatus: "failed",
-			}))
-			return
-		}
-
-		logInfo("Investigation completed successfully", "issue_id", issueID, "execution_time", result.ExecutionTime.Round(time.Second))
-
-		issueDir, _, findErr2 := s.findIssueDirectory(issueID)
-		if findErr2 != nil {
-			logErrorErr("Failed to locate issue after investigation", findErr2, "issue_id", issueID)
-			return
-		}
-
-		issue, loadErr2 := s.loadIssueFromDir(issueDir)
-		if loadErr2 != nil {
-			logErrorErr("Failed to reload issue after investigation", loadErr2, "issue_id", issueID)
-			return
-		}
-
-		nowUTC := time.Now().UTC()
-
-		reportContent := strings.TrimSpace(result.LastMessage)
-		if reportContent == "" {
-			reportContent = result.Output
-		}
-		issue.Investigation.Report = reportContent
-		issue.Investigation.CompletedAt = nowUTC.Format(time.RFC3339)
-		issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
-
-		if issue.Investigation.StartedAt != "" {
-			if parsedStart, err := time.Parse(time.RFC3339, issue.Investigation.StartedAt); err == nil {
-				durationMinutes := int(time.Since(parsedStart).Minutes())
-				issue.Investigation.InvestigationDurationMinutes = &durationMinutes
-			}
-		}
-
+	issue, issueDir, _, loadErr := s.loadIssueWithStatus(issueID)
+	if loadErr == nil {
 		if issue.Metadata.Extra == nil {
 			issue.Metadata.Extra = make(map[string]string)
 		}
-		delete(issue.Metadata.Extra, "agent_last_error")
-		delete(issue.Metadata.Extra, "max_turns_exceeded")
-		issue.Metadata.Extra["agent_last_status"] = "completed"
+		issue.Metadata.Extra["rate_limit_until"] = resetTime
+		issue.Metadata.Extra["rate_limit_agent"] = agentID
+		s.writeIssueMetadata(issueDir, issue)
+	}
+
+	s.moveIssue(issueID, "open")
+	return true
+}
+
+func (s *Server) handleInvestigationFailure(issueID, agentID string, result *ClaudeExecutionResult) {
+	LogWarn("Investigation failed", "issue_id", issueID, "error", result.Error)
+
+	issue, issueDir, _, loadErr := s.loadIssueWithStatus(issueID)
+	if loadErr == nil {
+		if issue.Metadata.Extra == nil {
+			issue.Metadata.Extra = make(map[string]string)
+		}
+		issue.Metadata.Extra["agent_last_error"] = result.Error
+		if result.MaxTurnsExceeded {
+			issue.Metadata.Extra["max_turns_exceeded"] = "true"
+		}
 		if result.TranscriptPath != "" {
 			issue.Metadata.Extra["agent_transcript_path"] = result.TranscriptPath
 		}
 		if result.LastMessagePath != "" {
 			issue.Metadata.Extra["agent_last_message_path"] = result.LastMessagePath
 		}
+		issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		s.writeIssueMetadata(issueDir, issue)
+	}
 
-		issue.Metadata.ResolvedAt = nowUTC.Format(time.RFC3339)
+	s.moveIssue(issueID, "failed")
+	s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
+		IssueID:   issueID,
+		AgentID:   agentID,
+		Success:   false,
+		EndTime:   time.Now(),
+		NewStatus: "failed",
+	}))
+}
 
-		if saveErr := s.writeIssueMetadata(issueDir, issue); saveErr != nil {
-			logErrorErr("Failed to persist investigation results", saveErr, "issue_id", issueID)
+func (s *Server) handleInvestigationSuccess(issueID, agentID string, result *ClaudeExecutionResult) {
+	LogInfo("Investigation completed successfully", "issue_id", issueID, "execution_time", result.ExecutionTime.Round(time.Second))
+
+	issue, issueDir, _, loadErr := s.loadIssueWithStatus(issueID)
+	if loadErr != nil {
+		LogErrorErr("Failed to reload issue after investigation", loadErr, "issue_id", issueID)
+		return
+	}
+
+	nowUTC := time.Now().UTC()
+
+	reportContent := strings.TrimSpace(result.LastMessage)
+	if reportContent == "" {
+		reportContent = result.Output
+	}
+	issue.Investigation.Report = reportContent
+	issue.Investigation.CompletedAt = nowUTC.Format(time.RFC3339)
+	issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
+
+	if issue.Investigation.StartedAt != "" {
+		if parsedStart, err := time.Parse(time.RFC3339, issue.Investigation.StartedAt); err == nil {
+			durationMinutes := int(time.Since(parsedStart).Minutes())
+			issue.Investigation.InvestigationDurationMinutes = &durationMinutes
 		}
+	}
 
-		if moveErr := s.moveIssue(issueID, "completed"); moveErr != nil {
-			logErrorErr("Failed to move issue to completed", moveErr, "issue_id", issueID)
-		}
+	if issue.Metadata.Extra == nil {
+		issue.Metadata.Extra = make(map[string]string)
+	}
+	delete(issue.Metadata.Extra, "agent_last_error")
+	delete(issue.Metadata.Extra, "max_turns_exceeded")
+	issue.Metadata.Extra["agent_last_status"] = "completed"
+	if result.TranscriptPath != "" {
+		issue.Metadata.Extra["agent_transcript_path"] = result.TranscriptPath
+	}
+	if result.LastMessagePath != "" {
+		issue.Metadata.Extra["agent_last_message_path"] = result.LastMessagePath
+	}
 
-		logInfo("Investigation state persisted", "issue_id", issueID)
+	issue.Metadata.ResolvedAt = nowUTC.Format(time.RFC3339)
 
-		processedCount := s.incrementProcessedCount()
-		logInfo("Processor successful investigations updated", "count", processedCount)
+	if saveErr := s.writeIssueMetadata(issueDir, issue); saveErr != nil {
+		LogErrorErr("Failed to persist investigation results", saveErr, "issue_id", issueID)
+	}
 
-		s.hub.Publish(NewEvent(EventAgentCompleted, AgentCompletedData{
-			IssueID:   issueID,
-			AgentID:   agent,
-			Success:   true,
-			EndTime:   nowUTC,
-			NewStatus: "completed",
-		}))
-	}(issueID, agentID)
+	if moveErr := s.moveIssue(issueID, "completed"); moveErr != nil {
+		LogErrorErr("Failed to move issue to completed", moveErr, "issue_id", issueID)
+	}
 
-	return nil
+	LogInfo("Investigation state persisted", "issue_id", issueID)
+
+	processedCount := s.incrementProcessedCount()
+	LogInfo("Processor successful investigations updated", "count", processedCount)
+
+	s.hub.Publish(NewEvent(EventAgentCompleted, AgentCompletedData{
+		IssueID:   issueID,
+		AgentID:   agentID,
+		Success:   true,
+		EndTime:   nowUTC,
+		NewStatus: "completed",
+	}))
 }

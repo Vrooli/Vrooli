@@ -1,7 +1,7 @@
 //go:build testing
 // +build testing
 
-package main
+package server
 
 import (
 	"net/http"

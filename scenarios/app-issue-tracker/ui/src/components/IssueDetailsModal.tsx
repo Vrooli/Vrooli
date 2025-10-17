@@ -14,6 +14,7 @@ import {
   KanbanSquare,
   Loader2,
   Mail,
+  Pencil,
   Paperclip,
   Tag,
   User,
@@ -23,11 +24,10 @@ import type { Issue, IssueAttachment, IssueStatus } from '../data/sampleData';
 import { formatDistanceToNow as formatRelativeDistance } from '../utils/date';
 import { formatFileSize } from '../utils/files';
 import { toTitleCase } from '../utils/string';
+import { getFallbackStatuses } from '../utils/issues';
 import { Modal } from './Modal';
 
 const MAX_ATTACHMENT_PREVIEW_CHARS = 8000;
-
-const DEFAULT_VALID_STATUSES: IssueStatus[] = ['open', 'active', 'completed', 'failed', 'archived'];
 
 interface AgentConversationEntryPayload {
   kind: string;
@@ -63,6 +63,7 @@ export interface IssueDetailsModalProps {
   apiBaseUrl: string;
   onClose: () => void;
   onStatusChange?: (issueId: string, newStatus: IssueStatus) => void | Promise<void>;
+   onEdit?: (issue: Issue) => void;
   onFollowUp?: (issue: Issue) => void;
   followUpLoadingId?: string | null;
   validStatuses?: IssueStatus[];
@@ -73,9 +74,10 @@ export function IssueDetailsModal({
   apiBaseUrl,
   onClose,
   onStatusChange,
+  onEdit,
   onFollowUp,
   followUpLoadingId,
-  validStatuses = DEFAULT_VALID_STATUSES,
+  validStatuses = getFallbackStatuses(),
 }: IssueDetailsModalProps) {
   const createdText = formatDateTime(issue.createdAt);
   const updatedText = formatDateTime(issue.updatedAt);
@@ -192,6 +194,17 @@ export function IssueDetailsModal({
           </h2>
         </div>
         <div className="modal-header-actions">
+          {issue.status === 'open' && typeof onEdit === 'function' && (
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => onEdit(issue)}
+              aria-label="Edit issue"
+            >
+              <Pencil size={16} />
+              <span>Edit</span>
+            </button>
+          )}
           <button className="modal-close" type="button" aria-label="Close issue details" onClick={onClose}>
             <X size={18} />
           </button>

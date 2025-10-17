@@ -46,7 +46,41 @@ export interface ApiStatsPayload {
   completedToday?: number;
 }
 
-export const VALID_STATUSES: IssueStatus[] = ['open', 'active', 'completed', 'failed', 'archived'];
+const FALLBACK_STATUSES: IssueStatus[] = ['open', 'active', 'waiting', 'completed', 'failed', 'archived'];
+
+let validStatuses: IssueStatus[] = [...FALLBACK_STATUSES];
+
+export function getValidStatuses(): IssueStatus[] {
+  return [...validStatuses];
+}
+
+export function setValidStatuses(statuses: string[] | IssueStatus[]): void {
+  const normalized = Array.from(
+    new Set(
+      statuses
+        .map((status) => (typeof status === 'string' ? status.trim().toLowerCase() : status))
+        .filter((status): status is string => Boolean(status)),
+    ),
+  );
+
+  if (!normalized.includes('open')) {
+    normalized.unshift('open');
+  }
+
+  validStatuses = (normalized.length > 0 ? normalized : FALLBACK_STATUSES) as IssueStatus[];
+}
+
+export function getFallbackStatuses(): IssueStatus[] {
+  return [...FALLBACK_STATUSES];
+}
+
+export function formatStatusLabel(status: string): string {
+  return status
+    .split('-')
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 export function buildApiUrl(baseUrl: string, path: string): string {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -78,7 +112,8 @@ export function normalizePriority(value?: string | null): Priority {
 
 export function normalizeStatus(value?: string | null): IssueStatus {
   const normalized = (value ?? '').toLowerCase();
-  return (VALID_STATUSES.find((status) => status === normalized) ?? 'open') as IssueStatus;
+  const statuses = getValidStatuses();
+  return (statuses.find((status) => status === normalized) ?? 'open') as IssueStatus;
 }
 
 export function normalizeLabels(labels?: Record<string, string>): Record<string, string> {

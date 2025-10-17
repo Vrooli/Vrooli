@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"log/slog"
@@ -22,28 +22,28 @@ func getLogger() *slog.Logger {
 	return baseLogger
 }
 
-func logInfo(msg string, attrs ...any) {
+func LogInfo(msg string, attrs ...any) {
 	getLogger().Info(msg, attrs...)
 }
 
-func logWarn(msg string, attrs ...any) {
+func LogWarn(msg string, attrs ...any) {
 	getLogger().Warn(msg, attrs...)
 }
 
-func logError(msg string, attrs ...any) {
+func LogError(msg string, attrs ...any) {
 	getLogger().Error(msg, attrs...)
 }
 
-func logErrorErr(msg string, err error, attrs ...any) {
+func LogErrorErr(msg string, err error, attrs ...any) {
 	attrs = append(attrs, slog.Any("error", err))
 	getLogger().Error(msg, attrs...)
 }
 
-func logDebug(msg string, attrs ...any) {
+func LogDebug(msg string, attrs ...any) {
 	getLogger().Debug(msg, attrs...)
 }
 
-func withLogger(logger *slog.Logger) func() {
+func WithLogger(logger *slog.Logger) func() {
 	loggerOnce.Do(func() {
 		handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true})
 		baseLogger = slog.New(handler)

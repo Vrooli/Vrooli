@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"net/http"
@@ -59,7 +59,7 @@ func (h *Hub) Run() {
 			h.clients[client] = true
 			current := len(h.clients)
 			h.mu.Unlock()
-			logInfo("WebSocket client registered", "clients", current)
+			LogInfo("WebSocket client registered", "clients", current)
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -69,7 +69,7 @@ func (h *Hub) Run() {
 			}
 			current := len(h.clients)
 			h.mu.Unlock()
-			logInfo("WebSocket client unregistered", "clients", current)
+			LogInfo("WebSocket client unregistered", "clients", current)
 
 		case event := <-h.broadcast:
 			h.mu.RLock()
@@ -83,7 +83,7 @@ func (h *Hub) Run() {
 			// Serialize event once
 			message, err := event.ToJSON()
 			if err != nil {
-				logErrorErr("Failed to serialize websocket event", err, "event_type", event.Type)
+				LogErrorErr("Failed to serialize websocket event", err, "event_type", event.Type)
 				continue
 			}
 
@@ -98,7 +98,7 @@ func (h *Hub) Run() {
 					delete(h.clients, client)
 					h.mu.Unlock()
 					h.mu.RLock()
-					logWarn("WebSocket client send buffer full - disconnecting")
+					LogWarn("WebSocket client send buffer full - disconnecting")
 				}
 			}
 			h.mu.RUnlock()
@@ -110,9 +110,9 @@ func (h *Hub) Run() {
 func (h *Hub) Publish(event Event) {
 	select {
 	case h.broadcast <- event:
-		logDebug("Queued websocket event", "event_type", event.Type)
+		LogDebug("Queued websocket event", "event_type", event.Type)
 	default:
-		logWarn("Websocket broadcast channel full", "event_type", event.Type)
+		LogWarn("Websocket broadcast channel full", "event_type", event.Type)
 	}
 }
 
@@ -147,7 +147,7 @@ func (c *Client) readPump() {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				logWarn("Unexpected websocket close", "error", err)
+				LogWarn("Unexpected websocket close", "error", err)
 			}
 			break
 		}
@@ -211,7 +211,7 @@ var upgrader = websocket.Upgrader{
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		logErrorErr("Websocket upgrade failed", err)
+		LogErrorErr("Websocket upgrade failed", err)
 		return
 	}
 

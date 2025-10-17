@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -57,9 +57,16 @@ func requiredEnvValue(key string) (string, error) {
 	return trimmed, nil
 }
 
+func envOrDefault(key, defaultValue string) string {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 func NewGitIntegrationService(configPath string) (*GitIntegrationService, error) {
 	config := &GitConfig{
-		BaseBranch: getEnv("GITHUB_BASE_BRANCH", "main"),
+		BaseBranch: envOrDefault("GITHUB_BASE_BRANCH", "main"),
 	}
 
 	// Try to load config from file if exists
@@ -130,7 +137,7 @@ func (g *GitIntegrationService) CreatePullRequest(issue Issue, fixes []string) (
 	// Apply fixes
 	for _, fix := range fixes {
 		if err := g.applyFix(repoDir, fix); err != nil {
-			logWarn("Failed to apply generated fix", "error", err, "issue_id", issue.ID)
+			LogWarn("Failed to apply generated fix", "error", err, "issue_id", issue.ID)
 		}
 	}
 
@@ -422,7 +429,7 @@ func (s *Server) gitPRHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save updated issue
 	if _, err := s.saveIssue(issue, folder); err != nil {
-		logWarn("Failed to persist issue metadata after PR creation", "error", err, "issue_id", issueID)
+		LogWarn("Failed to persist issue metadata after PR creation", "error", err, "issue_id", issueID)
 	}
 
 	response := ApiResponse{

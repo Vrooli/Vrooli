@@ -1,48 +1,46 @@
-package main
+package issues
 
-import "strings"
-
-// Constants
-const (
-	metadataFilename = "metadata.yaml"
-	artifactsDirName = "artifacts"
+import (
+	"path"
+	"strings"
 )
 
-var validIssueStatuses = map[string]struct{}{
-	"open":      {},
-	"active":    {},
-	"waiting":   {},
-	"completed": {},
-	"failed":    {},
-	"archived":  {},
+const (
+	MetadataFilename = "metadata.yaml"
+	ArtifactsDirName = "artifacts"
+)
+
+var (
+	statusList = []string{"open", "active", "completed", "failed", "archived"}
+	statusSet  = func() map[string]struct{} {
+		set := make(map[string]struct{}, len(statusList))
+		for _, status := range statusList {
+			set[status] = struct{}{}
+		}
+		return set
+	}()
+)
+
+func ValidStatuses() []string {
+	return append([]string(nil), statusList...)
 }
 
-// Config holds application configuration
-type Config struct {
-	Port         string
-	QdrantURL    string
-	IssuesDir    string
-	ScenarioRoot string
+func NormalizeStatus(status string) (string, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(status))
+	if normalized == "" {
+		return "", false
+	}
+	if _, ok := statusSet[normalized]; !ok {
+		return "", false
+	}
+	return normalized, true
 }
 
-// ProcessorState tracks the state of the background issue processor
-type ProcessorState struct {
-	Active            bool `json:"active"`
-	ConcurrentSlots   int  `json:"concurrent_slots"`
-	RefreshInterval   int  `json:"refresh_interval"`
-	CurrentlyRunning  int  `json:"currently_running"`
-	MaxIssues         int  `json:"max_issues"` // Maximum issues to process (0 = unlimited)
-	MaxIssuesDisabled bool `json:"max_issues_disabled"`
+func IsValidStatus(status string) bool {
+	_, ok := NormalizeStatus(status)
+	return ok
 }
 
-// RunningProcess tracks an actively running investigation/resolution
-type RunningProcess struct {
-	IssueID   string `json:"issue_id"`
-	AgentID   string `json:"agent_id"`
-	StartTime string `json:"start_time"`
-}
-
-// Issue represents a tracked issue with all its metadata
 type Issue struct {
 	ID          string `yaml:"id" json:"id"`
 	Title       string `yaml:"title" json:"title"`
@@ -108,14 +106,20 @@ type Issue struct {
 	Notes string `yaml:"notes,omitempty" json:"notes,omitempty"`
 }
 
-// PromptPreviewRequest is used to preview investigation prompts
+type Attachment struct {
+	Name     string `yaml:"name" json:"name"`
+	Type     string `yaml:"type,omitempty" json:"type,omitempty"`
+	Path     string `yaml:"path" json:"path"`
+	Size     int64  `yaml:"size,omitempty" json:"size,omitempty"`
+	Category string `yaml:"category,omitempty" json:"category,omitempty"`
+}
+
 type PromptPreviewRequest struct {
 	IssueID string `json:"issue_id,omitempty"`
 	AgentID string `json:"agent_id,omitempty"`
 	Issue   *Issue `json:"issue,omitempty"`
 }
 
-// PromptPreviewResponse contains the generated prompt preview
 type PromptPreviewResponse struct {
 	IssueID        string `json:"issue_id"`
 	AgentID        string `json:"agent_id"`
@@ -128,16 +132,6 @@ type PromptPreviewResponse struct {
 	ErrorMessage   string `json:"error_message,omitempty"`
 }
 
-// Attachment represents a file attachment to an issue
-type Attachment struct {
-	Name     string `yaml:"name" json:"name"`
-	Type     string `yaml:"type,omitempty" json:"type,omitempty"`
-	Path     string `yaml:"path" json:"path"`
-	Size     int64  `yaml:"size,omitempty" json:"size,omitempty"`
-	Category string `yaml:"category,omitempty" json:"category,omitempty"`
-}
-
-// UpdateIssueRequest contains fields that can be updated for an issue
 type UpdateIssueRequest struct {
 	Title         *string            `json:"title"`
 	Description   *string            `json:"description"`
@@ -196,7 +190,6 @@ type UpdateIssueRequest struct {
 	Artifacts []ArtifactPayload `json:"artifacts"`
 }
 
-// ArtifactPayload represents a new artifact being uploaded
 type ArtifactPayload struct {
 	Name        string `json:"name"`
 	Category    string `json:"category"`
@@ -205,7 +198,6 @@ type ArtifactPayload struct {
 	ContentType string `json:"content_type"`
 }
 
-// LegacyAttachmentPayload is the legacy format for attachments (deprecated)
 type LegacyAttachmentPayload struct {
 	Name        string `json:"name"`
 	Content     string `json:"content"`
@@ -213,7 +205,6 @@ type LegacyAttachmentPayload struct {
 	ContentType string `json:"content_type"`
 }
 
-// CreateIssueRequest contains all fields needed to create a new issue
 type CreateIssueRequest struct {
 	Title         string            `json:"title"`
 	Description   string            `json:"description"`
@@ -251,7 +242,6 @@ type CreateIssueRequest struct {
 	Artifacts             []ArtifactPayload         `json:"artifacts"`
 }
 
-// AgentConversationEntry captures a single event from an agent transcript
 type AgentConversationEntry struct {
 	Kind string                 `json:"kind"`
 	ID   string                 `json:"id,omitempty"`
@@ -262,7 +252,6 @@ type AgentConversationEntry struct {
 	Raw  map[string]interface{} `json:"raw,omitempty"`
 }
 
-// AgentConversationPayload is returned to the UI for transcript rendering
 type AgentConversationPayload struct {
 	IssueID             string                   `json:"issue_id"`
 	Available           bool                     `json:"available"`
@@ -274,7 +263,6 @@ type AgentConversationPayload struct {
 	TranscriptTimestamp string                   `json:"transcript_timestamp,omitempty"`
 }
 
-// Agent represents an AI agent that can investigate issues
 type Agent struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`
@@ -287,7 +275,6 @@ type Agent struct {
 	SuccessfulRuns int      `json:"successful_runs"`
 }
 
-// App represents an application that can have issues
 type App struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -298,17 +285,7 @@ type App struct {
 	OpenIssues  int    `json:"open_issues"`
 }
 
-// ApiResponse is a standard API response wrapper
-type ApiResponse struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
-}
-
-// Helper functions
-
-// cloneStringSlice creates a deep copy of a string slice
-func cloneStringSlice(values []string) []string {
+func CloneStringSlice(values []string) []string {
 	if values == nil {
 		return nil
 	}
@@ -317,8 +294,7 @@ func cloneStringSlice(values []string) []string {
 	return out
 }
 
-// normalizeStringSlice removes empty and whitespace-only strings
-func normalizeStringSlice(values []string) []string {
+func NormalizeStringSlice(values []string) []string {
 	if values == nil {
 		return nil
 	}
@@ -336,8 +312,7 @@ func normalizeStringSlice(values []string) []string {
 	return result
 }
 
-// cloneStringMap creates a deep copy of a string map with trimmed keys/values
-func cloneStringMap(values map[string]string) map[string]string {
+func CloneStringMap(values map[string]string) map[string]string {
 	if values == nil {
 		return nil
 	}
@@ -349,4 +324,18 @@ func cloneStringMap(values map[string]string) map[string]string {
 		return nil
 	}
 	return clone
+}
+
+func NormalizeAttachmentPath(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	replaced := strings.ReplaceAll(trimmed, "\\", "/")
+	cleaned := path.Clean("/" + replaced)
+	cleaned = strings.TrimPrefix(cleaned, "/")
+	if cleaned == "." {
+		return ""
+	}
+	return cleaned
 }

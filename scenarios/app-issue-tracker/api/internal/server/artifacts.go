@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/base64"
@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	issuespkg "app-issue-tracker-api/internal/issues"
 )
 
 var whitespaceSequence = regexp.MustCompile("-+")
@@ -114,24 +116,9 @@ func ensureUniqueFilename(filename string, used map[string]int) string {
 	}
 }
 
-// normalizeAttachmentPath normalizes an attachment path
-func normalizeAttachmentPath(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return ""
-	}
-	replaced := strings.ReplaceAll(trimmed, "\\", "/")
-	cleaned := path.Clean("/" + replaced)
-	cleaned = strings.TrimPrefix(cleaned, "/")
-	if cleaned == "." {
-		return ""
-	}
-	return cleaned
-}
-
 // resolveAttachmentPath resolves and validates an attachment path
 func resolveAttachmentPath(issueDir, relativeRef string) (string, error) {
-	normalized := normalizeAttachmentPath(relativeRef)
+	normalized := issuespkg.NormalizeAttachmentPath(relativeRef)
 	if normalized == "" {
 		return "", fmt.Errorf("invalid attachment path")
 	}
@@ -268,6 +255,37 @@ func (s *Server) persistArtifacts(issueDir string, payloads []ArtifactPayload) (
 		})
 	}
 	return attachments, nil
+}
+
+// storeIssueArtifacts persists artifacts and merges resulting attachments into the issue.
+// When replaceExisting is true, the issue's attachment list is replaced with the new attachments;
+// otherwise, the new attachments are appended.
+func (s *Server) storeIssueArtifacts(issue *Issue, issueDir string, payloads []ArtifactPayload, replaceExisting bool) error {
+	if len(payloads) == 0 {
+		if replaceExisting {
+			issue.Attachments = nil
+		}
+		return nil
+	}
+
+	attachments, err := s.persistArtifacts(issueDir, payloads)
+	if err != nil {
+		return err
+	}
+
+	if len(attachments) == 0 {
+		if replaceExisting {
+			issue.Attachments = nil
+		}
+		return nil
+	}
+
+	if replaceExisting {
+		issue.Attachments = attachments
+	} else {
+		issue.Attachments = append(issue.Attachments, attachments...)
+	}
+	return nil
 }
 
 // mergeCreateArtifacts merges all artifact sources from a create request
