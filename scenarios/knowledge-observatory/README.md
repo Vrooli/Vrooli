@@ -51,9 +51,9 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 ## 🔧 Architecture
 
 ### Components
-- **Go API** (Port 20260): RESTful endpoints for all operations
+- **Go API**: RESTful endpoints for all operations (dynamically allocated port 15000-19999)
 - **CLI**: Command-line interface for knowledge queries
-- **Web UI** (Port 20261): Mission control style dashboard
+- **Web UI**: Mission control style dashboard (dynamically allocated port 35000-39999)
 - **PostgreSQL**: Metadata and metrics storage
 - **Qdrant**: Vector database being monitored
 - **N8n Workflows**: Automated quality monitoring
@@ -65,7 +65,11 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 ## 📖 Usage
 
 ### Web Dashboard
-Access the dashboard at `http://localhost:20261`
+The dashboard is accessible on a dynamically allocated port. Check the current port with:
+```bash
+vrooli scenario status knowledge-observatory
+```
+Then access at `http://localhost:${UI_PORT}`
 
 ### CLI Commands
 ```bash
@@ -86,17 +90,22 @@ knowledge-observatory health --watch
 ```
 
 ### API Endpoints
+The API is accessible on a dynamically allocated port. Check with `vrooli scenario status knowledge-observatory`.
+
 ```bash
+# Get the API port (example shows typical port)
+API_PORT=$(vrooli scenario status knowledge-observatory --json | jq -r '.ports.API_PORT')
+
 # Search knowledge
-curl -X POST http://localhost:20260/api/v1/knowledge/search \
+curl -X POST http://localhost:${API_PORT}/api/v1/knowledge/search \
   -H "Content-Type: application/json" \
   -d '{"query": "agent workflows", "limit": 10}'
 
 # Get health metrics
-curl http://localhost:20260/api/v1/knowledge/health
+curl http://localhost:${API_PORT}/api/v1/knowledge/health
 
 # Generate knowledge graph
-curl -X POST http://localhost:20260/api/v1/knowledge/graph \
+curl -X POST http://localhost:${API_PORT}/api/v1/knowledge/graph \
   -d '{"center_concept": "research", "depth": 3}'
 ```
 

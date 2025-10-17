@@ -1,3 +1,29 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__brandManagerBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        let parentOrigin;
+        try {
+            if (document.referrer) {
+                parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[BrandManager] Unable to parse parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'brand-manager' });
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
+
 // Brand Manager Application Logic
 class BrandManager {
     constructor() {

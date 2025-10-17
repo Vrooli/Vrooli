@@ -75,7 +75,7 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${CHART_API_PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -83,7 +83,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${CHART_UI_PORT}/health",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 3000,
           "interval": 60000
@@ -91,7 +91,7 @@
         {
           "name": "chart_generation_test",
           "type": "http",
-          "target": "http://localhost:${CHART_API_PORT}/api/v1/health/generation",
+          "target": "http://localhost:${API_PORT}/api/v1/health/generation",
           "critical": true,
           "timeout": 10000,
           "interval": 300000,
@@ -109,7 +109,7 @@
            {
              "type": "binaries",
              "targets": [
-               "chart-generator-api"
+               "api/chart-generator-api"
              ]
            },
            {
@@ -142,7 +142,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 Chart Generator initialized\\n  Style Management UI: http://localhost:${CHART_UI_PORT}\\n  Chart Generation API: http://localhost:${CHART_API_PORT}\\n  CLI: chart-generator --help\\n  \\n📊 Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
+          "run": "echo '🎨 Chart Generator initialized\\n  Style Management UI: http://localhost:${UI_PORT}\\n  Chart Generation API: http://localhost:${API_PORT}\\n  CLI: chart-generator --help\\n  \\n📊 Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
           "description": "Display service access URLs and usage examples"
         }
       ]
@@ -161,16 +161,16 @@
          },
         {
           "name": "start-ui",
-          "run": "cd ui && python3 -m http.server ${CHART_UI_PORT}",
-          "description": "Start style management UI server",
+          "run": "cd ui && node server.js",
+          "description": "Start style management UI server with health endpoint",
           "background": true,
           "condition": {
-            "file_exists": "ui/index.html"
+            "file_exists": "ui/server.js"
           }
         },
          {
            "name": "show-urls",
-           "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${CHART_UI_PORT}\\n  Chart API: http://localhost:${CHART_API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
+           "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${UI_PORT}\\n  Chart API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
            "description": "Display all running service URLs and CLI info"
          }
       ]

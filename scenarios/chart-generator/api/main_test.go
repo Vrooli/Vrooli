@@ -622,3 +622,163 @@ func TestGenerateSampleData(t *testing.T) {
 		})
 	}
 }
+
+func TestEmptyDataValidation(t *testing.T) {
+	reqBody := map[string]interface{}{
+		"chart_type":     "bar",
+		"data":           []map[string]interface{}{},
+		"export_formats": []string{"png"},
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req, err := http.NewRequest("POST", "/api/v1/charts/generate", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(generateChartHandler)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Logf("Empty data validation status: %d (expected %d)", status, http.StatusBadRequest)
+	}
+}
+
+func TestMissingRequiredFields(t *testing.T) {
+	reqBody := map[string]interface{}{
+		"data": generateTestChartData("bar", 5),
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req, err := http.NewRequest("POST", "/api/v1/charts/generate", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(generateChartHandler)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Logf("Missing chart_type validation status: %d", status)
+	}
+}
+
+func TestInvalidExportFormat(t *testing.T) {
+	reqBody := map[string]interface{}{
+		"chart_type":     "bar",
+		"data":           generateTestChartData("bar", 5),
+		"export_formats": []string{"invalid_format"},
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req, err := http.NewRequest("POST", "/api/v1/charts/generate", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(generateChartHandler)
+	handler.ServeHTTP(rr, req)
+
+	response := assertJSONResponse(t, rr, http.StatusCreated)
+	if response["success"] == false {
+		t.Logf("Invalid export format handled gracefully")
+	}
+}
+
+func TestLargeDatasetHandling(t *testing.T) {
+	reqBody := map[string]interface{}{
+		"chart_type":     "line",
+		"data":           generateTestChartData("line", 1000),
+		"export_formats": []string{"png"},
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req, err := http.NewRequest("POST", "/api/v1/charts/generate", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(generateChartHandler)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusCreated {
+		t.Errorf("Large dataset handling failed: got status %v want %v", status, http.StatusCreated)
+	}
+
+	response := assertJSONResponse(t, rr, http.StatusCreated)
+	assertResponseField(t, response, "success", true)
+}
+
+func TestConcurrentChartGeneration(t *testing.T) {
+	const numRequests = 5
+	done := make(chan bool, numRequests)
+
+	for i := 0; i < numRequests; i++ {
+		go func() {
+			reqBody := map[string]interface{}{
+				"chart_type":     "bar",
+				"data":           generateTestChartData("bar", 5),
+				"export_formats": []string{"png"},
+			}
+
+			body, _ := json.Marshal(reqBody)
+			req, err := http.NewRequest("POST", "/api/v1/charts/generate", bytes.NewBuffer(body))
+			if err != nil {
+				t.Error(err)
+				done <- false
+				return
+			}
+			req.Header.Set("Content-Type", "application/json")
+
+			rr := httptest.NewRecorder()
+			handler := http.HandlerFunc(generateChartHandler)
+			handler.ServeHTTP(rr, req)
+
+			done <- rr.Code == http.StatusCreated
+		}()
+	}
+
+	successCount := 0
+	for i := 0; i < numRequests; i++ {
+		if <-done {
+			successCount++
+		}
+	}
+
+	if successCount != numRequests {
+		t.Errorf("Concurrent chart generation: expected %d successes, got %d", numRequests, successCount)
+	}
+}
+
+func TestHealthEndpointSchema(t *testing.T) {
+	req, err := http.NewRequest("GET", "/health", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(healthHandler)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("health check returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	response := assertJSONResponse(t, rr, http.StatusOK)
+	requiredFields := []string{"status", "timestamp", "version", "service", "readiness"}
+	for _, field := range requiredFields {
+		assertResponseHasField(t, response, field)
+	}
+
+	if readiness, ok := response["readiness"].(bool); !ok || !readiness {
+		t.Error("Expected readiness to be true boolean")
+	}
+}

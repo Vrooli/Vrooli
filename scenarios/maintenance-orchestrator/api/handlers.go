@@ -183,6 +183,56 @@ func handleApplyPreset(orchestrator *Orchestrator) http.HandlerFunc {
 	}
 }
 
+func handleCreatePreset(orchestrator *Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name             string          `json:"name"`
+			Description      string          `json:"description"`
+			States           map[string]bool `json:"states,omitempty"`
+			Tags             []string        `json:"tags,omitempty"`
+			FromCurrentState bool            `json:"fromCurrentState,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		// Validate required fields
+		if req.Name == "" {
+			http.Error(w, "Name is required", http.StatusBadRequest)
+			return
+		}
+
+		var preset *Preset
+		var err error
+
+		if req.FromCurrentState {
+			// Create preset from current state of all scenarios
+			preset, err = orchestrator.CreatePresetFromCurrentState(req.Name, req.Description)
+		} else {
+			// Create preset from provided states
+			if req.States == nil || len(req.States) == 0 {
+				http.Error(w, "States are required when not creating from current state", http.StatusBadRequest)
+				return
+			}
+			preset, err = orchestrator.CreatePreset(req.Name, req.Description, req.States, req.Tags)
+		}
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"preset":  preset,
+		})
+	}
+}
+
 func handleGetStatus(orchestrator *Orchestrator, startTime time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		totalScenarios, activeCount, recentActivity := orchestrator.GetStatus()
@@ -504,6 +554,7 @@ func handleStartScenario() http.HandlerFunc {
 		if err != nil {
 			log.Printf("Error starting scenario %s: %v, stderr: %s", scenarioID, err, stderr.String())
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   fmt.Sprintf("Failed to start scenario: %v", err),
@@ -540,6 +591,7 @@ func handleStopScenario() http.HandlerFunc {
 		if err != nil {
 			log.Printf("Error stopping scenario %s: %v, stderr: %s", scenarioID, err, stderr.String())
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   fmt.Sprintf("Failed to stop scenario: %v", err),
@@ -560,8 +612,12 @@ func handleStopScenario() http.HandlerFunc {
 // Fetch scenario statuses using vrooli CLI
 func handleGetScenarioStatuses() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Create context with 5 second timeout to prevent test hangs
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
 		// Run vrooli scenario status --json
-		cmd := exec.Command("vrooli", "scenario", "status", "--json")
+		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", "--json")
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
@@ -572,6 +628,7 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 			// Log error but don't fail - return empty statuses
 			log.Printf("Error fetching scenario statuses: %v, stderr: %s", err, stderr.String())
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"statuses": map[string]interface{}{},
 			})
@@ -583,6 +640,7 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 		if err := json.Unmarshal(out.Bytes(), &statusData); err != nil {
 			log.Printf("Error parsing scenario status JSON: %v", err)
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"statuses": map[string]interface{}{},
 			})
@@ -630,7 +688,11 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 // List all scenarios using vrooli CLI
 func handleListAllScenarios() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cmd := exec.Command("vrooli", "scenario", "list", "--json")
+		// Create context with 5 second timeout to prevent test hangs
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
@@ -865,6 +927,7 @@ func handleGetScenarioPort() http.HandlerFunc {
 			// Scenario might not be running or might not have the requested port
 			log.Printf("Error getting port for %s/%s: %v, stderr: %s", scenarioName, portType, err, stderr.String())
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"port":  nil,
 				"error": "Port not available",

@@ -1,5 +1,31 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
 const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':' + (window.API_PORT || '5680');
 const N8N_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':' + (window.N8N_PORT || '5678');
+
+const BRIDGE_FLAG = '__audioIntelligenceBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        let parentOrigin;
+        try {
+            if (document.referrer) {
+                parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[AudioIntelligence] Unable to parse parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'audio-intelligence-platform' });
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
 
 let currentTranscriptionId = null;
 let audioPlayer = null;
@@ -391,3 +417,5 @@ function formatHours(hours) {
     if (hours < 1) return `${Math.floor(hours * 60)}m`;
     return `${hours.toFixed(1)}h`;
 }
+
+window.loadTranscription = loadTranscription;

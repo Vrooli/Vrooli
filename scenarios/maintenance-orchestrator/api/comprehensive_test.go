@@ -521,9 +521,14 @@ func TestCORSMiddleware_Comprehensive(t *testing.T) {
 
 		w := makeHTTPRequest(env, req)
 
-		// Check CORS headers
-		if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
-			t.Errorf("Expected Access-Control-Allow-Origin='*', got '%s'", origin)
+		// Check CORS headers - should be specific origin for security
+		origin := w.Header().Get("Access-Control-Allow-Origin")
+		if origin == "" {
+			t.Error("Expected Access-Control-Allow-Origin header to be set")
+		}
+		// Should NOT be wildcard for security
+		if origin == "*" {
+			t.Error("Access-Control-Allow-Origin should not be wildcard (*) for security")
 		}
 
 		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods == "" {

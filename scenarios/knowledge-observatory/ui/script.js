@@ -1,4 +1,11 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const isBrowser = typeof window !== 'undefined';
+
 const iframeParentOrigin = (() => {
+    if (!isBrowser) {
+        return undefined;
+    }
     try {
         return document.referrer ? new URL(document.referrer).origin : undefined;
     } catch (error) {
@@ -6,13 +13,155 @@ const iframeParentOrigin = (() => {
     }
 })();
 
-if (typeof window !== 'undefined' && window.parent !== window && typeof window.initIframeBridgeChild === 'function') {
-    window.initIframeBridgeChild({ appId: 'knowledge-observatory', parentOrigin: iframeParentOrigin });
+if (isBrowser && window.parent !== window) {
+    initIframeBridgeChild({ appId: 'knowledge-observatory', parentOrigin: iframeParentOrigin });
 }
 
-const API_URL = window.location.hostname === 'localhost' 
-    ? `http://localhost:20270`
-    : '/api';
+const API_BASE = resolveApiBase();
+
+function buildApiUrl(path) {
+    return joinUrl(API_BASE, path);
+}
+
+function buildWebSocketUrl(path) {
+    const httpUrl = buildApiUrl(path);
+    if (httpUrl.startsWith('https://')) {
+        return `wss://${httpUrl.slice('https://'.length)}`;
+    }
+    if (httpUrl.startsWith('http://')) {
+        return `ws://${httpUrl.slice('http://'.length)}`;
+    }
+    if (httpUrl.startsWith('//')) {
+        return `ws${httpUrl.slice(2)}`;
+    }
+    return httpUrl.replace(/^http/i, 'ws');
+}
+
+function resolveApiBase() {
+    if (!isBrowser) {
+        return '/api';
+    }
+
+    const proxyCandidate = resolveProxyCandidate();
+    if (proxyCandidate) {
+        return joinUrl(proxyCandidate, '/api');
+    }
+
+    const envUrl = typeof window.ENV?.API_URL === 'string' ? window.ENV.API_URL.trim() : '';
+    if (envUrl) {
+        return joinUrl(envUrl, '/api');
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const host = window.location.hostname || 'localhost';
+    const fallbackPort = resolveFallbackPort(host);
+    const origin = `${protocol}://${host}${fallbackPort ? `:${fallbackPort}` : ''}`;
+
+    return joinUrl(origin, '/api');
+}
+
+function resolveProxyCandidate() {
+    const info = isBrowser ? window.__APP_MONITOR_PROXY_INFO__ : undefined;
+    if (!info) {
+        return undefined;
+    }
+
+    const candidate = pickProxyEndpoint(info);
+    if (!candidate) {
+        return undefined;
+    }
+
+    if (/^https?:\/\//i.test(candidate)) {
+        return stripTrailingSlash(candidate);
+    }
+
+    return stripTrailingSlash(joinUrl(window.location.origin, candidate));
+}
+
+function pickProxyEndpoint(info) {
+    const candidates = [];
+
+    const append = (endpoint) => {
+        if (!endpoint) {
+            return;
+        }
+        if (typeof endpoint === 'string') {
+            const trimmed = endpoint.trim();
+            if (trimmed) {
+                candidates.push(trimmed);
+            }
+            return;
+        }
+        if (typeof endpoint.url === 'string') {
+            const url = endpoint.url.trim();
+            if (url) {
+                candidates.push(url);
+            }
+        }
+        if (typeof endpoint.path === 'string') {
+            const path = endpoint.path.trim();
+            if (path) {
+                candidates.push(path);
+            }
+        }
+        if (typeof endpoint.target === 'string') {
+            const target = endpoint.target.trim();
+            if (target) {
+                candidates.push(target);
+            }
+        }
+    };
+
+    append(info.primary);
+    if (Array.isArray(info.endpoints)) {
+        info.endpoints.forEach(append);
+    }
+
+    return candidates.find(Boolean);
+}
+
+function resolveFallbackPort(hostname) {
+    const envValue = window.ENV?.API_PORT;
+    if (typeof envValue === 'string' && envValue.trim()) {
+        return envValue.trim();
+    }
+    if (typeof envValue === 'number' && Number.isFinite(envValue)) {
+        return String(envValue);
+    }
+    if (typeof window.location.port === 'string' && window.location.port.trim()) {
+        return window.location.port.trim();
+    }
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return '20270';
+    }
+    return '';
+}
+
+function stripTrailingSlash(value) {
+    if (!value) {
+        return '';
+    }
+    if (value.endsWith('/') && !/^https?:\/\/$/i.test(value)) {
+        return value.replace(/\/+$/, '');
+    }
+    return value;
+}
+
+function ensureLeadingSlash(value) {
+    if (!value) {
+        return '/';
+    }
+    return value.startsWith('/') ? value : `/${value}`;
+}
+
+function joinUrl(base, segment) {
+    const normalizedBase = stripTrailingSlash(base);
+    const normalizedSegment = ensureLeadingSlash(segment);
+    if (!normalizedBase) {
+        return normalizedSegment;
+    }
+    return `${normalizedBase}${normalizedSegment}`;
+}
 
 let currentTab = 'dashboard';
 let selectedCollection = 'all';
@@ -23,7 +172,7 @@ let metricsData = null;
 
 async function fetchHealth() {
     try {
-        const response = await fetch(`${API_URL}/api/v1/knowledge/health`);
+        const response = await fetch(buildApiUrl('/v1/knowledge/health'));
         const data = await response.json();
         healthData = data;
         updateHealthDisplay(data);
@@ -125,7 +274,7 @@ async function performSearch() {
             body.collection = selectedCollection;
         }
         
-        const response = await fetch(`${API_URL}/api/v1/knowledge/search`, {
+        const response = await fetch(buildApiUrl('/v1/knowledge/search'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -173,7 +322,7 @@ function showResultDetail(id) {
 
 async function fetchGraph() {
     try {
-        const response = await fetch(`${API_URL}/api/v1/knowledge/graph`, {
+        const response = await fetch(buildApiUrl('/v1/knowledge/graph'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -256,7 +405,7 @@ function renderGraph(data) {
 
 async function fetchMetrics() {
     try {
-        const response = await fetch(`${API_URL}/api/v1/knowledge/metrics`, {
+        const response = await fetch(buildApiUrl('/v1/knowledge/metrics'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
@@ -342,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    const ws = new WebSocket(`ws://localhost:${process.env.API_PORT || 20260}/api/v1/knowledge/stream`);
+    const ws = new WebSocket(buildWebSocketUrl('/v1/knowledge/stream'));
     
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);

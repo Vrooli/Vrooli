@@ -1,7 +1,33 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
 /**
  * Bookmark Intelligence Hub - Frontend Application
  * Professional dashboard for managing intelligent bookmark processing
  */
+
+const BRIDGE_FLAG = '__bookmarkIntelligenceBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        let parentOrigin;
+        try {
+            if (document.referrer) {
+                parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[BookmarkIntelligenceHub] Unable to parse parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'bookmark-intelligence-hub' });
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
 
 class BookmarkIntelligenceHub {
     constructor() {

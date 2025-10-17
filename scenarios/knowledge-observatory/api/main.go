@@ -22,10 +22,11 @@ import (
 )
 
 type Config struct {
-	Port        string
-	QdrantURL   string
-	PostgresDB  string
-	ResourceCLI string
+	Port          string
+	QdrantURL     string
+	PostgresDB    string
+	ResourceCLI   string
+	AllowedOrigins []string
 }
 
 type Server struct {
@@ -175,11 +176,25 @@ type QdrantSearchResponse struct {
 }
 
 func NewServer() (*Server, error) {
+	// Parse allowed origins from environment variable or use defaults
+	allowedOrigins := []string{}
+	if originsEnv := os.Getenv("ALLOWED_ORIGINS"); originsEnv != "" {
+		allowedOrigins = strings.Split(originsEnv, ",")
+	} else {
+		// Default to localhost origins for local development
+		uiPort := getEnv("UI_PORT", "35000")
+		allowedOrigins = []string{
+			"http://localhost:" + uiPort,
+			"http://127.0.0.1:" + uiPort,
+		}
+	}
+
 	config := Config{
-		Port:        getEnv("API_PORT", getEnv("PORT", "")),
-		QdrantURL:   getEnv("QDRANT_URL", "http://localhost:6333"),
-		PostgresDB:  requireEnv("POSTGRES_URL"),
-		ResourceCLI: getEnv("RESOURCE_QDRANT_CLI", "resource-qdrant"),
+		Port:           getEnv("API_PORT", getEnv("PORT", "")),
+		QdrantURL:      getEnv("QDRANT_URL", "http://localhost:6333"),
+		PostgresDB:     requireEnv("POSTGRES_URL"),
+		ResourceCLI:    getEnv("RESOURCE_QDRANT_CLI", "resource-qdrant"),
+		AllowedOrigins: allowedOrigins,
 	}
 
 	db, err := sql.Open("postgres", config.PostgresDB)
@@ -717,11 +732,12 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 		"response_time_ms":     time.Since(start).Milliseconds(),
 	}
 	
-	// Knowledge observatory specific info
+	// Knowledge observatory specific info (lightweight stats only - detailed collection health available via /api/v1/knowledge/health)
+	totalEntries := calculateTotalEntries()
 	healthResponse["knowledge_stats"] = map[string]interface{}{
-		"total_entries": calculateTotalEntries(),
-		"collections": s.getCollectionsHealth(),
-		"overall_health": calculateOverallHealth(),
+		"total_entries":   totalEntries,
+		"collections":     nil, // Omit detailed collection health from /health endpoint to improve response time
+		"overall_health":  calculateOverallHealth(),
 	}
 	
 	// Return appropriate HTTP status
@@ -811,16 +827,6 @@ func (s *Server) metricsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) timelineHandler(w http.ResponseWriter, r *http.Request) {
-	// Enable CORS
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	
 	var req TimelineRequest
 	if r.Method == "POST" {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -996,21 +1002,36 @@ func requireEnv(key string) string {
 				dbUser, dbPassword, dbHost, dbPort, dbName)
 		}
 	}
-	log.Fatalf("❌ %s environment variable is required (or provide POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB)", key)
+	log.Fatalf("❌ %s environment variable is required (or provide individual PostgreSQL connection environment variables)", key)
 	return ""
 }
 
-func enableCORS(next http.Handler) http.Handler {
+func (s *Server) enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+
+		// Check if origin is in allowed list
+		allowed := false
+		for _, allowedOrigin := range s.config.AllowedOrigins {
+			if origin == allowedOrigin || allowedOrigin == "*" {
+				allowed = true
+				break
+			}
+		}
+
+		if allowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -1410,7 +1431,7 @@ func main() {
 	router.HandleFunc("/api/v1/knowledge/timeline", server.timelineHandler).Methods("GET", "POST", "OPTIONS")
 	router.HandleFunc("/api/v1/knowledge/stream", server.streamHandler).Methods("GET")
 	
-	handler := enableCORS(router)
+	handler := server.enableCORS(router)
 	
 	log.Printf("🔭 Knowledge Observatory API starting on port %s", server.config.Port)
 	log.Printf("📊 Qdrant CLI: %s", server.config.ResourceCLI)

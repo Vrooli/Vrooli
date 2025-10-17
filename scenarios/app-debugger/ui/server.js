@@ -1,15 +1,44 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+import express from 'express'
+import cors from 'cors'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 
-const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+const app = express()
+const PORT = process.env.UI_PORT || process.env.PORT
+const BRIDGE_FLAG = '__appDebuggerBridgeInitialized'
+
+function initializeIframeBridge() {
+  if (typeof window === 'undefined') {
+    return
+  }
+  if (window.parent === window) {
+    return
+  }
+  if (window[BRIDGE_FLAG]) {
+    return
+  }
+
+  if (window.parent !== window) {
+    initIframeBridgeChild({ appId: 'app-debugger' })
+    window[BRIDGE_FLAG] = true
+  }
+}
+
+try {
+  initializeIframeBridge()
+} catch (error) {
+  console.error('[AppDebugger] Failed to initialize iframe bridge', error)
+}
 
 // Enable CORS for API communication
-app.use(cors());
+app.use(cors())
 
 // Serve static files
-app.use(express.static(__dirname));
+app.use(express.static(__dirname))
 
 // Main route
 app.get('/', (req, res) => {

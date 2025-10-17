@@ -15,6 +15,7 @@ Think of it as "mission control" for system maintenance - you decide exactly wha
 - **Preset configurations** for common maintenance patterns
 - **Real-time dashboard** showing maintenance status
 - **Resource monitoring** to prevent overload
+- **Confirmation dialogs** for bulk operations (prevents accidental changes)
 - **Calendar integration** (optional) for scheduled maintenance
 
 ## Quick Start
@@ -68,14 +69,15 @@ Essential maintenance only:
 
 ## Web UI
 
-Access the dashboard at `http://localhost:3250` (or configured port).
+Access the dashboard at `http://localhost:36222` (or configured port).
 
 Features:
 - Visual status indicators for each scenario
-- One-click preset activation
+- One-click preset activation with confirmation dialogs
 - Activity log with timestamps
-- Resource usage graphs
+- Resource usage monitoring
 - Quick toggle switches
+- Preset preview showing affected scenarios
 
 ## API Endpoints
 
@@ -150,6 +152,41 @@ maintenance-orchestrator preset create my-preset
 maintenance-orchestrator preset import preset.json
 ```
 
+## Testing
+
+The maintenance-orchestrator has comprehensive test coverage:
+
+### Test Infrastructure (7 phases)
+1. **Structure**: Validates required files and directory structure
+2. **Dependencies**: Checks Go dependencies and build requirements
+3. **Unit**: 8 Go unit tests covering core orchestrator logic (72.9% coverage)
+4. **Integration**: API endpoint and UI accessibility tests
+5. **CLI**: 25 BATS tests covering all CLI commands and workflows
+6. **Business**: End-to-end business logic validation
+7. **Performance**: Response time and resource usage verification
+
+### Running Tests
+```bash
+# Run all tests
+make test
+
+# Run specific test phase
+./test/run-tests.sh --phase cli
+
+# Run CLI tests directly
+cd cli && bats maintenance-orchestrator.bats
+```
+
+### CLI Test Coverage
+The BATS test suite validates:
+- Help and version commands
+- Status reporting (human and JSON output)
+- Scenario listing and filtering
+- Activation/deactivation with error handling
+- Preset management
+- Full lifecycle integration tests
+- Performance benchmarks (<2s response time)
+
 ## Architecture
 
 ```
@@ -167,7 +204,7 @@ maintenance-orchestrator preset import preset.json
 ├─────────────────────────────────────┤
 │  Control Interface                  │
 │  ├─ REST API                        │
-│  ├─ CLI Commands                    │
+│  ├─ CLI Commands (25 BATS tests)    │
 │  └─ Web Dashboard                   │
 ├─────────────────────────────────────┤
 │  Integration Layer                  │

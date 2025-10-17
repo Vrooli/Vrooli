@@ -18,6 +18,7 @@ testing::runner::register_phase --name structure --script "$TEST_DIR/phases/test
 testing::runner::register_phase --name dependencies --script "$TEST_DIR/phases/test-dependencies.sh" --timeout 30
 testing::runner::register_phase --name unit --script "$TEST_DIR/phases/test-unit.sh" --timeout 60
 testing::runner::register_phase --name integration --script "$TEST_DIR/phases/test-integration.sh" --timeout 120 --requires-runtime true
+testing::runner::register_phase --name cli --script "$TEST_DIR/phases/test-cli.sh" --timeout 120 --requires-runtime true
 testing::runner::register_phase --name business --script "$TEST_DIR/phases/test-business.sh" --timeout 180 --requires-runtime true
 testing::runner::register_phase --name performance --script "$TEST_DIR/phases/test-performance.sh" --timeout 60 --requires-runtime true
 
@@ -25,6 +26,6 @@ testing::runner::register_test_type --name go --handler "$TEST_DIR/unit/run-unit
 
 testing::runner::define_preset quick "structure unit"
 testing::runner::define_preset smoke "structure integration"
-testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+testing::runner::define_preset comprehensive "structure dependencies unit integration cli business performance"
 
 testing::runner::execute "$@"

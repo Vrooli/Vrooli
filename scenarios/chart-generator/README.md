@@ -59,7 +59,16 @@ chart-generator generate bar --data sales.json --style professional --format png
 ```
 
 ### 3. Use the Web Interface
-Open http://localhost:20301 for the style management interface
+```bash
+# Get the UI port dynamically
+UI_PORT=$(vrooli scenario port chart-generator UI_PORT)
+echo "Open http://localhost:${UI_PORT} for the style management interface"
+```
+
+Or check the status to see all service URLs:
+```bash
+vrooli scenario status chart-generator
+```
 
 ## 💻 CLI Usage
 
@@ -101,9 +110,14 @@ chart-generator generate candlestick --data stock-prices.json --style financial 
 
 ## 🔌 API Integration
 
+First, get the API port dynamically:
+```bash
+API_PORT=$(vrooli scenario port chart-generator API_PORT)
+```
+
 ### Generate Chart via API
 ```bash
-curl -X POST http://localhost:20300/api/v1/charts/generate \
+curl -X POST http://localhost:${API_PORT}/api/v1/charts/generate \
   -H "Content-Type: application/json" \
   -d '{
     "chart_type": "bar",
@@ -116,19 +130,19 @@ curl -X POST http://localhost:20300/api/v1/charts/generate \
 
 ### List Available Styles
 ```bash
-curl http://localhost:20300/api/v1/styles
+curl http://localhost:${API_PORT}/api/v1/styles
 ```
 
 ### Style Builder API
 
 #### Get Color Palettes
 ```bash
-curl http://localhost:20300/api/v1/styles/builder/palettes
+curl http://localhost:${API_PORT}/api/v1/styles/builder/palettes
 ```
 
 #### Preview Custom Style
 ```bash
-curl -X POST http://localhost:20300/api/v1/styles/builder/preview \
+curl -X POST http://localhost:${API_PORT}/api/v1/styles/builder/preview \
   -H "Content-Type: application/json" \
   -d '{
     "chart_type": "bar",
@@ -148,7 +162,7 @@ curl -X POST http://localhost:20300/api/v1/styles/builder/preview \
 
 #### Save Custom Style
 ```bash
-curl -X POST http://localhost:20300/api/v1/styles/builder/save \
+curl -X POST http://localhost:${API_PORT}/api/v1/styles/builder/save \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Corporate Blue",
@@ -164,7 +178,7 @@ curl -X POST http://localhost:20300/api/v1/styles/builder/save \
 ### Composite Charts (NEW P1 Feature)
 ```bash
 # Generate multiple charts in single canvas
-curl -X POST http://localhost:20300/api/v1/charts/composite \
+curl -X POST http://localhost:${API_PORT}/api/v1/charts/composite \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Executive Dashboard",
@@ -186,7 +200,7 @@ curl -X POST http://localhost:20300/api/v1/charts/composite \
 ### Data Transformation (NEW P1 Feature)
 ```bash
 # Transform data with aggregation, filtering, and sorting
-curl -X POST http://localhost:20300/api/v1/data/transform \
+curl -X POST http://localhost:${API_PORT}/api/v1/data/transform \
   -H "Content-Type: application/json" \
   -d '{
     "data": [
@@ -205,13 +219,13 @@ curl -X POST http://localhost:20300/api/v1/data/transform \
 ### Industry Templates (NEW P1 Feature)
 ```bash
 # List all templates
-curl http://localhost:20300/api/v1/templates
+curl http://localhost:${API_PORT}/api/v1/templates
 
 # Filter by industry
-curl http://localhost:20300/api/v1/templates?industry=finance
+curl http://localhost:${API_PORT}/api/v1/templates?industry=finance
 
 # Get specific template
-curl http://localhost:20300/api/v1/templates/stock-performance
+curl http://localhost:${API_PORT}/api/v1/templates/stock-performance
 ```
 
 ## 🎨 Style Management
@@ -223,11 +237,12 @@ curl http://localhost:20300/api/v1/templates/stock-performance
 - **Template Management** - Save and reuse common chart configurations
 
 ### Creating Custom Styles
-1. Open the style management UI at http://localhost:20301
-2. Click "Create Custom Style"
-3. Configure colors, typography, and spacing
-4. Preview with sample data
-5. Save for future use
+1. Get the UI port: `UI_PORT=$(vrooli scenario port chart-generator UI_PORT)`
+2. Open the style management UI at `http://localhost:${UI_PORT}`
+3. Click "Create Custom Style"
+4. Configure colors, typography, and spacing
+5. Preview with sample data
+6. Save for future use
 
 ## 🔄 Cross-Scenario Integration
 
@@ -310,7 +325,7 @@ Category C,120
 Generate PDF reports with embedded charts and data:
 ```bash
 # Generate a PDF report with chart and data table
-curl -X POST http://localhost:20300/api/v1/charts/generate \
+curl -X POST http://localhost:${API_PORT}/api/v1/charts/generate \
   -H "Content-Type: application/json" \
   -d '{
     "chart_type": "bar",
@@ -368,11 +383,10 @@ Run the full test suite to validate all features:
 
 ### Environment Variables
 ```bash
-# API Configuration
-CHART_API_PORT=20300        # Chart generation API port
-CHART_UI_PORT=20301         # Style management UI port
+# Ports are dynamically allocated by the lifecycle system
+# Get current ports: vrooli scenario port chart-generator
 
-# Database Configuration  
+# Database Configuration
 POSTGRES_HOST=localhost     # PostgreSQL host
 POSTGRES_PORT=5432         # PostgreSQL port
 POSTGRES_DB=chart_generator # Database name

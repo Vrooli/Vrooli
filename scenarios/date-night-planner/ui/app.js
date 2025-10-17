@@ -24,8 +24,196 @@ bootstrapIframeBridge();
 
 // Date Night Planner - Main Application JavaScript
 
+const DEFAULT_API_PORT = 8080;
+const PROXY_PATH_FALLBACK = '/proxy';
+const LOOPBACK_HOST_FALLBACK = ['127', '0', '0', '1'].join('.');
+
+function getCurrentLocation() {
+    if (typeof window === 'undefined' || !window.location) {
+        return undefined;
+    }
+    const { protocol, hostname, port } = window.location;
+    return {
+        protocol: typeof protocol === 'string' && protocol ? protocol.replace(/:$/, '') : undefined,
+        hostname: typeof hostname === 'string' && hostname ? hostname : undefined,
+        port: typeof port === 'string' && port ? port : undefined
+    };
+}
+
+function resolveLoopbackBase(port = DEFAULT_API_PORT) {
+    const info = getCurrentLocation();
+    const protocol = info?.protocol || 'http';
+    const hostname = info?.hostname || (typeof process !== 'undefined' && process?.env?.API_HOST) || LOOPBACK_HOST_FALLBACK;
+    const preferredPort = Number.isFinite(port) && port > 0 ? String(port) : undefined;
+    const finalPort = preferredPort || info?.port || '';
+    const authority = finalPort ? `${hostname}:${finalPort}` : hostname;
+    return `${protocol}://${authority}`;
+}
+
+function stripTrailingSlash(value) {
+    if (typeof value !== 'string' || value.length === 0) {
+        return '';
+    }
+    if (/^https?:\/\/$/i.test(value)) {
+        return value;
+    }
+    return value.replace(/\/+$/, '');
+}
+
+function ensureLeadingSlash(value) {
+    if (typeof value !== 'string' || value.length === 0) {
+        return '';
+    }
+    return value.startsWith('/') ? value : `/${value}`;
+}
+
+function joinUrl(base, segment) {
+    const normalizedBase = stripTrailingSlash(base || '');
+    const normalizedSegment = ensureLeadingSlash(segment || '');
+    if (!normalizedBase) {
+        return normalizedSegment;
+    }
+    if (!normalizedSegment) {
+        return normalizedBase;
+    }
+    return `${normalizedBase}${normalizedSegment}`;
+}
+
+function normalizeCandidate(candidate) {
+    if (typeof candidate !== 'string') {
+        return '';
+    }
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+        return '';
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (trimmed.startsWith('//')) {
+        if (typeof window !== 'undefined' && window.location) {
+            return stripTrailingSlash(`${window.location.protocol}${trimmed}`);
+        }
+        return stripTrailingSlash(`https:${trimmed}`);
+    }
+
+    if (trimmed.startsWith('/')) {
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (typeof window !== 'undefined' && window.location) {
+        return stripTrailingSlash(joinUrl(window.location.origin, trimmed));
+    }
+
+    return '';
+}
+
+function pickProxyCandidate(info) {
+    if (!info || typeof info !== 'object') {
+        return undefined;
+    }
+
+    const collectEndpoint = (endpoint) => {
+        if (!endpoint) {
+            return undefined;
+        }
+        return endpoint.url || endpoint.path || endpoint.target;
+    };
+
+    if (Array.isArray(info.ports)) {
+        const ranked = [];
+        info.ports.forEach((entry) => {
+            if (!entry) {
+                return;
+            }
+            const aliases = Array.isArray(entry.aliases)
+                ? entry.aliases.map((alias) => String(alias).toLowerCase())
+                : [];
+            const label = typeof entry.label === 'string' ? entry.label.toLowerCase() : '';
+            const isApiPort = aliases.some((alias) => alias.includes('api')) || label.includes('api');
+            const priority = isApiPort ? 0 : 1;
+            [entry.url, entry.path, entry.target]
+                .filter((value) => typeof value === 'string' && value.trim())
+                .forEach((value) => ranked.push({ value, priority }));
+            if (Array.isArray(entry.routes)) {
+                entry.routes
+                    .filter((route) => typeof route === 'string' && route.trim())
+                    .forEach((route) => ranked.push({ value: route, priority }));
+            }
+        });
+        ranked.sort((a, b) => a.priority - b.priority);
+        const match = ranked.find((item) => item.value && item.value.trim().length > 0);
+        if (match) {
+            return match.value;
+        }
+    }
+
+    const primaryCandidate = collectEndpoint(info.primary);
+    if (primaryCandidate) {
+        return primaryCandidate;
+    }
+
+    if (Array.isArray(info.endpoints)) {
+        for (const endpoint of info.endpoints) {
+            const candidate = collectEndpoint(endpoint);
+            if (candidate) {
+                return candidate;
+            }
+        }
+    }
+
+    if (typeof info.apiBase === 'string' && info.apiBase.trim()) {
+        return info.apiBase;
+    }
+
+    if (typeof info.baseUrl === 'string' && info.baseUrl.trim()) {
+        return info.baseUrl;
+    }
+
+    return undefined;
+}
+
+function resolveProxyMetadataBase() {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+    const info = window.__APP_MONITOR_PROXY_INFO__;
+    const candidate = pickProxyCandidate(info);
+    if (!candidate) {
+        return undefined;
+    }
+    return normalizeCandidate(candidate);
+}
+
+function resolveApiBase(...preferredCandidates) {
+    const metadataBase = resolveProxyMetadataBase();
+    if (metadataBase) {
+        return metadataBase;
+    }
+
+    for (const candidate of preferredCandidates) {
+        const normalized = normalizeCandidate(candidate);
+        if (normalized) {
+            return normalized;
+        }
+    }
+
+    if (typeof window !== 'undefined' && window.location) {
+        const origin = window.location.origin || '';
+        const normalized = normalizeCandidate(origin ? `${origin}${PROXY_PATH_FALLBACK}` : PROXY_PATH_FALLBACK);
+        if (normalized) {
+            return normalized;
+        }
+    }
+
+    return resolveLoopbackBase(DEFAULT_API_PORT);
+}
+
 let config = {
-    apiUrl: 'http://localhost:8080',
+    apiUrl: resolveApiBase(resolveLoopbackBase(DEFAULT_API_PORT)),
+    proxyApiUrl: PROXY_PATH_FALLBACK,
     version: '1.0.0'
 };
 
@@ -34,10 +222,25 @@ async function loadConfig() {
     try {
         const response = await fetch('/config');
         if (response.ok) {
-            config = await response.json();
+            const remoteConfig = await response.json();
+            const directCandidate = typeof remoteConfig.apiUrl === 'string' ? remoteConfig.apiUrl : '';
+            const proxyUrlCandidate = typeof remoteConfig.proxyApiUrl === 'string' ? remoteConfig.proxyApiUrl : '';
+            const proxyPathCandidate = typeof remoteConfig.proxyApiPath === 'string' ? remoteConfig.proxyApiPath : '';
+
+            const resolvedApiUrl = resolveApiBase(proxyUrlCandidate, proxyPathCandidate, directCandidate, config.apiUrl);
+
+            config = {
+                ...config,
+                ...remoteConfig,
+                apiUrl: resolvedApiUrl,
+                proxyApiUrl: proxyPathCandidate || proxyUrlCandidate || config.proxyApiUrl,
+                directApiUrl: directCandidate || config.directApiUrl,
+                resolvedApiUrl
+            };
         }
     } catch (error) {
         console.error('Failed to load config:', error);
+        config.apiUrl = resolveApiBase(config.apiUrl, resolveLoopbackBase(DEFAULT_API_PORT));
     }
 }
 

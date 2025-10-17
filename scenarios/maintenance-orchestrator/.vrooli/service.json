@@ -73,6 +73,7 @@
       "description": "Maintenance Orchestrator health check configuration",
       "endpoints": {
         "api": "/health",
+        "ui": "/health",
         "status": "/api/v1/status"
       },
       "checks": [
@@ -80,6 +81,14 @@
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -96,7 +105,7 @@
            {
              "type": "binaries",
              "targets": [
-               "maintenance-orchestrator-api"
+               "api/maintenance-orchestrator-api"
              ]
            },
            {

@@ -2087,14 +2087,35 @@
         
         async function activatePreset(presetId) {
             const presetName = presets[presetId]?.name || presetId;
-            
+            const preset = presets[presetId];
+
+            // Count scenarios that will be affected
+            let affectedCount = 0;
+            if (preset) {
+                if (preset.pattern === '*') {
+                    affectedCount = scenarios.filter(s => !s.isActive).length;
+                } else if (preset.tags && preset.tags.length > 0) {
+                    affectedCount = scenarios.filter(s =>
+                        !s.isActive && s.tags && s.tags.some(tag => preset.tags.includes(tag))
+                    ).length;
+                } else if (preset.states) {
+                    affectedCount = Object.entries(preset.states).filter(([id, state]) =>
+                        state && scenarios.find(s => s.id === id && !s.isActive)
+                    ).length;
+                }
+            }
+
+            if (!confirm(`⚡ Activate preset "${presetName}"?\n\nThis will activate ${affectedCount} scenario${affectedCount !== 1 ? 's' : ''}.`)) {
+                return;
+            }
+
             try {
                 addLog(`Activating preset: ${presetName}`, 'info');
                 const response = await fetch(`${API_BASE}/presets/${presetId}/apply`, {
                     method: 'POST'
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
                     addLog(`✅ Activated preset: ${presetName}`, 'success');
                     clearPreview();
@@ -2109,14 +2130,35 @@
         
         async function deactivatePreset(presetId) {
             const presetName = presets[presetId]?.name || presetId;
-            
+            const preset = presets[presetId];
+
+            // Count scenarios that will be affected
+            let affectedCount = 0;
+            if (preset) {
+                if (preset.pattern === '*') {
+                    affectedCount = scenarios.filter(s => s.isActive).length;
+                } else if (preset.tags && preset.tags.length > 0) {
+                    affectedCount = scenarios.filter(s =>
+                        s.isActive && s.tags && s.tags.some(tag => preset.tags.includes(tag))
+                    ).length;
+                } else if (preset.states) {
+                    affectedCount = Object.entries(preset.states).filter(([id, state]) =>
+                        state && scenarios.find(s => s.id === id && s.isActive)
+                    ).length;
+                }
+            }
+
+            if (!confirm(`⏹️ Deactivate preset "${presetName}"?\n\nThis will deactivate ${affectedCount} scenario${affectedCount !== 1 ? 's' : ''}.`)) {
+                return;
+            }
+
             try {
                 addLog(`Deactivating preset: ${presetName}`, 'info');
                 const response = await fetch(`${API_BASE}/presets/${presetId}/apply`, {
                     method: 'POST'
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
                     addLog(`✅ Deactivated preset: ${presetName}`, 'success');
                     clearPreview();

@@ -136,8 +136,8 @@ func TestFetchRealTimeDataErrorPaths(t *testing.T) {
 			name: "InvalidCoordinates",
 			req: SearchRequest{
 				Query:  "test",
-				Lat:    9999,  // Invalid
-				Lon:    9999,  // Invalid
+				Lat:    9999, // Invalid
+				Lon:    9999, // Invalid
 				Radius: 5.0,
 			},
 		},

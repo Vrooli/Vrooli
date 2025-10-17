@@ -98,11 +98,22 @@ func TestChartProcessor_GenerateChart(t *testing.T) {
 			expectedError: "Missing data field",
 		},
 		{
+			name: "PieChartAcceptsXY",
+			req: ChartGenerationProcessorRequest{
+				ChartType: "pie",
+				Data: []map[string]interface{}{
+					{"x": "A", "y": float64(10)}, // Pie accepts x/y OR name/value for flexibility
+				},
+				ExportFormats: []string{"png"},
+			},
+			expectSuccess: true,
+		},
+		{
 			name: "InvalidDataStructureForPie",
 			req: ChartGenerationProcessorRequest{
 				ChartType: "pie",
 				Data: []map[string]interface{}{
-					{"x": "A", "y": float64(10)}, // Pie needs name/value, not x/y
+					{"invalid": "A"}, // Missing both label and value fields
 				},
 				ExportFormats: []string{"png"},
 			},

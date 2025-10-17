@@ -80,6 +80,38 @@ redis::common::wait_for_ready() {
 }
 
 #######################################
+# Ensure temporary configuration directory is writable
+# Returns: 0 on success, 1 on failure
+#######################################
+redis::common::ensure_config_dir() {
+    local desired_dir="${REDIS_TEMP_CONFIG_DIR:-}"
+    local fallback_dir="${HOME}/.cache/vrooli/redis/config"
+
+    if [[ -z "$desired_dir" ]]; then
+        desired_dir="$fallback_dir"
+    fi
+
+    if ! mkdir -p "$desired_dir" 2>/dev/null || [[ ! -w "$desired_dir" ]]; then
+        log::warn "Temporary Redis config directory '$desired_dir' is not writable; using fallback path"
+        desired_dir="$fallback_dir"
+
+        if ! mkdir -p "$desired_dir" 2>/dev/null || [[ ! -w "$desired_dir" ]]; then
+            local mktemp_dir
+            if ! mktemp_dir="$(mktemp -d "${TMPDIR:-/tmp}/vrooli-redis-config-XXXXXX" 2>/dev/null)"; then
+                log::error "Failed to create writable temporary Redis config directory"
+                return 1
+            fi
+            desired_dir="$mktemp_dir"
+        fi
+    fi
+
+    REDIS_TEMP_CONFIG_DIR="$desired_dir"
+    REDIS_CONFIG_FILE="${REDIS_TEMP_CONFIG_DIR}/redis.conf"
+    log::debug "Using Redis config directory: $REDIS_TEMP_CONFIG_DIR"
+    return 0
+}
+
+#######################################
 # Create necessary directories
 # Returns: 0 on success, 1 on failure
 #######################################
@@ -102,13 +134,11 @@ redis::common::create_volumes() {
         fi
     done
     
-    # Create temporary config directory
-    if ! mkdir -p "$REDIS_TEMP_CONFIG_DIR"; then
-        log::error "Failed to create temporary config directory: $REDIS_TEMP_CONFIG_DIR"
+    # Ensure temporary config directory is ready
+    if ! redis::common::ensure_config_dir; then
         return 1
     fi
-    log::debug "Created temporary config directory: $REDIS_TEMP_CONFIG_DIR"
-    
+
     return 0
 }
 
@@ -117,6 +147,10 @@ redis::common::create_volumes() {
 # Returns: 0 on success, 1 on failure
 #######################################
 redis::common::generate_config() {
+    if ! redis::common::ensure_config_dir; then
+        return 1
+    fi
+
     local config_file="$REDIS_CONFIG_FILE"
     
     log::debug "Generating Redis configuration: $config_file"
@@ -238,10 +272,10 @@ EOF
     if [[ -f "$config_file" ]]; then
         log::debug "Redis configuration generated successfully"
         return 0
-    else
-        log::error "Failed to write Redis configuration file"
-        return 1
     fi
+
+    log::error "Failed to write Redis configuration file"
+    return 1
 }
 
 #######################################

@@ -38,9 +38,14 @@ func TestCORSMiddleware_AllMethods(t *testing.T) {
 			// Execute request
 			handler.ServeHTTP(w, req)
 
-			// Check CORS headers
-			if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
-				t.Errorf("Expected Access-Control-Allow-Origin='*', got '%s'", origin)
+			// Check CORS headers - should be specific origin for security
+			origin := w.Header().Get("Access-Control-Allow-Origin")
+			if origin == "" {
+				t.Error("Expected Access-Control-Allow-Origin header to be set")
+			}
+			// Should NOT be wildcard for security
+			if origin == "*" {
+				t.Error("Access-Control-Allow-Origin should not be wildcard (*) for security")
 			}
 
 			if methods := w.Header().Get("Access-Control-Allow-Methods"); methods == "" {
@@ -84,8 +89,13 @@ func TestCORSMiddleware_WithoutOrigin(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	// CORS headers should still be set
-	if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
-		t.Errorf("Expected Access-Control-Allow-Origin='*' even without Origin header, got '%s'", origin)
+	origin := w.Header().Get("Access-Control-Allow-Origin")
+	if origin == "" {
+		t.Error("Expected Access-Control-Allow-Origin header to be set")
+	}
+	// Should NOT be wildcard for security
+	if origin == "*" {
+		t.Error("Access-Control-Allow-Origin should not be wildcard (*) for security")
 	}
 }
 
@@ -146,8 +156,13 @@ func TestHandlerChaining(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
-			t.Errorf("Expected CORS header, got '%s'", origin)
+		origin := w.Header().Get("Access-Control-Allow-Origin")
+		if origin == "" {
+			t.Error("Expected Access-Control-Allow-Origin header to be set")
+		}
+		// Should NOT be wildcard for security
+		if origin == "*" {
+			t.Error("Access-Control-Allow-Origin should not be wildcard (*) for security")
 		}
 	})
 

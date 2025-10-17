@@ -33,7 +33,12 @@ app.use((req, res, next) => {
     );
 });
 
-const port = Number(process.env.UI_PORT) || 3251;
+let port = Number(process.env.UI_PORT);
+if (!port) {
+    console.warn('WARNING: UI_PORT environment variable not set, using development default 3251');
+    console.warn('For production, always set UI_PORT explicitly');
+    port = 3251;
+}
 const API_PORT = process.env.API_PORT;
 const PROXY_ROOT = '/proxy';
 const PROXY_API_PREFIX = `${PROXY_ROOT}/api`;

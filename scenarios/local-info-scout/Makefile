@@ -5,13 +5,13 @@
 #
 # Usage:
 #   make       - Show help
-#   make run   - Start this scenario
+#   make start - Start this scenario
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -37,11 +37,13 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME)
+
+run: start ## Alias for 'make start'
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -67,16 +69,12 @@ clean: ## Clean build artifacts
 	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"
 	@rm -rf build/ dist/ *.log api/$(SCENARIO_NAME) api/$(SCENARIO_NAME)-api
 	@if [ -d api ]; then cd api && go clean 2>/dev/null || true; fi
-	@if [ -d ui/dist ]; then rm -rf ui/dist; fi
-	@if [ -d ui/build ]; then rm -rf ui/build; fi
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
 build: ## Build the scenario (if applicable)
 	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
 	@if [ -f api/go.mod ]; then \
 		cd api && go build -o $(SCENARIO_NAME)-api ./cmd/server/main.go 2>/dev/null || go build -o $(SCENARIO_NAME)-api main.go 2>/dev/null || echo "Could not build Go API"; \
-	elif [ -f ui/package.json ]; then \
-		cd ui && npm run build 2>/dev/null || echo "Could not build UI"; \
 	else \
 		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
 	fi
@@ -88,9 +86,8 @@ build: ## Build the scenario (if applicable)
 fmt: ## Format all code
 	@echo "$(BLUE)🎨 Formatting code...$(RESET)"
 	@$(MAKE) fmt-go
-	@$(MAKE) fmt-ui
 
-fmt-go: ## Format Go code  
+fmt-go: ## Format Go code
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
 		if command -v gofumpt >/dev/null 2>&1; then \
 			cd api && gofumpt -w .; \
@@ -99,17 +96,12 @@ fmt-go: ## Format Go code
 		fi; \
 	fi
 
-fmt-ui: ## Format TypeScript/JavaScript code
-	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		if command -v prettier >/dev/null 2>&1; then \
-			cd ui && prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}" 2>/dev/null || true; \
-		fi; \
-	fi
+fmt-ui: ## Format UI code (no-op: scenario has no UI)
+	@echo "$(YELLOW)ℹ️  No UI to format$(RESET)"
 
 lint: ## Lint all code
-	@echo "$(BLUE)🔍 Linting code...$(RESET)" 
+	@echo "$(BLUE)🔍 Linting code...$(RESET)"
 	@$(MAKE) lint-go
-	@$(MAKE) lint-ui
 
 lint-go: ## Lint Go code
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
@@ -118,12 +110,8 @@ lint-go: ## Lint Go code
 		fi; \
 	fi
 
-lint-ui: ## Lint TypeScript/JavaScript code
-	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		if [ -f ui/package.json ] && grep -q '"eslint"' ui/package.json; then \
-			cd ui && npm run lint 2>/dev/null || true; \
-		fi; \
-	fi
+lint-ui: ## Lint UI code (no-op: scenario has no UI)
+	@echo "$(YELLOW)ℹ️  No UI to lint$(RESET)"
 
 check: ## Format, lint, and test code (pre-commit workflow)
 	@echo "$(BLUE)✅ Running full code quality check...$(RESET)"

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -50,6 +51,7 @@ type HealthResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 	Version   string    `json:"version"`
 	Service   string    `json:"service"`
+	Readiness bool      `json:"readiness"`
 }
 
 // StyleResponse represents available chart styles
@@ -118,9 +120,9 @@ func main() {
 					float64(maxDelay),
 				))
 
-				// Add progressive jitter to prevent thundering herd
+				// Add random jitter to prevent thundering herd
 				jitterRange := float64(delay) * 0.25
-				jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+				jitter := time.Duration(rand.Float64() * jitterRange)
 				actualDelay := delay + jitter
 
 				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
@@ -145,13 +147,10 @@ func main() {
 	chartProcessor = NewChartProcessor(db)
 	log.Println("🎨 Chart processor initialized")
 
-	// Get port from environment or use default
+	// Get port from environment - no defaults allowed
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("CHART_API_PORT")
-		if port == "" {
-			port = "20300"
-		}
+		log.Fatal("❌ API_PORT environment variable is required but not set. The lifecycle system must provide this value.")
 	}
 
 	// Create router
@@ -232,6 +231,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		Timestamp: time.Now(),
 		Version:   "1.0.0",
 		Service:   "chart-generator-api",
+		Readiness: true, // Service is ready once it starts accepting requests
 	}
 
 	w.Header().Set("Content-Type", "application/json")

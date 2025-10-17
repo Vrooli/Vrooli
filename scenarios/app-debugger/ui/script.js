@@ -1,3 +1,41 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__appDebuggerBridgeInitialized';
+
+function deriveParentOrigin() {
+    if (!document.referrer) {
+        return undefined;
+    }
+    try {
+        return new URL(document.referrer).origin;
+    } catch (error) {
+        console.warn('[AppDebugger] Unable to parse parent origin for iframe bridge', error);
+        return undefined;
+    }
+}
+
+function initializeBridge() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    if (window.parent === window) {
+        return;
+    }
+    if (window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    const parentOrigin = deriveParentOrigin();
+    initIframeBridgeChild({ parentOrigin, appId: 'app-debugger' });
+    window[BRIDGE_FLAG] = true;
+}
+
+try {
+    initializeBridge();
+} catch (error) {
+    console.error('[AppDebugger] Failed to initialize iframe bridge', error);
+}
+
 // App Debugger Interactive Terminal
 const API_BASE = window.location.hostname === 'localhost' 
     ? 'http://localhost:30150' 

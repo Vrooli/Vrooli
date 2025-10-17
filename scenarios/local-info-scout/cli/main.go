@@ -33,6 +33,19 @@ type Place struct {
 }
 
 func main() {
+	// Lifecycle protection check
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start local-info-scout
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	// Command line flags
 	var (
 		query    = flag.String("query", "", "Search query")
@@ -44,7 +57,7 @@ func main() {
 		listCats = flag.Bool("categories", false, "List available categories")
 		help     = flag.Bool("help", false, "Show help")
 	)
-	
+
 	flag.Parse()
 	
 	if *help || (flag.NArg() == 0 && *query == "" && !*listCats) {
@@ -75,8 +88,14 @@ func main() {
 	if *apiURL == "" {
 		port := os.Getenv("API_PORT")
 		if port == "" {
-			// Try to detect from running scenario
-			port = "18782" // fallback to known port
+			fmt.Fprintln(os.Stderr, "Error: API_PORT environment variable not set")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "The local-info-scout API must be running first.")
+			fmt.Fprintln(os.Stderr, "Start it with: vrooli scenario start local-info-scout")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "Or specify the API URL manually with --api flag:")
+			fmt.Fprintln(os.Stderr, "  local-info-scout --api=http://localhost:PORT <query>")
+			os.Exit(1)
 		}
 		*apiURL = fmt.Sprintf("http://localhost:%s", port)
 	}

@@ -64,12 +64,14 @@ fi
 
 # Test UI accessibility
 echo "Testing UI accessibility..."
-if curl -sf "$UI_BASE_URL" | grep -q "Maintenance Orchestrator"; then
+ui_temp=$(mktemp)
+if /usr/bin/curl -sf "$UI_BASE_URL" > "$ui_temp" 2>/dev/null && /usr/bin/grep -q "Maintenance Orchestrator" "$ui_temp"; then
   echo "✅ UI accessible and contains expected content"
 else
   echo "❌ UI not accessible or missing content"
   failed=1
 fi
+rm -f "$ui_temp"
 
 # Test CLI integration
 echo "Testing CLI integration..."

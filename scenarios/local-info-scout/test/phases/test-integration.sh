@@ -4,7 +4,7 @@ set -e
 echo "=== Testing Integration ==="
 
 # Get the API port from environment or use default
-API_PORT="${API_PORT:-18784}"
+API_PORT="${API_PORT:-18538}"
 API_URL="http://localhost:${API_PORT}"
 
 # Function to check if API is ready
@@ -51,7 +51,7 @@ echo "Testing search endpoint..."
 SEARCH_RESULT=$(curl -sf -X POST "${API_URL}/api/search" \
     -H "Content-Type: application/json" \
     -d '{"query":"test","lat":40.7128,"lon":-74.0060,"radius":5}')
-    
+
 if [ -z "$SEARCH_RESULT" ]; then
     echo "❌ Search endpoint failed"
     exit 1
@@ -67,21 +67,26 @@ if [ -z "$PLACE_DETAILS" ]; then
 fi
 echo "✅ Place details endpoint working"
 
-# Test CORS headers
+# Test CORS headers (with valid origin)
 echo "Testing CORS headers..."
-CORS_HEADER=$(curl -sI "${API_URL}/health" | grep -i "access-control-allow-origin" || true)
+CORS_HEADER=$(curl -sI -H "Origin: http://localhost:3000" "${API_URL}/health" | grep -i "access-control-allow-origin" || true)
 if [ -z "$CORS_HEADER" ]; then
-    echo "❌ CORS headers missing"
+    echo "❌ CORS headers missing with valid origin"
     exit 1
 fi
-echo "✅ CORS headers present"
+# Verify CORS is restricted (wildcard should not be present)
+if echo "$CORS_HEADER" | grep -q "Access-Control-Allow-Origin: \*"; then
+    echo "❌ CORS wildcard detected (security issue)"
+    exit 1
+fi
+echo "✅ CORS headers present and properly restricted"
 
 # Test natural language search
 echo "Testing natural language search..."
 NL_RESULT=$(curl -sf -X POST "${API_URL}/api/search" \
     -H "Content-Type: application/json" \
     -d '{"query":"vegan restaurants within 2 miles","lat":40.7128,"lon":-74.0060}')
-    
+
 if [ -z "$NL_RESULT" ]; then
     echo "❌ Natural language search failed"
     exit 1
@@ -93,7 +98,7 @@ echo "Testing discover endpoint..."
 DISCOVER_RESULT=$(curl -sf -X POST "${API_URL}/api/discover" \
     -H "Content-Type: application/json" \
     -d '{"lat":40.7128,"lon":-74.0060}')
-    
+
 if [ -z "$DISCOVER_RESULT" ]; then
     echo "❌ Discover endpoint failed"
     exit 1

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -67,6 +68,17 @@ func (o *Orchestrator) ActivateScenario(id string) bool {
 	})
 
 	return true
+}
+
+// UpdateResourceUsage updates resource usage metrics for a scenario
+func (o *Orchestrator) UpdateResourceUsage(id string, usage map[string]float64) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	scenario, exists := o.scenarios[id]
+	if exists {
+		scenario.ResourceUsage = usage
+	}
 }
 
 func (o *Orchestrator) DeactivateScenario(id string) bool {
@@ -258,6 +270,94 @@ func (o *Orchestrator) GetActivePresets() []*Preset {
 		}
 	}
 	return activePresets
+}
+
+// CreatePreset adds a new custom preset based on provided parameters
+func (o *Orchestrator) CreatePreset(name, description string, states map[string]bool, tags []string) (*Preset, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	// Validate name is unique
+	for _, existing := range o.presets {
+		if existing.Name == name {
+			return nil, fmt.Errorf("preset with name '%s' already exists", name)
+		}
+	}
+
+	// Generate ID from name (lowercase, replace spaces with dashes)
+	id := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
+
+	// Validate states reference real scenarios
+	for scenarioID := range states {
+		if _, exists := o.scenarios[scenarioID]; !exists {
+			return nil, fmt.Errorf("scenario '%s' not found", scenarioID)
+		}
+	}
+
+	preset := &Preset{
+		ID:          id,
+		Name:        name,
+		Description: description,
+		States:      states,
+		Tags:        tags,
+		IsDefault:   false,
+		IsActive:    false,
+	}
+
+	o.presets[id] = preset
+
+	o.activityLog = append(o.activityLog, ActivityEntry{
+		Timestamp: time.Now(),
+		Action:    "create-preset",
+		Preset:    name,
+		Success:   true,
+		Message:   fmt.Sprintf("Created custom preset '%s' with %d scenarios", name, len(states)),
+	})
+
+	return preset, nil
+}
+
+// CreatePresetFromCurrentState creates a preset capturing the current state of all scenarios
+func (o *Orchestrator) CreatePresetFromCurrentState(name, description string) (*Preset, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	// Validate name is unique
+	for _, existing := range o.presets {
+		if existing.Name == name {
+			return nil, fmt.Errorf("preset with name '%s' already exists", name)
+		}
+	}
+
+	// Generate ID from name
+	id := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
+
+	// Capture current state
+	states := make(map[string]bool)
+	for scenarioID, scenario := range o.scenarios {
+		states[scenarioID] = scenario.IsActive
+	}
+
+	preset := &Preset{
+		ID:          id,
+		Name:        name,
+		Description: description,
+		States:      states,
+		IsDefault:   false,
+		IsActive:    false,
+	}
+
+	o.presets[id] = preset
+
+	o.activityLog = append(o.activityLog, ActivityEntry{
+		Timestamp: time.Now(),
+		Action:    "create-preset-from-state",
+		Preset:    name,
+		Success:   true,
+		Message:   fmt.Sprintf("Created preset '%s' from current state (%d scenarios)", name, len(states)),
+	})
+
+	return preset, nil
 }
 
 // IsPresetActive checks if a preset is currently active

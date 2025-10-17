@@ -22,7 +22,26 @@ REDIS_VOLUME_NAME="${REDIS_VOLUME_NAME:-vrooli-redis-data}"
 REDIS_LOG_VOLUME_NAME="${REDIS_LOG_VOLUME_NAME:-vrooli-redis-logs}"
 
 # Temporary config directory (for generating config file)
-REDIS_TEMP_CONFIG_DIR="${REDIS_TEMP_CONFIG_DIR:-/tmp/vrooli-redis-config}"
+_redis_default_temp_dir="${HOME}/.cache/vrooli/redis/config"
+_redis_candidate_dir="${REDIS_TEMP_CONFIG_DIR:-${_redis_default_temp_dir}}"
+
+# Ensure the temporary config directory is writable; fall back if needed.
+if ! mkdir -p "${_redis_candidate_dir}" 2>/dev/null || [[ ! -w "${_redis_candidate_dir}" ]]; then
+    _redis_candidate_dir="${_redis_default_temp_dir}"
+    if ! mkdir -p "${_redis_candidate_dir}" 2>/dev/null || [[ ! -w "${_redis_candidate_dir}" ]]; then
+        _redis_candidate_dir="$(mktemp -d "${TMPDIR:-/tmp}/vrooli-redis-config-XXXXXX")"
+    fi
+fi
+
+# Avoid legacy root-owned temp directory default.
+if [[ "${_redis_candidate_dir}" == "/tmp/vrooli-redis-config" ]]; then
+    _redis_candidate_dir="${_redis_default_temp_dir}"
+    mkdir -p "${_redis_candidate_dir}" 2>/dev/null || \
+        _redis_candidate_dir="$(mktemp -d "${TMPDIR:-/tmp}/vrooli-redis-config-XXXXXX")"
+fi
+
+REDIS_TEMP_CONFIG_DIR="${_redis_candidate_dir}"
+
 REDIS_CONFIG_FILE="${REDIS_CONFIG_FILE:-${REDIS_TEMP_CONFIG_DIR}/redis.conf}"
 
 # Redis Configuration

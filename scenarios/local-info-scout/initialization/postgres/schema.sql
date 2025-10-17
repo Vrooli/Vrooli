@@ -1,6 +1,6 @@
 -- Local Info Scout Database Schema
 
-CREATE TABLE IF NOT EXISTS search_history (
+CREATE TABLE IF NOT EXISTS lis_search_history (
     id SERIAL PRIMARY KEY,
     user_id VARCHAR(255),
     query TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS search_history (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS saved_places (
+CREATE TABLE IF NOT EXISTS lis_saved_places (
     id SERIAL PRIMARY KEY,
     user_id VARCHAR(255),
     place_id VARCHAR(255) NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS saved_places (
     UNIQUE(user_id, place_id)
 );
 
-CREATE TABLE IF NOT EXISTS user_preferences (
+CREATE TABLE IF NOT EXISTS lis_user_preferences (
     id SERIAL PRIMARY KEY,
     user_id VARCHAR(255) UNIQUE NOT NULL,
     default_location VARCHAR(255),
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_search_history_user ON search_history(user_id);
-CREATE INDEX idx_search_history_created ON search_history(created_at);
-CREATE INDEX idx_saved_places_user ON saved_places(user_id);
-CREATE INDEX idx_saved_places_category ON saved_places(category);
+CREATE INDEX IF NOT EXISTS idx_lis_search_history_user ON lis_search_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_lis_search_history_created ON lis_search_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_lis_saved_places_user ON lis_saved_places(user_id);
+CREATE INDEX IF NOT EXISTS idx_lis_saved_places_category ON lis_saved_places(category);

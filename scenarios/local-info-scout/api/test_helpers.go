@@ -32,24 +32,24 @@ func setupTestLogger() func() {
 
 // TestEnvironment manages isolated test environment
 type TestEnvironment struct {
-	RedisClient  *redis.Client
-	OriginalEnv  map[string]string
-	Cleanup      func()
+	RedisClient *redis.Client
+	OriginalEnv map[string]string
+	Cleanup     func()
 }
 
 // setupTestEnvironment creates an isolated test environment with proper cleanup
 func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	// Save original environment variables
 	originalEnv := map[string]string{
-		"REDIS_HOST":      os.Getenv("REDIS_HOST"),
-		"REDIS_PORT":      os.Getenv("REDIS_PORT"),
-		"POSTGRES_HOST":   os.Getenv("POSTGRES_HOST"),
-		"POSTGRES_PORT":   os.Getenv("POSTGRES_PORT"),
-		"POSTGRES_USER":   os.Getenv("POSTGRES_USER"),
+		"REDIS_HOST":        os.Getenv("REDIS_HOST"),
+		"REDIS_PORT":        os.Getenv("REDIS_PORT"),
+		"POSTGRES_HOST":     os.Getenv("POSTGRES_HOST"),
+		"POSTGRES_PORT":     os.Getenv("POSTGRES_PORT"),
+		"POSTGRES_USER":     os.Getenv("POSTGRES_USER"),
 		"POSTGRES_PASSWORD": os.Getenv("POSTGRES_PASSWORD"),
-		"POSTGRES_DB":     os.Getenv("POSTGRES_DB"),
-		"OLLAMA_HOST":     os.Getenv("OLLAMA_HOST"),
-		"SEARXNG_HOST":    os.Getenv("SEARXNG_HOST"),
+		"POSTGRES_DB":       os.Getenv("POSTGRES_DB"),
+		"OLLAMA_HOST":       os.Getenv("OLLAMA_HOST"),
+		"SEARXNG_HOST":      os.Getenv("SEARXNG_HOST"),
 	}
 
 	// Set test environment variables

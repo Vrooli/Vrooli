@@ -57,6 +57,7 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	v1.HandleFunc("/scenarios/{id}/activate", handleActivateScenario(orchestrator)).Methods("POST")
 	v1.HandleFunc("/scenarios/{id}/deactivate", handleDeactivateScenario(orchestrator)).Methods("POST")
 	v1.HandleFunc("/presets", handleGetPresets(orchestrator)).Methods("GET")
+	v1.HandleFunc("/presets", handleCreatePreset(orchestrator)).Methods("POST")
 	v1.HandleFunc("/presets/active", handleGetActivePresets(orchestrator)).Methods("GET")
 	v1.HandleFunc("/presets/{id}/apply", handleApplyPreset(orchestrator)).Methods("POST")
 	v1.HandleFunc("/status", handleGetStatus(orchestrator, startTime)).Methods("GET")

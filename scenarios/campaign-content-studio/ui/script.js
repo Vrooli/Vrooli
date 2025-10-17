@@ -1,3 +1,29 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__campaignContentStudioBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        let parentOrigin;
+        try {
+            if (document.referrer) {
+                parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[CampaignStudio] Unable to parse parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'campaign-content-studio' });
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
+
 // Campaign Content Studio JavaScript
 class CampaignStudio {
     constructor() {
@@ -782,6 +808,21 @@ function previousMonth() {
 function nextMonth() {
     window.campaignStudio.nextMonth();
 }
+
+Object.assign(window, {
+    createCampaign,
+    closeCampaignModal,
+    saveCampaign,
+    showTemplateGallery,
+    closeTemplateModal,
+    generateContent,
+    regenerateContent,
+    saveContent,
+    searchDocuments,
+    handleFileUpload,
+    previousMonth,
+    nextMonth,
+});
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {

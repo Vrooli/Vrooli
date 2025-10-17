@@ -7,21 +7,11 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script type="module">
-        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
-
-        if (typeof window !== 'undefined' && window.parent !== window && !window.__campaignStudioBridgeInitialized) {
-            let parentOrigin;
-            try {
-                if (document.referrer) {
-                    parentOrigin = new URL(document.referrer).origin;
-                }
-            } catch (error) {
-                console.warn('[CampaignStudio] Unable to parse parent origin for iframe bridge', error);
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
             }
-
-            initIframeBridgeChild({ parentOrigin, appId: 'campaign-content-studio' });
-            window.__campaignStudioBridgeInitialized = true;
         }
     </script>
 </head>
@@ -399,6 +389,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>

@@ -778,25 +778,39 @@ func TestTimeBasedRecommendations(t *testing.T) {
 	}
 }
 
-// TestShouldSwap tests the sorting comparison function
-func TestShouldSwap(t *testing.T) {
+// TestSortByRelevance tests the sorting function
+func TestSortByRelevance(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	place1 := createTestPlace("1", "High Rating", "restaurant", 0.5, 4.8)
-	place2 := createTestPlace("2", "Low Rating", "restaurant", 0.5, 3.5)
-
-	// Higher rating should come first (swap = true if a < b)
-	if !shouldSwap(place2, place1) {
-		t.Error("Should swap: lower rating should come after higher rating")
+	// Test rating sorting (higher rating first)
+	places := []Place{
+		createTestPlace("2", "Low Rating", "restaurant", 0.5, 3.5),
+		createTestPlace("1", "High Rating", "restaurant", 0.5, 4.8),
+	}
+	sortByRelevance(places)
+	if places[0].Rating != 4.8 {
+		t.Errorf("Expected highest rating first, got %.1f", places[0].Rating)
 	}
 
-	// Same rating, check distance
-	place3 := createTestPlace("3", "Near", "restaurant", 0.3, 4.5)
-	place4 := createTestPlace("4", "Far", "restaurant", 0.8, 4.5)
+	// Test distance sorting with same rating (closer first)
+	places = []Place{
+		createTestPlace("4", "Far", "restaurant", 0.8, 4.5),
+		createTestPlace("3", "Near", "restaurant", 0.3, 4.5),
+	}
+	sortByRelevance(places)
+	if places[0].Distance != 0.3 {
+		t.Errorf("Expected nearest place first, got %.1f", places[0].Distance)
+	}
 
-	if !shouldSwap(place4, place3) {
-		t.Error("Should swap: farther place should come after nearer place with same rating")
+	// Test name sorting with same rating and distance (alphabetical)
+	places = []Place{
+		createTestPlace("z", "Zebra", "restaurant", 0.5, 4.5),
+		createTestPlace("a", "Apple", "restaurant", 0.5, 4.5),
+	}
+	sortByRelevance(places)
+	if places[0].Name != "Apple" {
+		t.Errorf("Expected alphabetically first name, got %s", places[0].Name)
 	}
 }
 
