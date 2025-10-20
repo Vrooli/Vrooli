@@ -138,3 +138,18 @@
     right: 12px;
   }
 }
+
+@media (max-width: 560px) {
+  .shell__overlay {
+    padding: 16px 10px;
+  }
+
+  .shell__overlay-content {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .shell__overlay-content--wide {
+    padding: 20px 14px;
+  }
+}

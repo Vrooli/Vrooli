@@ -98,6 +98,7 @@
   - Screenshot capture for scenarios/web tabs now lands via the surface media cache (resources still pending).
 4. **Integrate Screenshots** ✅ *(done)*
   - Scenario and web tab cards consume cached bridge snapshots; history reopen restores thumbnails.
+  - Surface media and browser tab state hydrate from local persistence so thumbnails survive reloads.
   - Follow-up: evaluate resource capture once a safe source of imagery exists.
 5. **Refactor Logs** ✅ *(done)*
   - Inline logs overlay, new `useAppLogs` hook, toolbar toggle, and `/logs` redirects keep deep links working.

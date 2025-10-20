@@ -71,11 +71,15 @@
   font-weight: 600;
 }
 
-.home-view__actions span {
+.home-view__metric {
   display: block;
   margin-top: 2px;
   font-size: 13px;
-  color: rgba(245, 245, 255, 0.68);
+  color: rgba(245, 245, 255, 0.7);
+}
+
+.home-view__metric[aria-busy='true'] {
+  color: rgba(245, 245, 255, 0.52);
 }
 
 .home-view__actions-icon {
@@ -99,6 +103,47 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.08);
   font-weight: 600;
+}
+
+.home-view__shortcut-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 3px 10px;
+  border-radius: 14px;
+  background: rgba(122, 160, 255, 0.16);
+  font-size: 12px;
+  font-weight: 600;
+  color: #f5f6ff;
+  box-shadow: 0 0 0 1px rgba(122, 160, 255, 0.28) inset;
+}
+
+.home-view__shortcut-visual {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.home-view__shortcut-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.home-view__shortcut-key {
+  display: inline-flex;
+  min-width: 18px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(16, 18, 32, 0.68);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16) inset;
+  justify-content: center;
+}
+
+.home-view__shortcut-plus {
+  font-weight: 400;
+  opacity: 0.8;
 }
 
 @media (max-width: 640px) {

@@ -63,6 +63,43 @@ export default function Shell({ isConnected }: ShellProps) {
     };
   }, [anyOverlayOpen, closeOverlay]);
 
+  useEffect(() => {
+    const listenerOptions = { capture: true } as const;
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      const key = event.key?.toLowerCase();
+      if (key !== 'k') {
+        return;
+      }
+
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (activeOverlay === 'tabs') {
+        closeOverlay({ preserve: ['segment'] });
+      } else {
+        openOverlay('tabs');
+      }
+    };
+
+    window.addEventListener('keydown', handleShortcut, listenerOptions);
+    return () => {
+      window.removeEventListener('keydown', handleShortcut, listenerOptions);
+    };
+  }, [activeOverlay, closeOverlay, openOverlay]);
+
   const handleToggleTabs = useCallback(() => {
     if (activeOverlay === 'tabs') {
       closeOverlay({ preserve: ['segment'] });

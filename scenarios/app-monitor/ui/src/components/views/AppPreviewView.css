@@ -37,20 +37,6 @@ body.app-preview-immersive {
   overflow: hidden;
 }
 
-body.app-preview-immersive .main-header,
-body.app-preview-immersive .sidebar,
-body.app-preview-immersive .sidebar-backdrop {
-  display: none !important;
-}
-
-body.app-preview-immersive .dashboard {
-  min-height: 100vh;
-}
-
-body.app-preview-immersive .main-content {
-  padding: 0 !important;
-}
-
 .spinning {
   animation: preview-spin 1s linear infinite;
 }

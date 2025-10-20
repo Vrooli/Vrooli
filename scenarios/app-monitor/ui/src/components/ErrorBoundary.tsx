@@ -1,5 +1,6 @@
 import React from 'react';
 import './ErrorBoundary.css';
+import { logger } from '@/services/logger';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -17,60 +18,51 @@ interface ErrorFallbackProps {
   resetError: () => void;
 }
 
-const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetError }) => {
-  return (
-    <div className="error-boundary-fallback">
-      <div className="error-content">
-        <div className="error-header">
-          <h2>SYSTEM MALFUNCTION DETECTED</h2>
-          <div className="error-code">ERROR_CODE: {error.name}</div>
+const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetError }) => (
+  <div className="error-fallback">
+    <div className="error-fallback__panel" role="alert" aria-live="assertive">
+      <header className="error-fallback__header">
+        <h2>Something went wrong</h2>
+        <p>App Monitor hit an unexpected issue. Try recovering or reload to start fresh.</p>
+      </header>
+
+      <div className="error-fallback__meta" data-testid="error-details">
+        <div>
+          <span className="error-fallback__label">Error</span>
+          <span className="error-fallback__value">{error.name}</span>
         </div>
-        
-        <div className="error-details">
-          <div className="error-message">
-            <span className="label">MESSAGE:</span>
-            <span className="value">{error.message}</span>
-          </div>
-          
-          {error.stack && (
-            <details className="error-stack">
-              <summary>STACK TRACE</summary>
-              <pre>{error.stack}</pre>
-            </details>
-          )}
-        </div>
-        
-        <div className="error-actions">
-          <button 
-            className="error-btn primary"
-            onClick={resetError}
-            title="Attempt to recover from error"
-          >
-            REBOOT SYSTEM
-          </button>
-          <button 
-            className="error-btn secondary"
-            onClick={() => window.location.reload()}
-            title="Reload the entire application"
-          >
-            FULL RELOAD
-          </button>
-        </div>
-        
-        <div className="error-help">
-          <p>If this error persists:</p>
-          <ul>
-            <li>Check browser console for additional details</li>
-            <li>Verify all services are running properly</li>
-            <li>Contact system administrator if needed</li>
-          </ul>
+        <div>
+          <span className="error-fallback__label">Message</span>
+          <span className="error-fallback__value">{error.message}</span>
         </div>
       </div>
-      
-      <div className="matrix-rain-error" aria-hidden="true"></div>
+
+      {error.stack && (
+        <details className="error-fallback__stack">
+          <summary>Show stack trace</summary>
+          <pre>{error.stack}</pre>
+        </details>
+      )}
+
+      <div className="error-fallback__actions">
+        <button type="button" onClick={resetError} className="error-fallback__btn error-fallback__btn--primary">
+          Return to App
+        </button>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="error-fallback__btn error-fallback__btn--secondary"
+        >
+          Reload
+        </button>
+      </div>
+
+      <p className="error-fallback__hint">
+        If the issue continues, capture a screenshot and console logs and share them with the platform team.
+      </p>
     </div>
-  );
-};
+  </div>
+);
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -91,11 +83,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error details
-    console.error('[ErrorBoundary] Caught an error:', error);
-    console.error('[ErrorBoundary] Error info:', errorInfo);
-    
-    // Update state with error info
+    logger.error('Error boundary captured an exception', { error, errorInfo });
+
     this.setState({
       error,
       errorInfo,

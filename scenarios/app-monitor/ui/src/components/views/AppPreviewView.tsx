@@ -14,14 +14,12 @@ import AppPreviewToolbar from '../AppPreviewToolbar';
 import ReportIssueDialog from '../report/ReportIssueDialog';
 import {
   buildPreviewUrl,
-  collectAppIdentifiers,
   isRunningStatus,
   isStoppedStatus,
   locateAppByIdentifier,
   resolveAppIdentifier,
 } from '@/utils/appPreview';
 import { ensureDataUrl } from '@/utils/dataUrl';
-import { buildAlphabetizedApps, buildRecentApps } from '@/utils/appCollections';
 import { useIframeBridge } from '@/hooks/useIframeBridge';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { useDeviceEmulation } from '@/hooks/useDeviceEmulation';
@@ -37,14 +35,14 @@ const PREVIEW_CONNECTING_LABEL = 'Connecting to preview...';
 const PREVIEW_TIMEOUT_MESSAGE = 'Preview did not respond. Ensure the application UI is running and reachable from App Monitor.';
 const PREVIEW_MIXED_CONTENT_MESSAGE = 'Preview blocked: browser refused to load HTTP content inside an HTTPS dashboard. Expose the UI through the tunnel hostname or enable HTTPS for the scenario.';
 const IOS_AUTOBACK_GUARD_MS = 15000;
-const HISTORY_MENU_LIMIT = 16;
+const PREVIEW_SCREENSHOT_STABILITY_MS = 1000;
 const AppPreviewView = () => {
   const apps = useAppsStore(state => state.apps);
   const setAppsState = useAppsStore(state => state.setAppsState);
   const loadApps = useAppsStore(state => state.loadApps);
   const loadingInitial = useAppsStore(state => state.loadingInitial);
   const hasInitialized = useAppsStore(state => state.hasInitialized);
-  const alphabetizedApps = useMemo(() => buildAlphabetizedApps(apps), [apps]);
+  const canOpenTabsOverlay = apps.length > 0;
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
   type PreviewLocationState = {
@@ -123,9 +121,6 @@ const AppPreviewView = () => {
     }
     return null;
   }, [appId, currentApp]);
-  const currentAppIdentifiers = useMemo(() => (
-    currentApp ? collectAppIdentifiers(currentApp) : []
-  ), [currentApp]);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const [proxyMetadata, setProxyMetadata] = useState<AppProxyMetadata | null>(null);
   const [localhostReport, setLocalhostReport] = useState<LocalhostUsageReport | null>(null);
@@ -143,30 +138,6 @@ const AppPreviewView = () => {
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
   const lastStateSnapshotRef = useRef<string>('');
-  const historyRecentApps = useMemo(
-    () => buildRecentApps(apps, { excludeIdentifiers: currentAppIdentifiers, limit: HISTORY_MENU_LIMIT }),
-    [apps, currentAppIdentifiers],
-  );
-
-  const historyIdentifiersToExclude = useMemo(() => {
-    const identifiers = new Set(currentAppIdentifiers);
-    historyRecentApps.forEach(app => {
-      collectAppIdentifiers(app).forEach(id => identifiers.add(id));
-    });
-    return identifiers;
-  }, [currentAppIdentifiers, historyRecentApps]);
-
-  const historyAllApps = useMemo(() => (
-    alphabetizedApps.filter(app => {
-      const identifiers = collectAppIdentifiers(app);
-      return identifiers.every(identifier => !historyIdentifiersToExclude.has(identifier));
-    })
-  ), [alphabetizedApps, historyIdentifiersToExclude]);
-
-  const historyShouldShow = useMemo(
-    () => historyRecentApps.length > 0 || historyAllApps.length > 0,
-    [historyAllApps, historyRecentApps],
-  );
 
   const recordDebugEvent = useCallback((event: string, detail?: Record<string, unknown>) => {
     try {
@@ -821,6 +792,12 @@ const AppPreviewView = () => {
       }
     }
 
+    const stabilityAnchor = bridgeState.lastReadyAt ?? iframeLoadedAt;
+    const enforcedDelay = !options?.force && stabilityAnchor
+      ? Math.max(0, (stabilityAnchor + PREVIEW_SCREENSHOT_STABILITY_MS) - now)
+      : 0;
+    const totalDelay = options?.force ? delayMs : Math.max(delayMs, enforcedDelay);
+
     let cancelled = false;
     let timeoutId: number | null = null;
 
@@ -862,8 +839,8 @@ const AppPreviewView = () => {
       })();
     };
 
-    if (delayMs > 0 && typeof window !== 'undefined') {
-      timeoutId = window.setTimeout(runCapture, delayMs);
+    if (totalDelay > 0 && typeof window !== 'undefined') {
+      timeoutId = window.setTimeout(runCapture, totalDelay);
     } else {
       runCapture();
     }
@@ -876,6 +853,7 @@ const AppPreviewView = () => {
     };
   }, [
     bridgeState.isReady,
+    bridgeState.lastReadyAt,
     bridgeSupportsScreenshot,
     canCaptureScreenshot,
     currentAppIdentifier,
@@ -1587,23 +1565,6 @@ const AppPreviewView = () => {
     toggleLogsPanel();
   }, [toggleLogsPanel, updatePreviewGuard]);
 
-  const handleHistorySelect = useCallback((app: App) => {
-    const identifier = resolveAppIdentifier(app);
-    if (!identifier) {
-      return;
-    }
-
-    recordNavigateEvent({
-      reason: 'toolbar-history-select',
-      targetPath: `/apps/${encodeURIComponent(identifier)}/preview`,
-    });
-
-    navigate({
-      pathname: `/apps/${encodeURIComponent(identifier)}/preview`,
-      search: location.search || undefined,
-    });
-  }, [location.search, navigate, recordNavigateEvent]);
-
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(null);
     setIframeLoadedAt(Date.now());
@@ -1761,10 +1722,7 @@ const AppPreviewView = () => {
         isDeviceEmulationActive={isDeviceEmulationActive}
         onToggleDeviceEmulation={toggleDeviceEmulation}
         menuPortalContainer={previewViewNode}
-        historyRecentApps={historyRecentApps}
-        historyAllApps={historyAllApps}
-        historyShouldShow={historyShouldShow}
-        onHistorySelect={handleHistorySelect}
+        canOpenTabsOverlay={canOpenTabsOverlay}
         previewInteractionSignal={previewInteractionSignal}
       />
 

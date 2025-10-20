@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Bug,
   ExternalLink,
+  History,
   Info,
   Loader2,
   Navigation2,
@@ -27,8 +28,7 @@ import {
   ScrollText,
   Wrench,
 } from 'lucide-react';
-import type { App } from '@/types';
-import HistoryMenu from './HistoryMenu';
+import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 
 import './AppPreviewToolbar.css';
 
@@ -72,10 +72,7 @@ export interface AppPreviewToolbarProps {
   isDeviceEmulationActive: boolean;
   onToggleDeviceEmulation: () => void;
   menuPortalContainer: HTMLElement | null;
-  historyRecentApps: App[];
-  historyAllApps: App[];
-  historyShouldShow: boolean;
-  onHistorySelect: (app: App) => void;
+  canOpenTabsOverlay: boolean;
   previewInteractionSignal: number;
 }
 
@@ -113,10 +110,7 @@ const AppPreviewToolbar = ({
   isDeviceEmulationActive,
   onToggleDeviceEmulation,
   menuPortalContainer,
-  historyRecentApps,
-  historyAllApps,
-  historyShouldShow,
-  onHistorySelect,
+  canOpenTabsOverlay,
   previewInteractionSignal,
 }: AppPreviewToolbarProps) => {
   const [lifecycleMenuOpen, setLifecycleMenuOpen] = useState(false);
@@ -158,6 +152,7 @@ const AppPreviewToolbar = ({
   const [lifecycleMenuStyle, setLifecycleMenuStyle] = useState<CSSProperties | undefined>(undefined);
   const [devMenuStyle, setDevMenuStyle] = useState<CSSProperties | undefined>(undefined);
   const [navMenuStyle, setNavMenuStyle] = useState<CSSProperties | undefined>(undefined);
+  const { openOverlay } = useOverlayRouter();
 
   const updateLifecycleAnchor = useCallback(() => {
     const button = lifecycleButtonRef.current;
@@ -637,26 +632,12 @@ const AppPreviewToolbar = ({
     closeMenus();
   }, [closeMenus, onToggleFullView]);
 
-  const handleHistorySelect = useCallback((app: App) => {
-    onHistorySelect(app);
+  const handleOpenTabsOverlay = useCallback(() => {
     closeMenus();
-  }, [closeMenus, onHistorySelect]);
-
-  const handleHistoryToggle = useCallback((isOpen: boolean) => {
-    if (!isOpen) {
-      return;
-    }
-
-    setLifecycleMenuOpen(false);
-    setLifecycleAnchorRect(null);
-    setLifecycleMenuStyle(undefined);
-    setDevMenuOpen(false);
-    setDevAnchorRect(null);
-    setDevMenuStyle(undefined);
-    setNavMenuOpen(false);
-    setNavAnchorRect(null);
-    setNavMenuStyle(undefined);
-  }, []);
+    openOverlay('tabs', {
+      params: { segment: 'apps' },
+    });
+  }, [closeMenus, openOverlay]);
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isFullView) {
@@ -818,7 +799,7 @@ const AppPreviewToolbar = ({
               >
                 <Navigation2 aria-hidden size={18} />
               </button>
-              {portalHost && navMenuOpen && navMenuStyle && createPortal(
+            {portalHost && navMenuOpen && navMenuStyle && createPortal(
                 <div
                   className="preview-toolbar__menu-popover"
                   role="menu"
@@ -860,20 +841,17 @@ const AppPreviewToolbar = ({
                 portalHost,
               )}
             </div>
-            {isFullView && historyShouldShow && (
-              <HistoryMenu
-                recentApps={historyRecentApps}
-                allApps={historyAllApps}
-                shouldShowHistory={historyShouldShow}
-                onSelect={handleHistorySelect}
-                onToggle={handleHistoryToggle}
-                containerClassName="preview-toolbar__history"
-                buttonClassName="preview-toolbar__icon-btn"
-                iconClassName="preview-toolbar__history-icon"
-                portalContainer={menuPortalContainer}
-                usePortal={Boolean(menuPortalContainer)}
-                closeSignal={previewInteractionSignal}
-              />
+            {isFullView && (
+              <button
+                type="button"
+                className={clsx('preview-toolbar__icon-btn', 'preview-toolbar__icon-btn--secondary')}
+                onClick={handleOpenTabsOverlay}
+                disabled={!canOpenTabsOverlay}
+                aria-label="Open tabs switcher"
+                title="Open tabs switcher"
+              >
+                <History aria-hidden size={18} />
+              </button>
             )}
           </>
         ) : (

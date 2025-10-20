@@ -1,10 +1,10 @@
-import { FormEvent, useEffect, useId, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus } from 'lucide-react';
+import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Package } from 'lucide-react';
 import clsx from 'clsx';
 import { selectScreenshotBySurface, useSurfaceMediaStore } from '@/state/surfaceMediaStore';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
-import { useResourcesCatalog } from '@/hooks/useResourcesCatalog';
+import { useResourcesCatalog, normalizeResourceSort, type ResourceSortOption } from '@/hooks/useResourcesCatalog';
 import { useBrowserTabsStore, type BrowserTabRecord, type BrowserTabHistoryRecord } from '@/state/browserTabsStore';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
@@ -31,6 +31,29 @@ const resolveSegment = (value: string | null): SegmentId => {
   }
   return 'apps';
 };
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]:not([tabindex="-1"])',
+  'button:not([disabled]):not([tabindex="-1"])',
+  'input:not([disabled]):not([type="hidden"]):not([tabindex="-1"])',
+  'select:not([disabled]):not([tabindex="-1"])',
+  'textarea:not([disabled]):not([tabindex="-1"])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+const getFocusable = (root: HTMLElement): HTMLElement[] => (
+  Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => {
+    if (element.hasAttribute('disabled')) {
+      return false;
+    }
+    const ariaHidden = element.getAttribute('aria-hidden');
+    if (ariaHidden === 'true') {
+      return false;
+    }
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  })
+);
 
 const formatViewCount = (value?: number | string | null): string | null => {
   if (value == null) {
@@ -68,9 +91,13 @@ export default function TabSwitcherDialog() {
   const [search, setSearch] = useState('');
   const [activeSegment, setActiveSegment] = useState<SegmentId>(() => resolveSegment(segmentParam));
   const [sortOption, setSortOption] = useState<AppSortOption>('status');
+  const [resourceSortOption, setResourceSortOption] = useState<ResourceSortOption>('status');
   const [newWebTabUrl, setNewWebTabUrl] = useState('');
   const [newWebTabError, setNewWebTabError] = useState<string | null>(null);
   const webTabErrorId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
   const appLoadState = useAppsStore(state => ({
     loadingInitial: state.loadingInitial,
     hasInitialized: state.hasInitialized,
@@ -85,7 +112,7 @@ export default function TabSwitcherDialog() {
   }));
   const normalizedSearch = search.trim().toLowerCase();
   const { filteredApps, recentApps } = useAppCatalog({ search, sort: sortOption, historyLimit: 12 });
-  const { sortedResources } = useResourcesCatalog();
+  const { sortedResources } = useResourcesCatalog({ sort: resourceSortOption });
   const setSurfaceScreenshot = useSurfaceMediaStore(state => state.setScreenshot);
   const {
     tabs: browserTabs,
@@ -132,6 +159,62 @@ export default function TabSwitcherDialog() {
   useEffect(() => {
     setActiveSegment(resolveSegment(segmentParam));
   }, [segmentParam]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    lastFocusedElementRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const rafId = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      const previous = lastFocusedElementRef.current;
+      if (previous && typeof previous.focus === 'function') {
+        previous.focus({ preventScroll: true });
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const root = dialogRef.current;
+    if (!root || typeof document === 'undefined') {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') {
+        return;
+      }
+      const focusable = getFocusable(root);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeElement = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey) {
+        if (!activeElement || activeElement === first || !root.contains(activeElement)) {
+          event.preventDefault();
+          last.focus({ preventScroll: true });
+        }
+      } else if (activeElement === last) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+    };
+
+    root.addEventListener('keydown', handleKeyDown);
+    return () => {
+      root.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const handleSegmentSelect = (segmentId: SegmentId) => {
     setActiveSegment(segmentId);
@@ -201,7 +284,7 @@ export default function TabSwitcherDialog() {
     const record = openBrowserTab({ url: parsed.url, title: parsed.title });
     setNewWebTabUrl('');
     setNewWebTabError(null);
-    handleWebTabOpen(record);
+    activateBrowserTab(record.id);
   };
 
   const handleNewWebTabInput = (value: string) => {
@@ -220,7 +303,7 @@ export default function TabSwitcherDialog() {
   const activeSegmentLabel = SEGMENTS.find(segment => segment.id === activeSegment)?.label ?? '';
 
   return (
-    <div className="tab-switcher">
+    <div className="tab-switcher" ref={dialogRef}>
       <header className="tab-switcher__header">
         <div>
           <h2>{activeSegmentLabel}</h2>
@@ -241,6 +324,7 @@ export default function TabSwitcherDialog() {
           <Search size={16} aria-hidden />
           <input
             type="text"
+            ref={searchInputRef}
             value={search}
             onChange={event => setSearch(event.target.value)}
             placeholder="Search scenarios, resources, or tabs"
@@ -252,26 +336,6 @@ export default function TabSwitcherDialog() {
             </button>
           )}
         </div>
-        {activeSegment === 'apps' && (
-          <div className="tab-switcher__sort">
-            <SlidersHorizontal size={16} aria-hidden />
-            <select
-              value={sortOption}
-              onChange={event => setSortOption(normalizeAppSort(event.target.value))}
-              aria-label="Sort scenarios"
-            >
-              <option value="status">Active first</option>
-              <option value="recently-viewed">Recently viewed</option>
-              <option value="least-recently-viewed">Least recently viewed</option>
-              <option value="recently-updated">Recently updated</option>
-              <option value="recently-added">Recently added</option>
-              <option value="most-viewed">Most viewed</option>
-              <option value="least-viewed">Least viewed</option>
-              <option value="name-asc">A → Z</option>
-              <option value="name-desc">Z → A</option>
-            </select>
-          </div>
-        )}
         <div className="tab-switcher__segment">
           {SEGMENTS.map(segment => {
             const Icon = segment.icon;
@@ -295,9 +359,12 @@ export default function TabSwitcherDialog() {
             <form className="tab-switcher__web-form" onSubmit={handleWebTabCreate}>
               <Globe size={16} aria-hidden />
               <input
-                type="url"
+                type="text"
                 inputMode="url"
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={newWebTabUrl}
                 onChange={event => handleNewWebTabInput(event.target.value)}
                 placeholder="https://example.com"
@@ -347,6 +414,14 @@ export default function TabSwitcherDialog() {
             <Section
               title={normalizedSearch ? 'Search results' : 'All scenarios'}
               description={normalizedSearch ? undefined : 'Browse the full catalog alphabetically or by status.'}
+              actions={(
+                <SortControl
+                  label="Sort scenarios"
+                  value={sortOption}
+                  options={APP_SORT_OPTIONS}
+                  onChange={value => setSortOption(normalizeAppSort(value))}
+                />
+              )}
             >
               <AppGrid
                 apps={filteredApps}
@@ -368,6 +443,14 @@ export default function TabSwitcherDialog() {
             <Section
               title={normalizedSearch ? 'Search results' : 'All resources'}
               description={normalizedSearch ? undefined : 'Operational tooling and shared services.'}
+              actions={(
+                <SortControl
+                  label="Sort resources"
+                  value={resourceSortOption}
+                  options={RESOURCE_SORT_OPTIONS}
+                  onChange={value => setResourceSortOption(normalizeResourceSort(value))}
+                />
+              )}
             >
               <ResourceGrid
                 resources={filteredResources}
@@ -415,15 +498,44 @@ export default function TabSwitcherDialog() {
   );
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Section({ title, description, actions, children }: { title: string; description?: string; actions?: ReactNode; children: ReactNode }) {
   return (
     <section className="tab-switcher__group">
       <header>
-        <h3>{title}</h3>
-        {description && <p>{description}</p>}
+        <div className="tab-switcher__group-text">
+          <h3>{title}</h3>
+          {description && <p>{description}</p>}
+        </div>
+        {actions}
       </header>
       {children}
     </section>
+  );
+}
+
+type SortControlProps = {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange(value: string): void;
+};
+
+function SortControl({ label, value, options, onChange }: SortControlProps) {
+  return (
+    <div className="tab-switcher__sort">
+      <SlidersHorizontal size={16} aria-hidden />
+      <select
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        aria-label={label}
+      >
+        {options.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -524,7 +636,9 @@ function ResourceGrid({
           className="tab-card"
           onClick={() => onSelect(resource)}
         >
-          <div className="tab-card__thumb tab-card__thumb--resource" aria-hidden />
+          <div className="tab-card__thumb tab-card__thumb--resource" aria-hidden>
+            <Package size={44} aria-hidden />
+          </div>
           <div className="tab-card__body">
             <h4>{resource.name}</h4>
             <div className="tab-card__meta">
@@ -694,3 +808,21 @@ function parseWebTabInput(value: string): { url: string; title: string } | null 
     title: hostname && hostname !== normalized ? hostname : normalized,
   };
 }
+const APP_SORT_OPTIONS: Array<{ value: AppSortOption; label: string }> = [
+  { value: 'status', label: 'Active first' },
+  { value: 'recently-viewed', label: 'Recently viewed' },
+  { value: 'least-recently-viewed', label: 'Least recently viewed' },
+  { value: 'recently-updated', label: 'Recently updated' },
+  { value: 'recently-added', label: 'Recently added' },
+  { value: 'most-viewed', label: 'Most viewed' },
+  { value: 'least-viewed', label: 'Least viewed' },
+  { value: 'name-asc', label: 'A → Z' },
+  { value: 'name-desc', label: 'Z → A' },
+];
+
+const RESOURCE_SORT_OPTIONS: Array<{ value: ResourceSortOption; label: string }> = [
+  { value: 'status', label: 'Status (Active first)' },
+  { value: 'name-asc', label: 'Name A → Z' },
+  { value: 'name-desc', label: 'Name Z → A' },
+  { value: 'type', label: 'Type' },
+];
