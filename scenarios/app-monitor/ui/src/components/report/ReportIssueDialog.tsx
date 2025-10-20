@@ -88,10 +88,6 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     screenshot,
   } = useReportIssueState(props);
 
-  if (!isOpen) {
-    return null;
-  }
-
   const { result } = form;
   const sendDisabled = form.submitting || (
     screenshot.reportIncludeScreenshot
@@ -157,6 +153,10 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     existingIssuesShouldWarn,
     existingIssuesMeta,
   ]);
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div

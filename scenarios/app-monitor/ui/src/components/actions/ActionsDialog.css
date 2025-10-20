@@ -51,6 +51,28 @@
   align-items: center;
 }
 
+.actions-dialog__spinner {
+  color: rgba(122, 160, 255, 0.95);
+  animation: actions-dialog-spin 1s linear infinite;
+}
+
+.actions-dialog__status-indicator strong {
+  display: block;
+}
+
+.actions-dialog__status-indicator p {
+  margin: 4px 0 0;
+}
+
+.actions-dialog__metrics--loading div {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.actions-dialog__metrics--loading dd {
+  display: flex;
+  justify-content: center;
+}
+
 .actions-dialog__dot {
   width: 14px;
   height: 14px;
@@ -128,6 +150,15 @@
   display: block;
   color: rgba(231, 235, 255, 0.65);
   font-size: 0.85rem;
+}
+
+@keyframes actions-dialog-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @media (min-width: 768px) {

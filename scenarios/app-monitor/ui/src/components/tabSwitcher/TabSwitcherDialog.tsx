@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2 } from 'lucide-react';
+import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus } from 'lucide-react';
 import clsx from 'clsx';
 import { selectScreenshotBySurface, useSurfaceMediaStore } from '@/state/surfaceMediaStore';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
 import { useResourcesCatalog } from '@/hooks/useResourcesCatalog';
 import { useBrowserTabsStore, type BrowserTabRecord, type BrowserTabHistoryRecord } from '@/state/browserTabsStore';
+import { useAppsStore } from '@/state/appsStore';
+import { useResourcesStore } from '@/state/resourcesStore';
+import { AppsGridSkeleton, ResourcesGridSkeleton } from '@/components/LoadingSkeleton';
 import { resolveAppIdentifier } from '@/utils/appPreview';
+import { ensureDataUrl } from '@/utils/dataUrl';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import type { App, Resource } from '@/types';
 import './TabSwitcherDialog.css';
@@ -64,6 +68,21 @@ export default function TabSwitcherDialog() {
   const [search, setSearch] = useState('');
   const [activeSegment, setActiveSegment] = useState<SegmentId>(() => resolveSegment(segmentParam));
   const [sortOption, setSortOption] = useState<AppSortOption>('status');
+  const [newWebTabUrl, setNewWebTabUrl] = useState('');
+  const [newWebTabError, setNewWebTabError] = useState<string | null>(null);
+  const webTabErrorId = useId();
+  const appLoadState = useAppsStore(state => ({
+    loadingInitial: state.loadingInitial,
+    hasInitialized: state.hasInitialized,
+    appsLength: state.apps.length,
+    error: state.error,
+  }));
+  const resourceLoadState = useResourcesStore(state => ({
+    loading: state.loading,
+    hasInitialized: state.hasInitialized,
+    resourcesLength: state.resources.length,
+    error: state.error,
+  }));
   const normalizedSearch = search.trim().toLowerCase();
   const { filteredApps, recentApps } = useAppCatalog({ search, sort: sortOption, historyLimit: 12 });
   const { sortedResources } = useResourcesCatalog();
@@ -103,6 +122,12 @@ export default function TabSwitcherDialog() {
       : browserHistory.filter(tab => tab.title.toLowerCase().includes(normalizedSearch)
         || tab.url.toLowerCase().includes(normalizedSearch))
   ), [browserHistory, normalizedSearch]);
+
+  const isLoadingApps = appLoadState.loadingInitial
+    || (!appLoadState.hasInitialized && appLoadState.appsLength === 0 && !appLoadState.error);
+
+  const isLoadingResources = (!resourceLoadState.hasInitialized && !resourceLoadState.error)
+    && (resourceLoadState.loading || resourceLoadState.resourcesLength === 0);
 
   useEffect(() => {
     setActiveSegment(resolveSegment(segmentParam));
@@ -145,15 +170,16 @@ export default function TabSwitcherDialog() {
 
   const handleHistoryReopen = (entry: BrowserTabHistoryRecord) => {
     const reopened = openBrowserTab({ url: entry.url, title: entry.title });
-    if (entry.screenshotData) {
+    const screenshotDataUrl = ensureDataUrl(entry.screenshotData);
+    if (screenshotDataUrl) {
       updateBrowserTab(reopened.id, {
-        screenshotData: entry.screenshotData,
+        screenshotData: screenshotDataUrl,
         screenshotWidth: entry.screenshotWidth,
         screenshotHeight: entry.screenshotHeight,
         screenshotNote: entry.screenshotNote,
       });
       setSurfaceScreenshot('web', reopened.id, {
-        dataUrl: entry.screenshotData,
+        dataUrl: screenshotDataUrl,
         width: entry.screenshotWidth ?? 0,
         height: entry.screenshotHeight ?? 0,
         capturedAt: Date.now(),
@@ -163,6 +189,29 @@ export default function TabSwitcherDialog() {
     }
     handleWebTabOpen(reopened);
   };
+
+  const handleWebTabCreate = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const parsed = parseWebTabInput(newWebTabUrl);
+    if (!parsed) {
+      setNewWebTabError('Enter a valid URL');
+      return;
+    }
+
+    const record = openBrowserTab({ url: parsed.url, title: parsed.title });
+    setNewWebTabUrl('');
+    setNewWebTabError(null);
+    handleWebTabOpen(record);
+  };
+
+  const handleNewWebTabInput = (value: string) => {
+    setNewWebTabUrl(value);
+    if (newWebTabError) {
+      setNewWebTabError(null);
+    }
+  };
+
+  const disableWebTabSubmit = newWebTabUrl.trim().length === 0;
 
   const showAppHistory = !normalizedSearch && recentApps.length > 0;
   const showResourceHistory = false;
@@ -203,24 +252,6 @@ export default function TabSwitcherDialog() {
             </button>
           )}
         </div>
-        <div className="tab-switcher__segment">
-          {SEGMENTS.map(segment => {
-            const Icon = segment.icon;
-            const isActive = segment.id === activeSegment;
-            return (
-              <button
-                key={segment.id}
-                type="button"
-                className={clsx('tab-switcher__segment-btn', isActive && 'active')}
-                onClick={() => handleSegmentSelect(segment.id)}
-                aria-pressed={isActive}
-              >
-                <Icon size={16} aria-hidden />
-                <span>{segment.label}</span>
-              </button>
-            );
-          })}
-        </div>
         {activeSegment === 'apps' && (
           <div className="tab-switcher__sort">
             <SlidersHorizontal size={16} aria-hidden />
@@ -241,6 +272,65 @@ export default function TabSwitcherDialog() {
             </select>
           </div>
         )}
+        <div className="tab-switcher__segment">
+          {SEGMENTS.map(segment => {
+            const Icon = segment.icon;
+            const isActive = segment.id === activeSegment;
+            return (
+              <button
+                key={segment.id}
+                type="button"
+                className={clsx('tab-switcher__segment-btn', isActive && 'active')}
+                onClick={() => handleSegmentSelect(segment.id)}
+                aria-pressed={isActive}
+              >
+                <Icon size={16} aria-hidden />
+                <span>{segment.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        {activeSegment === 'web' && (
+          <>
+            <form className="tab-switcher__web-form" onSubmit={handleWebTabCreate}>
+              <Globe size={16} aria-hidden />
+              <input
+                type="url"
+                inputMode="url"
+                autoComplete="off"
+                value={newWebTabUrl}
+                onChange={event => handleNewWebTabInput(event.target.value)}
+                placeholder="https://example.com"
+                aria-label="Open a new web tab"
+                aria-invalid={newWebTabError ? 'true' : 'false'}
+                aria-describedby={newWebTabError ? webTabErrorId : undefined}
+              />
+              {newWebTabUrl && (
+                <button
+                  type="button"
+                  className="tab-switcher__clear"
+                  onClick={() => handleNewWebTabInput('')}
+                  aria-label="Clear URL"
+                >
+                  <X size={14} aria-hidden />
+                </button>
+              )}
+              <button
+                type="submit"
+                className="tab-switcher__web-submit"
+                disabled={disableWebTabSubmit}
+              >
+                <Plus size={16} aria-hidden />
+                <span>Add tab</span>
+              </button>
+            </form>
+            {newWebTabError && (
+              <p className="tab-switcher__web-error" role="alert" id={webTabErrorId}>
+                {newWebTabError}
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="tab-switcher__content">
@@ -258,7 +348,12 @@ export default function TabSwitcherDialog() {
               title={normalizedSearch ? 'Search results' : 'All scenarios'}
               description={normalizedSearch ? undefined : 'Browse the full catalog alphabetically or by status.'}
             >
-              <AppGrid apps={filteredApps} onSelect={handleAppSelect} emptyMessage="No scenarios match your search." />
+              <AppGrid
+                apps={filteredApps}
+                onSelect={handleAppSelect}
+                emptyMessage="No scenarios match your search."
+                isLoading={isLoadingApps}
+              />
             </Section>
           </div>
         )}
@@ -274,7 +369,12 @@ export default function TabSwitcherDialog() {
               title={normalizedSearch ? 'Search results' : 'All resources'}
               description={normalizedSearch ? undefined : 'Operational tooling and shared services.'}
             >
-              <ResourceGrid resources={filteredResources} onSelect={handleResourceSelect} emptyMessage="No resources match your search." />
+              <ResourceGrid
+                resources={filteredResources}
+                onSelect={handleResourceSelect}
+                emptyMessage="No resources match your search."
+                isLoading={isLoadingResources}
+              />
             </Section>
           </div>
         )}
@@ -327,7 +427,22 @@ function Section({ title, description, children }: { title: string; description?
   );
 }
 
-function AppGrid({ apps, onSelect, emptyMessage }: { apps: App[]; onSelect(app: App): void; emptyMessage?: string }) {
+function AppGrid({
+  apps,
+  onSelect,
+  emptyMessage,
+  isLoading,
+  skeletonCount = 8,
+}: {
+  apps: App[];
+  onSelect(app: App): void;
+  emptyMessage?: string;
+  isLoading?: boolean;
+  skeletonCount?: number;
+}) {
+  if (isLoading) {
+    return <AppsGridSkeleton count={skeletonCount} viewMode="grid" />;
+  }
   if (apps.length === 0) {
     return <EmptyState message={emptyMessage ?? 'No scenarios available.'} />;
   }
@@ -381,7 +496,22 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
   );
 }
 
-function ResourceGrid({ resources, onSelect, emptyMessage }: { resources: Resource[]; onSelect(resource: Resource): void; emptyMessage?: string }) {
+function ResourceGrid({
+  resources,
+  onSelect,
+  emptyMessage,
+  isLoading,
+  skeletonCount = 6,
+}: {
+  resources: Resource[];
+  onSelect(resource: Resource): void;
+  emptyMessage?: string;
+  isLoading?: boolean;
+  skeletonCount?: number;
+}) {
+  if (isLoading) {
+    return <ResourcesGridSkeleton count={skeletonCount} />;
+  }
   if (resources.length === 0) {
     return <EmptyState message={emptyMessage ?? 'No resources available.'} />;
   }
@@ -531,3 +661,36 @@ const safeHostname = (value: string) => {
     return value;
   }
 };
+
+function parseWebTabInput(value: string): { url: string; title: string } | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const tryParse = (candidate: string) => {
+    try {
+      const normalized = new URL(candidate);
+      return normalized.toString();
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const normalized = tryParse(trimmed)
+    ?? (!trimmed.includes('://') ? tryParse(`https://${trimmed}`) : null);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const hostname = safeHostname(normalized);
+  return {
+    url: normalized,
+    title: hostname && hostname !== normalized ? hostname : normalized,
+  };
+}

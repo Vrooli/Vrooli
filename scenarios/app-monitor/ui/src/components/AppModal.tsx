@@ -131,10 +131,6 @@ export default function AppModal({
     return () => window.clearTimeout(timer);
   }, [hasCopiedPreviewUrl]);
 
-  if (!isOpen) {
-    return null;
-  }
-
   const { apiPort, otherPorts, primaryPortLabel, primaryPortValue, proxyRoutes } = useMemo(() => {
     const portEntries = Object.entries(app.port_mappings || {});
     const portsMap = Object.fromEntries(portEntries);
@@ -226,6 +222,10 @@ export default function AppModal({
       setHasCopiedPreviewUrl(true);
     });
   }, [currentUrl]);
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="modal active" onClick={onClose}>

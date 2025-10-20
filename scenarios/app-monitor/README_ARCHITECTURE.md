@@ -39,10 +39,12 @@ api/
 
 ui/
 ├── src/
-│   ├── components/         # React components with memoization
-│   │   ├── AppCard.tsx     # Optimized with React.memo
+│   ├── components/         # React components with overlays
+│   │   ├── Shell.tsx       # Chrome-lite shell + bottom nav
+│   │   ├── tabSwitcher/    # Unified tab switcher dialog
 │   │   └── views/
-│   │       └── AppsView.tsx # Virtual scrolling for large lists
+│   │       ├── AppPreviewView.tsx
+│   │       └── ResourceDetailView.tsx
 │   └── services/
 │       ├── api.ts          # Clean API service layer
 │       └── logger.ts       # Professional logging service

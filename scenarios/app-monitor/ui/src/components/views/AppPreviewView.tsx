@@ -20,6 +20,7 @@ import {
   locateAppByIdentifier,
   resolveAppIdentifier,
 } from '@/utils/appPreview';
+import { ensureDataUrl } from '@/utils/dataUrl';
 import { buildAlphabetizedApps, buildRecentApps } from '@/utils/appCollections';
 import { useIframeBridge } from '@/hooks/useIframeBridge';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
@@ -797,6 +798,92 @@ const AppPreviewView = () => {
   }, [localhostReport]);
   const hasLocalhostWarning = Boolean(localhostIssueMessage);
 
+  const scheduleScreenshotCapture = useCallback((delayMs = 0, options?: { force?: boolean }) => {
+    if (!currentAppIdentifier || !bridgeSupportsScreenshot || !canCaptureScreenshot) {
+      return undefined;
+    }
+
+    if (!bridgeState.isReady || !iframeLoadedAt) {
+      return undefined;
+    }
+
+    const now = Date.now();
+    const captureFreshness = now - lastScreenshotRef.current.capturedAt;
+    const isStaleCapture = lastScreenshotRef.current.surfaceId !== currentAppIdentifier
+      || captureFreshness >= 3000;
+
+    if (!options?.force) {
+      if (captureInFlightRef.current) {
+        return undefined;
+      }
+      if (!isStaleCapture) {
+        return undefined;
+      }
+    }
+
+    let cancelled = false;
+    let timeoutId: number | null = null;
+
+    const runCapture = () => {
+      if (cancelled) {
+        return;
+      }
+
+      if (captureInFlightRef.current && !options?.force) {
+        return;
+      }
+
+      captureInFlightRef.current = true;
+      const scale = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+
+      void (async () => {
+        try {
+          const result = await requestScreenshot({ mode: 'viewport', scale });
+          if (cancelled) {
+            return;
+          }
+          const dataUrl = ensureDataUrl(result.data);
+          if (dataUrl) {
+            setSurfaceScreenshot('app', currentAppIdentifier, {
+              dataUrl,
+              width: result.width,
+              height: result.height,
+              capturedAt: Date.now(),
+              note: result.note ?? null,
+              source: 'bridge',
+            });
+            lastScreenshotRef.current = { surfaceId: currentAppIdentifier, capturedAt: Date.now() };
+          }
+        } catch (error) {
+          logger.debug('Preview screenshot capture failed', error);
+        } finally {
+          captureInFlightRef.current = false;
+        }
+      })();
+    };
+
+    if (delayMs > 0 && typeof window !== 'undefined') {
+      timeoutId = window.setTimeout(runCapture, delayMs);
+    } else {
+      runCapture();
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null && typeof window !== 'undefined') {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [
+    bridgeState.isReady,
+    bridgeSupportsScreenshot,
+    canCaptureScreenshot,
+    currentAppIdentifier,
+    iframeLoadedAt,
+    requestScreenshot,
+    setSurfaceScreenshot,
+  ]);
+
   useEffect(() => {
     setIframeLoadedAt(null);
     setIframeLoadError(null);
@@ -816,52 +903,18 @@ const AppPreviewView = () => {
       return;
     }
 
-    if (!currentAppIdentifier || !bridgeSupportsScreenshot || !canCaptureScreenshot) {
-      return;
-    }
-
-    if (captureInFlightRef.current) {
-      return;
-    }
-
     const now = Date.now();
-    if (
-      lastScreenshotRef.current.surfaceId === currentAppIdentifier
-      && now - lastScreenshotRef.current.capturedAt < 5000
-    ) {
+    const delay = iframeLoadedAt ? Math.max(0, 250 - (now - iframeLoadedAt)) : 0;
+    return scheduleScreenshotCapture(delay);
+  }, [activeOverlay, iframeLoadedAt, scheduleScreenshotCapture]);
+
+  useEffect(() => {
+    if (!iframeLoadedAt) {
       return;
     }
 
-    captureInFlightRef.current = true;
-    let cancelled = false;
-    const scale = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-
-    void (async () => {
-      try {
-        const result = await requestScreenshot({ mode: 'viewport', scale });
-        if (cancelled) {
-          return;
-        }
-        setSurfaceScreenshot('app', currentAppIdentifier, {
-          dataUrl: result.data,
-          width: result.width,
-          height: result.height,
-          capturedAt: Date.now(),
-          note: result.note ?? null,
-          source: 'bridge',
-        });
-        lastScreenshotRef.current = { surfaceId: currentAppIdentifier, capturedAt: Date.now() };
-      } catch (error) {
-        logger.debug('Automatic preview screenshot capture failed', error);
-      } finally {
-        captureInFlightRef.current = false;
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOverlay, bridgeSupportsScreenshot, canCaptureScreenshot, currentAppIdentifier, requestScreenshot, setSurfaceScreenshot]);
+    return scheduleScreenshotCapture(200);
+  }, [iframeLoadedAt, scheduleScreenshotCapture]);
 
   useEffect(() => {
     if (!previewUrl) {
@@ -1661,7 +1714,7 @@ const AppPreviewView = () => {
         logger.error('Fullscreen API unavailable or failed; falling back to immersive layout', error);
         setIsLayoutFullscreen(true);
       });
-  }, [isLayoutFullscreen, logger]);
+  }, [isLayoutFullscreen]);
 
   const isFullView = isFullscreen || isLayoutFullscreen;
 

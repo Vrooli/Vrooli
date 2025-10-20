@@ -1,8 +1,9 @@
 import clsx from 'clsx';
-import { Activity, Power, RefreshCw } from 'lucide-react';
+import { Activity, Loader2, Power, RefreshCw } from 'lucide-react';
 import { useSystemStatus } from '@/state/systemStatusStore';
 import { useScenarioActions } from '@/hooks/useScenarioActions';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
+import LoadingSkeleton from '@/components/LoadingSkeleton';
 import './ActionsDialog.css';
 
 type ActionsDialogProps = {
@@ -32,6 +33,12 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
 
   const isSystemOnline = status ? !OFFLINE_STATES.has(status) : isConnected;
   const uptimeText = uptimeSeconds != null ? formatDuration(uptimeSeconds) : '—';
+  const statusLabel = loading
+    ? 'Checking status…'
+    : (isSystemOnline ? 'Online' : 'Offline');
+  const statusDescription = loading
+    ? 'Fetching the latest health snapshot.'
+    : (isSystemOnline ? 'All systems are reachable.' : 'Connections disrupted.');
 
   return (
     <div className="actions-dialog">
@@ -52,24 +59,38 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
 
       <section className="actions-dialog__status">
         <div className="actions-dialog__status-indicator">
-          <span className={clsx('actions-dialog__dot', isSystemOnline ? 'online' : 'offline')} aria-hidden />
+          {loading ? (
+            <Loader2 className="actions-dialog__spinner" size={20} aria-hidden />
+          ) : (
+            <span className={clsx('actions-dialog__dot', isSystemOnline ? 'online' : 'offline')} aria-hidden />
+          )}
           <div>
-            <strong>{isSystemOnline ? 'Online' : 'Offline'}</strong>
-            <p>{isSystemOnline ? 'All systems are reachable.' : 'Connections disrupted.'}</p>
+            <strong>{statusLabel}</strong>
+            <p>{statusDescription}</p>
           </div>
         </div>
-        <dl className="actions-dialog__metrics" aria-live="polite">
+        <dl
+          className={clsx('actions-dialog__metrics', loading && 'actions-dialog__metrics--loading')}
+          aria-live="polite"
+          aria-busy={loading}
+        >
           <div>
             <dt>Scenarios</dt>
-            <dd>{appCount}</dd>
+            <dd>
+              {loading ? <LoadingSkeleton width="60%" height="16px" /> : appCount}
+            </dd>
           </div>
           <div>
             <dt>Resources</dt>
-            <dd>{resourceCount}</dd>
+            <dd>
+              {loading ? <LoadingSkeleton width="60%" height="16px" /> : resourceCount}
+            </dd>
           </div>
           <div>
             <dt>Uptime</dt>
-            <dd>{uptimeText}</dd>
+            <dd>
+              {loading ? <LoadingSkeleton width="80%" height="16px" /> : uptimeText}
+            </dd>
           </div>
         </dl>
       </section>

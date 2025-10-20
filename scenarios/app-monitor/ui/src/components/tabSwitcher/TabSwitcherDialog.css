@@ -112,10 +112,24 @@
   align-items: center;
   gap: 8px;
   align-self: flex-end;
+  position: relative;
   background: rgba(24, 27, 40, 0.6);
   border-radius: 12px;
   padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(122, 160, 255, 0.24);
+}
+
+.tab-switcher__sort::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid rgba(231, 235, 255, 0.8);
+  border-bottom: 1px solid rgba(231, 235, 255, 0.8);
+  transform: translateY(-50%) rotate(45deg);
+  pointer-events: none;
 }
 
 .tab-switcher__sort select {
@@ -123,10 +137,91 @@
   background: transparent;
   color: inherit;
   font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  appearance: none;
+  padding: 0 24px 0 4px;
 }
 
 .tab-switcher__sort select:focus {
   outline: none;
+}
+
+.tab-switcher__web-form {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(24, 27, 40, 0.85);
+  border: 1px solid rgba(122, 160, 255, 0.3);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 0 0 1px rgba(122, 160, 255, 0.08) inset;
+}
+
+.tab-switcher__web-form input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.95rem;
+}
+
+.tab-switcher__web-form input:focus {
+  outline: none;
+}
+
+.tab-switcher__web-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, rgba(122, 160, 255, 0.92), rgba(92, 128, 255, 0.92));
+  color: #0f132f;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.tab-switcher__web-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(32, 52, 120, 0.32);
+}
+
+.tab-switcher__web-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.tab-switcher__web-error {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+  padding-left: 6px;
+  color: #ff9d9d;
+  font-size: 0.8rem;
+}
+
+.tab-switcher__clear {
+  border: none;
+  background: transparent;
+  color: rgba(231, 235, 255, 0.6);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.tab-switcher__clear:hover {
+  color: #f5f6ff;
+}
+
+.tab-switcher__clear:focus-visible {
+  outline: 2px solid rgba(122, 160, 255, 0.7);
+  outline-offset: 2px;
 }
 
 .tab-switcher__content {

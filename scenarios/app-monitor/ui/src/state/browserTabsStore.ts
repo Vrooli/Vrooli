@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { ensureDataUrl } from '@/utils/dataUrl';
 import { useSurfaceMediaStore } from './surfaceMediaStore';
 
 export interface BrowserTabRecord {
@@ -87,24 +88,37 @@ export const useBrowserTabsStore = create<BrowserTabsState>((set) => ({
   },
 
   updateTab: (id, data) => {
-    set((state) => ({
-      tabs: state.tabs.map(tab => tab.id === id ? { ...tab, ...data } : tab),
-      history: state.history.map(entry => entry.id === id ? { ...entry, ...data } : entry),
-    }));
+    const hasScreenshotUpdate = Object.prototype.hasOwnProperty.call(data, 'screenshotData');
+    const normalizedScreenshotData = hasScreenshotUpdate
+      ? ensureDataUrl(data.screenshotData ?? null)
+      : undefined;
 
-    if (Object.prototype.hasOwnProperty.call(data, 'screenshotData')) {
-      const setSurfaceScreenshot = useSurfaceMediaStore.getState().setScreenshot;
-      if (data.screenshotData) {
-        setSurfaceScreenshot('web', id, {
-          dataUrl: data.screenshotData,
-          width: data.screenshotWidth ?? 0,
-          height: data.screenshotHeight ?? 0,
-          capturedAt: Date.now(),
-          note: data.screenshotNote ?? null,
-        });
-      } else {
-        setSurfaceScreenshot('web', id, null);
+    set((state) => {
+      const patch = { ...data } as Partial<BrowserTabRecord>;
+      if (hasScreenshotUpdate) {
+        patch.screenshotData = normalizedScreenshotData ?? null;
       }
+      return {
+        tabs: state.tabs.map(tab => (tab.id === id ? { ...tab, ...patch } : tab)),
+        history: state.history.map(entry => (entry.id === id ? { ...entry, ...patch } : entry)),
+      };
+    });
+
+    if (!hasScreenshotUpdate) {
+      return;
+    }
+
+    const setSurfaceScreenshot = useSurfaceMediaStore.getState().setScreenshot;
+    if (normalizedScreenshotData) {
+      setSurfaceScreenshot('web', id, {
+        dataUrl: normalizedScreenshotData,
+        width: data.screenshotWidth ?? 0,
+        height: data.screenshotHeight ?? 0,
+        capturedAt: Date.now(),
+        note: data.screenshotNote ?? null,
+      });
+    } else {
+      setSurfaceScreenshot('web', id, null);
     }
   },
 
