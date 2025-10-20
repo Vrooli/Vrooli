@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
+	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -15,11 +17,11 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	API           APIConfig
-	Database      DatabaseConfig
-	Redis         RedisConfig
-	Docker        DockerConfig
-	Orchestrator  OrchestratorConfig
+	API          APIConfig
+	Database     DatabaseConfig
+	Redis        RedisConfig
+	Docker       DockerConfig
+	Orchestrator OrchestratorConfig
 }
 
 // APIConfig holds API server configuration
@@ -32,14 +34,14 @@ type APIConfig struct {
 
 // DatabaseConfig holds database configuration
 type DatabaseConfig struct {
-	URL                string
-	MaxOpenConns       int
-	MaxIdleConns       int
-	ConnMaxLifetime    time.Duration
-	ConnectionTimeout  time.Duration
-	MaxRetries         int
-	RetryBackoffBase   time.Duration
-	RetryBackoffMax    time.Duration
+	URL               string
+	MaxOpenConns      int
+	MaxIdleConns      int
+	ConnMaxLifetime   time.Duration
+	ConnectionTimeout time.Duration
+	MaxRetries        int
+	RetryBackoffBase  time.Duration
+	RetryBackoffMax   time.Duration
 }
 
 // RedisConfig holds Redis configuration
@@ -55,17 +57,16 @@ type RedisConfig struct {
 
 // DockerConfig holds Docker configuration
 type DockerConfig struct {
-	Host        string
-	APIVersion  string
-	TLSVerify   bool
-	CertPath    string
+	Host       string
+	APIVersion string
+	TLSVerify  bool
+	CertPath   string
 }
 
 // OrchestratorConfig holds orchestrator configuration
 type OrchestratorConfig struct {
 	StatusURL string
 }
-
 
 // LoadConfig loads configuration from environment variables with defaults
 func LoadConfig() (*Config, error) {
@@ -142,7 +143,15 @@ func (c *Config) InitializeDatabase() (*sql.DB, error) {
 // testDatabaseConnection tests the database connection with exponential backoff
 func (c *Config) testDatabaseConnection(db *sql.DB) error {
 	var lastErr error
-	backoff := c.Database.RetryBackoffBase
+	baseDelay := c.Database.RetryBackoffBase
+	if baseDelay <= 0 {
+		baseDelay = 500 * time.Millisecond
+	}
+	maxBackoff := c.Database.RetryBackoffMax
+	if maxBackoff <= 0 {
+		maxBackoff = 30 * time.Second
+	}
+	rand.Seed(time.Now().UnixNano())
 
 	for attempt := 0; attempt < c.Database.MaxRetries; attempt++ {
 		ctx, cancel := context.WithTimeout(context.Background(), c.Database.ConnectionTimeout)
@@ -158,14 +167,11 @@ func (c *Config) testDatabaseConnection(db *sql.DB) error {
 		fmt.Printf("⚠️  Database connection attempt %d/%d failed: %v\n", attempt+1, c.Database.MaxRetries, err)
 
 		if attempt < c.Database.MaxRetries-1 {
-			fmt.Printf("⏳ Waiting %v before next attempt\n", backoff)
-			time.Sleep(backoff)
-
-			// Exponential backoff with cap
-			backoff *= 2
-			if backoff > c.Database.RetryBackoffMax {
-				backoff = c.Database.RetryBackoffMax
-			}
+			exponentialDelay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxBackoff)))
+			jitter := time.Duration(rand.Float64() * float64(exponentialDelay) * 0.25)
+			wait := exponentialDelay + jitter
+			fmt.Printf("⏳ Waiting %v before next attempt\n", wait)
+			time.Sleep(wait)
 		}
 	}
 

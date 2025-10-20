@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { Info, Loader2, X } from 'lucide-react';
 import { appService } from '@/services/api';
 import { useAppsStore } from '@/state/appsStore';
 import { logger } from '@/services/logger';
 import type { App, AppProxyMetadata, LocalhostUsageReport } from '@/types';
+import { useShellOverlayStore } from '@/state/shellOverlayStore';
+import { useSurfaceMediaStore } from '@/state/surfaceMediaStore';
 import AppModal from '../AppModal';
 import AppPreviewToolbar from '../AppPreviewToolbar';
 import ReportIssueDialog from '../report/ReportIssueDialog';
@@ -16,15 +18,17 @@ import {
   isRunningStatus,
   isStoppedStatus,
   locateAppByIdentifier,
-  parseTimestampValue,
   resolveAppIdentifier,
 } from '@/utils/appPreview';
+import { buildAlphabetizedApps, buildRecentApps } from '@/utils/appCollections';
 import { useIframeBridge } from '@/hooks/useIframeBridge';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { useDeviceEmulation } from '@/hooks/useDeviceEmulation';
 import DeviceEmulationToolbar from '../device-emulation/DeviceEmulationToolbar';
 import DeviceEmulationViewport from '../device-emulation/DeviceEmulationViewport';
 import DeviceVisionFilterDefs from '../device-emulation/DeviceVisionFilterDefs';
+import { useAppLogs } from '@/hooks/useAppLogs';
+import AppLogsPanel from '../logs/AppLogsPanel';
 import './AppPreviewView.css';
 
 const PREVIEW_LOAD_TIMEOUT_MS = 6000;
@@ -39,13 +43,7 @@ const AppPreviewView = () => {
   const loadApps = useAppsStore(state => state.loadApps);
   const loadingInitial = useAppsStore(state => state.loadingInitial);
   const hasInitialized = useAppsStore(state => state.hasInitialized);
-  const alphabetizedApps = useMemo(() => {
-    return [...apps].sort((a, b) => {
-      const nameA = a.scenario_name ?? a.name ?? a.id ?? '';
-      const nameB = b.scenario_name ?? b.name ?? b.id ?? '';
-      return nameA.localeCompare(nameB);
-    });
-  }, [apps]);
+  const alphabetizedApps = useMemo(() => buildAlphabetizedApps(apps), [apps]);
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
   type PreviewLocationState = {
@@ -55,9 +53,14 @@ const AppPreviewView = () => {
     suppressedAutoBack?: boolean;
   };
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeOverlay = useShellOverlayStore(state => state.activeView);
+  const setSurfaceScreenshot = useSurfaceMediaStore(state => state.setScreenshot);
   const locationState: PreviewLocationState | null = location.state && typeof location.state === 'object'
     ? location.state as PreviewLocationState
     : null;
+  const overlayQuery = searchParams.get('overlay');
+  const [isLogsPanelOpen, setIsLogsPanelOpen] = useState(() => overlayQuery === 'logs');
   const isIosSafari = useMemo(() => {
     if (typeof navigator === 'undefined') {
       return false;
@@ -70,6 +73,12 @@ const AppPreviewView = () => {
   }, []);
   const previewLocationRef = useRef<{ pathname: string; search: string }>({ pathname: location.pathname, search: location.search || '' });
   const lastAppIdRef = useRef<string | null>(appId ?? null);
+  const overlayStateRef = useRef<typeof activeOverlay>(null);
+  const captureInFlightRef = useRef(false);
+  const lastScreenshotRef = useRef<{ surfaceId: string | null; capturedAt: number }>({ surfaceId: null, capturedAt: 0 });
+  useEffect(() => {
+    setIsLogsPanelOpen(overlayQuery === 'logs');
+  }, [overlayQuery]);
   const [currentApp, setCurrentApp] = useState<App | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewUrlInput, setPreviewUrlInput] = useState('');
@@ -101,6 +110,18 @@ const AppPreviewView = () => {
     toolbar: deviceToolbar,
     viewport: deviceViewport,
   } = deviceEmulation;
+  const currentAppIdentifier = useMemo(() => {
+    if (currentApp) {
+      const resolved = resolveAppIdentifier(currentApp) ?? currentApp.id;
+      if (resolved && resolved.trim().length > 0) {
+        return resolved.trim();
+      }
+    }
+    if (appId && appId.trim().length > 0) {
+      return appId.trim();
+    }
+    return null;
+  }, [appId, currentApp]);
   const currentAppIdentifiers = useMemo(() => (
     currentApp ? collectAppIdentifiers(currentApp) : []
   ), [currentApp]);
@@ -121,47 +142,10 @@ const AppPreviewView = () => {
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
   const lastStateSnapshotRef = useRef<string>('');
-  const historyRecentApps = useMemo(() => {
-    if (apps.length === 0) {
-      return [] as App[];
-    }
-
-    const excluded = new Set(currentAppIdentifiers);
-
-    return apps
-      .filter(app => {
-        const lastViewed = parseTimestampValue(app.last_viewed_at);
-        const viewCountRaw = Number(app.view_count ?? 0);
-        const viewCount = Number.isFinite(viewCountRaw) ? viewCountRaw : 0;
-        const hasHistory = lastViewed !== null || viewCount > 0;
-        if (!hasHistory) {
-          return false;
-        }
-
-        const identifiers = collectAppIdentifiers(app);
-        return identifiers.every(identifier => !excluded.has(identifier));
-      })
-      .sort((a, b) => {
-        const aTime = parseTimestampValue(a.last_viewed_at) ?? parseTimestampValue(a.updated_at) ?? 0;
-        const bTime = parseTimestampValue(b.last_viewed_at) ?? parseTimestampValue(b.updated_at) ?? 0;
-        if (aTime !== bTime) {
-          return bTime - aTime;
-        }
-
-        const aCountRaw = Number(a.view_count ?? 0);
-        const bCountRaw = Number(b.view_count ?? 0);
-        const aCount = Number.isFinite(aCountRaw) ? aCountRaw : 0;
-        const bCount = Number.isFinite(bCountRaw) ? bCountRaw : 0;
-        if (aCount !== bCount) {
-          return bCount - aCount;
-        }
-
-        const aLabel = (resolveAppIdentifier(a) ?? '').toLowerCase();
-        const bLabel = (resolveAppIdentifier(b) ?? '').toLowerCase();
-        return aLabel.localeCompare(bLabel);
-      })
-      .slice(0, HISTORY_MENU_LIMIT);
-  }, [apps, currentAppIdentifiers]);
+  const historyRecentApps = useMemo(
+    () => buildRecentApps(apps, { excludeIdentifiers: currentAppIdentifiers, limit: HISTORY_MENU_LIMIT }),
+    [apps, currentAppIdentifiers],
+  );
 
   const historyIdentifiersToExclude = useMemo(() => {
     const identifiers = new Set(currentAppIdentifiers);
@@ -217,6 +201,34 @@ const AppPreviewView = () => {
       ...info,
     });
   }, [appId, recordDebugEvent]);
+
+  const setLogsOverlayParam = useCallback((open: boolean) => {
+    const current = searchParams.get('overlay');
+    const next = new URLSearchParams(searchParams);
+    if (open) {
+      if (current === 'logs') {
+        return;
+      }
+      next.set('overlay', 'logs');
+    } else {
+      if (current !== 'logs') {
+        return;
+      }
+      next.delete('overlay');
+    }
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const toggleLogsPanel = useCallback((nextState?: boolean) => {
+    const shouldOpen = typeof nextState === 'boolean' ? nextState : !isLogsPanelOpen;
+    setIsLogsPanelOpen(shouldOpen);
+    setLogsOverlayParam(shouldOpen);
+    recordNavigateEvent({
+      reason: shouldOpen ? 'logs-overlay-open' : 'logs-overlay-close',
+      overlay: 'logs',
+      currentAppId: currentApp?.id ?? null,
+    });
+  }, [currentApp?.id, isLogsPanelOpen, recordNavigateEvent, setLogsOverlayParam]);
 
   const updatePreviewGuard = useCallback((patch: Record<string, unknown>) => {
     if (typeof window === 'undefined') {
@@ -772,6 +784,7 @@ const AppPreviewView = () => {
     () => bridgeState.isSupported && bridgeState.caps.includes('screenshot'),
     [bridgeState.caps, bridgeState.isSupported],
   );
+  const logsState = useAppLogs({ app: currentApp, appId: appId ?? null, active: isLogsPanelOpen });
   const localhostIssueMessage = useMemo(() => {
     if (!localhostReport) {
       return null;
@@ -788,6 +801,67 @@ const AppPreviewView = () => {
     setIframeLoadedAt(null);
     setIframeLoadError(null);
   }, [previewUrl, previewReloadToken]);
+
+  useEffect(() => {
+    if (lastScreenshotRef.current.surfaceId !== currentAppIdentifier) {
+      lastScreenshotRef.current = { surfaceId: currentAppIdentifier, capturedAt: 0 };
+    }
+  }, [currentAppIdentifier]);
+
+  useEffect(() => {
+    const previous = overlayStateRef.current;
+    overlayStateRef.current = activeOverlay;
+
+    if (activeOverlay !== 'tabs' || previous === 'tabs') {
+      return;
+    }
+
+    if (!currentAppIdentifier || !bridgeSupportsScreenshot || !canCaptureScreenshot) {
+      return;
+    }
+
+    if (captureInFlightRef.current) {
+      return;
+    }
+
+    const now = Date.now();
+    if (
+      lastScreenshotRef.current.surfaceId === currentAppIdentifier
+      && now - lastScreenshotRef.current.capturedAt < 5000
+    ) {
+      return;
+    }
+
+    captureInFlightRef.current = true;
+    let cancelled = false;
+    const scale = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+
+    void (async () => {
+      try {
+        const result = await requestScreenshot({ mode: 'viewport', scale });
+        if (cancelled) {
+          return;
+        }
+        setSurfaceScreenshot('app', currentAppIdentifier, {
+          dataUrl: result.data,
+          width: result.width,
+          height: result.height,
+          capturedAt: Date.now(),
+          note: result.note ?? null,
+          source: 'bridge',
+        });
+        lastScreenshotRef.current = { surfaceId: currentAppIdentifier, capturedAt: Date.now() };
+      } catch (error) {
+        logger.debug('Automatic preview screenshot capture failed', error);
+      } finally {
+        captureInFlightRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOverlay, bridgeSupportsScreenshot, canCaptureScreenshot, currentAppIdentifier, requestScreenshot, setSurfaceScreenshot]);
 
   useEffect(() => {
     if (!previewUrl) {
@@ -1455,16 +1529,10 @@ const AppPreviewView = () => {
     window.open(target, '_blank', 'noopener');
   }, [bridgeState.href, bridgeState.isSupported, previewUrl]);
 
-  const handleViewLogs = useCallback(() => {
-    if (currentApp) {
-      recordNavigateEvent({
-        reason: 'toolbar-view-logs',
-        targetPath: `/logs/${currentApp.id}`,
-      });
-      updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
-      navigate(`/logs/${currentApp.id}`);
-    }
-  }, [currentApp, navigate, recordNavigateEvent, updatePreviewGuard]);
+  const handleToggleLogsFromToolbar = useCallback(() => {
+    updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
+    toggleLogsPanel();
+  }, [toggleLogsPanel, updatePreviewGuard]);
 
   const handleHistorySelect = useCallback((app: App) => {
     const identifier = resolveAppIdentifier(app);
@@ -1631,7 +1699,8 @@ const AppPreviewView = () => {
         onToggleApp={handleToggleApp}
         restartActionLabel={restartActionLabel}
         onRestartApp={handleRestartApp}
-        onViewLogs={handleViewLogs}
+        onToggleLogs={handleToggleLogsFromToolbar}
+        areLogsVisible={isLogsPanelOpen}
         onReportIssue={handleOpenReportDialog}
         appStatusLabel={appStatusLabel}
         isFullView={isFullView}
@@ -1660,9 +1729,19 @@ const AppPreviewView = () => {
         </div>
       )}
 
-      {isDeviceEmulationActive && <DeviceEmulationToolbar {...deviceToolbar} />}
+      {isDeviceEmulationActive && !isLogsPanelOpen && <DeviceEmulationToolbar {...deviceToolbar} />}
 
-      {previewUrl ? (
+      {isLogsPanelOpen ? (
+        <div
+          className={clsx('preview-logs-container', (isFullscreen || isLayoutFullscreen) && 'preview-logs-container--immersive')}
+        >
+          <AppLogsPanel
+            app={currentApp}
+            onClose={() => toggleLogsPanel(false)}
+            {...logsState}
+          />
+        </div>
+      ) : previewUrl ? (
         <div
           className={clsx('preview-iframe-container', isDeviceEmulationActive && 'preview-iframe-container--emulated')}
           ref={node => {

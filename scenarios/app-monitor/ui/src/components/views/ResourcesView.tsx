@@ -4,15 +4,19 @@ import { Play, Square, Info, Loader2, RefreshCw } from 'lucide-react';
 import { ResourcesGridSkeleton } from '../LoadingSkeleton';
 import './ResourcesView.css';
 import { useResourcesStore } from '@/state/resourcesStore';
+import { useResourcesCatalog } from '@/hooks/useResourcesCatalog';
 
 export default function ResourcesView() {
-  const resources = useResourcesStore(state => state.resources);
-  const loading = useResourcesStore(state => state.loading);
-  const loadResources = useResourcesStore(state => state.loadResources);
-  const startResource = useResourcesStore(state => state.startResource);
-  const stopResource = useResourcesStore(state => state.stopResource);
-  const refreshResource = useResourcesStore(state => state.refreshResource);
-  const storeError = useResourcesStore(state => state.error);
+  const {
+    resources,
+    sortedResources,
+    loading,
+    error: storeError,
+    loadResources,
+    startResource,
+    stopResource,
+    refreshResource,
+  } = useResourcesCatalog();
   const clearError = useResourcesStore(state => state.clearError);
   const hasInitialized = useResourcesStore(state => state.hasInitialized);
 
@@ -175,7 +179,7 @@ export default function ResourcesView() {
         </div>
       ) : (
         <div className="resources-grid">
-          {resources.map(resource => (
+          {sortedResources.map(resource => (
             <div key={resource.id} className="resource-card">
               <div className="resource-icon">
                 {resource.icon || getResourceIcon(resource.type)}

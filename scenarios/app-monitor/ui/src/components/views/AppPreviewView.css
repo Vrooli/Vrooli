@@ -5,6 +5,21 @@
   min-height: 0;
 }
 
+.preview-logs-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  padding: 12px 0 0;
+}
+
+.preview-logs-container--immersive {
+  padding: 0;
+}
+
+.preview-logs-container .logs-panel {
+  width: 100%;
+}
+
 .app-preview-view--immersive {
   position: fixed;
   inset: 0;

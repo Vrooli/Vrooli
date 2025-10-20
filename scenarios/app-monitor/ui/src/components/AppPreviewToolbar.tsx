@@ -63,7 +63,8 @@ export interface AppPreviewToolbarProps {
   onToggleApp: () => void;
   restartActionLabel: string;
   onRestartApp: () => void;
-  onViewLogs: () => void;
+  onToggleLogs: () => void;
+  areLogsVisible: boolean;
   onReportIssue: () => void;
   appStatusLabel: string;
   isFullView: boolean;
@@ -102,7 +103,8 @@ const AppPreviewToolbar = ({
   onToggleApp,
   restartActionLabel,
   onRestartApp,
-  onViewLogs,
+  onToggleLogs,
+  areLogsVisible,
   onReportIssue,
   appStatusLabel,
   hasDetailsWarning,
@@ -603,10 +605,10 @@ const AppPreviewToolbar = ({
     closeMenus();
   }, [closeMenus, onRestartApp, onToggleApp]);
 
-  const handleViewLogs = useCallback(() => {
-    onViewLogs();
+  const handleToggleLogs = useCallback(() => {
+    onToggleLogs();
     closeMenus();
-  }, [closeMenus, onViewLogs]);
+  }, [closeMenus, onToggleLogs]);
 
   const handleReportIssue = useCallback(() => {
     onReportIssue();
@@ -1093,12 +1095,13 @@ const AppPreviewToolbar = ({
               <button
                 type="button"
                 role="menuitem"
-                className="preview-toolbar__menu-item"
-                onClick={handleViewLogs}
+                className={clsx('preview-toolbar__menu-item', areLogsVisible && 'preview-toolbar__menu-item--active')}
+                onClick={handleToggleLogs}
+                aria-pressed={areLogsVisible}
                 disabled={!hasCurrentApp}
               >
                 <ScrollText aria-hidden size={16} />
-                <span>View logs</span>
+                <span>{areLogsVisible ? 'Hide logs panel' : 'Show logs panel'}</span>
               </button>
               <button
                 type="button"

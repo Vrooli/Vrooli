@@ -10,6 +10,13 @@ import { orderedPortMetrics } from '@/utils/appPreview';
 import AppModal from '../AppModal';
 import { AppsGridSkeleton } from '../LoadingSkeleton';
 import { useAppsStore } from '@/state/appsStore';
+import {
+  APP_SORT_OPTIONS,
+  APP_SORT_OPTION_SET,
+  DEFAULT_APP_SORT,
+  filterAndSortApps,
+  type AppSortOption,
+} from '@/utils/appCollections';
 import './AppsView.css';
 
 // Memoized search input component with iconography and clear affordance
@@ -55,63 +62,16 @@ const SearchInput = memo(({
 ));
 SearchInput.displayName = 'SearchInput';
 
-type SortOption =
-  | 'status'
-  | 'name-asc'
-  | 'name-desc'
-  | 'recently-viewed'
-  | 'least-recently-viewed'
-  | 'recently-updated'
-  | 'recently-added'
-  | 'most-viewed'
-  | 'least-viewed';
-
-const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
-  { value: 'status', label: 'Active first' },
-  { value: 'recently-viewed', label: 'Recently viewed' },
-  { value: 'least-recently-viewed', label: 'Least recently viewed' },
-  { value: 'recently-updated', label: 'Recently updated' },
-  { value: 'recently-added', label: 'Recently added' },
-  { value: 'most-viewed', label: 'Most viewed' },
-  { value: 'least-viewed', label: 'Least viewed' },
-  { value: 'name-asc', label: 'A → Z' },
-  { value: 'name-desc', label: 'Z → A' },
-];
-
-const SORT_OPTION_SET = new Set<SortOption>(SORT_OPTIONS.map(({ value }) => value));
-const DEFAULT_SORT: SortOption = 'status';
-
-const STATUS_PRIORITY: Record<string, number> = {
-  running: 0,
-  healthy: 0,
-  starting: 0,
-  booting: 0,
-  initializing: 0,
-  unknown: 0,
-  degraded: 1,
-  unhealthy: 1,
-  warning: 1,
-  syncing: 1,
-  partial: 1,
-  stopping: 2,
-  paused: 2,
-  error: 2,
-  failed: 2,
-  crashed: 2,
-  offline: 4,
-  stopped: 4,
-};
-
-const SortSelect = memo(({ value, onChange }: { value: SortOption; onChange: (value: SortOption) => void }) => (
+const SortSelect = memo(({ value, onChange }: { value: AppSortOption; onChange: (value: AppSortOption) => void }) => (
   <div className="sort-control">
     <SlidersHorizontal className="sort-icon" aria-hidden="true" />
     <select
       className="sort-select"
       value={value}
-      onChange={(event) => onChange(event.target.value as SortOption)}
+      onChange={(event) => onChange(event.target.value as AppSortOption)}
       aria-label="Sort applications"
     >
-      {SORT_OPTIONS.map((option) => (
+      {APP_SORT_OPTIONS.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -350,17 +310,16 @@ const AppsView = memo(() => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const initialSortParam = searchParams.get('sort');
-  const [sortOption, setSortOption] = useState<SortOption>(
-    initialSortParam && SORT_OPTION_SET.has(initialSortParam as SortOption)
-      ? (initialSortParam as SortOption)
-      : DEFAULT_SORT,
+  const [sortOption, setSortOption] = useState<AppSortOption>(
+    initialSortParam && APP_SORT_OPTION_SET.has(initialSortParam as AppSortOption)
+      ? (initialSortParam as AppSortOption)
+      : DEFAULT_APP_SORT,
   );
   const [viewMode, setViewMode] = useState<AppViewMode>('grid');
   const [selectedApp, setSelectedApp] = useState<App | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(GRID_INITIAL_BATCH);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const initialPositionsRef = useRef<Map<string, number>>(new Map());
   const emptyReloadRef = useRef(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const prevFiltersRef = useRef({ search, sortOption, viewMode });
@@ -438,14 +397,6 @@ const AppsView = memo(() => {
     }
   }, [searchParams, search]);
 
-  useEffect(() => {
-    apps.forEach((app, index) => {
-      if (!initialPositionsRef.current.has(app.id)) {
-        initialPositionsRef.current.set(app.id, index);
-      }
-    });
-  }, [apps]);
-
   const updateSearchParam = useCallback((key: 'q' | 'sort', value: string | null) => {
     const next = new URLSearchParams(searchParams);
     if (value && value.length > 0) {
@@ -458,24 +409,24 @@ const AppsView = memo(() => {
 
   useEffect(() => {
     const param = searchParams.get('sort');
-    if (param && SORT_OPTION_SET.has(param as SortOption)) {
-      const normalized = param as SortOption;
+    if (param && APP_SORT_OPTION_SET.has(param as AppSortOption)) {
+      const normalized = param as AppSortOption;
       if (normalized !== sortOption) {
         setSortOption(normalized);
       }
       return;
     }
 
-    if (param && !SORT_OPTION_SET.has(param as SortOption)) {
-      if (sortOption !== DEFAULT_SORT) {
-        setSortOption(DEFAULT_SORT);
+    if (param && !APP_SORT_OPTION_SET.has(param as AppSortOption)) {
+      if (sortOption !== DEFAULT_APP_SORT) {
+        setSortOption(DEFAULT_APP_SORT);
       }
       updateSearchParam('sort', null);
       return;
     }
 
-    if (!param && sortOption !== DEFAULT_SORT) {
-      setSortOption(DEFAULT_SORT);
+    if (!param && sortOption !== DEFAULT_APP_SORT) {
+      setSortOption(DEFAULT_APP_SORT);
     }
   }, [searchParams, sortOption, updateSearchParam]);
 
@@ -485,205 +436,10 @@ const AppsView = memo(() => {
     }
   }, [hasInitialized, loadApps, loadingInitial]);
 
-  const filteredApps = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    const matchesSearch = (app: App) => {
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const haystacks: string[] = [
-        app.name,
-        app.id,
-        app.status ?? '',
-        app.scenario_name ?? '',
-        app.description ?? '',
-        ...(app.tags ?? []),
-      ];
-
-      Object.entries(app.port_mappings ?? {}).forEach(([key, mapping]) => {
-        haystacks.push(key);
-        if (mapping == null) {
-          return;
-        }
-        if (typeof mapping === 'string' || typeof mapping === 'number') {
-          haystacks.push(String(mapping));
-          return;
-        }
-
-        if (typeof mapping === 'object') {
-          const record = mapping as Record<string, unknown>;
-          ['label', 'name', 'value', 'port', 'description', 'url'].forEach((field) => {
-            const candidate = record[field];
-            if (typeof candidate === 'string' || typeof candidate === 'number') {
-              haystacks.push(String(candidate));
-            }
-          });
-        }
-      });
-
-      return haystacks.some((item) => item && item.toLowerCase().includes(normalizedSearch));
-    };
-
-    const baseList = apps.filter(matchesSearch);
-
-    const compareByInitialPosition = (a: App, b: App) => {
-      const positionA = initialPositionsRef.current.get(a.id) ?? 0;
-      const positionB = initialPositionsRef.current.get(b.id) ?? 0;
-      if (positionA !== positionB) {
-        return positionA - positionB;
-      }
-      return a.name.localeCompare(b.name);
-    };
-
-    const compareByNameAsc = (a: App, b: App) => a.name.localeCompare(b.name);
-    const compareByNameDesc = (a: App, b: App) => b.name.localeCompare(a.name);
-
-    const parseTimestamp = (value?: string | null) => {
-      if (!value) {
-        return null;
-      }
-      const parsed = Date.parse(value);
-      if (Number.isNaN(parsed)) {
-        return null;
-      }
-      return parsed;
-    };
-
-    const compareByLastViewedDesc = (a: App, b: App) => {
-      const timeA = parseTimestamp(a.last_viewed_at);
-      const timeB = parseTimestamp(b.last_viewed_at);
-
-      if (timeA === timeB) {
-        return compareByInitialPosition(a, b);
-      }
-
-      if (timeA === null) {
-        return 1;
-      }
-      if (timeB === null) {
-        return -1;
-      }
-
-      return timeB - timeA;
-    };
-
-    const compareByLastViewedAsc = (a: App, b: App) => {
-      const timeA = parseTimestamp(a.last_viewed_at);
-      const timeB = parseTimestamp(b.last_viewed_at);
-
-      if (timeA === timeB) {
-        return compareByInitialPosition(a, b);
-      }
-
-      if (timeA === null) {
-        return 1;
-      }
-      if (timeB === null) {
-        return -1;
-      }
-
-      return timeA - timeB;
-    };
-
-    const compareByUpdatedDesc = (a: App, b: App) => {
-      const timeA = parseTimestamp(a.updated_at);
-      const timeB = parseTimestamp(b.updated_at);
-
-      if (timeA === timeB) {
-        return compareByInitialPosition(a, b);
-      }
-
-      if (timeA === null) {
-        return 1;
-      }
-      if (timeB === null) {
-        return -1;
-      }
-
-      return timeB - timeA;
-    };
-
-    const compareByCreatedDesc = (a: App, b: App) => {
-      const timeA = parseTimestamp(a.created_at);
-      const timeB = parseTimestamp(b.created_at);
-
-      if (timeA === timeB) {
-        return compareByInitialPosition(a, b);
-      }
-
-      if (timeA === null) {
-        return 1;
-      }
-      if (timeB === null) {
-        return -1;
-      }
-
-      return timeB - timeA;
-    };
-
-    const compareByViewCountDesc = (a: App, b: App) => {
-      const countA = typeof a.view_count === 'number' ? a.view_count : Number(a.view_count ?? 0);
-      const countB = typeof b.view_count === 'number' ? b.view_count : Number(b.view_count ?? 0);
-
-      if (countA === countB) {
-        return compareByLastViewedDesc(a, b);
-      }
-
-      return countB - countA;
-    };
-
-    const compareByViewCountAsc = (a: App, b: App) => {
-      const countA = typeof a.view_count === 'number' ? a.view_count : Number(a.view_count ?? 0);
-      const countB = typeof b.view_count === 'number' ? b.view_count : Number(b.view_count ?? 0);
-
-      if (countA === countB) {
-        return compareByLastViewedAsc(a, b);
-      }
-
-      return countA - countB;
-    };
-
-    const compareByStatus = (a: App, b: App) => {
-      const statusA = (a.status ?? '').toLowerCase();
-      const statusB = (b.status ?? '').toLowerCase();
-      const priorityA = STATUS_PRIORITY[statusA] ?? 3;
-      const priorityB = STATUS_PRIORITY[statusB] ?? 3;
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
-      return compareByInitialPosition(a, b);
-    };
-
-    switch (sortOption) {
-      case 'name-asc':
-        return baseList.slice().sort((a, b) => {
-          const result = compareByNameAsc(a, b);
-          return result === 0 ? compareByInitialPosition(a, b) : result;
-        });
-      case 'name-desc':
-        return baseList.slice().sort((a, b) => {
-          const result = compareByNameDesc(a, b);
-          return result === 0 ? compareByInitialPosition(a, b) : result;
-        });
-      case 'recently-viewed':
-        return baseList.slice().sort(compareByLastViewedDesc);
-      case 'least-recently-viewed':
-        return baseList.slice().sort(compareByLastViewedAsc);
-      case 'recently-updated':
-        return baseList.slice().sort(compareByUpdatedDesc);
-      case 'recently-added':
-        return baseList.slice().sort(compareByCreatedDesc);
-      case 'most-viewed':
-        return baseList.slice().sort(compareByViewCountDesc);
-      case 'least-viewed':
-        return baseList.slice().sort(compareByViewCountAsc);
-      case 'status':
-      default:
-        return baseList.slice().sort(compareByStatus);
-    }
-  }, [apps, search, sortOption]);
+  const filteredApps = useMemo(
+    () => filterAndSortApps(apps, { search, sort: sortOption }),
+    [apps, search, sortOption],
+  );
 
   useEffect(() => {
     const previous = prevFiltersRef.current;
@@ -785,9 +541,9 @@ const AppsView = memo(() => {
     }
   }, [updateSearchParam]);
 
-  const handleSortChange = useCallback((value: SortOption) => {
+  const handleSortChange = useCallback((value: AppSortOption) => {
     setSortOption(value);
-    updateSearchParam('sort', value === DEFAULT_SORT ? null : value);
+    updateSearchParam('sort', value === DEFAULT_APP_SORT ? null : value);
   }, [updateSearchParam]);
 
   const isGridView = viewMode === 'grid';

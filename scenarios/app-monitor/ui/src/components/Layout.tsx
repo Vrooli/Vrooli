@@ -11,21 +11,22 @@ import {
   PanelLeftOpen,
   Power,
   RefreshCw,
-  ScrollText,
   Server,
 } from 'lucide-react';
-import { appService, resourceService, healthService } from '@/services/api';
+import { useSystemStatus } from '@/state/systemStatusStore';
 import {
   collectAppIdentifiers,
   locateAppByIdentifier,
   normalizeIdentifier,
-  parseTimestampValue,
   resolveAppIdentifier,
 } from '@/utils/appPreview';
 import { useAppsStore } from '@/state/appsStore';
 import type { App } from '@/types';
 import HistoryMenu from './HistoryMenu';
 import './Layout.css';
+import { useShellOverlayStore } from '@/state/shellOverlayStore';
+import { buildAlphabetizedApps, buildRecentApps } from '@/utils/appCollections';
+import { useScenarioActions } from '@/hooks/useScenarioActions';
 
 const OFFLINE_STATES = new Set(['unhealthy', 'offline', 'critical']);
 
@@ -63,21 +64,28 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   const apps = useAppsStore(state => state.apps);
   const location = useLocation();
   const navigate = useNavigate();
-  const [appCount, setAppCount] = useState(0);
-  const [resourceCount, setResourceCount] = useState(0);
   const [uptimeSeconds, setUptimeSeconds] = useState<number | null>(null);
-  const [healthStatus, setHealthStatus] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [appsSearch, setAppsSearch] = useState('');
   const mobileViewportRef = useRef(false);
   const desktopCollapsedRef = useRef(true);
-  const pollingRef = useRef(false);
   const isBrowser = typeof document !== 'undefined';
   const statusButtonRef = useRef<HTMLButtonElement | null>(null);
   const statusPopoverRef = useRef<HTMLDivElement | null>(null);
   const [statusPopoverCoords, setStatusPopoverCoords] = useState<{ top: number; left: number } | null>(null);
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
+  const activeOverlay = useShellOverlayStore(state => state.activeView);
+  const openOverlay = useShellOverlayStore(state => state.openView);
+  const closeOverlayView = useShellOverlayStore(state => state.closeView);
+
+  useEffect(() => {
+    if (activeOverlay !== null) {
+      setIsSidebarCollapsed(true);
+      setIsStatusPopoverOpen(false);
+      setStatusPopoverCoords(null);
+    }
+  }, [activeOverlay]);
 
   const updateStatusPopoverPosition = useCallback(() => {
     if (!isBrowser) {
@@ -211,162 +219,17 @@ export default function Layout({ children, isConnected }: LayoutProps) {
 
   const pathname = location.pathname;
   const isAppsListRoute = pathname === '/apps';
-  const isLogsRoute = pathname === '/logs' || pathname.startsWith('/logs/');
   const isResourcesRoute = pathname === '/resources' || pathname.startsWith('/resources/');
 
-  const recentApps = useMemo(() => {
-    if (apps.length === 0) {
-      return [] as App[];
-    }
+  const recentApps = useMemo(
+    () => buildRecentApps(apps, { excludeIdentifiers: previewAppIdentifiers, limit: HISTORY_LIMIT }),
+    [apps, previewAppIdentifiers],
+  );
 
-    const identifiersSet = new Set(previewAppIdentifiers);
-
-    return apps
-      .filter(app => {
-        const lastViewed = parseTimestampValue(app.last_viewed_at);
-        const viewCountRaw = Number(app.view_count ?? 0);
-        const viewCount = Number.isFinite(viewCountRaw) ? viewCountRaw : 0;
-        const hasHistory = lastViewed !== null || viewCount > 0;
-        if (!hasHistory) {
-          return false;
-        }
-
-        const identifiers = collectAppIdentifiers(app);
-        return identifiers.every(identifier => !identifiersSet.has(identifier));
-      })
-      .sort((a, b) => {
-        const aTime = parseTimestampValue(a.last_viewed_at) ?? parseTimestampValue(a.updated_at) ?? 0;
-        const bTime = parseTimestampValue(b.last_viewed_at) ?? parseTimestampValue(b.updated_at) ?? 0;
-        if (aTime !== bTime) {
-          return bTime - aTime;
-        }
-
-        const aCountRaw = Number(a.view_count ?? 0);
-        const bCountRaw = Number(b.view_count ?? 0);
-        const aCount = Number.isFinite(aCountRaw) ? aCountRaw : 0;
-        const bCount = Number.isFinite(bCountRaw) ? bCountRaw : 0;
-        if (aCount !== bCount) {
-          return bCount - aCount;
-        }
-
-        const aLabel = (resolveAppIdentifier(a) ?? '').toLowerCase();
-        const bLabel = (resolveAppIdentifier(b) ?? '').toLowerCase();
-        return aLabel.localeCompare(bLabel);
-      })
-      .slice(0, HISTORY_LIMIT);
-  }, [apps, previewAppIdentifiers]);
-
-  const alphabetizedApps = useMemo(() => {
-    if (apps.length === 0) {
-      return [] as App[];
-    }
-
-    return [...apps].sort((a, b) => {
-      const aLabel = (resolveAppIdentifier(a) ?? '').toLowerCase();
-      const bLabel = (resolveAppIdentifier(b) ?? '').toLowerCase();
-
-      if (aLabel && bLabel) {
-        const byLabel = aLabel.localeCompare(bLabel);
-        if (byLabel !== 0) {
-          return byLabel;
-        }
-      }
-
-      const aId = (a.id ?? '').toLowerCase();
-      const bId = (b.id ?? '').toLowerCase();
-      if (aId && bId) {
-        const byId = aId.localeCompare(bId);
-        if (byId !== 0) {
-          return byId;
-        }
-      }
-
-      return 0;
-    });
-  }, [apps]);
+  const alphabetizedApps = useMemo(() => buildAlphabetizedApps(apps), [apps]);
 
   const shouldShowHistory = (previewRouteInfo.isPreviewRoute || isAppsListRoute)
     && (recentApps.length > 0 || alphabetizedApps.length > 0);
-
-  // Fetch counts and system info
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      if (pollingRef.current) {
-        return;
-      }
-
-      pollingRef.current = true;
-      try {
-        const [appsResult, resourcesResult, healthResult] = await Promise.allSettled([
-          appService.getApps(),
-          resourceService.getResources(),
-          healthService.checkHealth(),
-        ]);
-
-        if (!isMounted) {
-          return;
-        }
-
-        if (appsResult.status === 'fulfilled') {
-          setAppCount(appsResult.value.length);
-        }
-
-        if (resourcesResult.status === 'fulfilled') {
-          setResourceCount(resourcesResult.value.length);
-        }
-
-        if (appsResult.status === 'rejected') {
-          console.error('Failed to fetch app list for layout metrics:', appsResult.reason);
-        }
-
-        if (resourcesResult.status === 'rejected') {
-          console.error('Failed to fetch resource list for layout metrics:', resourcesResult.reason);
-        }
-
-        if (healthResult.status === 'fulfilled' && healthResult.value) {
-          const normalizedStatus = typeof healthResult.value.status === 'string'
-            ? healthResult.value.status.toLowerCase()
-            : null;
-          setHealthStatus(normalizedStatus);
-
-          const healthUptimeSeconds = typeof healthResult.value.metrics?.uptime_seconds === 'number'
-            ? healthResult.value.metrics.uptime_seconds
-            : null;
-
-          if (normalizedStatus === 'unhealthy') {
-            setUptimeSeconds(null);
-          }
-
-          if (healthUptimeSeconds !== null && normalizedStatus !== 'unhealthy') {
-            setUptimeSeconds(healthUptimeSeconds);
-          }
-        } else if (healthResult.status === 'rejected') {
-          console.error('Health check failed:', healthResult.reason);
-          setHealthStatus('unhealthy');
-          setUptimeSeconds(null);
-        }
-
-      } catch (error) {
-        if (isMounted) {
-          console.error('Failed to fetch layout data:', error);
-          setHealthStatus('unhealthy');
-          setUptimeSeconds(null);
-        }
-      } finally {
-        pollingRef.current = false;
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 60000); // Update every 60 seconds (reduced from 10s to prevent CPU overload)
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -435,16 +298,13 @@ export default function Layout({ children, isConnected }: LayoutProps) {
         return;
       }
 
-      setIsStatusPopoverOpen(false);
-      setStatusPopoverCoords(null);
+      closeStatusPopover();
     };
 
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        setIsStatusPopoverOpen(false);
-        setStatusPopoverCoords(null);
-        statusButtonRef.current?.focus();
+        closeStatusPopover();
       }
     };
 
@@ -513,6 +373,38 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     }
   };
 
+  const { restartAll: handleRestartAll, stopAll: handleStopAll, triggerHealthCheck: handleHealthCheck } = useScenarioActions();
+  const { status: healthStatus, uptimeSeconds: remoteUptime, appCount, resourceCount } = useSystemStatus();
+
+  useEffect(() => {
+    setUptimeSeconds(remoteUptime);
+  }, [remoteUptime]);
+
+  const handleStatusButtonClick = () => {
+    if (isMobile) {
+      openOverlay('actions');
+      return;
+    }
+
+    setIsStatusPopoverOpen(prev => {
+      const next = !prev;
+      if (next) {
+        setTimeout(() => {
+          updateStatusPopoverPosition();
+        }, 0);
+      } else {
+        setStatusPopoverCoords(null);
+      }
+      return next;
+    });
+  };
+
+  const closeStatusPopover = () => {
+    setIsStatusPopoverOpen(false);
+    setStatusPopoverCoords(null);
+    statusButtonRef.current?.focus();
+  };
+
   useEffect(() => {
     if (location.pathname === '/apps' || location.pathname.startsWith('/apps/')) {
       setAppsSearch(location.search || '');
@@ -520,22 +412,6 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   }, [location.pathname, location.search]);
 
   // Handle quick actions
-  const handleRestartAll = async () => {
-    if (confirm('Restart all applications?')) {
-      await appService.controlAllApps('restart');
-    }
-  };
-
-  const handleStopAll = async () => {
-    if (confirm('Stop all applications?')) {
-      await appService.controlAllApps('stop');
-    }
-  };
-
-  const handleHealthCheck = async () => {
-    alert('Health check initiated');
-  };
-
   const handleHistorySelect = useCallback((app: App) => {
     const identifier = resolveAppIdentifier(app);
     if (!identifier) {
@@ -562,20 +438,15 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       return 'Apps';
     }
 
-    if (isLogsRoute) {
-      return 'Logs';
-    }
-
     if (isResourcesRoute) {
       return 'Resources';
     }
 
     return 'Vrooli';
-  }, [isAppsListRoute, isLogsRoute, isResourcesRoute, previewAppName, previewRouteInfo.isPreviewRoute]);
+  }, [isAppsListRoute, isResourcesRoute, previewAppName, previewRouteInfo.isPreviewRoute]);
 
   const menuItems: Array<{ path: string; label: string; Icon: LucideIcon; count?: number }> = useMemo(() => ([
     { path: '/apps', label: 'APPLICATIONS', Icon: LayoutDashboard, count: appCount },
-    { path: '/logs', label: 'SYSTEM LOGS', Icon: ScrollText },
     { path: '/resources', label: 'RESOURCES', Icon: Server, count: resourceCount },
   ]), [appCount, resourceCount]);
 
@@ -672,27 +543,15 @@ export default function Layout({ children, isConnected }: LayoutProps) {
                 <button
                   type="button"
                   ref={statusButtonRef}
-                  className={clsx(
-                    'status-chip',
-                    'status-chip--button',
-                    { offline: !isSystemOnline, 'status-chip--active': isStatusPopoverOpen },
-                  )}
-                  aria-haspopup="dialog"
-                  aria-expanded={isStatusPopoverOpen}
-                  aria-label={isSystemOnline ? 'System status online. View uptime' : 'System status offline. View details'}
-                  onClick={() => {
-                    setIsStatusPopoverOpen(prev => {
-                      const next = !prev;
-                      if (next) {
-                        setTimeout(() => {
-                          updateStatusPopoverPosition();
-                        }, 0);
-                      } else {
-                        setStatusPopoverCoords(null);
-                      }
-                      return next;
-                    });
-                  }}
+                className={clsx(
+                  'status-chip',
+                  'status-chip--button',
+                  { offline: !isSystemOnline, 'status-chip--active': isStatusPopoverOpen },
+                )}
+                aria-haspopup="dialog"
+                aria-expanded={isStatusPopoverOpen}
+                aria-label={isSystemOnline ? 'System status online. View uptime' : 'System status offline. View details'}
+                onClick={handleStatusButtonClick}
                 >
                   <span
                     className={clsx('status-indicator', isSystemOnline ? 'online' : 'offline')}
@@ -789,6 +648,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
                 key={action.label}
                 className="action-btn"
                 onClick={() => {
+                  closeOverlayView();
                   void action.onClick();
                 }}
                 title={action.title}

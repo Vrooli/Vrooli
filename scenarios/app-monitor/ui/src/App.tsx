@@ -1,16 +1,73 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
-import AppsView from '@/components/views/AppsView';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
+import Shell from '@/components/Shell';
 import AppPreviewView from '@/components/views/AppPreviewView';
-import LogsView from '@/components/views/LogsView';
-import ResourcesView from '@/components/views/ResourcesView';
 import ResourceDetailView from '@/components/views/ResourceDetailView';
+import HomeView from '@/components/views/HomeView';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
 import './App.css';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
+
+function LegacyLogsRedirect() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { appId } = useParams<{ appId?: string }>();
+
+  useEffect(() => {
+    const nextSearch = new URLSearchParams(location.search);
+    if (appId) {
+      nextSearch.set('overlay', 'logs');
+      const searchString = nextSearch.toString();
+      navigate({
+        pathname: `/apps/${encodeURIComponent(appId)}/preview`,
+        search: searchString ? `?${searchString}` : '?overlay=logs',
+      }, { replace: true });
+      return;
+    }
+
+    nextSearch.set('overlay', 'tabs');
+    nextSearch.set('segment', 'apps');
+    navigate({
+      pathname: '/',
+      search: `?${nextSearch.toString()}`,
+    }, { replace: true });
+  }, [appId, location.search, navigate]);
+
+  return null;
+}
+
+function TabOverlayRedirect({ segment }: { segment?: 'apps' | 'resources' }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(location.search);
+    nextParams.set('overlay', 'tabs');
+    if (segment) {
+      nextParams.set('segment', segment);
+    } else {
+      nextParams.delete('segment');
+    }
+
+    const search = nextParams.toString();
+    navigate({
+      pathname: '/',
+      search: search ? `?${search}` : '?overlay=tabs',
+    }, { replace: true });
+  }, [navigate, location.search, segment]);
+
+  return null;
+}
 
 function App() {
   const loadApps = useAppsStore(state => state.loadApps);
@@ -18,18 +75,15 @@ function App() {
   const loadResources = useResourcesStore(state => state.loadResources);
   const [isConnected, setIsConnected] = useState(false);
 
-  // WebSocket connection for real-time updates
   const { connectionState } = useAppWebSocket({
     onAppUpdate: (update) => {
       console.log('App update received:', update);
       updateAppInStore(update);
     },
     onMetricUpdate: () => {
-      // Metrics are now handled by system-monitor iframe
     },
     onLogEntry: (log) => {
       console.log('Log entry received:', log);
-      // Logs are handled directly in LogsView component
     },
     onConnection: (connected) => {
       setIsConnected(connected);
@@ -39,12 +93,10 @@ function App() {
     },
   });
 
-  // Log connection state changes
   useEffect(() => {
     console.log(`WebSocket connection state: ${connectionState}`);
   }, [connectionState]);
 
-  // Fetch initial data on component mount
   useEffect(() => {
     void loadApps();
     void loadResources();
@@ -55,18 +107,19 @@ function App() {
       <Router>
         <div className="app">
           <div className="matrix-rain"></div>
-          <Layout isConnected={isConnected}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/apps" replace />} />
-              <Route path="/apps" element={<AppsView />} />
-              <Route path="/apps/:appId/preview" element={<AppPreviewView />} />
-              <Route path="/logs" element={<LogsView />} />
-              <Route path="/logs/:appId" element={<LogsView />} />
-              <Route path="/resources" element={<ResourcesView />} />
-              <Route path="/resources/:resourceId" element={<ResourceDetailView />} />
-              <Route path="*" element={<Navigate to="/apps" replace />} />
-            </Routes>
-          </Layout>
+          <Routes>
+            <Route element={<Shell isConnected={isConnected} />}>
+              <Route index element={<HomeView />} />
+              <Route path="apps" element={<TabOverlayRedirect segment="apps" />} />
+              <Route path="resources" element={<TabOverlayRedirect segment="resources" />} />
+              <Route path="tabs" element={<TabOverlayRedirect />} />
+              <Route path="apps/:appId/preview" element={<AppPreviewView />} />
+              <Route path="resources/:resourceId" element={<ResourceDetailView />} />
+              <Route path="logs" element={<LegacyLogsRedirect />} />
+              <Route path="logs/:appId" element={<LegacyLogsRedirect />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
         </div>
       </Router>
     </ErrorBoundary>

@@ -1,0 +1,143 @@
+.actions-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.actions-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.actions-dialog__header h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.actions-dialog__header p {
+  margin: 6px 0 0;
+  color: rgba(231, 235, 255, 0.72);
+}
+
+.actions-dialog__close {
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.actions-dialog__close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.actions-dialog__status {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(24, 27, 40, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.actions-dialog__status-indicator {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.actions-dialog__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ff6b6b;
+}
+
+.actions-dialog__dot.online {
+  background: #62f7c1;
+}
+
+.actions-dialog__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(80px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.actions-dialog__metrics div {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.actions-dialog__metrics dt {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: rgba(231, 235, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.actions-dialog__metrics dd {
+  margin: 6px 0 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.actions-dialog__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.actions-dialog__action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: none;
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: rgba(24, 27, 40, 0.65);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.actions-dialog__action:hover {
+  background: rgba(44, 52, 78, 0.85);
+}
+
+.actions-dialog__action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.actions-dialog__action strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.actions-dialog__action span {
+  display: block;
+  color: rgba(231, 235, 255, 0.65);
+  font-size: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .actions-dialog__status {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .actions-dialog__metrics {
+    width: 60%;
+  }
+}
