@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.UI_PORT;
@@ -9,70 +11,111 @@ if (!PORT) {
     process.exit(1);
 }
 
-// Serve static files
-app.use(express.static(path.join(__dirname)));
+const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.API_PORT || 23250}`;
 
-// Health check endpoint for orchestrator
-app.get('/health', async (req, res) => {
-    const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.API_PORT || 17810}`;
+let parsedApiBaseUrl;
+try {
+    parsedApiBaseUrl = new URL(API_BASE_URL);
+} catch (error) {
+    console.error('[Document Manager UI] Invalid API_BASE_URL provided:', API_BASE_URL, error);
+    parsedApiBaseUrl = null;
+}
 
-    // Check API connectivity
-    let apiConnected = false;
-    let apiError = null;
-    let apiLatency = null;
-    const checkStart = Date.now();
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/health`, {
-            method: 'GET',
-            timeout: 5000
+function proxyToApi(req, res, upstreamPath) {
+    if (!parsedApiBaseUrl) {
+        res.status(502).json({
+            error: 'API proxy misconfigured',
+            message: 'Unable to determine API_BASE_URL for proxying requests',
+            target: API_BASE_URL
         });
-        apiConnected = response.ok;
-        apiLatency = Date.now() - checkStart;
-    } catch (error) {
-        apiError = {
-            code: 'CONNECTION_FAILED',
-            message: `Failed to connect to API: ${error.message}`,
-            category: 'network',
-            retryable: true
-        };
+        return;
     }
 
+    const targetPath = upstreamPath || req.originalUrl || req.url || '/api';
+    const targetUrl = new URL(targetPath, parsedApiBaseUrl);
+    const client = targetUrl.protocol === 'https:' ? https : http;
+
+    const headers = {
+        ...req.headers,
+        host: targetUrl.host
+    };
+    delete headers['content-length'];
+
+    const options = {
+        hostname: targetUrl.hostname,
+        port: targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80),
+        path: `${targetUrl.pathname}${targetUrl.search}`,
+        method: req.method,
+        headers
+    };
+
+    const proxyReq = client.request(options, (proxyRes) => {
+        res.status(proxyRes.statusCode || 500);
+        Object.entries(proxyRes.headers).forEach(([key, value]) => {
+            if (value !== undefined) {
+                res.setHeader(key, value);
+            }
+        });
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (error) => {
+        console.error('[Document Manager UI] API proxy error:', error.message);
+        if (!res.headersSent) {
+            res.status(502).json({
+                error: 'API request failed',
+                message: error.message,
+                target: targetUrl.href
+            });
+        } else {
+            res.end();
+        }
+    });
+
+    req.on('aborted', () => {
+        proxyReq.destroy();
+    });
+
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+        proxyReq.end();
+        return;
+    }
+
+    req.pipe(proxyReq);
+}
+
+app.use('/api', (req, res) => {
+    const requestedPath = req.originalUrl || req.url || '/api';
+    const upstreamPath = requestedPath.startsWith('/api') ? requestedPath : `/api${requestedPath}`;
+    proxyToApi(req, res, upstreamPath);
+});
+
+app.use(express.static(path.join(__dirname)));
+
+app.get('/health', (req, res) => {
     res.json({
-        status: apiConnected ? 'healthy' : 'degraded',
+        status: 'healthy',
         service: 'document-manager-ui',
         timestamp: new Date().toISOString(),
         readiness: true,
-        api_connectivity: {
-            connected: apiConnected,
-            api_url: API_BASE_URL,
-            last_check: new Date().toISOString(),
-            error: apiError,
-            latency_ms: apiLatency
-        }
+        api_proxy_target: parsedApiBaseUrl ? parsedApiBaseUrl.origin : API_BASE_URL
     });
 });
 
-
-// API proxy configuration - forward API calls to backend
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:23250';
-
-// Health check endpoint
 app.get('/ui-health', (req, res) => {
-    res.json({ 
-        status: 'healthy', 
+    res.json({
+        status: 'healthy',
         service: 'document-manager-ui',
         version: '2.0.0',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        api_proxy_target: parsedApiBaseUrl ? parsedApiBaseUrl.origin : API_BASE_URL
     });
 });
 
-// Serve the main application
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Handle SPA routing - serve index.html for any route
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -80,7 +123,7 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Document Manager UI running on port ${PORT}`);
     console.log(`Access the application at: http://localhost:${PORT}`);
-    console.log(`API Backend: ${API_BASE_URL}`);
+    console.log(`Proxying API requests to: ${API_BASE_URL}`);
 });
 
 module.exports = app;

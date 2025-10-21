@@ -34,17 +34,17 @@ func TestScenarioBuilderPatterns(t *testing.T) {
 	t.Run("TestScenarioBuilderUsage", func(t *testing.T) {
 		// Build comprehensive test scenarios using the builder
 		scenarios := NewTestScenarioBuilder().
-			AddUnauthorized("/api/v1/math/calculate").
-			AddInvalidToken("/api/v1/math/statistics").
+			AddUnauthorized("/api/v1/math/calculate", "POST").
+			AddInvalidToken("/api/v1/math/statistics", "POST").
 			AddInvalidJSON("/api/v1/math/solve", "POST", testToken).
 			AddMissingRequiredField("/api/v1/math/calculate", "POST", testToken, map[string]interface{}{}).
 			AddScenario(TestScenario{
 				Name:           "Custom scenario for optimization",
 				Method:         "POST",
 				Path:           "/api/v1/math/optimize",
-				Body:           map[string]interface{}{"invalid": "data"},
+				Body:           map[string]interface{}{"objective_function": "x^2", "variables": []string{"x"}},
 				Token:          testToken,
-				ExpectedStatus: http.StatusBadRequest,
+				ExpectedStatus: http.StatusOK,
 			}).
 			Build()
 
@@ -95,8 +95,8 @@ func TestErrorTestPatterns(t *testing.T) {
 	})
 
 	t.Run("CalculusOperations", func(t *testing.T) {
-		pattern.TestEmptyData("/api/v1/math/calculate", "POST")
-		pattern.TestInsufficientData("/api/v1/math/calculate", "POST")
+		pattern.TestEmptyData("/api/v1/math/calculate", "derivative")
+		pattern.TestInsufficientData("/api/v1/math/calculate", "integral")
 		pattern.TestDivisionByZero("/api/v1/math/calculate")
 		pattern.TestNegativeLogarithm("/api/v1/math/calculate")
 	})
@@ -137,7 +137,13 @@ func TestAdvancedCalculusOperations(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			result, ok := respData["result"].(map[string]interface{})
 			if !ok {
 				t.Error("Result should be a map for partial derivatives")
 			}
@@ -161,7 +167,13 @@ func TestAdvancedCalculusOperations(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			result, ok := respData["result"].(map[string]interface{})
 			if !ok {
 				t.Error("Result should be a map for double integral")
 			}
@@ -184,7 +196,13 @@ func TestAdvancedCalculusOperations(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			result, ok := respData["result"].(map[string]interface{})
 			if !ok {
 				t.Error("Result should be a map")
 			}
@@ -220,15 +238,21 @@ func TestOptimizationEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/optimize", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["optimal_solution"] == nil {
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			if respData["optimal_solution"] == nil {
 				t.Error("Should have optimal_solution")
 			}
 
-			if resp["sensitivity_analysis"] == nil {
+			if respData["sensitivity_analysis"] == nil {
 				t.Error("Should have sensitivity_analysis")
 			}
 
-			sensitivity, ok := resp["sensitivity_analysis"].(map[string]interface{})
+			sensitivity, ok := respData["sensitivity_analysis"].(map[string]interface{})
 			if !ok {
 				t.Error("sensitivity_analysis should be a map")
 			}
@@ -248,7 +272,13 @@ func TestOptimizationEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/optimize", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["status"] == nil {
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			if respData["status"] == nil {
 				t.Error("Should have status field")
 			}
 			return nil
@@ -275,15 +305,21 @@ func TestForecastingMethods(t *testing.T) {
 		body.Options.ConfidenceIntervals = true
 
 		testEndpoint(t, server, "POST", "/api/v1/math/forecast", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["forecast"] == nil {
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			if respData["forecast"] == nil {
 				t.Error("Should have forecast")
 			}
 
-			if resp["confidence_intervals"] == nil {
+			if respData["confidence_intervals"] == nil {
 				t.Error("Should have confidence intervals when requested")
 			}
 
-			ci, ok := resp["confidence_intervals"].(map[string]interface{})
+			ci, ok := respData["confidence_intervals"].(map[string]interface{})
 			if !ok {
 				t.Error("confidence_intervals should be a map")
 			}
@@ -304,7 +340,13 @@ func TestForecastingMethods(t *testing.T) {
 		body.Options.ConfidenceIntervals = true
 
 		testEndpoint(t, server, "POST", "/api/v1/math/forecast", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			forecast, ok := resp["forecast"].([]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			forecast, ok := respData["forecast"].([]interface{})
 			if !ok {
 				t.Error("forecast should be an array")
 			}
@@ -324,11 +366,17 @@ func TestForecastingMethods(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/forecast", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["model_metrics"] == nil {
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			if respData["model_metrics"] == nil {
 				t.Error("Should have model_metrics")
 			}
 
-			metrics, ok := resp["model_metrics"].(map[string]interface{})
+			metrics, ok := respData["model_metrics"].(map[string]interface{})
 			if !ok {
 				t.Error("model_metrics should be a map")
 			}
@@ -349,7 +397,13 @@ func TestForecastingMethods(t *testing.T) {
 		body.Options.Seasonality = true
 
 		testEndpoint(t, server, "POST", "/api/v1/math/forecast", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			params, ok := resp["model_parameters"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			params, ok := respData["model_parameters"].(map[string]interface{})
 			if !ok {
 				t.Error("Should have model_parameters")
 			}
@@ -369,8 +423,14 @@ func TestForecastingMethods(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/forecast", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
 			// Should handle short time series gracefully
-			if resp["forecast"] == nil {
+			if respData["forecast"] == nil {
 				t.Error("Should still produce forecast for short series")
 			}
 			return nil
@@ -395,7 +455,13 @@ func TestStatisticsAllAnalyses(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/statistics", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			results, ok := resp["results"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			results, ok := respData["results"].(map[string]interface{})
 			if !ok {
 				t.Error("results should be a map")
 			}
@@ -445,7 +511,13 @@ func TestSolveEquationComprehensive(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/solve", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			solutions, ok := resp["solutions"].([]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			solutions, ok := respData["solutions"].([]interface{})
 			if !ok {
 				t.Error("solutions should be an array")
 			}
@@ -464,7 +536,13 @@ func TestSolveEquationComprehensive(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/solve", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			solutionType, ok := resp["solution_type"].(string)
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			solutionType, ok := respData["solution_type"].(string)
 			if !ok {
 				t.Error("solution_type should be a string")
 			}
@@ -485,7 +563,13 @@ func TestSolveEquationComprehensive(t *testing.T) {
 		body.Options.MaxIterations = 500
 
 		testEndpoint(t, server, "POST", "/api/v1/math/solve", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			convInfo, ok := resp["convergence_info"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response data should be present")
+				return nil
+			}
+
+			convInfo, ok := respData["convergence_info"].(map[string]interface{})
 			if !ok {
 				t.Error("Should have convergence_info")
 			}

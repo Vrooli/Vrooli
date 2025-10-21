@@ -97,7 +97,7 @@
           "interval": 60000
         },
         {
-          "name": "ui_serving",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "critical": false,

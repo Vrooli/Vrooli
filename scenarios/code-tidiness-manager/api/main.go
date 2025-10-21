@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	_ "github.com/lib/pq"
+	"github.com/rs/cors"
 )
 
 // Health response type
@@ -58,39 +59,41 @@ func main() {
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
 			db.SetConnMaxLifetime(5 * time.Minute)
-			
+
 			// Implement exponential backoff for database connection
 			maxRetries := 10
 			baseDelay := 1 * time.Second
 			maxDelay := 30 * time.Second
-			
+
 			log.Println("🔄 Attempting database connection with exponential backoff...")
-			
+
+			randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 			var pingErr error
 			for attempt := 0; attempt < maxRetries; attempt++ {
 				pingErr = db.Ping()
 				if pingErr == nil {
-					log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+					log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 					break
 				}
-				
+
 				// Calculate exponential backoff delay
 				delay := time.Duration(math.Min(
-					float64(baseDelay) * math.Pow(2, float64(attempt)),
+					float64(baseDelay)*math.Pow(2, float64(attempt)),
 					float64(maxDelay),
 				))
-				
-				// Add progressive jitter to prevent thundering herd
+
+				// Add random jitter to prevent thundering herd
 				jitterRange := float64(delay) * 0.25
-				jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+				jitter := time.Duration(randSource.Float64() * jitterRange)
 				actualDelay := delay + jitter
-				
-				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 				log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-				
+
 				time.Sleep(actualDelay)
 			}
-			
+
 			if pingErr != nil {
 				log.Printf("⚠️  Database connection failed after %d attempts: %v (continuing without database)", maxRetries, pingErr)
 				db = nil
@@ -178,7 +181,7 @@ func healthScanHandler(w http.ResponseWriter, r *http.Request) {
 		"supported_scan_types": []string{
 			"backup_files",
 			"temp_files",
-			"empty_dirs", 
+			"empty_dirs",
 			"large_files",
 		},
 		"supported_analysis_types": []string{
@@ -211,13 +214,13 @@ func scanCodeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	if result.Success {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	
+
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -238,13 +241,13 @@ func analyzePatternHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	if result.Success {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	
+
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -265,13 +268,13 @@ func executeCleanupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	statusCode := http.StatusOK
 	if !result.Success {
 		statusCode = http.StatusInternalServerError
 	}
 	w.WriteHeader(statusCode)
-	
+
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -294,13 +297,13 @@ func codeScannerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	if result.Success {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	
+
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -321,13 +324,13 @@ func patternAnalyzerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	if result.Success {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	
+
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -348,13 +351,13 @@ func cleanupExecutorHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	statusCode := http.StatusOK
 	if !result.Success {
 		statusCode = http.StatusInternalServerError
 	}
 	w.WriteHeader(statusCode)
-	
+
 	json.NewEncoder(w).Encode(result)
 }
 

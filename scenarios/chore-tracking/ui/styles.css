@@ -33,6 +33,7 @@ body {
     background: var(--bg-main);
     color: var(--text-primary);
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 .app-container {
@@ -761,6 +762,8 @@ body {
     display: flex;
     align-items: center;
     gap: 16px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .power-ups-container {
@@ -770,6 +773,8 @@ body {
     background: #EEF2FF;
     border-radius: 16px;
     border: 1px solid #E5E7EB;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .power-up-badge {
@@ -986,15 +991,18 @@ body {
     .header-right {
         align-items: stretch;
         width: 100%;
+        gap: 14px;
     }
 
     .user-stats {
-        justify-content: flex-start;
+        justify-content: space-between;
+        width: 100%;
     }
 
     .header-controls {
-        justify-content: space-between;
+        justify-content: center;
         width: 100%;
+        gap: 12px;
     }
 
     .main-content {
@@ -1030,12 +1038,139 @@ body {
 
     .power-ups-container {
         width: 100%;
-        justify-content: space-between;
+        justify-content: center;
     }
 
     .daily-challenge-banner {
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
+    }
+}
+
+@media (max-width: 540px) {
+    .game-header {
+        padding: 20px 16px 18px;
+        gap: 18px;
+    }
+
+    .logo-section {
+        gap: 12px;
+    }
+
+    .logo-text {
+        font-size: 28px;
+    }
+
+    .tagline {
+        font-size: 12px;
+    }
+
+    .user-stats {
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 10px 12px;
+        flex: 1 1 calc(50% - 12px);
+        min-width: 140px;
+    }
+
+    .stat-value {
+        font-size: 16px;
+    }
+
+    .user-avatar {
+        width: 56px;
+        height: 56px;
+    }
+
+    .header-controls {
+        align-items: stretch;
+    }
+
+    .sound-toggle {
+        align-self: center;
+    }
+
+    .content-area {
+        padding: 20px 16px 36px;
+    }
+
+    .view-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .view-title {
+        font-size: 26px;
+    }
+
+    .add-quest-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .quest-filters {
+        flex-wrap: wrap;
+    }
+
+    .quest-card,
+    .reward-card,
+    .achievement-badge {
+        padding: 16px;
+    }
+
+    .daily-challenge-banner {
+        width: 100%;
+    }
+}
+
+@media (max-width: 420px) {
+    .user-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .stat-card {
+        min-width: 0;
+        justify-content: center;
+    }
+
+    .user-avatar {
+        margin: 0 auto;
+    }
+
+    .header-controls {
+        gap: 10px;
+    }
+
+    .power-ups-container {
+        gap: 8px;
+    }
+
+    .power-up-badge {
+        flex: 1 0 28%;
+        min-width: 72px;
+    }
+
+    .nav-btn {
+        padding: 10px 12px;
+    }
+
+    .view-title {
+        font-size: 24px;
+    }
+
+    .quest-description {
+        font-size: 13px;
+    }
+
+    .quest-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
     }
 }

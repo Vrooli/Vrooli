@@ -219,10 +219,46 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) handleHealth(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status": "healthy",
-		"time":   time.Now().Unix(),
-	})
+	// Check database connectivity
+	dbConnected := true
+	var dbLatency float64
+	dbStart := time.Now()
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+	err := s.db.Ping(ctx)
+	if err != nil {
+		dbConnected = false
+		dbLatency = 0
+	} else {
+		dbLatency = float64(time.Since(dbStart).Milliseconds())
+	}
+
+	response := gin.H{
+		"status":    "healthy",
+		"service":   "funnel-builder-api",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"readiness": dbConnected,
+		"version":   "1.0.0",
+		"dependencies": gin.H{
+			"database": gin.H{
+				"connected":  dbConnected,
+				"latency_ms": dbLatency,
+				"error":      nil,
+			},
+		},
+	}
+
+	if !dbConnected {
+		response["status"] = "degraded"
+		response["dependencies"].(gin.H)["database"].(gin.H)["error"] = gin.H{
+			"code":      "CONNECTION_FAILED",
+			"message":   err.Error(),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (s *Server) handleGetFunnels(c *gin.Context) {

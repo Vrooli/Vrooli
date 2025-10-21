@@ -140,6 +140,10 @@ func main() {
 
 	router := mux.NewRouter()
 
+	if staticHandler := newStaticHandler(); staticHandler != nil {
+		router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", staticHandler))
+	}
+
 	// CORS middleware
 	router.Use(corsMiddleware)
 
@@ -174,7 +178,23 @@ func main() {
 	router.HandleFunc("/", handleHome).Methods("GET", "HEAD")
 	router.HandleFunc("/index.html", handleHome).Methods("GET", "HEAD")
 
+	uiPort := strings.TrimSpace(os.Getenv("UI_PORT"))
+	if uiPort != "" && uiPort != port {
+		go func() {
+			log.Printf("Git Control Tower UI mirror starting on port %s", uiPort)
+			if err := http.ListenAndServe(":"+uiPort, router); err != nil {
+				log.Printf("Git Control Tower UI mirror stopped: %v", err)
+			}
+		}()
+	}
+
 	log.Printf("Git Control Tower API starting on port %s", port)
+	if uiPort == "" || uiPort == port {
+		log.Printf("Git Control Tower UI served from API port %s", port)
+	} else {
+		log.Printf("Git Control Tower UI mirrored on port %s", uiPort)
+	}
+
 	if err := http.ListenAndServe(":"+port, router); err != nil {
 		log.Fatal(err)
 	}

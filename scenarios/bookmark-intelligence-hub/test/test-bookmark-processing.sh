@@ -3,7 +3,8 @@
 # Test script for Bookmark Intelligence Hub bookmark processing functionality
 set -e
 
-API_BASE_URL="${API_BASE_URL:-http://localhost:15200}"
+API_PORT="${API_PORT:-15200}"
+API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT}}"
 TEST_PROFILE_ID="test-profile-$(date +%s)"
 
 # Colors for output

@@ -12,6 +12,16 @@ setup() {
     if [[ -f "$TEST_CONFIG_FILE" ]]; then
         cp "$TEST_CONFIG_FILE" "$TEST_CONFIG_FILE.bak"
     fi
+
+    # Set API base to the running instance (use environment variable from lifecycle)
+    if [[ -n "${API_PORT}" ]]; then
+        export MATH_TOOLS_API_BASE="http://localhost:${API_PORT}"
+    fi
+
+    # Set API token for authentication (use from environment or default test token)
+    if [[ -z "${MATH_TOOLS_API_TOKEN}" ]]; then
+        export MATH_TOOLS_API_TOKEN="math-tools-api-token"
+    fi
 }
 
 teardown() {
@@ -64,12 +74,10 @@ teardown() {
 
 # Test: Stats command
 @test "stats command analyzes data" {
-    # Create a temporary data file
-    echo -e "1\n2\n3\n4\n5" > /tmp/test_data.txt
-    run $TEST_CLI stats /tmp/test_data.txt
+    # Stats command takes analysis type and data points as arguments
+    run $TEST_CLI stats descriptive 1 2 3 4 5
     [ "$status" -eq 0 ]
     [[ "$output" =~ "mean" || "$output" =~ "median" ]]
-    rm /tmp/test_data.txt
 }
 
 # Test: Invalid command shows error

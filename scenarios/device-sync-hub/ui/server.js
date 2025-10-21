@@ -7,6 +7,46 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const { execSync } = require('child_process');
+
+function populateAuthEnvFromCli() {
+    if (process.env.AUTH_SERVICE_URL && process.env.AUTH_UI_URL && process.env.AUTH_PORT) {
+        return;
+    }
+
+    try {
+        const output = execSync('vrooli scenario port scenario-authenticator', {
+            stdio: ['ignore', 'pipe', 'ignore']
+        }).toString().trim();
+
+        output.split('\n').forEach((line) => {
+            const [key, value] = line.split('=');
+            if (!key || !value) {
+                return;
+            }
+            if (!process.env.SCENARIO_AUTHENTICATOR_API_PORT && key === 'API_PORT') {
+                process.env.SCENARIO_AUTHENTICATOR_API_PORT = value;
+            }
+            if (!process.env.SCENARIO_AUTHENTICATOR_UI_PORT && key === 'UI_PORT') {
+                process.env.SCENARIO_AUTHENTICATOR_UI_PORT = value;
+            }
+        });
+
+        if (!process.env.AUTH_SERVICE_URL && process.env.SCENARIO_AUTHENTICATOR_API_PORT) {
+            process.env.AUTH_SERVICE_URL = `http://localhost:${process.env.SCENARIO_AUTHENTICATOR_API_PORT}`;
+        }
+        if (!process.env.AUTH_PORT && process.env.SCENARIO_AUTHENTICATOR_API_PORT) {
+            process.env.AUTH_PORT = process.env.SCENARIO_AUTHENTICATOR_API_PORT;
+        }
+        if (!process.env.AUTH_UI_URL && process.env.SCENARIO_AUTHENTICATOR_UI_PORT) {
+            process.env.AUTH_UI_URL = `http://localhost:${process.env.SCENARIO_AUTHENTICATOR_UI_PORT}`;
+        }
+    } catch (error) {
+        // CLI may be unavailable in some environments; rely on fallbacks
+    }
+}
+
+populateAuthEnvFromCli();
 
 // Configuration from environment variables
 // UI_PORT and API_PORT MUST be provided by the lifecycle system - fail fast if missing
@@ -28,18 +68,105 @@ const API_PORT = parseInt(process.env.API_PORT, 10);
 // AUTH_PORT is optional - used only for display/meta tags, not required for functionality
 // The API handles all auth validation, so UI doesn't need direct auth service access
 const AUTH_PORT = process.env.AUTH_PORT ? parseInt(process.env.AUTH_PORT, 10) : null;
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || '';
+const AUTH_UI_URL = process.env.AUTH_UI_URL || '';
+
+function parseServiceUrl(rawValue, label) {
+    if (!rawValue) {
+        return null;
+    }
+    try {
+        const parsed = new URL(rawValue);
+        return {
+            protocol: parsed.protocol.replace(':', '') || 'http',
+            hostname: parsed.hostname,
+            port: parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'https:' ? 443 : 80),
+            pathname: parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/$/, ''),
+            search: parsed.search || ''
+        };
+    } catch (error) {
+        console.warn(`⚠️  Unable to parse ${label} (${rawValue}): ${error.message}`);
+        return { raw: rawValue };
+    }
+}
+
+function formatInitialUrl(parsedConfig, fallback) {
+    if (parsedConfig) {
+        if (parsedConfig.raw) {
+            return parsedConfig.raw;
+        }
+        const needsPort = (parsedConfig.protocol === 'https' && parsedConfig.port !== 443) ||
+            (parsedConfig.protocol === 'http' && parsedConfig.port !== 80);
+        const portSegment = needsPort ? `:${parsedConfig.port}` : '';
+        return `${parsedConfig.protocol}://${parsedConfig.hostname}${portSegment}${parsedConfig.pathname || ''}${parsedConfig.search || ''}`;
+    }
+    return fallback;
+}
+
+const parsedAuthConfig = parseServiceUrl(AUTH_SERVICE_URL, 'AUTH_SERVICE_URL');
+const parsedAuthUIConfig = parseServiceUrl(AUTH_UI_URL, 'AUTH_UI_URL');
+
+const initialAuthLogUrl = formatInitialUrl(parsedAuthConfig, AUTH_PORT ? `http://localhost:${AUTH_PORT}` : 'http://localhost:15785');
+const initialAuthUiLogUrl = formatInitialUrl(parsedAuthUIConfig, initialAuthLogUrl);
+
+function resolveServiceUrl(parsedConfig, req) {
+    if (!parsedConfig) {
+        return { url: '', port: '' };
+    }
+
+    if (parsedConfig.raw) {
+        return { url: parsedConfig.raw, port: '' };
+    }
+
+    const requestProtocol = req.headers['x-forwarded-proto'] || 'http';
+    const hostHeader = req.headers.host || '';
+    const hostnameFromRequest = hostHeader.split(':')[0] || 'localhost';
+
+    const useSameHost = parsedConfig.hostname === 'localhost' || parsedConfig.hostname === '127.0.0.1';
+    const protocol = parsedConfig.protocol || requestProtocol;
+    const hostname = useSameHost ? hostnameFromRequest : parsedConfig.hostname;
+    const port = parsedConfig.port;
+    const needsPort = (protocol === 'https' && port !== 443) || (protocol === 'http' && port !== 80);
+    const portSegment = needsPort ? `:${port}` : '';
+
+    return {
+        url: `${protocol}://${hostname}${portSegment}${parsedConfig.pathname || ''}${parsedConfig.search || ''}`,
+        port: useSameHost ? String(port) : ''
+    };
+}
 
 // Build URLs dynamically based on current host
 function getConfigForRequest(req) {
     const protocol = req.headers['x-forwarded-proto'] || 'http';
-    const host = req.headers.host;
-    const hostname = host.split(':')[0];
+    const host = req.headers.host || '';
+    const hostname = host.split(':')[0] || 'localhost';
+
+    let authPort = '';
+    const resolvedAuth = resolveServiceUrl(parsedAuthConfig, req);
+    let authUrl = resolvedAuth.url;
+    if (resolvedAuth.port) {
+        authPort = resolvedAuth.port;
+    }
+
+    if (!authUrl && AUTH_PORT) {
+        authUrl = `${protocol}://${hostname}:${AUTH_PORT}`;
+        authPort = String(AUTH_PORT);
+    }
+
+    if (!authUrl) {
+        authUrl = `${protocol}://${hostname}:15785`;
+        authPort = '15785';
+    }
+
+    const resolvedAuthUi = resolveServiceUrl(parsedAuthUIConfig, req);
+    const authUiUrl = resolvedAuthUi.url || authUrl;
 
     return {
         apiUrl: `${protocol}://${hostname}:${API_PORT}`,
-        authUrl: AUTH_PORT ? `${protocol}://${hostname}:${AUTH_PORT}` : '',
+        authUrl,
+        authUiUrl,
         apiPort: API_PORT,
-        authPort: AUTH_PORT || ''
+        authPort
     };
 }
 
@@ -61,6 +188,7 @@ function injectConfig(htmlContent, config) {
     return htmlContent
         .replace('<meta name="api-url" content="">', `<meta name="api-url" content="${config.apiUrl}">`)
         .replace('<meta name="auth-url" content="">', `<meta name="auth-url" content="${config.authUrl}">`)
+        .replace('<meta name="auth-ui-url" content="">', `<meta name="auth-ui-url" content="${config.authUiUrl}">`)
         .replace('<meta name="api-port" content="">', `<meta name="api-port" content="${config.apiPort}">`)
         .replace('<meta name="auth-port" content="">', `<meta name="auth-port" content="${config.authPort}">`);
 }
@@ -206,8 +334,11 @@ const server = http.createServer((req, res) => {
 server.listen(UI_PORT, () => {
     console.log(`🌐 Device Sync Hub UI server running on port ${UI_PORT}`);
     console.log(`📡 API URL: http://localhost:${API_PORT}`);
-    if (AUTH_PORT) {
-        console.log(`🔐 Auth URL: http://localhost:${AUTH_PORT}`);
+    if (initialAuthLogUrl) {
+        console.log(`🔐 Auth URL: ${initialAuthLogUrl}`);
+    }
+    if (initialAuthUiLogUrl && initialAuthUiLogUrl !== initialAuthLogUrl) {
+        console.log(`🪪 Auth UI: ${initialAuthUiLogUrl}`);
     }
     console.log(`🎯 UI URL: http://localhost:${UI_PORT}`);
 });

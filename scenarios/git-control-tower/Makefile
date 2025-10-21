@@ -104,8 +104,18 @@ fmt-go: ## Format Go code
 		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
 	fi
 
-fmt-ui: ## Format UI code (no-op - no UI yet)
-	@echo "$(BLUE)ℹ️  No UI to format$(RESET)"
+fmt-ui: ## Format UI code
+	@if [ -d ui/src ]; then \
+		echo "$(BLUE)🎨 Formatting UI code...$(RESET)"; \
+		if command -v prettier >/dev/null 2>&1; then \
+			cd ui && prettier --write "src/**/*.{js,ts,tsx}" >/dev/null 2>&1 || true; \
+			echo "$(GREEN)✓ UI code formatted$(RESET)"; \
+		else \
+			echo "$(YELLOW)⚠️  Prettier not installed; skipped UI formatting$(RESET)"; \
+		fi; \
+	else \
+		echo "$(BLUE)ℹ️  No UI sources detected$(RESET)"; \
+	fi
 
 lint: lint-go lint-ui ## Lint all code (Go + UI)
 
@@ -120,8 +130,17 @@ lint-go: ## Lint Go code
 		echo "$(GREEN)✓ Go code linted$(RESET)"; \
 	fi
 
-lint-ui: ## Lint UI code (no-op - no UI yet)
-	@echo "$(BLUE)ℹ️  No UI to lint$(RESET)"
+lint-ui: ## Lint UI code
+	@if [ -d ui/src ]; then \
+		echo "$(BLUE)🔍 Linting UI code...$(RESET)"; \
+		if command -v eslint >/dev/null 2>&1; then \
+			cd ui && eslint "src/**/*.{js,ts,tsx}"; \
+		else \
+			echo "$(YELLOW)⚠️  ESLint not installed; skipped UI linting$(RESET)"; \
+		fi; \
+	else \
+		echo "$(BLUE)ℹ️  No UI sources detected$(RESET)"; \
+	fi
 
 check: ## Format, lint, and test
 	@echo "$(BLUE)✅ Running full check...$(RESET)"

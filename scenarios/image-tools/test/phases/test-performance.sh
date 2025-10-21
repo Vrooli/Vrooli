@@ -4,11 +4,28 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 echo "  ✓ Testing response time..."
 
-# Get the API port
-API_PORT=$(vrooli scenario logs image-tools --step start-api --tail 5 2>/dev/null | grep -oP 'port \K\d+' | tail -1)
-API_PORT=${API_PORT:-19364}
+# Get API port - use environment variable first, then check the service status
+if [ -n "$API_PORT" ]; then
+  : # Use provided API_PORT
+elif [ -f "${SCENARIO_DIR}/.vrooli/runtime/ports.json" ]; then
+  API_PORT=$(jq -r '.api // empty' "${SCENARIO_DIR}/.vrooli/runtime/ports.json" 2>/dev/null || echo "")
+fi
+
+# If still not found, check vrooli scenario status output
+if [ -z "$API_PORT" ]; then
+  API_PORT=$(vrooli scenario status image-tools 2>/dev/null | grep -oP 'http://localhost:\K[0-9]+' | head -1 || echo "")
+fi
+
+# Verify we have a valid port
+if [ -z "$API_PORT" ]; then
+  echo "  ❌ Could not determine API port"
+  exit 1
+fi
 
 # Test health endpoint response time
 START_TIME=$(date +%s%N)

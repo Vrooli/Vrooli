@@ -20,7 +20,7 @@ func TestCalculusComprehensive(t *testing.T) {
 			Operation: "partial_derivative",
 			Data:      []float64{1, 2},
 		}
-		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusBadRequest, nil)
+		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, nil)
 	})
 
 	t.Run("DoubleIntegralOperation", func(t *testing.T) {
@@ -29,7 +29,7 @@ func TestCalculusComprehensive(t *testing.T) {
 			Operation: "double_integral",
 			Data:      []float64{0, 1, 0, 1},
 		}
-		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusBadRequest, nil)
+		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, nil)
 	})
 
 	t.Run("DerivativeNil", func(t *testing.T) {
@@ -318,8 +318,10 @@ func TestCORSAndMiddleware(t *testing.T) {
 		recorder := httptest.NewRecorder()
 		server.router.ServeHTTP(recorder, req)
 
-		if origin := recorder.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
-			t.Errorf("Expected CORS header *, got %s", origin)
+		origin := recorder.Header().Get("Access-Control-Allow-Origin")
+		// CORS should be set to a specific origin (not wildcard for security)
+		if origin == "" {
+			t.Errorf("Expected CORS header to be set, got empty")
 		}
 	})
 

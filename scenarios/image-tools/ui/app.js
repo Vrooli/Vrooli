@@ -1,7 +1,216 @@
+const API_PATH = '/api/v1';
+const DEFAULT_API_PORT = 19374;
+const ALT_API_PORTS = [19374, 19373, 19368, 19367, 19364, 8080];
+
+function stripTrailingSlash(value) {
+    return typeof value === 'string' ? value.replace(/\/+$/, '') : value;
+}
+
+function ensureApiPath(base) {
+    if (typeof base !== 'string') {
+        return base;
+    }
+
+    const sanitized = stripTrailingSlash(base);
+    if (!sanitized) {
+        return sanitized;
+    }
+
+    if (sanitized.endsWith(API_PATH)) {
+        return sanitized;
+    }
+
+    if (sanitized.toLowerCase().endsWith('/api')) {
+        return `${sanitized}${API_PATH.slice(4)}`;
+    }
+
+    return `${sanitized}${API_PATH}`;
+}
+
+function isLocalHostname(hostname) {
+    if (!hostname) {
+        return false;
+    }
+    const normalized = hostname.toLowerCase();
+    return normalized === 'localhost' ||
+        normalized === '127.0.0.1' ||
+        normalized === '0.0.0.0' ||
+        normalized === '::1' ||
+        normalized === '[::1]';
+}
+
+function buildLoopbackBase(port = DEFAULT_API_PORT, win) {
+    const protocol = win?.location?.protocol || 'http:';
+    const hostname = win?.location?.hostname;
+    const loopbackHost = isLocalHostname(hostname) ? hostname : '127.0.0.1';
+    return `${protocol}//${loopbackHost}:${port}`;
+}
+
+function collectProxyCandidates(source) {
+    const queue = [source];
+    const seen = new Set();
+    const candidates = [];
+    const keys = [
+        'apiBase',
+        'apiUrl',
+        'api',
+        'url',
+        'baseUrl',
+        'publicUrl',
+        'proxyUrl',
+        'origin',
+        'target',
+        'path',
+        'proxyPath',
+        'paths',
+        'endpoint',
+        'endpoints',
+        'service',
+        'services',
+        'host',
+        'hosts',
+        'port',
+        'ports'
+    ];
+
+    while (queue.length > 0) {
+        const value = queue.shift();
+        if (!value) {
+            continue;
+        }
+
+        if (typeof value === 'string') {
+            candidates.push(value);
+            continue;
+        }
+
+        if (Array.isArray(value)) {
+            queue.push(...value);
+            continue;
+        }
+
+        if (typeof value === 'object') {
+            if (seen.has(value)) {
+                continue;
+            }
+            seen.add(value);
+            keys.forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(value, key)) {
+                    queue.push(value[key]);
+                }
+            });
+        }
+    }
+
+    return candidates;
+}
+
+function normalizeProxyCandidate(candidate, win) {
+    if (typeof candidate !== 'string') {
+        return undefined;
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (trimmed.startsWith('//')) {
+        const protocol = win?.location?.protocol || 'https:';
+        return stripTrailingSlash(`${protocol}${trimmed}`);
+    }
+
+    if (trimmed.startsWith('/')) {
+        const origin = win?.location?.origin;
+        if (origin) {
+            return stripTrailingSlash(`${origin}${trimmed}`);
+        }
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)(:\\d+)?(\/.*)?$/i.test(trimmed)) {
+        return stripTrailingSlash(`http://${trimmed}`);
+    }
+
+    return undefined;
+}
+
+function stripApiSuffix(value) {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    const trimmed = stripTrailingSlash(value);
+    return trimmed.replace(/\/api\/?$/i, '');
+}
+
+function resolveProxyBase(win) {
+    if (!win) {
+        return undefined;
+    }
+
+    const sources = [
+        win.__APP_MONITOR_PROXY_INFO__,
+        win.__APP_MONITOR_PROXY_INDEX__
+    ].filter(Boolean);
+
+    for (const source of sources) {
+        const candidates = collectProxyCandidates(source);
+        for (const candidate of candidates) {
+            const normalized = normalizeProxyCandidate(candidate, win);
+            if (normalized) {
+                return stripApiSuffix(normalized);
+            }
+        }
+    }
+
+    return undefined;
+}
+
+function buildApiUrlFromBase(base, path, searchParams) {
+    const sanitizedBase = stripTrailingSlash(base || '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    let url = `${sanitizedBase}${normalizedPath}`;
+
+    if (searchParams && Object.keys(searchParams).length > 0) {
+        const query = new URLSearchParams(searchParams).toString();
+        if (query) {
+            url += `?${query}`;
+        }
+    }
+
+    return url;
+}
+
+function resolveApiBase() {
+    const win = typeof window !== 'undefined' ? window : undefined;
+    const fallbackBase = ensureApiPath(buildLoopbackBase(DEFAULT_API_PORT, win));
+
+    if (!win) {
+        return fallbackBase;
+    }
+
+    const proxyBase = resolveProxyBase(win);
+    if (proxyBase) {
+        return ensureApiPath(proxyBase);
+    }
+
+    const origin = win.location?.origin;
+    const hostname = win.location?.hostname;
+
+    if (origin && hostname && !isLocalHostname(hostname)) {
+        return ensureApiPath(origin);
+    }
+
+    return fallbackBase;
+}
+
 class ImageToolsApp {
     constructor() {
-        // Dynamic API port detection - check multiple common ports
-        this.apiUrl = window.location.protocol + '//' + window.location.hostname + ':19374';
+        this.apiBase = resolveApiBase();
         this.checkApiHealth();
         this.currentFile = null;
         this.currentOperation = 'compress';
@@ -49,9 +258,20 @@ class ImageToolsApp {
         
         // Status lights
         this.statusLights = document.querySelectorAll('.status-light');
+        this.errorStatusLight = document.querySelector('.status-light.error');
+
+        // Error banner
+        this.errorBanner = document.getElementById('error-banner');
+        this.errorMessageEl = document.getElementById('error-message');
+        this.errorDismissBtn = document.querySelector('.alert-dismiss');
+        this.errorHideTimeout = null;
+        this.errorIndicatorTimeout = null;
     }
-    
+
     attachEventListeners() {
+        // Error banner dismissal
+        this.errorDismissBtn?.addEventListener('click', () => this.clearError());
+
         // File input
         this.dropZone.addEventListener('click', () => this.fileInput.click());
         this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e.target.files[0]));
@@ -78,6 +298,7 @@ class ImageToolsApp {
         // Operation toggles
         this.operationButtons.forEach(btn => {
             btn.addEventListener('click', () => {
+                this.clearError();
                 this.operationButtons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.currentOperation = btn.dataset.operation;
@@ -94,6 +315,7 @@ class ImageToolsApp {
         // Format buttons
         document.querySelectorAll('.format-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                this.clearError();
                 document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
             });
@@ -103,8 +325,38 @@ class ImageToolsApp {
         this.processBtn.addEventListener('click', () => this.processImage());
         
         // Metadata buttons
-        document.querySelector('.strip-btn')?.addEventListener('click', () => this.stripMetadata());
-        document.querySelector('.view-btn')?.addEventListener('click', () => this.viewMetadata());
+        document.querySelector('.strip-btn')?.addEventListener('click', async () => {
+            this.clearError();
+
+            if (!this.currentFile) {
+                this.showError('Please select an image first');
+                return;
+            }
+
+            try {
+                const result = await this.stripMetadata();
+                if (result) {
+                    await this.displayResult(result);
+                }
+            } catch (error) {
+                this.showError(error);
+            }
+        });
+
+        document.querySelector('.view-btn')?.addEventListener('click', async () => {
+            this.clearError();
+
+            if (!this.currentFile) {
+                this.showError('Please select an image first');
+                return;
+            }
+
+            try {
+                await this.viewMetadata();
+            } catch (error) {
+                this.showError(error);
+            }
+        });
         
         // Split handle dragging
         const splitHandle = document.getElementById('split-handle');
@@ -165,6 +417,8 @@ class ImageToolsApp {
     }
     
     handleFileSelect(file) {
+        this.clearError();
+
         if (!file || !file.type.startsWith('image/')) {
             this.showError('Please select a valid image file');
             return;
@@ -199,6 +453,8 @@ class ImageToolsApp {
     }
     
     async processImage() {
+        this.clearError();
+
         if (!this.currentFile) {
             this.showError('Please select an image first');
             return;
@@ -228,7 +484,7 @@ class ImageToolsApp {
                 await this.displayResult(result);
             }
         } catch (error) {
-            this.showError(error.message);
+            this.showError(error);
         } finally {
             this.showProcessing(false);
         }
@@ -239,17 +495,17 @@ class ImageToolsApp {
         formData.append('image', this.currentFile);
         formData.append('quality', this.qualityDial.value);
         
-        const response = await fetch(`${this.apiUrl}/api/v1/image/compress`, {
+        const response = await fetch(this.buildApiUrl('/image/compress'), {
             method: 'POST',
             body: formData
         });
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Compression failed');
+            const detail = await this.extractErrorMessage(response);
+            throw new Error(this.buildDetailedError('Compression failed', detail));
         }
         
-        return await response.json();
+        return response.json();
     }
     
     async resizeImage() {
@@ -259,17 +515,17 @@ class ImageToolsApp {
         formData.append('height', this.heightInput.value || this.heightInput.placeholder);
         formData.append('maintain_aspect', this.maintainAspect.checked);
         
-        const response = await fetch(`${this.apiUrl}/api/v1/image/resize`, {
+        const response = await fetch(this.buildApiUrl('/image/resize'), {
             method: 'POST',
             body: formData
         });
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Resize failed');
+            const detail = await this.extractErrorMessage(response);
+            throw new Error(this.buildDetailedError('Resize failed', detail));
         }
         
-        return await response.json();
+        return response.json();
     }
     
     async convertImage() {
@@ -282,48 +538,48 @@ class ImageToolsApp {
         formData.append('image', this.currentFile);
         formData.append('target_format', selectedFormat.dataset.format);
         
-        const response = await fetch(`${this.apiUrl}/api/v1/image/convert`, {
+        const response = await fetch(this.buildApiUrl('/image/convert'), {
             method: 'POST',
             body: formData
         });
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Conversion failed');
+            const detail = await this.extractErrorMessage(response);
+            throw new Error(this.buildDetailedError('Conversion failed', detail));
         }
         
-        return await response.json();
+        return response.json();
     }
     
     async stripMetadata() {
         const formData = new FormData();
         formData.append('image', this.currentFile);
         
-        const response = await fetch(`${this.apiUrl}/api/v1/image/metadata?action=strip`, {
+        const response = await fetch(this.buildApiUrl('/image/metadata', { action: 'strip' }), {
             method: 'POST',
             body: formData
         });
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Metadata stripping failed');
+            const detail = await this.extractErrorMessage(response);
+            throw new Error(this.buildDetailedError('Metadata stripping failed', detail));
         }
         
-        return await response.json();
+        return response.json();
     }
     
     async viewMetadata() {
         const formData = new FormData();
         formData.append('image', this.currentFile);
         
-        const response = await fetch(`${this.apiUrl}/api/v1/image/metadata?action=read`, {
+        const response = await fetch(this.buildApiUrl('/image/metadata', { action: 'read' }), {
             method: 'POST',
             body: formData
         });
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Metadata reading failed');
+            const detail = await this.extractErrorMessage(response);
+            throw new Error(this.buildDetailedError('Metadata reading failed', detail));
         }
         
         const metadata = await response.json();
@@ -331,15 +587,17 @@ class ImageToolsApp {
     }
     
     async displayResult(result) {
+        this.clearError();
+
         // Update processed image
         if (result.url) {
             // Handle different URL types
             if (result.url.startsWith('file://')) {
-                // Convert file:// URLs to actual file fetch
-                await this.loadProcessedImage(result.url.replace('file://', ''));
-            } else if (result.url.includes('localhost:9100') || result.url.includes('minio')) {
-                // Handle MinIO URLs - fetch and display as blob
-                await this.fetchAndDisplayImage(result.url);
+                // Local storage fallback needs proxy fetch through the API
+                await this.loadProcessedImage(result.url);
+            } else if (this.shouldProxyImageUrl(result.url)) {
+                // Proxy inaccessible hosts (e.g., MinIO or loopback) through the API
+                await this.fetchAndDisplayImage(result.url, { forceProxy: true });
             } else {
                 // Direct URL
                 this.processedImage.src = result.url;
@@ -363,6 +621,8 @@ class ImageToolsApp {
     }
     
     displayMetadata(metadata) {
+        this.clearError();
+
         this.metadataViewer.classList.remove('hidden');
         this.metadataContent.innerHTML = '';
         
@@ -392,28 +652,76 @@ class ImageToolsApp {
         });
     }
     
-    async fetchAndDisplayImage(url) {
+    shouldProxyImageUrl(url) {
+        if (!url) {
+            return false;
+        }
+
+        const win = typeof window !== 'undefined' ? window : undefined;
+        if (!win) {
+            return true;
+        }
+
+        if (url.startsWith('blob:') || url.startsWith('data:')) {
+            return false;
+        }
+
+        let parsed;
+        try {
+            parsed = new URL(url, win.location.href);
+        } catch (error) {
+            return true;
+        }
+
+        if (parsed.protocol === 'file:') {
+            return true;
+        }
+
+        const currentHost = win.location?.host;
+        if (currentHost && parsed.host === currentHost) {
+            return false;
+        }
+
+        try {
+            const apiHost = new URL(this.apiBase).host;
+            if (parsed.host === apiHost) {
+                return false;
+            }
+        } catch (error) {
+            // Ignore cases where apiBase is not a valid URL yet
+        }
+
+        if (isLocalHostname(parsed.hostname) && !isLocalHostname(win.location?.hostname)) {
+            return true;
+        }
+
+        return true;
+    }
+
+    async fetchAndDisplayImage(url, { forceProxy = false } = {}) {
         try {
             // Try to fetch the image directly
-            const response = await fetch(url, {
-                mode: 'cors',
-                credentials: 'omit'
-            });
-            
-            if (!response.ok) {
-                // If direct fetch fails, proxy through our API
-                const proxyUrl = `${this.apiUrl}/api/v1/image/proxy?url=${encodeURIComponent(url)}`;
-                const proxyResponse = await fetch(proxyUrl);
-                if (proxyResponse.ok) {
-                    const blob = await proxyResponse.blob();
+            if (!forceProxy) {
+                const response = await fetch(url, {
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
                     this.processedImage.src = URL.createObjectURL(blob);
-                } else {
-                    // Fallback: show a success indicator
-                    this.showProcessingSuccess();
+                    return;
                 }
-            } else {
-                const blob = await response.blob();
+            }
+
+            // If direct fetch fails, proxy through our API
+            const proxyResponse = await fetch(this.buildApiUrl('/image/proxy', { url }));
+            if (proxyResponse.ok) {
+                const blob = await proxyResponse.blob();
                 this.processedImage.src = URL.createObjectURL(blob);
+            } else {
+                // Fallback: show a success indicator
+                this.showProcessingSuccess();
             }
         } catch (error) {
             console.log('Could not fetch processed image directly, showing success state');
@@ -421,17 +729,23 @@ class ImageToolsApp {
         }
     }
     
-    async loadProcessedImage(path) {
+    async loadProcessedImage(fileUrl) {
         try {
-            // Try to load from API endpoint
-            const response = await fetch(`${this.apiUrl}/api/v1/image/load?path=${encodeURIComponent(path)}`);
-            if (response.ok) {
-                const blob = await response.blob();
-                this.processedImage.src = URL.createObjectURL(blob);
-            } else {
-                this.showProcessingSuccess();
+            const normalized = fileUrl.startsWith('file://') ? fileUrl : `file://${fileUrl}`;
+            const proxyUrl = this.buildApiUrl('/image/proxy', { url: normalized });
+            const response = await fetch(proxyUrl, {
+                mode: 'cors',
+                credentials: 'omit'
+            });
+
+            if (!response.ok) {
+                throw new Error(`Proxy request failed with status ${response.status}`);
             }
+
+            const blob = await response.blob();
+            this.processedImage.src = URL.createObjectURL(blob);
         } catch (error) {
+            console.warn('Could not load processed image from storage', error);
             this.showProcessingSuccess();
         }
     }
@@ -456,29 +770,59 @@ class ImageToolsApp {
     }
     
     async checkApiHealth() {
+        let isHealthy = false;
+
         try {
-            const response = await fetch(`${this.apiUrl}/api/v1/health`);
-            if (!response.ok) {
-                console.warn('API health check failed, trying alternative ports');
-                // Try alternative ports
-                const ports = [19374, 19373, 19368, 19367, 19364, 8080];
-                for (const port of ports) {
-                    const altUrl = `${window.location.protocol}//${window.location.hostname}:${port}`;
-                    try {
-                        const altResponse = await fetch(`${altUrl}/api/v1/health`);
-                        if (altResponse.ok) {
-                            this.apiUrl = altUrl;
-                            console.log(`API found at port ${port}`);
-                            break;
-                        }
-                    } catch (e) {
-                        // Continue to next port
-                    }
-                }
-            }
+            const response = await fetch(this.buildApiUrl('/health'));
+            isHealthy = response.ok;
         } catch (error) {
             console.warn('API connection check failed:', error);
         }
+
+        if (!isHealthy) {
+            console.warn('API health check failed, trying alternative ports');
+            await this.tryAlternativePorts();
+        }
+    }
+
+    async tryAlternativePorts() {
+        const win = typeof window !== 'undefined' ? window : undefined;
+        if (!win) {
+            return;
+        }
+
+        let hostname;
+        try {
+            hostname = new URL(this.apiBase).hostname;
+        } catch (error) {
+            hostname = undefined;
+        }
+
+        if (!isLocalHostname(hostname)) {
+            return;
+        }
+
+        for (const port of ALT_API_PORTS) {
+            const candidateBase = ensureApiPath(buildLoopbackBase(port, win));
+            if (candidateBase === this.apiBase) {
+                continue;
+            }
+
+            try {
+                const response = await fetch(buildApiUrlFromBase(candidateBase, '/health'));
+                if (response.ok) {
+                    this.apiBase = candidateBase;
+                    console.log(`API found at port ${port}`);
+                    return;
+                }
+            } catch (error) {
+                // Try next port
+            }
+        }
+    }
+
+    buildApiUrl(path, searchParams) {
+        return buildApiUrlFromBase(this.apiBase, path, searchParams);
     }
     
     formatFileSize(bytes) {
@@ -492,6 +836,7 @@ class ImageToolsApp {
         const btnText = this.processBtn.querySelector('.btn-text');
         
         if (show) {
+            this.clearError();
             developingIndicator?.classList.remove('hidden');
             btnText.textContent = 'DEVELOPING';
             this.processBtn.disabled = true;
@@ -510,15 +855,159 @@ class ImageToolsApp {
         }
     }
     
-    showError(message) {
-        // Show error status light
-        document.querySelector('.status-light.error')?.classList.remove('hidden');
-        setTimeout(() => {
-            document.querySelector('.status-light.error')?.classList.add('hidden');
-        }, 3000);
-        
-        console.error(message);
-        alert(message);
+    showError(error) {
+        const message = this.normalizeErrorMessage(error);
+
+        console.error('[ImageTools]', message);
+
+        if (this.errorBanner && this.errorMessageEl) {
+            this.errorBanner.classList.remove('hidden');
+            this.errorMessageEl.textContent = message;
+
+            if (this.errorHideTimeout) {
+                clearTimeout(this.errorHideTimeout);
+            }
+            this.errorHideTimeout = setTimeout(() => {
+                this.clearError();
+            }, 10000);
+
+            if (this.errorStatusLight) {
+                this.errorStatusLight.classList.remove('hidden');
+            }
+
+            if (this.errorIndicatorTimeout) {
+                clearTimeout(this.errorIndicatorTimeout);
+            }
+            this.errorIndicatorTimeout = setTimeout(() => {
+                this.errorStatusLight?.classList.add('hidden');
+                this.errorIndicatorTimeout = null;
+            }, 4000);
+        } else {
+            alert(message);
+        }
+    }
+
+    clearError() {
+        if (this.errorHideTimeout) {
+            clearTimeout(this.errorHideTimeout);
+            this.errorHideTimeout = null;
+        }
+        if (this.errorIndicatorTimeout) {
+            clearTimeout(this.errorIndicatorTimeout);
+            this.errorIndicatorTimeout = null;
+        }
+
+        this.errorBanner?.classList.add('hidden');
+        if (this.errorMessageEl) {
+            this.errorMessageEl.textContent = '';
+        }
+        this.errorStatusLight?.classList.add('hidden');
+    }
+
+    normalizeErrorMessage(error, fallback = 'Image Tools ran into a problem while processing this image.') {
+        let message = '';
+
+        if (typeof error === 'string') {
+            message = error;
+        } else if (error instanceof Error) {
+            message = error.message;
+        } else if (error && typeof error === 'object') {
+            message = error.message || error.error || '';
+        }
+
+        const sanitized = (message || '').toString().replace(/\s+/g, ' ').trim();
+        let finalMessage = sanitized || fallback;
+
+        if (/failed to fetch/i.test(finalMessage) || /networkerror/i.test(finalMessage)) {
+            finalMessage = 'Could not connect to the Image Tools API. Verify the scenario is running and try again.';
+        }
+
+        if (finalMessage.length > 200) {
+            finalMessage = `${finalMessage.slice(0, 197)}...`;
+        }
+
+        return finalMessage;
+    }
+
+    buildDetailedError(baseMessage, detail) {
+        const trimmedDetail = (detail || '').toString().replace(/\s+/g, ' ').trim();
+        if (!trimmedDetail) {
+            return baseMessage;
+        }
+
+        const lowerBase = baseMessage.toLowerCase();
+        const lowerDetail = trimmedDetail.toLowerCase();
+
+        if (lowerDetail === lowerBase) {
+            return baseMessage;
+        }
+
+        if (lowerDetail.startsWith(lowerBase)) {
+            return trimmedDetail;
+        }
+
+        return `${baseMessage}: ${trimmedDetail}`;
+    }
+
+    async extractErrorMessage(response, fallback = '') {
+        if (!response) {
+            return fallback;
+        }
+
+        try {
+            const jsonClone = response.clone();
+            const contentType = jsonClone.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const data = await jsonClone.json();
+                const message = this.pickErrorMessage(data);
+                if (message) {
+                    return message;
+                }
+            }
+        } catch (error) {
+            // Ignore JSON parsing errors and fall back to text handling
+        }
+
+        try {
+            const text = await response.text();
+            const cleaned = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            if (cleaned) {
+                return cleaned.length > 200 ? `${cleaned.slice(0, 197)}...` : cleaned;
+            }
+        } catch (error) {
+            // Ignore body read errors
+        }
+
+        return fallback;
+    }
+
+    pickErrorMessage(payload) {
+        if (!payload) {
+            return '';
+        }
+
+        if (typeof payload === 'string') {
+            return payload;
+        }
+
+        if (Array.isArray(payload) && payload.length > 0) {
+            return this.pickErrorMessage(payload[0]);
+        }
+
+        if (typeof payload === 'object') {
+            const candidates = ['error', 'message', 'detail', 'details', 'title', 'description'];
+            for (const key of candidates) {
+                if (key in payload) {
+                    const value = payload[key];
+                    const extracted = this.pickErrorMessage(value);
+                    if (extracted) {
+                        return extracted;
+                    }
+                }
+            }
+        }
+
+        return '';
     }
 }
 

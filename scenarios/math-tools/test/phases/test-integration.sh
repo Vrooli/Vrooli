@@ -1,34 +1,45 @@
 #!/bin/bash
 # Integration tests for math-tools scenario
 
-APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+set -euo pipefail
 
-testing::phase::init --target-time "90s"
+echo "=== Math Tools Integration Tests ==="
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+# Use API_PORT from environment or default
+API_PORT="${API_PORT:-16430}"
 
-echo "Running integration tests for math-tools..."
-
-# Test API endpoints are accessible
-testing::phase::step "Testing API endpoints accessibility"
-
-# Start the server in background for integration tests (if not already running)
-if ! pgrep -f "math-tools" > /dev/null; then
-    echo "Note: Integration tests require running server. Skipping endpoint tests."
-    testing::phase::end_with_summary "Integration tests completed (server not running)"
+# Check if server is running
+if ! pgrep -f "math-tools-api" > /dev/null; then
+    echo "⚠️  Server not running. Skipping integration tests."
     exit 0
 fi
 
 # Test health endpoint
+echo "Testing health endpoint..."
 if command -v curl &> /dev/null; then
-    HEALTH_RESPONSE=$(curl -s http://localhost:8095/health 2>/dev/null || echo "failed")
+    HEALTH_RESPONSE=$(curl -sf "http://localhost:${API_PORT}/api/health" 2>/dev/null || echo "")
     if [[ "$HEALTH_RESPONSE" == *"healthy"* ]]; then
-        echo "✓ Health endpoint responding"
+        echo "✓ Health endpoint responding correctly"
     else
         echo "✗ Health endpoint not responding"
+        exit 1
     fi
+else
+    echo "⚠️  curl not available, skipping HTTP tests"
 fi
 
-testing::phase::end_with_summary "Integration tests completed"
+# Test basic calculation endpoint
+echo "Testing calculation endpoint..."
+CALC_RESPONSE=$(curl -sf -X POST "http://localhost:${API_PORT}/api/v1/math/calculate" \
+    -H "Authorization: Bearer math-tools-api-token" \
+    -H "Content-Type: application/json" \
+    -d '{"operation":"add","data":[2,3]}' 2>/dev/null || echo "")
+if [[ "$CALC_RESPONSE" == *"\"result\":5"* ]]; then
+    echo "✓ Calculation endpoint working correctly"
+else
+    echo "✗ Calculation endpoint failed"
+    exit 1
+fi
+
+echo ""
+echo "✓ All integration tests passed"

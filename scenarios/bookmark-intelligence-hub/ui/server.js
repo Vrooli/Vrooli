@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -7,6 +9,87 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.UI_PORT || 3200;
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.API_PORT || 15200}`;
+
+let parsedApiBaseUrl;
+try {
+  parsedApiBaseUrl = new URL(API_BASE_URL);
+} catch (error) {
+  console.error('Invalid API_BASE_URL provided for UI proxy:', API_BASE_URL, error);
+  parsedApiBaseUrl = null;
+}
+
+function proxyToApi(req, res, upstreamPath) {
+  if (!parsedApiBaseUrl) {
+    res.status(502).json({
+      error: 'API proxy misconfigured',
+      message: 'API_BASE_URL could not be parsed',
+      target: API_BASE_URL
+    });
+    return;
+  }
+
+  const targetPath = upstreamPath || req.originalUrl || req.url || '/api';
+  const targetUrl = new URL(targetPath, parsedApiBaseUrl);
+  const client = targetUrl.protocol === 'https:' ? https : http;
+
+  const headers = {
+    ...req.headers,
+    host: targetUrl.host
+  };
+
+  // Let Node calculate the correct content length after potential body transforms
+  delete headers['content-length'];
+
+  const options = {
+    hostname: targetUrl.hostname,
+    port: targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80),
+    path: `${targetUrl.pathname}${targetUrl.search}`,
+    method: req.method,
+    headers
+  };
+
+  console.log(`[proxyToApi] ${req.method} ${req.originalUrl} -> ${targetUrl.href}`);
+
+  const proxyReq = client.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode || 500);
+    Object.entries(proxyRes.headers).forEach(([key, value]) => {
+      if (value !== undefined) {
+        res.setHeader(key, value);
+      }
+    });
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (error) => {
+    console.error('API proxy error:', error);
+    if (!res.headersSent) {
+      res.status(502).json({
+        error: 'API connection failed',
+        message: error.message,
+        target: targetUrl.href
+      });
+    } else {
+      res.end();
+    }
+  });
+
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    proxyReq.end();
+    return;
+  }
+
+  if (req.readable && typeof req.body === 'undefined') {
+    req.pipe(proxyReq);
+    return;
+  }
+
+  if (req.body) {
+    const bodyPayload = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    proxyReq.write(bodyPayload);
+  }
+
+  proxyReq.end();
+}
 
 const localFrameAncestors = [
   "'self'",
@@ -45,7 +128,6 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Middleware
-app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 // Health check endpoint
@@ -59,29 +141,8 @@ app.get('/health', (req, res) => {
 });
 
 // API proxy routes to avoid CORS issues
-app.use('/api', async (req, res) => {
-  try {
-    const fetch = (await import('node-fetch')).default;
-    const targetUrl = `${API_BASE_URL}${req.originalUrl}`;
-    
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...req.headers
-      },
-      body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined
-    });
-    
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error('API proxy error:', error);
-    res.status(500).json({ 
-      error: 'API connection failed', 
-      message: error.message 
-    });
-  }
+app.use('/api', (req, res) => {
+  proxyToApi(req, res, req.originalUrl || `/api${req.url}`);
 });
 
 // Serve main application

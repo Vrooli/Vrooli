@@ -61,7 +61,7 @@ const server = http.createServer((req, res) => {
     const checkStart = Date.now();
 
     // Check API connectivity
-    http.get(`${apiUrl}/api/v1/health`, (apiRes) => {
+    http.get(`${apiUrl}/health`, (apiRes) => {
       const latency = Date.now() - checkStart;
       const healthResponse = {
         status: 'healthy',

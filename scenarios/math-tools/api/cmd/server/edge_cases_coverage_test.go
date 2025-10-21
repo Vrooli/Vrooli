@@ -34,7 +34,12 @@ func TestNumberTheoryEdgeCases(t *testing.T) {
 				}
 
 				testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-					result, ok := resp["result"]
+					respData, ok := resp["data"].(map[string]interface{})
+					if !ok {
+						t.Error("Should have data field")
+						return nil
+					}
+					result, ok := respData["result"]
 					if !ok {
 						t.Error("Should have result field")
 					}
@@ -69,7 +74,12 @@ func TestNumberTheoryEdgeCases(t *testing.T) {
 				}
 
 				testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-					result, ok := resp["result"].(float64)
+					respData, ok := resp["data"].(map[string]interface{})
+					if !ok {
+						t.Error("Should have data field")
+						return nil
+					}
+					result, ok := respData["result"].(float64)
 					if !ok {
 						t.Error("Result should be a number")
 					}
@@ -102,7 +112,12 @@ func TestNumberTheoryEdgeCases(t *testing.T) {
 				}
 
 				testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-					result, ok := resp["result"].(float64)
+					respData, ok := resp["data"].(map[string]interface{})
+					if !ok {
+						t.Error("Should have data field")
+						return nil
+					}
+					result, ok := respData["result"].(float64)
 					if !ok {
 						t.Error("Result should be a number")
 					}
@@ -145,7 +160,12 @@ func TestBasicOperationExtendedEdgeCases(t *testing.T) {
 				}
 
 				testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-					if resp["result"] == nil {
+					respData, ok := resp["data"].(map[string]interface{})
+					if !ok {
+						t.Error("Should have data field")
+						return nil
+					}
+					if respData["result"] == nil {
 						t.Error("Should have result")
 					}
 					return nil
@@ -172,7 +192,12 @@ func TestBasicOperationExtendedEdgeCases(t *testing.T) {
 				}
 
 				testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-					if resp["result"] == nil {
+					respData, ok := resp["data"].(map[string]interface{})
+					if !ok {
+						t.Error("Should have data field")
+						return nil
+					}
+					if respData["result"] == nil {
 						t.Error("Should have result")
 					}
 					return nil
@@ -200,7 +225,12 @@ func TestBasicOperationExtendedEdgeCases(t *testing.T) {
 				}
 
 				testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-					if resp["result"] == nil {
+					respData, ok := resp["data"].(map[string]interface{})
+					if !ok {
+						t.Error("Should have data field")
+						return nil
+					}
+					if respData["result"] == nil {
 						t.Error("Should have result")
 					}
 					return nil
@@ -228,7 +258,12 @@ func TestBasicOperationExtendedEdgeCases(t *testing.T) {
 				}
 
 				testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-					if resp["result"] == nil {
+					respData, ok := resp["data"].(map[string]interface{})
+					if !ok {
+						t.Error("Should have data field")
+						return nil
+					}
+					if respData["result"] == nil {
 						t.Error("Should have result")
 					}
 					return nil
@@ -264,7 +299,12 @@ func TestMatrixOperationEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].([]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].([]interface{})
 			if !ok {
 				t.Error("Result should be a matrix (2D array)")
 			}
@@ -289,7 +329,12 @@ func TestMatrixOperationEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["result"] == nil {
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			if respData["result"] == nil {
 				t.Error("Should have result")
 			}
 			return nil
@@ -309,7 +354,12 @@ func TestMatrixOperationEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(float64)
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(float64)
 			if !ok {
 				t.Error("Determinant should be a number")
 			}
@@ -331,7 +381,12 @@ func TestMatrixOperationEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["result"] == nil {
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			if respData["result"] == nil {
 				t.Error("Should have result")
 			}
 			return nil
@@ -354,7 +409,12 @@ func TestCalculusEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(map[string]interface{})
 			if !ok {
 				t.Error("Result should be a map")
 			}
@@ -377,7 +437,12 @@ func TestCalculusEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["result"] == nil {
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			if respData["result"] == nil {
 				t.Error("Should have result")
 			}
 			return nil
@@ -392,7 +457,12 @@ func TestCalculusEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(map[string]interface{})
 			if !ok {
 				t.Error("Result should be a map")
 			}
@@ -412,7 +482,12 @@ func TestCalculusEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(map[string]interface{})
 			if !ok {
 				t.Error("Result should be a map")
 			}
@@ -440,14 +515,22 @@ func TestStatisticsEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/statistics", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			results, ok := resp["results"].(map[string]interface{})
+			data, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Data should be a map")
+				return nil
+			}
+
+			results, ok := data["results"].(map[string]interface{})
 			if !ok {
 				t.Error("Results should be a map")
+				return nil
 			}
 
 			desc, ok := results["descriptive"].(map[string]interface{})
 			if !ok {
 				t.Error("Descriptive should be a map")
+				return nil
 			}
 
 			// All stats should equal the single value
@@ -469,9 +552,16 @@ func TestStatisticsEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/statistics", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			results, ok := resp["results"].(map[string]interface{})
+			data, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Data should be a map")
+				return nil
+			}
+
+			results, ok := data["results"].(map[string]interface{})
 			if !ok {
 				t.Error("Results should be a map")
+				return nil
 			}
 
 			desc, ok := results["descriptive"].(map[string]interface{})
@@ -497,14 +587,22 @@ func TestStatisticsEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/statistics", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			results, ok := resp["results"].(map[string]interface{})
+			data, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Data should be a map")
+				return nil
+			}
+
+			results, ok := data["results"].(map[string]interface{})
 			if !ok {
 				t.Error("Results should be a map")
+				return nil
 			}
 
 			desc, ok := results["descriptive"].(map[string]interface{})
 			if !ok {
 				t.Error("Descriptive should be a map")
+				return nil
 			}
 
 			mean, _ := desc["mean"].(float64)
@@ -522,9 +620,16 @@ func TestStatisticsEdgeCases(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/statistics", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			results, ok := resp["results"].(map[string]interface{})
+			data, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Data should be a map")
+				return nil
+			}
+
+			results, ok := data["results"].(map[string]interface{})
 			if !ok {
 				t.Error("Results should be a map")
+				return nil
 			}
 
 			if results["descriptive"] == nil {
@@ -546,15 +651,21 @@ func TestDocsEndpointDetailed(t *testing.T) {
 	t.Run("DocsNoAuth", func(t *testing.T) {
 		// Docs should be accessible without auth
 		testEndpoint(t, server, "GET", "/docs", nil, "", http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["name"] != "Math Tools API" {
+			data, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response should have data field")
+				return nil
+			}
+
+			if data["name"] != "Math Tools API" {
 				t.Error("Should have correct API name")
 			}
 
-			if resp["version"] != "1.0.0" {
+			if data["version"] != "1.0.0" {
 				t.Error("Should have version")
 			}
 
-			endpoints, ok := resp["endpoints"].([]interface{})
+			endpoints, ok := data["endpoints"].([]interface{})
 			if !ok || len(endpoints) == 0 {
 				t.Error("Should have endpoints list")
 			}
@@ -581,15 +692,21 @@ func TestPlotEndpointExtended(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/plot", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			if resp["plot_id"] == nil {
+			data, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Response should have data field")
+				return nil
+			}
+
+			if data["plot_id"] == nil {
 				t.Error("Should have plot_id")
 			}
 
-			if resp["image_url"] == nil {
+			if data["image_url"] == nil {
 				t.Error("Should have image_url")
 			}
 
-			metadata, ok := resp["metadata"].(map[string]interface{})
+			metadata, ok := data["metadata"].(map[string]interface{})
 			if !ok {
 				t.Error("Should have metadata")
 			}
@@ -612,7 +729,13 @@ func TestPlotEndpointExtended(t *testing.T) {
 				}
 
 				testEndpoint(t, server, "POST", "/api/v1/math/plot", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-					if resp["plot_id"] == nil {
+					data, ok := resp["data"].(map[string]interface{})
+					if !ok {
+						t.Error("Response should have data field for type: " + plotType)
+						return nil
+					}
+
+					if data["plot_id"] == nil {
 						t.Error("Should generate plot for type: " + plotType)
 					}
 					return nil
@@ -637,7 +760,12 @@ func TestInsufficientDataErrors(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(map[string]interface{})
 			if ok && result["error"] != nil {
 				// Good, got expected error
 				return nil
@@ -653,7 +781,12 @@ func TestInsufficientDataErrors(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(map[string]interface{})
 			if ok && result["error"] != nil {
 				// Good, got expected error
 				return nil
@@ -669,7 +802,12 @@ func TestInsufficientDataErrors(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(map[string]interface{})
 			if ok && result["error"] != nil {
 				// Good, got expected error
 				return nil
@@ -685,7 +823,12 @@ func TestInsufficientDataErrors(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(map[string]interface{})
 			if ok && result["error"] != nil {
 				// Good, got expected error
 				return nil
@@ -701,7 +844,12 @@ func TestInsufficientDataErrors(t *testing.T) {
 		}
 
 		testEndpoint(t, server, "POST", "/api/v1/math/calculate", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
-			result, ok := resp["result"].(map[string]interface{})
+			respData, ok := resp["data"].(map[string]interface{})
+			if !ok {
+				t.Error("Should have data field")
+				return nil
+			}
+			result, ok := respData["result"].(map[string]interface{})
 			if ok && result["error"] != nil {
 				// Good, got expected error
 				return nil

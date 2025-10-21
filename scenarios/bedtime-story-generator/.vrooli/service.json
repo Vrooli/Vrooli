@@ -103,7 +103,7 @@
       },
       "checks": [
         {
-          "name": "api_health",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
@@ -111,10 +111,10 @@
           "interval": 30000
         },
         {
-          "name": "ui_health",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": true,
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         },

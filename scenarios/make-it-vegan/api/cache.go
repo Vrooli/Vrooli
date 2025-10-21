@@ -14,13 +14,18 @@ var ctx = context.Background()
 
 type CacheClient struct {
 	redis  *redis.Client
-	enable bool
+	Enable bool // Exported for health checks
 }
 
 func NewCacheClient() *CacheClient {
 	redisURL := os.Getenv("REDIS_URL")
+
+	// Redis is optional - if REDIS_URL not provided, gracefully disable caching
 	if redisURL == "" {
-		redisURL = "localhost:6379"
+		return &CacheClient{
+			redis:  nil,
+			Enable: false,
+		}
 	}
 
 	client := redis.NewClient(&redis.Options{
@@ -34,17 +39,17 @@ func NewCacheClient() *CacheClient {
 
 	// Test connection
 	_, err := client.Ping(ctx).Result()
-	enable := err == nil
+	Enable := err == nil
 
 	return &CacheClient{
 		redis:  client,
-		enable: enable,
+		Enable: Enable,
 	}
 }
 
 // CacheIngredientCheck stores ingredient check results
 func (c *CacheClient) CacheIngredientCheck(ingredients string, isVegan bool, nonVeganItems []string, reasons []string) {
-	if !c.enable {
+	if !c.Enable {
 		return
 	}
 
@@ -67,7 +72,7 @@ func (c *CacheClient) CacheIngredientCheck(ingredients string, isVegan bool, non
 
 // GetCachedIngredientCheck retrieves cached results
 func (c *CacheClient) GetCachedIngredientCheck(ingredients string) (bool, []string, []string, bool) {
-	if !c.enable {
+	if !c.Enable {
 		return false, nil, nil, false
 	}
 
@@ -109,7 +114,7 @@ func (c *CacheClient) GetCachedIngredientCheck(ingredients string) (bool, []stri
 
 // GetCacheStats returns cache statistics
 func (c *CacheClient) GetCacheStats() map[string]interface{} {
-	if !c.enable {
+	if !c.Enable {
 		return map[string]interface{}{
 			"enabled": false,
 			"message": "Redis caching is not available",

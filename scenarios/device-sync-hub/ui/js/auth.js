@@ -2,7 +2,9 @@
 
 class AuthManager {
   constructor(apiConfig) {
-    this.authUrl = apiConfig.authUrl;
+    this.apiUrl = apiConfig.apiUrl || '';
+    this.authServiceUrl = apiConfig.authUrl;
+    this.authApiBase = this.apiUrl ? `${this.apiUrl}/api/v1/auth` : `${this.authServiceUrl}/api/v1/auth`;
     this.authToken = localStorage.getItem('auth_token');
     this.user = null;
   }
@@ -14,7 +16,7 @@ class AuthManager {
     }
 
     try {
-      const response = await fetch(`${this.authUrl}/api/v1/auth/validate`, {
+      const response = await fetch(`${this.authApiBase}/validate`, {
         headers: {
           'Authorization': `Bearer ${this.authToken}`
         }
@@ -42,7 +44,7 @@ class AuthManager {
   // Login with email and password
   async login(email, password) {
     try {
-      const response = await fetch(`${this.authUrl}/api/v1/auth/login`, {
+      const response = await fetch(`${this.authApiBase}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

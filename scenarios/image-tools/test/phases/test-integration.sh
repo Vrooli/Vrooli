@@ -4,19 +4,27 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 echo "  ✓ Checking if service is running..."
 
-# Get the API port from running processes
-API_PORT=$(vrooli scenario logs image-tools --step start-api --tail 5 2>/dev/null | grep -oP 'port \K\d+' | tail -1)
+# Get API port - use environment variable first, then check the service status
+if [ -n "$API_PORT" ]; then
+  : # Use provided API_PORT
+elif [ -f "${SCENARIO_DIR}/.vrooli/runtime/ports.json" ]; then
+  API_PORT=$(jq -r '.api // empty' "${SCENARIO_DIR}/.vrooli/runtime/ports.json" 2>/dev/null || echo "")
+fi
 
+# If still not found, check vrooli scenario status output
 if [ -z "$API_PORT" ]; then
-    echo "  ⚠️  Service not running, checking status..."
-    vrooli scenario status image-tools | grep -q "RUNNING" || {
-        echo "  ❌ Service is not running. Start with: make run"
-        exit 1
-    }
-    # Try to get port again
-    API_PORT=19364  # Fallback to known port
+  API_PORT=$(vrooli scenario status image-tools 2>/dev/null | grep -oP 'http://localhost:\K[0-9]+' | head -1 || echo "")
+fi
+
+# Verify service is running
+if [ -z "$API_PORT" ] || ! pgrep -f "image-tools-api" > /dev/null; then
+    echo "  ❌ Service is not running. Start with: make start"
+    exit 1
 fi
 
 echo "  ✓ Testing health endpoint on port $API_PORT..."

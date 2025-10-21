@@ -22,6 +22,41 @@ function bootstrapIframeBridge() {
 
 bootstrapIframeBridge();
 
+function ensureIconsReady(attempt = 0) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const lucide = window.lucide;
+    if (lucide?.createIcons) {
+        const iconElements = document.querySelectorAll('[data-icon]');
+        iconElements.forEach((element) => {
+            const iconName = element.getAttribute('data-icon');
+            if (!iconName) {
+                return;
+            }
+
+            if (!element.hasAttribute('data-lucide')) {
+                element.setAttribute('data-lucide', iconName);
+            }
+        });
+
+        lucide.createIcons({
+            attrs: {
+                'aria-hidden': 'true',
+                focusable: 'false'
+            }
+        });
+        return;
+    }
+
+    if (attempt < 10) {
+        setTimeout(() => ensureIconsReady(attempt + 1), 100 * (attempt + 1));
+    } else {
+        console.warn('[DocumentManager] Lucide icon library unavailable; icons may not render.');
+    }
+}
+
 class DocumentManagerApp {
     constructor() {
         this.apiBaseUrl = this.getApiBaseUrl();
@@ -37,18 +72,15 @@ class DocumentManagerApp {
     }
 
     getApiBaseUrl() {
-        // Try to detect API URL from current location or use default
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        const defaultPort = '23250';
-        
-        // Check if we're in development
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return `${protocol}//${hostname}:${defaultPort}`;
+        if (typeof window === 'undefined') {
+            return '';
         }
-        
-        // For production, assume API is on same host but different port
-        return `${protocol}//${hostname}:${defaultPort}`;
+
+        if (window.__DOCUMENT_MANAGER_API_BASE_URL) {
+            return window.__DOCUMENT_MANAGER_API_BASE_URL;
+        }
+
+        return window.location.origin;
     }
 
     async init() {
@@ -624,6 +656,7 @@ class DocumentManagerApp {
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    ensureIconsReady();
     window.app = new DocumentManagerApp();
 });
 

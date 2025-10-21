@@ -6,71 +6,72 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 )
 
 // Competitor structure
 type Competitor struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Category    string    `json:"category"`
-	Importance  string    `json:"importance"`
-	IsActive    bool      `json:"is_active"`
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Category    string          `json:"category"`
+	Importance  string          `json:"importance"`
+	IsActive    bool            `json:"is_active"`
 	Metadata    json.RawMessage `json:"metadata"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 // MonitoringTarget structure
 type MonitoringTarget struct {
-	ID              string    `json:"id"`
-	CompetitorID    string    `json:"competitor_id"`
-	URL             string    `json:"url"`
-	TargetType      string    `json:"target_type"`
-	Selector        string    `json:"selector,omitempty"`
-	CheckFrequency  int       `json:"check_frequency"`
-	LastChecked     *time.Time `json:"last_checked,omitempty"`
-	LastContentHash string    `json:"last_content_hash,omitempty"`
-	IsActive        bool      `json:"is_active"`
+	ID              string          `json:"id"`
+	CompetitorID    string          `json:"competitor_id"`
+	URL             string          `json:"url"`
+	TargetType      string          `json:"target_type"`
+	Selector        string          `json:"selector,omitempty"`
+	CheckFrequency  int             `json:"check_frequency"`
+	LastChecked     *time.Time      `json:"last_checked,omitempty"`
+	LastContentHash string          `json:"last_content_hash,omitempty"`
+	IsActive        bool            `json:"is_active"`
 	Config          json.RawMessage `json:"config,omitempty"`
 }
 
 // Alert structure
 type Alert struct {
-	ID             string    `json:"id"`
-	CompetitorID   string    `json:"competitor_id"`
-	Title          string    `json:"title"`
-	Priority       string    `json:"priority"`
-	URL            string    `json:"url"`
-	Category       string    `json:"category"`
-	Summary        string    `json:"summary"`
+	ID             string          `json:"id"`
+	CompetitorID   string          `json:"competitor_id"`
+	Title          string          `json:"title"`
+	Priority       string          `json:"priority"`
+	URL            string          `json:"url"`
+	Category       string          `json:"category"`
+	Summary        string          `json:"summary"`
 	Insights       json.RawMessage `json:"insights"`
 	Actions        json.RawMessage `json:"actions"`
-	RelevanceScore int       `json:"relevance_score"`
-	Status         string    `json:"status"`
-	CreatedAt      time.Time `json:"created_at"`
+	RelevanceScore int             `json:"relevance_score"`
+	Status         string          `json:"status"`
+	CreatedAt      time.Time       `json:"created_at"`
 }
 
 // ChangeAnalysis structure
 type ChangeAnalysis struct {
-	ID               string    `json:"id"`
-	CompetitorID     string    `json:"competitor_id"`
-	TargetURL        string    `json:"target_url"`
-	ChangeType       string    `json:"change_type"`
-	RelevanceScore   int       `json:"relevance_score"`
-	ChangeCategory   string    `json:"change_category"`
-	ImpactLevel      string    `json:"impact_level"`
-	KeyInsights      json.RawMessage `json:"key_insights"`
+	ID                 string          `json:"id"`
+	CompetitorID       string          `json:"competitor_id"`
+	TargetURL          string          `json:"target_url"`
+	ChangeType         string          `json:"change_type"`
+	RelevanceScore     int             `json:"relevance_score"`
+	ChangeCategory     string          `json:"change_category"`
+	ImpactLevel        string          `json:"impact_level"`
+	KeyInsights        json.RawMessage `json:"key_insights"`
 	RecommendedActions json.RawMessage `json:"recommended_actions"`
-	Summary          string    `json:"summary"`
-	CreatedAt        time.Time `json:"created_at"`
+	Summary            string          `json:"summary"`
+	CreatedAt          time.Time       `json:"created_at"`
 }
 
 var db *sql.DB
@@ -85,71 +86,73 @@ func initDB() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	var err error
 	db, err = sql.Open("postgres", postgresURL)
 	if err != nil {
 		log.Fatalf("Failed to open database connection: %v", err)
 	}
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
+	randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(randSource.Float64() * jitterRange)
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 }
 
@@ -157,7 +160,7 @@ func initDB() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
+		"status":  "healthy",
 		"service": "competitor-change-monitor",
 	})
 }
@@ -175,18 +178,18 @@ func getCompetitorsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var competitors []Competitor
 	for rows.Next() {
 		var c Competitor
-		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Category, &c.Importance, 
+		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Category, &c.Importance,
 			&c.IsActive, &c.Metadata, &c.CreatedAt, &c.UpdatedAt)
 		if err != nil {
 			continue
 		}
 		competitors = append(competitors, c)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(competitors)
 }
@@ -198,19 +201,19 @@ func addCompetitorHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	var id string
 	err := db.QueryRow(`
 		INSERT INTO competitors (name, description, category, importance, metadata)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 	`, c.Name, c.Description, c.Category, c.Importance, c.Metadata).Scan(&id)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	c.ID = id
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -221,20 +224,20 @@ func addCompetitorHandler(w http.ResponseWriter, r *http.Request) {
 func getTargetsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	competitorID := vars["id"]
-	
+
 	rows, err := db.Query(`
 		SELECT id, competitor_id, url, target_type, selector, check_frequency, 
 		       last_checked, last_content_hash, is_active, config
 		FROM monitoring_targets
 		WHERE competitor_id = $1 AND is_active = true
 	`, competitorID)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var targets []MonitoringTarget
 	for rows.Next() {
 		var t MonitoringTarget
@@ -245,7 +248,7 @@ func getTargetsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		targets = append(targets, t)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(targets)
 }
@@ -257,19 +260,19 @@ func addTargetHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	var id string
 	err := db.QueryRow(`
 		INSERT INTO monitoring_targets (competitor_id, url, target_type, selector, check_frequency, config)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`, t.CompetitorID, t.URL, t.TargetType, t.Selector, t.CheckFrequency, t.Config).Scan(&id)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	t.ID = id
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -280,7 +283,7 @@ func addTargetHandler(w http.ResponseWriter, r *http.Request) {
 func getAlertsHandler(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	priority := r.URL.Query().Get("priority")
-	
+
 	query := `
 		SELECT id, competitor_id, title, priority, url, category, summary, 
 		       insights, actions, relevance_score, status, created_at
@@ -289,28 +292,28 @@ func getAlertsHandler(w http.ResponseWriter, r *http.Request) {
 	`
 	args := []interface{}{}
 	argCount := 0
-	
+
 	if status != "" {
 		argCount++
 		query += fmt.Sprintf(" AND status = $%d", argCount)
 		args = append(args, status)
 	}
-	
+
 	if priority != "" {
 		argCount++
 		query += fmt.Sprintf(" AND priority = $%d", argCount)
 		args = append(args, priority)
 	}
-	
+
 	query += " ORDER BY created_at DESC LIMIT 50"
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var alerts []Alert
 	for rows.Next() {
 		var a Alert
@@ -322,7 +325,7 @@ func getAlertsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		alerts = append(alerts, a)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(alerts)
 }
@@ -331,22 +334,22 @@ func getAlertsHandler(w http.ResponseWriter, r *http.Request) {
 func updateAlertHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	alertID := vars["id"]
-	
+
 	var update struct {
 		Status string `json:"status"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	_, err := db.Exec("UPDATE alerts SET status = $1 WHERE id = $2", update.Status, alertID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
@@ -354,7 +357,7 @@ func updateAlertHandler(w http.ResponseWriter, r *http.Request) {
 // Get recent changes/analyses
 func getAnalysesHandler(w http.ResponseWriter, r *http.Request) {
 	competitorID := r.URL.Query().Get("competitor_id")
-	
+
 	query := `
 		SELECT id, competitor_id, target_url, change_type, relevance_score,
 		       change_category, impact_level, key_insights, recommended_actions,
@@ -364,22 +367,22 @@ func getAnalysesHandler(w http.ResponseWriter, r *http.Request) {
 	`
 	args := []interface{}{}
 	argCount := 0
-	
+
 	if competitorID != "" {
 		argCount++
 		query += fmt.Sprintf(" AND competitor_id = $%d", argCount)
 		args = append(args, competitorID)
 	}
-	
+
 	query += " ORDER BY created_at DESC LIMIT 100"
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var analyses []ChangeAnalysis
 	for rows.Next() {
 		var a ChangeAnalysis
@@ -391,7 +394,7 @@ func getAnalysesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		analyses = append(analyses, a)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(analyses)
 }
@@ -400,7 +403,7 @@ func getAnalysesHandler(w http.ResponseWriter, r *http.Request) {
 func triggerScanHandler(w http.ResponseWriter, r *http.Request) {
 	// N8N URL is optional for trigger workflow
 	n8nURL := os.Getenv("N8N_BASE_URL")
-	
+
 	// Call the scheduled scanner workflow
 	resp, err := http.Post(n8nURL+"/webhook/competitor-monitor/manual-scan", "application/json", nil)
 	if err != nil {
@@ -408,10 +411,10 @@ func triggerScanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -431,45 +434,45 @@ func main() {
 
 	initDB()
 	defer db.Close()
-	
+
 	router := mux.NewRouter()
-	
+
 	// Health check
 	router.HandleFunc("/health", healthHandler).Methods("GET")
-	
+
 	// Competitor routes
 	router.HandleFunc("/api/competitors", getCompetitorsHandler).Methods("GET")
 	router.HandleFunc("/api/competitors", addCompetitorHandler).Methods("POST")
 	router.HandleFunc("/api/competitors/{id}/targets", getTargetsHandler).Methods("GET")
-	
+
 	// Target routes
 	router.HandleFunc("/api/targets", addTargetHandler).Methods("POST")
-	
+
 	// Alert routes
 	router.HandleFunc("/api/alerts", getAlertsHandler).Methods("GET")
 	router.HandleFunc("/api/alerts/{id}", updateAlertHandler).Methods("PATCH")
-	
+
 	// Analysis routes
 	router.HandleFunc("/api/analyses", getAnalysesHandler).Methods("GET")
-	
+
 	// Scan routes
 	router.HandleFunc("/api/scan", triggerScanHandler).Methods("POST")
-	
+
 	// Setup CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders: []string{"*"},
 	})
-	
+
 	handler := c.Handler(router)
-	
+
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	log.Printf("Competitor Monitor API starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }

@@ -195,6 +195,7 @@ func (s *Server) setupRoutes() {
 
 	// Health check
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	api.HandleFunc("/health", s.handleHealth).Methods("GET")
 
 	// Profile management
 	api.HandleFunc("/profiles", s.handleGetProfiles).Methods("GET")
@@ -592,8 +593,8 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for health check
-		if r.URL.Path == "/health" {
+		// Skip auth for health check endpoints
+		if r.URL.Path == "/health" || r.URL.Path == "/api/v1/health" {
 			next.ServeHTTP(w, r)
 			return
 		}

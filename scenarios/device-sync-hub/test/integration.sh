@@ -15,6 +15,11 @@ API_PORT="${API_PORT:-17808}"
 UI_PORT="${UI_PORT:-37197}"
 API_URL="${API_URL:-http://localhost:${API_PORT}}"
 AUTH_URL="${AUTH_URL:-http://localhost:15785}"
+if [[ -n "${AUTH_SERVICE_URL:-}" ]]; then
+    AUTH_URL="${AUTH_SERVICE_URL}"
+elif [[ -n "${AUTH_PORT:-}" ]]; then
+    AUTH_URL="http://localhost:${AUTH_PORT}"
+fi
 UI_URL="${UI_URL:-http://localhost:${UI_PORT}}"
 
 # Test user credentials

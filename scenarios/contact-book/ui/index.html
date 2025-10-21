@@ -373,7 +373,62 @@
     </main>
 
     <script>
-        const API_BASE = '/api/v1';
+        const RAW_API_BASE = window.__CONTACT_BOOK_API_BASE__ || '/api/v1';
+        const RAW_HEALTH_PATH = window.__CONTACT_BOOK_HEALTH_PATH__ || '/health';
+
+        function normalizeBase(base) {
+            const trimmed = (base || '').trim();
+            if (!trimmed) {
+                return '/api/v1';
+            }
+
+            if (/^https?:\/\//i.test(trimmed)) {
+                return trimmed.replace(/\/+$/,'');
+            }
+
+            const withoutSlashes = trimmed.replace(/^\/+/,'').replace(/\/+$/,'');
+            return `/${withoutSlashes}`;
+        }
+
+        const API_BASE = normalizeBase(RAW_API_BASE);
+
+        function resolvePath(path) {
+            const candidate = (path || '').toString().trim();
+            if (!candidate) {
+                return API_BASE;
+            }
+
+            if (/^https?:\/\//i.test(candidate)) {
+                return candidate;
+            }
+
+            if (candidate.startsWith('/')) {
+                return candidate.replace(/\/+/g,'/');
+            }
+
+            return `/${candidate.replace(/^\/+/,'')}`;
+        }
+
+        function buildApiUrl(path) {
+            if (/^https?:\/\//i.test(path)) {
+                return path;
+            }
+
+            const cleanedPath = path.replace(/^\/+/,'');
+
+            if (/^https?:\/\//i.test(API_BASE)) {
+                return `${API_BASE}/${cleanedPath}`;
+            }
+
+            return `${API_BASE}/${cleanedPath}`;
+        }
+
+        const HEALTH_ENDPOINT = resolvePath(RAW_HEALTH_PATH);
+
+        function apiFetch(path, options) {
+            return fetch(buildApiUrl(path), options);
+        }
+
         let contacts = [];
         let selectedContact = null;
         let analytics = [];
@@ -388,7 +443,7 @@
         // Check API status
         async function checkStatus() {
             try {
-                const response = await fetch('/health');
+                const response = await fetch(HEALTH_ENDPOINT);
                 const data = await response.json();
                 
                 const indicator = document.getElementById('statusIndicator');
@@ -410,7 +465,7 @@
         // Load contacts from API
         async function loadContacts() {
             try {
-                const response = await fetch(`${API_BASE}/contacts?limit=100`);
+                const response = await apiFetch('contacts?limit=100');
                 const data = await response.json();
                 contacts = data.persons || [];
                 renderContacts();
@@ -425,13 +480,13 @@
         // Load analytics data
         async function loadAnalytics() {
             try {
-                const response = await fetch(`${API_BASE}/analytics`);
+                const response = await apiFetch('analytics');
                 const data = await response.json();
                 analytics = data.analytics || [];
                 renderAnalytics();
                 
                 // Also load relationships count
-                const relResponse = await fetch(`${API_BASE}/relationships`);
+                const relResponse = await apiFetch('relationships');
                 const relData = await relResponse.json();
                 document.getElementById('totalRelationships').textContent = relData.count || 0;
             } catch (error) {
@@ -533,7 +588,7 @@
             }
             
             try {
-                const response = await fetch(`${API_BASE}/contacts/${contactId}`);
+                const response = await apiFetch(`contacts/${contactId}`);
                 const contact = await response.json();
                 selectedContact = contact;
                 renderContactDetails(contact);
@@ -662,7 +717,7 @@
                 tags: ['new']
             };
             
-            fetch(`${API_BASE}/contacts`, {
+            apiFetch('contacts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(contactData)

@@ -840,8 +840,10 @@ func TestCORSMiddleware(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	server.router.ServeHTTP(recorder, req)
 
-	if origin := recorder.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
-		t.Errorf("Expected CORS header *, got %s", origin)
+	origin := recorder.Header().Get("Access-Control-Allow-Origin")
+	// CORS should be set to a specific origin (not wildcard for security)
+	if origin == "" {
+		t.Errorf("Expected CORS header to be set, got empty")
 	}
 }
 

@@ -1,118 +1,130 @@
-#!/usr/bin/env node
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import http from 'http';
 
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const url = require('url');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Ports must be provided via environment variables (set by lifecycle system)
-if (!process.env.UI_PORT) {
-  console.error('❌ ERROR: UI_PORT environment variable is required');
-  process.exit(1);
-}
-if (!process.env.API_PORT) {
-  console.error('❌ ERROR: API_PORT environment variable is required');
-  process.exit(1);
-}
+const app = express();
 
-const port = parseInt(process.env.UI_PORT, 10);
-const apiPort = parseInt(process.env.API_PORT, 10);
-const apiUrl = `http://localhost:${apiPort}`;
-
-// MIME types for serving static files
-const mimeTypes = {
-  '.html': 'text/html',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpg',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
-};
-
-const server = http.createServer((req, res) => {
-  const parsedUrl = url.parse(req.url);
-  const pathname = parsedUrl.pathname;
-
-  // Health endpoint with proper schema compliance
-  if (pathname === '/health') {
-    // Check API connectivity
-    const healthCheckStart = Date.now();
-    http.get(`${apiUrl}/health`, (apiRes) => {
-      const latency = Date.now() - healthCheckStart;
-      const connected = apiRes.statusCode === 200;
-
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        status: connected ? 'healthy' : 'degraded',
-        service: 'chart-generator-ui',
-        timestamp: new Date().toISOString(),
-        readiness: true,
-        api_connectivity: {
-          connected: connected,
-          api_url: apiUrl,
-          last_check: new Date().toISOString(),
-          latency_ms: connected ? latency : null,
-          error: connected ? null : {
-            code: 'API_UNREACHABLE',
-            message: `API health check returned status ${apiRes.statusCode}`,
-            category: 'network',
-            retryable: true
-          }
-        }
-      }, null, 2));
-    }).on('error', (err) => {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        status: 'degraded',
-        service: 'chart-generator-ui',
-        timestamp: new Date().toISOString(),
-        readiness: true,
-        api_connectivity: {
-          connected: false,
-          api_url: apiUrl,
-          last_check: new Date().toISOString(),
-          latency_ms: null,
-          error: {
-            code: 'CONNECTION_REFUSED',
-            message: err.message,
-            category: 'network',
-            retryable: true
-          }
-        }
-      }, null, 2));
-    });
-    return;
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `${name} environment variable is required. Run the scenario via the lifecycle system so configuration is injected automatically.`,
+    );
   }
+  return value;
+}
 
-  // Serve static files
-  let filePath = '.' + pathname;
-  if (filePath === './') {
-    filePath = './index.html';
+function parsePort(value, label) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be a positive integer (received ${value}).`);
   }
+  return parsed;
+}
 
-  const extname = String(path.extname(filePath)).toLowerCase();
-  const contentType = mimeTypes[extname] || 'application/octet-stream';
+const PORT = parsePort(requireEnv('UI_PORT'), 'UI_PORT');
+const API_PORT = parsePort(requireEnv('API_PORT'), 'API_PORT');
 
-  fs.readFile(filePath, (error, content) => {
-    if (error) {
-      if (error.code === 'ENOENT') {
-        res.writeHead(404, { 'Content-Type': 'text/html' });
-        res.end('<h1>404 Not Found</h1>', 'utf-8');
-      } else {
-        res.writeHead(500);
-        res.end(`Server Error: ${error.code}`, 'utf-8');
+function proxyToApi(req, res, upstreamPath) {
+  const options = {
+    hostname: 'localhost',
+    port: API_PORT,
+    path: upstreamPath,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: `localhost:${API_PORT}`,
+    },
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode || 502);
+    for (const [key, value] of Object.entries(proxyRes.headers)) {
+      if (value !== undefined) {
+        res.setHeader(key, value);
       }
-    } else {
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content, 'utf-8');
     }
+    proxyRes.pipe(res);
   });
+
+  proxyReq.on('error', (err) => {
+    console.error('[chart-generator-ui] API proxy error:', err.message);
+    res.status(502).json({
+      error: 'API server unavailable',
+      details: err.message,
+      target: `http://localhost:${API_PORT}${upstreamPath}`,
+    });
+  });
+
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    proxyReq.end();
+  } else {
+    req.pipe(proxyReq);
+  }
+}
+
+app.get('/health', (req, res) => {
+  const start = Date.now();
+  const upstream = http.request(
+    {
+      hostname: 'localhost',
+      port: API_PORT,
+      path: '/health',
+      method: 'GET',
+    },
+    (proxyRes) => {
+      const latency = Date.now() - start;
+      const healthy = proxyRes.statusCode === 200;
+      res.status(200).json({
+        status: healthy ? 'healthy' : 'degraded',
+        service: 'chart-generator-ui',
+        readiness: true,
+        timestamp: new Date().toISOString(),
+        api_connectivity: {
+          connected: healthy,
+          target: `http://localhost:${API_PORT}/health`,
+          latency_ms: healthy ? latency : null,
+          status: proxyRes.statusCode,
+        },
+      });
+    },
+  );
+
+  upstream.on('error', (err) => {
+    res.status(200).json({
+      status: 'degraded',
+      service: 'chart-generator-ui',
+      readiness: true,
+      timestamp: new Date().toISOString(),
+      api_connectivity: {
+        connected: false,
+        target: `http://localhost:${API_PORT}/health`,
+        latency_ms: null,
+        error: err.message,
+      },
+    });
+  });
+
+  upstream.end();
 });
 
-server.listen(port, () => {
-  console.log(`🎨 Chart Generator UI running on http://localhost:${port}`);
-  console.log(`📊 Connected to API at ${apiUrl}`);
-  console.log(`🏥 Health endpoint: http://localhost:${port}/health`);
+app.use('/api', (req, res) => {
+  const fullPath = req.url.startsWith('/api') ? req.url : `/api${req.url}`;
+  proxyToApi(req, res, fullPath);
+});
+
+const distDir = path.join(__dirname, 'dist');
+app.use(express.static(distDir));
+
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(distDir, 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`Chart Generator UI ready at http://localhost:${PORT}`);
+  console.log(`Proxying API traffic to http://localhost:${API_PORT}`);
 });

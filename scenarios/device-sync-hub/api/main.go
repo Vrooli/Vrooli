@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,6 +32,7 @@ type Config struct {
 	Port               string
 	UIPort             string
 	AuthServiceURL     string
+	AuthUIServiceURL   string
 	StoragePath        string
 	MaxFileSize        int64
 	DefaultExpiryHours int
@@ -57,15 +60,15 @@ type Device struct {
 
 // SyncItem represents an item to sync between devices
 type SyncItem struct {
-	ID          string                 `json:"id"`
-	UserID      string                 `json:"user_id"`
-	Type        string                 `json:"type"` // clipboard, file, notification, etc.
-	Content     map[string]interface{} `json:"content"`
-	SourceDevice string                `json:"source_device"`
-	TargetDevices []string             `json:"target_devices"`
-	CreatedAt   time.Time              `json:"created_at"`
-	ExpiresAt   time.Time              `json:"expires_at"`
-	Status      string                 `json:"status"`
+	ID            string                 `json:"id"`
+	UserID        string                 `json:"user_id"`
+	Type          string                 `json:"type"` // clipboard, file, notification, etc.
+	Content       map[string]interface{} `json:"content"`
+	SourceDevice  string                 `json:"source_device"`
+	TargetDevices []string               `json:"target_devices"`
+	CreatedAt     time.Time              `json:"created_at"`
+	ExpiresAt     time.Time              `json:"expires_at"`
+	Status        string                 `json:"status"`
 }
 
 // Server holds our application state
@@ -121,6 +124,7 @@ func main() {
 	if authServiceURL == "" {
 		log.Fatal("❌ AUTH_SERVICE_URL environment variable is required")
 	}
+	authUIServiceURL := os.Getenv("AUTH_UI_URL")
 	storagePath := os.Getenv("STORAGE_PATH")
 	if storagePath == "" {
 		log.Fatal("❌ STORAGE_PATH environment variable is required")
@@ -151,6 +155,7 @@ func main() {
 		Port:               port,
 		UIPort:             uiPort,
 		AuthServiceURL:     authServiceURL,
+		AuthUIServiceURL:   authUIServiceURL,
 		StoragePath:        storagePath,
 		MaxFileSize:        maxFileSize,
 		DefaultExpiryHours: defaultExpiryHours,
@@ -187,11 +192,11 @@ func main() {
 				if origin == "" {
 					return true // Allow connections without origin (like from CLI tools)
 				}
-				
+
 				// Allow localhost, 127.0.0.1, and the UI port
-				return strings.Contains(origin, "localhost") || 
-					   strings.Contains(origin, "127.0.0.1") ||
-					   strings.Contains(origin, config.UIPort)
+				return strings.Contains(origin, "localhost") ||
+					strings.Contains(origin, "127.0.0.1") ||
+					strings.Contains(origin, config.UIPort)
 			},
 		},
 	}
@@ -216,7 +221,7 @@ func main() {
 	// Start server
 	log.Printf("🔄 Device Sync Hub starting on port %s", config.Port)
 	log.Printf("🌐 UI available at http://localhost:%s", config.UIPort)
-	
+
 	if err := http.ListenAndServe(":"+config.Port, server.router); err != nil {
 		log.Fatal("Server failed:", err)
 	}
@@ -227,17 +232,7 @@ func (s *Server) setupRoutes() {
 
 	// Enable CORS with dynamic origins
 	c := cors.New(cors.Options{
-		AllowOriginFunc: func(origin string) bool {
-			// Allow UI port and development origins
-			if origin == "" {
-				return true // Allow requests without origin (like from CLI tools)
-			}
-			
-			// Allow localhost, 127.0.0.1, and the configured UI port
-			return strings.Contains(origin, "localhost") || 
-				   strings.Contains(origin, "127.0.0.1") ||
-				   strings.Contains(origin, s.config.UIPort)
-		},
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
@@ -251,10 +246,18 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/ws", s.websocketHandler)
 	s.router.HandleFunc("/api/v1/sync/websocket", s.websocketHandler)
 
+	// Public authentication endpoints (proxy to scenario-authenticator)
+	s.router.HandleFunc("/api/v1/auth/login", s.authLoginHandler).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/auth/login", s.authPreflightHandler).Methods(http.MethodOptions)
+	s.router.HandleFunc("/api/v1/auth/validate", s.authValidateHandler).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/auth/validate", s.authPreflightHandler).Methods(http.MethodOptions)
+	s.router.HandleFunc("/api/v1/auth/config", s.authConfigHandler).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/auth/config", s.authPreflightHandler).Methods(http.MethodOptions)
+
 	// Device management
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 	api.Use(s.authMiddleware)
-	
+
 	api.HandleFunc("/devices", s.listDevicesHandler).Methods("GET")
 	api.HandleFunc("/devices", s.registerDeviceHandler).Methods("POST")
 	api.HandleFunc("/devices/{id}", s.getDeviceHandler).Methods("GET")
@@ -279,6 +282,19 @@ func (s *Server) setupRoutes() {
 	// Settings endpoint
 	api.HandleFunc("/sync/settings", s.getSettingsHandler).Methods("GET")
 	api.HandleFunc("/sync/settings", s.updateSettingsHandler).Methods("POST")
+
+	// Global fallback for CORS preflight requests
+	s.router.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	s.router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		http.NotFound(w, r)
+	})
 }
 
 // Authentication middleware
@@ -370,9 +386,9 @@ func (s *Server) validateToken(token string) (*User, error) {
 	}
 
 	var authResp struct {
-		Valid  bool   `json:"valid"`
-		UserID string `json:"user_id"`
-		Email  string `json:"email"`
+		Valid  bool     `json:"valid"`
+		UserID string   `json:"user_id"`
+		Email  string   `json:"email"`
 		Roles  []string `json:"roles"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
@@ -407,33 +423,169 @@ func (s *Server) validateToken(token string) (*User, error) {
 	return user, nil
 }
 
+func (s *Server) authLoginHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if s.config.AuthServiceURL == "" {
+		writeJSONError(w, http.StatusServiceUnavailable, "AUTH_SERVICE_UNAVAILABLE", "Authentication service not configured")
+		return
+	}
+
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "INVALID_REQUEST_BODY", "Unable to read login payload")
+		return
+	}
+
+	endpoint := strings.TrimSuffix(s.config.AuthServiceURL, "/") + "/api/v1/auth/login"
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "AUTH_REQUEST_FAILED", "Failed to prepare auth request")
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "AUTH_SERVICE_UNREACHABLE", "Unable to reach authentication service")
+		return
+	}
+	defer resp.Body.Close()
+
+	copyUpstreamResponse(w, resp)
+}
+
+func (s *Server) authValidateHandler(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		writeJSONError(w, http.StatusBadRequest, "MISSING_TOKEN", "Authorization header is required")
+		return
+	}
+
+	token = strings.TrimPrefix(token, "Bearer ")
+	user, err := s.validateToken(token)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "INVALID_TOKEN", "Token validation failed")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"valid":   true,
+		"user_id": user.ID,
+		"email":   user.Email,
+		"roles":   user.Roles,
+	})
+}
+
+func (s *Server) authConfigHandler(w http.ResponseWriter, r *http.Request) {
+	urls := s.inferAuthRegisterURL(r)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"auth_service_url": strings.TrimSuffix(s.config.AuthServiceURL, "/"),
+		"auth_ui_url":      urls.base,
+		"register_url":     urls.register,
+	})
+}
+
+func (s *Server) authPreflightHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type authRegisterURLs struct {
+	base     string
+	register string
+}
+
+func (s *Server) inferAuthRegisterURL(r *http.Request) authRegisterURLs {
+	if s.config.AuthUIServiceURL != "" {
+		parsed, err := url.Parse(s.config.AuthUIServiceURL)
+		if err == nil {
+			reg := parsed.ResolveReference(&url.URL{Path: "/register"})
+			return authRegisterURLs{
+				base:     strings.TrimSuffix(parsed.String(), "/"),
+				register: reg.String(),
+			}
+		}
+	}
+
+	serviceURL := s.config.AuthServiceURL
+	if serviceURL == "" {
+		return authRegisterURLs{}
+	}
+
+	parsed, err := url.Parse(serviceURL)
+	if err != nil {
+		return authRegisterURLs{}
+	}
+
+	// Default to using same host as incoming request when auth runs on localhost
+	if parsed.Hostname() == "localhost" || parsed.Hostname() == "127.0.0.1" {
+		incomingHost := r.Host
+		if incomingHost != "" {
+			parsed.Host = incomingHost
+		}
+	}
+
+	base := strings.TrimSuffix(parsed.String(), "/")
+	return authRegisterURLs{
+		base:     base,
+		register: base + "/register",
+	}
+}
+
+func writeJSONError(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":   code,
+		"message": message,
+	})
+}
+
+func copyUpstreamResponse(w http.ResponseWriter, resp *http.Response) {
+	for key, values := range resp.Header {
+		switch strings.ToLower(key) {
+		case "connection", "transfer-encoding", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade":
+			continue
+		}
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	_, _ = io.Copy(w, resp.Body)
+}
+
 // Handler implementations
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	overallStatus := "healthy"
-	
+
 	// Schema-compliant health response
 	healthResponse := map[string]interface{}{
-		"status":    overallStatus,
-		"service":   "device-sync-hub-api",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": true, // Service is ready to accept requests
-		"version":   "1.0.0",
+		"status":       overallStatus,
+		"service":      "device-sync-hub-api",
+		"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		"readiness":    true, // Service is ready to accept requests
+		"version":      "1.0.0",
 		"dependencies": map[string]interface{}{},
 		"metrics": map[string]interface{}{
 			"uptime_seconds": time.Since(startTime).Seconds(),
 		},
 	}
-	
+
 	dependencies := healthResponse["dependencies"].(map[string]interface{})
-	
+
 	// 1. Check PostgreSQL database (critical for device/sync data)
 	dbHealth := s.checkDatabase()
 	dependencies["database"] = dbHealth
 	if dbHealth["connected"] == false {
 		overallStatus = "unhealthy" // Database is critical
 	}
-	
+
 	// 2. Check Redis cache (important for auth caching and performance)
 	redisHealth := s.checkRedis()
 	dependencies["redis"] = redisHealth
@@ -442,7 +594,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	// 3. Check authentication service (important but has test mode fallback)
 	authHealth := s.checkAuthService()
 	dependencies["auth_service"] = authHealth
@@ -452,7 +604,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	// 4. Check file storage system (important for file sync)
 	storageHealth := s.checkStorageSystem()
 	dependencies["storage_system"] = storageHealth
@@ -461,7 +613,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	// 5. Check WebSocket system (important for real-time sync)
 	wsHealth := s.checkWebSocketSystem()
 	dependencies["websocket_system"] = wsHealth
@@ -470,20 +622,20 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	// Update overall status
 	healthResponse["status"] = overallStatus
-	
+
 	// Add current WebSocket connection metrics
 	s.mu.RLock()
 	wsConnections := len(s.connections)
 	s.mu.RUnlock()
-	
+
 	systemMetrics := healthResponse["metrics"].(map[string]interface{})
 	systemMetrics["websocket_connections"] = wsConnections
 	systemMetrics["max_file_size_mb"] = float64(s.config.MaxFileSize) / 1024 / 1024
 	systemMetrics["default_expiry_hours"] = s.config.DefaultExpiryHours
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(healthResponse)
 }
@@ -496,23 +648,23 @@ func (s *Server) checkDatabase() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Test database ping
 	dbStart := time.Now()
 	err := s.db.Ping()
 	dbLatency := time.Since(dbStart)
-	
+
 	if err != nil {
 		errorCode := "DATABASE_PING_FAILED"
 		category := "network"
-		
+
 		if strings.Contains(err.Error(), "password authentication failed") {
 			errorCode = "DATABASE_AUTH_FAILED"
 			category = "authentication"
 		} else if strings.Contains(err.Error(), "connection refused") {
 			errorCode = "DATABASE_CONNECTION_REFUSED"
 		}
-		
+
 		result["error"] = map[string]interface{}{
 			"code":      errorCode,
 			"message":   fmt.Sprintf("Database ping failed: %v", err),
@@ -521,7 +673,7 @@ func (s *Server) checkDatabase() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test basic query - check if devices table exists and is accessible
 	var count int
 	err = s.db.QueryRow("SELECT COUNT(*) FROM devices WHERE user_id = $1", "health-check").Scan(&count)
@@ -534,26 +686,26 @@ func (s *Server) checkDatabase() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	result["connected"] = true
 	result["latency_ms"] = float64(dbLatency.Nanoseconds()) / 1e6
-	
+
 	// Get connection pool stats
 	stats := s.db.Stats()
 	result["pool_stats"] = map[string]interface{}{
 		"open_connections": stats.OpenConnections,
-		"in_use":          stats.InUse,
-		"idle":            stats.Idle,
+		"in_use":           stats.InUse,
+		"idle":             stats.Idle,
 	}
-	
+
 	// Count total devices and sync items for metrics
 	var totalDevices, totalSyncItems int
 	s.db.QueryRow("SELECT COUNT(*) FROM devices").Scan(&totalDevices)
 	s.db.QueryRow("SELECT COUNT(*) FROM sync_items WHERE expires_at > NOW()").Scan(&totalSyncItems)
-	
+
 	result["total_devices"] = totalDevices
 	result["active_sync_items"] = totalSyncItems
-	
+
 	return result
 }
 
@@ -563,7 +715,7 @@ func (s *Server) checkRedis() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	if s.redis == nil {
 		result["error"] = map[string]interface{}{
 			"code":      "REDIS_NOT_CONFIGURED",
@@ -573,23 +725,23 @@ func (s *Server) checkRedis() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test Redis ping
 	redisStart := time.Now()
 	err := s.redis.Ping(context.Background()).Err()
 	redisLatency := time.Since(redisStart)
-	
+
 	if err != nil {
 		errorCode := "REDIS_PING_FAILED"
 		category := "network"
-		
+
 		if strings.Contains(err.Error(), "connection refused") {
 			errorCode = "REDIS_CONNECTION_REFUSED"
 		} else if strings.Contains(err.Error(), "NOAUTH") {
 			errorCode = "REDIS_AUTH_REQUIRED"
 			category = "authentication"
 		}
-		
+
 		result["error"] = map[string]interface{}{
 			"code":      errorCode,
 			"message":   fmt.Sprintf("Redis ping failed: %v", err),
@@ -598,11 +750,11 @@ func (s *Server) checkRedis() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test set/get operation
 	testKey := "health_check_test"
 	testValue := time.Now().Format(time.RFC3339)
-	
+
 	err = s.redis.Set(context.Background(), testKey, testValue, 10*time.Second).Err()
 	if err != nil {
 		result["error"] = map[string]interface{}{
@@ -613,13 +765,13 @@ func (s *Server) checkRedis() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Clean up test key
 	s.redis.Del(context.Background(), testKey)
-	
+
 	result["connected"] = true
 	result["latency_ms"] = float64(redisLatency.Nanoseconds()) / 1e6
-	
+
 	return result
 }
 
@@ -629,7 +781,7 @@ func (s *Server) checkAuthService() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	if s.config.AuthServiceURL == "" {
 		result["error"] = map[string]interface{}{
 			"code":      "AUTH_SERVICE_URL_MISSING",
@@ -639,26 +791,26 @@ func (s *Server) checkAuthService() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test auth service health endpoint
 	authStart := time.Now()
 	client := &http.Client{Timeout: 5 * time.Second}
-	
+
 	// Try to hit the auth service health endpoint
 	authHealthURL := s.config.AuthServiceURL + "/health"
 	resp, err := client.Get(authHealthURL)
 	authLatency := time.Since(authStart)
-	
+
 	if err != nil {
 		errorCode := "AUTH_SERVICE_CONNECTION_FAILED"
 		category := "network"
-		
+
 		if strings.Contains(err.Error(), "connection refused") {
 			errorCode = "AUTH_SERVICE_CONNECTION_REFUSED"
 		} else if strings.Contains(err.Error(), "timeout") {
 			errorCode = "AUTH_SERVICE_TIMEOUT"
 		}
-		
+
 		result["error"] = map[string]interface{}{
 			"code":      errorCode,
 			"message":   fmt.Sprintf("Cannot connect to auth service: %v", err),
@@ -668,7 +820,7 @@ func (s *Server) checkAuthService() map[string]interface{} {
 		return result
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		result["error"] = map[string]interface{}{
 			"code":      fmt.Sprintf("AUTH_SERVICE_HTTP_%d", resp.StatusCode),
@@ -678,11 +830,11 @@ func (s *Server) checkAuthService() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	result["connected"] = true
 	result["latency_ms"] = float64(authLatency.Nanoseconds()) / 1e6
 	result["auth_service_url"] = s.config.AuthServiceURL
-	
+
 	return result
 }
 
@@ -692,7 +844,7 @@ func (s *Server) checkStorageSystem() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Check if storage directory exists and is accessible
 	if _, err := os.Stat(s.config.StoragePath); err != nil {
 		result["error"] = map[string]interface{}{
@@ -703,7 +855,7 @@ func (s *Server) checkStorageSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Check thumbnails directory
 	thumbnailsPath := filepath.Join(s.config.StoragePath, "thumbnails")
 	if _, err := os.Stat(thumbnailsPath); err != nil {
@@ -715,11 +867,11 @@ func (s *Server) checkStorageSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test write access with a small test file
 	testFile := filepath.Join(s.config.StoragePath, ".health_check_test")
 	testContent := fmt.Sprintf("Health check test at %s", time.Now().Format(time.RFC3339))
-	
+
 	err := os.WriteFile(testFile, []byte(testContent), 0644)
 	if err != nil {
 		result["error"] = map[string]interface{}{
@@ -730,7 +882,7 @@ func (s *Server) checkStorageSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test read access
 	_, err = os.ReadFile(testFile)
 	if err != nil {
@@ -742,14 +894,14 @@ func (s *Server) checkStorageSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Clean up test file
 	os.Remove(testFile)
-	
+
 	result["connected"] = true
 	result["storage_path"] = s.config.StoragePath
 	result["max_file_size_bytes"] = s.config.MaxFileSize
-	
+
 	// Get storage directory size and file count
 	var totalSize int64
 	var fileCount int
@@ -760,12 +912,12 @@ func (s *Server) checkStorageSystem() map[string]interface{} {
 		}
 		return nil
 	})
-	
+
 	if err == nil {
 		result["total_files"] = fileCount
 		result["total_size_mb"] = float64(totalSize) / 1024 / 1024
 	}
-	
+
 	return result
 }
 
@@ -775,7 +927,7 @@ func (s *Server) checkWebSocketSystem() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Check if broadcast channel is working
 	if s.broadcast == nil {
 		result["error"] = map[string]interface{}{
@@ -786,14 +938,14 @@ func (s *Server) checkWebSocketSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test broadcast channel by sending a test message (non-blocking)
 	testMessage := BroadcastMessage{
 		UserID:    "health-check",
 		DeviceIDs: []string{},
 		Message:   []byte(`{"type":"health_check","data":"test"}`),
 	}
-	
+
 	// Use a select with default to avoid blocking if broadcast channel is full
 	select {
 	case s.broadcast <- testMessage:
@@ -807,22 +959,22 @@ func (s *Server) checkWebSocketSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Get current WebSocket connection metrics
 	s.mu.RLock()
 	connectionCount := len(s.connections)
-	
+
 	// Count connections by status (we can't easily test individual connections without disruption)
 	connectionsByDevice := make(map[string]int)
 	for deviceID := range s.connections {
 		connectionsByDevice[deviceID] = 1
 	}
 	s.mu.RUnlock()
-	
+
 	result["connected"] = true
 	result["active_connections"] = connectionCount
 	result["unique_devices"] = len(connectionsByDevice)
-	
+
 	return result
 }
 
@@ -932,7 +1084,7 @@ func (s *Server) registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 			name = $3, type = $4, platform = $5, capabilities = $6, last_seen = $7
 	`
 
-	_, err := s.db.Exec(query, device.ID, device.UserID, device.Name, 
+	_, err := s.db.Exec(query, device.ID, device.UserID, device.Name,
 		device.Type, device.Platform, capabilities, device.LastSeen)
 	if err != nil {
 		http.Error(w, "Failed to register device", http.StatusInternalServerError)
@@ -1074,7 +1226,7 @@ func (s *Server) syncClipboardHandler(w http.ResponseWriter, r *http.Request) {
 	// Store in database
 	contentJSON, _ := json.Marshal(item.Content)
 	targetsJSON, _ := json.Marshal(item.TargetDevices)
-	
+
 	query := `
 		INSERT INTO sync_items (id, user_id, type, content, source_device, target_devices, expires_at, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1125,9 +1277,9 @@ func (s *Server) syncNotificationHandler(w http.ResponseWriter, r *http.Request)
 
 	// Create notification sync item
 	item := SyncItem{
-		ID:       uuid.New().String(),
-		UserID:   user.ID,
-		Type:     "notification",
+		ID:     uuid.New().String(),
+		UserID: user.ID,
+		Type:   "notification",
 		Content: map[string]interface{}{
 			"title": req.Title,
 			"body":  req.Body,
@@ -1143,7 +1295,7 @@ func (s *Server) syncNotificationHandler(w http.ResponseWriter, r *http.Request)
 	// Store and broadcast
 	contentJSON, _ := json.Marshal(item.Content)
 	targetsJSON, _ := json.Marshal(item.TargetDevices)
-	
+
 	query := `
 		INSERT INTO sync_items (id, user_id, type, content, source_device, target_devices, expires_at, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1271,13 +1423,13 @@ func (s *Server) getSyncItemHandler(w http.ResponseWriter, r *http.Request) {
 // Unified sync upload handler - handles both files and text content
 func (s *Server) syncUploadHandler(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value("user").(*User)
-	
+
 	// Check content type to determine if it's multipart (file) or JSON (text)
 	contentType := r.Header.Get("Content-Type")
-	
+
 	var item SyncItem
 	var filePath string
-	
+
 	if strings.Contains(contentType, "multipart/form-data") {
 		// Handle file upload
 		err := r.ParseMultipartForm(s.config.MaxFileSize)
@@ -1322,9 +1474,9 @@ func (s *Server) syncUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Create sync item for file
 		item = SyncItem{
-			ID:       uuid.New().String(),
-			UserID:   user.ID,
-			Type:     "file",
+			ID:     uuid.New().String(),
+			UserID: user.ID,
+			Type:   "file",
 			Content: map[string]interface{}{
 				"filename":      header.Filename,
 				"original_name": header.Filename,
@@ -1344,7 +1496,7 @@ func (s *Server) syncUploadHandler(w http.ResponseWriter, r *http.Request) {
 			ContentType string `json:"content_type"`
 			ExpiresIn   int    `json:"expires_in"`
 		}
-		
+
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
@@ -1367,10 +1519,10 @@ func (s *Server) syncUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Create sync item for text
 		item = SyncItem{
-			ID:       uuid.New().String(),
-			UserID:   user.ID,
-			Type:     contentTypeValue,
-			Content:  map[string]interface{}{"text": req.Text},
+			ID:        uuid.New().String(),
+			UserID:    user.ID,
+			Type:      contentTypeValue,
+			Content:   map[string]interface{}{"text": req.Text},
 			CreatedAt: time.Now(),
 			ExpiresAt: time.Now().Add(time.Duration(expiryHours) * time.Hour),
 			Status:    "active",
@@ -1379,7 +1531,7 @@ func (s *Server) syncUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Store sync item in database
 	contentJSON, _ := json.Marshal(item.Content)
-	
+
 	query := `
 		INSERT INTO sync_items (id, user_id, type, content, source_device, target_devices, expires_at, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1439,7 +1591,7 @@ func (s *Server) downloadSyncItemHandler(w http.ResponseWriter, r *http.Request)
 	`
 	err := s.db.QueryRow(query, itemID, user.ID).Scan(
 		&item.ID, &item.Type, &contentJSON, &item.ExpiresAt, &item.Status)
-	
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "Item not found or expired", http.StatusNotFound)
 		return
@@ -1526,7 +1678,7 @@ func (s *Server) deleteSyncItemHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast deletion to connected devices
 	message, _ := json.Marshal(map[string]interface{}{
-		"type": "item_deleted",
+		"type":    "item_deleted",
 		"item_id": itemID,
 	})
 	s.broadcast <- BroadcastMessage{
@@ -1614,7 +1766,7 @@ func (s *Server) downloadFileHandler(w http.ResponseWriter, r *http.Request) {
 	var filepath, originalName, mimeType string
 	query := "SELECT path, original_name, mime_type FROM files WHERE id = $1 AND user_id = $2"
 	err := s.db.QueryRow(query, fileID, user.ID).Scan(&filepath, &originalName, &mimeType)
-	
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
@@ -1639,7 +1791,7 @@ func (s *Server) getThumbnailHandler(w http.ResponseWriter, r *http.Request) {
 	var fileSize int64
 	query := "SELECT path, mime_type, size FROM files WHERE id = $1 AND user_id = $2"
 	err := s.db.QueryRow(query, fileID, user.ID).Scan(&filePath, &mimeType, &fileSize)
-	
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
@@ -1660,7 +1812,7 @@ func (s *Server) getThumbnailHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Generate thumbnail path
 	thumbnailDir := filepath.Join(s.config.StoragePath, "thumbnails")
-	thumbnailPath := filepath.Join(thumbnailDir, fileID + "_thumb.jpg")
+	thumbnailPath := filepath.Join(thumbnailDir, fileID+"_thumb.jpg")
 
 	// Check if thumbnail already exists
 	if _, err := os.Stat(thumbnailPath); err == nil {
@@ -1719,7 +1871,7 @@ func (s *Server) generateThumbnail(sourcePath, thumbnailPath string, size int) e
 
 func (s *Server) getSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value("user").(*User)
-	
+
 	// Get user statistics
 	var totalItems, totalSize, filesCount, textCount, clipboardCount, expiresSoonCount int
 	err := s.db.QueryRow(`
@@ -1733,41 +1885,41 @@ func (s *Server) getSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		FROM sync_items 
 		WHERE user_id = $1 AND expires_at > NOW()
 	`, user.ID).Scan(&totalItems, &totalSize, &filesCount, &textCount, &clipboardCount, &expiresSoonCount)
-	
+
 	if err != nil {
 		log.Printf("Error getting user stats: %v", err)
 		// Continue with default values
 	}
 
 	settings := map[string]interface{}{
-		"max_file_size":           s.config.MaxFileSize,
-		"max_file_size_mb":        float64(s.config.MaxFileSize) / 1024 / 1024,
-		"default_expiry_hours":    s.config.DefaultExpiryHours,
-		"thumbnail_size":          s.config.ThumbnailSize,
-		"storage_path":            s.config.StoragePath,
-		"api_version":             "1.0.0",
-		"websocket_endpoint":      "/api/v1/sync/websocket",
-		"supported_file_types":    []string{"*/*"},
+		"max_file_size":        s.config.MaxFileSize,
+		"max_file_size_mb":     float64(s.config.MaxFileSize) / 1024 / 1024,
+		"default_expiry_hours": s.config.DefaultExpiryHours,
+		"thumbnail_size":       s.config.ThumbnailSize,
+		"storage_path":         s.config.StoragePath,
+		"api_version":          "1.0.0",
+		"websocket_endpoint":   "/api/v1/sync/websocket",
+		"supported_file_types": []string{"*/*"},
 		"features": map[string]interface{}{
-			"thumbnails":           true,
-			"websocket_sync":       true,
-			"automatic_cleanup":    true,
-			"file_versioning":      false,
-			"cloud_integration":    false,
+			"thumbnails":        true,
+			"websocket_sync":    true,
+			"automatic_cleanup": true,
+			"file_versioning":   false,
+			"cloud_integration": false,
 		},
 		"user_stats": map[string]interface{}{
-			"total_items":          totalItems,
-			"total_size":           totalSize,
-			"total_size_mb":        float64(totalSize) / 1024 / 1024,
-			"files_count":          filesCount,
-			"text_count":           textCount,
-			"clipboard_count":      clipboardCount,
-			"expires_soon_count":   expiresSoonCount,
+			"total_items":        totalItems,
+			"total_size":         totalSize,
+			"total_size_mb":      float64(totalSize) / 1024 / 1024,
+			"files_count":        filesCount,
+			"text_count":         textCount,
+			"clipboard_count":    clipboardCount,
+			"expires_soon_count": expiresSoonCount,
 		},
 		"limits": map[string]interface{}{
-			"max_concurrent_uploads": 5,
+			"max_concurrent_uploads":    5,
 			"max_websocket_connections": 10,
-			"rate_limit_per_minute": 60,
+			"rate_limit_per_minute":     60,
 		},
 	}
 
@@ -1778,16 +1930,16 @@ func (s *Server) getSettingsHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) updateSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	// For now, settings are read-only (configured via environment variables)
 	// In a production system, some settings might be user-configurable
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusMethodNotAllowed)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": "Settings are read-only",
-		"message": "Settings are configured via environment variables and cannot be modified at runtime",
+		"error":                 "Settings are read-only",
+		"message":               "Settings are configured via environment variables and cannot be modified at runtime",
 		"configurable_settings": []string{},
 		"environment_settings": []string{
-			"MAX_FILE_SIZE", 
-			"DEFAULT_EXPIRY_HOURS", 
+			"MAX_FILE_SIZE",
+			"DEFAULT_EXPIRY_HOURS",
 			"THUMBNAIL_SIZE",
 		},
 	})
@@ -1887,13 +2039,13 @@ func (s *Server) handleBroadcast() {
 
 func (s *Server) handleSyncRequest(conn *WebSocketConnection, msg map[string]interface{}) {
 	// Handle sync request from device - broadcast sync events to other devices
-	
+
 	action, ok := msg["action"].(string)
 	if !ok {
 		log.Printf("Invalid sync request - missing action")
 		return
 	}
-	
+
 	switch action {
 	case "sync_item_created":
 		// When a new sync item is created, notify other devices
@@ -1902,20 +2054,20 @@ func (s *Server) handleSyncRequest(conn *WebSocketConnection, msg map[string]int
 			log.Printf("Invalid sync request - missing item_id")
 			return
 		}
-		
+
 		// Get sync item details from database
 		var syncItem SyncItem
 		query := `SELECT id, type, content, expires_at, created_at FROM sync_items 
 				 WHERE id = $1 AND user_id = $2`
 		err := s.db.QueryRow(query, itemID, conn.UserID).Scan(
-			&syncItem.ID, &syncItem.Type, &syncItem.Content, 
+			&syncItem.ID, &syncItem.Type, &syncItem.Content,
 			&syncItem.ExpiresAt, &syncItem.CreatedAt)
-		
+
 		if err != nil {
 			log.Printf("Error fetching sync item %s: %v", itemID, err)
 			return
 		}
-		
+
 		// Prepare broadcast message
 		broadcastMsg := map[string]interface{}{
 			"type": "sync_item_created",
@@ -1928,59 +2080,59 @@ func (s *Server) handleSyncRequest(conn *WebSocketConnection, msg map[string]int
 			},
 			"source_device": conn.DeviceID,
 		}
-		
+
 		jsonData, _ := json.Marshal(broadcastMsg)
-		
+
 		// Broadcast to all other devices for this user (excluding source device)
 		s.broadcast <- BroadcastMessage{
 			UserID:    conn.UserID,
 			Message:   jsonData,
 			DeviceIDs: []string{}, // Empty means all devices
 		}
-		
+
 	case "sync_item_deleted":
 		// When a sync item is deleted, notify other devices
 		itemID, ok := msg["item_id"].(string)
 		if !ok {
 			return
 		}
-		
+
 		broadcastMsg := map[string]interface{}{
 			"type":          "sync_item_deleted",
 			"item_id":       itemID,
 			"source_device": conn.DeviceID,
 		}
-		
+
 		jsonData, _ := json.Marshal(broadcastMsg)
-		
+
 		s.broadcast <- BroadcastMessage{
 			UserID:    conn.UserID,
 			Message:   jsonData,
 			DeviceIDs: []string{},
 		}
-		
+
 	case "device_status":
 		// Device status update (e.g., coming online/offline)
 		status, ok := msg["status"].(string)
 		if !ok {
 			return
 		}
-		
+
 		broadcastMsg := map[string]interface{}{
 			"type":      "device_status_changed",
 			"device_id": conn.DeviceID,
 			"status":    status,
 			"timestamp": time.Now(),
 		}
-		
+
 		jsonData, _ := json.Marshal(broadcastMsg)
-		
+
 		s.broadcast <- BroadcastMessage{
 			UserID:    conn.UserID,
 			Message:   jsonData,
 			DeviceIDs: []string{},
 		}
-		
+
 	case "request_sync":
 		// Request full sync of all items
 		// Get all active sync items for this user
@@ -1990,22 +2142,22 @@ func (s *Server) handleSyncRequest(conn *WebSocketConnection, msg map[string]int
 			WHERE user_id = $1 AND expires_at > NOW() 
 			ORDER BY created_at DESC
 			LIMIT 100`, conn.UserID)
-		
+
 		if err != nil {
 			log.Printf("Error fetching sync items for full sync: %v", err)
 			return
 		}
 		defer rows.Close()
-		
+
 		var items []map[string]interface{}
 		for rows.Next() {
 			var item SyncItem
-			err := rows.Scan(&item.ID, &item.Type, &item.Content, 
-						   &item.ExpiresAt, &item.CreatedAt)
+			err := rows.Scan(&item.ID, &item.Type, &item.Content,
+				&item.ExpiresAt, &item.CreatedAt)
 			if err != nil {
 				continue
 			}
-			
+
 			items = append(items, map[string]interface{}{
 				"id":         item.ID,
 				"type":       item.Type,
@@ -2014,22 +2166,22 @@ func (s *Server) handleSyncRequest(conn *WebSocketConnection, msg map[string]int
 				"created_at": item.CreatedAt,
 			})
 		}
-		
+
 		responseMsg := map[string]interface{}{
 			"type":  "full_sync",
 			"items": items,
 			"count": len(items),
 		}
-		
+
 		jsonData, _ := json.Marshal(responseMsg)
-		
+
 		// Send only to the requesting device
 		select {
 		case conn.Send <- jsonData:
 		default:
 			log.Printf("Failed to send full sync to device %s", conn.DeviceID)
 		}
-		
+
 	default:
 		log.Printf("Unknown sync action: %s", action)
 	}
@@ -2069,7 +2221,7 @@ func (s *Server) startCleanupRoutine() {
 
 		// Delete expired file records
 		s.db.Exec("DELETE FROM files WHERE expires_at < NOW()")
-		
+
 		log.Printf("Cleanup completed: removed expired items")
 	}
 }
@@ -2086,62 +2238,62 @@ func connectDB() (*sql.DB, error) {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			return nil, fmt.Errorf("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open database connection: %v", err)
 	}
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection with enhanced monitoring
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting PostgreSQL connection with exponential backoff...")
 	log.Printf("📊 Connection strategy: max %d attempts, delays from %v to %v", maxRetries, baseDelay, maxDelay)
-	
+
 	var pingErr error
 	startTime := time.Now()
-	
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		attemptStart := time.Now()
 		pingErr = db.Ping()
 		attemptDuration := time.Since(attemptStart)
-		
+
 		if pingErr == nil {
 			totalDuration := time.Since(startTime)
 			log.Printf("✅ Database connected successfully!")
-			log.Printf("   📊 Connection established on attempt %d/%d", attempt + 1, maxRetries)
+			log.Printf("   📊 Connection established on attempt %d/%d", attempt+1, maxRetries)
 			log.Printf("   ⏱️  Total connection time: %v", totalDuration)
 			log.Printf("   🔗 Connection pool: %d max open, %d max idle", 25, 5)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay with capped growth
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add random jitter to prevent thundering herd
 		// Use true randomness (not deterministic) to prevent all instances reconnecting simultaneously
-		jitterRange := float64(delay) * 0.25  // 25% jitter range
+		jitterRange := float64(delay) * 0.25 // 25% jitter range
 		randomJitter := rand.Float64() * jitterRange
 		actualDelay := delay + time.Duration(randomJitter)
-		
+
 		// Determine error category for better diagnostics
 		errorCategory := "unknown"
 		if strings.Contains(pingErr.Error(), "connection refused") {
@@ -2153,20 +2305,20 @@ func connectDB() (*sql.DB, error) {
 		} else if strings.Contains(pingErr.Error(), "no such host") {
 			errorCategory = "dns_resolution"
 		}
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed", attempt + 1, maxRetries)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed", attempt+1, maxRetries)
 		log.Printf("   🔍 Error category: %s", errorCategory)
 		log.Printf("   📝 Error details: %v", pingErr)
 		log.Printf("   ⏱️  Attempt duration: %v", attemptDuration)
 		log.Printf("   ⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, time.Duration(randomJitter))
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Connection retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
 			log.Printf("   - Total elapsed time: %v", time.Since(startTime))
 			log.Printf("   - Success rate: 0%% (will retry)")
-			
+
 			// Suggest troubleshooting based on error category
 			switch errorCategory {
 			case "connection_refused":
@@ -2179,15 +2331,15 @@ func connectDB() (*sql.DB, error) {
 				log.Printf("   💡 Hint: Verify database hostname is correct")
 			}
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		totalDuration := time.Since(startTime)
 		return nil, fmt.Errorf("❌ Database connection failed after %d attempts over %v: %v", maxRetries, totalDuration, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 	log.Println("✨ Ready to handle sync operations")
 	return db, nil
@@ -2214,7 +2366,6 @@ func connectRedis() *redis.Client {
 	return client
 }
 
-
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
@@ -2227,7 +2378,7 @@ func contains(slice []string, item string) bool {
 // runMigrations executes database schema migrations
 func runMigrations(db *sql.DB) error {
 	log.Println("🔄 Running database migrations...")
-	
+
 	// Schema SQL embedded directly to avoid external dependencies
 	schema := `
 		-- Extension for UUID generation

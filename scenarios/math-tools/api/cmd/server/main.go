@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -20,6 +19,54 @@ import (
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat"
 )
+
+// Logger provides structured logging
+type Logger struct {
+	component string
+}
+
+// NewLogger creates a new structured logger
+func NewLogger(component string) *Logger {
+	return &Logger{component: component}
+}
+
+// Info logs an informational message
+func (l *Logger) Info(message string, fields ...interface{}) {
+	l.logStructured("INFO", message, fields...)
+}
+
+// Warn logs a warning message
+func (l *Logger) Warn(message string, fields ...interface{}) {
+	l.logStructured("WARN", message, fields...)
+}
+
+// Error logs an error message
+func (l *Logger) Error(message string, fields ...interface{}) {
+	l.logStructured("ERROR", message, fields...)
+}
+
+// logStructured outputs a structured log entry
+func (l *Logger) logStructured(level, message string, fields ...interface{}) {
+	entry := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"level":     level,
+		"component": l.component,
+		"message":   message,
+	}
+
+	// Add additional fields
+	for i := 0; i < len(fields); i += 2 {
+		if i+1 < len(fields) {
+			key := fmt.Sprint(fields[i])
+			entry[key] = fields[i+1]
+		}
+	}
+
+	logBytes, _ := json.Marshal(entry)
+	fmt.Fprintln(os.Stderr, string(logBytes))
+}
+
+var logger = NewLogger("math-tools-api")
 
 // Config holds application configuration
 type Config struct {
@@ -89,7 +136,7 @@ type DescriptiveStats struct {
 func NewServer() (*Server, error) {
 	config := &Config{
 		Port:        getEnv("API_PORT", getEnv("PORT", "8095")),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/math_tools?sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/math_tools?sslmode=disable"),
 		APIToken:    getEnv("API_TOKEN", "math-tools-api-token"),
 	}
 
@@ -97,12 +144,12 @@ func NewServer() (*Server, error) {
 	db, err := sql.Open("postgres", config.DatabaseURL)
 	if err != nil {
 		// Continue without database - just log the error
-		log.Printf("Warning: Database connection failed: %v", err)
+		logger.Warn("Database connection failed", "error", err.Error())
 		db = nil
 	} else {
 		// Test connection
 		if err := db.Ping(); err != nil {
-			log.Printf("Warning: Database not available: %v", err)
+			logger.Warn("Database not available", "error", err.Error())
 			db = nil
 		}
 	}
@@ -154,14 +201,16 @@ func (s *Server) setupRoutes() {
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 		next.ServeHTTP(w, r)
+		logger.Info("HTTP request", "method", r.Method, "uri", r.RequestURI, "duration", time.Since(start).String())
 	})
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Get allowed origin from environment or default to localhost
+		allowedOrigin := getEnv("CORS_ALLOWED_ORIGIN", "http://localhost:16430")
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -233,7 +282,7 @@ func (s *Server) handleCalculate(w http.ResponseWriter, r *http.Request) {
 		result = s.performStatOperation(req)
 	case "matrix_multiply", "matrix_inverse", "matrix_determinant", "matrix_transpose":
 		result = s.performMatrixOperation(req)
-	case "derivative", "integral":
+	case "derivative", "integral", "partial_derivative", "double_integral":
 		result = s.performCalculusOperation(req)
 	case "prime_factors", "gcd", "lcm":
 		result = s.performNumberTheoryOperation(req)
@@ -628,8 +677,16 @@ func (s *Server) calculateDescriptiveStats(data []float64) *DescriptiveStats {
 
 	mean := stat.Mean(data, nil)
 	median := stat.Quantile(0.5, stat.LinInterp, sorted, nil)
-	stdDev := stat.StdDev(data, nil)
-	variance := stat.Variance(data, nil)
+
+	// For single data point, stddev and variance are 0 (not NaN)
+	var stdDev, variance float64
+	if len(data) == 1 {
+		stdDev = 0
+		variance = 0
+	} else {
+		stdDev = stat.StdDev(data, nil)
+		variance = stat.Variance(data, nil)
+	}
 
 	return &DescriptiveStats{
 		Mean:     mean,
@@ -1427,20 +1484,20 @@ func (s *Server) Run() error {
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
 
-		log.Println("Shutting down server...")
+		logger.Info("Shutting down server...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("Server shutdown error: %v", err)
+			logger.Error("Server shutdown error", "error", err.Error())
 		}
 
 		s.db.Close()
 	}()
 
-	log.Printf("Math Tools API starting on port %s", s.config.Port)
-	log.Printf("API documentation available at http://localhost:%s/docs", s.config.Port)
+	logger.Info("Math Tools API starting", "port", s.config.Port)
+	logger.Info("API documentation available", "url", fmt.Sprintf("http://localhost:%s/docs", s.config.Port))
 
 	return srv.ListenAndServe()
 }
@@ -1458,14 +1515,16 @@ func main() {
 		os.Exit(1)
 	}
 	
-	log.Println("Starting Math Tools API...")
+	logger.Info("Starting Math Tools API...")
 
 	server, err := NewServer()
 	if err != nil {
-		log.Fatalf("Failed to initialize server: %v", err)
+		logger.Error("Failed to initialize server", "error", err.Error())
+		os.Exit(1)
 	}
 
 	if err := server.Run(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server error: %v", err)
+		logger.Error("Server error", "error", err.Error())
+		os.Exit(1)
 	}
 }

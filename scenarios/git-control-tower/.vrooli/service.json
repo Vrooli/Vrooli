@@ -14,6 +14,12 @@
       "port": 18700,
       "description": "Git Control Tower API port",
       "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 35700,
+      "description": "Git Control Tower UI (mirrors API endpoints for iframe embedding)",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -47,7 +53,8 @@
     "health": {
       "description": "Git Control Tower health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -57,6 +64,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         },
         {
           "name": "postgres_connection",
@@ -107,7 +122,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 Git Control Tower initialized\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "run": "echo \"🚀 Git Control Tower initialized\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  UI: http://localhost:${UI_PORT:-$API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
           "description": "Display service access URLs"
         }
       ]
@@ -126,7 +141,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 Git Control Tower running\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "run": "echo \"🚀 Git Control Tower running\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  UI: http://localhost:${UI_PORT:-$API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
           "description": "Display running service URLs"
         }
       ]

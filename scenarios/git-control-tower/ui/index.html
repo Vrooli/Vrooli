@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Git Control Tower</title>
+  <style>
+    :root {
+      color-scheme: dark light;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-color: #0d1117;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 55%), #0d1117;
+      color: #f0f6fc;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .app {
+      width: min(1200px, 94vw);
+      margin: 48px auto;
+      background: rgba(13, 17, 23, 0.92);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(240, 246, 252, 0.08);
+      border-radius: 18px;
+      padding: 36px 40px 44px;
+      box-shadow: 0 28px 68px rgba(1, 4, 9, 0.55);
+    }
+
+    .panel {
+      border-radius: 16px;
+      padding: 22px 24px;
+      background: rgba(13, 17, 23, 0.88);
+      border: 1px solid rgba(240, 246, 252, 0.08);
+      box-shadow: 0 18px 32px rgba(1, 4, 9, 0.35);
+    }
+
+    .panel:focus-within {
+      border-color: rgba(88, 166, 255, 0.45);
+      box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.28), 0 18px 32px rgba(1, 4, 9, 0.35);
+    }
+
+    header h1 {
+      font-size: clamp(2.2rem, 4vw, 2.8rem);
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 14px 0 0;
+      color: rgba(240, 246, 252, 0.72);
+      line-height: 1.6;
+      max-width: 780px;
+    }
+
+    .grid.two-column {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 22px;
+      margin-top: 32px;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .button {
+      appearance: none;
+      border: 1px solid rgba(88, 166, 255, 0.45);
+      background: rgba(88, 166, 255, 0.12);
+      color: #58a6ff;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .button:hover:not([disabled]) {
+      background: rgba(88, 166, 255, 0.2);
+      border-color: rgba(88, 166, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .button:focus-visible {
+      outline: 2px solid rgba(88, 166, 255, 0.9);
+      outline-offset: 2px;
+    }
+
+    .button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .button.primary {
+      background: linear-gradient(120deg, #3b82f6, #6366f1);
+      color: #ffffff;
+      border-color: transparent;
+      box-shadow: 0 12px 24px rgba(59, 130, 246, 0.28);
+    }
+
+    .button.primary:hover {
+      background: linear-gradient(120deg, #2563eb, #4f46e5);
+    }
+
+    .button.ghost {
+      background: rgba(240, 246, 252, 0.04);
+      border-color: rgba(240, 246, 252, 0.12);
+      color: rgba(240, 246, 252, 0.76);
+    }
+
+    .button.tiny {
+      font-size: 0.7rem;
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+    .file-search {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .file-search-input {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .file-search-input input[type="search"] {
+      flex: 1;
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid rgba(240, 246, 252, 0.18);
+      border-radius: 999px;
+      padding: 10px 18px;
+      color: #f0f6fc;
+      font-size: 0.9rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .file-search-input input[type="search"]:focus {
+      border-color: rgba(88, 166, 255, 0.65);
+      box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.35);
+      outline: none;
+    }
+
+    .file-search-input button[hidden] {
+      display: none;
+    }
+
+    details.file-search-advanced {
+      border-radius: 12px;
+      border: 1px solid rgba(240, 246, 252, 0.08);
+      background: rgba(13, 17, 23, 0.52);
+      overflow: hidden;
+    }
+
+    details.file-search-advanced[open] {
+      background: rgba(13, 17, 23, 0.72);
+      box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.22);
+    }
+
+    details.file-search-advanced > summary {
+      cursor: pointer;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(240, 246, 252, 0.6);
+      list-style: none;
+      padding: 10px 16px;
+      outline: none;
+    }
+
+    details.file-search-advanced > summary::marker {
+      display: none;
+    }
+
+    details.file-search-advanced > .file-search-options {
+      display: grid;
+      gap: 8px;
+      padding: 6px 16px 14px;
+    }
+
+    .file-search-options label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: rgba(240, 246, 252, 0.72);
+    }
+
+    .file-search-options label input {
+      accent-color: #58a6ff;
+    }
+
+    .search-summary {
+      margin: 4px 0 0;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(240, 246, 252, 0.55);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .metric-box {
+      border-radius: 14px;
+      padding: 16px 18px;
+      background: rgba(22, 27, 34, 0.88);
+      border: 1px solid rgba(240, 246, 252, 0.06);
+    }
+
+    .metric-box span {
+      display: block;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: rgba(240, 246, 252, 0.55);
+    }
+
+    .metric-box strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 1.35rem;
+      font-weight: 600;
+    }
+
+    .file-group {
+      border-radius: 14px;
+      padding: 16px 18px;
+      background: rgba(22, 27, 34, 0.75);
+      border: 1px solid rgba(240, 246, 252, 0.05);
+      margin-bottom: 14px;
+    }
+
+    .file-group:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .file-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .file-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(13, 17, 23, 0.82);
+      border: 1px solid rgba(240, 246, 252, 0.05);
+      cursor: pointer;
+    }
+
+    .file-item:hover {
+      border-color: rgba(88, 166, 255, 0.45);
+    }
+
+    .file-item input[type="checkbox"] {
+      margin-top: 4px;
+      cursor: pointer;
+    }
+
+    .file-path {
+      font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+      font-size: 0.94rem;
+      word-break: break-word;
+      color: rgba(240, 246, 252, 0.88);
+    }
+
+    .file-meta {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      color: rgba(240, 246, 252, 0.6);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(88, 166, 255, 0.18);
+      color: #58a6ff;
+      border: 1px solid rgba(88, 166, 255, 0.35);
+    }
+
+    .badge.scope {
+      background: rgba(163, 113, 247, 0.2);
+      color: #c995ff;
+      border-color: rgba(163, 113, 247, 0.35);
+    }
+
+    .badge.stat-add {
+      background: rgba(46, 204, 113, 0.18);
+      color: #7ee787;
+      border-color: rgba(46, 204, 113, 0.35);
+    }
+
+    .badge.stat-del {
+      background: rgba(248, 81, 73, 0.16);
+      color: #ffaba6;
+      border-color: rgba(248, 81, 73, 0.32);
+    }
+
+    .status-message {
+      margin-top: 10px;
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: rgba(248, 81, 73, 0.18);
+      border: 1px solid rgba(248, 81, 73, 0.32);
+      color: #ffaba6;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .status-message.success {
+      background: rgba(35, 134, 54, 0.18);
+      border-color: rgba(46, 160, 67, 0.32);
+      color: #7ee787;
+    }
+
+    .status-message.info {
+      background: rgba(88, 166, 255, 0.18);
+      border-color: rgba(88, 166, 255, 0.35);
+      color: #9ecbff;
+    }
+
+    .file-group-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .file-group-actions h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .file-group-actions .group-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .diff-output {
+      border-radius: 12px;
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid rgba(240, 246, 252, 0.06);
+      padding: 18px 20px;
+      overflow-x: auto;
+      max-height: 420px;
+      font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .diff-title {
+      font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      color: rgba(240, 246, 252, 0.7);
+      margin-bottom: 12px;
+      word-break: break-all;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(240, 246, 252, 0.6);
+    }
+
+    .form-group input,
+    .form-group textarea {
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid rgba(240, 246, 252, 0.12);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #f0f6fc;
+      font-size: 0.92rem;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .form-group textarea {
+      min-height: 78px;
+      resize: vertical;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .hint {
+      font-size: 0.82rem;
+      color: rgba(240, 246, 252, 0.58);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .suggestions-list,
+    .recommendations-list,
+    .branch-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .suggestion-item,
+    .branch-item {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(22, 27, 34, 0.8);
+      border: 1px solid rgba(240, 246, 252, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .suggestion-item:hover {
+      border-color: rgba(88, 166, 255, 0.45);
+      cursor: pointer;
+    }
+
+    .branch-item.current {
+      border-color: rgba(46, 160, 67, 0.4);
+      background: rgba(35, 134, 54, 0.18);
+    }
+
+    .branch-name {
+      font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      color: rgba(240, 246, 252, 0.88);
+    }
+
+    .inline-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .inline-form input {
+      flex: 1 1 220px;
+    }
+
+    .toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      padding: 14px 20px;
+      border-radius: 12px;
+      background: rgba(22, 27, 34, 0.95);
+      border: 1px solid rgba(240, 246, 252, 0.15);
+      box-shadow: 0 14px 42px rgba(0, 0, 0, 0.35);
+      font-size: 0.92rem;
+      color: #f0f6fc;
+      opacity: 0;
+      transform: translateY(-12px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 20;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.success {
+      border-color: rgba(46, 160, 67, 0.45);
+      color: #7ee787;
+    }
+
+    .toast.error {
+      border-color: rgba(248, 81, 73, 0.45);
+      color: #ffaba6;
+    }
+
+    footer {
+      margin-top: 32px;
+      font-size: 0.85rem;
+      color: rgba(240, 246, 252, 0.55);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    code {
+      background: rgba(22, 27, 34, 0.85);
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(240, 246, 252, 0.08);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 1024px) {
+      body {
+        display: block;
+        padding: 32px 20px 48px;
+      }
+
+      .grid.two-column {
+        grid-template-columns: 1fr;
+      }
+
+      .app {
+        padding: 28px 24px 36px;
+        width: 100%;
+        margin: 0 auto;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app {
+        padding: 24px 18px 32px;
+        width: min(600px, 100%);
+        margin: 0;
+        border-radius: 14px;
+      }
+
+      .file-search-input {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .file-search-input input[type="search"] {
+        border-radius: 12px;
+      }
+
+      .file-search-input .button {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .button-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .inline-form {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 480px) {
+      header h1 {
+        font-size: clamp(1.8rem, 8vw, 2.2rem);
+      }
+
+      header p {
+        font-size: 0.95rem;
+      }
+
+      .panel {
+        padding: 18px 16px;
+      }
+
+      .panel-header h2 {
+        font-size: 1.1rem;
+      }
+
+      footer {
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.78rem;
+      }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "@vrooli/iframe-bridge/child": "/static/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+  <main class="app">
+    <header>
+      <h1>Git Control Tower</h1>
+      <p>Monitor repository health, stage or unstage files, preview changes, create branches, and craft conventional commits without leaving the dashboard. All actions communicate directly with the Git Control Tower API.</p>
+    </header>
+
+    <section class="grid two-column">
+      <div class="column">
+        <section id="health" class="panel">
+          <div class="panel-header">
+            <h2>Service Health</h2>
+            <button class="button ghost" id="refresh-health" type="button">Refresh</button>
+          </div>
+          <div id="health-status">Checking API health…</div>
+        </section>
+
+        <section id="repo" class="panel">
+          <div class="panel-header">
+            <h2>Repository Snapshot</h2>
+            <button class="button ghost" id="refresh-status" type="button">Refresh</button>
+          </div>
+          <div class="file-search" id="file-search">
+            <div class="file-search-input">
+              <input type="search" id="file-search-input" placeholder="Search files by name, status, or scope" autocomplete="off" />
+              <button class="button tiny ghost" id="file-search-clear" type="button" hidden>Clear</button>
+            </div>
+            <details class="file-search-advanced" id="file-search-advanced" open>
+              <summary>Advanced search</summary>
+              <div class="file-search-options">
+                <label><input type="checkbox" id="search-target-staged" data-search-group="staged" checked /> Staged</label>
+                <label><input type="checkbox" id="search-target-unstaged" data-search-group="unstaged" checked /> Unstaged</label>
+                <label><input type="checkbox" id="search-target-untracked" data-search-group="untracked" checked /> Untracked</label>
+                <label><input type="checkbox" id="search-include-diff" /> Include diff contents</label>
+                <p class="hint">Diff search fetches file previews on demand; it may take a moment for large diffs.</p>
+              </div>
+            </details>
+            <p class="search-summary" id="file-search-summary" hidden></p>
+          </div>
+          <div id="repo-content">Loading repository status…</div>
+        </section>
+
+        <section id="branches" class="panel">
+          <div class="panel-header">
+            <h2>Branch Management</h2>
+            <button class="button ghost" id="refresh-branches" type="button">Refresh</button>
+          </div>
+          <div id="branches-content">Fetching branches…</div>
+          <form id="branch-form" class="inline-form">
+            <input type="text" id="new-branch-name" placeholder="feature/branch-name" autocomplete="off" />
+            <button class="button primary" type="submit">Create Branch</button>
+          </form>
+        </section>
+      </div>
+
+      <div class="column">
+        <section id="diff" class="panel">
+          <div class="panel-header">
+            <h2>Diff Viewer</h2>
+          </div>
+          <div class="diff-title" id="diff-title">Select a file to view its diff.</div>
+          <pre id="diff-output" class="diff-output">No file selected.</pre>
+        </section>
+
+        <section id="commit" class="panel">
+          <div class="panel-header">
+            <h2>Commit Workflow</h2>
+          </div>
+          <form id="commit-form">
+            <div class="form-group">
+              <label for="commit-message">Commit Message</label>
+              <input id="commit-message" type="text" placeholder="feat(ui): describe the change" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label for="commit-context">Optional Context for AI Suggestions</label>
+              <textarea id="commit-context" placeholder="Include additional context for the AI to consider"></textarea>
+            </div>
+            <div class="button-row">
+              <button class="button ghost" id="preview-btn" type="button">Preview Changes</button>
+              <button class="button ghost" id="suggest-btn" type="button">AI Suggestions</button>
+              <button class="button primary" id="commit-btn" type="submit">Commit Staged</button>
+            </div>
+            <p class="hint" id="selection-summary">Staged files: 0 • Selected for commit: 0</p>
+          </form>
+          <div id="suggestions"></div>
+          <div id="preview-results"></div>
+        </section>
+
+        <section id="conflicts" class="panel">
+          <div class="panel-header">
+            <h2>Conflicts &amp; Warnings</h2>
+            <button class="button ghost" id="refresh-conflicts" type="button">Refresh</button>
+          </div>
+          <div id="conflict-content">Checking conflict status…</div>
+        </section>
+      </div>
+    </section>
+
+    <footer>
+      <span>API base URL: <code id="api-base-display">/api/v1</code> • Health endpoint: <code>/health</code></span>
+      <span>CLI companion: <code>git-control-tower &lt;command&gt;</code></span>
+    </footer>
+  </main>
+
+  <script type="module">
+    import { ensureBridge, resolveApiBase, buildApiUrl } from "/static/src/main.js";
+
+    ensureBridge();
+
+    const API_BASE_PATH = "/api/v1";
+    const API_BASE = resolveApiBase(API_BASE_PATH);
+    window.__GIT_CONTROL_TOWER_API_BASE__ = API_BASE;
+
+    function withApiBase(path) {
+      if (typeof path !== "string") {
+        return path;
+      }
+      if (/^https?:/i.test(path)) {
+        return path;
+      }
+      if (path.startsWith(API_BASE_PATH)) {
+        const remainder = path.slice(API_BASE_PATH.length) || "/";
+        return buildApiUrl(remainder, API_BASE_PATH);
+      }
+      if (path.startsWith('/api/')) {
+        return buildApiUrl(path, API_BASE_PATH);
+      }
+      if (path.startsWith('/')) {
+        return path;
+      }
+      return buildApiUrl(path, API_BASE_PATH);
+    }
+
+    function updateApiBaseDisplay() {
+      const el = document.getElementById("api-base-display");
+      if (el) {
+        el.textContent = API_BASE;
+      }
+    }
+
+    updateApiBaseDisplay();
+
+    const GROUPS = ['staged', 'unstaged', 'untracked'];
+
+    const state = {
+      status: null,
+      branches: [],
+      selectedPath: '',
+      diffCache: {},
+      toastTimeout: null,
+      fileSearch: '',
+      searchGroups: {
+        staged: true,
+        unstaged: true,
+        untracked: true
+      },
+      searchIncludeDiff: false,
+      pendingDiffPrefetch: new Map(),
+      lastDiffPrefetchSignature: ''
+    };
+
+    function showToast(message, type = "info") {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.remove("success", "error");
+      if (type === "success") {
+        toast.classList.add("success");
+      } else if (type === "error") {
+        toast.classList.add("error");
+      }
+      toast.classList.add("visible");
+      clearTimeout(state.toastTimeout);
+      state.toastTimeout = setTimeout(() => {
+        toast.classList.remove("visible", "success", "error");
+      }, 3600);
+    }
+
+    function normaliseSearchTerm(value) {
+      return (value || '').trim().toLowerCase();
+    }
+
+    function fileEntryToPath(file) {
+      if (!file) {
+        return '';
+      }
+      if (typeof file === 'string') {
+        return file;
+      }
+      return file.path || '';
+    }
+
+    function matchesSearchTerm(file, group, term) {
+      if (!term) {
+        return true;
+      }
+      const path = fileEntryToPath(file);
+      const details = [
+        path,
+        typeof file === 'string' ? group : (file.status || ''),
+        typeof file === 'string' ? '' : (file.scope || '')
+      ];
+      if (typeof file !== 'string') {
+        details.push(String(file.additions ?? ''));
+        details.push(String(file.deletions ?? ''));
+      }
+      const combined = details.join(' ').toLowerCase();
+      if (combined.includes(term)) {
+        return true;
+      }
+      if (!state.searchIncludeDiff) {
+        return false;
+      }
+      const diffText = (state.diffCache[path] || '').toLowerCase();
+      return diffText.includes(term);
+    }
+
+    function prepareSearchContext(status) {
+      const context = {
+        term: normaliseSearchTerm(state.fileSearch),
+        displayTerm: (state.fileSearch || '').trim(),
+        groups: {},
+        totalMatches: 0,
+        totalInScope: 0,
+        totalAcrossAll: 0,
+        pathsForPrefetch: []
+      };
+
+      GROUPS.forEach((group) => {
+        const files = Array.isArray(status?.[group]) ? status[group] : [];
+        const enabled = !!state.searchGroups[group];
+        const filtered = !enabled
+          ? []
+          : (!context.term
+            ? files
+            : files.filter((file) => matchesSearchTerm(file, group, context.term)));
+
+        context.groups[group] = {
+          enabled,
+          list: filtered,
+          total: files.length,
+          original: files
+        };
+
+        context.totalAcrossAll += files.length;
+        if (enabled) {
+          context.totalInScope += files.length;
+          context.totalMatches += filtered.length;
+          context.pathsForPrefetch.push(
+            ...files.map((entry) => fileEntryToPath(entry)).filter(Boolean)
+          );
+        }
+      });
+
+      context.pathsForPrefetch = Array.from(new Set(context.pathsForPrefetch));
+      return context;
+    }
+
+    async function prefetchDiffsForSearch(paths, term) {
+      if (!state.searchIncludeDiff || !term) {
+        return;
+      }
+      const targets = paths.filter((path) => path && !state.diffCache[path]);
+      if (!targets.length) {
+        return;
+      }
+      const tasks = targets.map((path) => getDiff(path, { silent: true }));
+      await Promise.allSettled(tasks);
+      if (term === normaliseSearchTerm(state.fileSearch)) {
+        renderRepository(state.status, { skipDiffPrefetch: true });
+      }
+    }
+
+    function updateSearchSummary(searchContext) {
+      const summary = document.getElementById('file-search-summary');
+      if (!summary) {
+        return;
+      }
+      if (!searchContext.term) {
+        summary.hidden = true;
+        summary.textContent = '';
+        return;
+      }
+
+      if (searchContext.totalInScope === 0) {
+        summary.hidden = false;
+        summary.textContent = 'Select at least one file group to search.';
+        return;
+      }
+
+      summary.hidden = false;
+      const term = searchContext.displayTerm || searchContext.term;
+      if (searchContext.totalMatches > 0) {
+        summary.textContent = `Showing ${searchContext.totalMatches} of ${searchContext.totalInScope} files in selected groups for "${term}".`;
+      } else {
+        summary.textContent = `No matches in selected groups for "${term}".`;
+      }
+    }
+
+    function updateSearchUI() {
+      const input = document.getElementById('file-search-input');
+      if (input && input.value !== state.fileSearch) {
+        input.value = state.fileSearch;
+      }
+      const clearBtn = document.getElementById('file-search-clear');
+      if (clearBtn) {
+        clearBtn.hidden = !state.fileSearch.trim();
+      }
+      document.querySelectorAll('[data-search-group]').forEach((checkbox) => {
+        const group = checkbox.dataset.searchGroup;
+        if (!group) {
+          return;
+        }
+        if (Object.prototype.hasOwnProperty.call(state.searchGroups, group)) {
+          checkbox.checked = !!state.searchGroups[group];
+        }
+      });
+      const includeDiff = document.getElementById('search-include-diff');
+      if (includeDiff) {
+        includeDiff.checked = state.searchIncludeDiff;
+      }
+    }
+
+    async function fetchJSON(url, options) {
+      const resolvedUrl = withApiBase(url);
+      const response = await fetch(resolvedUrl, options);
+      if (!response.ok) {
+        const text = await response.text();
+        const message = text || `Request failed with status ${response.status}`;
+        throw new Error(message);
+      }
+      return response.json();
+    }
+
+    function formatDependencies(deps) {
+      if (!deps || typeof deps !== "object") {
+        return "";
+      }
+      return Object.entries(deps)
+        .map(([name, details]) => {
+          if (!details || typeof details !== "object") {
+            return "";
+          }
+          const pretty = name.replace(/_/g, " ").replace(/\w/g, (c) => c.toUpperCase());
+          const summary = Object.entries(details)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(" • ");
+          return `<li class="suggestion-item"><span class="branch-name">${pretty}</span><span>${summary}</span></li>`;
+        })
+        .join("");
+    }
+
+    function renderHealth(data) {
+      const container = document.getElementById("health-status");
+      if (!data) {
+        container.innerHTML = '<div class="status-message">Unable to load health information.</div>';
+        return;
+      }
+      const readiness = data.readiness ? "Operational" : "Degraded";
+      const statusClass = data.readiness ? "status-message success" : "status-message";
+      const dependencies = formatDependencies(data.dependencies);
+      container.innerHTML = `
+        <div class="${statusClass}">
+          <strong>${readiness}</strong><br />
+          Last checked: ${new Date(data.timestamp).toLocaleString()}
+        </div>
+        ${dependencies ? `<h3 style="margin-top:18px;">Dependencies</h3><ul class="suggestions-list">${dependencies}</ul>` : ""}
+      `;
+    }
+
+    function renderMetrics(status) {
+      const tracking = status.tracking || {};
+      return `
+        <div class="metrics">
+          <div class="metric-box"><span>Branch</span><strong>${status.branch || "unknown"}</strong></div>
+          <div class="metric-box"><span>Tracking</span><strong>${tracking.branch || "n/a"}</strong><small style="display:block;margin-top:6px;color:rgba(240,246,252,0.6);">Ahead ${tracking.ahead || 0} • Behind ${tracking.behind || 0}</small></div>
+          <div class="metric-box"><span>Staged Files</span><strong>${(status.staged || []).length}</strong></div>
+          <div class="metric-box"><span>Unstaged Files</span><strong>${(status.unstaged || []).length}</strong></div>
+          <div class="metric-box"><span>Untracked</span><strong>${(status.untracked || []).length}</strong></div>
+        </div>
+      `;
+    }
+
+    function buildFileList(files, group) {
+      if (!files || files.length === 0) {
+        const messages = {
+          staged: "No staged changes found.",
+          unstaged: "Working tree is clean.",
+          untracked: "No untracked files detected."
+        };
+        const searchActive = !!normaliseSearchTerm(state.fileSearch);
+        const originalCount = Array.isArray(state.status?.[group]) ? state.status[group].length : 0;
+        if (searchActive && originalCount > 0) {
+          return '<p class="status-message info">No files match the current search.</p>';
+        }
+        return `<p class="status-message info">${messages[group] || "No files."}</p>`;
+      }
+      return `
+        <ul class="file-list">
+          ${files
+            .map((file) => {
+              const path = typeof file === "string" ? file : file.path;
+              const status = typeof file === "string" ? "untracked" : file.status;
+              const scope = typeof file === "string" ? "" : file.scope;
+              const additions = typeof file === "string" ? 0 : file.additions;
+              const deletions = typeof file === "string" ? 0 : file.deletions;
+              return `
+                <li class="file-item" data-path="${path}" data-group="${group}">
+                  <input type="checkbox" class="file-checkbox" data-path="${path}" data-group="${group}" />
+                  <div>
+                    <div class="file-path">${path}</div>
+                    <div class="file-meta">
+                      <span class="badge">${status}</span>
+                      ${scope ? `<span class="badge scope">${scope}</span>` : ""}
+                      ${additions ? `<span class="badge stat-add">+${additions}</span>` : ""}
+                      ${deletions ? `<span class="badge stat-del">-${deletions}</span>` : ""}
+                    </div>
+                  </div>
+                </li>
+              `;
+            })
+            .join("")}
+        </ul>
+      `;
+    }
+
+    function renderFileGroup(title, files, group, actions = []) {
+      const buttons = actions
+        .map((action) => `<button class="button tiny" data-action="${action.action}" data-group="${group}" type="button">${action.label}</button>`)
+        .join("");
+      return `
+        <div class="file-group" data-group="${group}">
+          <div class="file-group-actions">
+            <h3>${title}</h3>
+            <div class="group-buttons">${buttons}</div>
+          </div>
+          ${buildFileList(files, group)}
+        </div>
+      `;
+    }
+
+    function updateSelectionSummary() {
+      const stagedTotal = (state.status?.staged || []).length;
+      const selected = document.querySelectorAll('#repo-content .file-checkbox[data-group="staged"]:checked').length;
+      const summary = document.getElementById("selection-summary");
+      summary.textContent = `Staged files: ${stagedTotal} • Selected for commit: ${selected}`;
+    }
+
+    function renderRepository(status, options = {}) {
+      const container = document.getElementById('repo-content');
+      if (!container) {
+        return;
+      }
+
+      if (!status) {
+        container.innerHTML = '<div class="status-message">Repository data is unavailable.</div>';
+        updateSearchSummary({ term: '', displayTerm: '', totalInScope: 0, totalMatches: 0, groups: {} });
+        updateSearchUI();
+        return;
+      }
+
+      const searchContext = prepareSearchContext(status);
+      const conflicts = status.conflicts || [];
+      const sections = [];
+
+      if (searchContext.groups.staged?.enabled) {
+        const items = searchContext.groups.staged.list;
+        sections.push(
+          renderFileGroup(
+            'Staged Changes',
+            items,
+            'staged',
+            items.length ? [{ action: 'unstage', label: 'Unstage Selected' }] : []
+          )
+        );
+      }
+
+      if (searchContext.groups.unstaged?.enabled) {
+        const items = searchContext.groups.unstaged.list;
+        sections.push(
+          renderFileGroup(
+            'Unstaged Changes',
+            items,
+            'unstaged',
+            items.length ? [{ action: 'stage', label: 'Stage Selected' }] : []
+          )
+        );
+      }
+
+      if (searchContext.groups.untracked?.enabled) {
+        const items = searchContext.groups.untracked.list;
+        sections.push(
+          renderFileGroup(
+            'Untracked Files',
+            items,
+            'untracked',
+            items.length ? [{ action: 'stage', label: 'Stage Selected' }] : []
+          )
+        );
+      }
+
+      if (!sections.length) {
+        sections.push('<div class="status-message info">All file groups are hidden. Enable a group from Advanced search to view files.</div>');
+      }
+
+      container.innerHTML = `
+        ${renderMetrics(status)}
+        ${sections.join('')}
+        ${conflicts.length ? `<div class="status-message">Merge conflicts detected. Check the Conflicts panel for details.</div>` : ''}
+      `;
+
+      updateSelectionSummary();
+      updateSearchSummary(searchContext);
+      updateSearchUI();
+
+      if (!options.skipDiffPrefetch) {
+        if (state.searchIncludeDiff && searchContext.term) {
+          const enabledGroupsSignature = GROUPS.filter((group) => state.searchGroups[group]).join(',');
+          const signature = `${searchContext.term}|${enabledGroupsSignature}|${searchContext.pathsForPrefetch.join(',')}`;
+          if (state.lastDiffPrefetchSignature !== signature) {
+            state.lastDiffPrefetchSignature = signature;
+            prefetchDiffsForSearch(searchContext.pathsForPrefetch, searchContext.term);
+          }
+        } else {
+          state.lastDiffPrefetchSignature = '';
+        }
+      }
+    }
+
+    async function refreshHealth(silent = false) {
+      try {
+        const data = await fetchJSON('/health');
+        renderHealth(data);
+        if (!silent) {
+          showToast('Health status updated', 'success');
+        }
+      } catch (error) {
+        document.getElementById('health-status').innerHTML = `<div class="status-message">${error.message}</div>`;
+        if (!silent) {
+          showToast(error.message, 'error');
+        }
+      }
+    }
+
+    async function refreshStatus(silent = false) {
+      try {
+        const status = await fetchJSON('/api/v1/status');
+        state.status = status;
+        const allFiles = [
+          ...(status.staged || []),
+          ...(status.unstaged || []),
+          ...(status.untracked || [])
+        ]
+          .map((entry) => fileEntryToPath(entry))
+          .filter(Boolean);
+        const validPaths = new Set(allFiles);
+        Object.keys(state.diffCache).forEach((path) => {
+          if (!validPaths.has(path)) {
+            delete state.diffCache[path];
+          }
+        });
+        Array.from(state.pendingDiffPrefetch.keys()).forEach((path) => {
+          if (!validPaths.has(path)) {
+            state.pendingDiffPrefetch.delete(path);
+          }
+        });
+        renderRepository(status);
+        if (!silent) {
+          showToast('Repository status refreshed', 'success');
+        }
+        if (state.selectedPath) {
+          const allFiles = [...(status.staged || []), ...(status.unstaged || []), ...(status.untracked || [])];
+          const exists = allFiles.some((file) => (typeof file === 'string' ? file : file.path) === state.selectedPath);
+          if (!exists) {
+            state.selectedPath = '';
+            document.getElementById('diff-title').textContent = 'Select a file to view its diff.';
+            document.getElementById('diff-output').textContent = 'No file selected.';
+          }
+        }
+      } catch (error) {
+        document.getElementById('repo-content').innerHTML = `<div class="status-message">${error.message}</div>`;
+        if (!silent) {
+          showToast(error.message, 'error');
+        }
+      }
+    }
+
+    async function refreshBranches(silent = false) {
+      try {
+        const data = await fetchJSON('/api/v1/branches');
+        state.branches = data.branches || [];
+        const container = document.getElementById('branches-content');
+        if (!state.branches.length) {
+          container.innerHTML = '<p class="status-message info">No branches found.</p>';
+        } else {
+          container.innerHTML = `
+            <ul class="branch-list">
+              ${state.branches
+                .map((branch) => `
+                  <li class="branch-item ${branch.current ? 'current' : ''}" data-branch="${branch.name}">
+                    <div>
+                      <div class="branch-name">${branch.name}</div>
+                      ${branch.commit_hash ? `<div class="file-meta">${branch.commit_hash}</div>` : ''}
+                    </div>
+                    <button class="button tiny" data-action="checkout" data-branch="${branch.name}" type="button" ${branch.current ? 'disabled' : ''}>Checkout</button>
+                  </li>
+                `)
+                .join('')}
+            </ul>
+          `;
+        }
+        if (!silent) {
+          showToast('Branch list updated', 'success');
+        }
+      } catch (error) {
+        document.getElementById('branches-content').innerHTML = `<div class="status-message">${error.message}</div>`;
+        if (!silent) {
+          showToast(error.message, 'error');
+        }
+      }
+    }
+
+    function renderConflicts(data) {
+      const container = document.getElementById('conflict-content');
+      if (!data) {
+        container.innerHTML = '<div class="status-message">Unable to determine conflict status.</div>';
+        return;
+      }
+      if (!data.has_conflicts) {
+        container.innerHTML = `
+          <div class="status-message success">${data.message || 'No merge conflicts detected.'}</div>
+          ${data.potential_conflict ? '<p class="hint" style="margin-top:12px;">Remote changes detected. Consider pulling latest updates before committing.</p>' : ''}
+        `;
+        return;
+      }
+      container.innerHTML = `
+        <div class="status-message">${data.message || 'Merge conflicts detected.'}</div>
+        <ul class="suggestions-list" style="margin-top:14px;">
+          ${(data.conflicts || [])
+            .map((conflict) => `
+              <li class="suggestion-item" data-conflict-path="${conflict.file}">
+                <span class="branch-name">${conflict.file}</span>
+                <span>${conflict.conflict_type || 'conflict'}</span>
+              </li>
+            `)
+            .join('')}
+        </ul>
+      `;
+    }
+
+    async function refreshConflicts(silent = false) {
+      try {
+        const data = await fetchJSON('/api/v1/conflicts');
+        renderConflicts(data);
+        if (!silent) {
+          showToast('Conflict status updated', 'success');
+        }
+      } catch (error) {
+        document.getElementById('conflict-content').innerHTML = `<div class="status-message">${error.message}</div>`;
+        if (!silent) {
+          showToast(error.message, 'error');
+        }
+      }
+    }
+
+    function encodePath(path) {
+      return path.split('/').map(encodeURIComponent).join('/');
+    }
+
+    async function getDiff(path, options = {}) {
+      if (!path) {
+        return '';
+      }
+      if (Object.prototype.hasOwnProperty.call(state.diffCache, path)) {
+        return state.diffCache[path];
+      }
+      if (state.pendingDiffPrefetch.has(path)) {
+        const pending = state.pendingDiffPrefetch.get(path);
+        return options.silent ? pending.catch(() => '') : pending;
+      }
+      const fetchPromise = (async () => {
+        const response = await fetch(withApiBase(`${API_BASE_PATH}/diff/${encodePath(path)}`));
+        const text = await response.text();
+        if (!response.ok) {
+          throw new Error(text || `Failed to load diff (${response.status})`);
+        }
+        const normalized = text || 'No diff available.';
+        state.diffCache[path] = normalized;
+        return normalized;
+      })();
+      const tracked = fetchPromise.finally(() => {
+        state.pendingDiffPrefetch.delete(path);
+      });
+      state.pendingDiffPrefetch.set(path, tracked);
+      return options.silent ? tracked.catch(() => '') : tracked;
+    }
+
+    async function loadDiff(path) {
+      if (!path) {
+        return;
+      }
+      const title = document.getElementById('diff-title');
+      const output = document.getElementById('diff-output');
+      title.textContent = path;
+      output.textContent = 'Loading diff…';
+      try {
+        const diff = await getDiff(path);
+        output.textContent = diff || 'No diff available.';
+      } catch (error) {
+        output.textContent = error.message;
+        showToast(error.message, 'error');
+      }
+    }
+
+    function getSelectedFiles(group) {
+      return Array.from(document.querySelectorAll(`#repo-content .file-checkbox[data-group="${group}"]:checked`)).map((el) => el.dataset.path);
+    }
+
+    async function stageFiles(group) {
+      const files = getSelectedFiles(group);
+      if (!files.length) {
+        showToast('Select files to stage first.', 'error');
+        return;
+      }
+      try {
+        await fetchJSON('/api/v1/stage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files })
+        });
+        showToast(`Staged ${files.length} file${files.length === 1 ? '' : 's'}`, 'success');
+        await refreshStatus(true);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function unstageFiles() {
+      const files = getSelectedFiles('staged');
+      if (!files.length) {
+        showToast('Select staged files to unstage.', 'error');
+        return;
+      }
+      try {
+        await fetchJSON('/api/v1/unstage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files })
+        });
+        showToast(`Unstaged ${files.length} file${files.length === 1 ? '' : 's'}`, 'success');
+        await refreshStatus(true);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function handleCommit(event) {
+      event.preventDefault();
+      const messageInput = document.getElementById('commit-message');
+      const commitBtn = document.getElementById('commit-btn');
+      const message = messageInput.value.trim();
+      if (!message) {
+        showToast('Commit message is required.', 'error');
+        return;
+      }
+      commitBtn.disabled = true;
+      const files = getSelectedFiles('staged');
+      try {
+        const response = await fetchJSON('/api/v1/commit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(files.length ? { message, files } : { message })
+        });
+        showToast(response.message || 'Commit created.', 'success');
+        messageInput.value = '';
+        document.getElementById('commit-context').value = '';
+        state.diffCache = {};
+        state.pendingDiffPrefetch = new Map();
+        state.lastDiffPrefetchSignature = '';
+        await refreshStatus(true);
+        await refreshConflicts(true);
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        commitBtn.disabled = false;
+      }
+    }
+
+    async function handlePreview() {
+      const container = document.getElementById('preview-results');
+      container.innerHTML = '<div class="status-message info">Generating preview…</div>';
+      try {
+        const data = await fetchJSON('/api/v1/preview');
+        const summary = data.summary || {};
+        const recommendations = data.recommendations || [];
+        container.innerHTML = `
+          <div class="metrics" style="margin-top:0;">
+            <div class="metric-box"><span>Total Files</span><strong>${summary.total_files || 0}</strong></div>
+            <div class="metric-box"><span>Modified</span><strong>${summary.files_modified || 0}</strong></div>
+            <div class="metric-box"><span>Additions</span><strong>${summary.total_additions || 0}</strong></div>
+            <div class="metric-box"><span>Deletions</span><strong>${summary.total_deletions || 0}</strong></div>
+          </div>
+          <div class="file-group" style="margin-top:16px;">
+            <h3 style="margin:0 0 12px;">Recommendations</h3>
+            ${recommendations.length ? `<ul class="recommendations-list">${recommendations.map((item) => `<li class="suggestion-item"><span>${item}</span></li>`).join('')}</ul>` : '<p class="hint">No additional recommendations.</p>'}
+          </div>
+        `;
+      } catch (error) {
+        container.innerHTML = `<div class="status-message">${error.message}</div>`;
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function handleSuggestions() {
+      const container = document.getElementById('suggestions');
+      const files = getSelectedFiles('staged');
+      const context = document.getElementById('commit-context').value.trim();
+      container.innerHTML = '<div class="status-message info">Requesting AI suggestions…</div>';
+      try {
+        const payload = {};
+        if (files.length) {
+          payload.files = files;
+        }
+        if (context) {
+          payload.context = context;
+        }
+        const data = await fetchJSON('/api/v1/commit/suggest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!data.suggestions || !data.suggestions.length) {
+          container.innerHTML = '<div class="status-message">No suggestions available.</div>';
+          return;
+        }
+        container.innerHTML = `
+          <h3 style="margin:16px 0 12px;">Suggestions (${data.model || 'fallback'})</h3>
+          <ul class="suggestions-list">
+            ${data.suggestions
+              .map((suggestion) => `<li class="suggestion-item" data-suggestion="${suggestion.replace(/"/g, '&quot;')}"><span>${suggestion}</span></li>`)
+              .join('')}
+          </ul>
+        `;
+      } catch (error) {
+        container.innerHTML = `<div class="status-message">${error.message}</div>`;
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function handleBranchCreate(event) {
+      event.preventDefault();
+      const input = document.getElementById('new-branch-name');
+      const name = input.value.trim();
+      if (!name) {
+        showToast('Branch name is required.', 'error');
+        return;
+      }
+      try {
+        await fetchJSON('/api/v1/branches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        showToast(`Branch '${name}' created`, 'success');
+        input.value = '';
+        await refreshBranches(true);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function handleBranchCheckout(branch) {
+      try {
+        await fetchJSON('/api/v1/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch })
+        });
+        showToast(`Checked out '${branch}'`, 'success');
+        state.diffCache = {};
+        state.pendingDiffPrefetch = new Map();
+        state.lastDiffPrefetchSignature = '';
+        await refreshStatus(true);
+        await refreshBranches(true);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    function attachEventListeners() {
+      document.getElementById('refresh-health').addEventListener('click', () => refreshHealth(true));
+      document.getElementById('refresh-status').addEventListener('click', () => refreshStatus(true));
+      document.getElementById('refresh-branches').addEventListener('click', () => refreshBranches(true));
+      document.getElementById('refresh-conflicts').addEventListener('click', () => refreshConflicts(true));
+      document.getElementById('commit-form').addEventListener('submit', handleCommit);
+      document.getElementById('preview-btn').addEventListener('click', handlePreview);
+      document.getElementById('suggest-btn').addEventListener('click', handleSuggestions);
+      document.getElementById('branch-form').addEventListener('submit', handleBranchCreate);
+
+      const searchInput = document.getElementById('file-search-input');
+      if (searchInput) {
+        searchInput.addEventListener('input', (event) => {
+          state.fileSearch = event.target.value;
+          renderRepository(state.status);
+        });
+      }
+
+      const clearButton = document.getElementById('file-search-clear');
+      if (clearButton) {
+        clearButton.addEventListener('click', () => {
+          state.fileSearch = '';
+          renderRepository(state.status);
+          const inputEl = document.getElementById('file-search-input');
+          if (inputEl) {
+            inputEl.focus();
+          }
+        });
+      }
+
+      document.querySelectorAll('[data-search-group]').forEach((checkbox) => {
+        checkbox.addEventListener('change', (event) => {
+          const target = event.target;
+          const group = target.dataset.searchGroup;
+          if (!group) {
+            return;
+          }
+          state.searchGroups[group] = target.checked;
+          renderRepository(state.status);
+        });
+      });
+
+      const includeDiff = document.getElementById('search-include-diff');
+      if (includeDiff) {
+        includeDiff.addEventListener('change', (event) => {
+          state.searchIncludeDiff = event.target.checked;
+          state.lastDiffPrefetchSignature = '';
+          renderRepository(state.status);
+        });
+      }
+
+      document.getElementById('repo-content').addEventListener('change', (event) => {
+        if (event.target.classList.contains('file-checkbox')) {
+          event.stopPropagation();
+          updateSelectionSummary();
+        }
+      });
+
+      document.getElementById('repo-content').addEventListener('click', (event) => {
+        const checkbox = event.target.closest('.file-checkbox');
+        if (checkbox) {
+          return;
+        }
+        const item = event.target.closest('.file-item');
+        if (!item) {
+          const button = event.target.closest('button[data-action]');
+          if (!button) {
+            return;
+          }
+          const action = button.dataset.action;
+          const group = button.dataset.group;
+          if (action === 'stage') {
+            stageFiles(group);
+          } else if (action === 'unstage') {
+            unstageFiles();
+          }
+          return;
+        }
+        const path = item.dataset.path;
+        state.selectedPath = path;
+        loadDiff(path);
+      });
+
+      document.getElementById('branches-content').addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action="checkout"]');
+        if (!button) {
+          return;
+        }
+        const branch = button.dataset.branch;
+        handleBranchCheckout(branch);
+      });
+
+      document.getElementById('suggestions').addEventListener('click', (event) => {
+        const suggestion = event.target.closest('[data-suggestion]');
+        if (!suggestion) {
+          return;
+        }
+        const message = suggestion.dataset.suggestion;
+        const input = document.getElementById('commit-message');
+        input.value = message;
+        showToast('Suggestion applied to commit message', 'success');
+      });
+
+      updateSearchUI();
+    }
+
+    async function bootstrap() {
+      attachEventListeners();
+      await Promise.all([refreshHealth(true), refreshStatus(true), refreshBranches(true), refreshConflicts(true)]);
+      setInterval(() => refreshStatus(true), 20000);
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>

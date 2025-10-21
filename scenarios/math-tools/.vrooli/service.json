@@ -158,7 +158,7 @@
            {
              "type": "binaries",
              "targets": [
-               "math-tools-api"
+               "api/math-tools-api"
              ]
            },
            {
@@ -274,10 +274,10 @@
         },
         {
           "name": "test-integration",
-          "run": "bash test.sh",
+          "run": "bash test/phases/test-integration.sh",
           "description": "Run full integration tests",
           "condition": {
-            "file_exists": "test.sh"
+            "file_exists": "test/phases/test-integration.sh"
           }
         }
       ]
@@ -490,30 +490,30 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "VALUE_PROPOSITION_PLACEHOLDER",
-      "targetMarket": "developers",
+      "valueProposition": "Enterprise-grade mathematical computation platform eliminating need for MATLAB/Mathematica licenses at 90% cost savings",
+      "targetMarket": "data scientists, researchers, quantitative analysts, engineers, financial institutions",
       "painPoints": [
-        "PAIN_POINT_1_PLACEHOLDER",
-        "PAIN_POINT_2_PLACEHOLDER",
-        "PAIN_POINT_3_PLACEHOLDER"
+        "MATLAB licenses cost $2,000-$10,000+ per user annually",
+        "Existing tools difficult to integrate into modern web applications - lack REST API access",
+        "Proprietary formats and vendor lock-in create switching costs"
       ],
-      "solution": "SOLUTION_DESCRIPTION_PLACEHOLDER",
-      "competitiveAdvantage": "COMPETITIVE_ADVANTAGE_PLACEHOLDER",
+      "solution": "Comprehensive mathematical computation via REST API and CLI - statistics, calculus, optimization, forecasting, linear algebra - all through simple HTTP endpoints",
+      "competitiveAdvantage": "Modern API-first architecture, zero licensing fees, containerized deployment, comprehensive test coverage, production-ready performance (105K+ req/s)",
       "revenuePotential": {
-        "initial": "$INITIAL_REVENUE_PLACEHOLDER",
-        "recurring": "$RECURRING_REVENUE_PLACEHOLDER",
-        "expansion": "$EXPANSION_REVENUE_PLACEHOLDER",
-        "totalEstimate": "$TOTAL_ESTIMATE_PLACEHOLDER"
+        "initial": "$15,000",
+        "recurring": "$25,000",
+        "expansion": "$50,000",
+        "totalEstimate": "$90,000"
       },
       "marketDemand": {
-        "level": "DEMAND_LEVEL_PLACEHOLDER",
-        "growth": "GROWTH_RATE_PLACEHOLDER",
-        "evidence": "MARKET_EVIDENCE_PLACEHOLDER"
+        "level": "high",
+        "growth": "15-20% annually",
+        "evidence": "Growing data science market, increased demand for API-based mathematical tools, shift from desktop to cloud computing"
       },
       "roi": {
-        "developmentCost": "$DEVELOPMENT_COST_PLACEHOLDER",
-        "timeToMarket": "TIME_TO_MARKET_PLACEHOLDER",
-        "breakEven": "BREAK_EVEN_TIMELINE_PLACEHOLDER"
+        "developmentCost": "$20,000",
+        "timeToMarket": "2-3 months",
+        "breakEven": "2-4 enterprise deployments"
       }
     },
     "performance": {
@@ -553,18 +553,18 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "APPLICATION_NAME_PLACEHOLDER",
+          "default": "Math Tools",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
           "type": "string",
-          "default": "COMPANY_NAME_PLACEHOLDER",
+          "default": "Vrooli",
           "description": "Customer company name"
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#PRIMARY_COLOR_PLACEHOLDER",
-          "description": "Brand primary color"
+          "default": "#2563eb",
+          "description": "Brand primary color (blue for mathematical/technical feel)"
         },
         "DATABASE_NAME": {
           "type": "string",
@@ -575,15 +575,12 @@
       "features": {
         "authentication": {
           "enabled": true,
-          "provider": "AUTH_PROVIDER_PLACEHOLDER",
+          "provider": "bearer-token",
           "sso": false
         },
         "notifications": {
-          "enabled": true,
-          "channels": [
-            "email",
-            "webhook"
-          ]
+          "enabled": false,
+          "channels": []
         },
         "analytics": {
           "enabled": true,
@@ -591,38 +588,26 @@
         },
         "payments": {
           "enabled": false,
-          "provider": "PAYMENT_PROVIDER_PLACEHOLDER"
+          "provider": "none"
         }
       },
       "integrations": [
         {
-          "name": "INTEGRATION_NAME_PLACEHOLDER",
-          "type": "INTEGRATION_TYPE_PLACEHOLDER",
+          "name": "postgresql",
+          "type": "database",
+          "required": true
+        },
+        {
+          "name": "redis",
+          "type": "cache",
+          "required": true
+        },
+        {
+          "name": "minio",
+          "type": "storage",
           "required": false
         }
       ]
-    },
-    "aiGeneration": {
-      "enabled": true,
-      "placeholders": {
-        "business": [
-          "VALUE_PROPOSITION_PLACEHOLDER",
-          "developers",
-          "PAIN_POINT_*_PLACEHOLDER",
-          "SOLUTION_DESCRIPTION_PLACEHOLDER"
-        ],
-        "technical": [
-          "math-tools",
-          "math_tools",
-          "math-tools"
-        ],
-        "revenue": [
-          "*_REVENUE_PLACEHOLDER",
-          "TOTAL_ESTIMATE_PLACEHOLDER",
-          "DEVELOPMENT_COST_PLACEHOLDER"
-        ]
-      },
-      "instructions": "Replace all _PLACEHOLDER values with specific details for the target scenario"
     }
   }
 }

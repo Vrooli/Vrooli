@@ -57,6 +57,10 @@ func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
 		maxRetries = 10
 	}
 
+	baseDelay := 500 * time.Millisecond
+	maxDelay := 30 * time.Second
+	randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		log.Printf("🔌 Attempting database connection (attempt %d/%d)...", attempt, maxRetries)
 
@@ -64,7 +68,10 @@ func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
 		if err != nil {
 			log.Printf("❌ Failed to open database connection: %v", err)
 			if attempt < maxRetries {
-				waitTime := calculateBackoff(attempt)
+				delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt-1)), float64(maxDelay)))
+				jitterRange := float64(delay) * 0.25
+				jitter := time.Duration(randSource.Float64() * jitterRange)
+				waitTime := delay + jitter
 				log.Printf("⏳ Waiting %v before retry...", waitTime)
 				time.Sleep(waitTime)
 				continue
@@ -83,7 +90,10 @@ func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
 			log.Printf("❌ Database ping failed: %v", err)
 			db.Close()
 			if attempt < maxRetries {
-				waitTime := calculateBackoff(attempt)
+				delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt-1)), float64(maxDelay)))
+				jitterRange := float64(delay) * 0.25
+				jitter := time.Duration(randSource.Float64() * jitterRange)
+				waitTime := delay + jitter
 				log.Printf("⏳ Waiting %v before retry...", waitTime)
 				time.Sleep(waitTime)
 				continue
@@ -96,17 +106,6 @@ func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
 	}
 
 	return nil, fmt.Errorf("failed to connect to database after %d attempts", maxRetries)
-}
-
-// calculateBackoff calculates exponential backoff with jitter
-func calculateBackoff(attempt int) time.Duration {
-	// Base wait time with exponential increase
-	base := time.Duration(math.Min(float64(attempt*attempt), 30)) * time.Second
-
-	// Add random jitter (up to 25% of base time)
-	jitter := time.Duration(float64(base) * 0.25 * rand.Float64())
-
-	return base + jitter
 }
 
 // MonitorConnection monitors database connection health

@@ -1,0 +1,16 @@
+{
+  "name": "git-control-tower-ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Frontend bridge helpers for the Git Control Tower scenario UI",
+  "license": "MIT",
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "scripts": {
+    "build": "echo 'UI assets are served via the Go API; no build step required'",
+    "start": "echo 'Use make start or vrooli scenario start git-control-tower'",
+    "lint": "echo 'No UI build pipeline defined'"
+  }
+}

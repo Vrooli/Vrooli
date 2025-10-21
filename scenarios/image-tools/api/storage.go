@@ -5,11 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	
+
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -51,13 +50,19 @@ func NewMinIOStorage() (StorageService, error) {
 	ctx := context.Background()
 	exists, err := client.BucketExists(ctx, bucketName)
 	if err != nil {
-		log.Printf("Warning: Could not check if bucket exists: %v", err)
+		if appLogger != nil {
+			appLogger.Warn("Could not check if bucket exists", "bucket", bucketName, "error", err.Error())
+		}
 	}
-	
+
 	if !exists {
 		err = client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
 		if err != nil {
-			log.Printf("Warning: Could not create bucket: %v", err)
+			if appLogger != nil {
+				appLogger.Warn("Could not create bucket", "bucket", bucketName, "error", err.Error())
+			}
+		} else if appLogger != nil {
+			appLogger.Info("Created MinIO bucket", "bucket", bucketName)
 		}
 	}
 	
@@ -105,15 +110,20 @@ func (m *MinIOStorage) Get(key string) ([]byte, error) {
 
 func (m *MinIOStorage) Delete(key string) error {
 	ctx := context.Background()
-	
+
 	key = strings.TrimPrefix(key, "/")
-	
+
 	err := m.client.RemoveObject(ctx, m.bucketName, key, minio.RemoveObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete from MinIO: %w", err)
 	}
-	
+
 	return nil
+}
+
+func (m *MinIOStorage) IsStorageURL(url string) bool {
+	// Check if URL contains the MinIO public URL or bucket name
+	return strings.Contains(url, m.publicURL) || strings.Contains(url, m.bucketName)
 }
 
 func getContentType(filename string) string {
@@ -167,4 +177,9 @@ func (l *LocalStorage) Get(key string) ([]byte, error) {
 func (l *LocalStorage) Delete(key string) error {
 	path := filepath.Join(l.basePath, key)
 	return os.Remove(path)
+}
+
+func (l *LocalStorage) IsStorageURL(url string) bool {
+	// Check if URL is a file:// URL pointing to our base path
+	return strings.HasPrefix(url, "file://"+l.basePath)
 }

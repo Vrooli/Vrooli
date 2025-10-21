@@ -88,7 +88,8 @@
     "health": {
       "description": "Game Dialog Generator health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {

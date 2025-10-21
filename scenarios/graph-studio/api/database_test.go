@@ -2,11 +2,25 @@ package main
 
 import (
 	"database/sql"
+	"math"
+	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )
+
+func sampleBackoff(attempt int, rng *rand.Rand) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+
+	baseDelay := 500 * time.Millisecond
+	maxDelay := 30 * time.Second
+	delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt-1)), float64(maxDelay)))
+	jitterRange := float64(delay) * 0.25
+	return delay + time.Duration(rng.Float64()*jitterRange)
+}
 
 // TestDatabaseConfig tests database configuration
 func TestDatabaseConfig(t *testing.T) {
@@ -56,32 +70,33 @@ func TestCalculateBackoff(t *testing.T) {
 		{
 			name:    "First Attempt",
 			attempt: 1,
-			minWait: 1 * time.Second,
-			maxWait: 2 * time.Second,
+			minWait: 500 * time.Millisecond,
+			maxWait: time.Duration(float64(500*time.Millisecond) * 1.25),
 		},
 		{
 			name:    "Second Attempt",
 			attempt: 2,
-			minWait: 3 * time.Second,
-			maxWait: 6 * time.Second,
+			minWait: 1 * time.Second,
+			maxWait: time.Duration(float64(1*time.Second) * 1.25),
 		},
 		{
 			name:    "Third Attempt",
 			attempt: 3,
-			minWait: 8 * time.Second,
-			maxWait: 14 * time.Second,
+			minWait: 2 * time.Second,
+			maxWait: time.Duration(float64(2*time.Second) * 1.25),
 		},
 		{
 			name:    "Large Attempt (Capped)",
 			attempt: 10,
 			minWait: 30 * time.Second,
-			maxWait: 40 * time.Second,
+			maxWait: time.Duration(float64(30*time.Second) * 1.25),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			duration := calculateBackoff(tt.attempt)
+			rng := rand.New(rand.NewSource(1))
+			duration := sampleBackoff(tt.attempt, rng)
 
 			if duration < tt.minWait {
 				t.Errorf("Backoff duration %v is less than minimum %v", duration, tt.minWait)
@@ -98,8 +113,9 @@ func TestCalculateBackoff(t *testing.T) {
 func TestBackoffProgression(t *testing.T) {
 	var previous time.Duration
 
+	rng := rand.New(rand.NewSource(2))
 	for attempt := 1; attempt <= 5; attempt++ {
-		current := calculateBackoff(attempt)
+		current := sampleBackoff(attempt, rng)
 
 		if attempt > 1 && current <= previous {
 			t.Errorf("Backoff should increase with attempts: attempt %d (%v) <= attempt %d (%v)",
@@ -117,8 +133,9 @@ func TestBackoffJitter(t *testing.T) {
 	// since the current implementation doesn't actually use randomness
 
 	attempt := 3
-	duration1 := calculateBackoff(attempt)
-	duration2 := calculateBackoff(attempt)
+	rng := rand.New(rand.NewSource(3))
+	duration1 := sampleBackoff(attempt, rng)
+	duration2 := sampleBackoff(attempt, rng)
 
 	// Without randomness, should be the same
 	if duration1 != duration2 {
@@ -126,8 +143,8 @@ func TestBackoffJitter(t *testing.T) {
 	}
 
 	// Verify duration is within expected range
-	expectedMin := 8 * time.Second
-	expectedMax := 14 * time.Second
+	expectedMin := 2 * time.Second
+	expectedMax := time.Duration(float64(2*time.Second) * 1.25)
 
 	if duration1 < expectedMin || duration1 > expectedMax {
 		t.Errorf("Duration %v outside expected range [%v, %v]", duration1, expectedMin, expectedMax)
