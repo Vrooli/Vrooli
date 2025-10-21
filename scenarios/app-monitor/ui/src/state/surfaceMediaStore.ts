@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-export type SurfaceType = 'app' | 'web';
+export type SurfaceType = 'app' | 'web' | 'resource';
 
 export interface SurfaceScreenshotMeta {
   dataUrl: string;

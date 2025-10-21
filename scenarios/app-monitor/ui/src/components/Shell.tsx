@@ -138,6 +138,7 @@ export default function Shell({ isConnected }: ShellProps) {
           onClick={handleToggleTabs}
           aria-pressed={activeOverlay === 'tabs'}
           aria-haspopup="dialog"
+          aria-label="Tabs"
         >
           <span className="shell__nav-icon" aria-hidden>
             <Layers size={20} />
@@ -154,6 +155,7 @@ export default function Shell({ isConnected }: ShellProps) {
           onClick={handleToggleActions}
           aria-pressed={activeOverlay === 'actions'}
           aria-haspopup="dialog"
+          aria-label="More"
         >
           <span className="shell__nav-icon" aria-hidden>
             <MoreHorizontal size={20} />

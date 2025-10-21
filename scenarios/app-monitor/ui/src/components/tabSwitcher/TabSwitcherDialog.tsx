@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Package } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { selectScreenshotBySurface, useSurfaceMediaStore } from '@/state/surfaceMediaStore';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
@@ -12,6 +12,7 @@ import { AppsGridSkeleton, ResourcesGridSkeleton } from '@/components/LoadingSke
 import { resolveAppIdentifier } from '@/utils/appPreview';
 import { ensureDataUrl } from '@/utils/dataUrl';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
+import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
 import type { App, Resource } from '@/types';
 import './TabSwitcherDialog.css';
 
@@ -85,6 +86,7 @@ const matchesResourceSearch = (resource: Resource, query: string): boolean => {
 
 export default function TabSwitcherDialog() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const segmentParam = searchParams.get(SEGMENT_QUERY_KEY);
   const { closeOverlay } = useOverlayRouter();
@@ -111,7 +113,7 @@ export default function TabSwitcherDialog() {
     error: state.error,
   }));
   const normalizedSearch = search.trim().toLowerCase();
-  const { filteredApps, recentApps } = useAppCatalog({ search, sort: sortOption, historyLimit: 12 });
+  const { apps, filteredApps, recentApps } = useAppCatalog({ search, sort: sortOption, historyLimit: 12 });
   const { sortedResources } = useResourcesCatalog({ sort: resourceSortOption });
   const setSurfaceScreenshot = useSurfaceMediaStore(state => state.setScreenshot);
   const {
@@ -129,6 +131,26 @@ export default function TabSwitcherDialog() {
     openTab: state.openTab,
     updateTab: state.updateTab,
   }));
+
+  const {
+    autoSelect: autoSelectScenario,
+    status: autoNextStatus,
+    message: autoNextMessage,
+    resetAutoNextMessage,
+  } = useAutoNextScenario();
+
+  const currentAppId = useMemo(() => {
+    const match = location.pathname.match(/\/apps\/([^/]+)\//);
+    if (!match) {
+      return null;
+    }
+    try {
+      return decodeURIComponent(match[1]);
+    } catch (error) {
+      console.warn('[tabSwitcher] Failed to decode current app id', error);
+      return match[1];
+    }
+  }, [location.pathname]);
 
   const filteredResources = useMemo(() => (
     sortedResources.filter(resource => matchesResourceSearch(resource, normalizedSearch))
@@ -227,8 +249,9 @@ export default function TabSwitcherDialog() {
     closeOverlay({ preserve: ['segment'] });
   };
 
-  const handleAppSelect = (app: App) => {
-    const identifier = resolveAppIdentifier(app) ?? app.id;
+  const handleAppSelect = (app: App, options?: { autoSelected?: boolean; navigationId?: string }) => {
+    resetAutoNextMessage();
+    const identifier = options?.navigationId ?? resolveAppIdentifier(app) ?? app.id;
     if (!identifier) {
       return;
     }
@@ -238,6 +261,8 @@ export default function TabSwitcherDialog() {
         fromAppsList: true,
         originAppId: app.id,
         navTimestamp: Date.now(),
+        autoSelected: Boolean(options?.autoSelected),
+        autoSelectedAt: options?.autoSelected ? Date.now() : undefined,
       },
     });
   };
@@ -307,6 +332,18 @@ export default function TabSwitcherDialog() {
   const showWebHistory = filteredHistoryTabs.length > 0;
 
   const activeSegmentLabel = SEGMENTS.find(segment => segment.id === activeSegment)?.label ?? '';
+  const isAutoNextRunning = autoNextStatus === 'running';
+
+  const handleAutoNext = async () => {
+    if (isAutoNextRunning) {
+      return;
+    }
+    await autoSelectScenario({
+      apps,
+      currentAppId,
+      onSelect: (app, navigationId) => handleAppSelect(app, { autoSelected: true, navigationId }),
+    });
+  };
 
   return (
     <div className="tab-switcher" ref={dialogRef}>
@@ -353,13 +390,27 @@ export default function TabSwitcherDialog() {
                 className={clsx('tab-switcher__segment-btn', isActive && 'active')}
                 onClick={() => handleSegmentSelect(segment.id)}
                 aria-pressed={isActive}
+                aria-label={segment.label}
               >
                 <Icon size={16} aria-hidden />
-                <span>{segment.label}</span>
+                <span className="tab-switcher__segment-label">{segment.label}</span>
               </button>
             );
           })}
         </div>
+        {activeSegment === 'apps' && (
+          <button
+            type="button"
+            className="tab-switcher__auto-next"
+            onClick={handleAutoNext}
+            disabled={isAutoNextRunning || apps.length === 0}
+          >
+            {isAutoNextRunning
+              ? <Loader2 size={16} aria-hidden className="tab-switcher__auto-next-spinner" />
+              : <Shuffle size={16} aria-hidden />}
+            <span>{isAutoNextRunning ? 'Selecting next scenario…' : 'Auto-next scenario'}</span>
+          </button>
+        )}
         {activeSegment === 'web' && (
           <>
             <form className="tab-switcher__web-form" onSubmit={handleWebTabCreate}>
@@ -405,6 +456,12 @@ export default function TabSwitcherDialog() {
           </>
         )}
       </div>
+
+      {activeSegment === 'apps' && autoNextMessage && (
+        <div className="tab-switcher__auto-next-message" role="status">
+          {autoNextMessage}
+        </div>
+      )}
 
       <div className="tab-switcher__content">
         {activeSegment === 'apps' && (
@@ -585,12 +642,22 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
   const screenshotSelector = useMemo(() => selectScreenshotBySurface('app', identifier), [identifier]);
   const screenshot = useSurfaceMediaStore(screenshotSelector);
   const thumbStyle = screenshot ? { backgroundImage: `url(${screenshot.dataUrl})` } : undefined;
+  const hasScreenshot = Boolean(screenshot);
   const viewCountLabel = formatViewCount(app.view_count);
   const statusClassName = useMemo(() => {
     const source = (app.status ?? 'unknown').toLowerCase();
     const normalized = source.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     return `status-${normalized || 'unknown'}`;
   }, [app.status]);
+  const fallbackInitial = useMemo(() => {
+    const base = (app.scenario_name ?? app.name ?? app.id ?? '').trim();
+    if (!base) {
+      return '?';
+    }
+    const alphanumeric = base.replace(/[^a-zA-Z0-9]/g, '');
+    const candidate = alphanumeric.charAt(0) || base.charAt(0);
+    return candidate.toUpperCase();
+  }, [app.id, app.name, app.scenario_name]);
 
   return (
     <button
@@ -599,11 +666,21 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
       onClick={() => onSelect(app)}
     >
       <div
-        className={clsx('tab-card__thumb', screenshot && 'tab-card__thumb--image')}
+        className={clsx(
+          'tab-card__thumb',
+          'tab-card__thumb--scenario',
+          hasScreenshot && 'tab-card__thumb--image',
+        )}
         aria-hidden
         style={thumbStyle}
         title={screenshot?.note ?? undefined}
-      />
+      >
+        {!hasScreenshot && (
+          <div className="tab-card__thumb-fallback" aria-hidden>
+            <span className="tab-card__thumb-placeholder">{fallbackInitial}</span>
+          </div>
+        )}
+      </div>
       <div className="tab-card__body">
         <h4>{app.scenario_name ?? app.name ?? app.id}</h4>
         <div className="tab-card__meta">
@@ -651,25 +728,7 @@ function ResourceGrid({
   return (
     <div className="tab-switcher__grid">
       {resources.map(resource => (
-        <button
-          key={resource.id}
-          type="button"
-          className="tab-card"
-          onClick={() => onSelect(resource)}
-        >
-          <div className="tab-card__thumb tab-card__thumb--resource" aria-hidden>
-            <Package size={44} aria-hidden />
-          </div>
-          <div className="tab-card__body">
-            <h4>{resource.name}</h4>
-            <div className="tab-card__meta">
-              <span className="tab-card__chip">{resource.type}</span>
-              <span className={clsx('tab-card__status', `status-${(resource.status ?? 'unknown').toLowerCase()}`)}>
-                {resource.status?.toUpperCase() ?? 'UNKNOWN'}
-              </span>
-            </div>
-          </div>
-        </button>
+        <ResourceTabCard key={resource.id} resource={resource} onSelect={onSelect} />
       ))}
     </div>
   );
@@ -680,6 +739,56 @@ function EmptyState({ message }: { message: string }) {
     <div className="tab-switcher__empty">
       <p>{message}</p>
     </div>
+  );
+}
+
+function ResourceTabCard({ resource, onSelect }: { resource: Resource; onSelect(resource: Resource): void }) {
+  const screenshotSelector = useMemo(() => selectScreenshotBySurface('resource', resource.id), [resource.id]);
+  const screenshot = useSurfaceMediaStore(screenshotSelector);
+  const thumbStyle = screenshot ? { backgroundImage: `url(${screenshot.dataUrl})` } : undefined;
+  const hasScreenshot = Boolean(screenshot);
+  const fallbackInitial = useMemo(() => {
+    const base = (resource.name ?? resource.id ?? '').toString().trim();
+    if (!base) {
+      return '?';
+    }
+    const alphanumeric = base.replace(/[^a-zA-Z0-9]/g, '');
+    const candidate = alphanumeric.charAt(0) || base.charAt(0);
+    return candidate.toUpperCase();
+  }, [resource.id, resource.name]);
+
+  return (
+    <button
+      type="button"
+      className="tab-card"
+      onClick={() => onSelect(resource)}
+    >
+      <div
+        className={clsx(
+          'tab-card__thumb',
+          'tab-card__thumb--resource',
+          hasScreenshot && 'tab-card__thumb--image',
+        )}
+        aria-hidden
+        style={thumbStyle}
+        title={screenshot?.note ?? undefined}
+      >
+        {!hasScreenshot && (
+          <div className="tab-card__thumb-fallback" aria-hidden>
+            <span className="tab-card__thumb-placeholder">{fallbackInitial}</span>
+          </div>
+        )}
+      </div>
+      <div className="tab-card__body">
+        <h4>{resource.name}</h4>
+        <div className="tab-card__meta">
+          <span className="tab-card__chip">{resource.type}</span>
+          <span className={clsx('tab-card__status', `status-${(resource.status ?? 'unknown').toLowerCase()}`)}>
+            {resource.status?.toUpperCase() ?? 'UNKNOWN'}
+          </span>
+        </div>
+      </div>
+    </button>
   );
 }
 

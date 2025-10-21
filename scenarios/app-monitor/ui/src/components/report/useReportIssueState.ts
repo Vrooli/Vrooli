@@ -29,6 +29,8 @@ import type {
 } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App, BridgeRuleReport } from '@/types';
+import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
+import { useScenarioIssuesStore } from '@/state/scenarioIssuesStore';
 
 import { toConsoleEntry, toNetworkEntry } from './reportFormatters';
 import type {
@@ -336,6 +338,8 @@ const useReportIssueState = ({
   const [reportHealthChecksTotal, setReportHealthChecksTotal] = useState<number | null>(null);
   const [reportIncludeHealthChecks, setReportIncludeHealthChecks] = useState(true);
   const [existingIssuesState, setExistingIssuesState] = useState<ExistingIssuesStateInternal>(() => createExistingIssuesState());
+  const markScenarioIssueCreated = useScenarioEngagementStore(state => state.markIssueCreated);
+  const flagScenarioIssueReported = useScenarioIssuesStore(state => state.flagIssueReported);
 
   const reportAppLogsFetchedForRef = useRef<string | null>(null);
   const reportConsoleLogsFetchedForRef = useRef<string | null>(null);
@@ -987,6 +991,11 @@ const useReportIssueState = ({
         issueUrl,
         message: response.message ?? 'Issue report sent successfully.',
       });
+      flagScenarioIssueReported(targetAppId);
+      const engagementIdentifier = appId ?? app?.id ?? null;
+      if (engagementIdentifier) {
+        markScenarioIssueCreated(engagementIdentifier);
+      }
       setReportMessage('');
     } catch (error: unknown) {
       const fallbackMessage = (error as { message?: string })?.message ?? 'Failed to send issue report.';
@@ -1019,8 +1028,10 @@ const useReportIssueState = ({
     reportNetworkTotal,
     reportIncludeHealthChecks,
     reportHealthChecks,
-    reportHealthChecksFetchedAt,
-    reportHealthChecksTotal,
+   reportHealthChecksFetchedAt,
+   reportHealthChecksTotal,
+    flagScenarioIssueReported,
+    markScenarioIssueCreated,
     reportMessage,
   ]);
 

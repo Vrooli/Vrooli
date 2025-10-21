@@ -141,6 +141,12 @@
   }
 }
 
+@media (max-width: 640px) {
+  .shell__nav-label {
+    display: none;
+  }
+}
+
 @media (max-width: 560px) {
   .shell__overlay {
     padding: 16px 10px;

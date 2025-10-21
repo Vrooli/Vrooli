@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { Info, Loader2, X } from 'lucide-react';
 import { appService } from '@/services/api';
 import { useAppsStore } from '@/state/appsStore';
+import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
 import { logger } from '@/services/logger';
 import type { App, AppProxyMetadata, LocalhostUsageReport } from '@/types';
 import { useShellOverlayStore } from '@/state/shellOverlayStore';
@@ -50,15 +51,20 @@ const AppPreviewView = () => {
     originAppId?: string;
     navTimestamp?: number;
     suppressedAutoBack?: boolean;
+    autoSelected?: boolean;
+    autoSelectedAt?: number;
   };
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeOverlay = useShellOverlayStore(state => state.activeView);
   const registerOverlayHost = useShellOverlayStore(state => state.registerHost);
   const setSurfaceScreenshot = useSurfaceMediaStore(state => state.setScreenshot);
+  const beginScenarioSession = useScenarioEngagementStore(state => state.beginSession);
+  const endScenarioSession = useScenarioEngagementStore(state => state.endSession);
   const locationState: PreviewLocationState | null = location.state && typeof location.state === 'object'
     ? location.state as PreviewLocationState
     : null;
+  const autoSelectedFromTabs = Boolean(locationState?.autoSelected);
   const overlayQuery = searchParams.get('overlay');
   const [isLogsPanelOpen, setIsLogsPanelOpen] = useState(() => overlayQuery === 'logs');
   const isIosSafari = useMemo(() => {
@@ -139,6 +145,25 @@ const AppPreviewView = () => {
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
   const lastStateSnapshotRef = useRef<string>('');
+
+  const scenarioDisplayName = useMemo(() => {
+    const fallback = appId?.trim() || 'Scenario';
+    if (!currentApp) {
+      return fallback;
+    }
+    const preferred = (currentApp.scenario_name ?? currentApp.name ?? '').trim();
+    return preferred.length > 0 ? preferred : fallback;
+  }, [appId, currentApp]);
+
+  useEffect(() => {
+    if (!appId) {
+      return;
+    }
+    beginScenarioSession(appId, { viaAutoNext: autoSelectedFromTabs });
+    return () => {
+      endScenarioSession(appId);
+    };
+  }, [appId, autoSelectedFromTabs, beginScenarioSession, endScenarioSession]);
 
   useEffect(() => {
     const host = (isFullscreen || isLayoutFullscreen) ? previewViewNode : null;
@@ -1139,7 +1164,7 @@ const AppPreviewView = () => {
         resetPreviewState();
       }
       setLoading(false);
-      setStatusMessage('Application is not running. Start it from the Applications view to access the UI preview.');
+      setStatusMessage(`${scenarioDisplayName} is not running`);
       return;
     }
 
@@ -1166,6 +1191,7 @@ const AppPreviewView = () => {
     currentApp,
     hasCustomPreviewUrl,
     previewUrl,
+    scenarioDisplayName,
     resetPreviewState,
   ]);
 
@@ -1332,7 +1358,10 @@ const AppPreviewView = () => {
     try {
       const success = await appService.controlApp(appToControl, action);
       if (!success) {
-        setStatusMessage(`Unable to ${action} the application. Check logs for details.`);
+        const failureMessage = action === 'start'
+          ? `Unable to start ${scenarioDisplayName}. Check logs for details.`
+          : `Unable to ${action} the application. Check logs for details.`;
+        setStatusMessage(failureMessage);
         return false;
       }
 
@@ -1351,12 +1380,15 @@ const AppPreviewView = () => {
       return true;
     } catch (error) {
       logger.error(`Failed to ${action} app ${appToControl}`, error);
-      setStatusMessage(`Unable to ${action} the application. Check logs for details.`);
+      const failureMessage = action === 'start'
+        ? `Unable to start ${scenarioDisplayName}. Check logs for details.`
+        : `Unable to ${action} the application. Check logs for details.`;
+      setStatusMessage(failureMessage);
       return false;
     } finally {
       setPendingAction(null);
     }
-  }, [setAppsState]);
+  }, [scenarioDisplayName, setAppsState]);
 
   const handleAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
     if (action === 'restart') {
@@ -1371,7 +1403,7 @@ const AppPreviewView = () => {
     const success = await executeAppAction(appToControl, action);
     if (!success) {
       if (action === 'start') {
-        setPreviewOverlay({ type: 'error', message: 'Unable to start the application. Check logs for details.' });
+        setPreviewOverlay({ type: 'error', message: `Unable to start ${scenarioDisplayName}. Check logs for details.` });
         setLoading(false);
       } else if (action === 'restart') {
         setPreviewOverlay({ type: 'error', message: 'Unable to restart the application. Check logs for details.' });
@@ -1389,7 +1421,7 @@ const AppPreviewView = () => {
       setPreviewOverlay(prev => (prev && prev.type === 'waiting' ? null : prev));
       setLoading(false);
     }
-  }, [beginLifecycleMonitor, executeAppAction, reloadPreview, setLoading]);
+  }, [beginLifecycleMonitor, executeAppAction, reloadPreview, scenarioDisplayName, setLoading]);
 
   const handleToggleApp = useCallback(() => {
     if (!currentApp || pendingAction) {
@@ -1803,7 +1835,7 @@ const AppPreviewView = () => {
         </div>
       ) : (
         <div className="preview-placeholder">
-          {loading ? 'Fetching application details…' : statusMessage ?? 'Preview unavailable.'}
+          {loading ? `Fetching ${scenarioDisplayName} details` : statusMessage ?? 'Preview unavailable.'}
         </div>
       )}
 
