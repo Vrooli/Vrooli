@@ -275,6 +275,19 @@ const clampClipToCanvas = (clip: Rect, canvasWidth: number, canvasHeight: number
   return { x, y, width, height };
 };
 
+const clampNumber = (value: number, min: number, max: number): number => {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  if (value < min) {
+    return min;
+  }
+  if (value > max) {
+    return max;
+  }
+  return value;
+};
+
 const scaleRect = (rect: Rect, factor: number): Rect => {
   return {
     x: rect.x * factor,
@@ -1694,51 +1707,76 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
             backgroundColor: inferredBackground ?? null,
           };
 
+          const currentViewport = getViewportRect();
+          const viewportWidth = Math.max(1, Math.round(currentViewport.width));
+          const viewportHeight = Math.max(1, Math.round(currentViewport.height));
+          const docWidth = Math.max(
+            document.documentElement?.scrollWidth ?? 0,
+            document.body?.scrollWidth ?? 0,
+            viewportWidth,
+          );
+          const docHeight = Math.max(
+            document.documentElement?.scrollHeight ?? 0,
+            document.body?.scrollHeight ?? 0,
+            viewportHeight,
+          );
+
           let viewportRect: Rect | null = null;
-          let clipScrollX = 0;
-          let clipScrollY = 0;
-          let clipWindowWidth = 0;
-          let clipWindowHeight = 0;
+          let cropContext: {
+            offsetX: number;
+            offsetY: number;
+            width: number;
+            height: number;
+            scrollX: number;
+            scrollY: number;
+          } | null = null;
+
           if (requestedClip) {
             captureMode = 'clip';
-            const viewportWidth = Math.max(window.innerWidth || 0, document.documentElement?.clientWidth ?? 0);
-            const viewportHeight = Math.max(window.innerHeight || 0, document.documentElement?.clientHeight ?? 0);
-            const docWidth = Math.max(
-              document.documentElement?.scrollWidth ?? 0,
-              document.body?.scrollWidth ?? 0,
-              viewportWidth,
+            const maxScrollX = Math.max(0, docWidth - viewportWidth);
+            const maxScrollY = Math.max(0, docHeight - viewportHeight);
+            const desiredScrollX = requestedClip.x + requestedClip.width - viewportWidth;
+            const desiredScrollY = requestedClip.y + requestedClip.height - viewportHeight;
+            const scrollX = clampNumber(desiredScrollX, 0, maxScrollX);
+            const scrollY = clampNumber(desiredScrollY, 0, maxScrollY);
+            const offsetX = Math.max(0, requestedClip.x - scrollX);
+            const offsetY = Math.max(0, requestedClip.y - scrollY);
+            const visibleWidth = Math.min(
+              Math.max(1, Math.round(requestedClip.width)),
+              Math.max(1, viewportWidth - offsetX),
             );
-            const docHeight = Math.max(
-              document.documentElement?.scrollHeight ?? 0,
-              document.body?.scrollHeight ?? 0,
-              viewportHeight,
+            const visibleHeight = Math.min(
+              Math.max(1, Math.round(requestedClip.height)),
+              Math.max(1, viewportHeight - offsetY),
             );
-            clipWindowWidth = Math.min(Math.max(1, Math.ceil(requestedClip.width)), docWidth || 1);
-            clipWindowHeight = Math.min(Math.max(1, Math.ceil(requestedClip.height)), docHeight || 1);
-            const maxScrollX = Math.max(0, docWidth - clipWindowWidth);
-            const maxScrollY = Math.max(0, docHeight - clipWindowHeight);
-            clipScrollX = Math.min(Math.max(0, requestedClip.x + requestedClip.width - clipWindowWidth), maxScrollX);
-            clipScrollY = Math.min(Math.max(0, requestedClip.y + requestedClip.height - clipWindowHeight), maxScrollY);
-            const clipOffsetX = Math.max(0, requestedClip.x - clipScrollX);
-            const clipOffsetY = Math.max(0, requestedClip.y - clipScrollY);
-            captureOptions.scrollX = clipScrollX;
-            captureOptions.scrollY = clipScrollY;
-            captureOptions.windowWidth = clipWindowWidth;
-            captureOptions.windowHeight = clipWindowHeight;
-            captureOptions.x = clipOffsetX;
-            captureOptions.y = clipOffsetY;
-            captureOptions.width = clipWindowWidth;
-            captureOptions.height = clipWindowHeight;
+
+            cropContext = {
+              offsetX,
+              offsetY,
+              width: visibleWidth,
+              height: visibleHeight,
+              scrollX,
+              scrollY,
+            };
+
+            captureOptions.scrollX = scrollX;
+            captureOptions.scrollY = scrollY;
+            captureOptions.windowWidth = viewportWidth;
+            captureOptions.windowHeight = viewportHeight;
+            captureOptions.x = 0;
+            captureOptions.y = 0;
+            captureOptions.width = viewportWidth;
+            captureOptions.height = viewportHeight;
           } else if (captureMode === 'viewport') {
-            viewportRect = getViewportRect();
-            captureOptions.scrollX = viewportRect.x;
-            captureOptions.scrollY = viewportRect.y;
-            captureOptions.windowWidth = viewportRect.width;
-            captureOptions.windowHeight = viewportRect.height;
-            captureOptions.x = viewportRect.x;
-            captureOptions.y = viewportRect.y;
-            captureOptions.width = viewportRect.width;
-            captureOptions.height = viewportRect.height;
+            viewportRect = currentViewport;
+            captureOptions.scrollX = currentViewport.x;
+            captureOptions.scrollY = currentViewport.y;
+            captureOptions.windowWidth = viewportWidth;
+            captureOptions.windowHeight = viewportHeight;
+            captureOptions.x = 0;
+            captureOptions.y = 0;
+            captureOptions.width = viewportWidth;
+            captureOptions.height = viewportHeight;
           }
 
           const canvas = await html2canvas(target, captureOptions);
@@ -1748,71 +1786,39 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
           let clipMetadata: Rect | undefined;
 
           if (captureMode === 'clip' && requestedClip) {
-            const clipOffsetX = Math.max(0, requestedClip.x - clipScrollX);
-            const clipOffsetY = Math.max(0, requestedClip.y - clipScrollY);
-            const availableWidth = clipWindowWidth - clipOffsetX;
-            const availableHeight = clipWindowHeight - clipOffsetY;
-            if (availableWidth <= 0 || availableHeight <= 0) {
-              clipMetadata = undefined;
-              captureMode = 'full-page';
-              note = 'Unable to capture requested clip; captured the full page instead.';
-            } else {
-              const visibleWidth = Math.min(requestedClip.width, availableWidth);
-              const visibleHeight = Math.min(requestedClip.height, availableHeight);
-              const relativeClip: Rect = {
-                x: clipOffsetX,
-                y: clipOffsetY,
-                width: Math.max(1, visibleWidth),
-                height: Math.max(1, visibleHeight),
-              };
-              const scaledClip = scaleRect(relativeClip, scale);
-              const clampedClip = clampClipToCanvas(scaledClip, canvas.width, canvas.height);
+            const fallbackScrollX = typeof captureOptions.scrollX === 'number' ? captureOptions.scrollX : 0;
+            const fallbackScrollY = typeof captureOptions.scrollY === 'number' ? captureOptions.scrollY : 0;
+            const context = cropContext ?? {
+              offsetX: Math.max(0, requestedClip.x - fallbackScrollX),
+              offsetY: Math.max(0, requestedClip.y - fallbackScrollY),
+              width: Math.max(1, Math.round(requestedClip.width)),
+              height: Math.max(1, Math.round(requestedClip.height)),
+              scrollX: fallbackScrollX,
+              scrollY: fallbackScrollY,
+            };
 
-              clipMetadata = {
-                x: requestedClip.x,
-                y: requestedClip.y,
-                width: relativeClip.width,
-                height: relativeClip.height,
-              };
-              note = 'Captured selected element region.';
-
-              if (clampedClip) {
-                const requiresCrop =
-                  clampedClip.x !== 0
-                  || clampedClip.y !== 0
-                  || clampedClip.width !== canvas.width
-                  || clampedClip.height !== canvas.height;
-
-                if (requiresCrop) {
-                  const clipCanvas = document.createElement('canvas');
-                  clipCanvas.width = clampedClip.width;
-                  clipCanvas.height = clampedClip.height;
-                  const context = clipCanvas.getContext('2d');
-                  if (context) {
-                    context.drawImage(
-                      canvas,
-                      clampedClip.x,
-                      clampedClip.y,
-                      clampedClip.width,
-                      clampedClip.height,
-                      0,
-                      0,
-                      clampedClip.width,
-                      clampedClip.height,
-                    );
-                    resultCanvas = clipCanvas;
-                  }
-                }
-              } else {
-                clipMetadata = undefined;
-                captureMode = 'full-page';
-                note = 'Unable to capture requested clip; captured the full page instead.';
-              }
-            }
-          } else if (captureMode === 'viewport') {
-            const effectiveViewport = viewportRect ?? getViewportRect();
-            const scaledClip = scaleRect(effectiveViewport, scale);
+            const relativeClip: Rect = {
+              x: context.offsetX,
+              y: context.offsetY,
+              width: Math.max(1, context.width),
+              height: Math.max(1, context.height),
+            };
+            const scaledClip = scaleRect(relativeClip, scale);
             const clampedClip = clampClipToCanvas(scaledClip, canvas.width, canvas.height);
+
+            clipMetadata = {
+              x: requestedClip.x,
+              y: requestedClip.y,
+              width: relativeClip.width,
+              height: relativeClip.height,
+            };
+
+            const clippedPartially =
+              Math.round(relativeClip.width) < Math.round(requestedClip.width)
+              || Math.round(relativeClip.height) < Math.round(requestedClip.height);
+            note = clippedPartially
+              ? 'Captured the visible portion of the selected region.'
+              : 'Captured selected element region.';
 
             if (clampedClip) {
               const requiresCrop =
@@ -1821,20 +1827,13 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
                 || clampedClip.width !== canvas.width
                 || clampedClip.height !== canvas.height;
 
-              clipMetadata = {
-                x: clampedClip.x / scale,
-                y: clampedClip.y / scale,
-                width: clampedClip.width / scale,
-                height: clampedClip.height / scale,
-              };
-
               if (requiresCrop) {
-                const viewportCanvas = document.createElement('canvas');
-                viewportCanvas.width = clampedClip.width;
-                viewportCanvas.height = clampedClip.height;
-                const context = viewportCanvas.getContext('2d');
-                if (context) {
-                  context.drawImage(
+                const clipCanvas = document.createElement('canvas');
+                clipCanvas.width = clampedClip.width;
+                clipCanvas.height = clampedClip.height;
+                const context2d = clipCanvas.getContext('2d');
+                if (context2d) {
+                  context2d.drawImage(
                     canvas,
                     clampedClip.x,
                     clampedClip.y,
@@ -1845,16 +1844,23 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
                     clampedClip.width,
                     clampedClip.height,
                   );
-                  resultCanvas = viewportCanvas;
-                  note = 'Captured the currently visible viewport.';
+                  resultCanvas = clipCanvas;
                 }
-              } else {
-                note = 'Captured the currently visible viewport.';
               }
             } else {
-              note = 'Unable to determine viewport bounds; captured the full page instead.';
+              clipMetadata = undefined;
               captureMode = 'full-page';
+              note = 'Unable to capture requested clip; captured the full page instead.';
             }
+          } else if (captureMode === 'viewport') {
+            const effectiveViewport = viewportRect ?? currentViewport;
+            clipMetadata = {
+              x: effectiveViewport.x,
+              y: effectiveViewport.y,
+              width: effectiveViewport.width,
+              height: effectiveViewport.height,
+            };
+            note = 'Captured the currently visible viewport.';
           }
 
           const dataUrl = resultCanvas.toDataURL('image/png');
