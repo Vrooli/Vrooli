@@ -8,6 +8,8 @@ import type {
   BridgeLogLevel,
   BridgeScreenshotMode,
   BridgeScreenshotOptions,
+  BridgeInspectHoverPayload,
+  BridgeInspectResultPayload,
 } from '@vrooli/iframe-bridge';
 
 type BridgeHelloMessage = {
@@ -100,6 +102,36 @@ type BridgeNetworkStateMessage = {
   state: BridgeNetworkStreamState;
 };
 
+type BridgeInspectHoverMessage = {
+  v: 1;
+  t: 'INSPECT_HOVER';
+  payload: BridgeInspectHoverPayload;
+};
+
+type BridgeInspectResultMessage = {
+  v: 1;
+  t: 'INSPECT_RESULT';
+  payload: BridgeInspectResultPayload;
+};
+
+type BridgeInspectStateMessage = {
+  v: 1;
+  t: 'INSPECT_STATE';
+  active: boolean;
+  reason?: InspectLifecycleReason | 'start';
+};
+
+type BridgeInspectCancelMessage = {
+  v: 1;
+  t: 'INSPECT_CANCEL';
+};
+
+type BridgeInspectErrorMessage = {
+  v: 1;
+  t: 'INSPECT_ERROR';
+  error: string;
+};
+
 type BridgeChildToParentMessage =
   | BridgeHelloMessage
   | BridgeReadyMessage
@@ -112,12 +144,37 @@ type BridgeChildToParentMessage =
   | BridgeLogStateMessage
   | BridgeNetworkEventMessage
   | BridgeNetworkBatchMessage
-  | BridgeNetworkStateMessage;
+  | BridgeNetworkStateMessage
+  | BridgeInspectHoverMessage
+  | BridgeInspectResultMessage
+  | BridgeInspectStateMessage
+  | BridgeInspectCancelMessage
+  | BridgeInspectErrorMessage;
 
 type BridgeSnapshotRequestOptions = {
   since?: number;
   afterSeq?: number;
   limit?: number;
+};
+
+export type InspectLifecycleReason = 'start' | 'stop' | 'cancel' | 'complete';
+
+export interface BridgeInspectState {
+  supported: boolean;
+  active: boolean;
+  lastReason: InspectLifecycleReason | null;
+  hover: BridgeInspectHoverPayload | null;
+  result: BridgeInspectResultPayload | null;
+  error: string | null;
+}
+
+const initialInspectState: BridgeInspectState = {
+  supported: false,
+  active: false,
+  lastReason: null,
+  hover: null,
+  result: null,
+  error: null,
 };
 
 type BridgeParentToChildMessage =
@@ -129,7 +186,9 @@ type BridgeParentToChildMessage =
   | { v: 1; t: 'LOGS'; cmd: 'PULL'; requestId: string; options?: BridgeSnapshotRequestOptions }
   | { v: 1; t: 'LOGS'; cmd: 'SET'; enable?: boolean; streaming?: boolean; levels?: BridgeLogLevel[]; bufferSize?: number }
   | { v: 1; t: 'NETWORK'; cmd: 'PULL'; requestId: string; options?: BridgeSnapshotRequestOptions }
-  | { v: 1; t: 'NETWORK'; cmd: 'SET'; enable?: boolean; streaming?: boolean; bufferSize?: number };
+  | { v: 1; t: 'NETWORK'; cmd: 'SET'; enable?: boolean; streaming?: boolean; bufferSize?: number }
+  | { v: 1; t: 'INSPECT'; cmd: 'START' }
+  | { v: 1; t: 'INSPECT'; cmd: 'STOP' };
 
 export interface BridgeComplianceResult {
   ok: boolean;
@@ -196,6 +255,9 @@ export interface UseIframeBridgeReturn {
   getRecentNetworkEvents: () => BridgeNetworkEvent[];
   requestNetworkBatch: (options?: BridgeSnapshotRequestOptions) => Promise<BridgeNetworkEvent[]>;
   configureNetwork: (config: { enable?: boolean; streaming?: boolean; bufferSize?: number }) => boolean;
+  inspectState: BridgeInspectState;
+  startInspect: () => boolean;
+  stopInspect: () => boolean;
 }
 
 const deriveOrigin = (url: string | null): string | null => {
@@ -228,6 +290,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
   const [state, setState] = useState<BridgeState>(initialBridgeState);
   const [logState, setLogState] = useState<BridgeLogStreamState | null>(null);
   const [networkState, setNetworkState] = useState<BridgeNetworkStreamState | null>(null);
+  const [inspectState, setInspectState] = useState<BridgeInspectState>(initialInspectState);
   const childOrigin = useMemo(() => deriveOrigin(previewUrl), [previewUrl]);
   const lastHrefRef = useRef<string>('');
   const helloReceivedRef = useRef(false);
@@ -291,6 +354,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     setLogState(null);
     setNetworkState(null);
     setState(initialBridgeState);
+    setInspectState(initialInspectState);
   }, []);
 
   useEffect(() => {
@@ -328,6 +392,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           capsRef.current = nextCaps;
           supportsLogsRef.current = nextCaps.includes('logs');
           supportsNetworkRef.current = nextCaps.includes('network');
+          const supportsInspect = nextCaps.includes('inspect');
           if (supportsLogsRef.current) {
             setLogState(message.logs ?? { enabled: false, streaming: false });
           } else {
@@ -338,6 +403,10 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           } else {
             setNetworkState(null);
           }
+          setInspectState({
+            ...initialInspectState,
+            supported: supportsInspect,
+          });
           setState(prev => ({
             ...prev,
             isSupported: true,
@@ -478,6 +547,64 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           break;
         }
 
+        case 'INSPECT_STATE': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            active: message.active,
+            lastReason: message.reason && message.reason !== 'start'
+              ? message.reason as InspectLifecycleReason
+              : (message.active ? 'start' : prev.lastReason),
+            error: message.active ? null : prev.error,
+            hover: message.active ? null : prev.hover,
+          }));
+          break;
+        }
+
+        case 'INSPECT_HOVER': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            hover: message.payload,
+          }));
+          break;
+        }
+
+        case 'INSPECT_RESULT': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            active: false,
+            hover: message.payload,
+            result: message.payload,
+            lastReason: 'complete',
+            error: null,
+          }));
+          break;
+        }
+
+        case 'INSPECT_CANCEL': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            active: false,
+            lastReason: 'cancel',
+            hover: null,
+          }));
+          break;
+        }
+
+        case 'INSPECT_ERROR': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            error: message.error,
+            active: false,
+            hover: null,
+          }));
+          break;
+        }
+
         default: {
           break;
         }
@@ -527,6 +654,20 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
 
   const sendPing = useCallback(() => {
     return postMessage({ v: 1, t: 'PING', ts: Date.now() });
+  }, [postMessage]);
+
+  const startInspect = useCallback(() => {
+    if (!capsRef.current.includes('inspect')) {
+      return false;
+    }
+    return postMessage({ v: 1, t: 'INSPECT', cmd: 'START' });
+  }, [postMessage]);
+
+  const stopInspect = useCallback(() => {
+    if (!capsRef.current.includes('inspect')) {
+      return false;
+    }
+    return postMessage({ v: 1, t: 'INSPECT', cmd: 'STOP' });
   }, [postMessage]);
 
   const requestScreenshot = useCallback(
@@ -803,6 +944,9 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     getRecentNetworkEvents,
     requestNetworkBatch,
     configureNetwork,
+    inspectState,
+    startInspect,
+    stopInspect,
   };
 };
 

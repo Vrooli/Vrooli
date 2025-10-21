@@ -27,6 +27,7 @@ import {
   RotateCcw,
   ScrollText,
   Wrench,
+  Crosshair,
 } from 'lucide-react';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 
@@ -71,6 +72,9 @@ export interface AppPreviewToolbarProps {
   onToggleFullView: () => void;
   isDeviceEmulationActive: boolean;
   onToggleDeviceEmulation: () => void;
+  canInspect: boolean;
+  isInspecting: boolean;
+  onToggleInspect: () => void;
   menuPortalContainer: HTMLElement | null;
   canOpenTabsOverlay: boolean;
   previewInteractionSignal: number;
@@ -109,6 +113,9 @@ const AppPreviewToolbar = ({
   onToggleFullView,
   isDeviceEmulationActive,
   onToggleDeviceEmulation,
+  canInspect,
+  isInspecting,
+  onToggleInspect,
   menuPortalContainer,
   canOpenTabsOverlay,
   previewInteractionSignal,
@@ -192,6 +199,15 @@ const AppPreviewToolbar = ({
     : 'Application details';
 
   const fullscreenActionLabel = isFullView ? 'Exit full view' : 'Enter full view';
+  const inspectModeDisabledReason = useMemo(() => {
+    if (!hasCurrentApp) {
+      return 'Select an application to inspect elements.';
+    }
+    if (!canInspect) {
+      return 'Element inspection is unavailable for this preview.';
+    }
+    return null;
+  }, [canInspect, hasCurrentApp]);
 
   const isBrowser = typeof document !== 'undefined';
   const portalHost = isBrowser ? (menuPortalContainer ?? document.body) : null;
@@ -1069,6 +1085,31 @@ const AppPreviewToolbar = ({
               >
                 <MonitorSmartphone aria-hidden size={16} />
                 <span>{isDeviceEmulationActive ? 'Hide emulator' : 'Show emulator'}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className={clsx(
+                  'preview-toolbar__menu-item',
+                  isInspecting && 'preview-toolbar__menu-item--active',
+                  !hasCurrentApp || !canInspect ? 'preview-toolbar__menu-item--with-note' : undefined,
+                )}
+                onClick={() => {
+                  closeMenus();
+                  onToggleInspect();
+                }}
+                aria-pressed={isInspecting}
+                aria-disabled={(!hasCurrentApp || !canInspect) || undefined}
+                disabled={!hasCurrentApp || !canInspect}
+                title={( !hasCurrentApp || !canInspect ) && inspectModeDisabledReason ? inspectModeDisabledReason : (isInspecting ? 'Exit inspect mode' : 'Inspect element')}
+              >
+                <span className="preview-toolbar__menu-item-label">
+                  <Crosshair aria-hidden size={16} />
+                  <span>{isInspecting ? 'Exit inspect mode' : 'Inspect element'}</span>
+                </span>
+                {(!hasCurrentApp || !canInspect) && inspectModeDisabledReason && (
+                  <span className="preview-toolbar__menu-item-note">{inspectModeDisabledReason}</span>
+                )}
               </button>
               <button
                 type="button"

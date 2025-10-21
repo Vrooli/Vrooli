@@ -405,10 +405,16 @@ export default function TabSwitcherDialog() {
             onClick={handleAutoNext}
             disabled={isAutoNextRunning || apps.length === 0}
           >
-            {isAutoNextRunning
-              ? <Loader2 size={16} aria-hidden className="tab-switcher__auto-next-spinner" />
-              : <Shuffle size={16} aria-hidden />}
-            <span>{isAutoNextRunning ? 'Selecting next scenario…' : 'Auto-next scenario'}</span>
+            <span className="tab-switcher__auto-next-icon">
+              {isAutoNextRunning ? (
+                <Loader2 size={24} aria-hidden className="tab-switcher__auto-next-spinner" />
+              ) : (
+                <Shuffle size={24} aria-hidden />
+              )}
+            </span>
+            <span className="tab-switcher__auto-next-text">
+              {isAutoNextRunning ? 'Selecting next scenario…' : 'Auto-next scenario'}
+            </span>
           </button>
         )}
         {activeSegment === 'web' && (

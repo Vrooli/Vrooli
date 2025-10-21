@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
+import type { ChangeEvent, KeyboardEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { Info, Loader2, X } from 'lucide-react';
+import { Info, Loader2, X, ChevronDown, Image, BoxSelect } from 'lucide-react';
 import { appService } from '@/services/api';
 import { useAppsStore } from '@/state/appsStore';
 import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
@@ -37,6 +37,20 @@ const PREVIEW_TIMEOUT_MESSAGE = 'Preview did not respond. Ensure the application
 const PREVIEW_MIXED_CONTENT_MESSAGE = 'Preview blocked: browser refused to load HTTP content inside an HTTPS dashboard. Expose the UI through the tunnel hostname or enable HTTPS for the scenario.';
 const IOS_AUTOBACK_GUARD_MS = 15000;
 const PREVIEW_SCREENSHOT_STABILITY_MS = 1000;
+const INSPECTOR_FLOATING_MARGIN = 12;
+type InspectorPosition = { x: number; y: number };
+const DEFAULT_INSPECTOR_POSITION: InspectorPosition = { x: 24, y: 104 };
+const DRAG_THRESHOLD_PX = 3;
+type InspectorScreenshot = {
+  dataUrl: string;
+  width: number;
+  height: number;
+  filename: string;
+  capturedAt: number;
+  note?: string | null;
+  mode?: string | null;
+  clip?: { x: number; y: number; width: number; height: number } | null;
+};
 const AppPreviewView = () => {
   const apps = useAppsStore(state => state.apps);
   const setAppsState = useAppsStore(state => state.setAppsState);
@@ -104,6 +118,40 @@ const AppPreviewView = () => {
   const [isLayoutFullscreen, setIsLayoutFullscreen] = useState(false);
   const [iframeLoadedAt, setIframeLoadedAt] = useState<number | null>(null);
   const [iframeLoadError, setIframeLoadError] = useState<string | null>(null);
+  const [inspectStatusMessage, setInspectStatusMessage] = useState<string | null>(null);
+  const [inspectCopyFeedback, setInspectCopyFeedback] = useState<'selector' | 'text' | null>(null);
+  const [isInspectorDialogOpen, setIsInspectorDialogOpen] = useState(false);
+  const [inspectorDetailsExpanded, setInspectorDetailsExpanded] = useState(false);
+  const [inspectorScreenshot, setInspectorScreenshot] = useState<InspectorScreenshot | null>(null);
+  const [inspectorScreenshotExpanded, setInspectorScreenshotExpanded] = useState(false);
+  const [inspectorDialogPosition, setInspectorDialogPosition] = useState<InspectorPosition>(() => ({ ...DEFAULT_INSPECTOR_POSITION }));
+  const [isInspectorDragging, setIsInspectorDragging] = useState(false);
+  useEffect(() => {
+    if (!isInspectorDialogOpen) {
+      return;
+    }
+    setInspectorDetailsExpanded(false);
+    setInspectorScreenshotExpanded(false);
+  }, [isInspectorDialogOpen]);
+  const inspectorDialogRef = useRef<HTMLDivElement | null>(null);
+  const inspectorDragStateRef = useRef<{
+    pointerId: number;
+    offsetX: number;
+    offsetY: number;
+    startClientX: number;
+    startClientY: number;
+    pointerCaptured: boolean;
+    dragging: boolean;
+    width: number;
+    height: number;
+    containerRect: DOMRect;
+  } | null>(null);
+  const inspectorSuppressClickRef = useRef(false);
+  const inspectorDialogTitleId = useId();
+  const inspectorDetailsSectionId = useId();
+  const inspectorScreenshotSectionId = useId();
+  const inspectorDetailsContentId = `${inspectorDetailsSectionId}-content`;
+  const inspectorScreenshotContentId = `${inspectorScreenshotSectionId}-content`;
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewViewRef = useRef<HTMLDivElement | null>(null);
   const [previewViewNode, setPreviewViewNode] = useState<HTMLDivElement | null>(null);
@@ -145,6 +193,8 @@ const AppPreviewView = () => {
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
   const lastStateSnapshotRef = useRef<string>('');
+  const inspectMessageLockRef = useRef(false);
+  const inspectMessageUnlockTimerRef = useRef<number | null>(null);
 
   const scenarioDisplayName = useMemo(() => {
     const fallback = appId?.trim() || 'Scenario';
@@ -164,6 +214,17 @@ const AppPreviewView = () => {
       endScenarioSession(appId);
     };
   }, [appId, autoSelectedFromTabs, beginScenarioSession, endScenarioSession]);
+
+  useEffect(() => {
+    if (!inspectCopyFeedback) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => setInspectCopyFeedback(null), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [inspectCopyFeedback]);
 
   useEffect(() => {
     const host = (isFullscreen || isLayoutFullscreen) ? previewViewNode : null;
@@ -592,11 +653,455 @@ const AppPreviewView = () => {
     requestNetworkBatch,
     getRecentNetworkEvents,
     configureNetwork,
+    inspectState,
+    startInspect,
+    stopInspect,
   } = useIframeBridge({
     iframeRef,
     previewUrl,
     onLocation: handleBridgeLocation,
   });
+
+  const inspectTarget = useMemo(() => inspectState.hover ?? inspectState.result, [inspectState.hover, inspectState.result]);
+  const inspectMeta = inspectTarget?.meta ?? null;
+  const inspectRect = inspectTarget?.documentRect ?? null;
+  const inspectSizeLabel = inspectRect
+    ? `${Math.round(inspectRect.width)} × ${Math.round(inspectRect.height)} px`
+    : null;
+  const inspectPositionLabel = inspectRect
+    ? `x ${Math.round(inspectRect.x)}, y ${Math.round(inspectRect.y)}`
+    : null;
+  const inspectClassTokens = useMemo<string[]>(
+    () => (inspectMeta?.classes ? inspectMeta.classes.slice(0, 3) : []),
+    [inspectMeta?.classes],
+  );
+  const inspectSelectorValue = inspectMeta?.selector ?? null;
+  const inspectLabelValue = inspectMeta?.ariaLabel ?? inspectMeta?.label ?? null;
+  const inspectTextValue = inspectMeta?.text ?? null;
+  const inspectAriaDescription = inspectMeta?.ariaDescription ?? null;
+  const inspectTitleValue = inspectMeta?.title ?? null;
+  const inspectTextPreview = inspectTextValue && inspectTextValue.length > 220
+    ? `${inspectTextValue.slice(0, 220)}…`
+    : inspectTextValue;
+  const inspectResultMethod = inspectState.result?.method ?? null;
+  let inspectMethodLabel: string | null = null;
+  if (inspectResultMethod === 'keyboard') {
+    inspectMethodLabel = 'Keyboard selection';
+  } else if (inspectResultMethod === 'pointer') {
+    inspectMethodLabel = 'Pointer selection';
+  } else if (inspectState.active && inspectTarget?.pointerType) {
+    inspectMethodLabel = `${inspectTarget.pointerType} pointer`;
+  }
+  const shouldRenderInspectorDialog = isInspectorDialogOpen;
+
+  const clampInspectorPosition = useCallback((
+    x: number,
+    y: number,
+    dimensions?: { width?: number; height?: number; containerRect?: DOMRect },
+  ): InspectorPosition => {
+    const container = previewViewRef.current;
+    const containerRect = dimensions?.containerRect ?? container?.getBoundingClientRect();
+    const width = dimensions?.width ?? inspectorDialogRef.current?.offsetWidth ?? 360;
+    const height = dimensions?.height ?? inspectorDialogRef.current?.offsetHeight ?? 360;
+    if (!containerRect) {
+      return { x, y };
+    }
+    const maxX = Math.max(INSPECTOR_FLOATING_MARGIN, containerRect.width - width - INSPECTOR_FLOATING_MARGIN);
+    const maxY = Math.max(INSPECTOR_FLOATING_MARGIN, containerRect.height - height - INSPECTOR_FLOATING_MARGIN);
+    const clampedX = Math.min(Math.max(x, INSPECTOR_FLOATING_MARGIN), maxX);
+    const clampedY = Math.min(Math.max(y, INSPECTOR_FLOATING_MARGIN), maxY);
+    return { x: clampedX, y: clampedY };
+  }, []);
+
+  const clearInspectMessageLock = useCallback(() => {
+    if (inspectMessageUnlockTimerRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(inspectMessageUnlockTimerRef.current);
+    }
+    inspectMessageUnlockTimerRef.current = null;
+    inspectMessageLockRef.current = false;
+  }, []);
+
+  const setLockedInspectMessage = useCallback((message: string, durationMs = 3200) => {
+    clearInspectMessageLock();
+    setInspectStatusMessage(message);
+    if (typeof window === 'undefined') {
+      return;
+    }
+    inspectMessageLockRef.current = true;
+    inspectMessageUnlockTimerRef.current = window.setTimeout(() => {
+      inspectMessageLockRef.current = false;
+      inspectMessageUnlockTimerRef.current = null;
+      setInspectStatusMessage(null);
+    }, durationMs);
+  }, [clearInspectMessageLock]);
+
+  const handleInspectorPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isInspectorDialogOpen) {
+      return;
+    }
+    if (event.button !== 0) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    const handleNode = target.closest('.preview-inspector__handle');
+    if (!handleNode) {
+      return;
+    }
+    if (target.closest('button, a, input, textarea, select')) {
+      return;
+    }
+    const dialog = inspectorDialogRef.current;
+    const container = previewViewRef.current;
+    if (!dialog || !container) {
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const dialogRect = dialog.getBoundingClientRect();
+    inspectorDragStateRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - dialogRect.left,
+      offsetY: event.clientY - dialogRect.top,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      pointerCaptured: false,
+      dragging: false,
+      width: dialogRect.width,
+      height: dialogRect.height,
+      containerRect,
+    };
+    if (typeof dialog.setPointerCapture === 'function') {
+      try {
+        dialog.setPointerCapture(event.pointerId);
+        inspectorDragStateRef.current.pointerCaptured = true;
+      } catch {
+        inspectorDragStateRef.current.pointerCaptured = false;
+      }
+    }
+    event.preventDefault();
+  }, [isInspectorDialogOpen]);
+
+  const handleInspectorPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = inspectorDragStateRef.current;
+    if (!state || state.pointerId !== event.pointerId) {
+      return;
+    }
+    const container = previewViewRef.current;
+    const containerRect = container?.getBoundingClientRect() ?? state.containerRect;
+    const dialogRect = inspectorDialogRef.current?.getBoundingClientRect();
+    const width = dialogRect?.width ?? state.width;
+    const height = dialogRect?.height ?? state.height;
+
+    if (!state.dragging) {
+      const diffX = Math.abs(event.clientX - state.startClientX);
+      const diffY = Math.abs(event.clientY - state.startClientY);
+      if (diffX < DRAG_THRESHOLD_PX && diffY < DRAG_THRESHOLD_PX) {
+        return;
+      }
+      state.dragging = true;
+      setIsInspectorDragging(true);
+    }
+
+    if (!state.pointerCaptured) {
+      const dialog = inspectorDialogRef.current;
+      if (dialog && typeof dialog.setPointerCapture === 'function') {
+        try {
+          dialog.setPointerCapture(event.pointerId);
+          state.pointerCaptured = true;
+        } catch {
+          state.pointerCaptured = false;
+        }
+      }
+    }
+
+    event.preventDefault();
+    const rawX = event.clientX - containerRect.left - state.offsetX;
+    const rawY = event.clientY - containerRect.top - state.offsetY;
+    const next = clampInspectorPosition(rawX, rawY, { width, height, containerRect });
+    setInspectorDialogPosition(prev => (prev.x === next.x && prev.y === next.y ? prev : next));
+  }, [clampInspectorPosition]);
+
+  const handleInspectorPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = inspectorDragStateRef.current;
+    if (!state || state.pointerId !== event.pointerId) {
+      return;
+    }
+    const dialog = inspectorDialogRef.current;
+    if (state.pointerCaptured && dialog && typeof dialog.releasePointerCapture === 'function') {
+      try {
+        dialog.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore release failures
+      }
+    }
+    if (state.dragging) {
+      event.preventDefault();
+      inspectorSuppressClickRef.current = true;
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          inspectorSuppressClickRef.current = false;
+        }, 0);
+      } else {
+        inspectorSuppressClickRef.current = false;
+      }
+    }
+    inspectorDragStateRef.current = null;
+    setIsInspectorDragging(false);
+  }, []);
+
+  const handleInspectorClickCapture = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    if (inspectorSuppressClickRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      inspectorSuppressClickRef.current = false;
+    }
+  }, []);
+
+  const handleInspectorDialogClose = useCallback(() => {
+    if (inspectState.active) {
+      stopInspect();
+    }
+    inspectorDragStateRef.current = null;
+    inspectorSuppressClickRef.current = false;
+    setIsInspectorDragging(false);
+    setInspectCopyFeedback(null);
+    clearInspectMessageLock();
+    setInspectStatusMessage(null);
+    setIsInspectorDialogOpen(false);
+  }, [clearInspectMessageLock, inspectState.active, setInspectStatusMessage, stopInspect]);
+
+  const handleCopyValue = useCallback(async (value: string, kind: 'selector' | 'text') => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(value);
+      } else if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } else {
+        throw new Error('clipboard-unavailable');
+      }
+      setInspectCopyFeedback(kind);
+      setLockedInspectMessage(kind === 'selector' ? 'Selector copied to clipboard.' : 'Text snippet copied to clipboard.', 2200);
+    } catch (error) {
+      logger.warn('Failed to copy inspector value', error);
+      setLockedInspectMessage('Unable to copy to clipboard.', 3200);
+    }
+  }, [setLockedInspectMessage]);
+
+  const handleCopySelector = useCallback(() => {
+    if (!inspectSelectorValue) {
+      setLockedInspectMessage('Selector unavailable for this element.', 2600);
+      return;
+    }
+    void handleCopyValue(inspectSelectorValue, 'selector');
+  }, [handleCopyValue, inspectSelectorValue, setLockedInspectMessage]);
+
+  const handleCopyText = useCallback(() => {
+    if (!inspectTextValue) {
+      setLockedInspectMessage('Text snippet unavailable for this element.', 2600);
+      return;
+    }
+    void handleCopyValue(inspectTextValue, 'text');
+  }, [handleCopyValue, inspectTextValue, setLockedInspectMessage]);
+
+  const handleCaptureElementScreenshot = useCallback(async () => {
+    if (!inspectRect) {
+      setLockedInspectMessage('Element bounds unavailable for screenshots.', 3000);
+      return;
+    }
+    try {
+      const scale = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      const result = await requestScreenshot({
+        mode: 'clip',
+        clip: inspectRect,
+        selector: inspectSelectorValue ?? undefined,
+        scale,
+      });
+      const sanitizedSelector = inspectSelectorValue
+        ? inspectSelectorValue.replace(/[^a-z0-9-_]+/gi, '-').slice(0, 40)
+        : 'element';
+      const filename = `${(currentAppIdentifier ?? 'preview').replace(/[^a-z0-9-_]+/gi, '-').slice(0, 24)}-${sanitizedSelector || 'element'}-${Date.now()}.png`;
+      const dataUrl = ensureDataUrl(result.data);
+      if (!dataUrl) {
+        setLockedInspectMessage('Failed to capture element screenshot.', 3400);
+        return;
+      }
+      const capturedAt = Date.now();
+      if (typeof document !== 'undefined') {
+        const anchor = document.createElement('a');
+        anchor.href = dataUrl;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+      }
+      setInspectorScreenshot({
+        dataUrl,
+        width: result.width,
+        height: result.height,
+        filename,
+        capturedAt,
+        note: result.note ?? null,
+        mode: result.mode ?? null,
+        clip: result.clip ?? null,
+      });
+      setInspectorScreenshotExpanded(true);
+      setLockedInspectMessage('Element screenshot downloaded.', 3200);
+    } catch (error) {
+      logger.error('Failed to capture element screenshot', error);
+      setLockedInspectMessage('Failed to capture element screenshot.', 3400);
+    }
+  }, [
+    currentAppIdentifier,
+    inspectRect,
+    inspectSelectorValue,
+    requestScreenshot,
+    setInspectorScreenshot,
+    setInspectorScreenshotExpanded,
+    setLockedInspectMessage,
+  ]);
+
+  const handleToggleInspectMode = useCallback(() => {
+    if (inspectState.active) {
+      const stopped = stopInspect();
+      if (!stopped) {
+        setLockedInspectMessage('Unable to exit inspect mode.', 3200);
+      }
+      return;
+    }
+    if (!inspectState.supported) {
+      setLockedInspectMessage('Element inspector requires the latest bridge in the previewed app.', 3600);
+      return;
+    }
+    if (!previewUrl) {
+      setLockedInspectMessage('Load the preview before inspecting elements.', 3200);
+      return;
+    }
+    const started = startInspect();
+    if (!started) {
+      setLockedInspectMessage('Element inspector is unavailable for this preview.', 3600);
+      return;
+    }
+    clearInspectMessageLock();
+    setInspectStatusMessage('Select an element in the preview. Press Esc to cancel.');
+  }, [clearInspectMessageLock, inspectState.active, inspectState.supported, previewUrl, setLockedInspectMessage, startInspect, stopInspect]);
+
+  useEffect(() => {
+    if (inspectState.active && !isInspectorDialogOpen) {
+      setIsInspectorDialogOpen(true);
+    }
+  }, [inspectState.active, isInspectorDialogOpen]);
+
+  useEffect(() => {
+    if (inspectStatusMessage && !isInspectorDialogOpen) {
+      setIsInspectorDialogOpen(true);
+    }
+  }, [inspectStatusMessage, isInspectorDialogOpen]);
+
+  useEffect(() => {
+    if (!isInspectorDialogOpen) {
+      inspectorDragStateRef.current = null;
+      setIsInspectorDragging(false);
+      return;
+    }
+
+    setInspectorDialogPosition(prev => clampInspectorPosition(prev.x, prev.y));
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const container = previewViewRef.current;
+    if (!container) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      setInspectorDialogPosition(prev => clampInspectorPosition(prev.x, prev.y));
+    });
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+    };
+  }, [clampInspectorPosition, isInspectorDialogOpen]);
+
+  useEffect(() => {
+    if (!previewViewNode) {
+      return;
+    }
+    setInspectorDialogPosition(prev => clampInspectorPosition(prev.x, prev.y));
+  }, [clampInspectorPosition, previewViewNode]);
+
+  useEffect(() => {
+    if (!inspectState.supported) {
+      return;
+    }
+    if (inspectMessageLockRef.current) {
+      return;
+    }
+    if (inspectState.error) {
+      setLockedInspectMessage(`Element inspector error: ${inspectState.error}`, 3600);
+      return;
+    }
+    if (inspectState.active) {
+      clearInspectMessageLock();
+      setInspectStatusMessage('Select an element in the preview. Press Esc to cancel.');
+      return;
+    }
+    if (inspectState.lastReason === 'complete') {
+      setLockedInspectMessage('Element captured. Use “Inspect element” to capture another.', 3400);
+      return;
+    }
+    if (inspectState.lastReason === 'cancel') {
+      setLockedInspectMessage('Selection cancelled.', 2400);
+      return;
+    }
+    if (!inspectTarget) {
+      clearInspectMessageLock();
+      setInspectStatusMessage(null);
+    }
+  }, [clearInspectMessageLock, inspectState.active, inspectState.error, inspectState.lastReason, inspectState.supported, inspectTarget, setLockedInspectMessage]);
+
+  useEffect(() => {
+    if (!previewUrl && inspectState.active) {
+      stopInspect();
+    }
+  }, [inspectState.active, previewUrl, stopInspect]);
+
+  useEffect(() => {
+    if (!inspectState.active || typeof window === 'undefined') {
+      return () => {};
+    }
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        stopInspect();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [inspectState.active, stopInspect]);
+
+  useEffect(() => {
+    return () => {
+      stopInspect();
+      clearInspectMessageLock();
+    };
+  }, [clearInspectMessageLock, stopInspect]);
 
   useEffect(() => {
     if (!isIosSafari) {
@@ -1755,6 +2260,9 @@ const AppPreviewView = () => {
         onToggleFullView={handleToggleFullscreen}
         isDeviceEmulationActive={isDeviceEmulationActive}
         onToggleDeviceEmulation={toggleDeviceEmulation}
+        canInspect={inspectState.supported}
+        isInspecting={inspectState.active}
+        onToggleInspect={handleToggleInspectMode}
         menuPortalContainer={previewViewNode}
         canOpenTabsOverlay={canOpenTabsOverlay}
         previewInteractionSignal={previewInteractionSignal}
@@ -1775,6 +2283,257 @@ const AppPreviewView = () => {
       )}
 
       {isDeviceEmulationActive && !isLogsPanelOpen && <DeviceEmulationToolbar {...deviceToolbar} />}
+
+      {shouldRenderInspectorDialog && (
+        <div
+          ref={inspectorDialogRef}
+          className={clsx(
+            'preview-inspector-dialog',
+            isInspectorDragging && 'preview-inspector-dialog--dragging',
+          )}
+          style={{ transform: `translate3d(${Math.round(inspectorDialogPosition.x)}px, ${Math.round(inspectorDialogPosition.y)}px, 0)` }}
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby={inspectorDialogTitleId}
+          onPointerDown={handleInspectorPointerDown}
+          onPointerMove={handleInspectorPointerMove}
+          onPointerUp={handleInspectorPointerUp}
+          onPointerCancel={handleInspectorPointerUp}
+          onClickCapture={handleInspectorClickCapture}
+        >
+          <section
+            className={clsx(
+              'preview-inspector',
+              inspectState.active && 'preview-inspector--active',
+              !inspectState.supported && 'preview-inspector--unsupported',
+            )}
+            aria-live="polite"
+          >
+            <header className="preview-inspector__header">
+              <div className="preview-inspector__handle">
+                <span className="preview-inspector__title" id={inspectorDialogTitleId}>
+                  {inspectState.active
+                    ? 'Inspecting element'
+                    : inspectState.supported
+                      ? 'Element inspector'
+                      : 'Element inspector unavailable'}
+                </span>
+                <button
+                  type="button"
+                  className="preview-inspector__close"
+                  onClick={handleInspectorDialogClose}
+                  aria-label="Close element inspector"
+                >
+                  <X aria-hidden size={16} />
+                </button>
+              </div>
+              <div className="preview-inspector__actions">
+                {inspectTarget && (
+                  <button
+                    type="button"
+                    className="preview-inspector__button"
+                    onClick={handleCaptureElementScreenshot}
+                    disabled={!inspectTarget}
+                  >
+                    Capture screenshot
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={clsx('preview-inspector__button', inspectState.active && 'preview-inspector__button--active')}
+                  onClick={handleToggleInspectMode}
+                  disabled={!inspectState.supported || (!inspectState.active && !previewUrl)}
+                >
+                  {inspectState.active ? 'Stop' : 'Inspect element'}
+                </button>
+              </div>
+            </header>
+            {inspectStatusMessage && (
+              <p
+                className={clsx(
+                  'preview-inspector__status',
+                  (inspectState.error || (inspectStatusMessage && inspectStatusMessage.toLowerCase().includes('failed')))
+                    && 'preview-inspector__status--error',
+                )}
+              >
+                {inspectStatusMessage}
+              </p>
+            )}
+            {inspectTarget && (
+              <div className="preview-inspector__section">
+                <button
+                  type="button"
+                  className={clsx(
+                    'preview-inspector__section-toggle',
+                    inspectorDetailsExpanded && 'preview-inspector__section-toggle--expanded',
+                  )}
+                  onClick={() => setInspectorDetailsExpanded(prev => !prev)}
+                  aria-expanded={inspectorDetailsExpanded}
+                  aria-controls={inspectorDetailsContentId}
+                  id={inspectorDetailsSectionId}
+                >
+                  <span className="preview-inspector__section-label">
+                    <BoxSelect aria-hidden size={16} className="preview-inspector__section-symbol" />
+                    Element details
+                  </span>
+                  <ChevronDown aria-hidden size={16} className="preview-inspector__section-icon" />
+                </button>
+                <div
+                  id={inspectorDetailsContentId}
+                  className="preview-inspector__section-content"
+                  hidden={!inspectorDetailsExpanded}
+                  role="region"
+                  aria-labelledby={inspectorDetailsSectionId}
+                >
+                  <dl className="preview-inspector__details">
+                    <div className="preview-inspector__detail">
+                      <dt>Element</dt>
+                      <dd>
+                        <code>{inspectMeta?.tag ?? 'unknown'}</code>
+                        {inspectMeta?.id && (
+                          <span className="preview-inspector__element-token">#{inspectMeta.id}</span>
+                        )}
+                        {inspectClassTokens.map(token => (
+                          <span key={token} className="preview-inspector__element-token">.{token}</span>
+                        ))}
+                      </dd>
+                    </div>
+                    <div className="preview-inspector__detail">
+                      <dt>Selector</dt>
+                      <dd>
+                        {inspectSelectorValue ? (
+                          <>
+                            <code>{inspectSelectorValue}</code>
+                            <button type="button" className="preview-inspector__copy" onClick={handleCopySelector}>
+                              Copy
+                            </button>
+                            {inspectCopyFeedback === 'selector' && (
+                              <span className="preview-inspector__copy-feedback">Copied</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="preview-inspector__muted">Unavailable</span>
+                        )}
+                      </dd>
+                    </div>
+                    {inspectLabelValue && (
+                      <div className="preview-inspector__detail">
+                        <dt>Label</dt>
+                        <dd>{inspectLabelValue}</dd>
+                      </div>
+                    )}
+                    {inspectAriaDescription && (
+                      <div className="preview-inspector__detail">
+                        <dt>ARIA description</dt>
+                        <dd>{inspectAriaDescription}</dd>
+                      </div>
+                    )}
+                    {inspectTitleValue && (
+                      <div className="preview-inspector__detail">
+                        <dt>Title attribute</dt>
+                        <dd>{inspectTitleValue}</dd>
+                      </div>
+                    )}
+                    {inspectMeta?.role && (
+                      <div className="preview-inspector__detail">
+                        <dt>Role</dt>
+                        <dd>{inspectMeta.role}</dd>
+                      </div>
+                    )}
+                    {inspectTextPreview && (
+                      <div className="preview-inspector__detail">
+                        <dt>Text</dt>
+                        <dd>
+                          {inspectTextPreview}
+                          <button type="button" className="preview-inspector__copy" onClick={handleCopyText}>
+                            Copy
+                          </button>
+                          {inspectCopyFeedback === 'text' && (
+                            <span className="preview-inspector__copy-feedback">Copied</span>
+                          )}
+                        </dd>
+                      </div>
+                    )}
+                    {inspectSizeLabel && (
+                      <div className="preview-inspector__detail">
+                        <dt>Size</dt>
+                        <dd>{inspectSizeLabel}</dd>
+                      </div>
+                    )}
+                    {inspectPositionLabel && (
+                      <div className="preview-inspector__detail">
+                        <dt>Position</dt>
+                        <dd>{inspectPositionLabel}</dd>
+                      </div>
+                    )}
+                    {inspectMethodLabel && (
+                      <div className="preview-inspector__detail">
+                        <dt>Selection</dt>
+                        <dd>{inspectMethodLabel}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              </div>
+            )}
+            {inspectorScreenshot && (
+              <div className="preview-inspector__section">
+                <button
+                  type="button"
+                  className={clsx(
+                    'preview-inspector__section-toggle',
+                    'preview-inspector__section-toggle--screenshot',
+                    inspectorScreenshotExpanded && 'preview-inspector__section-toggle--expanded',
+                  )}
+                  onClick={() => setInspectorScreenshotExpanded(prev => !prev)}
+                  aria-expanded={inspectorScreenshotExpanded}
+                  aria-controls={inspectorScreenshotContentId}
+                  id={inspectorScreenshotSectionId}
+                >
+                  <span className="preview-inspector__section-label">
+                    <Image aria-hidden size={16} className="preview-inspector__section-symbol" />
+                    Captured screenshot
+                  </span>
+                  <span className="preview-inspector__section-hint">
+                    {inspectorScreenshot.width} × {inspectorScreenshot.height} px
+                  </span>
+                  <ChevronDown aria-hidden size={16} className="preview-inspector__section-icon" />
+                </button>
+                <div
+                  id={inspectorScreenshotContentId}
+                  className="preview-inspector__section-content"
+                  hidden={!inspectorScreenshotExpanded}
+                  role="region"
+                  aria-labelledby={inspectorScreenshotSectionId}
+                >
+                  <figure className="preview-inspector__screenshot">
+                    <div className="preview-inspector__screenshot-frame">
+                      <img
+                        src={inspectorScreenshot.dataUrl}
+                        alt={`Captured element screenshot (${inspectorScreenshot.width} × ${inspectorScreenshot.height} pixels)`}
+                      />
+                    </div>
+                    <figcaption className="preview-inspector__screenshot-meta">
+                      <span className="preview-inspector__screenshot-dimensions">
+                        {inspectorScreenshot.width} × {inspectorScreenshot.height} px
+                      </span>
+                      {inspectorScreenshot.note && (
+                        <span className="preview-inspector__screenshot-note">{inspectorScreenshot.note}</span>
+                      )}
+                      <span
+                        className="preview-inspector__screenshot-filename"
+                        title={inspectorScreenshot.filename}
+                      >
+                        {inspectorScreenshot.filename}
+                      </span>
+                    </figcaption>
+                  </figure>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
 
       {isLogsPanelOpen ? (
         <div

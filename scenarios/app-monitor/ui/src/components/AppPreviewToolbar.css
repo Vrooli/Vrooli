@@ -408,6 +408,26 @@
   flex-shrink: 0;
 }
 
+.preview-toolbar__menu-item-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.preview-toolbar__menu-item--with-note {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.preview-toolbar__menu-item-note {
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: none;
+  color: rgba(255, 138, 76, 0.9);
+  line-height: 1.25;
+}
+
 .preview-toolbar__menu-item--active {
   background: rgba(0, 255, 255, 0.18);
   border-color: rgba(0, 255, 255, 0.55);

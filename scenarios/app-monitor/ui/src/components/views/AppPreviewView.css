@@ -3,6 +3,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 .preview-logs-container {
@@ -92,6 +93,361 @@ body.app-preview-immersive {
 .preview-status__dismiss:focus-visible {
   outline: 2px solid rgba(0, 255, 255, 0.4);
   outline-offset: 2px;
+}
+
+.preview-inspector-dialog {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(420px, calc(100% - 24px));
+  max-width: calc(100% - 24px);
+  z-index: 2800;
+  pointer-events: auto;
+  will-change: transform;
+}
+
+.preview-inspector-dialog--dragging {
+  cursor: grabbing;
+}
+
+.preview-inspector-dialog--dragging .preview-inspector__handle {
+  cursor: grabbing;
+}
+
+.preview-inspector {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(34, 197, 247, 0.35);
+  background: rgba(0, 50, 60, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  color: rgba(207, 253, 247, 0.92);
+  backdrop-filter: blur(6px);
+  width: 100%;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+.preview-inspector--active {
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+.preview-inspector--unsupported {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.preview-inspector__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.preview-inspector__handle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex: 1;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.preview-inspector__title {
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(125, 249, 255, 0.95);
+}
+
+.preview-inspector__actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.preview-inspector__button {
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.55);
+  color: rgba(226, 255, 247, 0.95);
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.preview-inspector__button:hover:not(:disabled),
+.preview-inspector__button:focus-visible:not(:disabled) {
+  background: rgba(59, 130, 246, 0.32);
+  border-color: rgba(96, 165, 250, 0.8);
+}
+
+.preview-inspector__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.preview-inspector__button--active {
+  background: rgba(14, 165, 233, 0.28);
+  border-color: rgba(34, 211, 238, 0.65);
+}
+
+.preview-inspector__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.18);
+  color: rgba(226, 255, 247, 0.95);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  flex: 0 0 auto;
+}
+
+.preview-inspector__close:hover,
+.preview-inspector__close:focus-visible {
+  background: rgba(59, 130, 246, 0.32);
+  border-color: rgba(96, 165, 250, 0.7);
+  transform: scale(1.05);
+}
+
+.preview-inspector__close:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.45);
+  outline-offset: 2px;
+}
+
+.preview-inspector__close svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.preview-inspector__status {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  color: rgba(208, 250, 243, 0.9);
+}
+
+.preview-inspector__status--error {
+  color: rgba(248, 113, 113, 0.88);
+}
+
+.preview-inspector__section {
+  margin-top: 0.9rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(94, 234, 212, 0.12);
+}
+
+.preview-inspector__section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0.4rem;
+}
+
+.preview-inspector__section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: none;
+  border: none;
+  color: rgba(226, 255, 247, 0.86);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.35rem 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.preview-inspector__section-toggle:hover,
+.preview-inspector__section-toggle:focus-visible {
+  color: rgba(94, 234, 212, 0.95);
+}
+
+.preview-inspector__section-toggle:focus-visible {
+  outline: 2px solid rgba(94, 234, 212, 0.45);
+  outline-offset: 2px;
+}
+
+.preview-inspector__section-toggle--screenshot {
+  color: rgba(226, 255, 247, 0.92);
+}
+
+.preview-inspector__section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.preview-inspector__section-symbol {
+  opacity: 0.75;
+}
+
+.preview-inspector__section-hint {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: rgba(148, 163, 184, 0.78);
+}
+
+.preview-inspector__section-icon {
+  margin-left: 0.4rem;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.preview-inspector__section-toggle--expanded .preview-inspector__section-icon {
+  transform: rotate(180deg);
+}
+
+.preview-inspector__section-content {
+  margin-top: 0.6rem;
+}
+
+.preview-inspector__details {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.preview-inspector__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.preview-inspector__detail dt {
+  margin: 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(94, 234, 212, 0.82);
+}
+
+.preview-inspector__detail dd {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: rgba(226, 255, 247, 0.95);
+  word-break: break-word;
+}
+
+.preview-inspector__detail code {
+  font-size: 0.78rem;
+  background: rgba(6, 94, 124, 0.45);
+  padding: 0.18rem 0.45rem;
+  border-radius: 4px;
+}
+
+.preview-inspector__element-token {
+  margin-left: 0.35rem;
+  font-size: 0.78rem;
+  color: rgba(165, 243, 252, 0.95);
+}
+
+.preview-inspector__muted {
+  color: rgba(148, 163, 184, 0.6);
+  font-style: italic;
+}
+
+.preview-inspector__copy {
+  margin-left: 0.5rem;
+  border: 1px solid rgba(94, 234, 212, 0.45);
+  background: rgba(94, 234, 212, 0.08);
+  color: rgba(226, 255, 247, 0.9);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.preview-inspector__copy:hover:not(:disabled),
+.preview-inspector__copy:focus-visible:not(:disabled) {
+  background: rgba(94, 234, 212, 0.2);
+  border-color: rgba(94, 234, 212, 0.65);
+}
+
+.preview-inspector__copy-feedback {
+  margin-left: 0.45rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(94, 234, 212, 0.82);
+}
+
+.preview-inspector__screenshot {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.preview-inspector__screenshot-frame {
+  border-radius: 8px;
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  background: rgba(8, 47, 73, 0.55);
+  padding: 0.55rem;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.preview-inspector__screenshot-frame img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 6px 28px rgba(14, 165, 233, 0.24);
+}
+
+.preview-inspector__screenshot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(148, 187, 233, 0.82);
+}
+
+.preview-inspector__screenshot-dimensions {
+  color: rgba(226, 255, 247, 0.92);
+}
+
+.preview-inspector__screenshot-note {
+  color: rgba(125, 211, 252, 0.88);
+}
+
+.preview-inspector__screenshot-filename {
+  color: rgba(94, 234, 212, 0.9);
+  word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  .preview-inspector {
+    padding: 0.8rem 0.85rem;
+  }
+
+  .preview-inspector__details {
+    grid-template-columns: 1fr;
+  }
 }
 
 .report-dialog__overlay {
