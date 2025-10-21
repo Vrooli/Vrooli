@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -29,9 +31,29 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Health check at root level (required by orchestration)
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/", dashboardHandler)
-	log.Println("Starting kids-mode-dashboard server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/", dashboardHandler)
+
+	apiPort := strings.TrimSpace(os.Getenv("API_PORT"))
+	if apiPort == "" {
+		apiPort = "8080"
+	}
+
+	uiPort := strings.TrimSpace(os.Getenv("UI_PORT"))
+	if uiPort == "" {
+		uiPort = apiPort
+	}
+
+	if uiPort != apiPort {
+		go func() {
+			log.Printf("Starting kids-mode-dashboard UI server on :%s", uiPort)
+			if err := http.ListenAndServe(":"+uiPort, mux); err != nil {
+				log.Printf("Kids-mode-dashboard UI server stopped: %v", err)
+			}
+		}()
+	}
+
+	log.Printf("Starting kids-mode-dashboard API server on :%s", apiPort)
+	log.Fatal(http.ListenAndServe(":"+apiPort, mux))
 }

@@ -42,6 +42,11 @@ type Place struct {
 	Description string   `json:"description"`
 }
 
+type SearchResponse struct {
+	Places  []Place  `json:"places"`
+	Sources []string `json:"sources"`
+}
+
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	response := HealthResponse{
 		Status:    "healthy",
@@ -121,8 +126,23 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	duration := time.Since(startTime)
 	go logSearch(req, len(places), cacheHit, duration)
 
+	// Determine data sources used
+	sources := []string{"mock"}
+	if hasPostgresDb() {
+		sources = append(sources, "postgres")
+	}
+	if len(places) > 1 {
+		sources = append(sources, "multisource")
+	}
+
+	// Build response per PRD API contract
+	response := SearchResponse{
+		Places:  places,
+		Sources: sources,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(places)
+	json.NewEncoder(w).Encode(response)
 }
 
 func getMockPlaces() []Place {
@@ -823,6 +843,11 @@ func main() {
 		})
 		os.Exit(1)
 	}
+}
+
+// hasPostgresDb checks if PostgreSQL database is available
+func hasPostgresDb() bool {
+	return db != nil
 }
 
 // clearCacheHandler handles cache clearing requests

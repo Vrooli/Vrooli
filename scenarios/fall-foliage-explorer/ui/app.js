@@ -19,7 +19,190 @@ if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_
 }
 
 // Configuration
-const API_BASE = 'http://localhost:17175';  // Fixed API port from service.json
+const DEFAULT_API_PORT = 17175;
+const LOOPBACK_HOST = '127.0.0.1';
+const API_BASE = resolveApiBase();
+
+function resolveApiBase() {
+    const win = typeof window !== 'undefined' ? window : undefined;
+    const fallbackBase = buildLoopbackBase(DEFAULT_API_PORT, win);
+    const proxyInfo = win?.__APP_MONITOR_PROXY_INFO__;
+
+    if (!win) {
+        return fallbackBase;
+    }
+
+    const proxyBase = resolveProxyBase(proxyInfo, win);
+    if (proxyBase) {
+        return proxyBase;
+    }
+
+    const { origin, hostname } = win.location || {};
+    if (origin && hostname && !isLocalHostname(hostname)) {
+        return stripTrailingSlash(origin);
+    }
+
+    return fallbackBase;
+}
+
+function buildLoopbackBase(port = DEFAULT_API_PORT, win) {
+    const protocol = win?.location?.protocol || 'http:';
+    return `${protocol}//${LOOPBACK_HOST}:${port}`;
+}
+
+function resolveProxyBase(proxyInfo, win) {
+    if (!proxyInfo || typeof proxyInfo !== 'object') {
+        return undefined;
+    }
+
+    const candidates = collectProxyCandidates(proxyInfo);
+    for (const candidate of candidates) {
+        const normalized = normalizeProxyCandidate(candidate, win);
+        if (normalized) {
+            return stripApiSuffix(normalized);
+        }
+    }
+
+    return undefined;
+}
+
+function collectProxyCandidates(source) {
+    const queue = [source];
+    const seen = new Set();
+    const candidates = [];
+    const keys = [
+        'apiBase',
+        'apiUrl',
+        'api',
+        'url',
+        'baseUrl',
+        'publicUrl',
+        'proxyUrl',
+        'origin',
+        'target',
+        'path',
+        'proxyPath',
+        'paths',
+        'endpoint',
+        'endpoints',
+        'service',
+        'services',
+        'host',
+        'hosts',
+        'port',
+        'ports'
+    ];
+
+    while (queue.length > 0) {
+        const value = queue.shift();
+        if (!value) {
+            continue;
+        }
+
+        if (typeof value === 'string') {
+            candidates.push(value);
+            continue;
+        }
+
+        if (Array.isArray(value)) {
+            queue.push(...value);
+            continue;
+        }
+
+        if (typeof value === 'object') {
+            if (seen.has(value)) {
+                continue;
+            }
+            seen.add(value);
+            keys.forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(value, key)) {
+                    queue.push(value[key]);
+                }
+            });
+        }
+    }
+
+    return candidates;
+}
+
+function normalizeProxyCandidate(candidate, win) {
+    if (typeof candidate !== 'string') {
+        return undefined;
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (trimmed.startsWith('//')) {
+        const protocol = win?.location?.protocol || 'https:';
+        return stripTrailingSlash(`${protocol}${trimmed}`);
+    }
+
+    if (trimmed.startsWith('/')) {
+        const origin = win?.location?.origin;
+        if (origin) {
+            return stripTrailingSlash(`${origin}${trimmed}`);
+        }
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)(:\\d+)?(\/.*)?$/i.test(trimmed)) {
+        return stripTrailingSlash(`http://${trimmed}`);
+    }
+
+    return undefined;
+}
+
+function stripTrailingSlash(value) {
+    return typeof value === 'string' ? value.replace(/\/+$/, '') : value;
+}
+
+function stripApiSuffix(value) {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    const trimmed = stripTrailingSlash(value);
+    return trimmed.replace(/\/api\/?$/i, '');
+}
+
+function isLocalHostname(hostname) {
+    if (!hostname) {
+        return false;
+    }
+    const normalized = hostname.toLowerCase();
+    return normalized === 'localhost' ||
+        normalized === '127.0.0.1' ||
+        normalized === '0.0.0.0' ||
+        normalized === '::1' ||
+        normalized === '[::1]';
+}
+
+function buildApiUrl(path, searchParams) {
+    const base = stripTrailingSlash(API_BASE);
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    let url = base;
+
+    if (base.toLowerCase().endsWith('/api') && normalizedPath.startsWith('/api')) {
+        url += normalizedPath.slice(4);
+    } else {
+        url += normalizedPath;
+    }
+
+    if (searchParams && Object.keys(searchParams).length > 0) {
+        const query = new URLSearchParams(searchParams).toString();
+        if (query) {
+            url += `?${query}`;
+        }
+    }
+
+    return url;
+}
 let map = null;
 let markers = [];
 let currentView = 'map';
@@ -55,7 +238,7 @@ async function addFoliageMarkers() {
     // Fetch current foliage status for each region
     for (const region of regions) {
         try {
-            const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${region.id}`);
+            const foliageResponse = await fetch(buildApiUrl('/api/foliage', { region_id: region.id }));
             const foliageData = await foliageResponse.json();
 
             const status = foliageData.data?.peak_status || 'not_started';
@@ -259,7 +442,7 @@ async function loadRegionsGrid() {
     for (const region of regionsData) {
         try {
             // Fetch current foliage status
-            const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${region.id}`);
+            const foliageResponse = await fetch(buildApiUrl('/api/foliage', { region_id: region.id }));
             const foliageData = await foliageResponse.json();
 
             const status = foliageData.data?.peak_status || 'not_started';
@@ -289,31 +472,55 @@ async function loadRegionsGrid() {
 // Load regions
 async function loadRegions() {
     try {
-        const response = await fetch(`${API_BASE}/api/regions`);
+        const response = await fetch(buildApiUrl('/api/regions'));
         const data = await response.json();
+        const normalizedRegions = normalizeRegionsResponse(data);
 
-        if (data && data.regions) {
-            regionsData = data.regions;
+        if (normalizedRegions.length > 0) {
+            regionsData = normalizedRegions;
             console.log('Regions loaded from API:', regionsData);
 
-            // Update the map with real data
             if (map) {
                 clearMarkers();
                 addFoliageMarkers();
             }
+            return;
         }
+
+        console.warn('Regions API returned no data, using fallback dataset.');
     } catch (err) {
         console.error('Failed to load regions from API:', err);
-        // Fallback to sample data for demo
-        regionsData = [
-            { id: 1, name: 'White Mountains', state: 'New Hampshire', latitude: 44.2700, longitude: -71.3034, current_status: 'near_peak', color_intensity: 7 },
-            { id: 2, name: 'Green Mountains', state: 'Vermont', latitude: 43.9207, longitude: -72.8986, current_status: 'peak', color_intensity: 9 },
-            { id: 3, name: 'Adirondacks', state: 'New York', latitude: 44.1127, longitude: -74.0524, current_status: 'progressing', color_intensity: 5 },
-            { id: 4, name: 'Great Smoky Mountains', state: 'Tennessee', latitude: 35.6532, longitude: -83.5070, current_status: 'near_peak', color_intensity: 8 },
-            { id: 5, name: 'Blue Ridge Parkway', state: 'Virginia', latitude: 37.5615, longitude: -79.3553, current_status: 'peak', color_intensity: 10 },
-            { id: 6, name: 'Berkshires', state: 'Massachusetts', latitude: 42.3604, longitude: -73.2290, current_status: 'progressing', color_intensity: 6 },
-        ];
     }
+
+    // Fallback to sample data for demo
+    regionsData = [
+        { id: 1, name: 'White Mountains', state: 'New Hampshire', latitude: 44.2700, longitude: -71.3034, current_status: 'near_peak', color_intensity: 7 },
+        { id: 2, name: 'Green Mountains', state: 'Vermont', latitude: 43.9207, longitude: -72.8986, current_status: 'peak', color_intensity: 9 },
+        { id: 3, name: 'Adirondacks', state: 'New York', latitude: 44.1127, longitude: -74.0524, current_status: 'progressing', color_intensity: 5 },
+        { id: 4, name: 'Great Smoky Mountains', state: 'Tennessee', latitude: 35.6532, longitude: -83.5070, current_status: 'near_peak', color_intensity: 8 },
+        { id: 5, name: 'Blue Ridge Parkway', state: 'Virginia', latitude: 37.5615, longitude: -79.3553, current_status: 'peak', color_intensity: 10 },
+        { id: 6, name: 'Berkshires', state: 'Massachusetts', latitude: 42.3604, longitude: -73.2290, current_status: 'progressing', color_intensity: 6 },
+    ];
+}
+
+function normalizeRegionsResponse(payload) {
+    if (!payload) {
+        return [];
+    }
+
+    if (Array.isArray(payload.regions)) {
+        return payload.regions;
+    }
+
+    if (Array.isArray(payload.data?.regions)) {
+        return payload.data.regions;
+    }
+
+    if (Array.isArray(payload.data)) {
+        return payload.data;
+    }
+
+    return [];
 }
 
 // Clear existing markers
@@ -390,7 +597,7 @@ async function showRegionDetails(regionId) {
 
     try {
         // Fetch current foliage status
-        const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${regionId}`);
+        const foliageResponse = await fetch(buildApiUrl('/api/foliage', { region_id: regionId }));
         const foliageData = await foliageResponse.json();
 
         const status = foliageData.data?.peak_status || 'not_started';
@@ -471,12 +678,7 @@ async function initializeGallery() {
 // Load photos from API
 async function loadGalleryPhotos(regionId = null) {
     try {
-        let url = `${API_BASE}/api/reports`;
-        if (regionId) {
-            url += `?region_id=${regionId}`;
-        }
-
-        const response = await fetch(url);
+        const response = await fetch(buildApiUrl('/api/reports', regionId ? { region_id: regionId } : undefined));
         const result = await response.json();
 
         if (result.status === 'success') {
@@ -485,7 +687,7 @@ async function loadGalleryPhotos(regionId = null) {
             if (!regionId && regionsData.length > 0) {
                 const allPhotos = [];
                 for (const region of regionsData) {
-                    const regionResponse = await fetch(`${API_BASE}/api/reports?region_id=${region.id}`);
+                    const regionResponse = await fetch(buildApiUrl('/api/reports', { region_id: region.id }));
                     const regionResult = await regionResponse.json();
                     if (regionResult.status === 'success' && regionResult.data) {
                         allPhotos.push(...regionResult.data);
@@ -570,7 +772,7 @@ async function handlePhotoSubmit(e) {
     }
 
     try {
-        const response = await fetch(`${API_BASE}/api/reports`, {
+        const response = await fetch(buildApiUrl('/api/reports'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -625,7 +827,7 @@ async function exportPredictionsCSV() {
 
         for (const region of regionsData) {
             // Fetch foliage data for each region
-            const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${region.id}`);
+            const foliageResponse = await fetch(buildApiUrl('/api/foliage', { region_id: region.id }));
             const foliageData = await foliageResponse.json();
 
             predictions.push({
@@ -674,7 +876,7 @@ async function exportPredictionsJSON() {
 
         for (const region of regionsData) {
             // Fetch foliage data for each region
-            const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${region.id}`);
+            const foliageResponse = await fetch(buildApiUrl('/api/foliage', { region_id: region.id }));
             const foliageData = await foliageResponse.json();
 
             predictions.push({
@@ -708,7 +910,7 @@ async function exportPredictionsJSON() {
 // Export trip plans as CSV
 async function exportTripsCSV() {
     try {
-        const tripsResponse = await fetch(`${API_BASE}/api/trips`);
+        const tripsResponse = await fetch(buildApiUrl('/api/trips'));
         const tripsData = await tripsResponse.json();
 
         if (!tripsData.trips || tripsData.trips.length === 0) {
@@ -747,7 +949,7 @@ async function exportTripsCSV() {
 // Export trip plans as JSON
 async function exportTripsJSON() {
     try {
-        const tripsResponse = await fetch(`${API_BASE}/api/trips`);
+        const tripsResponse = await fetch(buildApiUrl('/api/trips'));
         const tripsData = await tripsResponse.json();
 
         if (!tripsData.trips || tripsData.trips.length === 0) {

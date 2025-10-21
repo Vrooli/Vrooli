@@ -9,19 +9,28 @@ class ResearchAssistantApp {
         this.currentTab = 'dashboard';
         this.currentSettingsPanel = 'general';
         this.isDarkMode = localStorage.getItem('darkMode') === 'true';
+        this.handleResize = this.handleResize.bind(this);
         
         this.init();
     }
 
     async init() {
+        this.cacheDomElements();
         this.setupEventListeners();
         this.loadDashboardData();
         this.initializeTheme();
         
         // Initialize WebSocket connection for real-time updates
         this.initWebSocket();
+        this.handleResize();
         
         console.log('🚀 AI Research Assistant Dashboard initialized');
+    }
+
+    cacheDomElements() {
+        this.sidebarElement = document.querySelector('.sidebar');
+        this.sidebarOverlay = document.getElementById('sidebarOverlay');
+        this.mobileMenuToggle = document.getElementById('mobileMenuToggle');
     }
 
     setupEventListeners() {
@@ -31,6 +40,7 @@ class ResearchAssistantApp {
                 e.preventDefault();
                 const tab = item.getAttribute('data-tab');
                 this.switchTab(tab);
+                this.closeSidebarOnMobile();
             });
         });
 
@@ -77,6 +87,16 @@ class ResearchAssistantApp {
                 this.closeModal(e.target.id);
             }
         });
+
+        this.mobileMenuToggle?.addEventListener('click', () => {
+            this.toggleSidebar();
+        });
+
+        this.sidebarOverlay?.addEventListener('click', () => {
+            this.closeSidebar();
+        });
+
+        window.addEventListener('resize', this.handleResize);
     }
 
     // Navigation
@@ -85,15 +105,16 @@ class ResearchAssistantApp {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
         });
-        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
 
         // Update content
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
         });
-        document.getElementById(tab).classList.add('active');
+        document.getElementById(tab)?.classList.add('active');
 
         this.currentTab = tab;
+        this.closeSidebarOnMobile();
 
         // Load tab-specific data
         this.loadTabData(tab);
@@ -680,6 +701,42 @@ class ResearchAssistantApp {
                 this.loadDashboardData();
             }
         }, 30000); // Refresh every 30 seconds
+    }
+
+    toggleSidebar() {
+        if (!this.sidebarElement) return;
+        const shouldOpen = !this.sidebarElement.classList.contains('open');
+        this.setSidebarState(shouldOpen);
+    }
+
+    closeSidebar() {
+        if (!this.sidebarElement) return;
+        this.setSidebarState(false);
+    }
+
+    closeSidebarOnMobile() {
+        if (this.isMobileView()) {
+            this.closeSidebar();
+        }
+    }
+
+    setSidebarState(isOpen) {
+        if (!this.sidebarElement) return;
+        this.sidebarElement.classList.toggle('open', isOpen);
+        this.mobileMenuToggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        this.sidebarOverlay?.classList.toggle('active', isOpen);
+        this.sidebarOverlay?.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        document.body.classList.toggle('sidebar-open', isOpen);
+    }
+
+    isMobileView() {
+        return window.innerWidth <= 768;
+    }
+
+    handleResize() {
+        if (!this.isMobileView()) {
+            this.setSidebarState(false);
+        }
     }
 
     // Global methods for onclick handlers

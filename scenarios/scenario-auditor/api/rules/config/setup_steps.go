@@ -110,6 +110,24 @@ Targets: service_json
   <expected-message>change into the cli directory</expected-message>
 </test-case>
 
+<test-case id="install-cli-bash-script" should-fail="false">
+  <description>install-cli step invokes cli/install.sh without changing directories</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "bash cli/install.sh", "description": "Install CLI command globally", "condition": {"file_exists": "cli/install.sh"}},
+        {"name": "build-api", "run": "cd api && go mod download && go build -o file-tools-api ./cmd/server/main.go", "description": "Build Go API server", "condition": {"file_exists": "api/go.mod"}},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
 <test-case id="missing-service-name" should-fail="true">
   <description>install-cli exists but service.name is missing</description>
   <input language="json"><![CDATA[
@@ -421,11 +439,13 @@ func validateInstallCLI(filePath, source string, step map[string]interface{}) []
 
 	run := strings.TrimSpace(toStringOrDefault(step["run"]))
 	runLower := strings.ToLower(run)
-	if !strings.Contains(runLower, "cd cli") {
+	hasCdCli := strings.Contains(runLower, "cd cli")
+	invokesInstallScript := strings.Contains(runLower, "cli/install.sh")
+	if !hasCdCli && !invokesInstallScript {
 		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli step must change into the cli directory"))
 	}
 
-	installIndicators := []string{"install.sh", "ln -sf", "cp ", "install-cli"}
+	installIndicators := []string{"cli/install.sh", "install.sh", "ln -sf", "cp ", "install-cli"}
 	indicatorFound := false
 	for _, indicator := range installIndicators {
 		if strings.Contains(runLower, indicator) {

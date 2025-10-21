@@ -130,8 +130,21 @@ func main() {
 
 	log.Println("🎉 Database connection pool established successfully!")
 
+	// Initialize external Home Assistant client
+	haBaseURL := os.Getenv("HOME_ASSISTANT_BASE_URL")
+	if strings.TrimSpace(haBaseURL) == "" {
+		haBaseURL = "http://localhost:8123"
+	}
+	haToken := os.Getenv("HOME_ASSISTANT_TOKEN")
+	haClient := NewHomeAssistantClient(haBaseURL, haToken)
+	if haClient == nil {
+		log.Println("⚠️  Home Assistant client not configured - using fallback data")
+	} else {
+		log.Printf("🔌 Home Assistant client configured for %s", haBaseURL)
+	}
+
 	// Initialize components
-	app.DeviceController = NewDeviceController(app.DB)
+	app.DeviceController = NewDeviceController(app.DB, haClient)
 	app.SafetyValidator = NewSafetyValidator(app.DB)
 	app.CalendarScheduler = NewCalendarScheduler(app.DB)
 	app.CalendarScheduler.SetDeviceController(app.DeviceController)
@@ -216,6 +229,34 @@ func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
 			errors = append(errors, dbHealth["error"].(map[string]interface{}))
 		}
 	}
+
+	// Check Home Assistant dependency
+	haHealth := map[string]interface{}{
+		"status":  "unknown",
+		"message": "Home Assistant client not configured",
+	}
+
+	if app.DeviceController != nil && app.DeviceController.haClient != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		resp, err := app.DeviceController.haClient.doRequest(ctx, http.MethodGet, "/api/", nil)
+		cancel()
+
+		if err != nil {
+			haHealth["status"] = "degraded"
+			haHealth["error"] = err.Error()
+			if overallStatus == "healthy" {
+				overallStatus = "degraded"
+			}
+		} else {
+			haHealth["status"] = "healthy"
+			haHealth["message"] = "Home Assistant reachable"
+			if resp != nil && resp.Body != nil {
+				resp.Body.Close()
+			}
+		}
+	}
+
+	healthResponse["dependencies"].(map[string]interface{})["home_assistant"] = haHealth
 
 	// Check Device Controller functionality
 	deviceHealth := app.checkDeviceController()

@@ -1,0 +1,15 @@
+{
+  "name": "file-tools-ui",
+  "version": "1.0.0",
+  "description": "Secure proxy-aware dashboard for the File Tools scenario",
+  "type": "module",
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  }
+}

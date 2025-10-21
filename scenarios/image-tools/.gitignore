@@ -1,0 +1,12 @@
+# Test artifacts
+api/coverage.html
+api/coverage.out
+*.test
+
+# Build artifacts
+api/image-tools-api
+cli/image-tools
+
+# Temporary files
+*.tmp
+*.log

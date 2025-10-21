@@ -210,7 +210,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && API_URL=http://localhost:$API_PORT node server.js",
+          "run": "cd ui && UI_PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
           "description": "Start UI server in background",
           "background": true,
           "condition": {

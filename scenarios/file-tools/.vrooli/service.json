@@ -56,11 +56,11 @@
       "description": "Go-based API server with REST endpoints"
     },
     "ui": {
-      "enabled": false,
-      "framework": "react",
+      "enabled": true,
+      "framework": "vanilla-miniapp",
       "path": "ui",
       "main": "index.html",
-      "description": "React-based web interface"
+      "description": "Proxy-aware web interface"
     },
     "cli": {
       "enabled": true,
@@ -234,6 +234,14 @@
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Prepare UI static assets",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "show-urls",
           "run": "echo '🚀 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: file-tools --help'",
           "description": "Display service access URLs"
@@ -253,11 +261,20 @@
            }
          },
          {
+           "name": "start-ui",
+           "run": "cd ui && npm run build && node server.js",
+           "description": "Start proxy-aware UI server",
+           "background": true,
+           "condition": {
+             "file_exists": "ui/server.js"
+           }
+         },
+         {
            "name": "show-urls",
            "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: file-tools --help'",
            "description": "Display all running service URLs"
          }
-      ]
+       ]
     },
     "test": {
       "description": "Test application functionality",

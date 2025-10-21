@@ -1,0 +1,30 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@vrooli/api-base':
+        specifier: file:../../../packages/api-base
+        version: file:../../../packages/api-base
+      '@vrooli/iframe-bridge':
+        specifier: file:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge
+
+packages:
+
+  '@vrooli/api-base@file:../../../packages/api-base':
+    resolution: {directory: ../../../packages/api-base, type: directory}
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
+    resolution: {directory: ../../../packages/iframe-bridge, type: directory}
+
+snapshots:
+
+  '@vrooli/api-base@file:../../../packages/api-base': {}
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}

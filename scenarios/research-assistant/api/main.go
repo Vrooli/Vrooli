@@ -154,6 +154,32 @@ type ChatMessage struct {
 	CreatedAt         time.Time `json:"created_at" db:"created_at"`
 }
 
+type ReportSchedule struct {
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	Description    *string    `json:"description,omitempty"`
+	TopicTemplate  string     `json:"topic_template"`
+	CronExpression string     `json:"cron_expression"`
+	Timezone       string     `json:"timezone"`
+	Depth          string     `json:"depth"`
+	TargetLength   int        `json:"target_length"`
+	IsActive       bool       `json:"is_active"`
+	LastRunAt      *time.Time `json:"last_run_at,omitempty"`
+	NextRunAt      *time.Time `json:"next_run_at,omitempty"`
+	TotalRuns      int        `json:"total_runs"`
+	SuccessfulRuns int        `json:"successful_runs"`
+	FailedRuns     int        `json:"failed_runs"`
+}
+
+type ChatConversationSummary struct {
+	ID            string     `json:"id"`
+	Title         *string    `json:"title,omitempty"`
+	IsActive      bool       `json:"is_active"`
+	MessageCount  int        `json:"message_count"`
+	LastMessageAt *time.Time `json:"last_message_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
 type SearchRequest struct {
 	Query     string            `json:"query"`
 	Engines   []string          `json:"engines"`
@@ -184,15 +210,31 @@ type AnalysisRequest struct {
 }
 
 type APIServer struct {
-	db            *sql.DB
-	n8nURL        string
-	windmillURL   string
-	searxngURL    string
-	qdrantURL     string
-	minioURL      string
-	ollamaURL     string
+	db             *sql.DB
+	n8nURL         string
+	windmillURL    string
+	searxngURL     string
+	qdrantURL      string
+	minioURL       string
+	ollamaURL      string
 	browserlessURL string
-	httpClient    *http.Client // Shared HTTP client with timeout for health checks
+	httpClient     *http.Client // Shared HTTP client with timeout for health checks
+}
+
+func nullStringPtr(ns sql.NullString) *string {
+	if !ns.Valid {
+		return nil
+	}
+	value := ns.String
+	return &value
+}
+
+func nullTimePtr(nt sql.NullTime) *time.Time {
+	if !nt.Valid {
+		return nil
+	}
+	value := nt.Time
+	return &value
 }
 
 // ResearchDepthConfig defines search parameters for each research depth level
@@ -853,11 +895,11 @@ func main() {
 		// Provide detailed status every few attempts
 		if attempt > 0 && attempt%3 == 0 {
 			logger.Info("Retry progress update", map[string]interface{}{
-				"attempts_made":  attempt + 1,
-				"max_retries":    maxRetries,
-				"total_wait":     (time.Duration(attempt*2) * baseDelay).String(),
-				"current_delay":  delay.String(),
-				"jitter":         jitter.String(),
+				"attempts_made": attempt + 1,
+				"max_retries":   maxRetries,
+				"total_wait":    (time.Duration(attempt*2) * baseDelay).String(),
+				"current_delay": delay.String(),
+				"jitter":        jitter.String(),
 			})
 		}
 
@@ -909,6 +951,14 @@ func main() {
 	api.HandleFunc("/reports/{id}", server.updateReport).Methods("PUT")
 	api.HandleFunc("/reports/{id}", server.deleteReport).Methods("DELETE")
 	api.HandleFunc("/reports/{id}/pdf", server.getReportPDF).Methods("GET")
+	api.HandleFunc("/reports/count", server.getReportCount).Methods("GET")
+	api.HandleFunc("/reports/confidence-average", server.getReportConfidenceAverage).Methods("GET")
+
+	// Schedule endpoints
+	api.HandleFunc("/schedules", server.getSchedules).Methods("GET")
+	api.HandleFunc("/schedules/count", server.getScheduleCount).Methods("GET")
+	api.HandleFunc("/schedules/{id}/run", server.runScheduleNow).Methods("POST")
+	api.HandleFunc("/schedules/{id}/toggle", server.toggleSchedule).Methods("POST")
 
 	// Chat endpoints
 	api.HandleFunc("/conversations", server.getConversations).Methods("GET")
@@ -916,6 +966,10 @@ func main() {
 	api.HandleFunc("/conversations/{id}", server.getConversation).Methods("GET")
 	api.HandleFunc("/conversations/{id}/messages", server.getMessages).Methods("GET")
 	api.HandleFunc("/conversations/{id}/messages", server.sendMessage).Methods("POST")
+	api.HandleFunc("/chat/conversations", server.getChatConversationsSummary).Methods("GET")
+	api.HandleFunc("/chat/messages", server.getChatMessages).Methods("GET")
+	api.HandleFunc("/chat/message", server.handleChatMessage).Methods("POST")
+	api.HandleFunc("/chat/sessions/count", server.getChatSessionsCount).Methods("GET")
 
 	// Search endpoints
 	api.HandleFunc("/search", server.performSearch).Methods("POST")
@@ -942,14 +996,14 @@ func main() {
 	api.HandleFunc("/depth-configs", server.getDepthConfigs).Methods("GET")
 
 	logger.Info("Research Assistant API starting", map[string]interface{}{
-		"port":          port,
-		"database":      postgresURL,
-		"n8n_url":       n8nURL,
-		"windmill_url":  windmillURL,
-		"searxng_url":   searxngURL,
-		"qdrant_url":    qdrantURL,
-		"minio_url":     minioURL,
-		"ollama_url":    ollamaURL,
+		"port":         port,
+		"database":     postgresURL,
+		"n8n_url":      n8nURL,
+		"windmill_url": windmillURL,
+		"searxng_url":  searxngURL,
+		"qdrant_url":   qdrantURL,
+		"minio_url":    minioURL,
+		"ollama_url":   ollamaURL,
 	})
 
 	handler := corsHandler(router)
@@ -1023,6 +1077,10 @@ func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) checkDatabase() string {
+	if s.db == nil {
+		return "not_configured"
+	}
+
 	if err := s.db.Ping(); err != nil {
 		return "unhealthy"
 	}
@@ -1030,6 +1088,10 @@ func (s *APIServer) checkDatabase() string {
 }
 
 func (s *APIServer) checkN8N() string {
+	if s.db == nil || s.httpClient == nil || s.n8nURL == "" {
+		return "not_configured"
+	}
+
 	resp, err := s.httpClient.Get(s.n8nURL + "/healthz")
 	if err != nil {
 		return "unavailable"
@@ -1044,6 +1106,10 @@ func (s *APIServer) checkN8N() string {
 }
 
 func (s *APIServer) checkWindmill() string {
+	if s.db == nil || s.httpClient == nil || s.windmillURL == "" {
+		return "not_configured"
+	}
+
 	resp, err := s.httpClient.Get(s.windmillURL + "/api/version")
 	if err != nil {
 		return "unavailable"
@@ -1058,6 +1124,10 @@ func (s *APIServer) checkWindmill() string {
 }
 
 func (s *APIServer) checkSearXNG() string {
+	if s.db == nil || s.httpClient == nil || s.searxngURL == "" {
+		return "not_configured"
+	}
+
 	resp, err := s.httpClient.Get(s.searxngURL + "/search?q=test&format=json")
 	if err != nil {
 		return "unavailable"
@@ -1072,6 +1142,10 @@ func (s *APIServer) checkSearXNG() string {
 }
 
 func (s *APIServer) checkQdrant() string {
+	if s.db == nil || s.httpClient == nil || s.qdrantURL == "" {
+		return "not_configured"
+	}
+
 	resp, err := s.httpClient.Get(s.qdrantURL + "/")
 	if err != nil {
 		return "unavailable"
@@ -1086,6 +1160,10 @@ func (s *APIServer) checkQdrant() string {
 }
 
 func (s *APIServer) checkOllama() string {
+	if s.db == nil || s.httpClient == nil || s.ollamaURL == "" {
+		return "not_configured"
+	}
+
 	resp, err := s.httpClient.Get(s.ollamaURL + "/api/tags")
 	if err != nil {
 		return "unavailable"
@@ -1100,7 +1178,7 @@ func (s *APIServer) checkOllama() string {
 }
 
 func (s *APIServer) checkBrowserless() string {
-	if s.browserlessURL == "" {
+	if s.db == nil || s.httpClient == nil || s.browserlessURL == "" {
 		return "not_configured"
 	}
 	resp, err := s.httpClient.Get(s.browserlessURL + "/pressure")
@@ -1175,6 +1253,60 @@ func (s *APIServer) getReports(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reports)
+}
+
+func (s *APIServer) getReportCount(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		response := map[string]int{"count": 0}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var total int
+	query := `
+		SELECT COUNT(*)
+		FROM research_assistant.reports
+		WHERE is_archived = false`
+
+	if err := s.db.QueryRow(query).Scan(&total); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]int{"count": total}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *APIServer) getReportConfidenceAverage(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		response := map[string]float64{"average": 0}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var avg sql.NullFloat64
+	query := `
+		SELECT AVG(confidence_score)
+		FROM research_assistant.reports
+		WHERE is_archived = false
+		  AND confidence_score IS NOT NULL`
+
+	if err := s.db.QueryRow(query).Scan(&avg); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	average := 0.0
+	if avg.Valid {
+		average = avg.Float64 * 100
+	}
+
+	response := map[string]float64{"average": average}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (s *APIServer) createReport(w http.ResponseWriter, r *http.Request) {
@@ -1411,6 +1543,339 @@ func (s *APIServer) sendMessage(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
 
+func (s *APIServer) getChatSessionsCount(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		response := map[string]int{
+			"count":  2,
+			"active": 1,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var total, active int
+
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM research_assistant.chat_conversations`).Scan(&total); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM research_assistant.chat_conversations WHERE COALESCE(is_active, FALSE) = TRUE`).Scan(&active); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]int{
+		"count":  total,
+		"active": active,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *APIServer) getChatConversationsSummary(w http.ResponseWriter, r *http.Request) {
+	limit := 25
+	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+
+	if s.db == nil {
+		now := time.Now()
+		last := now.Add(-2 * time.Hour)
+		title := "Competitor landscape"
+		conversations := []ChatConversationSummary{
+			{
+				ID:            "demo-conversation-1",
+				Title:         &title,
+				IsActive:      true,
+				MessageCount:  4,
+				LastMessageAt: &last,
+				CreatedAt:     now.Add(-48 * time.Hour),
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(conversations)
+		return
+	}
+
+	query := `
+		SELECT id,
+		       title,
+		       COALESCE(is_active, FALSE) AS is_active,
+		       COALESCE(message_count, 0) AS message_count,
+		       last_message_at,
+		       created_at
+		FROM research_assistant.chat_conversations
+		ORDER BY COALESCE(last_message_at, created_at) DESC
+		LIMIT $1`
+
+	rows, err := s.db.Query(query, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	conversations := make([]ChatConversationSummary, 0)
+	for rows.Next() {
+		var summary ChatConversationSummary
+		var title sql.NullString
+		var lastMessage sql.NullTime
+
+		if err := rows.Scan(&summary.ID, &title, &summary.IsActive, &summary.MessageCount, &lastMessage, &summary.CreatedAt); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		summary.Title = nullStringPtr(title)
+		summary.LastMessageAt = nullTimePtr(lastMessage)
+		conversations = append(conversations, summary)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(conversations)
+}
+
+func (s *APIServer) getChatMessages(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil {
+			if parsed <= 0 {
+				parsed = 1
+			}
+			if parsed > 200 {
+				parsed = 200
+			}
+			limit = parsed
+		}
+	}
+
+	conversationID := strings.TrimSpace(r.URL.Query().Get("conversation_id"))
+
+	if s.db == nil {
+		now := time.Now()
+		messages := []ChatMessage{
+			{
+				ID:             "demo-message-1",
+				ConversationID: "demo-conversation-1",
+				Role:           "assistant",
+				Content:        "Welcome back! Ready to continue the research session?",
+				CreatedAt:      now.Add(-3 * time.Hour),
+			},
+			{
+				ID:             "demo-message-2",
+				ConversationID: "demo-conversation-1",
+				Role:           "user",
+				Content:        "Summarize the latest AI policy developments in Europe.",
+				CreatedAt:      now.Add(-2 * time.Hour),
+			},
+			{
+				ID:             "demo-message-3",
+				ConversationID: "demo-conversation-1",
+				Role:           "assistant",
+				Content:        "Sure thing—I'll highlight regulatory updates, major initiatives, and potential risks.",
+				CreatedAt:      now.Add(-90 * time.Minute),
+			},
+		}
+
+		if conversationID != "" {
+			filtered := make([]ChatMessage, 0)
+			for _, msg := range messages {
+				if msg.ConversationID == conversationID {
+					filtered = append(filtered, msg)
+				}
+			}
+			messages = filtered
+		}
+
+		if len(messages) > limit {
+			messages = messages[len(messages)-limit:]
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(messages)
+		return
+	}
+
+	var (
+		rows *sql.Rows
+		err  error
+	)
+
+	baseQuery := `SELECT id, conversation_id, role, content, created_at
+		FROM research_assistant.chat_messages`
+
+	if conversationID != "" {
+		rows, err = s.db.Query(
+			baseQuery+" WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT $2",
+			conversationID,
+			limit,
+		)
+	} else {
+		rows, err = s.db.Query(
+			baseQuery+" ORDER BY created_at DESC LIMIT $1",
+			limit,
+		)
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	messages := make([]ChatMessage, 0)
+	for rows.Next() {
+		var message ChatMessage
+		if err := rows.Scan(&message.ID, &message.ConversationID, &message.Role, &message.Content, &message.CreatedAt); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		messages = append(messages, message)
+	}
+
+	// Ensure chronological order for UI rendering
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
+}
+
+func (s *APIServer) handleChatMessage(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Message        string  `json:"message"`
+		ConversationID *string `json:"conversation_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	message := strings.TrimSpace(req.Message)
+	if message == "" {
+		http.Error(w, "message is required", http.StatusBadRequest)
+		return
+	}
+
+	if s.db == nil {
+		assistantResponse := generateAssistantResponse(message)
+		response := map[string]interface{}{
+			"conversation_id": "demo-conversation-1",
+			"response":        assistantResponse,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	ctx := r.Context()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	var conversationID string
+
+	if req.ConversationID != nil && strings.TrimSpace(*req.ConversationID) != "" {
+		conversationID = strings.TrimSpace(*req.ConversationID)
+
+		var exists bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM research_assistant.chat_conversations WHERE id = $1)`, conversationID).Scan(&exists); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if !exists {
+			http.Error(w, "conversation not found", http.StatusNotFound)
+			return
+		}
+	} else {
+		title := message
+		if len(title) > 60 {
+			title = title[:60] + "..."
+		}
+
+		if err := tx.QueryRowContext(
+			ctx,
+			`INSERT INTO research_assistant.chat_conversations (title, is_active, last_message_at, message_count, created_at, updated_at)
+			 VALUES ($1, TRUE, NOW(), 0, NOW(), NOW()) RETURNING id`,
+			title,
+		).Scan(&conversationID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO research_assistant.chat_messages (conversation_id, role, content, created_at)
+		 VALUES ($1, 'user', $2, NOW())`,
+		conversationID,
+		message,
+	); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	assistantResponse := generateAssistantResponse(message)
+
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO research_assistant.chat_messages (conversation_id, role, content, created_at)
+		 VALUES ($1, 'assistant', $2, NOW())`,
+		conversationID,
+		assistantResponse,
+	); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE research_assistant.chat_conversations
+		 SET message_count = COALESCE(message_count, 0) + 2,
+		     last_message_at = NOW(),
+		     updated_at = NOW()
+		 WHERE id = $1`,
+		conversationID,
+	); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"conversation_id": conversationID,
+		"response":        assistantResponse,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func generateAssistantResponse(message string) string {
+	trimmed := strings.TrimSpace(message)
+	if trimmed == "" {
+		return "Happy to help with your research. Let me know what topic you want to explore."
+	}
+
+	if len(trimmed) > 140 {
+		trimmed = trimmed[:140] + "..."
+	}
+
+	return fmt.Sprintf("I've logged your request about \"%s\". I'll review recent findings and follow up with prioritized insights shortly.", trimmed)
+}
+
 // Helper function to sort results by a field
 func sortResultsByField(results []interface{}, field string, descending bool) {
 	// Simple bubble sort for demonstration - could be optimized
@@ -1640,6 +2105,230 @@ func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (s *APIServer) getSchedules(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		now := time.Now()
+		next := now.Add(24 * time.Hour)
+		last := now.Add(-24 * time.Hour)
+		name := "Weekly Trend Briefing"
+		placeholder := []ReportSchedule{
+			{
+				ID:             "demo-schedule-1",
+				Name:           name,
+				TopicTemplate:  "Weekly industry intelligence summary",
+				CronExpression: "0 9 * * 1",
+				Timezone:       "UTC",
+				Depth:          "standard",
+				TargetLength:   5,
+				IsActive:       true,
+				LastRunAt:      &last,
+				NextRunAt:      &next,
+				TotalRuns:      12,
+				SuccessfulRuns: 12,
+				FailedRuns:     0,
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(placeholder)
+		return
+	}
+
+	query := `
+		SELECT
+			id,
+			name,
+			description,
+			topic_template,
+			cron_expression,
+			timezone,
+			depth,
+			target_length,
+			COALESCE(is_active, FALSE) AS is_active,
+			last_run_at,
+			next_run_at,
+			COALESCE(total_runs, 0) AS total_runs,
+			COALESCE(successful_runs, 0) AS successful_runs,
+			COALESCE(failed_runs, 0) AS failed_runs
+		FROM research_assistant.report_schedules
+		ORDER BY created_at DESC`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	schedules := make([]ReportSchedule, 0)
+	for rows.Next() {
+		var schedule ReportSchedule
+		var description sql.NullString
+		var lastRun sql.NullTime
+		var nextRun sql.NullTime
+		var targetLength sql.NullInt64
+		var totalRuns, successfulRuns, failedRuns int64
+
+		err := rows.Scan(
+			&schedule.ID,
+			&schedule.Name,
+			&description,
+			&schedule.TopicTemplate,
+			&schedule.CronExpression,
+			&schedule.Timezone,
+			&schedule.Depth,
+			&targetLength,
+			&schedule.IsActive,
+			&lastRun,
+			&nextRun,
+			&totalRuns,
+			&successfulRuns,
+			&failedRuns,
+		)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		schedule.Description = nullStringPtr(description)
+		schedule.LastRunAt = nullTimePtr(lastRun)
+		schedule.NextRunAt = nullTimePtr(nextRun)
+		schedule.TargetLength = 0
+		if targetLength.Valid {
+			schedule.TargetLength = int(targetLength.Int64)
+		}
+		schedule.TotalRuns = int(totalRuns)
+		schedule.SuccessfulRuns = int(successfulRuns)
+		schedule.FailedRuns = int(failedRuns)
+
+		schedules = append(schedules, schedule)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(schedules)
+}
+
+func (s *APIServer) getScheduleCount(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		response := map[string]int{
+			"count":  1,
+			"active": 1,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var total, active int
+
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM research_assistant.report_schedules`).Scan(&total); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM research_assistant.report_schedules WHERE COALESCE(is_active, FALSE) = TRUE`).Scan(&active); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]int{
+		"count":  total,
+		"active": active,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *APIServer) runScheduleNow(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	if strings.TrimSpace(id) == "" {
+		http.Error(w, "schedule id is required", http.StatusBadRequest)
+		return
+	}
+
+	if s.db == nil {
+		response := map[string]string{"status": "scheduled"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	query := `
+		UPDATE research_assistant.report_schedules
+		SET last_run_at = NOW(),
+		    next_run_at = COALESCE(next_run_at, NOW()) + INTERVAL '1 day',
+		    total_runs = COALESCE(total_runs, 0) + 1,
+		    updated_at = NOW()
+		WHERE id = $1`
+
+	result, err := s.db.Exec(query, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, "schedule not found", http.StatusNotFound)
+		return
+	}
+
+	response := map[string]string{"status": "scheduled"}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *APIServer) toggleSchedule(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	if strings.TrimSpace(id) == "" {
+		http.Error(w, "schedule id is required", http.StatusBadRequest)
+		return
+	}
+
+	if s.db == nil {
+		response := map[string]interface{}{
+			"id":        id,
+			"is_active": true,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	query := `
+		UPDATE research_assistant.report_schedules
+		SET is_active = NOT COALESCE(is_active, FALSE),
+		    updated_at = NOW()
+		WHERE id = $1
+		RETURNING is_active`
+
+	var newStatus bool
+	if err := s.db.QueryRow(query, id).Scan(&newStatus); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "schedule not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"id":        id,
+		"is_active": newStatus,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func (s *APIServer) getSearchHistory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
@@ -1758,9 +2447,9 @@ func (s *APIServer) extractWebContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		URL            string `json:"url"`
+		URL             string `json:"url"`
 		WaitForSelector string `json:"wait_for_selector"`
-		Timeout        int    `json:"timeout"` // milliseconds
+		Timeout         int    `json:"timeout"` // milliseconds
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

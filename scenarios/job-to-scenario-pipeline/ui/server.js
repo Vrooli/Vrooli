@@ -16,6 +16,17 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Standardized health endpoint for lifecycle monitoring
+app.get('/health', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.json({
+        status: 'healthy',
+        service: 'job-to-scenario-pipeline-ui',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Job Pipeline Dashboard running on http://localhost:${PORT}`);

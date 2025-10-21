@@ -49,6 +49,25 @@ body {
     overflow-x: hidden;
 }
 
+.icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    color: inherit;
+}
+
+.icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.icon-lg {
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
 /* App Layout */
 .app {
     min-height: 100vh;
@@ -79,6 +98,9 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .tagline {
@@ -135,7 +157,18 @@ body {
 }
 
 .profile-avatar {
-    font-size: 1.2rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: var(--bg-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-avatar .icon {
+    width: 1.1rem;
+    height: 1.1rem;
 }
 
 /* Navigation Tabs */
@@ -164,6 +197,9 @@ body {
     border-radius: var(--border-radius) var(--border-radius) 0 0;
     transition: var(--transition);
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .tab-button:hover {
@@ -206,6 +242,9 @@ body {
 .section-header h2 {
     font-size: 1.5rem;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .section-actions {
@@ -250,16 +289,23 @@ body {
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 1.2rem;
     cursor: pointer;
     padding: 0.25rem;
     border-radius: var(--border-radius);
     transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-close:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
+}
+
+.btn-close .icon {
+    width: 1.1rem;
+    height: 1.1rem;
 }
 
 /* Form Controls */
@@ -486,6 +532,9 @@ textarea {
     font-size: 1.1rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .settings-card p {
@@ -528,6 +577,14 @@ textarea {
     font-size: 3rem;
     margin-bottom: 1rem;
     opacity: 0.5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder-icon .icon {
+    width: 3rem;
+    height: 3rem;
 }
 
 /* Loading Overlay */
@@ -581,6 +638,32 @@ textarea {
     min-width: 300px;
     box-shadow: var(--shadow-lg);
     animation: slideIn 0.3s ease;
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.toast-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+
+.toast-icon .icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.toast-message {
+    flex: 1;
+}
+
+.toast .toast-dismiss {
+    margin-left: auto;
 }
 
 .toast.success { border-left: 4px solid var(--accent-success); }

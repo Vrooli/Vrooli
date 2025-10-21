@@ -4,27 +4,131 @@ const path = require('path');
 const fs = require('fs');
 const WebSocket = require('ws');
 const http = require('http');
+const https = require('https');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// CRITICAL: Port must be explicitly configured through lifecycle system
-// No defaults allowed to prevent port conflicts and configuration errors
-if (!process.env.UI_PORT) {
-    console.error('❌ UI_PORT environment variable is required');
-    console.error('   This service must be started through the Vrooli lifecycle system');
-    console.error('   Use: vrooli scenario start home-automation');
+function requireEnv(name) {
+    const value = process.env[name];
+    if (!value) {
+        console.error(`[ui] Missing required environment variable: ${name}`);
+        console.error('     Start the scenario through the Vrooli lifecycle to inject configuration.');
+        process.exit(1);
+    }
+    return value;
+}
+
+function parsePort(value, label) {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+        console.error(`[ui] ${label} must be a positive integer (received: ${value})`);
+        process.exit(1);
+    }
+    return parsed;
+}
+
+const PORT = parsePort(requireEnv('UI_PORT'), 'UI_PORT');
+
+const rawApiBaseUrl = process.env.API_BASE_URL;
+const rawApiPort = process.env.API_PORT;
+
+let resolvedApiUrl;
+if (rawApiBaseUrl) {
+    try {
+        resolvedApiUrl = new URL(rawApiBaseUrl);
+    } catch (error) {
+        console.error(`[ui] Invalid API_BASE_URL value: ${rawApiBaseUrl}`);
+        console.error(error.message);
+        process.exit(1);
+    }
+} else if (rawApiPort) {
+    const parsedPort = parsePort(rawApiPort, 'API_PORT');
+    resolvedApiUrl = new URL(`http://127.0.0.1:${parsedPort}`);
+} else {
+    console.error('[ui] API configuration missing. Provide API_BASE_URL or API_PORT.');
     process.exit(1);
 }
 
-const PORT = process.env.UI_PORT;
-const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.API_PORT || 'NOTSET'}`;
+const API_PROTOCOL = resolvedApiUrl.protocol;
+const API_HOSTNAME = resolvedApiUrl.hostname;
+const API_HOST = resolvedApiUrl.host;
+const API_PORT = resolvedApiUrl.port
+    ? parsePort(resolvedApiUrl.port, 'API_BASE_URL port')
+    : (API_PROTOCOL === 'https:' ? 443 : 80);
+const API_PATH_PREFIX = resolvedApiUrl.pathname && resolvedApiUrl.pathname !== '/'
+    ? resolvedApiUrl.pathname.replace(/\/$/, '')
+    : '';
+const API_ORIGIN = `${API_PROTOCOL}//${API_HOST}`;
+const FULL_API_BASE_URL = API_PATH_PREFIX ? `${API_ORIGIN}${API_PATH_PREFIX}` : API_ORIGIN;
+const API_TRANSPORT = API_PROTOCOL === 'https:' ? https : http;
+
 const startTime = new Date();
+
+function buildUpstreamPath(requestPath = '/') {
+    const [pathPart, query = ''] = (requestPath || '/').split('?');
+    const normalizedPath = pathPart.startsWith('/') ? pathPart : `/${pathPart}`;
+
+    let upstreamPath = normalizedPath;
+    if (API_PATH_PREFIX && !normalizedPath.startsWith(API_PATH_PREFIX)) {
+        upstreamPath = `${API_PATH_PREFIX}${normalizedPath}`;
+    }
+
+    return query ? `${upstreamPath}?${query}` : upstreamPath;
+}
+
+function proxyToApi(req, res, upstreamOverride) {
+    const upstreamPath = buildUpstreamPath(upstreamOverride || req.url);
+
+    const options = {
+        hostname: API_HOSTNAME,
+        port: API_PORT,
+        path: upstreamPath,
+        method: req.method,
+        headers: {
+            ...req.headers,
+            host: API_HOST
+        }
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+        const originalPath = req.originalUrl || req.url;
+        console.debug(`[ui] proxy ${req.method} ${originalPath} -> ${FULL_API_BASE_URL}${upstreamPath}`);
+    }
+
+    const proxyReq = API_TRANSPORT.request(options, (proxyRes) => {
+        res.status(proxyRes.statusCode || 502);
+        Object.entries(proxyRes.headers).forEach(([key, value]) => {
+            if (typeof value !== 'undefined') {
+                res.setHeader(key, value);
+            }
+        });
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (error) => {
+        console.error('[ui] API proxy error:', error.message);
+        if (!res.headersSent) {
+            res.status(502).json({
+                error: 'API unavailable',
+                message: 'Home automation API is not responding',
+                target: `${FULL_API_BASE_URL}${upstreamPath}`
+            });
+        } else {
+            res.end();
+        }
+    });
+
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        req.pipe(proxyReq);
+    } else {
+        proxyReq.end();
+    }
+}
 
 // Middleware
 app.use(cors());
-app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 // Serve the main dashboard
@@ -64,7 +168,7 @@ app.get('/health', async (req, res) => {
     const apiHealth = await checkAPIConnectivity();
     healthResponse.api_connectivity = {
         connected: apiHealth.status === 'healthy',
-        api_url: API_BASE_URL,
+        api_url: FULL_API_BASE_URL,
         last_check: new Date().toISOString(),
         error: apiHealth.error || null,
         latency_ms: apiHealth.latency_ms || null
@@ -131,27 +235,8 @@ app.get('/health', async (req, res) => {
 });
 
 // Proxy API requests to backend
-app.use('/api', async (req, res) => {
-    try {
-        const apiUrl = `${API_BASE_URL}${req.path}`;
-        const response = await fetch(apiUrl, {
-            method: req.method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': req.headers.authorization || ''
-            },
-            body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined
-        });
-        
-        const data = await response.json();
-        res.status(response.status).json(data);
-    } catch (error) {
-        console.error('API proxy error:', error);
-        res.status(500).json({ 
-            error: 'API unavailable',
-            message: 'Home automation API is not responding'
-        });
-    }
+app.use('/api', (req, res) => {
+    proxyToApi(req, res, req.originalUrl || req.url);
 });
 
 // WebSocket connection for real-time device updates
@@ -247,72 +332,82 @@ async function checkAPIConnectivity() {
         latency_ms: null
     };
 
-    const apiUrl = new URL('/api/v1/health', API_BASE_URL);
+    const upstreamPath = buildUpstreamPath('/api/v1/health');
     const startTime = Date.now();
 
     return new Promise((resolve) => {
         const options = {
-            hostname: apiUrl.hostname,
-            port: apiUrl.port,
-            path: apiUrl.pathname,
+            hostname: API_HOSTNAME,
+            port: API_PORT,
+            path: upstreamPath,
             method: 'GET',
-            timeout: 5000
+            headers: {
+                host: API_HOST
+            }
         };
 
-        const req = http.request(options, (res) => {
-            const endTime = Date.now();
-            health.latency_ms = endTime - startTime;
-            health.checks.api_reachable = true;
-            health.checks.api_status_code = res.statusCode;
-
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-                health.status = 'healthy';
-            } else if (res.statusCode >= 500) {
-                health.status = 'degraded';
-                health.error = {
-                    code: 'API_SERVER_ERROR',
-                    message: `Home automation API returned status ${res.statusCode}`,
-                    category: 'network',
-                    retryable: true
-                };
-            } else {
-                health.status = 'degraded';
-                health.error = {
-                    code: 'API_UNEXPECTED_STATUS',
-                    message: `Home automation API returned status ${res.statusCode}`,
-                    category: 'network',
-                    retryable: true
-                };
+        let completed = false;
+        const finalize = (updater) => {
+            if (completed) {
+                return;
+            }
+            completed = true;
+            if (typeof updater === 'function') {
+                updater();
             }
             resolve(health);
+        };
+
+        const upstreamReq = API_TRANSPORT.request(options, (upstreamRes) => {
+            finalize(() => {
+                const endTime = Date.now();
+                health.latency_ms = endTime - startTime;
+                health.checks.api_reachable = true;
+                health.checks.api_status_code = upstreamRes.statusCode;
+
+                if (upstreamRes.statusCode >= 200 && upstreamRes.statusCode < 300) {
+                    health.status = 'healthy';
+                } else {
+                    health.status = 'degraded';
+                    const code = upstreamRes.statusCode >= 500 ? 'API_SERVER_ERROR' : 'API_UNEXPECTED_STATUS';
+                    health.error = {
+                        code,
+                        message: `Home automation API returned status ${upstreamRes.statusCode}`,
+                        category: 'network',
+                        retryable: true
+                    };
+                }
+            });
         });
 
-        req.on('error', (error) => {
-            health.status = 'unhealthy';
-            health.checks.api_reachable = false;
-            health.error = {
-                code: 'API_CONNECTION_FAILED',
-                message: `Failed to connect to home automation API: ${error.message}`,
-                category: 'network',
-                retryable: true
-            };
-            resolve(health);
+        upstreamReq.on('error', (error) => {
+            finalize(() => {
+                health.status = 'unhealthy';
+                health.checks.api_reachable = false;
+                health.error = {
+                    code: 'API_CONNECTION_FAILED',
+                    message: `Failed to connect to home automation API: ${error.message}`,
+                    category: 'network',
+                    retryable: true
+                };
+            });
         });
 
-        req.on('timeout', () => {
-            req.abort();
-            health.status = 'unhealthy';
-            health.checks.api_reachable = false;
-            health.error = {
-                code: 'API_TIMEOUT',
-                message: 'Home automation API health check timed out after 5 seconds',
-                category: 'network',
-                retryable: true
-            };
-            resolve(health);
+        upstreamReq.setTimeout(5000, () => {
+            upstreamReq.destroy(new Error('Request timed out'));
+            finalize(() => {
+                health.status = 'unhealthy';
+                health.checks.api_reachable = false;
+                health.error = {
+                    code: 'API_TIMEOUT',
+                    message: `Home automation API health check timed out after 5 seconds (${FULL_API_BASE_URL}${upstreamPath})`,
+                    category: 'network',
+                    retryable: true
+                };
+            });
         });
 
-        req.end();
+        upstreamReq.end();
     });
 }
 
@@ -395,8 +490,7 @@ function countHealthyDependencies(deps) {
 }
 
 server.listen(PORT, () => {
-    console.log(`🏠 Home Automation UI Server running at http://localhost:${PORT}`);
-    console.log(`🔗 API Backend: ${API_BASE_URL}`);
-    console.log(`📱 Dashboard: http://localhost:${PORT}`);
-    console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
+    console.log(`[ui] Home Automation dashboard available at http://localhost:${PORT}`);
+    console.log(`[ui] Proxying API requests to ${FULL_API_BASE_URL}`);
+    console.log(`[ui] WebSocket endpoint ready at ws://localhost:${PORT}`);
 });

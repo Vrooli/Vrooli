@@ -139,9 +139,24 @@
           "api": "/health",
           "ui": "/health"
         },
-        "checks": {
-          "timeout": 5
-        }
+        "checks": [
+          {
+            "name": "api_endpoint",
+            "type": "http",
+            "target": "http://localhost:${API_PORT}/health",
+            "critical": true,
+            "timeout": 5000,
+            "interval": 30000
+          },
+          {
+            "name": "ui_endpoint",
+            "type": "http",
+            "target": "http://localhost:${UI_PORT}/health",
+            "critical": false,
+            "timeout": 5000,
+            "interval": 30000
+          }
+        ]
       },
       "setup": {
         "description": "Initialize Image Tools",

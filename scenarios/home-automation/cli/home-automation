@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-readonly API_URL="${HOME_AUTOMATION_API_URL:-http://localhost:${HOME_AUTOMATION_API_PORT:-15335}}"
+readonly API_URL="${HOME_AUTOMATION_API_URL:-http://localhost:${API_PORT:-15335}}"
 readonly VERSION="1.0.0"
 readonly SCRIPT_NAME=$(basename "$0")
 
@@ -139,7 +139,7 @@ cmd_status() {
         echo ""
         echo -e "${BLUE}URLs:${NC}"
         echo "  API: ${API_URL}"
-        echo "  UI: http://localhost:${HOME_AUTOMATION_UI_PORT:-35335}"
+        echo "  UI: http://localhost:${UI_PORT:-35335}"
     fi
 }
 

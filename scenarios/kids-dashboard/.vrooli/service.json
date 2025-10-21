@@ -116,8 +116,37 @@
     "scenarioPattern": "../../scenarios/*/.vrooli/service.json",
     "method": "filesystem"
    },
-   "lifecycle": {
-     "setup": {
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Kids Dashboard health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
        "description": "Initialize Kids Dashboard",
        "condition": {
          "checks": [

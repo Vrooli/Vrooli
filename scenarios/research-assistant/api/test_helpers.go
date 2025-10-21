@@ -30,10 +30,10 @@ func setupTestLogger() func() {
 
 // TestServer provides a complete test server instance
 type TestServer struct {
-	Server   *APIServer
-	DB       *sql.DB
-	Router   *mux.Router
-	Cleanup  func()
+	Server  *APIServer
+	DB      *sql.DB
+	Router  *mux.Router
+	Cleanup func()
 }
 
 // setupTestServer creates an isolated test server with in-memory database
@@ -71,16 +71,38 @@ func setupTestServer(t *testing.T) *TestServer {
 	api.HandleFunc("/reports/{id}", server.getReport).Methods("GET")
 	api.HandleFunc("/reports/{id}", server.updateReport).Methods("PUT")
 	api.HandleFunc("/reports/{id}", server.deleteReport).Methods("DELETE")
+	api.HandleFunc("/reports/{id}/pdf", server.getReportPDF).Methods("GET")
+	api.HandleFunc("/reports/count", server.getReportCount).Methods("GET")
+	api.HandleFunc("/reports/confidence-average", server.getReportConfidenceAverage).Methods("GET")
+	api.HandleFunc("/schedules", server.getSchedules).Methods("GET")
+	api.HandleFunc("/schedules/count", server.getScheduleCount).Methods("GET")
+	api.HandleFunc("/schedules/{id}/run", server.runScheduleNow).Methods("POST")
+	api.HandleFunc("/schedules/{id}/toggle", server.toggleSchedule).Methods("POST")
+	api.HandleFunc("/chat/conversations", server.getChatConversationsSummary).Methods("GET")
+	api.HandleFunc("/chat/messages", server.getChatMessages).Methods("GET")
+	api.HandleFunc("/chat/message", server.handleChatMessage).Methods("POST")
+	api.HandleFunc("/chat/sessions/count", server.getChatSessionsCount).Methods("GET")
+	api.HandleFunc("/conversations", server.getConversations).Methods("GET")
+	api.HandleFunc("/conversations", server.createConversation).Methods("POST")
+	api.HandleFunc("/conversations/{id}", server.getConversation).Methods("GET")
+	api.HandleFunc("/conversations/{id}/messages", server.getMessages).Methods("GET")
+	api.HandleFunc("/conversations/{id}/messages", server.sendMessage).Methods("POST")
 	api.HandleFunc("/search", server.performSearch).Methods("POST")
+	api.HandleFunc("/search/history", server.getSearchHistory).Methods("GET")
 	api.HandleFunc("/detect-contradictions", server.detectContradictions).Methods("POST")
+	api.HandleFunc("/analyze", server.analyzeContent).Methods("POST")
+	api.HandleFunc("/analyze/insights", server.extractInsights).Methods("POST")
+	api.HandleFunc("/analyze/trends", server.analyzeTrends).Methods("POST")
+	api.HandleFunc("/analyze/competitive", server.analyzeCompetitive).Methods("POST")
 	api.HandleFunc("/templates", server.getTemplates).Methods("GET")
 	api.HandleFunc("/depth-configs", server.getDepthConfigs).Methods("GET")
 	api.HandleFunc("/dashboard/stats", server.getDashboardStats).Methods("GET")
+	api.HandleFunc("/knowledge/search", server.searchKnowledge).Methods("GET")
 	api.HandleFunc("/knowledge/collections", server.getCollections).Methods("GET")
 
 	return &TestServer{
-		Server:  server,
-		Router:  router,
+		Server: server,
+		Router: router,
 		Cleanup: func() {
 			if server.db != nil {
 				server.db.Close()
@@ -226,13 +248,13 @@ func mockSearXNGServer(t *testing.T) *httptest.Server {
 						"content": "This is test content for result 1",
 					},
 					{
-						"title":   "Test Result 2",
-						"url":     "https://arxiv.org/paper1",
-						"content": "Academic research paper content",
+						"title":         "Test Result 2",
+						"url":           "https://arxiv.org/paper1",
+						"content":       "Academic research paper content",
 						"publishedDate": time.Now().AddDate(0, 0, -5).Format("2006-01-02"),
 					},
 				},
-				"engines": []string{"google", "duckduckgo"},
+				"engines":    []string{"google", "duckduckgo"},
 				"query_time": 0.5,
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -290,8 +312,8 @@ func mockOllamaServer(t *testing.T) *httptest.Server {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(s == substr || len(s) > len(substr) &&
-		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		containsMiddle(s, substr)))
+			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
+				containsMiddle(s, substr)))
 }
 
 func containsMiddle(s, substr string) bool {

@@ -108,6 +108,7 @@
       ]
     },
     "develop": {
+      "description": "Start Local Info Scout services",
       "steps": [
            {
              "name": "start-api",

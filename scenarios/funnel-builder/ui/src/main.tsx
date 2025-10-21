@@ -9,8 +9,67 @@ import './index.css'
 declare global {
   interface Window {
     __funnelBuilderBridgeInitialized?: boolean
+    __APP_MONITOR_PROXY_INFO__?: {
+      path?: string
+      primary?: {
+        path?: string
+        basePath?: string
+      }
+    }
+  }
+
+  interface ImportMeta {
+    readonly env: Record<string, string | undefined>
   }
 }
+
+const normalizeBasename = (value?: string | null) => {
+  if (!value) {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  const withLeading = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  if (withLeading === '/') {
+    return '/'
+  }
+
+  return withLeading.replace(/\/+$/, '')
+}
+
+const resolveRouterBase = () => {
+  const fallback = normalizeBasename(import.meta.env.BASE_URL || '/') || '/'
+
+  if (typeof window === 'undefined') {
+    return fallback
+  }
+
+  const info = window.__APP_MONITOR_PROXY_INFO__
+  const candidates = [info?.primary?.path, info?.path, info?.primary?.basePath]
+
+  for (const candidate of candidates) {
+    const normalized = normalizeBasename(candidate)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  const pathname = window.location?.pathname
+  if (pathname && pathname.includes('/proxy/')) {
+    const index = pathname.indexOf('/proxy/')
+    if (index >= 0) {
+      return normalizeBasename(pathname.slice(0, index + '/proxy'.length)) || fallback
+    }
+  }
+
+  return fallback
+}
+
+const routerBase = resolveRouterBase()
 
 if (typeof window !== 'undefined' && window.parent !== window && !window.__funnelBuilderBridgeInitialized) {
   let parentOrigin: string | undefined
@@ -28,7 +87,7 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__funne
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={routerBase}>
       <App />
       <Toaster
         position="top-right"
