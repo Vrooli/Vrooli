@@ -147,6 +147,7 @@ body.app-preview-immersive {
   flex-wrap: wrap;
 }
 
+
 .preview-inspector__handle {
   display: flex;
   align-items: center;
@@ -165,39 +166,50 @@ body.app-preview-immersive {
   color: rgba(125, 249, 255, 0.95);
 }
 
-.preview-inspector__actions {
-  display: flex;
-  gap: 0.55rem;
-  flex-wrap: wrap;
+.preview-inspector__handle-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: auto;
 }
 
-.preview-inspector__button {
+.preview-inspector__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  border: 1px solid rgba(59, 130, 246, 0.45);
   background: rgba(59, 130, 246, 0.18);
-  border: 1px solid rgba(59, 130, 246, 0.55);
-  color: rgba(226, 255, 247, 0.95);
-  border-radius: 6px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: rgba(226, 255, 247, 0.9);
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease, color 0.2s ease;
+  flex: 0 0 auto;
 }
 
-.preview-inspector__button:hover:not(:disabled),
-.preview-inspector__button:focus-visible:not(:disabled) {
+.preview-inspector__icon-button:hover:not(:disabled),
+.preview-inspector__icon-button:focus-visible:not(:disabled) {
   background: rgba(59, 130, 246, 0.32);
-  border-color: rgba(96, 165, 250, 0.8);
+  border-color: rgba(96, 165, 250, 0.7);
+  transform: scale(1.05);
 }
 
-.preview-inspector__button:disabled {
+.preview-inspector__icon-button:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.45);
+  outline-offset: 2px;
+}
+
+.preview-inspector__icon-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  transform: none;
 }
 
-.preview-inspector__button--active {
+.preview-inspector__icon-button--active {
   background: rgba(14, 165, 233, 0.28);
   border-color: rgba(34, 211, 238, 0.65);
+  color: rgba(226, 255, 247, 0.95);
 }
 
 .preview-inspector__close {
@@ -401,6 +413,7 @@ body.app-preview-immersive {
 }
 
 .preview-inspector__screenshot-frame {
+  position: relative;
   border-radius: 8px;
   border: 1px solid rgba(94, 234, 212, 0.18);
   background: rgba(8, 47, 73, 0.55);
@@ -409,12 +422,66 @@ body.app-preview-immersive {
   overflow: auto;
 }
 
+.preview-inspector__screenshot-frame--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+}
+
+.preview-inspector__screenshot-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1.1rem;
+  text-align: center;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  color: rgba(148, 163, 184, 0.76);
+}
+
+.preview-inspector__screenshot-placeholder-icon {
+  color: rgba(148, 163, 184, 0.7);
+}
+
 .preview-inspector__screenshot-frame img {
   display: block;
   max-width: 100%;
   height: auto;
   border-radius: 6px;
   box-shadow: 0 6px 28px rgba(14, 165, 233, 0.24);
+}
+
+.preview-inspector__screenshot-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: rgba(8, 47, 73, 0.48);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.preview-inspector__screenshot-spinner {
+  color: rgba(94, 234, 212, 0.9);
+}
+
+.preview-inspector__screenshot-spinner-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .preview-inspector__screenshot-meta {
@@ -438,6 +505,10 @@ body.app-preview-immersive {
 .preview-inspector__screenshot-filename {
   color: rgba(94, 234, 212, 0.9);
   word-break: break-word;
+}
+
+.preview-inspector__screenshot-placeholder-text {
+  color: rgba(148, 187, 233, 0.82);
 }
 
 @media (max-width: 720px) {

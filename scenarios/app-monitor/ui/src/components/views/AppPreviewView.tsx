@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from 'react';
 import type { ChangeEvent, KeyboardEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { Info, Loader2, X, ChevronDown, Image, BoxSelect } from 'lucide-react';
+import { Info, Loader2, X, ChevronDown, Image, BoxSelect, Inspect } from 'lucide-react';
 import { appService } from '@/services/api';
 import { useAppsStore } from '@/state/appsStore';
 import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
@@ -39,7 +39,7 @@ const IOS_AUTOBACK_GUARD_MS = 15000;
 const PREVIEW_SCREENSHOT_STABILITY_MS = 1000;
 const INSPECTOR_FLOATING_MARGIN = 12;
 type InspectorPosition = { x: number; y: number };
-const DEFAULT_INSPECTOR_POSITION: InspectorPosition = { x: 24, y: 104 };
+const DEFAULT_INSPECTOR_POSITION: InspectorPosition = { x: 24, y: INSPECTOR_FLOATING_MARGIN };
 const DRAG_THRESHOLD_PX = 3;
 type InspectorScreenshot = {
   dataUrl: string;
@@ -123,6 +123,7 @@ const AppPreviewView = () => {
   const [isInspectorDialogOpen, setIsInspectorDialogOpen] = useState(false);
   const [inspectorDetailsExpanded, setInspectorDetailsExpanded] = useState(false);
   const [inspectorScreenshot, setInspectorScreenshot] = useState<InspectorScreenshot | null>(null);
+  const [isInspectorScreenshotCapturing, setIsInspectorScreenshotCapturing] = useState(false);
   const [inspectorScreenshotExpanded, setInspectorScreenshotExpanded] = useState(false);
   const [inspectorDialogPosition, setInspectorDialogPosition] = useState<InspectorPosition>(() => ({ ...DEFAULT_INSPECTOR_POSITION }));
   const [isInspectorDragging, setIsInspectorDragging] = useState(false);
@@ -134,6 +135,10 @@ const AppPreviewView = () => {
     setInspectorScreenshotExpanded(false);
   }, [isInspectorDialogOpen]);
   const inspectorDialogRef = useRef<HTMLDivElement | null>(null);
+  const inspectorDefaultPositionAppliedRef = useRef(false);
+  const inspectorCaptureTokenRef = useRef(0);
+  const captureElementScreenshotRef = useRef<(() => Promise<void>) | null>(null);
+  const lastCapturedResultSignatureRef = useRef<string | null>(null);
   const inspectorDragStateRef = useRef<{
     pointerId: number;
     offsetX: number;
@@ -919,6 +924,9 @@ const AppPreviewView = () => {
       setLockedInspectMessage('Element bounds unavailable for screenshots.', 3000);
       return;
     }
+    const captureToken = Date.now();
+    inspectorCaptureTokenRef.current = captureToken;
+    setIsInspectorScreenshotCapturing(true);
     try {
       const scale = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
       const result = await requestScreenshot({
@@ -960,6 +968,10 @@ const AppPreviewView = () => {
     } catch (error) {
       logger.error('Failed to capture element screenshot', error);
       setLockedInspectMessage('Failed to capture element screenshot.', 3400);
+    } finally {
+      if (inspectorCaptureTokenRef.current === captureToken) {
+        setIsInspectorScreenshotCapturing(false);
+      }
     }
   }, [
     currentAppIdentifier,
@@ -970,6 +982,42 @@ const AppPreviewView = () => {
     setInspectorScreenshotExpanded,
     setLockedInspectMessage,
   ]);
+
+  useEffect(() => {
+    captureElementScreenshotRef.current = handleCaptureElementScreenshot;
+  }, [handleCaptureElementScreenshot]);
+
+  useEffect(() => {
+    if (inspectState.active) {
+      lastCapturedResultSignatureRef.current = null;
+    }
+  }, [inspectState.active]);
+
+  useEffect(() => {
+    if (!inspectState.result || inspectState.lastReason !== 'complete') {
+      return;
+    }
+    const { meta, documentRect, method } = inspectState.result;
+    const signatureParts = [
+      meta?.selector ?? '',
+      meta?.id ?? '',
+      Array.isArray(meta?.classes) ? meta.classes.join('.') : '',
+      documentRect ? Math.round(documentRect.x) : 0,
+      documentRect ? Math.round(documentRect.y) : 0,
+      documentRect ? Math.round(documentRect.width) : 0,
+      documentRect ? Math.round(documentRect.height) : 0,
+      method ?? '',
+    ];
+    const signature = signatureParts.join('|');
+    if (lastCapturedResultSignatureRef.current === signature) {
+      return;
+    }
+    lastCapturedResultSignatureRef.current = signature;
+    const capture = captureElementScreenshotRef.current;
+    if (capture) {
+      void capture();
+    }
+  }, [inspectState.lastReason, inspectState.result]);
 
   const handleToggleInspectMode = useCallback(() => {
     if (inspectState.active) {
@@ -1034,6 +1082,27 @@ const AppPreviewView = () => {
       observer.disconnect();
     };
   }, [clampInspectorPosition, isInspectorDialogOpen]);
+
+  useLayoutEffect(() => {
+    if (!isInspectorDialogOpen || inspectorDefaultPositionAppliedRef.current) {
+      return;
+    }
+    const container = previewViewRef.current;
+    const dialog = inspectorDialogRef.current;
+    if (!container || !dialog) {
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const width = dialog.offsetWidth;
+    const height = dialog.offsetHeight;
+    const target = clampInspectorPosition(
+      containerRect.width - width - INSPECTOR_FLOATING_MARGIN,
+      INSPECTOR_FLOATING_MARGIN,
+      { width, height, containerRect },
+    );
+    inspectorDefaultPositionAppliedRef.current = true;
+    setInspectorDialogPosition(target);
+  }, [clampInspectorPosition, isInspectorDialogOpen, previewViewNode]);
 
   useEffect(() => {
     if (!previewViewNode) {
@@ -2318,34 +2387,30 @@ const AppPreviewView = () => {
                       ? 'Element inspector'
                       : 'Element inspector unavailable'}
                 </span>
-                <button
-                  type="button"
-                  className="preview-inspector__close"
-                  onClick={handleInspectorDialogClose}
-                  aria-label="Close element inspector"
-                >
-                  <X aria-hidden size={16} />
-                </button>
-              </div>
-              <div className="preview-inspector__actions">
-                {inspectTarget && (
+                <div className="preview-inspector__handle-actions">
                   <button
                     type="button"
-                    className="preview-inspector__button"
-                    onClick={handleCaptureElementScreenshot}
-                    disabled={!inspectTarget}
+                    className={clsx(
+                      'preview-inspector__icon-button',
+                      inspectState.active && 'preview-inspector__icon-button--active',
+                    )}
+                    onClick={handleToggleInspectMode}
+                    disabled={!inspectState.supported || (!inspectState.active && !previewUrl)}
+                    aria-pressed={inspectState.active}
+                    aria-label={inspectState.active ? 'Stop element inspection' : 'Start element inspection'}
+                    title={inspectState.active ? 'Stop inspecting elements' : 'Inspect elements'}
                   >
-                    Capture screenshot
+                    <Inspect aria-hidden size={16} />
                   </button>
-                )}
-                <button
-                  type="button"
-                  className={clsx('preview-inspector__button', inspectState.active && 'preview-inspector__button--active')}
-                  onClick={handleToggleInspectMode}
-                  disabled={!inspectState.supported || (!inspectState.active && !previewUrl)}
-                >
-                  {inspectState.active ? 'Stop' : 'Inspect element'}
-                </button>
+                  <button
+                    type="button"
+                    className="preview-inspector__close"
+                    onClick={handleInspectorDialogClose}
+                    aria-label="Close element inspector"
+                  >
+                    <X aria-hidden size={16} />
+                  </button>
+                </div>
               </div>
             </header>
             {inspectStatusMessage && (
@@ -2476,61 +2541,87 @@ const AppPreviewView = () => {
                 </div>
               </div>
             )}
-            {inspectorScreenshot && (
-              <div className="preview-inspector__section">
-                <button
-                  type="button"
-                  className={clsx(
-                    'preview-inspector__section-toggle',
-                    'preview-inspector__section-toggle--screenshot',
-                    inspectorScreenshotExpanded && 'preview-inspector__section-toggle--expanded',
-                  )}
-                  onClick={() => setInspectorScreenshotExpanded(prev => !prev)}
-                  aria-expanded={inspectorScreenshotExpanded}
-                  aria-controls={inspectorScreenshotContentId}
-                  id={inspectorScreenshotSectionId}
-                >
-                  <span className="preview-inspector__section-label">
-                    <Image aria-hidden size={16} className="preview-inspector__section-symbol" />
-                    Captured screenshot
-                  </span>
-                  <span className="preview-inspector__section-hint">
-                    {inspectorScreenshot.width} × {inspectorScreenshot.height} px
-                  </span>
-                  <ChevronDown aria-hidden size={16} className="preview-inspector__section-icon" />
-                </button>
-                <div
-                  id={inspectorScreenshotContentId}
-                  className="preview-inspector__section-content"
-                  hidden={!inspectorScreenshotExpanded}
-                  role="region"
-                  aria-labelledby={inspectorScreenshotSectionId}
-                >
-                  <figure className="preview-inspector__screenshot">
-                    <div className="preview-inspector__screenshot-frame">
+            <div className="preview-inspector__section">
+              <button
+                type="button"
+                className={clsx(
+                  'preview-inspector__section-toggle',
+                  'preview-inspector__section-toggle--screenshot',
+                  inspectorScreenshotExpanded && 'preview-inspector__section-toggle--expanded',
+                )}
+                onClick={() => setInspectorScreenshotExpanded(prev => !prev)}
+                aria-expanded={inspectorScreenshotExpanded}
+                aria-controls={inspectorScreenshotContentId}
+                id={inspectorScreenshotSectionId}
+              >
+                <span className="preview-inspector__section-label">
+                  <Image aria-hidden size={16} className="preview-inspector__section-symbol" />
+                  Captured screenshot
+                </span>
+                <span className="preview-inspector__section-hint">
+                  {inspectorScreenshot
+                    ? `${inspectorScreenshot.width} × ${inspectorScreenshot.height} px`
+                    : 'No capture yet'}
+                </span>
+                <ChevronDown aria-hidden size={16} className="preview-inspector__section-icon" />
+              </button>
+              <div
+                id={inspectorScreenshotContentId}
+                className="preview-inspector__section-content"
+                hidden={!inspectorScreenshotExpanded}
+                role="region"
+                aria-labelledby={inspectorScreenshotSectionId}
+              >
+                <figure className="preview-inspector__screenshot">
+                  <div
+                    className={clsx(
+                      'preview-inspector__screenshot-frame',
+                      !inspectorScreenshot && 'preview-inspector__screenshot-frame--empty',
+                    )}
+                  >
+                    {inspectorScreenshot ? (
                       <img
                         src={inspectorScreenshot.dataUrl}
                         alt={`Captured element screenshot (${inspectorScreenshot.width} × ${inspectorScreenshot.height} pixels)`}
                       />
-                    </div>
-                    <figcaption className="preview-inspector__screenshot-meta">
-                      <span className="preview-inspector__screenshot-dimensions">
-                        {inspectorScreenshot.width} × {inspectorScreenshot.height} px
+                    ) : (
+                      <div className="preview-inspector__screenshot-placeholder" role="presentation">
+                        <Image aria-hidden size={36} className="preview-inspector__screenshot-placeholder-icon" />
+                        <span>No screenshot captured yet</span>
+                      </div>
+                    )}
+                    {isInspectorScreenshotCapturing && (
+                      <div className="preview-inspector__screenshot-overlay" role="status" aria-live="polite">
+                        <Loader2 aria-hidden size={28} className="spinning preview-inspector__screenshot-spinner" />
+                        <span className="preview-inspector__screenshot-spinner-label">Capturing screenshot...</span>
+                      </div>
+                    )}
+                  </div>
+                  <figcaption className="preview-inspector__screenshot-meta">
+                    {inspectorScreenshot ? (
+                      <>
+                        <span className="preview-inspector__screenshot-dimensions">
+                          {inspectorScreenshot.width} × {inspectorScreenshot.height} px
+                        </span>
+                        {inspectorScreenshot.note && (
+                          <span className="preview-inspector__screenshot-note">{inspectorScreenshot.note}</span>
+                        )}
+                        <span
+                          className="preview-inspector__screenshot-filename"
+                          title={inspectorScreenshot.filename}
+                        >
+                          {inspectorScreenshot.filename}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="preview-inspector__screenshot-placeholder-text">
+                        Capture an element to generate a screenshot.
                       </span>
-                      {inspectorScreenshot.note && (
-                        <span className="preview-inspector__screenshot-note">{inspectorScreenshot.note}</span>
-                      )}
-                      <span
-                        className="preview-inspector__screenshot-filename"
-                        title={inspectorScreenshot.filename}
-                      >
-                        {inspectorScreenshot.filename}
-                      </span>
-                    </figcaption>
-                  </figure>
-                </div>
+                    )}
+                  </figcaption>
+                </figure>
               </div>
-            )}
+            </div>
           </section>
         </div>
       )}
