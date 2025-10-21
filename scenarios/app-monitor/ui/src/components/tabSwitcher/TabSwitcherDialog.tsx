@@ -233,7 +233,13 @@ export default function TabSwitcherDialog() {
       return;
     }
     closeOverlay({ replace: true });
-    navigate(`/apps/${encodeURIComponent(identifier)}/preview`);
+    navigate(`/apps/${encodeURIComponent(identifier)}/preview`, {
+      state: {
+        fromAppsList: true,
+        originAppId: app.id,
+        navTimestamp: Date.now(),
+      },
+    });
   };
 
   const handleResourceSelect = (resource: Resource) => {

@@ -133,12 +133,35 @@ body.app-preview-immersive {
 .report-dialog__title {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.6rem;
   font-size: 1.25rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--matrix-cyan);
   margin: 0;
+}
+
+.report-dialog__app-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  background: rgba(0, 64, 64, 0.4);
+  color: rgba(173, 255, 227, 0.95);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .report-dialog__app-chip {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .report-dialog__title svg {
@@ -410,13 +433,13 @@ body.app-preview-immersive {
 .report-dialog__button--primary {
   border-color: rgba(0, 176, 255, 0.65);
   background: rgba(0, 176, 255, 0.2);
-  color: var(--matrix-bg);
+  color: rgba(224, 255, 249, 0.95);
 }
 
 .report-dialog__button--primary:hover:not(:disabled) {
   background: rgba(0, 176, 255, 0.85);
   box-shadow: 0 0 18px rgba(0, 176, 255, 0.35);
-  color: var(--matrix-bg);
+  color: rgba(224, 255, 249, 0.98);
 }
 
 .report-dialog__button--ghost {
@@ -892,6 +915,107 @@ body.app-preview-immersive {
   color: rgba(255, 156, 176, 0.95);
 }
 
+.report-dialog__health-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.report-dialog__health-item {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.18);
+  background: rgba(0, 36, 36, 0.45);
+}
+
+.report-dialog__health-item--pass {
+  border-color: rgba(0, 255, 191, 0.35);
+}
+
+.report-dialog__health-item--warn {
+  border-color: rgba(255, 210, 120, 0.4);
+}
+
+.report-dialog__health-item--fail {
+  border-color: rgba(255, 128, 156, 0.45);
+}
+
+.report-dialog__health-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.05rem;
+  height: 2.05rem;
+  border-radius: 999px;
+  background: rgba(0, 64, 64, 0.35);
+  color: rgba(173, 255, 227, 0.92);
+  flex: 0 0 auto;
+}
+
+.report-dialog__health-status--pass {
+  background: rgba(0, 176, 120, 0.18);
+  color: rgba(0, 255, 191, 0.95);
+}
+
+.report-dialog__health-status--warn {
+  background: rgba(255, 200, 92, 0.18);
+  color: rgba(255, 221, 150, 0.95);
+}
+
+.report-dialog__health-status--fail {
+  background: rgba(255, 90, 132, 0.2);
+  color: rgba(255, 156, 176, 0.95);
+}
+
+.report-dialog__health-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: rgba(224, 255, 249, 0.82);
+}
+
+.report-dialog__health-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.report-dialog__health-name {
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.report-dialog__health-latency {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: rgba(0, 255, 191, 0.7);
+}
+
+.report-dialog__health-endpoint {
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+  font-size: 0.75rem;
+  color: rgba(224, 255, 249, 0.7);
+  word-break: break-all;
+}
+
+.report-dialog__health-message {
+  margin: 0;
+  font-size: 0.84rem;
+  letter-spacing: 0.04em;
+}
+
+.report-dialog__health-code {
+  margin: 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  color: rgba(255, 196, 148, 0.85);
+}
+
 .report-dialog__bridge-refresh {
   margin-left: auto;
   display: inline-flex;
@@ -926,6 +1050,26 @@ body.app-preview-immersive {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.report-dialog__preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.report-dialog__preview-toggle {
+  width: 100%;
+  justify-content: flex-start;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--matrix-cyan);
+}
+
+.report-dialog__preview-toggle span {
+  flex: 1;
 }
 
 .report-dialog__preview-loading,
@@ -1214,6 +1358,11 @@ body.app-preview-immersive {
   font-size: 0.85rem;
   letter-spacing: 0.05em;
   color: rgba(0, 255, 255, 0.6);
+}
+
+.report-dialog__preview-hint--inactive {
+  color: rgba(224, 255, 249, 0.55);
+  font-style: italic;
 }
 
 .report-dialog__preview-info {

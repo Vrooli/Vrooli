@@ -1,32 +1,58 @@
 import clsx from 'clsx';
-import { Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Loader2,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react';
 
 import type {
   ReportConsoleLogsState,
   ReportLogsState,
   ReportNetworkState,
+  ReportHealthChecksState,
 } from './useReportIssueState';
 
 interface ReportLogsSectionProps {
   logs: ReportLogsState;
   consoleLogs: ReportConsoleLogsState;
   network: ReportNetworkState;
+  health: ReportHealthChecksState;
   bridgeCaps: string[];
   appLogsPanelId: string;
   consoleLogsPanelId: string;
   networkPanelId: string;
+  healthPanelId: string;
 }
 
 const ReportLogsSection = ({
   logs,
   consoleLogs,
   network,
+  health,
   bridgeCaps,
   appLogsPanelId,
   consoleLogsPanelId,
   networkPanelId,
-}: ReportLogsSectionProps) => (
-  <div className="report-dialog__logs">
+  healthPanelId,
+}: ReportLogsSectionProps) => {
+  const renderHealthStatusIcon = (status: 'pass' | 'warn' | 'fail') => {
+    switch (status) {
+      case 'pass':
+        return <CheckCircle2 aria-hidden size={16} />;
+      case 'warn':
+        return <AlertTriangle aria-hidden size={16} />;
+      case 'fail':
+      default:
+        return <XCircle aria-hidden size={16} />;
+    }
+  };
+
+  return (
+    <div className="report-dialog__logs">
     <section className="report-dialog__logs-section">
       <div className="report-dialog__logs-header">
         <label
@@ -357,10 +383,134 @@ const ReportLogsSection = ({
               );
             })}
           </div>
+    )}
+      </div>
+    </section>
+
+    <section className="report-dialog__logs-section">
+      <div className="report-dialog__logs-header">
+        <label
+          className={clsx(
+            'report-dialog__logs-include',
+            !health.includeHealthChecks && 'report-dialog__logs-include--off',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={health.includeHealthChecks}
+            onChange={(event) => health.setIncludeHealthChecks(event.target.checked)}
+            aria-label="Include health checks in report"
+          />
+          <span className="report-dialog__logs-title">Health checks</span>
+        </label>
+        <button
+          type="button"
+          className="report-dialog__logs-toggle"
+          onClick={health.toggleExpanded}
+          aria-expanded={health.expanded}
+          aria-controls={healthPanelId}
+          aria-label={health.expanded ? 'Hide health checks' : 'Show health checks'}
+        >
+          {health.expanded ? (
+            <EyeOff aria-hidden size={18} />
+          ) : (
+            <Eye aria-hidden size={18} />
+          )}
+        </button>
+      </div>
+      <div
+        id={healthPanelId}
+        className="report-dialog__logs-panel"
+        style={health.expanded ? undefined : { display: 'none' }}
+        aria-hidden={!health.expanded}
+      >
+        <div className="report-dialog__logs-meta">
+          <span>
+            {health.loading
+              ? 'Running health checks…'
+              : health.entries.length > 0
+                ? `Captured ${health.entries.length}${typeof health.total === 'number' && health.total > health.entries.length ? ` of ${health.total}` : ''} checks${health.formattedCapturedAt ? ` (captured ${health.formattedCapturedAt})` : ''}.`
+                : health.error
+                  ? 'Health checks unavailable.'
+                  : 'No health checks recorded.'}
+          </span>
+          <button
+            type="button"
+            className="report-dialog__logs-refresh"
+            onClick={health.fetch}
+            disabled={health.loading}
+          >
+            {health.loading ? (
+              <Loader2 aria-hidden size={14} className="spinning" />
+            ) : (
+              <RefreshCw aria-hidden size={14} />
+            )}
+            <span>{health.loading ? 'Running' : 'Refresh'}</span>
+          </button>
+        </div>
+        {health.loading ? (
+          <div className="report-dialog__logs-loading">
+            <Loader2 aria-hidden size={18} className="spinning" />
+            <span>Collecting health data…</span>
+          </div>
+        ) : health.error ? (
+          <div className="report-dialog__logs-message">
+            <p>{health.error}</p>
+            <button
+              type="button"
+              className="report-dialog__button report-dialog__button--ghost"
+              onClick={health.fetch}
+              disabled={health.loading}
+            >
+              Retry
+            </button>
+          </div>
+        ) : health.entries.length === 0 ? (
+          <p className="report-dialog__logs-empty">No health checks available.</p>
+        ) : (
+          <div className="report-dialog__health-list">
+            {health.entries.map(entry => (
+              <div
+                key={entry.id}
+                className={clsx(
+                  'report-dialog__health-item',
+                  `report-dialog__health-item--${entry.status}`,
+                )}
+              >
+                <span
+                  className={clsx(
+                    'report-dialog__health-status',
+                    `report-dialog__health-status--${entry.status}`,
+                  )}
+                  aria-label={`Health check ${entry.status}`}
+                >
+                  {renderHealthStatusIcon(entry.status)}
+                </span>
+                <div className="report-dialog__health-body">
+                  <div className="report-dialog__health-row">
+                    <span className="report-dialog__health-name">{entry.name}</span>
+                    {entry.latencyMs !== null && (
+                      <span className="report-dialog__health-latency">{`${entry.latencyMs} ms`}</span>
+                    )}
+                  </div>
+                  {entry.endpoint && (
+                    <div className="report-dialog__health-endpoint" title={entry.endpoint}>{entry.endpoint}</div>
+                  )}
+                  {entry.message && (
+                    <p className="report-dialog__health-message">{entry.message}</p>
+                  )}
+                  {entry.code && (
+                    <p className="report-dialog__health-code">{entry.code}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </section>
   </div>
-);
+  );
+};
 
 export default ReportLogsSection;

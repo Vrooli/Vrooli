@@ -37,6 +37,7 @@ import useReportIssueState, { type BridgePreviewState } from './useReportIssueSt
 const REPORT_APP_LOGS_PANEL_ID = 'app-report-dialog-logs';
 const REPORT_CONSOLE_LOGS_PANEL_ID = 'app-report-dialog-console';
 const REPORT_NETWORK_PANEL_ID = 'app-report-dialog-network';
+const REPORT_HEALTH_PANEL_ID = 'app-report-dialog-health';
 
 interface ReportIssueDialogProps {
   isOpen: boolean;
@@ -74,6 +75,8 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     isOpen,
     bridgeState,
     canCaptureScreenshot,
+    appId,
+    app,
   } = props;
 
   const {
@@ -83,6 +86,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     logs,
     consoleLogs,
     network,
+    health,
     existingIssues,
     diagnostics,
     screenshot,
@@ -154,6 +158,18 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     existingIssuesMeta,
   ]);
 
+  const issueDisplayName = useMemo(() => {
+    const candidates = [
+      app?.name,
+      app?.scenario_name,
+      appId,
+    ];
+    const match = candidates
+      .map(value => (value ?? '').toString().trim())
+      .find(value => value.length > 0);
+    return match ?? 'Unknown app';
+  }, [app?.name, app?.scenario_name, appId]);
+
   if (!isOpen) {
     return null;
   }
@@ -162,7 +178,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     <div
       className="report-dialog__overlay"
       role="presentation"
-      onClick={modal.handleOverlayClick}
+      onClick={modal.handleDismiss}
     >
       <div
         className="report-dialog"
@@ -175,11 +191,16 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
           <h2 id="app-report-dialog-title" className="report-dialog__title">
             <Bug aria-hidden size={20} />
             <span>Report an Issue</span>
+            {issueDisplayName && (
+              <span className="report-dialog__app-chip" title={issueDisplayName}>
+                {issueDisplayName}
+              </span>
+            )}
           </h2>
           <button
             type="button"
             className="report-dialog__close"
-            onClick={modal.handleDialogClose}
+            onClick={modal.handleDismiss}
             disabled={form.submitting}
             aria-label="Close report dialog"
           >
@@ -216,7 +237,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
               <button
                 type="button"
                 className="report-dialog__button report-dialog__button--primary"
-                onClick={modal.handleDialogClose}
+                onClick={modal.handleReset}
               >
                 Close
               </button>
@@ -385,15 +406,17 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
 
                 <ReportDiagnosticsPanel diagnostics={diagnostics} />
 
-                <ReportLogsSection
-                  logs={logs}
-                  consoleLogs={consoleLogs}
-                  network={network}
-                  bridgeCaps={bridgeState.caps}
-                  appLogsPanelId={REPORT_APP_LOGS_PANEL_ID}
-                  consoleLogsPanelId={REPORT_CONSOLE_LOGS_PANEL_ID}
-                  networkPanelId={REPORT_NETWORK_PANEL_ID}
-                />
+              <ReportLogsSection
+                logs={logs}
+                consoleLogs={consoleLogs}
+                network={network}
+                health={health}
+                bridgeCaps={bridgeState.caps}
+                appLogsPanelId={REPORT_APP_LOGS_PANEL_ID}
+                consoleLogsPanelId={REPORT_CONSOLE_LOGS_PANEL_ID}
+                networkPanelId={REPORT_NETWORK_PANEL_ID}
+                healthPanelId={REPORT_HEALTH_PANEL_ID}
+              />
               </div>
 
               <ReportScreenshotPanel
@@ -414,7 +437,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
               <button
                 type="button"
                 className="report-dialog__button"
-                onClick={modal.handleDialogClose}
+                onClick={modal.handleReset}
                 disabled={form.submitting}
               >
                 Cancel

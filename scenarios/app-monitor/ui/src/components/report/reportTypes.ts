@@ -31,6 +31,16 @@ export interface ReportAppLogStream {
   command?: string;
 }
 
+export interface ReportHealthCheckEntry {
+  id: string;
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  endpoint: string | null;
+  latencyMs: number | null;
+  message: string | null;
+  code: string | null;
+}
+
 type ConsoleSeverity = 'error' | 'warn' | 'info' | 'log' | 'debug' | 'trace';
 
 export type { ConsoleSeverity };

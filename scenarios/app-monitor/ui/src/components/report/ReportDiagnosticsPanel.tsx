@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import {
   AlertTriangle,
@@ -32,35 +32,9 @@ const ReportDiagnosticsPanel = ({ diagnostics }: ReportDiagnosticsPanelProps) =>
     diagnosticsWarnings,
   } = diagnostics;
 
-  const hasRuleViolations = useMemo(
-    () => diagnosticsRuleResults.some(rule => rule.violations.length > 0),
-    [diagnosticsRuleResults],
-  );
-
-  const hasRuleWarnings = useMemo(() => (
-    diagnosticsRuleResults.some(rule => {
-      const combinedWarnings = new Set(
-        [rule.warning, ...(rule.warnings ?? [])]
-          .filter((value): value is string => Boolean(value && value.trim()))
-          .map(value => value.trim()),
-      );
-      return combinedWarnings.size > 0;
-    })
-  ), [diagnosticsRuleResults]);
-
-  const hasRuntimeIssues = Boolean(bridgeCompliance && !bridgeCompliance.ok);
   const hasScanFailure = diagnosticsState === 'fail' && diagnosticsScannedFileCount <= 0;
-  const hasAnyIssues = hasRuleViolations || hasRuleWarnings || hasRuntimeIssues || hasScanFailure || diagnosticsState === 'error' || diagnosticsState === 'fail';
 
-  const prevHasIssuesRef = useRef(hasAnyIssues);
-  const [isCollapsed, setIsCollapsed] = useState(() => !hasAnyIssues);
-
-  useEffect(() => {
-    if (!prevHasIssuesRef.current && hasAnyIssues) {
-      setIsCollapsed(false);
-    }
-    prevHasIssuesRef.current = hasAnyIssues;
-  }, [hasAnyIssues]);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const handleToggleCollapse = () => {
     setIsCollapsed(prev => !prev);

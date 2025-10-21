@@ -22,7 +22,7 @@ const API_BASE_URL = resolveApiBase({
   appendSuffix: true,
 });
 
-const buildApiUrlWithBase = (path: string) => buildApiUrl(path, { baseUrl: API_BASE_URL });
+export const buildApiUrlWithBase = (path: string) => buildApiUrl(path, { baseUrl: API_BASE_URL });
 
 // Create axios instance with default config
 const api = axios.create({
@@ -86,6 +86,16 @@ export interface ReportIssueNetworkEntry {
   requestId?: string;
 }
 
+export interface ReportIssueHealthCheckEntry {
+  id: string;
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  endpoint?: string | null;
+  latencyMs?: number | null;
+  message?: string | null;
+  code?: string | null;
+}
+
 export interface ReportIssuePayload {
   message: string;
   includeScreenshot?: boolean;
@@ -103,6 +113,9 @@ export interface ReportIssuePayload {
   networkRequests?: ReportIssueNetworkEntry[];
   networkRequestsTotal?: number;
   networkCapturedAt?: string | null;
+  healthChecks?: ReportIssueHealthCheckEntry[];
+  healthChecksTotal?: number;
+  healthChecksCapturedAt?: string | null;
 }
 
 export interface ScenarioIssueSummary {
@@ -408,13 +421,41 @@ export interface ApiHealthResponse {
   [key: string]: unknown;
 }
 
+export interface UiHealthResponse {
+  status?: string;
+  service?: string;
+  readiness?: boolean;
+  api_connectivity?: {
+    connected?: boolean;
+    api_url?: string;
+    latency_ms?: number | null;
+    error?: {
+      code?: string;
+      message?: string;
+      category?: string;
+    } | null;
+  };
+  websocket?: {
+    connected?: boolean;
+    active_connections?: number;
+    error?: {
+      code?: string;
+      message?: string;
+    } | null;
+  };
+  metrics?: {
+    uptime_seconds?: number;
+    memory_usage_mb?: number;
+    websocket_clients?: number;
+  };
+  [key: string]: unknown;
+}
+
 export const healthService = {
   async checkHealth(): Promise<ApiHealthResponse | null> {
     try {
-      const { data } = await axios.get<ApiHealthResponse>('/api/health', {
-        timeout: 10000,
-      });
-      return data ?? null;
+      const result = await healthService.checkHealthWithMeta();
+      return result.data;
     } catch (error) {
       logger.error('Health check failed', error);
       return null;
@@ -429,6 +470,19 @@ export const healthService = {
       logger.error('Health check action failed', error);
       return { success: false, error: 'Health check failed' };
     }
+  },
+
+  async checkHealthWithMeta(): Promise<{ url: string; data: ApiHealthResponse | null }> {
+    const url = buildApiUrlWithBase('/health');
+    const { data } = await axios.get<ApiHealthResponse>(url, { timeout: 10000 });
+    return { url, data: data ?? null };
+  },
+
+  async checkUiHealth(): Promise<{ url: string; data: UiHealthResponse | null }> {
+    const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+    const url = origin ? `${origin.replace(/\/+$/, '')}/health` : '/health';
+    const { data } = await axios.get<UiHealthResponse>(url, { timeout: 10000 });
+    return { url, data: data ?? null };
   },
 };
 

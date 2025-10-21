@@ -19,11 +19,12 @@ import type {
 import useIframeBridgeDiagnostics from '@/hooks/useIframeBridgeDiagnostics';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { useReportScreenshot } from '@/hooks/useReportScreenshot';
-import { appService } from '@/services/api';
+import { appService, healthService, buildApiUrlWithBase } from '@/services/api';
 import type {
   ReportIssueConsoleLogEntry,
   ReportIssueNetworkEntry,
   ReportIssuePayload,
+  ReportIssueHealthCheckEntry,
   ScenarioIssueSummary,
 } from '@/services/api';
 import { logger } from '@/services/logger';
@@ -34,6 +35,7 @@ import type {
   ReportAppLogStream,
   ReportConsoleEntry,
   ReportNetworkEntry,
+  ReportHealthCheckEntry,
 } from './reportTypes';
 
 const REPORT_APP_LOGS_MAX_LINES = 200;
@@ -139,6 +141,19 @@ interface ReportNetworkState {
   fetch: () => void;
 }
 
+interface ReportHealthChecksState {
+  includeHealthChecks: boolean;
+  setIncludeHealthChecks: (value: boolean) => void;
+  entries: ReportHealthCheckEntry[];
+  expanded: boolean;
+  toggleExpanded: () => void;
+  loading: boolean;
+  error: string | null;
+  formattedCapturedAt: string | null;
+  total: number | null;
+  fetch: () => void;
+}
+
 type ExistingIssuesStateInternal = {
   status: 'idle' | 'loading' | 'ready' | 'error';
   issues: ScenarioIssueSummary[];
@@ -236,12 +251,13 @@ interface ReportIssueStateResult {
   textareaRef: MutableRefObject<HTMLTextAreaElement | null>;
   form: ReportFormState;
   modal: {
-    handleOverlayClick: () => void;
-    handleDialogClose: () => void;
+    handleDismiss: () => void;
+    handleReset: () => void;
   };
   logs: ReportLogsState;
   consoleLogs: ReportConsoleLogsState;
   network: ReportNetworkState;
+  health: ReportHealthChecksState;
   existingIssues: ReportExistingIssuesState;
   diagnostics: ReportDiagnosticsState;
   screenshot: ReportScreenshotState;
@@ -312,12 +328,25 @@ const useReportIssueState = ({
   const [reportNetworkExpanded, setReportNetworkExpanded] = useState(false);
   const [reportNetworkFetchedAt, setReportNetworkFetchedAt] = useState<number | null>(null);
   const [reportIncludeNetworkRequests, setReportIncludeNetworkRequests] = useState(true);
+  const [reportHealthChecks, setReportHealthChecks] = useState<ReportHealthCheckEntry[]>([]);
+  const [reportHealthChecksLoading, setReportHealthChecksLoading] = useState(false);
+  const [reportHealthChecksError, setReportHealthChecksError] = useState<string | null>(null);
+  const [reportHealthChecksExpanded, setReportHealthChecksExpanded] = useState(false);
+  const [reportHealthChecksFetchedAt, setReportHealthChecksFetchedAt] = useState<number | null>(null);
+  const [reportHealthChecksTotal, setReportHealthChecksTotal] = useState<number | null>(null);
+  const [reportIncludeHealthChecks, setReportIncludeHealthChecks] = useState(true);
   const [existingIssuesState, setExistingIssuesState] = useState<ExistingIssuesStateInternal>(() => createExistingIssuesState());
 
   const reportAppLogsFetchedForRef = useRef<string | null>(null);
   const reportConsoleLogsFetchedForRef = useRef<string | null>(null);
   const reportNetworkFetchedForRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [shouldResetOnNextOpen, setShouldResetOnNextOpen] = useState(true);
+  const lastResolvedAppIdRef = useRef<string | null>(null);
+  const resolvedAppId = useMemo(() => {
+    const candidate = (app?.id ?? appId ?? '').trim();
+    return candidate === '' ? null : candidate;
+  }, [app?.id, appId]);
 
   const {
     reportIncludeScreenshot,
@@ -354,6 +383,104 @@ const useReportIssueState = ({
   const assignScreenshotContainerRef = useCallback((node: HTMLDivElement | null) => {
     reportScreenshotContainerRef.current = node;
   }, [reportScreenshotContainerRef]);
+
+  const normalizeHealthStatus = useCallback((value?: string | null): 'pass' | 'warn' | 'fail' => {
+    const normalized = (value ?? '').toString().trim().toLowerCase();
+    if (normalized === 'healthy' || normalized === 'ok' || normalized === 'pass') {
+      return 'pass';
+    }
+    if (normalized === 'degraded' || normalized === 'warning' || normalized === 'warn') {
+      return 'warn';
+    }
+    if (!normalized) {
+      return 'warn';
+    }
+    return 'fail';
+  }, []);
+
+  const parseHealthError = useCallback((reason: unknown): { message: string; code: string | null } => {
+    if (!reason) {
+      return { message: 'No response received.', code: null };
+    }
+    if (typeof reason === 'string') {
+      return { message: reason, code: null };
+    }
+    if (reason instanceof Error) {
+      const candidate = reason as Error & { code?: string; response?: { status?: number }; status?: number };
+      const statusCode = typeof candidate.response?.status === 'number'
+        ? candidate.response.status
+        : typeof candidate.status === 'number'
+          ? candidate.status
+          : null;
+      const code = typeof candidate.code === 'string'
+        ? candidate.code
+        : statusCode !== null
+          ? `HTTP_${statusCode}`
+          : null;
+      return {
+        message: candidate.message || 'Request failed.',
+        code,
+      };
+    }
+    if (typeof reason === 'object') {
+      const candidate = reason as { message?: string; code?: string; status?: number; response?: { status?: number } };
+      const statusCode = typeof candidate.response?.status === 'number'
+        ? candidate.response.status
+        : typeof candidate.status === 'number'
+          ? candidate.status
+          : null;
+      const code = typeof candidate.code === 'string'
+        ? candidate.code
+        : statusCode !== null
+          ? `HTTP_${statusCode}`
+          : null;
+      const message = typeof candidate.message === 'string'
+        ? candidate.message
+        : code
+          ? `Request failed (${code}).`
+          : 'Request failed.';
+      return { message, code };
+    }
+    return { message: 'Request failed.', code: null };
+  }, []);
+
+  const resetState = useCallback(() => {
+    setReportSubmitting(false);
+    setReportError(null);
+    setReportResult(null);
+    setReportMessage('');
+    setReportAppLogs([]);
+    setReportAppLogsTotal(null);
+    setReportAppLogsError(null);
+    setReportAppLogsExpanded(false);
+    setReportAppLogsFetchedAt(null);
+    setReportAppLogStreams([]);
+    setReportAppLogSelections({});
+    setReportIncludeAppLogs(true);
+    setReportConsoleLogs([]);
+    setReportConsoleLogsTotal(null);
+    setReportConsoleLogsError(null);
+    setReportConsoleLogsExpanded(false);
+    setReportConsoleLogsFetchedAt(null);
+    setReportIncludeConsoleLogs(true);
+    setReportNetworkEvents([]);
+    setReportNetworkTotal(null);
+    setReportNetworkError(null);
+    setReportNetworkExpanded(false);
+    setReportNetworkFetchedAt(null);
+    setReportIncludeNetworkRequests(true);
+    setReportHealthChecks([]);
+    setReportHealthChecksLoading(false);
+    setReportHealthChecksError(null);
+    setReportHealthChecksExpanded(false);
+    setReportHealthChecksFetchedAt(null);
+    setReportHealthChecksTotal(null);
+    setReportIncludeHealthChecks(true);
+    setExistingIssuesState(createExistingIssuesState());
+    reportAppLogsFetchedForRef.current = null;
+    reportConsoleLogsFetchedForRef.current = null;
+    reportNetworkFetchedForRef.current = null;
+  }, []);
 
   const resolveReportLogIdentifier = useCallback(() => {
     const candidates = [app?.scenario_name, app?.id, appId]
@@ -650,6 +777,159 @@ const useReportIssueState = ({
     resolveReportLogIdentifier,
   ]);
 
+  const fetchReportHealthChecks = useCallback(async (options?: { force?: boolean }) => {
+    if (reportHealthChecksLoading && !options?.force) {
+      return;
+    }
+
+    setReportHealthChecksLoading(true);
+    setReportHealthChecksError(null);
+
+    const apiHealthUrl = buildApiUrlWithBase('/health');
+    const uiHealthUrl = typeof window !== 'undefined' && window.location
+      ? `${window.location.origin.replace(/\/+$/, '')}/health`
+      : '/health';
+
+    try {
+      const [apiResult, uiResult] = await Promise.allSettled([
+        healthService.checkHealthWithMeta(),
+        healthService.checkUiHealth(),
+      ]);
+
+      const nextEntries: ReportHealthCheckEntry[] = [];
+
+      if (apiResult.status === 'fulfilled') {
+        const { data, url } = apiResult.value;
+        if (data) {
+          const status = normalizeHealthStatus(data.status);
+          const uptimeSeconds = typeof data.metrics?.uptime_seconds === 'number'
+            ? Math.round(data.metrics.uptime_seconds)
+            : null;
+          const parts: string[] = [];
+          if (typeof data.status === 'string' && data.status.trim()) {
+            parts.push(`Status ${data.status}`);
+          }
+          if (uptimeSeconds !== null) {
+            parts.push(`Uptime ${uptimeSeconds}s`);
+          }
+          nextEntries.push({
+            id: 'api',
+            name: 'App Monitor API',
+            status,
+            endpoint: url,
+            latencyMs: null,
+            message: parts.length > 0 ? parts.join(' • ') : 'API health responded successfully.',
+            code: null,
+          });
+        } else {
+          nextEntries.push({
+            id: 'api',
+            name: 'App Monitor API',
+            status: 'fail',
+            endpoint: url,
+            latencyMs: null,
+            message: 'API health response was empty.',
+            code: null,
+          });
+        }
+      } else {
+        const { message, code } = parseHealthError(apiResult.reason);
+        logger.warn('API health check failed for issue report', apiResult.reason);
+        nextEntries.push({
+          id: 'api',
+          name: 'App Monitor API',
+          status: 'fail',
+          endpoint: apiHealthUrl,
+          latencyMs: null,
+          message,
+          code,
+        });
+      }
+
+      if (uiResult.status === 'fulfilled') {
+        const { data, url } = uiResult.value;
+        if (data) {
+          const status = normalizeHealthStatus(data.status);
+          const connectivity = data.api_connectivity;
+          const latency = typeof connectivity?.latency_ms === 'number' ? connectivity.latency_ms : null;
+          let message: string | null = null;
+          let code: string | null = null;
+
+          if (connectivity?.connected === false && connectivity.error) {
+            message = connectivity.error.message ?? 'API connectivity failed.';
+            code = connectivity.error.code ?? null;
+          } else if (connectivity?.connected) {
+            message = 'API connectivity confirmed.';
+          }
+
+          if (!message) {
+            const websocket = data.websocket;
+            if (websocket?.connected === false && websocket.error) {
+              message = websocket.error.message ?? 'WebSocket health failed.';
+              code = websocket.error.code ?? code;
+            }
+          }
+
+          if (!message && typeof data.readiness === 'boolean') {
+            message = data.readiness ? 'UI is ready to serve requests.' : 'UI is not ready.';
+          }
+
+          if (!message && typeof data.status === 'string' && data.status.trim()) {
+            message = `Status ${data.status}`;
+          }
+
+          nextEntries.push({
+            id: 'ui',
+            name: 'App Monitor UI',
+            status,
+            endpoint: url,
+            latencyMs: latency,
+            message: message ?? 'UI health responded successfully.',
+            code,
+          });
+        } else {
+          nextEntries.push({
+            id: 'ui',
+            name: 'App Monitor UI',
+            status: 'fail',
+            endpoint: url,
+            latencyMs: null,
+            message: 'UI health response was empty.',
+            code: null,
+          });
+        }
+      } else {
+        const { message, code } = parseHealthError(uiResult.reason);
+        logger.warn('UI health check failed for issue report', uiResult.reason);
+        nextEntries.push({
+          id: 'ui',
+          name: 'App Monitor UI',
+          status: 'fail',
+          endpoint: uiHealthUrl,
+          latencyMs: null,
+          message,
+          code,
+        });
+      }
+
+      setReportHealthChecks(nextEntries);
+      setReportHealthChecksTotal(nextEntries.length);
+      setReportHealthChecksFetchedAt(Date.now());
+
+      if (nextEntries.length === 0) {
+        setReportHealthChecksError('No health checks available.');
+      }
+    } catch (error) {
+      logger.warn('Failed to gather health checks for issue report', error);
+      setReportHealthChecks([]);
+      setReportHealthChecksTotal(null);
+      setReportHealthChecksFetchedAt(null);
+      setReportHealthChecksError('Unable to gather health checks.');
+    } finally {
+      setReportHealthChecksLoading(false);
+    }
+  }, [normalizeHealthStatus, parseHealthError, reportHealthChecksLoading]);
+
   const handleReportLogStreamToggle = useCallback((key: string, checked: boolean) => {
     setReportAppLogSelections(prev => ({
       ...prev,
@@ -669,6 +949,10 @@ const useReportIssueState = ({
     void fetchReportNetworkEvents({ force: true });
   }, [fetchReportNetworkEvents]);
 
+  const handleRefreshReportHealthChecks = useCallback(() => {
+    void fetchReportHealthChecks({ force: true });
+  }, [fetchReportHealthChecks]);
+
   const handleRefreshExistingIssues = useCallback(() => {
     void fetchExistingIssues();
   }, [fetchExistingIssues]);
@@ -683,19 +967,20 @@ const useReportIssueState = ({
     }
   }, []);
 
-  const handleOverlayClick = useCallback(() => {
-    if (!reportSubmitting) {
-      cleanupAfterDialogClose(canCaptureScreenshot);
-      onClose();
+  const handleDialogDismiss = useCallback(() => {
+    if (reportSubmitting) {
+      return;
     }
-  }, [canCaptureScreenshot, cleanupAfterDialogClose, onClose, reportSubmitting]);
-
-  const handleDialogClose = useCallback(() => {
-    cleanupAfterDialogClose(canCaptureScreenshot);
-    setReportSubmitting(false);
-    setReportError(null);
+    setShouldResetOnNextOpen(false);
     onClose();
-  }, [canCaptureScreenshot, cleanupAfterDialogClose, onClose]);
+  }, [onClose, reportSubmitting]);
+
+  const handleDialogReset = useCallback(() => {
+    setShouldResetOnNextOpen(true);
+    resetState();
+    cleanupAfterDialogClose(canCaptureScreenshot);
+    onClose();
+  }, [canCaptureScreenshot, cleanupAfterDialogClose, onClose, resetState]);
 
   const handleSubmitReport = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -792,6 +1077,28 @@ const useReportIssueState = ({
         }
       }
 
+      if (reportIncludeHealthChecks) {
+        const healthEntries: ReportIssueHealthCheckEntry[] = reportHealthChecks.map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          status: entry.status,
+          endpoint: entry.endpoint ?? null,
+          latencyMs: typeof entry.latencyMs === 'number' ? entry.latencyMs : null,
+          message: entry.message ?? null,
+          code: entry.code ?? null,
+        }));
+        payload.healthChecks = healthEntries;
+        const totalHealthChecks = typeof reportHealthChecksTotal === 'number'
+          ? reportHealthChecksTotal
+          : healthEntries.length;
+        if (totalHealthChecks > 0) {
+          payload.healthChecksTotal = totalHealthChecks;
+        }
+        if (reportHealthChecksFetchedAt) {
+          payload.healthChecksCapturedAt = new Date(reportHealthChecksFetchedAt).toISOString();
+        }
+      }
+
       const response = await appService.reportAppIssue(targetAppId, payload);
 
       const issueId = response.data?.issue_id;
@@ -831,6 +1138,10 @@ const useReportIssueState = ({
     reportNetworkEvents,
     reportNetworkFetchedAt,
     reportNetworkTotal,
+    reportIncludeHealthChecks,
+    reportHealthChecks,
+    reportHealthChecksFetchedAt,
+    reportHealthChecksTotal,
     reportMessage,
   ]);
 
@@ -1094,86 +1405,48 @@ const useReportIssueState = ({
     }, 0);
   }, [diagnosticsDescription]);
 
-  const resetState = useCallback(() => {
-    setReportSubmitting(false);
-    setReportError(null);
-    setReportResult(null);
-    setReportAppLogs([]);
-    setReportAppLogsTotal(null);
-    setReportAppLogsError(null);
-    setReportAppLogsExpanded(false);
-    setReportAppLogsFetchedAt(null);
-    setReportAppLogStreams([]);
-    setReportAppLogSelections({});
-    setReportIncludeAppLogs(true);
-    setReportConsoleLogs([]);
-    setReportConsoleLogsTotal(null);
-    setReportConsoleLogsError(null);
-    setReportConsoleLogsExpanded(false);
-    setReportConsoleLogsFetchedAt(null);
-    setReportIncludeConsoleLogs(true);
-    setReportNetworkEvents([]);
-    setReportNetworkTotal(null);
-    setReportNetworkError(null);
-    setReportNetworkExpanded(false);
-    setReportNetworkFetchedAt(null);
-    setReportIncludeNetworkRequests(true);
-    setExistingIssuesState(createExistingIssuesState());
-    reportAppLogsFetchedForRef.current = null;
-    reportConsoleLogsFetchedForRef.current = null;
-    reportNetworkFetchedForRef.current = null;
-  }, []);
-
   useEffect(() => {
     if (!isOpen) {
-      resetState();
-      cleanupAfterDialogClose(canCaptureScreenshot);
+      if (shouldResetOnNextOpen) {
+        cleanupAfterDialogClose(canCaptureScreenshot);
+      }
       return;
     }
 
-    setReportMessage('');
-    setReportError(null);
-    setReportResult(null);
-    setReportAppLogs([]);
-    setReportAppLogsTotal(null);
-    setReportAppLogsError(null);
-    setReportAppLogsExpanded(false);
-    setReportAppLogsFetchedAt(null);
-    setReportAppLogStreams([]);
-    setReportAppLogSelections({});
-    setReportIncludeAppLogs(true);
-    setReportConsoleLogs([]);
-    setReportConsoleLogsTotal(null);
-    setReportConsoleLogsError(null);
-    setReportConsoleLogsExpanded(false);
-    setReportConsoleLogsFetchedAt(null);
-    setReportIncludeConsoleLogs(true);
-    setReportNetworkEvents([]);
-    setReportNetworkTotal(null);
-    setReportNetworkError(null);
-    setReportNetworkExpanded(false);
-    setReportNetworkFetchedAt(null);
-    setReportIncludeNetworkRequests(true);
-    reportAppLogsFetchedForRef.current = null;
-    reportConsoleLogsFetchedForRef.current = null;
-    reportNetworkFetchedForRef.current = null;
+    if (!shouldResetOnNextOpen) {
+      return;
+    }
+
+    resetState();
     prepareForDialogOpen(canCaptureScreenshot);
 
     void fetchReportAppLogs({ force: true });
     void fetchReportConsoleLogs({ force: true });
     void fetchReportNetworkEvents({ force: true });
+    void fetchReportHealthChecks({ force: true });
     void refreshDiagnostics();
+    setShouldResetOnNextOpen(false);
   }, [
     isOpen,
+    shouldResetOnNextOpen,
     canCaptureScreenshot,
     cleanupAfterDialogClose,
     prepareForDialogOpen,
     fetchReportAppLogs,
     fetchReportConsoleLogs,
     fetchReportNetworkEvents,
+    fetchReportHealthChecks,
     refreshDiagnostics,
     resetState,
   ]);
+
+  useEffect(() => {
+    if (lastResolvedAppIdRef.current === resolvedAppId) {
+      return;
+    }
+    lastResolvedAppIdRef.current = resolvedAppId;
+    setShouldResetOnNextOpen(true);
+  }, [resolvedAppId]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -1233,6 +1506,17 @@ const useReportIssueState = ({
       return null;
     }
   }, [reportNetworkFetchedAt]);
+
+  const formattedHealthChecksTime = useMemo(() => {
+    if (!reportHealthChecksFetchedAt) {
+      return null;
+    }
+    try {
+      return new Date(reportHealthChecksFetchedAt).toLocaleTimeString();
+    } catch {
+      return null;
+    }
+  }, [reportHealthChecksFetchedAt]);
 
   const bridgeComplianceCheckedAt = useMemo(() => {
     if (!bridgeCompliance) {
@@ -1297,8 +1581,8 @@ const useReportIssueState = ({
       handleSubmit: handleSubmitReport,
     },
     modal: {
-      handleOverlayClick,
-      handleDialogClose,
+      handleDismiss: handleDialogDismiss,
+      handleReset: handleDialogReset,
     },
     logs: {
       includeAppLogs: reportIncludeAppLogs,
@@ -1343,6 +1627,18 @@ const useReportIssueState = ({
       formattedCapturedAt: formattedNetworkCapturedAt,
       total: reportNetworkTotal,
       fetch: handleRefreshReportNetworkEvents,
+    },
+    health: {
+      includeHealthChecks: reportIncludeHealthChecks,
+      setIncludeHealthChecks: setReportIncludeHealthChecks,
+      entries: reportHealthChecks,
+      expanded: reportHealthChecksExpanded,
+      toggleExpanded: () => setReportHealthChecksExpanded(prev => !prev),
+      loading: reportHealthChecksLoading,
+      error: reportHealthChecksError,
+      formattedCapturedAt: formattedHealthChecksTime,
+      total: reportHealthChecksTotal,
+      fetch: handleRefreshReportHealthChecks,
     },
     existingIssues: {
       status: existingIssuesState.status,
@@ -1409,6 +1705,7 @@ export type {
   ReportLogsState,
   ReportConsoleLogsState,
   ReportNetworkState,
+  ReportHealthChecksState,
   ReportDiagnosticsState,
   ReportScreenshotState,
   DiagnosticsViolation,

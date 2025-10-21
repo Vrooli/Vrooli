@@ -197,6 +197,7 @@ const (
 	attachmentConsoleName    = "app-monitor-console.json"
 	attachmentNetworkName    = "app-monitor-network.json"
 	attachmentScreenshotName = "app-monitor-screenshot.png"
+	attachmentHealthName     = "app-monitor-health.json"
 	issueTrackerScenarioID   = "app-issue-tracker"
 )
 
@@ -1514,23 +1515,26 @@ func (s *AppService) RecordAppView(ctx context.Context, identifier string) (*rep
 
 // IssueReportRequest captures a request to forward an issue to app-issue-tracker
 type IssueReportRequest struct {
-	AppID             string                 `json:"-"`
-	Message           string                 `json:"message"`
-	IncludeScreenshot *bool                  `json:"includeScreenshot"`
-	PreviewURL        *string                `json:"previewUrl"`
-	AppName           *string                `json:"appName"`
-	ScenarioName      *string                `json:"scenarioName"`
-	Source            *string                `json:"source"`
-	ScreenshotData    *string                `json:"screenshotData"`
-	Logs              []string               `json:"logs"`
-	LogsTotal         *int                   `json:"logsTotal"`
-	LogsCapturedAt    *string                `json:"logsCapturedAt"`
-	ConsoleLogs       []IssueConsoleLogEntry `json:"consoleLogs"`
-	ConsoleLogsTotal  *int                   `json:"consoleLogsTotal"`
-	ConsoleCapturedAt *string                `json:"consoleLogsCapturedAt"`
-	NetworkRequests   []IssueNetworkEntry    `json:"networkRequests"`
-	NetworkTotal      *int                   `json:"networkRequestsTotal"`
-	NetworkCapturedAt *string                `json:"networkCapturedAt"`
+	AppID                  string                  `json:"-"`
+	Message                string                  `json:"message"`
+	IncludeScreenshot      *bool                   `json:"includeScreenshot"`
+	PreviewURL             *string                 `json:"previewUrl"`
+	AppName                *string                 `json:"appName"`
+	ScenarioName           *string                 `json:"scenarioName"`
+	Source                 *string                 `json:"source"`
+	ScreenshotData         *string                 `json:"screenshotData"`
+	Logs                   []string                `json:"logs"`
+	LogsTotal              *int                    `json:"logsTotal"`
+	LogsCapturedAt         *string                 `json:"logsCapturedAt"`
+	ConsoleLogs            []IssueConsoleLogEntry  `json:"consoleLogs"`
+	ConsoleLogsTotal       *int                    `json:"consoleLogsTotal"`
+	ConsoleCapturedAt      *string                 `json:"consoleLogsCapturedAt"`
+	NetworkRequests        []IssueNetworkEntry     `json:"networkRequests"`
+	NetworkTotal           *int                    `json:"networkRequestsTotal"`
+	NetworkCapturedAt      *string                 `json:"networkCapturedAt"`
+	HealthChecks           []IssueHealthCheckEntry `json:"healthChecks"`
+	HealthChecksTotal      *int                    `json:"healthChecksTotal"`
+	HealthChecksCapturedAt *string                 `json:"healthChecksCapturedAt"`
 }
 
 type IssueConsoleLogEntry struct {
@@ -1550,6 +1554,16 @@ type IssueNetworkEntry struct {
 	DurationMs *int   `json:"durationMs,omitempty"`
 	Error      string `json:"error,omitempty"`
 	RequestID  string `json:"requestId,omitempty"`
+}
+
+type IssueHealthCheckEntry struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Status    string `json:"status"`
+	Endpoint  string `json:"endpoint,omitempty"`
+	LatencyMs *int   `json:"latencyMs,omitempty"`
+	Message   string `json:"message,omitempty"`
+	Code      string `json:"code,omitempty"`
 }
 
 func stringValue(value *string) string {
@@ -1858,13 +1872,18 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 
 	const (
-		maxReportLogs        = 300
-		maxConsoleLogs       = 200
-		maxNetworkEntries    = 150
-		maxConsoleTextLength = 2000
-		maxNetworkURLLength  = 2048
-		maxNetworkErrLength  = 1500
-		maxRequestIDLength   = 128
+		maxReportLogs           = 300
+		maxConsoleLogs          = 200
+		maxNetworkEntries       = 150
+		maxConsoleTextLength    = 2000
+		maxNetworkURLLength     = 2048
+		maxNetworkErrLength     = 1500
+		maxRequestIDLength      = 128
+		maxHealthEntries        = 20
+		maxHealthNameLength     = 120
+		maxHealthEndpointLength = 512
+		maxHealthMessageLength  = 400
+		maxHealthCodeLength     = 120
 	)
 	sanitizedLogs := make([]string, 0, len(req.Logs))
 	for _, line := range req.Logs {
@@ -1896,6 +1915,13 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		networkTotal = len(req.NetworkRequests)
 	}
 
+	healthEntries := sanitizeHealthChecks(req.HealthChecks, maxHealthEntries, maxHealthNameLength, maxHealthEndpointLength, maxHealthMessageLength, maxHealthCodeLength)
+	healthTotal := valueOrDefault(req.HealthChecksTotal, len(req.HealthChecks))
+	if healthTotal <= 0 {
+		healthTotal = len(req.HealthChecks)
+	}
+	healthCapturedAt := strings.TrimSpace(stringValue(req.HealthChecksCapturedAt))
+
 	title := fmt.Sprintf("[app-monitor] %s", summarizeIssueTitle(message))
 	reportSource := strings.TrimSpace(stringValue(req.Source))
 	description := buildIssueDescription(
@@ -1915,11 +1941,15 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		networkEntries,
 		networkTotal,
 		networkCapturedAt,
+		healthEntries,
+		healthTotal,
+		healthCapturedAt,
 	)
 	hasScreenshot := screenshotData != ""
 	hasConsole := len(consoleLogs) > 0
 	hasNetwork := len(networkEntries) > 0
-	tags := buildIssueTags(hasScreenshot, hasConsole, hasNetwork)
+	hasHealth := len(healthEntries) > 0
+	tags := buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth)
 	environment := buildIssueEnvironment(appID, appName, previewURL, reportSource, reportedAt)
 
 	port, err := s.locateIssueTrackerAPIPort(ctx)
@@ -1952,11 +1982,17 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	if networkCapturedAt != "" {
 		metadataExtra["network_captured_at"] = networkCapturedAt
 	}
+	if healthTotal > 0 {
+		metadataExtra["health_total"] = strconv.Itoa(healthTotal)
+	}
+	if healthCapturedAt != "" {
+		metadataExtra["health_captured_at"] = healthCapturedAt
+	}
 	if screenshotData != "" {
 		metadataExtra["screenshot_included"] = "true"
 	}
 
-	artifacts := make([]map[string]interface{}, 0, 4)
+	artifacts := make([]map[string]interface{}, 0, 5)
 	if len(sanitizedLogs) > 0 {
 		artifactContent := strings.Join(sanitizedLogs, "\n")
 		artifacts = append(artifacts, map[string]interface{}{
@@ -1995,6 +2031,22 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 			"name":         attachmentNetworkName,
 			"category":     "network",
 			"content":      networkContent,
+			"encoding":     "plain",
+			"content_type": "application/json",
+		})
+	}
+	if len(healthEntries) > 0 {
+		healthPayload, err := json.MarshalIndent(healthEntries, "", "  ")
+		healthContent := ""
+		if err == nil {
+			healthContent = string(healthPayload)
+		} else {
+			healthContent = "[]"
+		}
+		artifacts = append(artifacts, map[string]interface{}{
+			"name":         attachmentHealthName,
+			"category":     "health",
+			"content":      healthContent,
 			"encoding":     "plain",
 			"content_type": "application/json",
 		})
@@ -2389,106 +2441,106 @@ func (s *AppService) CheckLocalhostUsage(ctx context.Context, appID string) (*Lo
 
 	for _, scanRoot := range scanTargets {
 		err = filepath.WalkDir(scanRoot, func(path string, d fs.DirEntry, walkErr error) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		if walkErr != nil {
-			return walkErr
-		}
-
-		name := strings.ToLower(d.Name())
-		if d.IsDir() {
-			if _, skip := localhostSkipDirectories[name]; skip {
-				return filepath.SkipDir
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
 			}
-			return nil
-		}
 
-		if _, skip := localhostSkipFiles[name]; skip {
-			return nil
-		}
+			if walkErr != nil {
+				return walkErr
+			}
 
-		info, err := d.Info()
-		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("failed to stat %s: %v", path, err))
-			return nil
-		}
+			name := strings.ToLower(d.Name())
+			if d.IsDir() {
+				if _, skip := localhostSkipDirectories[name]; skip {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 
-		if info.Size() > maxLocalhostScanFileSize {
-			relative, relErr := filepath.Rel(root, path)
+			if _, skip := localhostSkipFiles[name]; skip {
+				return nil
+			}
+
+			info, err := d.Info()
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("failed to stat %s: %v", path, err))
+				return nil
+			}
+
+			if info.Size() > maxLocalhostScanFileSize {
+				relative, relErr := filepath.Rel(root, path)
+				if relErr != nil {
+					relative = path
+				}
+				warnings = append(warnings, fmt.Sprintf("skipped large file %s (%d bytes)", filepath.ToSlash(relative), info.Size()))
+				return nil
+			}
+
+			ext := strings.ToLower(filepath.Ext(d.Name()))
+			if _, ok := localhostAllowedExtensions[ext]; !ok {
+				return nil
+			}
+
+			file, err := os.Open(path)
+			if err != nil {
+				relative, relErr := filepath.Rel(root, path)
+				if relErr != nil {
+					relative = path
+				}
+				warnings = append(warnings, fmt.Sprintf("failed to open %s: %v", filepath.ToSlash(relative), err))
+				return nil
+			}
+
+			scanner := bufio.NewScanner(file)
+			scanner.Buffer(make([]byte, 0, 64*1024), int(maxLocalhostScanFileSize))
+			scannedFiles++
+			lineNumber := 0
+			relativePath, relErr := filepath.Rel(root, path)
 			if relErr != nil {
-				relative = path
+				relativePath = path
 			}
-			warnings = append(warnings, fmt.Sprintf("skipped large file %s (%d bytes)", filepath.ToSlash(relative), info.Size()))
-			return nil
-		}
+			relativePath = filepath.ToSlash(relativePath)
 
-		ext := strings.ToLower(filepath.Ext(d.Name()))
-		if _, ok := localhostAllowedExtensions[ext]; !ok {
-			return nil
-		}
-
-		file, err := os.Open(path)
-		if err != nil {
-			relative, relErr := filepath.Rel(root, path)
-			if relErr != nil {
-				relative = path
-			}
-			warnings = append(warnings, fmt.Sprintf("failed to open %s: %v", filepath.ToSlash(relative), err))
-			return nil
-		}
-
-		scanner := bufio.NewScanner(file)
-		scanner.Buffer(make([]byte, 0, 64*1024), int(maxLocalhostScanFileSize))
-		scannedFiles++
-		lineNumber := 0
-		relativePath, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			relativePath = path
-		}
-		relativePath = filepath.ToSlash(relativePath)
-
-		for scanner.Scan() {
-			lineNumber++
-			text := scanner.Text()
-			trimmed := strings.TrimSpace(text)
-			if trimmed == "" {
-				continue
-			}
-			for _, candidate := range localhostPatterns {
-				match := candidate.Regex.FindString(trimmed)
-				if match == "" {
+			for scanner.Scan() {
+				lineNumber++
+				text := scanner.Text()
+				trimmed := strings.TrimSpace(text)
+				if trimmed == "" {
 					continue
 				}
+				for _, candidate := range localhostPatterns {
+					match := candidate.Regex.FindString(trimmed)
+					if match == "" {
+						continue
+					}
 
-				snippet := trimmed
-				if len(snippet) > 180 {
-					snippet = snippet[:180] + "…"
+					snippet := trimmed
+					if len(snippet) > 180 {
+						snippet = snippet[:180] + "…"
+					}
+					item := LocalhostUsageFinding{
+						FilePath: relativePath,
+						Line:     lineNumber,
+						Snippet:  snippet,
+						Pattern:  fmt.Sprintf("%s: %s", candidate.Label, match),
+					}
+					report.Findings = append(report.Findings, item)
+					break
 				}
-				item := LocalhostUsageFinding{
-					FilePath: relativePath,
-					Line:     lineNumber,
-					Snippet:  snippet,
-					Pattern:  fmt.Sprintf("%s: %s", candidate.Label, match),
-				}
-				report.Findings = append(report.Findings, item)
-				break
 			}
-		}
 
-		if err := scanner.Err(); err != nil {
-			warnings = append(warnings, fmt.Sprintf("failed to scan %s: %v", relativePath, err))
-		}
+			if err := scanner.Err(); err != nil {
+				warnings = append(warnings, fmt.Sprintf("failed to scan %s: %v", relativePath, err))
+			}
 
-		if closeErr := file.Close(); closeErr != nil {
-			warnings = append(warnings, fmt.Sprintf("failed to close %s: %v", relativePath, closeErr))
-		}
+			if closeErr := file.Close(); closeErr != nil {
+				warnings = append(warnings, fmt.Sprintf("failed to close %s: %v", relativePath, closeErr))
+			}
 
-		return nil
-	})
+			return nil
+		})
 
 		if err != nil {
 			return nil, err
@@ -2781,6 +2833,9 @@ func buildIssueDescription(
 	network []IssueNetworkEntry,
 	networkTotal int,
 	networkCapturedAt string,
+	health []IssueHealthCheckEntry,
+	healthTotal int,
+	healthCapturedAt string,
 ) string {
 	var builder strings.Builder
 
@@ -2830,6 +2885,8 @@ func buildIssueDescription(
 	builder.WriteString(formatEvidenceLine("Console events", len(consoleLogs), consoleTotal, consoleCapturedAt, attachmentConsoleName))
 	builder.WriteString("\n")
 	builder.WriteString(formatEvidenceLine("Network requests", len(network), networkTotal, networkCapturedAt, attachmentNetworkName))
+	builder.WriteString("\n")
+	builder.WriteString(formatEvidenceLine("Health checks", len(health), healthTotal, healthCapturedAt, attachmentHealthName))
 	builder.WriteString("\n")
 	if screenshotData != "" {
 		builder.WriteString(fmt.Sprintf("- Screenshot attached as `%s` (base64 PNG).\n", attachmentScreenshotName))
@@ -2983,7 +3040,7 @@ func sanitizeCommandIdentifier(value string) string {
 	return result
 }
 
-func buildIssueTags(hasScreenshot, hasConsole, hasNetwork bool) []string {
+func buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth bool) []string {
 	tags := []string{"app-monitor", "preview"}
 	if hasScreenshot {
 		tags = append(tags, "screenshot")
@@ -2993,6 +3050,9 @@ func buildIssueTags(hasScreenshot, hasConsole, hasNetwork bool) []string {
 	}
 	if hasNetwork {
 		tags = append(tags, "network-capture")
+	}
+	if hasHealth {
+		tags = append(tags, "health-checks")
 	}
 	return tags
 }
@@ -3100,6 +3160,81 @@ func sanitizeNetworkRequests(entries []IssueNetworkEntry, maxEntries, maxURLLeng
 
 	if len(sanitized) > maxEntries {
 		sanitized = sanitized[len(sanitized)-maxEntries:]
+	}
+
+	return sanitized
+}
+
+func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLength, maxEndpointLength, maxMessageLength, maxCodeLength int) []IssueHealthCheckEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	sanitized := make([]IssueHealthCheckEntry, 0, len(entries))
+	for _, entry := range entries {
+		id := strings.TrimSpace(entry.ID)
+		if id == "" {
+			id = strings.TrimSpace(entry.Name)
+		}
+		if id == "" {
+			id = "health-check"
+		} else {
+			id = truncateString(id, maxNameLength)
+		}
+
+		name := strings.TrimSpace(entry.Name)
+		if name == "" {
+			name = "Health Check"
+		} else {
+			name = truncateString(name, maxNameLength)
+		}
+
+		status := strings.ToLower(strings.TrimSpace(entry.Status))
+		switch status {
+		case "pass", "ok", "healthy":
+			status = "pass"
+		case "warn", "warning", "degraded":
+			status = "warn"
+		case "fail", "failed", "error", "critical", "unhealthy":
+			status = "fail"
+		default:
+			status = "warn"
+		}
+
+		endpoint := strings.TrimSpace(entry.Endpoint)
+		if endpoint != "" {
+			endpoint = truncateString(endpoint, maxEndpointLength)
+		}
+
+		message := strings.TrimSpace(entry.Message)
+		if message != "" {
+			message = truncateString(message, maxMessageLength)
+		}
+
+		code := strings.TrimSpace(entry.Code)
+		if code != "" {
+			code = truncateString(code, maxCodeLength)
+		}
+
+		var latency *int
+		if entry.LatencyMs != nil && *entry.LatencyMs >= 0 {
+			value := *entry.LatencyMs
+			latency = &value
+		}
+
+		sanitized = append(sanitized, IssueHealthCheckEntry{
+			ID:        id,
+			Name:      name,
+			Status:    status,
+			Endpoint:  endpoint,
+			LatencyMs: latency,
+			Message:   message,
+			Code:      code,
+		})
+	}
+
+	if len(sanitized) > maxEntries {
+		sanitized = sanitized[:maxEntries]
 	}
 
 	return sanitized
