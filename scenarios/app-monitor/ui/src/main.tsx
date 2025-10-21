@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import App from './App.tsx'
+import { SnackStackProvider } from '@/notifications/SnackStackProvider'
 import './index.css'
 
 const sendDebugEvent = (event: string, detail?: Record<string, unknown>) => {
@@ -140,6 +141,8 @@ if (
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <SnackStackProvider>
+      <App />
+    </SnackStackProvider>
   </React.StrictMode>,
 )

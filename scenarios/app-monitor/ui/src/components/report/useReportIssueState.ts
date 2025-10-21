@@ -31,6 +31,8 @@ import { logger } from '@/services/logger';
 import type { App, BridgeRuleReport } from '@/types';
 import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
 import { useScenarioIssuesStore } from '@/state/scenarioIssuesStore';
+import { useSnackPublisher } from '@/notifications/useSnackPublisher';
+import type { SnackPublishOptions, SnackUpdateOptions } from '@/notifications/snackBus';
 
 import { toConsoleEntry, toNetworkEntry } from './reportFormatters';
 import type {
@@ -80,17 +82,10 @@ interface UseReportIssueStateParams {
   bridgeCompliance: BridgeComplianceResult | null;
 }
 
-interface ReportResultState {
-  issueId?: string;
-  issueUrl?: string;
-  message?: string;
-}
-
 interface ReportFormState {
   message: string;
   submitting: boolean;
   error: string | null;
-  result: ReportResultState | null;
   handleMessageChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   handleMessageKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   handleSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -264,7 +259,6 @@ interface ReportIssueStateResult {
   diagnostics: ReportDiagnosticsState;
   screenshot: ReportScreenshotState;
   bridgeState: BridgePreviewState;
-  reportResult: ReportResultState | null;
   reportSubmitting: boolean;
   reportError: string | null;
   reportIncludeScreenshot: boolean;
@@ -306,7 +300,6 @@ const useReportIssueState = ({
   const [reportMessage, setReportMessage] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
-  const [reportResult, setReportResult] = useState<ReportResultState | null>(null);
   const [reportAppLogs, setReportAppLogs] = useState<string[]>([]);
   const [reportAppLogsTotal, setReportAppLogsTotal] = useState<number | null>(null);
   const [reportAppLogsLoading, setReportAppLogsLoading] = useState(false);
@@ -340,6 +333,7 @@ const useReportIssueState = ({
   const [existingIssuesState, setExistingIssuesState] = useState<ExistingIssuesStateInternal>(() => createExistingIssuesState());
   const markScenarioIssueCreated = useScenarioEngagementStore(state => state.markIssueCreated);
   const flagScenarioIssueReported = useScenarioIssuesStore(state => state.flagIssueReported);
+  const snackPublisher = useSnackPublisher();
 
   const reportAppLogsFetchedForRef = useRef<string | null>(null);
   const reportConsoleLogsFetchedForRef = useRef<string | null>(null);
@@ -392,7 +386,6 @@ const useReportIssueState = ({
   const resetState = useCallback(() => {
     setReportSubmitting(false);
     setReportError(null);
-    setReportResult(null);
     setReportMessage('');
     setReportAppLogs([]);
     setReportAppLogsTotal(null);
@@ -850,12 +843,9 @@ const useReportIssueState = ({
   }, []);
 
   const handleDialogDismiss = useCallback(() => {
-    if (reportSubmitting) {
-      return;
-    }
     setShouldResetOnNextOpen(false);
     onClose();
-  }, [onClose, reportSubmitting]);
+  }, [onClose]);
 
   const handleDialogReset = useCallback(() => {
     setShouldResetOnNextOpen(true);
@@ -885,8 +875,20 @@ const useReportIssueState = ({
       return;
     }
 
+    const issueSubject = [app?.name, app?.scenario_name, targetAppId]
+      .map(value => (value ?? '').toString().trim())
+      .find(value => value.length > 0)
+      ?? targetAppId;
+
+    const snackMetadata = { appId: targetAppId } as Record<string, unknown>;
+    let progressSnackId: string | null = null;
+
     setReportSubmitting(true);
     setReportError(null);
+    setShouldResetOnNextOpen(false);
+    if (isOpen) {
+      onClose();
+    }
 
     try {
       const payload: ReportIssuePayload = {
@@ -982,24 +984,95 @@ const useReportIssueState = ({
         }
       }
 
+      progressSnackId = snackPublisher.publish({
+        variant: 'loading',
+        title: 'Reporting issue',
+        message: `Creating issue for ${issueSubject}…`,
+        autoDismiss: false,
+        dismissible: false,
+        metadata: snackMetadata,
+      });
+
       const response = await appService.reportAppIssue(targetAppId, payload);
 
       const issueId = response.data?.issue_id;
       const issueUrl = response.data?.issue_url;
-      setReportResult({
-        issueId,
-        issueUrl,
-        message: response.message ?? 'Issue report sent successfully.',
-      });
+      const successMessage = issueId
+        ? `Issue ${issueId} created for ${issueSubject}.`
+        : `Issue created for ${issueSubject}.`;
+
+      const successDescriptor: SnackPublishOptions = {
+        variant: 'success',
+        title: 'Issue reported',
+        message: successMessage,
+        dismissible: true,
+        autoDismiss: true,
+        durationMs: 7000,
+        action: issueUrl
+          ? {
+              label: 'View details',
+              handler: () => {
+                window.open(issueUrl, '_blank', 'noopener');
+              },
+            }
+          : undefined,
+        metadata: { ...snackMetadata, issueId, issueUrl },
+      };
+
+      const successPatch: SnackUpdateOptions = {
+        variant: successDescriptor.variant,
+        title: successDescriptor.title,
+        message: successDescriptor.message,
+        dismissible: successDescriptor.dismissible,
+        autoDismiss: successDescriptor.autoDismiss,
+        durationMs: successDescriptor.durationMs,
+        action: successDescriptor.action,
+        metadata: successDescriptor.metadata,
+      };
+
+      if (progressSnackId) {
+        snackPublisher.patch(progressSnackId, successPatch);
+      } else {
+        snackPublisher.publish(successDescriptor);
+      }
+
       flagScenarioIssueReported(targetAppId);
       const engagementIdentifier = appId ?? app?.id ?? null;
       if (engagementIdentifier) {
         markScenarioIssueCreated(engagementIdentifier);
       }
-      setReportMessage('');
+
+      resetState();
+      cleanupAfterDialogClose(canCaptureScreenshot);
+      setShouldResetOnNextOpen(true);
     } catch (error: unknown) {
       const fallbackMessage = (error as { message?: string })?.message ?? 'Failed to send issue report.';
       setReportError(fallbackMessage);
+      const errorDescriptor: SnackPublishOptions = {
+        variant: 'error',
+        title: 'Issue report failed',
+        message: issueSubject ? `${fallbackMessage} (${issueSubject})` : fallbackMessage,
+        dismissible: true,
+        autoDismiss: false,
+        metadata: snackMetadata,
+      };
+
+      const errorPatch: SnackUpdateOptions = {
+        variant: errorDescriptor.variant,
+        title: errorDescriptor.title,
+        message: errorDescriptor.message,
+        dismissible: errorDescriptor.dismissible,
+        autoDismiss: errorDescriptor.autoDismiss,
+        durationMs: errorDescriptor.durationMs,
+        action: errorDescriptor.action,
+        metadata: errorDescriptor.metadata,
+      };
+
+      if (progressSnackId) {
+        snackPublisher.patch(progressSnackId, errorPatch);
+      } else {
+        snackPublisher.publish(errorDescriptor);
+      }
     } finally {
       setReportSubmitting(false);
     }
@@ -1028,11 +1101,17 @@ const useReportIssueState = ({
     reportNetworkTotal,
     reportIncludeHealthChecks,
     reportHealthChecks,
-   reportHealthChecksFetchedAt,
-   reportHealthChecksTotal,
+    reportHealthChecksFetchedAt,
+    reportHealthChecksTotal,
     flagScenarioIssueReported,
     markScenarioIssueCreated,
     reportMessage,
+    cleanupAfterDialogClose,
+    isOpen,
+    onClose,
+    resetState,
+    setShouldResetOnNextOpen,
+    snackPublisher,
   ]);
 
   const {
@@ -1465,7 +1544,6 @@ const useReportIssueState = ({
       message: reportMessage,
       submitting: reportSubmitting,
       error: reportError,
-      result: reportResult,
       handleMessageChange: handleReportMessageChange,
       handleMessageKeyDown: handleReportMessageKeyDown,
       handleSubmit: handleSubmitReport,
@@ -1581,7 +1659,6 @@ const useReportIssueState = ({
       handleScreenshotImageLoad,
     },
     bridgeState,
-    reportResult,
     reportSubmitting,
     reportError,
     reportIncludeScreenshot,

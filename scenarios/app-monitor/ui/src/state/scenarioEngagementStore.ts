@@ -77,8 +77,8 @@ export const useScenarioEngagementStore = create<ScenarioEngagementState>((set) 
 
     set((state) => {
       const nextRecords = { ...state.records };
-      let nextSessions = { ...state.sessions };
-      let nextActiveKey = key;
+      const nextSessions = { ...state.sessions };
+      const nextActiveKey = key;
 
       if (state.activeKey && state.activeKey !== key) {
         const previousKey = state.activeKey;
@@ -86,8 +86,7 @@ export const useScenarioEngagementStore = create<ScenarioEngagementState>((set) 
         if (prevSession) {
           const prevRecord = nextRecords[previousKey] ?? createDefaultRecord(prevSession.startedAt);
           nextRecords[previousKey] = finalizeRecord(prevRecord, prevSession, timestamp);
-          const { [previousKey]: _removed, ...restSessions } = nextSessions;
-          nextSessions = restSessions;
+          delete nextSessions[previousKey];
         }
       }
 
@@ -132,7 +131,8 @@ export const useScenarioEngagementStore = create<ScenarioEngagementState>((set) 
 
       const record = state.records[key] ?? createDefaultRecord(session.startedAt);
       const nextRecord = finalizeRecord(record, session, timestamp);
-      const { [key]: _removed, ...restSessions } = state.sessions;
+      const restSessions = { ...state.sessions };
+      delete restSessions[key];
       const nextActiveKey = state.activeKey === key ? null : state.activeKey;
 
       return {

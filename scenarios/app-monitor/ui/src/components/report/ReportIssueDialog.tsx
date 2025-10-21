@@ -92,7 +92,6 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     screenshot,
   } = useReportIssueState(props);
 
-  const { result } = form;
   const sendDisabled = form.submitting || (
     screenshot.reportIncludeScreenshot
     && canCaptureScreenshot
@@ -201,50 +200,12 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
             type="button"
             className="report-dialog__close"
             onClick={modal.handleDismiss}
-            disabled={form.submitting}
             aria-label="Close report dialog"
           >
             <X aria-hidden size={16} />
           </button>
         </div>
-
-        {result ? (
-          <div className="report-dialog__state">
-            <p className="report-dialog__success">
-              {result.message ?? 'Issue report sent successfully.'}
-            </p>
-            {result.issueId && (
-              <p className="report-dialog__success-id">
-                Tracking ID: <span>{result.issueId}</span>
-              </p>
-            )}
-            {result.issueUrl && (
-              <div className="report-dialog__success-link">
-                <button
-                  type="button"
-                  className="report-dialog__button"
-                  onClick={() => {
-                    // Preserve Referer so the proxy can resolve shared asset paths for the external tab.
-                    window.open(result.issueUrl, '_blank', 'noopener');
-                  }}
-                >
-                  <ExternalLink aria-hidden size={16} />
-                  <span>Open in Issue Tracker</span>
-                </button>
-              </div>
-            )}
-            <div className="report-dialog__actions">
-              <button
-                type="button"
-                className="report-dialog__button report-dialog__button--primary"
-                onClick={modal.handleReset}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form className="report-dialog__form" onSubmit={form.handleSubmit}>
+        <form className="report-dialog__form" onSubmit={form.handleSubmit}>
             <div className="report-dialog__layout">
               <div className="report-dialog__lane report-dialog__lane--primary">
                 {existingIssuesLoading && (
@@ -438,9 +399,8 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                 type="button"
                 className="report-dialog__button"
                 onClick={modal.handleReset}
-                disabled={form.submitting}
               >
-                Cancel
+                Close
               </button>
               <button
                 type="submit"
@@ -458,7 +418,6 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
               </button>
             </div>
           </form>
-        )}
 
       </div>
     </div>
