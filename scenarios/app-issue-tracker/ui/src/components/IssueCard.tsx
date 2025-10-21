@@ -3,6 +3,7 @@ import type { DragEvent, KeyboardEventHandler, MouseEvent, PointerEvent, TouchEv
 import { Archive, Brain, CalendarClock, GripVertical, Hash, Tag, Trash2, AlertCircle, StopCircle } from 'lucide-react';
 import { Issue } from '../data/sampleData';
 import { formatDistanceToNow } from '../utils/date';
+import { toTitleCase } from '../utils/string';
 
 const TOUCH_MOVE_THRESHOLD = 14;
 
@@ -52,7 +53,7 @@ function extractErrorSummary(report: string): string | null {
 interface IssueCardProps {
   issue: Issue;
   isFocused?: boolean;
-  runningProcess?: { agent_id: string; start_time: string; duration?: string };
+  runningProcess?: { agent_id: string; start_time: string; duration?: string; status?: string };
   onSelect?: (issueId: string) => void;
   onDelete?: (issue: Issue) => void;
   onArchive?: (issue: Issue) => void;
@@ -98,6 +99,10 @@ export function IssueCard({
     .filter(Boolean)
     .join(' ');
 
+  const runningStatusLabel = runningProcess?.status
+    ? toTitleCase(runningProcess.status.replace(/[-_]+/g, ' '))
+    : 'Executing';
+
   const handleSelect = () => {
     if (ignoreClickRef.current) {
       ignoreClickRef.current = false;
@@ -119,12 +124,22 @@ export function IssueCard({
 
   const handleDeleteClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    console.info('[IssueTracker] IssueCard delete tap', issue.id);
     onDelete?.(issue);
   };
 
   const handleArchiveClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    console.info('[IssueTracker] IssueCard archive tap', issue.id);
     onArchive?.(issue);
+  };
+
+  const handleActionPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+  };
+
+  const handleActionTouchStart = (event: TouchEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
   };
 
   const handleStopClick = (event: MouseEvent<HTMLButtonElement>) => {
@@ -154,7 +169,12 @@ export function IssueCard({
   const isArchived = issue.status === 'archived';
 
   const handleCardPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    const handle = (event.target as HTMLElement)?.closest('.issue-card-drag-handle');
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.issue-card-action') && !target.closest('.issue-card-drag-handle')) {
+      return;
+    }
+
+    const handle = target?.closest('.issue-card-drag-handle');
     if (!handle || !cardRef.current) {
       return;
     }
@@ -223,6 +243,8 @@ export function IssueCard({
             className="issue-card-action issue-card-action--archive"
             aria-label={`Archive ${issue.id}`}
             onClick={handleArchiveClick}
+            onPointerDown={handleActionPointerDown}
+            onTouchStart={handleActionTouchStart}
             disabled={isArchived}
           >
             <Archive size={16} />
@@ -232,6 +254,8 @@ export function IssueCard({
             className="issue-card-action issue-card-action--delete"
             aria-label={`Delete ${issue.id}`}
             onClick={handleDeleteClick}
+            onPointerDown={handleActionPointerDown}
+            onTouchStart={handleActionTouchStart}
           >
             <Trash2 size={16} />
           </button>
@@ -245,7 +269,8 @@ export function IssueCard({
           <Brain size={14} className="issue-running-icon" />
           <div className="issue-running-details">
             <span className="issue-running-text">
-              Executing<span className="ellipsis-animated">...</span>
+              {runningStatusLabel}
+              <span className="ellipsis-animated">...</span>
             </span>
             {runningProcess.duration && (
               <span className="issue-running-duration">{runningProcess.duration}</span>
@@ -256,6 +281,8 @@ export function IssueCard({
             className="issue-stop-button"
             aria-label="Stop agent"
             onClick={handleStopClick}
+            onPointerDown={handleActionPointerDown}
+            onTouchStart={handleActionTouchStart}
           >
             <StopCircle size={14} />
           </button>

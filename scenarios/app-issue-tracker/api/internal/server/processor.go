@@ -107,6 +107,7 @@ func (p *AutomationProcessor) RegisterRunningProcess(issueID, agentID, startTime
 		existing.info.IssueID = issueID
 		existing.info.AgentID = agentID
 		existing.info.StartTime = startTime
+		existing.info.Status = AgentStatusRunning
 		if cancel != nil {
 			existing.cancel = cancel
 			existing.cancelRequested = false
@@ -121,6 +122,7 @@ func (p *AutomationProcessor) RegisterRunningProcess(issueID, agentID, startTime
 			IssueID:   issueID,
 			AgentID:   agentID,
 			StartTime: startTime,
+			Status:    AgentStatusRunning,
 		},
 		cancel: cancel,
 	}
@@ -167,6 +169,9 @@ func (p *AutomationProcessor) CancelRunningProcess(issueID, reason string) bool 
 	}
 	proc.cancelRequested = true
 	proc.cancelReason = reason
+	if proc.info != nil {
+		proc.info.Status = AgentStatusCancelling
+	}
 	if proc.cancel != nil {
 		proc.cancel()
 	}

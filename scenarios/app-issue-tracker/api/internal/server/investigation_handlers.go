@@ -109,7 +109,8 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if strings.TrimSpace(req.IssueID) == "" {
+	issueID := strings.TrimSpace(req.IssueID)
+	if issueID == "" {
 		http.Error(w, "Issue ID is required", http.StatusBadRequest)
 		return
 	}
@@ -124,9 +125,30 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		agentID = "unified-resolver"
 	}
 
+	if !req.Force {
+		if s.processor.IsRunning(issueID) {
+			http.Error(w, "Agent is already running for the specified issue", http.StatusConflict)
+			return
+		}
+
+		state := s.currentProcessorState()
+		slots := state.ConcurrentSlots
+		if slots > 0 {
+			running := len(s.processor.RunningProcesses())
+			if running >= slots {
+				http.Error(
+					w,
+					fmt.Sprintf("Concurrent slot limit (%d) reached. Try again later or enable force.", slots),
+					http.StatusTooManyRequests,
+				)
+				return
+			}
+		}
+	}
+
 	// Use the reusable triggerInvestigation method
-	if err := s.triggerInvestigation(req.IssueID, agentID, autoResolve); err != nil {
-		LogErrorErr("Failed to trigger investigation", err, "issue_id", req.IssueID, "agent_id", agentID)
+	if err := s.triggerInvestigation(issueID, agentID, autoResolve); err != nil {
+		LogErrorErr("Failed to trigger investigation", err, "issue_id", issueID, "agent_id", agentID)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -140,7 +162,7 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		Data: map[string]interface{}{
 			"run_id":        runID,
 			"resolution_id": resolutionID,
-			"issue_id":      req.IssueID,
+			"issue_id":      issueID,
 			"agent_id":      agentID,
 			"status":        "active",
 			"workflow":      "single-agent",

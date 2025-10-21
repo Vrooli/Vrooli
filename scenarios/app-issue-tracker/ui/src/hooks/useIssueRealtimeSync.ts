@@ -5,10 +5,10 @@ import { normalizeStatus, transformIssue } from '../utils/issues';
 import type { WebSocketEvent } from '../types/events';
 import { useWebSocket, type ConnectionStatus } from './useWebSocket';
 
-export type RunningProcessMap = Map<string, { agent_id: string; start_time: string; duration?: string }>;
+export type RunningProcessMap = Map<string, { agent_id: string; start_time: string; duration?: string; status?: string }>;
 
 export interface RunningProcessSeed {
-  processes: Array<{ issue_id: string; agent_id: string; start_time: string }>;
+  processes: Array<{ issue_id: string; agent_id: string; start_time: string; status?: string }>;
   version: number;
 }
 
@@ -120,7 +120,7 @@ export function useIssueRealtimeSync({
         return new Map();
       }
 
-      const seeded = new Map<string, { agent_id: string; start_time: string; duration?: string }>();
+      const seeded = new Map<string, { agent_id: string; start_time: string; duration?: string; status?: string }>();
       initialRunningProcesses.processes.forEach((process) => {
         if (!process || !process.issue_id) {
           return;
@@ -128,6 +128,7 @@ export function useIssueRealtimeSync({
         seeded.set(process.issue_id, {
           agent_id: process.agent_id,
           start_time: process.start_time,
+          status: process.status ?? 'running',
           duration: formatElapsedDuration(process.start_time),
         });
       });
@@ -191,10 +192,15 @@ export function useIssueRealtimeSync({
           setRunningProcesses((previous) => {
             const existing = previous.get(issue_id);
             if (existing && existing.agent_id === agent_id && existing.start_time === start_time) {
-              return previous;
+              if (existing.status === 'running') {
+                return previous;
+              }
+              const next = new Map(previous);
+              next.set(issue_id, { ...existing, status: 'running' });
+              return next;
             }
             const next = new Map(previous);
-            next.set(issue_id, { agent_id, start_time });
+            next.set(issue_id, { agent_id, start_time, status: 'running' });
             return next;
           });
           break;

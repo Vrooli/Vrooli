@@ -2,6 +2,7 @@ import type { ChangeEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  Archive,
   Brain,
   CalendarClock,
   ChevronDown,
@@ -17,6 +18,7 @@ import {
   Pencil,
   Paperclip,
   Tag,
+  Trash2,
   User,
   X,
 } from 'lucide-react';
@@ -63,7 +65,9 @@ export interface IssueDetailsModalProps {
   apiBaseUrl: string;
   onClose: () => void;
   onStatusChange?: (issueId: string, newStatus: IssueStatus) => void | Promise<void>;
-   onEdit?: (issue: Issue) => void;
+  onEdit?: (issue: Issue) => void;
+  onArchive?: (issue: Issue) => void | Promise<void>;
+  onDelete?: (issue: Issue) => void | Promise<void>;
   onFollowUp?: (issue: Issue) => void;
   followUpLoadingId?: string | null;
   validStatuses?: IssueStatus[];
@@ -75,6 +79,8 @@ export function IssueDetailsModal({
   onClose,
   onStatusChange,
   onEdit,
+  onArchive,
+  onDelete,
   onFollowUp,
   followUpLoadingId,
   validStatuses = getFallbackStatuses(),
@@ -94,6 +100,8 @@ export function IssueDetailsModal({
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [conversationExpanded, setConversationExpanded] = useState(false);
   const [investigationExpanded, setInvestigationExpanded] = useState(true);
+  const [archivePending, setArchivePending] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
   const fetchAbortRef = useRef<AbortController | null>(null);
 
   const providerLabel = conversation?.provider ?? issue.investigation?.agent_id ?? null;
@@ -116,6 +124,8 @@ export function IssueDetailsModal({
     setConversationExpanded(false);
     setConversationLoading(false);
     setInvestigationExpanded(true);
+    setArchivePending(false);
+    setDeletePending(false);
   }, [issue.id]);
 
   const fetchConversation = useCallback(async () => {
@@ -181,263 +191,359 @@ export function IssueDetailsModal({
     }
   };
 
-  return (
-    <Modal onClose={onClose} labelledBy="issue-details-title">
-      <div className="modal-header">
-        <div>
-          <p className="modal-eyebrow">
-            <Hash size={14} />
-            {issue.id}
-          </p>
-          <h2 id="issue-details-title" className="modal-title">
-            {issue.title}
-          </h2>
+  const renderConversationContent = () => {
+    if (conversationLoading) {
+      return (
+        <div className="agent-transcript-loading">
+          <Loader2 size={16} className="agent-transcript-spinner" />
+          <span>Loading transcript…</span>
         </div>
-        <div className="modal-header-actions">
-          {issue.status === 'open' && typeof onEdit === 'function' && (
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => onEdit(issue)}
-              aria-label="Edit issue"
-            >
-              <Pencil size={16} />
-              <span>Edit</span>
-            </button>
-          )}
+      );
+    }
+
+    if (!conversation) {
+      return <div className="agent-transcript-empty">Transcript not loaded yet.</div>;
+    }
+
+    if (conversation.available === false) {
+      return <div className="agent-transcript-empty">Transcript not available for this run.</div>;
+    }
+
+    return <AgentConversationPanel conversation={conversation} />;
+  };
+
+  const handleArchive = async () => {
+    if (!onArchive || issue.status === 'archived' || archivePending) {
+      return;
+    }
+    console.info('[IssueTracker] Modal archive tap', issue.id);
+    let shouldArchive = true;
+    const bypassConfirm = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    if (!bypassConfirm && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      shouldArchive = window.confirm(
+        `Archive ${issue.id}? The issue will move to the Archived column.`,
+      );
+    }
+    if (!shouldArchive) {
+      return;
+    }
+
+    try {
+      setArchivePending(true);
+      await onArchive(issue);
+    } finally {
+      setArchivePending(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete || deletePending) {
+      return;
+    }
+
+    console.info('[IssueTracker] Modal delete tap', issue.id);
+    let shouldDelete = true;
+    const bypassConfirm = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    if (!bypassConfirm && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      shouldDelete = window.confirm(
+        `Delete ${issue.id}${issue.title ? ` — ${issue.title}` : ''}? This cannot be undone.`,
+      );
+    }
+    if (!shouldDelete) {
+      return;
+    }
+
+    try {
+      setDeletePending(true);
+      await onDelete(issue);
+      onClose();
+    } finally {
+      setDeletePending(false);
+    }
+  };
+
+  return (
+    <Modal onClose={onClose} labelledBy="issue-details-title" panelClassName="modal-panel--issue-details">
+      <div className="issue-details-container">
+        <div className="issue-details-topbar">
           <button className="modal-close" type="button" aria-label="Close issue details" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
-      </div>
 
-      <div className="modal-body">
-        {onStatusChange && (
-          <div className="form-field form-field-full">
-            <label htmlFor="issue-status-selector">
-              <span>Status (Accessibility Feature)</span>
-              <div className="select-wrapper">
-                <select id="issue-status-selector" value={issue.status} onChange={handleStatusChange}>
-                  {validStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {toTitleCase(status.replace(/-/g, ' '))}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={16} />
-              </div>
-            </label>
-          </div>
-        )}
-
-        <div className="issue-detail-grid">
-          <IssueMetaTile label="Status" value={toTitleCase(issue.status.replace(/-/g, ' '))} />
-          <IssueMetaTile label="Priority" value={issue.priority} />
-          <IssueMetaTile label="Assignee" value={issue.assignee || 'Unassigned'} />
-          <IssueMetaTile label="App" value={issue.app} />
-          <IssueMetaTile
-            label="Created"
-            value={createdText}
-            hint={createdHint}
-            icon={<CalendarClock size={14} />}
-          />
-          {issue.updatedAt && (
-            <IssueMetaTile
-              label="Updated"
-              value={updatedText}
-              hint={updatedHint}
-              icon={<CalendarClock size={14} />}
-            />
-          )}
-          {issue.resolvedAt && (
-            <IssueMetaTile
-              label="Resolved"
-              value={resolvedText}
-              hint={resolvedHint}
-              icon={<CalendarClock size={14} />}
-            />
-          )}
-        </div>
-
-        {description && (
-          <section className="issue-detail-section">
-            <h3>Description</h3>
-            <MarkdownView content={description} />
-          </section>
-        )}
-
-        {notes && (
-          <section className="issue-detail-section">
-            <h3>Notes</h3>
-            <MarkdownView content={notes} />
-          </section>
-        )}
-
-        {issue.attachments.length > 0 && (
-          <section className="issue-detail-section">
-            <h3>Attachments</h3>
-            <div className="issue-attachments">
-              {issue.attachments.map((attachment) => (
-                <AttachmentPreview key={attachment.path} attachment={attachment} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {issue.tags.length > 0 && (
-          <section className="issue-detail-section">
-            <h3>Tags</h3>
-            <div className="issue-detail-tags">
-              <Tag size={14} />
-              {issue.tags.map((tag) => (
-                <span key={tag} className="issue-detail-tag">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {issue.investigation?.report && (
-          <section className="issue-detail-section">
-            <div className="issue-section-heading">
-              <h3>Investigation Report</h3>
-              <button
-                type="button"
-                className="issue-section-toggle"
-                onClick={handleToggleInvestigation}
-                aria-expanded={investigationExpanded}
-              >
-                <ChevronDown
-                  size={16}
-                  className={`issue-section-toggle-icon${investigationExpanded ? ' is-open' : ''}`}
-                />
-                <span>{investigationExpanded ? 'Hide report' : 'Show report'}</span>
-              </button>
-            </div>
-            <div className={`investigation-report${investigationExpanded ? ' is-expanded' : ' is-collapsed'}`}>
-              {issue.investigation.agent_id && (
-                <div className="investigation-meta">
-                  <Brain size={14} />
-                  <span>Agent: {issue.investigation.agent_id}</span>
-                </div>
-              )}
-              {investigationExpanded ? (
-                <div className="investigation-report-body">
-                  <MarkdownView content={issue.investigation.report} />
-                </div>
-              ) : (
-                <p className="investigation-report-placeholder">
-                  Report hidden. Expand to review the findings.
-                </p>
-              )}
-            </div>
-          </section>
-        )}
-
-        {followUpAvailable && (
-          <div className="issue-followup-actions">
-            <button
-              type="button"
-              className="primary-button follow-up-button"
-              onClick={() => onFollowUp?.(issue)}
-              disabled={followUpLoading}
-              aria-label={followUpLoading ? 'Preparing follow-up issue' : 'Create follow-up issue'}
-            >
-              {followUpLoading ? <Loader2 size={16} className="button-spinner" /> : <KanbanSquare size={16} />}
-              <span>{followUpLoading ? 'Preparing…' : 'Follow Up'}</span>
-            </button>
-          </div>
-        )}
-
-        {hasAgentTranscript && (
-          <section className="issue-detail-section">
-            <div className="issue-section-heading">
-              <h3>Agent Transcript</h3>
-              {providerLabel && <span className="issue-section-meta">Backend: {providerLabel}</span>}
-            </div>
-            {conversation?.last_message && (
-              <p className="agent-transcript-last-message">
-                <strong>Last message:</strong> {conversation.last_message}
-              </p>
-            )}
-            {conversation?.transcript_timestamp && (
-              <p className="agent-transcript-timestamp">
-                Captured: {formatDateTime(conversation.transcript_timestamp)}
-              </p>
-            )}
-            <div className="agent-transcript-actions">
-              <button type="button" className="agent-transcript-toggle" onClick={handleToggleConversation}>
-                {conversationExpanded ? 'Hide Transcript' : 'View Transcript'}
-                {conversationLoading && <Loader2 size={14} className="agent-transcript-spinner" />}
-              </button>
-              {!conversationExpanded && conversation && conversation.available === false && (
-                <span className="agent-transcript-hint">Transcript not captured for this run.</span>
-              )}
-            </div>
-            {conversationError && (
-              <div className="agent-transcript-error" role="alert">
-                {conversationError}
-              </div>
-            )}
-            {conversationExpanded && (
-              conversationLoading ? (
-                <div className="agent-transcript-loading">
-                  <Loader2 size={16} className="agent-transcript-spinner" />
-                  <span>Loading transcript…</span>
-                </div>
-              ) : conversation ? (
-                conversation.available ? (
-                  <AgentConversationPanel conversation={conversation} />
-                ) : (
-                  <div className="agent-transcript-empty">Transcript not available for this run.</div>
-                )
-              ) : (
-                <div className="agent-transcript-empty">Transcript not loaded yet.</div>
-              )
-            )}
-          </section>
-        )}
-
-        {issue.metadata?.extra?.agent_last_error && (
-          <section className="issue-detail-section">
-            <h3>Agent Execution Error</h3>
-            <div className="issue-error-details">
-              <div className="issue-error-header">
-                <AlertCircle size={16} />
-                <span className="issue-error-status">
-                  Status: {issue.metadata?.extra?.agent_last_status || 'failed'}
-                </span>
-                {issue.metadata?.extra?.agent_failure_time && (
-                  <span className="issue-error-time">
-                    Failed at: {formatDateTime(issue.metadata.extra.agent_failure_time)}
-                  </span>
+        <div className="issue-details-scroll">
+          <header className="issue-details-header">
+            <p className="modal-eyebrow">
+              <Hash size={14} />
+              {issue.id}
+            </p>
+            <h2 id="issue-details-title" className="modal-title">
+              {issue.title}
+            </h2>
+            {(typeof onArchive === 'function' || typeof onDelete === 'function' ||
+              (issue.status === 'open' && typeof onEdit === 'function')) && (
+              <div className="issue-details-actions">
+                {typeof onArchive === 'function' && (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={handleArchive}
+                    aria-label={issue.status === 'archived' ? 'Issue already archived' : 'Archive issue'}
+                    disabled={archivePending || issue.status === 'archived'}
+                  >
+                    {archivePending ? (
+                      <Loader2 size={16} className="button-spinner" />
+                    ) : (
+                      <Archive size={16} />
+                    )}
+                    <span>{issue.status === 'archived' ? 'Archived' : 'Archive'}</span>
+                  </button>
+                )}
+                {typeof onDelete === 'function' && (
+                  <button
+                    type="button"
+                    className="ghost-button ghost-button--danger"
+                    onClick={handleDelete}
+                    aria-label="Delete issue"
+                    disabled={deletePending}
+                  >
+                    {deletePending ? (
+                      <Loader2 size={16} className="button-spinner" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                    <span>{deletePending ? 'Deleting…' : 'Delete'}</span>
+                  </button>
+                )}
+                {issue.status === 'open' && typeof onEdit === 'function' && (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => onEdit(issue)}
+                    aria-label="Edit issue"
+                  >
+                    <Pencil size={16} />
+                    <span>Edit</span>
+                  </button>
                 )}
               </div>
-              <pre className="issue-error-content">{issue.metadata.extra.agent_last_error}</pre>
-            </div>
-          </section>
-        )}
+            )}
+          </header>
 
-        {(issue.reporterName || issue.reporterEmail) && (
-          <section className="issue-detail-section">
-            <h3>Reporter</h3>
-            <div className="issue-detail-inline">
-              {issue.reporterName && (
-                <span>
-                  <User size={14} />
-                  {issue.reporterName}
-                </span>
+          <div className="issue-details-content">
+            {onStatusChange && (
+              <div className="form-field form-field-full">
+                <label htmlFor="issue-status-selector">
+                  <span>Status (Accessibility Feature)</span>
+                  <div className="select-wrapper">
+                    <select id="issue-status-selector" value={issue.status} onChange={handleStatusChange}>
+                      {validStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {toTitleCase(status.replace(/-/g, ' '))}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} />
+                  </div>
+                </label>
+              </div>
+            )}
+
+            <div className="issue-detail-grid">
+              <IssueMetaTile label="Status" value={toTitleCase(issue.status.replace(/-/g, ' '))} />
+              <IssueMetaTile label="Priority" value={issue.priority} />
+              <IssueMetaTile label="Assignee" value={issue.assignee || 'Unassigned'} />
+              <IssueMetaTile label="App" value={issue.app} />
+              <IssueMetaTile
+                label="Created"
+                value={createdText}
+                hint={createdHint}
+                icon={<CalendarClock size={14} />}
+              />
+              {issue.updatedAt && (
+                <IssueMetaTile
+                  label="Updated"
+                  value={updatedText}
+                  hint={updatedHint}
+                  icon={<CalendarClock size={14} />}
+                />
               )}
-              {issue.reporterEmail && (
-                <a href={`mailto:${issue.reporterEmail}`}>
-                  <Mail size={14} />
-                  {issue.reporterEmail}
-                </a>
+              {issue.resolvedAt && (
+                <IssueMetaTile
+                  label="Resolved"
+                  value={resolvedText}
+                  hint={resolvedHint}
+                  icon={<CalendarClock size={14} />}
+                />
               )}
             </div>
-          </section>
-        )}
+
+            {description && (
+              <section className="issue-detail-section">
+                <h3>Description</h3>
+                <MarkdownView content={description} />
+              </section>
+            )}
+
+            {notes && (
+              <section className="issue-detail-section">
+                <h3>Notes</h3>
+                <MarkdownView content={notes} />
+              </section>
+            )}
+
+            {issue.attachments.length > 0 && (
+              <section className="issue-detail-section">
+                <h3>Attachments</h3>
+                <div className="issue-attachments">
+                  {issue.attachments.map((attachment) => (
+                    <AttachmentPreview key={attachment.path} attachment={attachment} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {issue.tags.length > 0 && (
+              <section className="issue-detail-section">
+                <h3>Tags</h3>
+                <div className="issue-detail-tags">
+                  <Tag size={14} />
+                  {issue.tags.map((tag) => (
+                    <span key={tag} className="issue-detail-tag">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {issue.investigation?.report && (
+              <section className="issue-detail-section">
+                <div className="issue-section-heading">
+                  <h3>Investigation Report</h3>
+                  <button
+                    type="button"
+                    className="issue-section-toggle"
+                    onClick={handleToggleInvestigation}
+                    aria-expanded={investigationExpanded}
+                  >
+                    <ChevronDown
+                      size={16}
+                      className={`issue-section-toggle-icon${investigationExpanded ? ' is-open' : ''}`}
+                    />
+                    <span>{investigationExpanded ? 'Hide report' : 'Show report'}</span>
+                  </button>
+                </div>
+                <div className={`investigation-report${investigationExpanded ? ' is-expanded' : ' is-collapsed'}`}>
+                  {issue.investigation.agent_id && (
+                    <div className="investigation-meta">
+                      <Brain size={14} />
+                      <span>Agent: {issue.investigation.agent_id}</span>
+                    </div>
+                  )}
+                  {investigationExpanded ? (
+                    <div className="investigation-report-body">
+                      <MarkdownView content={issue.investigation.report} />
+                    </div>
+                  ) : (
+                    <p className="investigation-report-placeholder">
+                      Report hidden. Expand to review the findings.
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {followUpAvailable && (
+              <div className="issue-followup-actions">
+                <button
+                  type="button"
+                  className="primary-button follow-up-button"
+                  onClick={() => onFollowUp?.(issue)}
+                  disabled={followUpLoading}
+                  aria-label={followUpLoading ? 'Preparing follow-up issue' : 'Create follow-up issue'}
+                >
+                  {followUpLoading ? <Loader2 size={16} className="button-spinner" /> : <KanbanSquare size={16} />}
+                  <span>{followUpLoading ? 'Preparing…' : 'Follow Up'}</span>
+                </button>
+              </div>
+            )}
+
+            {hasAgentTranscript && (
+              <section className="issue-detail-section">
+                <div className="issue-section-heading">
+                  <h3>Agent Transcript</h3>
+                  {providerLabel && <span className="issue-section-meta">Backend: {providerLabel}</span>}
+                </div>
+                {conversation?.last_message && (
+                  <p className="agent-transcript-last-message">
+                    <strong>Last message:</strong> {conversation.last_message}
+                  </p>
+                )}
+                {conversation?.transcript_timestamp && (
+                  <p className="agent-transcript-timestamp">
+                    Captured: {formatDateTime(conversation.transcript_timestamp)}
+                  </p>
+                )}
+                <div className="agent-transcript-actions">
+                  <button type="button" className="agent-transcript-toggle" onClick={handleToggleConversation}>
+                    {conversationExpanded ? 'Hide Transcript' : 'View Transcript'}
+                    {conversationLoading && <Loader2 size={14} className="agent-transcript-spinner" />}
+                  </button>
+                  {!conversationExpanded && conversation && conversation.available === false && (
+                    <span className="agent-transcript-hint">Transcript not captured for this run.</span>
+                  )}
+                </div>
+                {conversationError && (
+                  <div className="agent-transcript-error" role="alert">
+                    {conversationError}
+                  </div>
+                )}
+            {conversationExpanded && renderConversationContent()}
+              </section>
+            )}
+
+            {issue.metadata?.extra?.agent_last_error && (
+              <section className="issue-detail-section">
+                <h3>Agent Execution Error</h3>
+                <div className="issue-error-details">
+                  <div className="issue-error-header">
+                    <AlertCircle size={16} />
+                    <span className="issue-error-status">
+                      Status: {issue.metadata?.extra?.agent_last_status || 'failed'}
+                    </span>
+                    {issue.metadata?.extra?.agent_failure_time && (
+                      <span className="issue-error-time">
+                        Failed at: {formatDateTime(issue.metadata.extra.agent_failure_time)}
+                      </span>
+                    )}
+                  </div>
+                  <pre className="issue-error-content">{issue.metadata.extra.agent_last_error}</pre>
+                </div>
+              </section>
+            )}
+
+            {(issue.reporterName || issue.reporterEmail) && (
+              <section className="issue-detail-section">
+                <h3>Reporter</h3>
+                <div className="issue-detail-inline">
+                  {issue.reporterName && (
+                    <span>
+                      <User size={14} />
+                      {issue.reporterName}
+                    </span>
+                  )}
+                  {issue.reporterEmail && (
+                    <a href={`mailto:${issue.reporterEmail}`}>
+                      <Mail size={14} />
+                      {issue.reporterEmail}
+                    </a>
+                  )}
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
       </div>
     </Modal>
   );

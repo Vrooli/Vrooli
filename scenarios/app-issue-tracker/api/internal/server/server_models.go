@@ -51,6 +51,17 @@ type Config struct {
 	ScenarioRoot string
 }
 
+const (
+	AgentStatusRunning    = "running"
+	AgentStatusCancelling = "cancelling"
+	AgentStatusCompleted  = "completed"
+	AgentStatusFailed     = "failed"
+	AgentStatusCancelled  = "cancelled"
+
+	AgentStatusExtraKey          = "agent_last_status"
+	AgentStatusTimestampExtraKey = "agent_last_status_at"
+)
+
 type ProcessorState struct {
 	Active            bool `json:"active"`
 	ConcurrentSlots   int  `json:"concurrent_slots"`
@@ -64,6 +75,7 @@ type RunningProcess struct {
 	IssueID   string `json:"issue_id"`
 	AgentID   string `json:"agent_id"`
 	StartTime string `json:"start_time"`
+	Status    string `json:"status,omitempty"`
 }
 
 type ApiResponse struct {

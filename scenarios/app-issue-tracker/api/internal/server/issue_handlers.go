@@ -123,7 +123,8 @@ func (s *Server) transitionIssueStatus(issueID string, issue *Issue, currentFold
 
 		if issue.Metadata.Extra != nil {
 			delete(issue.Metadata.Extra, "agent_last_error")
-			delete(issue.Metadata.Extra, "agent_last_status")
+			delete(issue.Metadata.Extra, AgentStatusExtraKey)
+			delete(issue.Metadata.Extra, AgentStatusTimestampExtraKey)
 			delete(issue.Metadata.Extra, "agent_failure_time")
 			delete(issue.Metadata.Extra, "rate_limit_until")
 			delete(issue.Metadata.Extra, "rate_limit_agent")

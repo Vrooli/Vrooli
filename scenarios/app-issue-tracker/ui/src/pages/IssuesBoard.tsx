@@ -9,7 +9,7 @@ interface IssuesBoardProps {
   issues: Issue[];
   statusOrder?: IssueStatus[];
   focusedIssueId?: string | null;
-  runningProcesses?: Map<string, { agent_id: string; start_time: string; duration?: string }>;
+  runningProcesses?: Map<string, { agent_id: string; start_time: string; duration?: string; status?: string }>;
   onIssueSelect?: (issueId: string) => void;
   onIssueDelete?: (issue: Issue) => void;
   onIssueDrop?: (issueId: string, fromStatus: IssueStatus, toStatus: IssueStatus) => void | Promise<void>;
@@ -208,11 +208,18 @@ export function IssuesBoard({
     };
   }, []);
 
+  const shouldBypassConfirm = useMemo(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(pointer: coarse)').matches;
+  }, []);
+
   const confirmDelete = (issue: Issue) => {
     if (!onIssueDelete) {
       return;
     }
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    if (!shouldBypassConfirm && typeof window !== 'undefined' && typeof window.confirm === 'function') {
       const confirmed = window.confirm(
         `Delete ${issue.id}${issue.title ? ` — ${issue.title}` : ''}? This cannot be undone.`,
       );
@@ -228,7 +235,7 @@ export function IssuesBoard({
       return;
     }
     let shouldArchive = true;
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    if (!shouldBypassConfirm && typeof window !== 'undefined' && typeof window.confirm === 'function') {
       shouldArchive = window.confirm(`Archive ${issue.id}? The issue will move to the Archived column.`);
     }
     if (!shouldArchive) {

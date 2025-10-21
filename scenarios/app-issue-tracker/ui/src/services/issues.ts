@@ -32,6 +32,7 @@ export interface RunningProcessPayload {
   issue_id: string;
   agent_id: string;
   start_time: string;
+  status?: string;
 }
 
 export async function fetchIssueStatuses(baseUrl: string): Promise<IssueStatusMetadata[]> {
@@ -88,6 +89,7 @@ export async function fetchRunningProcesses(baseUrl: string): Promise<RunningPro
             issue_id: issueId,
             agent_id: agentId || 'unknown',
             start_time: startTime,
+            status: typeof item.status === 'string' ? item.status.trim() : undefined,
           } satisfies RunningProcessPayload;
         })
         .filter((entry): entry is RunningProcessPayload => Boolean(entry));

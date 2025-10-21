@@ -182,7 +182,8 @@ func (s *Server) failInvestigation(issueID, errorMsg, output string) {
 		issue.Metadata.Extra = make(map[string]string)
 	}
 	issue.Metadata.Extra["agent_last_error"] = errorMsg
-	issue.Metadata.Extra["agent_last_status"] = "failed"
+	issue.Metadata.Extra[AgentStatusExtraKey] = AgentStatusFailed
+	issue.Metadata.Extra[AgentStatusTimestampExtraKey] = nowUTC.Format(time.RFC3339)
 
 	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
 		LogErrorErr("Failed to persist investigation failure state", err, "issue_id", issueID)
@@ -322,6 +323,16 @@ func (s *Server) persistInvestigationStart(issue *Issue, issueDir, agentID, star
 	issue.Investigation.StartedAt = startedAt
 	issue.Metadata.UpdatedAt = startedAt
 
+	if issue.Metadata.Extra == nil {
+		issue.Metadata.Extra = make(map[string]string)
+	}
+	delete(issue.Metadata.Extra, "agent_last_error")
+	delete(issue.Metadata.Extra, "agent_cancel_reason")
+	delete(issue.Metadata.Extra, "agent_transcript_path")
+	delete(issue.Metadata.Extra, "agent_last_message_path")
+	issue.Metadata.Extra[AgentStatusExtraKey] = AgentStatusRunning
+	issue.Metadata.Extra[AgentStatusTimestampExtraKey] = startedAt
+
 	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
 		return fmt.Errorf("failed to update issue: %w", err)
 	}
@@ -388,18 +399,20 @@ func (s *Server) handleInvestigationCancellation(issueID, agentID, reason string
 	LogInfo("Investigation cancelled", "issue_id", issueID, "agent_id", agentID, "reason", reason)
 
 	issue, issueDir, _, loadErr := s.loadIssueWithStatus(issueID)
+	nowUTC := time.Now().UTC()
 	if loadErr == nil {
 		if issue.Metadata.Extra == nil {
 			issue.Metadata.Extra = make(map[string]string)
 		}
 		delete(issue.Metadata.Extra, "agent_last_error")
-		issue.Metadata.Extra["agent_last_status"] = "cancelled"
+		issue.Metadata.Extra[AgentStatusExtraKey] = AgentStatusCancelled
+		issue.Metadata.Extra[AgentStatusTimestampExtraKey] = nowUTC.Format(time.RFC3339)
 		if strings.TrimSpace(reason) != "" {
 			issue.Metadata.Extra["agent_cancel_reason"] = reason
 		} else {
 			delete(issue.Metadata.Extra, "agent_cancel_reason")
 		}
-		issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
 		if err := s.writeIssueMetadata(issueDir, issue); err != nil {
 			LogWarn("Failed to persist cancellation metadata", "issue_id", issueID, "error", err)
 		}
@@ -415,7 +428,7 @@ func (s *Server) handleInvestigationCancellation(issueID, agentID, reason string
 		IssueID:   issueID,
 		AgentID:   agentID,
 		Success:   false,
-		EndTime:   time.Now(),
+		EndTime:   nowUTC,
 		NewStatus: "open",
 	}))
 }
@@ -520,7 +533,8 @@ func (s *Server) handleInvestigationSuccess(issueID, agentID string, result *Cla
 	}
 	delete(issue.Metadata.Extra, "agent_last_error")
 	delete(issue.Metadata.Extra, "max_turns_exceeded")
-	issue.Metadata.Extra["agent_last_status"] = "completed"
+	issue.Metadata.Extra[AgentStatusExtraKey] = AgentStatusCompleted
+	issue.Metadata.Extra[AgentStatusTimestampExtraKey] = nowUTC.Format(time.RFC3339)
 	if result.TranscriptPath != "" {
 		issue.Metadata.Extra["agent_transcript_path"] = result.TranscriptPath
 	}

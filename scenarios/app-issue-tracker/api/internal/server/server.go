@@ -29,9 +29,21 @@ func (s *Server) Config() *Config {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Token")
+		const allowedMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Add("Vary", "Origin")
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", allowedMethods)
+
+		if requestHeaders := r.Header.Get("Access-Control-Request-Headers"); requestHeaders != "" {
+			w.Header().Set("Access-Control-Allow-Headers", requestHeaders)
+		} else {
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Token, Accept")
+		}
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)

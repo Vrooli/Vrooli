@@ -196,6 +196,48 @@ func TestPreviewInvestigationPromptHandler(t *testing.T) {
 	})
 }
 
+func TestTriggerInvestigationHandler_RespectsConcurrentSlots(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	issue := createTestIssue(
+		"issue-concurrency-1",
+		"Concurrent Slot Test",
+		"bug",
+		"high",
+		"concurrency-suite",
+	)
+	if _, err := env.Server.saveIssue(tissue, "open"); err != nil {
+		t.Fatalf("Failed to create test issue: %v", err)
+	}
+
+	slots := 1
+	env.Server.processor.UpdateState(nil, &slots, nil, nil, nil)
+
+	env.Server.processor.RegisterRunningProcess(
+		"issue-concurrency-running",
+		"agent-existing",
+		time.Now().UTC().Format(time.RFC3339),
+		nil,
+	)
+
+	req := HTTPTestRequest{
+		Method: http.MethodPost,
+		Path:   "/api/v1/investigate",
+		Body: map[string]interface{}{
+			"issue_id": tissue.ID,
+		},
+	}
+
+	w := makeHTTPRequest(env.Server.triggerInvestigationHandler, req)
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("Expected status %d when concurrent slots exhausted, got %d (body: %s)", http.StatusTooManyRequests, w.Code, w.Body.String())
+	}
+}
+
 // TestGetAgentsHandler tests agent listing
 func TestGetAgentsHandler(t *testing.T) {
 	cleanup := setupTestLogger()
