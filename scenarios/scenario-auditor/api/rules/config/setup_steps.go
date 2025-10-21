@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -106,7 +107,7 @@ Targets: service_json
 }
   ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>install-cli run command</expected-message>
+  <expected-message>change into the cli directory</expected-message>
 </test-case>
 
 <test-case id="missing-service-name" should-fail="true">
@@ -166,6 +167,129 @@ Targets: service_json
   }
 }
   ]]></input>
+</test-case>
+
+<test-case id="valid-build-api-dot" should-fail="false">
+  <description>build-api allows building the scenario binary from current directory</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
+        {"name": "build-api", "run": "cd api && go mod tidy && go build -o file-tools-api .", "description": "Build Go API binary"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
+<test-case id="valid-install-cli-symlink" should-fail="false">
+  <description>install-cli can chmod and symlink the binary into PATH</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x file-tools && ln -sf $(pwd)/file-tools ~/.local/bin/file-tools",
+          "description": "Install CLI binary to PATH"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o file-tools-api ./cmd/server/main.go",
+          "description": "Build Go API binary"
+        },
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
+<test-case id="missing-go-build" should-fail="true">
+  <description>build-api step must run go build</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
+        {"name": "build-api", "run": "cd api && npm run build", "description": "Build API"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>go build</expected-message>
+</test-case>
+
+<test-case id="wrong-output-name" should-fail="true">
+  <description>build-api must emit the scenario-specific binary name</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
+        {"name": "build-api", "run": "cd api && go build -o tools-api .", "description": "Build Go API"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>output must be file-tools-api</expected-message>
+</test-case>
+
+<test-case id="install-cli-no-install" should-fail="true">
+  <description>install-cli must perform an installation action</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && echo 'Skipping install'", "description": "CLI setup"},
+        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>install the CLI binary</expected-message>
+</test-case>
+
+<test-case id="missing-show-urls-step" should-fail="true">
+  <description>Setup must include a final show-urls step</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
+        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"}
+      ]
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>final show-urls step</expected-message>
 </test-case>
 */
 
@@ -229,15 +353,17 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 	}
 
 	var (
-		installStep map[string]interface{}
-		buildStep   map[string]interface{}
-		lastStep    map[string]interface{}
+		installStep   map[string]interface{}
+		buildStep     map[string]interface{}
+		lastStep      map[string]interface{}
+		showStepIndex = -1
+		showStepLine  = findSetupJSONLine(source, "\"show-urls\"")
 	)
 
 	lastStepRaw := stepsSlice[len(stepsSlice)-1]
 	lastStep, _ = lastStepRaw.(map[string]interface{})
 
-	for _, step := range stepsSlice {
+	for idx, step := range stepsSlice {
 		stepMap, ok := step.(map[string]interface{})
 		if !ok {
 			continue
@@ -248,6 +374,9 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 			installStep = stepMap
 		case "build-api":
 			buildStep = stepMap
+		case "show-urls":
+			showStepIndex = idx
+			showStepLine = findSetupJSONLine(source, "\"name\": \"show-urls\"")
 		}
 	}
 
@@ -267,14 +396,18 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		violations = append(violations, validateBuildAPI(filePath, source, buildStep, serviceName)...)
 	}
 
-	if lastStep == nil {
-		line := findSetupJSONLine(source, "\"steps\"")
-		violations = append(violations, newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must end with a show-urls step"))
+	if showStepIndex == -1 {
+		line := findSetupJSONLine(source, "\"show-urls\"")
+		violations = append(violations, newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must include a final show-urls step"))
 	} else {
-		name := strings.TrimSpace(toStringOrDefault(lastStep["name"]))
-		if name != "show-urls" {
-			line := findSetupJSONLine(source, "\"name\": \"show-urls\"")
-			violations = append(violations, newSetupStepsViolation(filePath, line, "show-urls must be the final setup step"))
+		if lastStep == nil {
+			line := findSetupJSONLine(source, "\"steps\"")
+			violations = append(violations, newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must include a final show-urls step"))
+		} else {
+			name := strings.TrimSpace(toStringOrDefault(lastStep["name"]))
+			if name != "show-urls" {
+				violations = append(violations, newSetupStepsViolation(filePath, showStepLine, "show-urls must be the final setup step"))
+			}
 		}
 	}
 
@@ -287,20 +420,28 @@ func validateInstallCLI(filePath, source string, step map[string]interface{}) []
 	line := findSetupJSONLine(source, "\"install-cli\"")
 
 	run := strings.TrimSpace(toStringOrDefault(step["run"]))
-	if run != "cd cli && ./install.sh" {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli run command must be 'cd cli && ./install.sh'"))
+	runLower := strings.ToLower(run)
+	if !strings.Contains(runLower, "cd cli") {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli step must change into the cli directory"))
+	}
+
+	installIndicators := []string{"install.sh", "ln -sf", "cp ", "install-cli"}
+	indicatorFound := false
+	for _, indicator := range installIndicators {
+		if strings.Contains(runLower, indicator) {
+			indicatorFound = true
+			break
+		}
+	}
+	if !indicatorFound {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli step must install the CLI binary (expected install.sh, symlink, or copy command)"))
+		return violations
 	}
 
 	desc := strings.TrimSpace(toStringOrDefault(step["description"]))
-	if desc != "Install CLI command globally" {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli description must be 'Install CLI command globally'"))
-	}
-
-	if cond, ok := step["condition"].(map[string]interface{}); ok {
-		fileExists := strings.TrimSpace(toStringOrDefault(cond["file_exists"]))
-		if fileExists != "cli/install.sh" {
-			violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli condition.file_exists must be 'cli/install.sh'"))
-		}
+	descLower := strings.ToLower(desc)
+	if !(strings.Contains(descLower, "install") && strings.Contains(descLower, "cli")) {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli description must mention installing the CLI"))
 	}
 
 	return violations
@@ -311,25 +452,51 @@ func validateBuildAPI(filePath, source string, step map[string]interface{}, serv
 
 	line := findSetupJSONLine(source, "\"build-api\"")
 
-	expectedRun := fmt.Sprintf("cd api && go mod download && go build -o %s-api ./cmd/server/main.go", serviceName)
 	run := strings.TrimSpace(toStringOrDefault(step["run"]))
-	if run != expectedRun {
-		violations = append(violations, newSetupStepsViolation(filePath, line, fmt.Sprintf("build-api run must be '%s'", expectedRun)))
+	runLower := strings.ToLower(run)
+	if !strings.Contains(runLower, "cd api") {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api step must change into the api directory"))
+	}
+	if !strings.Contains(runLower, "go build") {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api step must invoke 'go build'"))
+		return violations
+	}
+
+	outputMatch := buildOutputArgument(run)
+	if outputMatch == "" {
+		violations = append(violations, newSetupStepsViolation(filePath, line, fmt.Sprintf("build-api run must specify '-o %s-api'", serviceName)))
+	} else {
+		expectedBinary := fmt.Sprintf("%s-api", serviceName)
+		trimmed := strings.Trim(outputMatch, "\"'")
+		if filepath.Base(trimmed) != expectedBinary {
+			violations = append(violations, newSetupStepsViolation(filePath, line, fmt.Sprintf("build-api output must be %s", expectedBinary)))
+		}
 	}
 
 	desc := strings.TrimSpace(toStringOrDefault(step["description"]))
-	if desc != "Build Go API server" {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api description must be 'Build Go API server'"))
+	descLower := strings.ToLower(desc)
+	if !(strings.Contains(descLower, "build") && strings.Contains(descLower, "api")) {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api description must describe building the Go API"))
 	}
 
 	if cond, ok := step["condition"].(map[string]interface{}); ok {
 		fileExists := strings.TrimSpace(toStringOrDefault(cond["file_exists"]))
-		if fileExists != "api/go.mod" {
-			violations = append(violations, newSetupStepsViolation(filePath, line, "build-api condition.file_exists must be 'api/go.mod'"))
+		if fileExists != "" && fileExists != "api/go.mod" {
+			violations = append(violations, newSetupStepsViolation(filePath, line, "build-api condition.file_exists should reference 'api/go.mod'"))
 		}
 	}
 
 	return violations
+}
+
+var buildOutputRegex = regexp.MustCompile(`-o\s+([^\s]+)`)
+
+func buildOutputArgument(run string) string {
+	match := buildOutputRegex.FindStringSubmatch(run)
+	if len(match) < 2 {
+		return ""
+	}
+	return match[1]
 }
 
 func newSetupStepsViolation(filePath string, line int, message string) Violation {

@@ -154,6 +154,56 @@ export function useReportScreenshot({
     reportDragStateRef.current = null;
   }, []);
 
+  const resolveScreenshotBackgroundColor = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const iframe = iframeRef.current;
+    if (iframe) {
+      try {
+        const iframeWindow = iframe.contentWindow;
+        const iframeDocument = iframe.contentDocument ?? iframeWindow?.document ?? null;
+        if (iframeDocument && iframeWindow) {
+          const candidates: Element[] = [];
+          if (iframeDocument.body) {
+            candidates.push(iframeDocument.body);
+          }
+          if (iframeDocument.documentElement && iframeDocument.documentElement !== iframeDocument.body) {
+            candidates.push(iframeDocument.documentElement);
+          }
+          for (const element of candidates) {
+            const style = iframeWindow.getComputedStyle(element);
+            if (!style) {
+              continue;
+            }
+            const color = style.backgroundColor;
+            if (color && color !== 'rgba(0, 0, 0, 0)' && color.toLowerCase() !== 'transparent') {
+              return color;
+            }
+          }
+        }
+      } catch (error) {
+        logger.debug('Unable to inspect iframe background color for report screenshot', error);
+      }
+    }
+
+    const container = previewContainerRef.current;
+    if (container) {
+      try {
+        const style = window.getComputedStyle(container);
+        const color = style.backgroundColor;
+        if (color && color !== 'rgba(0, 0, 0, 0)' && color.toLowerCase() !== 'transparent') {
+          return color;
+        }
+      } catch (error) {
+        logger.debug('Unable to inspect preview container background color for report screenshot', error);
+      }
+    }
+
+    return undefined;
+  }, [iframeRef, logger, previewContainerRef]);
+
   const clampValue = useCallback((value: number, min: number, max: number) => {
     if (Number.isNaN(value)) {
       return min;
@@ -392,10 +442,14 @@ export function useReportScreenshot({
 
     if (bridgeSupportsScreenshot) {
       try {
+        const backgroundColor = resolveScreenshotBackgroundColor();
         const screenshotOptions: BridgeScreenshotOptions = {
           scale: window.devicePixelRatio || 1,
           mode: 'viewport',
         };
+        if (backgroundColor !== undefined) {
+          screenshotOptions.backgroundColor = backgroundColor;
+        }
         const result = await requestScreenshot(screenshotOptions);
         setReportScreenshotOriginalData(result.data);
         setReportScreenshotData(result.data);
@@ -442,6 +496,7 @@ export function useReportScreenshot({
     previewContainerRef,
     reportDialogOpen,
     reportIncludeScreenshot,
+    resolveScreenshotBackgroundColor,
     requestScreenshot,
   ]);
 

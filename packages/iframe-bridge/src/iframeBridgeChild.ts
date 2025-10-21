@@ -18,6 +18,7 @@ export interface BridgeScreenshotOptions {
   mode?: BridgeScreenshotMode;
   clip?: Rect | null;
   selector?: string | null;
+  backgroundColor?: string | null;
 }
 
 export interface BridgeInspectRect {
@@ -439,6 +440,94 @@ const collectElementMeta = (element: Element): BridgeInspectElementMeta => {
     text,
     label,
   };
+};
+
+const isTransparentColor = (value: string | null | undefined): boolean => {
+  if (!value) {
+    return true;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  if (normalized === 'transparent' || normalized === 'inherit') {
+    return true;
+  }
+  if (normalized.startsWith('rgba(') || normalized.startsWith('hsla(') || normalized.startsWith('rgb(') || normalized.startsWith('hsl(')) {
+    if (normalized.includes('/')) {
+      return /\/\s*0(?:\)|$)/.test(normalized);
+    }
+    return normalized.endsWith(',0)') || normalized.endsWith(', 0)');
+  }
+  if (normalized.startsWith('#')) {
+    if (normalized.length === 5) {
+      return normalized.endsWith('0');
+    }
+    if (normalized.length === 9) {
+      return normalized.endsWith('00');
+    }
+  }
+  return false;
+};
+
+const resolveBackgroundColorForHierarchy = (element?: Element | null): string | null => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return null;
+  }
+  const candidates: Element[] = [];
+  const seen = new Set<Element>();
+
+  if (element) {
+    let current: Element | null = element;
+    while (current) {
+      candidates.push(current);
+      current = current.parentElement;
+    }
+  }
+
+  const docCandidates: Array<Element | null | undefined> = [document.body, document.documentElement];
+  for (const docCandidate of docCandidates) {
+    if (docCandidate) {
+      candidates.push(docCandidate);
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    try {
+      const style = window.getComputedStyle(candidate);
+      if (!style) {
+        continue;
+      }
+      const color = style.backgroundColor;
+      if (color && !isTransparentColor(color)) {
+        return color;
+      }
+    } catch (error) {
+      console.warn('[BridgeChild] Failed to resolve background color', error);
+    }
+  }
+  return null;
+};
+
+const normalizeBackgroundColorOption = (value: string | null | undefined): string | null | undefined => {
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (isTransparentColor(trimmed)) {
+    return null;
+  }
+  return trimmed;
 };
 
 type InspectStopReason = 'stop' | 'cancel' | 'complete';
@@ -1542,19 +1631,58 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
             ? requestOptions.scale
             : window.devicePixelRatio || 1;
           const selector = typeof requestOptions.selector === 'string' ? requestOptions.selector.trim() : '';
+          const element = selector ? findElementForSelector(selector) : null;
+          const backgroundColorOption = normalizeBackgroundColorOption(requestOptions.backgroundColor);
+          const inferredBackground = backgroundColorOption !== undefined
+            ? backgroundColorOption
+            : resolveBackgroundColorForHierarchy(element);
           let requestedClip = sanitizeClipRect(requestOptions.clip ?? null);
-          if (!requestedClip && selector) {
-            const element = findElementForSelector(selector);
-            if (element && typeof element.getBoundingClientRect === 'function') {
-              const rect = element.getBoundingClientRect();
-              if (rect.width > 0 && rect.height > 0) {
-                requestedClip = {
+          const canCaptureElement = Boolean(element) && requestOptions.mode !== 'full-page';
+          if (canCaptureElement && element && typeof element.getBoundingClientRect === 'function') {
+            const rect = element.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              try {
+                const elementCanvas = await html2canvas(element, {
+                  scale,
+                  logging: false,
+                  useCORS: true,
+                  backgroundColor: inferredBackground ?? null,
+                });
+                const elementDataUrl = elementCanvas.toDataURL('image/png');
+                const elementBase64 = elementDataUrl.replace(/^data:image\/png;base64,/, '');
+                const clipRect: Rect = {
                   x: rect.x + window.scrollX,
                   y: rect.y + window.scrollY,
                   width: rect.width,
                   height: rect.height,
                 };
+                post({
+                  v: 1,
+                  t: 'SCREENSHOT_RESULT',
+                  id: message.id,
+                  ok: true,
+                  data: elementBase64,
+                  width: elementCanvas.width,
+                  height: elementCanvas.height,
+                  note: 'Captured selected element region.',
+                  mode: 'clip',
+                  clip: clipRect,
+                });
+                return;
+              } catch (error) {
+                console.warn('[BridgeChild] Element screenshot capture failed; falling back to clip capture', error);
               }
+            }
+          }
+          if (!requestedClip && element && typeof element.getBoundingClientRect === 'function') {
+            const rect = element.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              requestedClip = {
+                x: rect.x + window.scrollX,
+                y: rect.y + window.scrollY,
+                width: rect.width,
+                height: rect.height,
+              };
             }
           }
           let captureMode: BridgeScreenshotMode = requestOptions.mode === 'full-page' ? 'full-page' : 'viewport';
@@ -1563,6 +1691,7 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
             scale,
             logging: false,
             useCORS: true,
+            backgroundColor: inferredBackground ?? null,
           };
 
           let viewportRect: Rect | null = null;

@@ -699,6 +699,55 @@ const AppPreviewView = () => {
   }
   const shouldRenderInspectorDialog = isInspectorDialogOpen;
 
+  const resolvePreviewBackgroundColor = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const iframe = iframeRef.current;
+    if (iframe) {
+      try {
+        const iframeWindow = iframe.contentWindow;
+        const iframeDocument = iframe.contentDocument ?? iframeWindow?.document ?? null;
+        if (iframeDocument && iframeWindow) {
+          const candidates: Element[] = [];
+          if (iframeDocument.body) {
+            candidates.push(iframeDocument.body);
+          }
+          if (iframeDocument.documentElement && iframeDocument.documentElement !== iframeDocument.body) {
+            candidates.push(iframeDocument.documentElement);
+          }
+          for (const element of candidates) {
+            const style = iframeWindow.getComputedStyle(element);
+            if (!style) {
+              continue;
+            }
+            const color = style.backgroundColor;
+            if (color && color !== 'rgba(0, 0, 0, 0)' && color.toLowerCase() !== 'transparent') {
+              return color;
+            }
+          }
+        }
+      } catch (error) {
+        logger.debug('Unable to inspect iframe background color', error);
+      }
+    }
+
+    if (previewViewRef.current) {
+      try {
+        const style = window.getComputedStyle(previewViewRef.current);
+        const color = style.backgroundColor;
+        if (color && color !== 'rgba(0, 0, 0, 0)' && color.toLowerCase() !== 'transparent') {
+          return color;
+        }
+      } catch (error) {
+        logger.debug('Unable to inspect preview container background color', error);
+      }
+    }
+
+    return undefined;
+  }, []);
+
   const clampInspectorPosition = useCallback((
     x: number,
     y: number,
@@ -933,6 +982,7 @@ const AppPreviewView = () => {
         mode: 'clip',
         clip: inspectRect,
         selector: inspectSelectorValue ?? undefined,
+        backgroundColor: resolvePreviewBackgroundColor(),
         scale,
       });
       const sanitizedSelector = inspectSelectorValue
@@ -1421,9 +1471,11 @@ const AppPreviewView = () => {
       captureInFlightRef.current = true;
       const scale = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
 
+      const backgroundColor = resolvePreviewBackgroundColor();
+
       void (async () => {
         try {
-          const result = await requestScreenshot({ mode: 'viewport', scale });
+          const result = await requestScreenshot({ mode: 'viewport', scale, backgroundColor });
           if (cancelled) {
             return;
           }
@@ -1466,6 +1518,7 @@ const AppPreviewView = () => {
     canCaptureScreenshot,
     currentAppIdentifier,
     iframeLoadedAt,
+    resolvePreviewBackgroundColor,
     requestScreenshot,
     setSurfaceScreenshot,
   ]);
