@@ -52,15 +52,24 @@ scenario-to-ios testflight ./build/MyApp.ipa --notes "Initial beta release"
 
 ### Native iOS Capabilities
 
-The generated apps include JavaScript bridges for:
+The generated apps include comprehensive JavaScript bridges for native iOS features:
 
-- **Authentication**: Face ID, Touch ID
-- **Notifications**: Local and push notifications via APNs
-- **Storage**: Keychain for secure data, iCloud sync
-- **Media**: Camera, photo library, microphone
-- **Location**: GPS and geofencing
-- **Sharing**: Native share sheet
-- **Haptics**: Tactile feedback
+#### ✅ Fully Implemented (Production-Ready)
+- **Biometric Authentication**: Face ID and Touch ID via LAContext
+- **Secure Storage**: iOS Keychain for credentials and sensitive data
+- **Local Notifications**: Schedule and display notifications with UNUserNotificationCenter
+- **Haptic Feedback**: Tactical feedback with multiple intensity levels (light, medium, heavy, success, warning, error)
+- **Native Sharing**: iOS share sheet for text and URLs
+- **Device Info**: Access device model, iOS version, and identifiers
+
+#### 🔄 Partially Implemented
+- **Push Notifications**: APNs registration implemented, token handling needs completion
+
+#### 🚧 Planned Features
+- **Camera & Photos**: Photo library and camera access
+- **Location Services**: GPS and geofencing
+- **iCloud Sync**: Cross-device data synchronization
+- **Core Data**: Offline database storage
 - **Apple Pay**: In-app purchases and payments
 
 ### App Store Features
@@ -113,6 +122,73 @@ scenario-to-ios/
 3. **Native Bridging**: Injects JavaScript bridge for iOS feature access
 4. **Code Signing**: Signs the app with developer certificates
 5. **Package Generation**: Creates IPA for distribution
+
+## 📱 JavaScript API Reference
+
+All generated iOS apps expose the `window.vrooliNative` JavaScript API for accessing native iOS features:
+
+### Biometric Authentication
+```javascript
+// Authenticate with Face ID or Touch ID
+window.vrooliNative.authenticateWithBiometrics("Unlock premium features")
+  .then(result => {
+    if (result.success) {
+      console.log("Authentication successful");
+    }
+  });
+```
+
+### Secure Storage (Keychain)
+```javascript
+// Save sensitive data securely
+window.vrooliNative.saveToKeychain("auth_token", "secret_value");
+
+// Retrieve from keychain
+window.vrooliNative.loadFromKeychain("auth_token")
+  .then(result => {
+    console.log("Retrieved:", result.value);
+  });
+```
+
+### Local Notifications
+```javascript
+// Schedule a notification (delay in seconds)
+window.vrooliNative.scheduleNotification(
+  "Reminder",
+  "Don't forget to check your tasks!",
+  60  // Show after 60 seconds
+);
+```
+
+### Haptic Feedback
+```javascript
+// Trigger haptic feedback
+window.vrooliNative.hapticFeedback("success");  // Options: light, medium, heavy, success, warning, error
+```
+
+### Native Sharing
+```javascript
+// Open iOS share sheet
+window.vrooliNative.share("Check this out!", "https://example.com");
+```
+
+### Device Information
+```javascript
+// Get device details
+window.vrooliNative.getDeviceInfo()
+  .then(info => {
+    console.log("Model:", info.model);
+    console.log("iOS Version:", info.systemVersion);
+  });
+```
+
+### Event Listener
+```javascript
+// Wait for native bridge to be ready
+window.addEventListener('vrooliNativeReady', () => {
+  console.log("iOS native features available");
+});
+```
 
 ## 🔧 Configuration
 

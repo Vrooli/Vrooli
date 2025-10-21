@@ -1,0 +1,16 @@
+{
+  "name": "agent-metareasoning-manager-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Proxy-aware dashboard for orchestrating agent metareasoning workflows",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+  },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

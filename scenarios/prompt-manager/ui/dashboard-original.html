@@ -45,21 +45,115 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useMemo } = React;
 
+        const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
+        const DEFAULT_API_PORT = 15000;
+
+        const trimTrailingSlashes = (value = '') => value.replace(/\/+$/, '');
+        const ensureProtocol = () => (window.location?.protocol === 'https:' ? 'https:' : 'http:');
+        const isLocalHostname = (hostname = '') => {
+            const normalized = hostname.toLowerCase();
+            return ['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'].includes(normalized);
+        };
+        const isLikelyProxiedPath = (pathname = '') => pathname.includes('/apps/') && pathname.includes('/proxy/');
+        const fallbackLoopbackOrigin = () => `${ensureProtocol()}//127.0.0.1:${DEFAULT_API_PORT}`;
+
+        const pushProxyCandidate = (list, candidate) => {
+            if (!candidate) return;
+            if (typeof candidate === 'string') {
+                list.push(candidate);
+                return;
+            }
+            if (typeof candidate === 'object') {
+                pushProxyCandidate(list, candidate.url || candidate.href || candidate.path || candidate.target);
+            }
+        };
+
+        const resolveProxyCandidate = (info) => {
+            if (!info) return undefined;
+
+            const candidates = [];
+            if (Array.isArray(info.endpoints)) {
+                info.endpoints.forEach(endpoint => pushProxyCandidate(candidates, endpoint));
+            }
+            pushProxyCandidate(candidates, info.api);
+            pushProxyCandidate(candidates, info.apiUrl || info.apiURL);
+            pushProxyCandidate(candidates, info.baseUrl || info.baseURL);
+            pushProxyCandidate(candidates, info.url);
+            pushProxyCandidate(candidates, info.target);
+
+            if (typeof info === 'string') {
+                candidates.push(info);
+            }
+
+            for (const rawCandidate of candidates) {
+                if (typeof rawCandidate !== 'string') continue;
+                const candidate = rawCandidate.trim();
+                if (!candidate) continue;
+                if (/^https?:\/\//i.test(candidate)) {
+                    return trimTrailingSlashes(candidate);
+                }
+                if (candidate.startsWith('/') && window.location?.origin) {
+                    return trimTrailingSlashes(`${window.location.origin}${candidate}`);
+                }
+            }
+
+            return undefined;
+        };
+
+        const resolveProxyAwareBaseUrl = (explicit) => {
+            const explicitValue = typeof explicit === 'string' ? explicit.trim() : '';
+            const normalizedExplicit = explicitValue ? trimTrailingSlashes(explicitValue) : '';
+
+            const proxyCandidate = PROXY_INFO_KEYS
+                .map(key => resolveProxyCandidate(window[key]))
+                .find(Boolean);
+            if (proxyCandidate) {
+                return proxyCandidate;
+            }
+
+            const { origin, hostname, pathname } = window.location || {};
+            const hasProxyBootstrap = PROXY_INFO_KEYS.some(key => typeof window[key] !== 'undefined');
+            const proxiedPath = isLikelyProxiedPath(pathname || '');
+
+            if (normalizedExplicit) {
+                if (origin && hostname && !isLocalHostname(hostname) && !hasProxyBootstrap && !proxiedPath) {
+                    if (/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(normalizedExplicit)) {
+                        return trimTrailingSlashes(origin);
+                    }
+                }
+                return normalizedExplicit;
+            }
+
+            if (origin && hostname && !isLocalHostname(hostname) && !hasProxyBootstrap && !proxiedPath) {
+                return trimTrailingSlashes(origin);
+            }
+
+            if (origin) {
+                return trimTrailingSlashes(origin);
+            }
+
+            return trimTrailingSlashes(fallbackLoopbackOrigin());
+        };
+
         // API configuration
-        let API_URL = '';
-        
-        // Fetch configuration on load
+        let API_URL = resolveProxyAwareBaseUrl(null);
+
         fetch('/api/config')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`Config request failed with status ${res.status}`);
+                }
+                return res.json();
+            })
             .then(config => {
-                API_URL = config.apiUrl;
+                API_URL = resolveProxyAwareBaseUrl(config?.apiUrl);
+                window.__PROMPT_MANAGER_API_URL__ = API_URL;
+                window.__PROMPT_MANAGER_RESOLVE_API__ = resolveProxyAwareBaseUrl;
                 console.log('API configured:', API_URL);
             })
             .catch(err => {
                 console.error('Failed to fetch config:', err);
-                // Fallback to environment variable port
-                const port = window.location.port || '15000';
-                API_URL = `http://localhost:${port}`;
+                API_URL = resolveProxyAwareBaseUrl(API_URL);
             });
 
         // API utilities

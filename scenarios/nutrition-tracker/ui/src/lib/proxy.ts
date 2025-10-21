@@ -3,8 +3,12 @@ export interface EndpointBases {
   n8nBase: string;
 }
 
-const DEFAULT_API_BASE = 'http://localhost:8081/api';
-const DEFAULT_N8N_BASE = 'http://localhost:5678/webhook';
+const LOOPBACK_HOST = '127.0.0.1';
+const API_PORT = 8081;
+const N8N_PORT = 5678;
+const API_SUFFIX = '/api';
+const N8N_SUFFIX = '/webhook';
+const LOCAL_HOST_PATTERN = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i;
 
 interface ProxyEntry {
   url?: string;
@@ -33,8 +37,11 @@ declare global {
 }
 
 export function resolveEndpointBases(): EndpointBases {
+  const loopbackApiBase = buildLoopbackBase(API_PORT, API_SUFFIX);
+  const loopbackN8nBase = buildLoopbackBase(N8N_PORT, N8N_SUFFIX);
+
   if (typeof window === 'undefined') {
-    return { apiBase: DEFAULT_API_BASE, n8nBase: DEFAULT_N8N_BASE };
+    return { apiBase: loopbackApiBase, n8nBase: loopbackN8nBase };
   }
 
   const apiProxyBase =
@@ -52,17 +59,41 @@ export function resolveEndpointBases(): EndpointBases {
       'api'
     ) ?? undefined;
 
+  const n8nProxyBase =
+    resolveProxyEntry(
+      [
+        'n8n',
+        'automation',
+        'workflows',
+        'workflow',
+        'webhook',
+        'hooks',
+        'nutrition-tracker-n8n'
+      ],
+      'n8n'
+    ) ?? undefined;
+
   const uiProxyBase =
     resolveProxyEntry(
       ['ui', 'ui_port', 'ui-port', 'frontend', 'app', 'primary', 'default'],
       'ui'
-    ) ?? resolveUiBaseFromLocation();
+    ) ?? undefined;
 
-  const apiBase = apiProxyBase ? joinUrl(apiProxyBase, '/api') : DEFAULT_API_BASE;
-  const n8nBase = uiProxyBase ? joinUrl(uiProxyBase, '/api') : DEFAULT_N8N_BASE;
+  const locationBase = resolveUiBaseFromLocation();
 
-  if (!apiProxyBase && window.location?.hostname && !window.location.hostname.includes('localhost')) {
-    console.warn('[NutritionTracker] Falling back to localhost API base; proxy metadata unavailable.');
+  const apiBaseSource = apiProxyBase ?? locationBase;
+  const apiBase = apiBaseSource ? joinUrl(apiBaseSource, API_SUFFIX) : loopbackApiBase;
+
+  const n8nBaseSource = n8nProxyBase ?? uiProxyBase ?? locationBase;
+  const n8nSuffix = n8nProxyBase ? N8N_SUFFIX : API_SUFFIX;
+  const n8nBase = n8nBaseSource ? joinUrl(n8nBaseSource, n8nSuffix) : loopbackN8nBase;
+
+  const isRemoteHost = isRemoteHostname(window.location?.hostname);
+  if (!apiProxyBase && !locationBase && isRemoteHost) {
+    console.warn('[NutritionTracker] Falling back to loopback API base; proxy metadata unavailable.');
+  }
+  if (!n8nProxyBase && !uiProxyBase && !locationBase && isRemoteHost) {
+    console.warn('[NutritionTracker] Falling back to loopback automation base; proxy metadata unavailable.');
   }
 
   return { apiBase, n8nBase };
@@ -232,4 +263,17 @@ export function stripTrailingSlash(value?: string): string {
     return value;
   }
   return value.replace(/\/+$/, '');
+}
+
+function buildLoopbackBase(port: number, suffix: string): string {
+  const normalizedSuffix = suffix.startsWith('/') ? suffix : `/${suffix}`;
+  return stripTrailingSlash(`http://${LOOPBACK_HOST}:${port}${normalizedSuffix}`);
+}
+
+function isRemoteHostname(hostname?: string | null): boolean {
+  if (!hostname) {
+    return false;
+  }
+
+  return !LOCAL_HOST_PATTERN.test(hostname);
 }

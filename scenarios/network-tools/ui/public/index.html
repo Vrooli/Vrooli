@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Network Tools Console</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div>
+        <h1>Network Tools Control Center</h1>
+        <p>Run HTTP, DNS, and connectivity diagnostics through the secure Vrooli tunnel.</p>
+      </div>
+      <div class="status-card" id="health-status">
+        <span class="status-indicator status-warning"></span>
+        <span class="status-text">Checking service health…</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="http-panel-heading">
+        <div class="panel-header">
+          <h2 id="http-panel-heading">HTTP Diagnostics</h2>
+          <p>Inspect endpoints, headers, and SSL details.</p>
+        </div>
+        <form id="http-form" class="form-grid">
+          <label class="field">
+            <span>Target URL</span>
+            <input type="url" id="http-url" name="url" placeholder="https://example.com/health" required />
+          </label>
+          <label class="field">
+            <span>HTTP Method</span>
+            <select id="http-method" name="method">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>PATCH</option>
+              <option>DELETE</option>
+              <option>HEAD</option>
+            </select>
+          </label>
+          <label class="field field-full">
+            <span>Headers (JSON)</span>
+            <textarea id="http-headers" name="headers" rows="3" placeholder='{"User-Agent": "NetworkTools/1.0"}'></textarea>
+          </label>
+          <label class="field field-full">
+            <span>Request Body</span>
+            <textarea id="http-body" name="body" rows="4" placeholder="Optional JSON or plain text payload"></textarea>
+          </label>
+          <div class="field field-inline">
+            <label class="checkbox">
+              <input type="checkbox" id="http-follow-redirects" checked />
+              <span>Follow redirects</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="http-verify-ssl" checked />
+              <span>Verify SSL certificates</span>
+            </label>
+          </div>
+          <button type="submit" class="button primary">Send Request</button>
+        </form>
+        <div class="output" id="http-output" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="dns-panel-heading">
+        <div class="panel-header">
+          <h2 id="dns-panel-heading">DNS Lookup</h2>
+          <p>Resolve hostnames with record-specific insights.</p>
+        </div>
+        <form id="dns-form" class="form-grid compact">
+          <label class="field">
+            <span>Hostname</span>
+            <input type="text" id="dns-query" placeholder="vrooli.com" required />
+          </label>
+          <label class="field">
+            <span>Record Type</span>
+            <select id="dns-type">
+              <option value="A">A</option>
+              <option value="AAAA">AAAA</option>
+              <option value="CNAME">CNAME</option>
+              <option value="MX">MX</option>
+              <option value="TXT">TXT</option>
+              <option value="NS">NS</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>DNS Server (optional)</span>
+            <input type="text" id="dns-server" placeholder="8.8.8.8" />
+          </label>
+          <button type="submit" class="button">Resolve</button>
+        </form>
+        <div class="output" id="dns-output" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="connectivity-panel-heading">
+        <div class="panel-header">
+          <h2 id="connectivity-panel-heading">Connectivity Test</h2>
+          <p>Run quick reachability and latency checks.</p>
+        </div>
+        <form id="connectivity-form" class="form-grid compact">
+          <label class="field">
+            <span>Target Host</span>
+            <input type="text" id="connectivity-target" placeholder="1.1.1.1" required />
+          </label>
+          <label class="field">
+            <span>Test Type</span>
+            <select id="connectivity-type">
+              <option value="ping">Ping</option>
+              <option value="traceroute">Traceroute</option>
+            </select>
+          </label>
+          <button type="submit" class="button">Run Test</button>
+        </form>
+        <div class="output" id="connectivity-output" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="activity-panel-heading">
+        <div class="panel-header">
+          <h2 id="activity-panel-heading">Activity Log</h2>
+          <p>Recent operations, tunnel status, and proxy insights.</p>
+        </div>
+        <ul id="activity-log" class="activity-log" aria-live="polite"></ul>
+      </section>
+    </main>
+
+    <footer class="page-footer">
+      <p>Network Tools routes every request through the scenario proxy, ensuring App Monitor compatibility and secure tunneling.</p>
+    </footer>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>

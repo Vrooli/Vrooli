@@ -1,0 +1,24 @@
+# API build artifacts
+api/scenario-to-desktop-api
+api/coverage.txt
+api/coverage.html
+
+# UI dependencies and build
+ui/node_modules/
+ui/dist/
+
+# Build tools
+build-tools/dist/
+
+# Prompts XML (generated)
+prompts/*.xml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -26,8 +26,9 @@
                     <h2>Generate Palette</h2>
                     
                     <div class="form-group">
-                        <label for="theme">Theme or Concept</label>
+                        <label for="theme">Theme or Concept <span class="optional">Optional</span></label>
                         <input type="text" id="theme" placeholder="e.g., Ocean sunset, Tech startup, Vintage bookstore">
+                        <p class="field-hint">Leave blank to let Palette Gen pick an overall mood automatically.</p>
                     </div>
 
                     <div class="form-group">
@@ -55,6 +56,19 @@
                             <input type="color" id="baseColor" value="#3B82F6">
                             <input type="text" id="baseColorHex" value="#3B82F6">
                         </div>
+                        <label class="checkbox-inline">
+                            <input type="checkbox" id="useBaseColor">
+                            <span>Lock palette around this base color</span>
+                        </label>
+                        <p class="field-hint">Disable this to let Palette Gen explore hues without anchoring to one color.</p>
+                    </div>
+
+                    <div class="form-group form-inline">
+                        <label class="checkbox-inline">
+                            <input type="checkbox" id="includeAIDebug">
+                            <span>Include AI debug output</span>
+                        </label>
+                        <p class="field-hint">Surfaces the raw AI prompt and response (when available) for troubleshooting.</p>
                     </div>
 
                     <button id="generateBtn" class="btn-primary">Generate Palette</button>
@@ -81,6 +95,36 @@
                             <button class="btn-secondary" data-format="svg">SVG</button>
                         </div>
                         <pre id="exportCode" class="export-code hidden"></pre>
+                    </div>
+
+                    <div id="debugPanel" class="debug-panel hidden">
+                        <h3>Debug Details</h3>
+                        <div class="debug-meta">
+                            <div id="debugStrategy" class="debug-strategy">—</div>
+                            <div id="debugContext" class="debug-context">Defaults applied</div>
+                        </div>
+                        <div id="debugAiSection" class="debug-ai hidden">
+                            <div class="debug-row">
+                                <span class="debug-label">AI Status</span>
+                                <span id="debugAiStatus" class="debug-value">AI not requested</span>
+                            </div>
+                            <div class="debug-row">
+                                <span class="debug-label">Model</span>
+                                <span id="debugAiModel" class="debug-value">—</span>
+                            </div>
+                            <details>
+                                <summary>Prompt</summary>
+                                <pre id="debugAiPrompt" class="debug-code"></pre>
+                            </details>
+                            <details>
+                                <summary>Raw Output</summary>
+                                <pre id="debugAiRaw" class="debug-code"></pre>
+                            </details>
+                            <details>
+                                <summary>Parsed Suggestions</summary>
+                                <pre id="debugAiSuggestions" class="debug-code"></pre>
+                            </details>
+                        </div>
                     </div>
                 </div>
             </section>

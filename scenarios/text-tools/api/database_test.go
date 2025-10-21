@@ -3,12 +3,24 @@ package main
 import (
 	"context"
 	"database/sql"
+	"math"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
 
 	_ "github.com/lib/pq"
 )
+
+func sampleBackoff(attempt int, rng *rand.Rand) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+
+	base := time.Duration(math.Min(float64(initialBackoff)*math.Pow(backoffFactor, float64(attempt-1)), float64(maxBackoff)))
+	jitterRange := float64(base) * 0.25
+	return base + time.Duration(rng.Float64()*jitterRange)
+}
 
 func TestNewDatabaseConfig(t *testing.T) {
 	t.Run("Reads_DATABASE_URL", func(t *testing.T) {
@@ -223,24 +235,30 @@ func TestDatabaseQueryExec(t *testing.T) {
 }
 
 func TestDatabaseHelpers(t *testing.T) {
-	t.Run("CalculateBackoff_Increases", func(t *testing.T) {
-		backoff := 1 * time.Second
-		next := calculateBackoff(backoff)
+	t.Run("ComputeBackoffDelay_WithinExpectedRange", func(t *testing.T) {
+		rng := rand.New(rand.NewSource(1))
+		delay := sampleBackoff(1, rng)
 
-		if next <= backoff {
-			t.Error("Expected backoff to increase")
-		}
-		if next != 2*time.Second {
-			t.Errorf("Expected backoff to double, got %v", next)
+		base := initialBackoff
+		maxWithJitter := base + time.Duration(float64(base)*0.25)
+		if delay < base || delay > maxWithJitter {
+			t.Fatalf("expected delay within [%v, %v], got %v", base, maxWithJitter, delay)
 		}
 	})
 
-	t.Run("CalculateBackoff_Caps_At_Max", func(t *testing.T) {
-		backoff := 40 * time.Second
-		next := calculateBackoff(backoff)
+	t.Run("ComputeBackoffDelay_Increases_With_Attempt", func(t *testing.T) {
+		rng := rand.New(rand.NewSource(1))
+		first := sampleBackoff(1, rng)
+		second := sampleBackoff(2, rng)
 
-		if next > maxBackoff {
-			t.Errorf("Expected backoff to cap at %v, got %v", maxBackoff, next)
+		if second <= first {
+			t.Fatalf("expected second attempt delay (%v) to exceed first (%v)", second, first)
+		}
+
+		base := time.Duration(math.Min(float64(initialBackoff)*math.Pow(backoffFactor, 1), float64(maxBackoff)))
+		maxWithJitter := base + time.Duration(float64(base)*0.25)
+		if second > maxWithJitter {
+			t.Fatalf("expected second delay <= %v, got %v", maxWithJitter, second)
 		}
 	})
 

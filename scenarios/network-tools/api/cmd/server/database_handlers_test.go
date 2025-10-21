@@ -316,8 +316,11 @@ func TestCORSMiddlewareExtended(t *testing.T) {
 		w := httptest.NewRecorder()
 		middleware.ServeHTTP(w, req)
 
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-			t.Errorf("Development mode with no origin should set wildcard CORS: got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		// No origin header means this is a direct API call (CLI/curl), not a browser request
+		// For security, we should NOT set CORS headers (especially not wildcard *)
+		// when there's no Origin header present
+		if w.Header().Get("Access-Control-Allow-Origin") != "" {
+			t.Errorf("No origin header should not set CORS headers (got %s). Direct API calls don't need CORS.", w.Header().Get("Access-Control-Allow-Origin"))
 		}
 	})
 

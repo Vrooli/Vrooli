@@ -444,6 +444,34 @@
     "integration_test_suite": true
    },
     "lifecycle": {
+      "health": {
+        "description": "Scenario to Extension health check configuration",
+        "endpoints": {
+          "api": "/health",
+          "ui": "/health"
+        },
+        "checks": [
+          {
+            "name": "api_endpoint",
+            "type": "http",
+            "target": "http://localhost:${API_PORT}/health",
+            "critical": true,
+            "timeout": 5000,
+            "interval": 30000
+          },
+          {
+            "name": "ui_endpoint",
+            "type": "http",
+            "target": "http://localhost:${UI_PORT}/health",
+            "critical": false,
+            "timeout": 3000,
+            "interval": 45000
+          }
+        ],
+        "timeout": 5000,
+        "interval": 30000,
+        "startup_grace_period": 10000
+      },
       "setup": {
         "description": "Initialize scenario-to-extension",
         "condition": {
@@ -451,7 +479,7 @@
              {
                "type": "binaries",
                "targets": [
-                 "scenario-to-extension-api"
+                 "api/scenario-to-extension-api"
                ]
              },
              {
@@ -527,6 +555,16 @@
           "name": "stop-ui",
           "run": "pkill -f \"scenarios/scenario-to-extension/ui\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-extension/ui\" 2>/dev/null || true",
           "description": "Stop UI process"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run comprehensive test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test/run-tests.sh",
+          "description": "Execute phased test suite"
         }
       ]
     }

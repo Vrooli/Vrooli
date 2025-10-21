@@ -76,9 +76,9 @@ test_health() {
 # Test HTTP endpoint
 test_http_request() {
     test_start "HTTP request endpoint"
-    
+
     payload='{
-        "url": "https://httpbin.org/get",
+        "url": "https://httpbingo.org/get",
         "method": "GET"
     }'
     
@@ -213,9 +213,9 @@ test_ssl_validation() {
 # Test API testing endpoint
 test_api_test() {
     test_start "API testing endpoint"
-    
+
     payload='{
-        "base_url": "https://httpbin.org",
+        "base_url": "https://httpbingo.org",
         "test_suite": [{
             "endpoint": "/get",
             "method": "GET",

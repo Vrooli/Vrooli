@@ -17,6 +17,150 @@ if (!apiPort) {
 }
 const apiBaseUrl = process.env.TEST_GENIE_API_URL || `http://localhost:${apiPort}`;
 
+async function proxyToApi(req, res, upstreamPath, options = {}) {
+  const {
+    method,
+    headers: extraHeaders = {},
+    body,
+    autoSend = true,
+    collectResponse = true,
+    timeoutMs,
+    sanitizeHeaders = true
+  } = options;
+
+  const resolvedMethod = method || (req ? req.method : 'GET');
+  const baseForJoin = apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`;
+  const fallbackPath = req ? (req.originalUrl || req.url || '/') : '/';
+  const targetPath = upstreamPath || fallbackPath;
+
+  let targetUrl;
+  if (/^https?:\/\//i.test(targetPath)) {
+    targetUrl = new URL(targetPath);
+  } else {
+    const normalizedPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+    targetUrl = new URL(normalizedPath, baseForJoin);
+  }
+
+  const sourceHeaders = {
+    ...(req && req.headers ? req.headers : {}),
+    ...extraHeaders
+  };
+
+  const upstreamHeaders = {};
+  for (const [key, value] of Object.entries(sourceHeaders)) {
+    if (value === undefined) {
+      continue;
+    }
+    const lowerKey = key.toLowerCase();
+    if (lowerKey === 'host' || lowerKey === 'content-length') {
+      continue;
+    }
+    upstreamHeaders[key] = value;
+  }
+
+  if (req && req.headers && req.headers.host && !upstreamHeaders['x-forwarded-host']) {
+    upstreamHeaders['x-forwarded-host'] = req.headers.host;
+  }
+
+  let payload = body;
+
+  const methodAllowsBody = resolvedMethod !== 'GET' && resolvedMethod !== 'HEAD';
+  if (payload === undefined && req && methodAllowsBody) {
+    if (req.rawBody && req.rawBody.length) {
+      payload = req.rawBody;
+    } else if (typeof req.body === 'string' || Buffer.isBuffer(req.body)) {
+      payload = req.body;
+    } else if (req.body && Object.keys(req.body).length > 0) {
+      payload = JSON.stringify(req.body);
+      if (!('content-type' in upstreamHeaders) && !('Content-Type' in upstreamHeaders)) {
+        upstreamHeaders['Content-Type'] = 'application/json';
+      }
+    }
+  }
+
+  const controller = timeoutMs ? new AbortController() : null;
+  const fetchImpl = typeof fetch === 'function' ? fetch : (await import('node-fetch')).default;
+
+  const fetchOptions = {
+    method: resolvedMethod,
+    headers: upstreamHeaders,
+    redirect: 'manual'
+  };
+
+  if (methodAllowsBody && payload !== undefined) {
+    fetchOptions.body = payload;
+  }
+
+  let timeoutHandle;
+  if (controller) {
+    timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+    fetchOptions.signal = controller.signal;
+  }
+
+  let response;
+  try {
+    response = await fetchImpl(targetUrl, fetchOptions);
+  } catch (error) {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+    if (res && autoSend && !res.headersSent) {
+      res.status(error.name === 'AbortError' ? 504 : 502).json({
+        error: 'API request failed',
+        details: error.message,
+        target: targetUrl.toString()
+      });
+      return {
+        status: error.name === 'AbortError' ? 504 : 502,
+        headers: {},
+        bodyBuffer: Buffer.alloc(0),
+        bodyText: '',
+        error,
+        targetUrl: targetUrl.toString()
+      };
+    }
+    throw error;
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+
+  const headersMap = {};
+  response.headers.forEach((value, key) => {
+    if (sanitizeHeaders && key.toLowerCase() === 'content-encoding') {
+      return;
+    }
+    headersMap[key] = value;
+  });
+
+  const rawBuffer = await response.arrayBuffer();
+  const bodyBuffer = Buffer.from(rawBuffer);
+
+  if (res && autoSend && !res.headersSent) {
+    res.status(response.status);
+    Object.entries(headersMap).forEach(([key, value]) => {
+      res.setHeader(key, value);
+    });
+    if (bodyBuffer.length > 0) {
+      res.send(bodyBuffer);
+    } else {
+      res.end();
+    }
+  }
+
+  const bodyText = collectResponse && bodyBuffer.length > 0 ? bodyBuffer.toString('utf8') : '';
+
+  return {
+    status: response.status,
+    headers: headersMap,
+    bodyBuffer,
+    bodyText,
+    response,
+    targetUrl: targetUrl.toString()
+  };
+}
+
 // Security and performance middleware
 const localFrameAncestors = [
   "'self'",
@@ -76,7 +220,14 @@ app.use(cors({
 }));
 app.use(compression());
 app.use(morgan('combined'));
-app.use(express.json());
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, res, buf) => {
+    if (buf && buf.length) {
+      req.rawBody = Buffer.from(buf);
+    }
+  }
+}));
 app.use(express.static('.'));
 
 // Health check endpoint
@@ -94,42 +245,35 @@ app.get('/health', async (req, res) => {
     }
   };
 
-  // Check API connectivity
   const startTime = Date.now();
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
-    const response = await fetch(`${apiBaseUrl}/health`, {
-      signal: controller.signal,
+    const result = await proxyToApi(null, null, '/health', {
+      method: 'GET',
       headers: {
         'User-Agent': 'test-genie-ui-health-check'
-      }
+      },
+      timeoutMs: 5000,
+      autoSend: false,
+      collectResponse: true
     });
-    
-    clearTimeout(timeoutId);
+
     const latency = Date.now() - startTime;
-    
-    if (response.ok) {
+    if (result.status >= 200 && result.status < 300) {
       health.api_connectivity.connected = true;
       health.api_connectivity.latency_ms = latency;
     } else {
-      health.api_connectivity.error = `API returned ${response.status}`;
+      health.api_connectivity.error = `API returned ${result.status}`;
       health.status = 'degraded';
     }
   } catch (error) {
-    health.api_connectivity.error = error.message;
+    health.api_connectivity.error = error.name === 'AbortError'
+      ? 'API connection timeout (>5s)'
+      : error.message.includes('ECONNREFUSED')
+        ? `API not reachable at ${apiBaseUrl}`
+        : error.message;
     health.status = 'degraded';
-    
-    // Provide specific error context
-    if (error.name === 'AbortError') {
-      health.api_connectivity.error = 'API connection timeout (>5s)';
-    } else if (error.message.includes('ECONNREFUSED')) {
-      health.api_connectivity.error = `API not reachable at ${apiBaseUrl}`;
-    }
   }
-  
-  // Set appropriate HTTP status code
+
   const httpStatus = health.status === 'healthy' ? 200 : 503;
   res.status(httpStatus).json(health);
 });
@@ -137,41 +281,22 @@ app.get('/health', async (req, res) => {
 // Enhanced API proxy with WebSocket notifications (must live before SPA catch-all)
 app.use('/api', async (req, res) => {
   try {
-    const fetch = (await import('node-fetch')).default;
-
-    // Preserve the full requested path (including /api prefix and query string)
-    const baseForJoin = apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`;
-    const targetUrl = new URL(req.originalUrl, baseForJoin);
-
-    const options = {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...req.headers,
-      },
-    };
-
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      options.body = JSON.stringify(req.body ?? {});
-    }
-
-    delete options.headers.host;
-    delete options.headers['content-length'];
-
-    const response = await fetch(targetUrl, options);
-    const data = await response.text();
+    const result = await proxyToApi(req, res, req.originalUrl || req.url, {
+      autoSend: false,
+      collectResponse: true
+    });
 
     try {
-      const jsonData = JSON.parse(data);
+      const jsonData = result.bodyText ? JSON.parse(result.bodyText) : null;
 
-      if (req.path.includes('/test-suite/') && req.path.includes('/execute') && req.method === 'POST') {
+      if (jsonData && req.path.includes('/test-suite/') && req.path.includes('/execute') && req.method === 'POST') {
         broadcastToSubscribers('executions', 'execution_started', {
           execution_id: jsonData.execution_id,
           timestamp: new Date().toISOString(),
         });
       }
 
-      if (req.path.includes('/test-execution') && jsonData.status === 'completed') {
+      if (jsonData && req.path.includes('/test-execution') && jsonData.status === 'completed') {
         broadcastToSubscribers('executions', 'execution_update', {
           execution_id: jsonData.execution_id,
           status: jsonData.status,
@@ -182,17 +307,23 @@ app.use('/api', async (req, res) => {
       // Ignore JSON parsing failures for non-JSON responses
     }
 
-    res.status(response.status);
-    response.headers.forEach((value, key) => {
-      if (!key.toLowerCase().includes('content-encoding')) {
+    if (!res.headersSent) {
+      res.status(result.status);
+      Object.entries(result.headers).forEach(([key, value]) => {
         res.setHeader(key, value);
-      }
-    });
+      });
 
-    res.send(data);
+      if (result.bodyBuffer.length > 0) {
+        res.send(result.bodyBuffer);
+      } else {
+        res.end();
+      }
+    }
   } catch (error) {
     console.error('API proxy error:', error);
-    res.status(500).json({ error: 'API request failed' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'API request failed', details: error.message });
+    }
   }
 });
 
@@ -339,3 +470,7 @@ server.listen(port, () => {
   console.log(`🔌 WebSocket: ws://localhost:${port}/ws`);
   console.log(`👥 WebSocket clients: ${wss.clients.size}`);
 });
+
+module.exports = {
+  proxyToApi,
+};

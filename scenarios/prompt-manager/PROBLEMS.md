@@ -1,5 +1,21 @@
 # Problems Found During Development
 
+## Security Audit Findings
+**Date**: 2025-10-20
+**Status**: Documented - Acceptable for local development tool
+
+### CORS Wildcard Configuration
+The scenario-auditor flagged 3 HIGH severity findings for CORS wildcard configuration in server files.
+
+**Analysis**: The CORS configuration implements origin reflection:
+- When an Origin header is present, it's reflected back with `Vary: Origin`
+- Wildcard (`*`) is only used when no Origin header is present (typically non-browser requests)
+- This is acceptable for a local development tool that runs on localhost
+
+**Decision**: No changes needed. The current implementation balances security with local development usability. For production deployments, users should configure specific allowed origins via environment variables.
+
+**Reference**: ui/server.js:42-49, ui/server-express.js:40-43, ui/server-vite.js:40-43
+
 ## Database Schema Mismatch
 **Date**: 2025-09-28
 **Issue**: The PostgreSQL database schema doesn't match the expected structure defined in `initialization/storage/postgres/schema.sql`

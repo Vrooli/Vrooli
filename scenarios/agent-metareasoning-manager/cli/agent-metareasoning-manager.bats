@@ -54,14 +54,28 @@ run_cli() {
 # Mock successful curl responses for API tests
 mock_curl_success() {
     function curl() {
-        case "$*" in
-            *"/health"*) echo '{"status":"healthy","timestamp":"2024-01-01T00:00:00Z"}' ;;
-            *"/workflows"*) echo '{"workflows":[{"name":"pros-cons-analyzer","platform":"n8n"}]}' ;;
-            *"/workflows/search"*) echo '{"results":[{"name":"risk-assessment","score":0.9}]}' ;;
-            *"/analyze"*) echo '{"analysis":"complete","type":"pros-cons"}' ;;
-            *) return 1 ;;
-        esac
-        return 0
+        local payload="$*"
+        if [[ "$payload" == *"/health"* ]]; then
+            echo '{"status":"healthy","timestamp":"2024-01-01T00:00:00Z"}'
+            return 0
+        fi
+
+        if [[ "$payload" == *"/workflows/search"* ]]; then
+            echo '{"results":[{"name":"risk-assessment","score":0.9}]}'
+            return 0
+        fi
+
+        if [[ "$payload" == *"/workflows"* ]]; then
+            echo '{"workflows":[{"name":"pros-cons-analyzer","platform":"n8n"}]}'
+            return 0
+        fi
+
+        if [[ "$payload" == *"/analyze"* ]]; then
+            echo '{"analysis":"complete","type":"pros-cons"}'
+            return 0
+        fi
+
+        return 1
     }
     export -f curl
 }

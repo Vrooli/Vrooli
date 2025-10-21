@@ -482,6 +482,10 @@ func TestExtensionTestingFeatures(t *testing.T) {
 // TestConfigurationManagement tests configuration loading and environment variables
 func TestConfigurationManagement(t *testing.T) {
 	t.Run("EnvironmentVariableOverrides", func(t *testing.T) {
+		// Clear API_PORT to avoid interference from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
+
 		// Set environment variables
 		os.Setenv("PORT", "9999")
 		os.Setenv("API_ENDPOINT", "http://custom.endpoint")
@@ -497,6 +501,9 @@ func TestConfigurationManagement(t *testing.T) {
 			os.Unsetenv("OUTPUT_PATH")
 			os.Unsetenv("BROWSERLESS_URL")
 			os.Unsetenv("DEBUG")
+			if oldAPIPort != "" {
+				os.Setenv("API_PORT", oldAPIPort)
+			}
 		}()
 
 		cfg := loadConfig()
@@ -527,8 +534,17 @@ func TestConfigurationManagement(t *testing.T) {
 	})
 
 	t.Run("InvalidPortEnvironmentVariable", func(t *testing.T) {
+		// Clear API_PORT to avoid interference from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
+
 		os.Setenv("PORT", "invalid")
-		defer os.Unsetenv("PORT")
+		defer func() {
+			os.Unsetenv("PORT")
+			if oldAPIPort != "" {
+				os.Setenv("API_PORT", oldAPIPort)
+			}
+		}()
 
 		cfg := loadConfig()
 
@@ -627,7 +643,7 @@ func TestTemplateManagement(t *testing.T) {
 func containsString(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
 		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		len(s) > len(substr) && findSubstr(s, substr)))
+			len(s) > len(substr) && findSubstr(s, substr)))
 }
 
 func findSubstr(s, substr string) bool {

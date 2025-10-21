@@ -7,7 +7,7 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 testing::phase::init --target-time "120s"
 
-cd "$TESTING_PHASE_SCENARIO_DIR/api"
+cd "$TESTING_PHASE_SCENARIO_DIR/api" || { echo "Failed to cd to api directory"; exit 1; }
 
 testing::phase::info "Starting performance tests for scenario-to-extension"
 
@@ -27,7 +27,7 @@ if ! go test -bench=. -benchtime=1s -timeout 120s &>/tmp/benchmark-output.log; t
 else
     testing::phase::success "Benchmark tests completed"
     testing::phase::info "Benchmark results:"
-    grep "Benchmark" /tmp/benchmark-output.log | while read line; do
+    grep "Benchmark" /tmp/benchmark-output.log | while read -r line; do
         testing::phase::info "  $line"
     done
 fi

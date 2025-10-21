@@ -8,27 +8,27 @@
   "author": "Vrooli AI",
   "license": "MIT",
   "visibility": "public",
-    "tags": [
-     "tokens",
-     "economy",
-     "rewards",
-     "achievements",
-     "wallet",
-     "nft",
-     "gamification"
-   ],
-   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Token economy API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Token economy UI port",
-       "range": "35000-39999"
-     }
-   },
+  "tags": [
+    "tokens",
+    "economy",
+    "rewards",
+    "achievements",
+    "wallet",
+    "nft",
+    "gamification"
+  ],
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Token economy API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Token economy UI port",
+      "range": "35000-39999"
+    }
+  },
   "capabilities": [
     "token-minting",
     "token-transfer",
@@ -278,77 +278,106 @@
       "integration": "docs/integration.md"
     }
   },
-   "lifecycle": {
-      "setup": {
-         "description": "Initialize token-economy services",
-         "condition": {
-            "checks": [
-               {
-                  "type": "binaries",
-                  "targets": [
-                     "token-economy-api"
-                  ]
-               },
-                {
-                   "type": "cli",
-                   "targets": [
-                      "token-economy"
-                   ]
-                }
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize token-economy services",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "token-economy-api"
             ]
-         },
-         "steps": [
-            {
-               "name": "build-api",
-               "run": "cd api && go build -o token-economy-api .",
-               "description": "Build Go API binary"
-            },
-            {
-               "name": "install-cli",
-               "run": "cd cli && ./install.sh",
-               "description": "Install CLI command"
-            }
-         ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "token-economy"
+            ]
+          }
+        ]
       },
-      "develop": {
-       "description": "Start token-economy services",
-       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./token-economy-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/token-economy-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.js",
-           "description": "Start UI server in background",
-           "background": true
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Token Economy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
-           "description": "Display running service URLs"
-         }
-       ]
-     },
-     "stop": {
-       "description": "Stop token-economy services",
-       "steps": [
-         {
-           "name": "stop-api",
-           "run": "pkill -f \"token-economy-api\" || true; sleep 1; pkill -9 -f \"token-economy-api\" 2>/dev/null || true",
-           "description": "Stop API process"
-         },
-         {
-           "name": "stop-ui",
-           "run": "pkill -f \"scenarios/token-economy.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/token-economy.*server\\.js\" 2>/dev/null || true",
-           "description": "Stop UI process"
-         }
-       ]
-     }
-   }
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o token-economy-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start token-economy services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./token-economy-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/token-economy-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Token Economy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop token-economy services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"token-economy-api\" || true; sleep 1; pkill -9 -f \"token-economy-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/token-economy.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/token-economy.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "health": {
+      "description": "Token Economy health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "version": "2.0.0"
+  }
 }

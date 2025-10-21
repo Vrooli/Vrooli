@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PERIOD_TRACKER_UI_PORT || 36000;
+const PORT = Number(process.env.UI_PORT || process.env.PORT || 36000);
 
 // Middleware
 app.use(cors());
@@ -33,7 +33,7 @@ app.get('/health', (req, res) => {
 app.use('/api', (req, res) => {
     res.status(404).json({
         error: 'API requests should go directly to the API server',
-        api_url: `http://localhost:${process.env.PERIOD_TRACKER_API_PORT || 16000}/api`
+        api_url: `http://localhost:${process.env.API_PORT || 16000}/api`
     });
 });
 

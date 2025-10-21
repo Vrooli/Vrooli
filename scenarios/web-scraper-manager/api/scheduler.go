@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -32,7 +33,7 @@ func startAgentScheduler() {
 
 func processScheduledAgents() {
 	if db == nil {
-		log.Printf("⚠️ Agent scheduler: database not yet initialised")
+		logWarn("Agent scheduler: database not yet initialised", nil)
 		return
 	}
 
@@ -45,7 +46,7 @@ func processScheduledAgents() {
         LIMIT 25
     `)
 	if err != nil {
-		log.Printf("⚠️ Agent scheduler: failed to query scheduled agents: %v", err)
+		logError("Agent scheduler: failed to query scheduled agents", map[string]interface{}{"error": err.Error()})
 		return
 	}
 	defer rows.Close()
@@ -57,14 +58,14 @@ func processScheduledAgents() {
 		var schedule sql.NullString
 
 		if scanErr := rows.Scan(&agent.ID, &agent.Name, &agent.Platform, &agent.AgentType, &configBytes, &schedule); scanErr != nil {
-			log.Printf("⚠️ Agent scheduler: scan failed: %v", scanErr)
+			logError("Agent scheduler: scan failed", map[string]interface{}{"error": scanErr.Error()})
 			continue
 		}
 
 		agent.Configuration = map[string]interface{}{}
 		if len(configBytes) > 0 {
 			if err := json.Unmarshal(configBytes, &agent.Configuration); err != nil {
-				log.Printf("⚠️ Agent scheduler: configuration decode failed for agent %s: %v", agent.ID, err)
+				logError("Agent scheduler: configuration decode failed", map[string]interface{}{"agent_id": agent.ID, "error": err.Error()})
 			}
 		}
 
@@ -76,7 +77,7 @@ func processScheduledAgents() {
 	}
 
 	if err := rows.Err(); err != nil {
-		log.Printf("⚠️ Agent scheduler: iteration error: %v", err)
+		logError("Agent scheduler: iteration error", map[string]interface{}{"error": err.Error()})
 		return
 	}
 
@@ -112,7 +113,7 @@ func executeScheduledAgent(agent ScrapingAgent) {
 
 	dataJSON, err := json.Marshal(resultPayload)
 	if err != nil {
-		log.Printf("⚠️ Agent scheduler: failed to encode result payload for %s: %v", agent.ID, err)
+		logError("Agent scheduler: failed to encode result payload", map[string]interface{}{"agent_id": agent.ID, "error": err.Error()})
 		return
 	}
 
@@ -127,7 +128,7 @@ func executeScheduledAgent(agent ScrapingAgent) {
 		execDuration = 1
 	}
 
-	runID := fmt.Sprintf("sim-%d", completed.UnixNano())
+	runID := uuid.New().String()
 
 	_, err = db.Exec(`
         INSERT INTO scraping_results
@@ -145,16 +146,20 @@ func executeScheduledAgent(agent ScrapingAgent) {
 		runID,
 	)
 	if err != nil {
-		log.Printf("⚠️ Agent scheduler: failed to persist result for %s: %v", agent.ID, err)
+		logError("Agent scheduler: failed to persist result", map[string]interface{}{"agent_id": agent.ID, "error": err.Error()})
 		return
 	}
 
 	nextRun := calculateNextRun(agent.ScheduleCron, completed)
 	if _, err := db.Exec(`UPDATE scraping_agents SET last_run = $1, next_run = $2 WHERE id = $3`, start, nextRun, agent.ID); err != nil {
-		log.Printf("⚠️ Agent scheduler: failed to update schedule for %s: %v", agent.ID, err)
+		logError("Agent scheduler: failed to update schedule", map[string]interface{}{"agent_id": agent.ID, "error": err.Error()})
 	}
 
-	log.Printf("✅ Agent scheduler executed %s (%s) – next run at %s", agent.Name, agent.Platform, nextRun.Format(time.RFC3339))
+	logInfo("Agent scheduler executed", map[string]interface{}{
+		"agent_name": agent.Name,
+		"platform":   agent.Platform,
+		"next_run":   nextRun.Format(time.RFC3339),
+	})
 }
 
 func calculateNextRun(schedule *string, from time.Time) time.Time {

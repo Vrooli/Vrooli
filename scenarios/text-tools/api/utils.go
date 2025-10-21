@@ -1,10 +1,7 @@
 package main
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -197,47 +194,12 @@ func performSemanticSearch(text interface{}, pattern string, config *Config) []S
 // Transform operations
 func applyTransformation(text string, transform Transformation) string {
 	switch transform.Type {
-	case "case":
-		// Handle case transformation with parameters
-		if to, ok := transform.Parameters["to"].(string); ok {
-			switch to {
-			case "upper":
-				return strings.ToUpper(text)
-			case "lower":
-				return strings.ToLower(text)
-			case "title":
-				return strings.Title(text)
-			}
-		}
-		return text
 	case "upper":
 		return strings.ToUpper(text)
 	case "lower":
 		return strings.ToLower(text)
 	case "title":
 		return strings.Title(text)
-	case "encode":
-		// Handle encoding transformations
-		if encoding, ok := transform.Parameters["type"].(string); ok {
-			switch encoding {
-			case "base64":
-				return base64.StdEncoding.EncodeToString([]byte(text))
-			case "url":
-				return url.QueryEscape(text)
-			}
-		}
-		return text
-	case "format":
-		// Handle format transformations
-		if format, ok := transform.Parameters["type"].(string); ok {
-			switch format {
-			case "json":
-				// Pretty print as JSON string
-				quoted, _ := json.Marshal(text)
-				return string(quoted)
-			}
-		}
-		return text
 	case "sanitize":
 		// Basic HTML tag removal
 		re := regexp.MustCompile(`<[^>]*>`)
@@ -269,31 +231,17 @@ func extractContent(source interface{}, options ExtractOptions) (string, map[str
 		metadata["length"] = len(v)
 		return v, metadata
 	case map[string]interface{}:
-		// Check for direct text content
-		if text, ok := v["text"].(string); ok {
-			metadata["type"] = "text"
-			metadata["length"] = len(text)
-			metadata["format"] = "plain"
-			return text, metadata
-		}
 		if url, ok := v["url"].(string); ok {
 			// TODO: Implement URL content extraction
 			metadata["type"] = "url"
 			metadata["source"] = url
 			return fmt.Sprintf("Content extracted from URL: %s", url), metadata
 		}
-		if fileData, ok := v["file"].(string); ok {
-			// TODO: Implement file content extraction (base64 decoding)
+		if _, ok := v["file"].(string); ok {
+			// TODO: Implement file content extraction
 			metadata["type"] = "file"
 			metadata["encoding"] = "base64"
-			metadata["file_length"] = len(fileData)
-			return fmt.Sprintf("Content extracted from file (length: %d)", len(fileData)), metadata
-		}
-		if docId, ok := v["document_id"].(string); ok {
-			// TODO: Implement document retrieval from database
-			metadata["type"] = "document"
-			metadata["document_id"] = docId
-			return fmt.Sprintf("Content from document: %s", docId), metadata
+			return "Content extracted from file", metadata
 		}
 	}
 	
@@ -427,68 +375,6 @@ func detectLanguage(text string) Language {
 		Name:       "English",
 		Confidence: 0.8,
 	}
-}
-
-// calculateTextStatistics calculates basic text statistics
-func calculateTextStatistics(text string) TextStatistics {
-	stats := TextStatistics{}
-	
-	// Character count
-	stats.CharCount = len(text)
-	
-	// Line count
-	lines := strings.Split(text, "\n")
-	stats.LineCount = len(lines)
-	
-	// Word count and average word length
-	words := strings.Fields(text)
-	stats.WordCount = len(words)
-	
-	totalWordLength := 0
-	for _, word := range words {
-		// Clean punctuation for accurate word length
-		cleaned := regexp.MustCompile(`[^a-zA-Z0-9]`).ReplaceAllString(word, "")
-		if len(cleaned) > 0 {
-			totalWordLength += len(cleaned)
-		}
-	}
-	
-	if stats.WordCount > 0 {
-		stats.AvgWordLength = float64(totalWordLength) / float64(stats.WordCount)
-	}
-	
-	// Sentence count (simple: count periods, exclamations, and questions)
-	sentenceEnders := regexp.MustCompile(`[.!?]+`)
-	sentences := sentenceEnders.Split(text, -1)
-	// Filter out empty strings
-	sentenceCount := 0
-	for _, s := range sentences {
-		if strings.TrimSpace(s) != "" {
-			sentenceCount++
-		}
-	}
-	stats.SentenceCount = sentenceCount
-	
-	// Paragraph count (separated by double newlines or more)
-	paragraphSeparator := regexp.MustCompile(`\n\n+`)
-	paragraphs := paragraphSeparator.Split(text, -1)
-	paragraphCount := 0
-	for _, p := range paragraphs {
-		if strings.TrimSpace(p) != "" {
-			paragraphCount++
-		}
-	}
-	stats.ParagraphCount = paragraphCount
-	
-	// Reading time (average 200 words per minute)
-	if stats.WordCount > 0 {
-		stats.ReadingTime = (stats.WordCount * 60) / 200 // in seconds
-		if stats.ReadingTime < 1 {
-			stats.ReadingTime = 1
-		}
-	}
-	
-	return stats
 }
 
 func generateAIInsights(text string, ollamaURL string) map[string]interface{} {

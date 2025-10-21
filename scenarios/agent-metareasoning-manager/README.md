@@ -124,6 +124,8 @@ agent-metareasoning-manager api                                       # Show API
 agent-metareasoning-manager analyze pros-cons "Remote work policy"   # Run analysis
 agent-metareasoning-manager list                                      # Show available workflows
 agent-metareasoning-manager version                                   # Show CLI version
+open http://localhost:${UI_PORT}                                      # Launch dashboard (macOS)
+xdg-open http://localhost:${UI_PORT}                                   # Launch dashboard (Linux)
 ```
 
 ### **API Direct Usage**

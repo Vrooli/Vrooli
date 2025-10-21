@@ -252,23 +252,43 @@ func searchClausesHandler(w http.ResponseWriter, r *http.Request) {
 
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Get allowed origins from environment, default to localhost for development
+		allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
+		if allowedOrigin == "" {
+			allowedOrigin = "http://localhost:35000"
+		}
+
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next(w, r)
 	}
 }
 
 func main() {
+	// Lifecycle protection check - must run through Vrooli lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start privacy-terms-generator
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "15000"
+		fmt.Fprintf(os.Stderr, "❌ API_PORT environment variable is required\n")
+		os.Exit(1)
 	}
 
 	// Health check at root level (required by orchestration)

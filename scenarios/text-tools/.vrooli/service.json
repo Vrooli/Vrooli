@@ -124,7 +124,7 @@
            {
              "type": "binaries",
              "targets": [
-               "text-tools-api"
+               "api/text-tools-api"
              ]
            },
            {

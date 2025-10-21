@@ -684,10 +684,33 @@ func analyzeProposedScenario(req ProposedScenarioRequest) (map[string]interface{
 
 // HTTP Handlers
 func healthHandler(c *gin.Context) {
+	// Check database connectivity
+	dbConnected := false
+	var dbLatencyMs float64
+	if db != nil {
+		start := time.Now()
+		err := db.Ping()
+		dbLatencyMs = float64(time.Since(start).Milliseconds())
+		dbConnected = err == nil
+	}
+
+	status := "healthy"
+	if !dbConnected {
+		status = "degraded"
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
+		"status":    status,
 		"timestamp": time.Now(),
 		"service":   "scenario-dependency-analyzer",
+		"readiness": dbConnected,
+		"dependencies": gin.H{
+			"database": gin.H{
+				"connected":  dbConnected,
+				"latency_ms": dbLatencyMs,
+				"error":      nil,
+			},
+		},
 	})
 }
 

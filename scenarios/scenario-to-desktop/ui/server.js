@@ -14,8 +14,19 @@ const path = require('path');
 const fs = require('fs');
 
 // Configuration
-const PORT = process.env.PORT || 3203;
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3202';
+const PORT = process.env.UI_PORT || process.env.PORT || 35200;
+
+// API port MUST be provided by lifecycle system for managed deployments
+// SECURITY: No default value to prevent port conflicts and misconfigurations
+if (process.env.VROOLI_LIFECYCLE_MANAGED === 'true' && !process.env.API_PORT) {
+    console.error('FATAL: API_PORT environment variable is required when managed by Vrooli lifecycle');
+    console.error('       The lifecycle system must explicitly allocate API port.');
+    process.exit(1);
+}
+
+// For non-lifecycle (standalone) deployments, API_BASE_URL can be fully specified
+const API_PORT = process.env.API_PORT;
+const API_BASE_URL = process.env.API_BASE_URL || (API_PORT ? `http://localhost:${API_PORT}` : 'http://localhost:15200');
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Create Express app
@@ -80,20 +91,57 @@ if (NODE_ENV === 'development') {
     app.use('/api', (req, res) => {
         res.status(502).json({
             error: 'API proxy not implemented',
-            message: 'Please ensure the API server is running on port 3202',
+            message: 'Please ensure the API server is running on port 15200',
             api_url: API_BASE_URL
         });
     });
 }
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+    // Check API connectivity
+    let apiConnected = false;
+    let apiError = null;
+    let apiLatency = null;
+    const apiCheckStart = Date.now();
+
+    try {
+        const fetch = require('node-fetch');
+        const apiHealthUrl = `${API_BASE_URL}/api/v1/health`;
+        const response = await fetch(apiHealthUrl, { timeout: 2000 });
+        apiConnected = response.ok;
+        apiLatency = Date.now() - apiCheckStart;
+
+        if (!response.ok) {
+            apiError = {
+                code: `HTTP_${response.status}`,
+                message: `API health check returned status ${response.status}`,
+                category: 'network',
+                retryable: true
+            };
+        }
+    } catch (err) {
+        apiError = {
+            code: err.code || 'CONNECTION_FAILED',
+            message: err.message || 'Failed to connect to API',
+            category: 'network',
+            retryable: true
+        };
+    }
+
     res.json({
-        status: 'healthy',
+        status: apiConnected ? 'healthy' : 'degraded',
         service: 'scenario-to-desktop-ui',
         version: '1.0.0',
         timestamp: new Date().toISOString(),
-        api_base_url: API_BASE_URL
+        readiness: true,
+        api_connectivity: {
+            connected: apiConnected,
+            api_url: `${API_BASE_URL}/api/v1/health`,
+            last_check: new Date().toISOString(),
+            error: apiError,
+            latency_ms: apiLatency
+        }
     });
 });
 

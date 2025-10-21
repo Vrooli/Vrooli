@@ -390,8 +390,14 @@ func TestHealthHandlerAdditional(t *testing.T) {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if resp["status"] != "healthy" {
-			t.Error("Expected status=healthy")
+		// When database is not configured, status should be "degraded" per new health schema
+		if resp["status"] != "degraded" {
+			t.Errorf("Expected status=degraded (no database), got %v", resp["status"])
+		}
+
+		// Verify readiness is false when DB not connected
+		if readiness, ok := resp["readiness"].(bool); !ok || readiness {
+			t.Errorf("Expected readiness=false when no database, got %v", resp["readiness"])
 		}
 	})
 }

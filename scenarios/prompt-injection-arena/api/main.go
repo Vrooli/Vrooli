@@ -103,36 +103,36 @@ func initDB() {
 	// Get database configuration from environment (no defaults)
 	dbHost := os.Getenv("POSTGRES_HOST")
 	if dbHost == "" {
-		log.Fatal("❌ POSTGRES_HOST environment variable is required")
+		logger.Fatal("POSTGRES_HOST environment variable is required")
 	}
 
 	dbPort := os.Getenv("POSTGRES_PORT")
 	if dbPort == "" {
-		log.Fatal("❌ POSTGRES_PORT environment variable is required")
+		logger.Fatal("POSTGRES_PORT environment variable is required")
 	}
 
 	dbUser := os.Getenv("POSTGRES_USER")
 	if dbUser == "" {
-		log.Fatal("❌ POSTGRES_USER environment variable is required")
+		logger.Fatal("POSTGRES_USER environment variable is required")
 	}
 
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
-		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
+		logger.Fatal("POSTGRES_PASSWORD environment variable is required")
 	}
 
 	dbName := os.Getenv("POSTGRES_DB")
 	if dbName == "" {
-		log.Fatal("❌ POSTGRES_DB environment variable is required")
+		logger.Fatal("POSTGRES_DB environment variable is required")
 	}
 
-	// Construct connection string
+	// Construct connection string (password not logged for security)
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
 
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		logger.Fatal("Failed to connect to database", map[string]interface{}{"error": err.Error()})
 	}
 
 	// Configure connection pool
@@ -145,13 +145,15 @@ func initDB() {
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
 
-	log.Println("🔄 Attempting database connection with exponential backoff...")
+	logger.Info("Attempting database connection with exponential backoff")
 
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
+			logger.Info("Database connected successfully", map[string]interface{}{
+				"attempt": attempt + 1,
+			})
 			break
 		}
 
@@ -166,14 +168,21 @@ func initDB() {
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
 
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		logger.Warn("Connection attempt failed", map[string]interface{}{
+			"attempt":     attempt + 1,
+			"max_retries": maxRetries,
+			"error":       pingErr.Error(),
+			"retry_delay": actualDelay.String(),
+		})
 
 		time.Sleep(actualDelay)
 	}
 
 	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+		logger.Fatal("Database connection failed after max attempts", map[string]interface{}{
+			"max_retries": maxRetries,
+			"error":       pingErr.Error(),
+		})
 	}
 }
 
@@ -1166,6 +1175,9 @@ func getExportFormats(c *gin.Context) {
 }
 
 func main() {
+	// Initialize structured logger first
+	InitLogger()
+
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
@@ -1184,12 +1196,14 @@ func main() {
 
 	// Initialize vector search (non-blocking)
 	go func() {
-		log.Println("Initializing vector search...")
+		logger.Info("Initializing vector search")
 		if err := InitializeVectorSearch(); err != nil {
-			log.Printf("Warning: Vector search initialization failed: %v", err)
-			log.Println("Vector search features will be limited")
+			logger.Warn("Vector search initialization failed", map[string]interface{}{
+				"error":   err.Error(),
+				"message": "Vector search features will be limited",
+			})
 		} else {
-			log.Println("Vector search initialized successfully")
+			logger.Info("Vector search initialized successfully")
 		}
 	}()
 
@@ -1199,7 +1213,7 @@ func main() {
 	// Configure trusted proxies for security
 	// Only trust localhost for local development
 	if err := r.SetTrustedProxies([]string{"127.0.0.1", "::1"}); err != nil {
-		log.Printf("Warning: Failed to set trusted proxies: %v", err)
+		logger.Warn("Failed to set trusted proxies", map[string]interface{}{"error": err.Error()})
 	}
 
 	// Add CORS middleware
@@ -1248,12 +1262,14 @@ func main() {
 		api.GET("/export/formats", getExportFormats)
 	}
 
-	// Get port from environment
+	// Get port from environment (required - no defaults)
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "20300"
+		logger.Fatal("API_PORT environment variable is required")
 	}
 
-	log.Printf("Starting Prompt Injection Arena API on port %s", port)
-	log.Fatal(r.Run(":" + port))
+	logger.Info("Starting Prompt Injection Arena API", map[string]interface{}{"port": port})
+	if err := r.Run(":" + port); err != nil {
+		logger.Fatal("Server failed to start", map[string]interface{}{"error": err.Error()})
+	}
 }

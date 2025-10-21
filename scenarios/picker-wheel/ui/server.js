@@ -3,9 +3,21 @@ const path = require('path');
 const http = require('http');
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
+
+// Validate required environment variables
+if (!process.env.UI_PORT) {
+    console.error('ERROR: UI_PORT environment variable is required');
+    process.exit(1);
+}
+
+if (!process.env.API_PORT) {
+    console.error('ERROR: API_PORT environment variable is required');
+    process.exit(1);
+}
+
+const PORT = process.env.UI_PORT;
 const API_PORT = process.env.API_PORT;
-const N8N_PORT = process.env.N8N_PORT || 5679;
+const N8N_PORT = process.env.N8N_PORT;
 
 // Manual proxy function for API calls
 function proxyToApi(req, res, targetPort, apiPath) {

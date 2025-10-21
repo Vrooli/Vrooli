@@ -27,7 +27,7 @@
       "description": "Component library API port for component CRUD and testing"
     },
     "ui": {
-      "env_var": "UI_PORT", 
+      "env_var": "UI_PORT",
       "port": 31012,
       "description": "Component showcase and playground UI port"
     }
@@ -77,7 +77,7 @@
       "description": "React Component Library health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
+        "ui": "/health",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -90,9 +90,9 @@
           "interval": 30000
         },
         {
-          "name": "ui_endpoint", 
+          "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000

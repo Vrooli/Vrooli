@@ -7,26 +7,26 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 testing::phase::init --target-time "120s"
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+cd "$TESTING_PHASE_SCENARIO_DIR" || { echo "Failed to cd to scenario directory"; exit 1; }
 
 testing::phase::info "Starting integration tests for scenario-to-extension"
 
 # Test API availability
 testing::phase::step "Testing API health endpoint"
-if ! curl -sf http://localhost:${API_PORT:-3201}/api/v1/health &>/dev/null; then
+if ! curl -sf "http://localhost:${API_PORT:-3201}/api/v1/health" &>/dev/null; then
     testing::phase::warn "API not running, starting it..."
     cd api && ./scenario-to-extension-api &
     API_PID=$!
     sleep 2
     cleanup_api() {
-        kill $API_PID 2>/dev/null || true
+        kill "$API_PID" 2>/dev/null || true
     }
     trap cleanup_api EXIT
 fi
 
 # Test health endpoint
 testing::phase::step "Validating health endpoint response"
-HEALTH_RESPONSE=$(curl -s http://localhost:${API_PORT:-3201}/api/v1/health)
+HEALTH_RESPONSE=$(curl -s "http://localhost:${API_PORT:-3201}/api/v1/health")
 if ! echo "$HEALTH_RESPONSE" | jq -e '.status == "healthy"' &>/dev/null; then
     testing::phase::error "Health check failed"
     testing::phase::end_with_summary "Integration tests failed"
@@ -47,7 +47,7 @@ GENERATE_RESPONSE=$(curl -s -X POST \
             "api_endpoint": "http://localhost:3000"
         }
     }' \
-    http://localhost:${API_PORT:-3201}/api/v1/extension/generate)
+    "http://localhost:${API_PORT:-3201}/api/v1/extension/generate")
 
 BUILD_ID=$(echo "$GENERATE_RESPONSE" | jq -r '.build_id')
 if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" == "null" ]; then
@@ -60,7 +60,7 @@ testing::phase::success "Extension generation initiated with build_id: $BUILD_ID
 # Test status endpoint
 testing::phase::step "Testing build status endpoint"
 sleep 1  # Give build time to process
-STATUS_RESPONSE=$(curl -s http://localhost:${API_PORT:-3201}/api/v1/extension/status/$BUILD_ID)
+STATUS_RESPONSE=$(curl -s "http://localhost:${API_PORT:-3201}/api/v1/extension/status/$BUILD_ID")
 STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status')
 if [ -z "$STATUS" ] || [ "$STATUS" == "null" ]; then
     testing::phase::error "Failed to get build status: $STATUS_RESPONSE"
@@ -71,7 +71,7 @@ testing::phase::success "Build status retrieved: $STATUS"
 
 # Test list templates endpoint
 testing::phase::step "Testing list templates endpoint"
-TEMPLATES_RESPONSE=$(curl -s http://localhost:${API_PORT:-3201}/api/v1/extension/templates)
+TEMPLATES_RESPONSE=$(curl -s "http://localhost:${API_PORT:-3201}/api/v1/extension/templates")
 TEMPLATE_COUNT=$(echo "$TEMPLATES_RESPONSE" | jq -r '.count')
 if [ "$TEMPLATE_COUNT" != "4" ]; then
     testing::phase::error "Expected 4 templates, got $TEMPLATE_COUNT"
@@ -82,7 +82,7 @@ testing::phase::success "Template listing returned $TEMPLATE_COUNT templates"
 
 # Test list builds endpoint
 testing::phase::step "Testing list builds endpoint"
-BUILDS_RESPONSE=$(curl -s http://localhost:${API_PORT:-3201}/api/v1/extension/builds)
+BUILDS_RESPONSE=$(curl -s "http://localhost:${API_PORT:-3201}/api/v1/extension/builds")
 BUILD_COUNT=$(echo "$BUILDS_RESPONSE" | jq -r '.count')
 if [ "$BUILD_COUNT" -lt 1 ]; then
     testing::phase::error "Expected at least 1 build, got $BUILD_COUNT"
@@ -101,7 +101,7 @@ TEST_RESPONSE=$(curl -s -X POST \
         "screenshot": true,
         "headless": true
     }' \
-    http://localhost:${API_PORT:-3201}/api/v1/extension/test)
+    "http://localhost:${API_PORT:-3201}/api/v1/extension/test")
 
 TEST_SUCCESS=$(echo "$TEST_RESPONSE" | jq -r '.success')
 if [ "$TEST_SUCCESS" != "true" ]; then
@@ -124,7 +124,7 @@ for TEMPLATE_TYPE in "full" "content-script-only" "background-only" "popup-only"
                 \"api_endpoint\": \"http://localhost:3000\"
             }
         }" \
-        http://localhost:${API_PORT:-3201}/api/v1/extension/generate)
+        "http://localhost:${API_PORT:-3201}/api/v1/extension/generate")
 
     TEMPLATE_BUILD_ID=$(echo "$TEMPLATE_RESPONSE" | jq -r '.build_id')
     if [ -z "$TEMPLATE_BUILD_ID" ] || [ "$TEMPLATE_BUILD_ID" == "null" ]; then

@@ -93,6 +93,7 @@ func TestAPITestHandler(t *testing.T) {
 
 	t.Run("SuccessBasicAPITest", func(t *testing.T) {
 		mockServer := mockHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		})

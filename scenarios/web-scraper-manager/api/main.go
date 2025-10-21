@@ -16,6 +16,40 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// Structured logging helpers
+type logLevel string
+
+const (
+	levelInfo  logLevel = "INFO"
+	levelWarn  logLevel = "WARN"
+	levelError logLevel = "ERROR"
+)
+
+func logStructured(level logLevel, message string, fields map[string]interface{}) {
+	entry := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"level":     level,
+		"message":   message,
+	}
+	for k, v := range fields {
+		entry[k] = v
+	}
+	data, _ := json.Marshal(entry)
+	fmt.Fprintln(os.Stdout, string(data))
+}
+
+func logInfo(message string, fields map[string]interface{}) {
+	logStructured(levelInfo, message, fields)
+}
+
+func logWarn(message string, fields map[string]interface{}) {
+	logStructured(levelWarn, message, fields)
+}
+
+func logError(message string, fields map[string]interface{}) {
+	logStructured(levelError, message, fields)
+}
+
 type Config struct {
 	Port        string
 	PostgresURL string
@@ -119,14 +153,19 @@ func main() {
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
 
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("🕸️ Database URL configured")
+	logInfo("Attempting database connection with exponential backoff", map[string]interface{}{
+		"max_retries": maxRetries,
+		"base_delay":  baseDelay.String(),
+		"max_delay":   maxDelay.String(),
+	})
 
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
+			logInfo("Database connected successfully", map[string]interface{}{
+				"attempt": attempt + 1,
+			})
 			break
 		}
 
@@ -140,25 +179,39 @@ func main() {
 		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
 		actualDelay := delay + jitter
 
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		logWarn("Database connection attempt failed", map[string]interface{}{
+			"attempt":       attempt + 1,
+			"max_retries":   maxRetries,
+			"error":         pingErr.Error(),
+			"next_delay_ms": actualDelay.Milliseconds(),
+		})
 
 		// Provide detailed status every few attempts
 		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v", actualDelay)
+			logInfo("Database connection retry progress", map[string]interface{}{
+				"attempts_made":   attempt + 1,
+				"max_retries":     maxRetries,
+				"total_wait_time": (time.Duration(attempt*2) * baseDelay).String(),
+				"current_delay":   actualDelay.String(),
+			})
 		}
 
 		time.Sleep(actualDelay)
 	}
 
 	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+		logError("Database connection failed after all retries", map[string]interface{}{
+			"max_retries": maxRetries,
+			"error":       pingErr.Error(),
+		})
+		os.Exit(1)
 	}
 
-	log.Println("🎉 Database connection pool established successfully!")
+	logInfo("Database connection pool established successfully", map[string]interface{}{
+		"max_open_conns": 25,
+		"max_idle_conns": 5,
+		"conn_max_life":  "5m",
+	})
 
 	// Setup routes
 	router := mux.NewRouter()
@@ -204,7 +257,10 @@ func main() {
 
 	startAgentScheduler()
 
-	log.Printf("Web Scraper Manager API starting on port %s", config.Port)
+	logInfo("Web Scraper Manager API starting", map[string]interface{}{
+		"port":     config.Port,
+		"scenario": "web-scraper-manager",
+	})
 	log.Fatal(http.ListenAndServe(":"+config.Port, router))
 }
 
@@ -220,7 +276,7 @@ func loadConfig() Config {
 		dbName := os.Getenv("POSTGRES_DB")
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all required database environment variables (POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB, and credentials)")
 		}
 
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -230,10 +286,7 @@ func loadConfig() Config {
 	// Port configuration - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
 	return Config{
@@ -254,10 +307,36 @@ func getEnv(key, defaultValue string) string {
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
+	// Get allowed origins from environment or use safe defaults
+	allowedOrigins := map[string]bool{
+		"http://localhost":      true,
+		"http://127.0.0.1":      true,
+	}
+
+	// Add UI_PORT if configured
+	if uiPort := os.Getenv("UI_PORT"); uiPort != "" {
+		allowedOrigins["http://localhost:"+uiPort] = true
+		allowedOrigins["http://127.0.0.1:"+uiPort] = true
+	}
+
+	// Add ALLOWED_ORIGINS from environment if specified
+	if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
+		for _, origin := range splitAndTrim(envOrigins, ",") {
+			allowedOrigins[origin] = true
+		}
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+
+		// Check if origin is allowed
+		if origin != "" && allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -268,6 +347,47 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Helper function to split and trim strings
+func splitAndTrim(s, sep string) []string {
+	parts := make([]string, 0)
+	for _, part := range splitString(s, sep) {
+		trimmed := trimSpace(part)
+		if trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
+}
+
+func splitString(s, sep string) []string {
+	if s == "" {
+		return []string{}
+	}
+	result := []string{}
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if i+len(sep) <= len(s) && s[i:i+len(sep)] == sep {
+			result = append(result, s[start:i])
+			start = i + len(sep)
+			i += len(sep) - 1
+		}
+	}
+	result = append(result, s[start:])
+	return result
+}
+
+func trimSpace(s string) string {
+	start := 0
+	end := len(s)
+	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
+		start++
+	}
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
+		end--
+	}
+	return s[start:end]
+}
+
 func respondJSON(w http.ResponseWriter, status int, response APIResponse) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -276,23 +396,54 @@ func respondJSON(w http.ResponseWriter, status int, response APIResponse) {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Check database connection
+	dbConnected := true
+	var dbLatency *float64
+	var dbError map[string]interface{}
+
+	start := time.Now()
 	if err := db.Ping(); err != nil {
-		respondJSON(w, http.StatusServiceUnavailable, APIResponse{
-			Success: false,
-			Error:   "Database connection failed",
-		})
-		return
+		dbConnected = false
+		dbError = map[string]interface{}{
+			"code":      "DATABASE_CONNECTION_FAILED",
+			"message":   err.Error(),
+			"category":  "resource",
+			"retryable": true,
+		}
+	} else {
+		latency := float64(time.Since(start).Milliseconds())
+		dbLatency = &latency
 	}
 
-	respondJSON(w, http.StatusOK, APIResponse{
-		Success: true,
-		Message: "Web Scraper Manager API is healthy",
-		Data: map[string]interface{}{
-			"timestamp": time.Now().UTC(),
-			"version":   "1.0.0",
-			"database":  "connected",
+	status := "healthy"
+	readiness := true
+	if !dbConnected {
+		status = "unhealthy"
+		readiness = false
+	}
+
+	response := map[string]interface{}{
+		"status":    status,
+		"service":   "web-scraper-manager-api",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": readiness,
+		"version":   "1.0.0",
+		"dependencies": map[string]interface{}{
+			"database": map[string]interface{}{
+				"connected":  dbConnected,
+				"latency_ms": dbLatency,
+				"error":      dbError,
+			},
 		},
-	})
+	}
+
+	statusCode := http.StatusOK
+	if !readiness {
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(response)
 }
 
 func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -347,7 +498,9 @@ func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 			&agent.NextRun, &tagsJSON,
 		)
 		if err != nil {
-			log.Printf("Error scanning agent row: %v", err)
+			logError("Error scanning agent row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -575,7 +728,9 @@ func getTargetsHandler(w http.ResponseWriter, r *http.Request) {
 			&target.RateLimitMs, &target.MaxRetries, &target.CreatedAt,
 		)
 		if err != nil {
-			log.Printf("Error scanning target row: %v", err)
+			logError("Error scanning target row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -689,7 +844,9 @@ func getAgentTargetsHandler(w http.ResponseWriter, r *http.Request) {
 			&target.RateLimitMs, &target.MaxRetries, &target.CreatedAt,
 		)
 		if err != nil {
-			log.Printf("Error scanning target row: %v", err)
+			logError("Error scanning target row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -770,7 +927,9 @@ func getResultsHandler(w http.ResponseWriter, r *http.Request) {
 			&result.ExecutionTimeMs,
 		)
 		if err != nil {
-			log.Printf("Error scanning result row: %v", err)
+			logError("Error scanning result row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -829,7 +988,9 @@ func getAgentResultsHandler(w http.ResponseWriter, r *http.Request) {
 			&result.ExecutionTimeMs,
 		)
 		if err != nil {
-			log.Printf("Error scanning result row: %v", err)
+			logError("Error scanning result row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 

@@ -108,7 +108,8 @@
     "health": {
       "description": "Web Scraper Manager health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -118,6 +119,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -126,27 +135,27 @@
     },
     "setup": {
       "description": "Initialize Web Scraper Manager",
-       "condition": {
-         "checks": [
-            {
-              "type": "binaries",
-              "targets": [
-                "web-scraper-manager-api",
-                "web-scraper-manager"
-              ]
-            },
-           {
-             "type": "cli",
-             "targets": [
-               "web-scraper-manager"
-             ]
-           },
-           {
-             "type": "resources",
-             "populated": true
-           }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/web-scraper-manager-api",
+              "web-scraper-manager"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "web-scraper-manager"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
           "name": "base-setup",
@@ -201,15 +210,15 @@
     "develop": {
       "description": "Start web scraper manager with Go API server",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./web-scraper-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/web-scraper-manager-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./web-scraper-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/web-scraper-manager-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -224,56 +233,20 @@
           "run": "bash scripts/lib/initialize-redis-queues.sh",
           "description": "Initialize Redis job queues"
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test web scraper manager API and CLI",
+      "description": "Test web scraper manager using phased testing architecture",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-agents-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/agents",
-          "description": "Test API agents endpoint"
-        },
-        {
-          "name": "test-platforms-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/platforms",
-          "description": "Test API platforms endpoint"
-        },
-        {
-          "name": "test-database-connection",
-          "run": "bash test/test-database-connection.sh",
-          "description": "Test PostgreSQL database connectivity and schema"
-        },
-        {
-          "name": "test-storage-buckets",
-          "run": "bash test/test-storage-buckets.sh",
-          "description": "Test MinIO bucket accessibility"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats web-scraper-manager.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/web-scraper-manager.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "bash test/run-tests.sh",
+          "description": "Run all test phases (structure, dependencies, unit, api, integration, business, performance)"
         }
       ]
     },

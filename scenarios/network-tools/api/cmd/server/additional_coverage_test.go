@@ -37,8 +37,21 @@ func TestAPIHandlerEdgeCases(t *testing.T) {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if status, ok := resp["status"].(string); !ok || status != "healthy" {
-			t.Errorf("Expected status 'healthy', got %v", resp["status"])
+		// Check for required fields per health schema
+		if _, ok := resp["status"]; !ok {
+			t.Error("Missing 'status' field in health response")
+		}
+		if _, ok := resp["service"]; !ok {
+			t.Error("Missing 'service' field in health response")
+		}
+		if _, ok := resp["timestamp"]; !ok {
+			t.Error("Missing 'timestamp' field in health response")
+		}
+		if _, ok := resp["readiness"]; !ok {
+			t.Error("Missing 'readiness' field in health response")
+		}
+		if _, ok := resp["dependencies"]; !ok {
+			t.Error("Missing 'dependencies' field in health response")
 		}
 	})
 
@@ -177,6 +190,7 @@ func TestAPIHandlerEdgeCases(t *testing.T) {
 
 	t.Run("handleAPITestWithEndpoints", func(t *testing.T) {
 		mockServer := mockHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		})

@@ -5,7 +5,52 @@ import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'
 import AlgorithmVisualizer from './AlgorithmVisualizer'
 import './App.css'
 
-const API_URL = '/api/v1'
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT || '').trim() || '16796'
+const API_SUFFIX = '/api/v1'
+
+const normalizeBase = (value = '') => value.replace(/\/+$/, '')
+
+const ensureSuffix = (base) => {
+  const normalized = normalizeBase(base)
+  return normalized.endsWith(API_SUFFIX) ? normalized : `${normalized}${API_SUFFIX}`
+}
+
+const isLocalHost = (hostname = '') => /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(hostname)
+
+const isProxyPath = (pathname = '') => pathname.includes('/apps/') && pathname.includes('/proxy/')
+
+const computeApiBaseUrl = () => {
+  const explicit = (import.meta.env.VITE_API_BASE_URL || '').trim()
+  if (explicit) {
+    return ensureSuffix(explicit)
+  }
+
+  if (typeof window === 'undefined') {
+    return ensureSuffix(`http://127.0.0.1:${DEFAULT_API_PORT}`)
+  }
+
+  const { origin, hostname, pathname } = window.location
+  const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined'
+  const proxied = hasProxyBootstrap || isProxyPath(pathname)
+
+  if (proxied) {
+    const proxyRoot = pathname.split('/proxy')[0] || ''
+    const proxyBase = `${origin}${proxyRoot}/proxy`
+    return ensureSuffix(proxyBase)
+  }
+
+  if (!hostname || isLocalHost(hostname)) {
+    return ensureSuffix(`http://127.0.0.1:${DEFAULT_API_PORT}`)
+  }
+
+  return ensureSuffix(origin)
+}
+
+const API_BASE_URL = computeApiBaseUrl()
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+})
 
 const App = () => {
   const [algorithms, setAlgorithms] = useState([])
@@ -27,7 +72,7 @@ const App = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API_URL}/algorithms/stats`)
+      const response = await api.get('/algorithms/stats')
       setStats(response.data)
     } catch (error) {
       console.error('Failed to fetch stats:', error)
@@ -36,7 +81,7 @@ const App = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(`${API_URL}/algorithms/categories`)
+      const response = await api.get('/algorithms/categories')
       setCategories(response.data)
     } catch (error) {
       console.error('Failed to fetch categories:', error)
@@ -46,11 +91,11 @@ const App = () => {
   const searchAlgorithms = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (searchQuery) params.append('query', searchQuery)
-      if (selectedCategory) params.append('category', selectedCategory)
-      
-      const response = await axios.get(`${API_URL}/algorithms/search?${params}`)
+      const params = {}
+      if (searchQuery) params.query = searchQuery
+      if (selectedCategory) params.category = selectedCategory
+
+      const response = await api.get('/algorithms/search', { params })
       setAlgorithms(response.data.algorithms || [])
     } catch (error) {
       console.error('Search failed:', error)
@@ -62,8 +107,10 @@ const App = () => {
   const selectAlgorithm = async (algo) => {
     setSelectedAlgorithm(algo)
     try {
-      const response = await axios.get(`${API_URL}/algorithms/${algo.id}/implementations`)
-      setImplementations(response.data.implementations || [])
+      const response = await api.get(`/algorithms/${algo.id}/implementations`)
+      const impls = response.data.implementations || []
+      setImplementations(impls)
+      setSelectedLanguage(impls[0]?.language || 'python')
     } catch (error) {
       console.error('Failed to fetch implementations:', error)
       setImplementations([])

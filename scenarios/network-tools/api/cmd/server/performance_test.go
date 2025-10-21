@@ -94,6 +94,7 @@ func TestHTTPRequestPerformance(t *testing.T) {
 
 	t.Run("MultipleRequests", func(t *testing.T) {
 		mockServer := mockHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(200)
 			w.Write([]byte(`{"status":"ok"}`))
 		})
@@ -126,6 +127,7 @@ func TestHTTPRequestPerformance(t *testing.T) {
 
 	t.Run("ConcurrentRequests", func(t *testing.T) {
 		mockServer := mockHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(200)
 			w.Write([]byte(`{"status":"ok"}`))
 		})

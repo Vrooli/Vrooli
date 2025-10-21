@@ -46,6 +46,7 @@ type BatchResponse struct {
 }
 
 func main() {
+	// Validate required environment variable
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
@@ -58,24 +59,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	port := getEnv("API_PORT", getEnv("PORT", "8080"))
+	// Require explicit port configuration
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = os.Getenv("PORT")
+	}
+	if port == "" {
+		fmt.Fprintf(os.Stderr, "❌ Error: API_PORT or PORT environment variable is required\n")
+		os.Exit(1)
+	}
 
 	http.HandleFunc("/health", healthHandler)
 	http.HandleFunc("/generate", generateHandler)
 	http.HandleFunc("/batch", batchHandler)
 	http.HandleFunc("/formats", formatsHandler)
 
-	log.Printf("QR Code Generator API starting on port %s", port)
+	// Use structured logging format
+	log.Printf("[INFO] service=qr-code-generator action=starting port=%s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+		log.Fatalf("[ERROR] service=qr-code-generator action=start_failed error=%v", err)
 	}
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

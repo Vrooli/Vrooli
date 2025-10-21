@@ -4,14 +4,19 @@
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make       - Show help
-#   make run   - Start this scenario
-#   make stop  - Stop this scenario
-#   make test  - Run scenario tests
-#   make logs  - Show scenario logs
-#   make clean - Clean build artifacts
+#   make              - Show help
+#   make start        - Start this scenario (recommended)
+#   make run          - Alias for 'make start'
+#   make stop         - Stop this scenario
+#   make test         - Run scenario tests
+#   make logs         - Show scenario logs
+#   make clean        - Clean build artifacts
+#   make build        - Build API and UI components
+#   make fmt          - Format all code
+#   make lint         - Lint all code
+#   make check        - Run full quality check (format, lint, test)
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -37,11 +42,15 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
+
+run: ## Alias for 'make start' (uses Vrooli lifecycle)
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME)
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"

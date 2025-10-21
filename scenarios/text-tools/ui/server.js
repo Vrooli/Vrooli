@@ -1,11 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { initIframeBridgeChild } = require('@vrooli/iframe-bridge/child');
 
-if (typeof window !== 'undefined' && window.parent !== window) {
-  initIframeBridgeChild({ appId: 'text-tools-ui' });
-}
+// Note: iframe-bridge is only for browser use, not server-side Node.js
 
 const app = express();
 const PORT = process.env.UI_PORT;
@@ -19,9 +16,52 @@ if (!PORT) {
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../ui-react/dist')));
 
-// Health check
-app.get('/health', (req, res) => {
-    res.json({ status: 'healthy', timestamp: Date.now() });
+// Health check - compliant with UI health schema
+app.get('/health', async (req, res) => {
+    const apiPort = process.env.API_PORT || '16518';
+    const apiUrl = `http://localhost:${apiPort}/health`;
+    const timestamp = new Date().toISOString();
+
+    let apiConnectivity = {
+        connected: false,
+        api_url: apiUrl,
+        last_check: timestamp,
+        error: null,
+        latency_ms: null
+    };
+
+    try {
+        const startTime = Date.now();
+        const response = await fetch(apiUrl);
+        const latency = Date.now() - startTime;
+
+        if (response.ok) {
+            apiConnectivity.connected = true;
+            apiConnectivity.latency_ms = latency;
+        } else {
+            apiConnectivity.error = {
+                code: 'HTTP_ERROR',
+                message: `API returned status ${response.status}`,
+                category: 'network',
+                retryable: true
+            };
+        }
+    } catch (error) {
+        apiConnectivity.error = {
+            code: 'CONNECTION_FAILED',
+            message: error.message,
+            category: 'network',
+            retryable: true
+        };
+    }
+
+    res.json({
+        status: apiConnectivity.connected ? 'healthy' : 'degraded',
+        service: 'text-tools-ui',
+        timestamp: timestamp,
+        readiness: true,
+        api_connectivity: apiConnectivity
+    });
 });
 
 // Serve index.html for all routes

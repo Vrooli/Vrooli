@@ -56,11 +56,12 @@
       "description": "Go-based API server with REST endpoints"
     },
     "ui": {
-      "enabled": false,
-      "framework": "none",
+      "enabled": true,
+      "framework": "vanilla",
       "path": "ui",
-      "main": "index.html",
-      "description": "No UI for this CLI/API-focused tool"
+      "main": "public/index.html",
+      "build_tool": "static",
+      "description": "Proxy-aware web console for interactive diagnostics"
     },
     "cli": {
       "enabled": true,
@@ -139,7 +140,7 @@
       "description": "Application health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
+        "ui": "/health",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -154,10 +155,10 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
-          "interval": 60000
+          "interval": 30000
         }
       ],
       "timeout": 10000,
@@ -171,7 +172,7 @@
            {
              "type": "binaries",
              "targets": [
-               "network-tools-api"
+               "api/network-tools-api"
              ]
            },
            {
@@ -244,6 +245,15 @@
            "background": true,
            "condition": {
              "file_exists": "api/network-tools-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "ui/server.js"
            }
          },
           {

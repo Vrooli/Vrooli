@@ -97,16 +97,25 @@
     "health": {
       "description": "Pregnancy Tracker health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${PREGNANCY_TRACKER_API_PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         },
         {
           "name": "database_connection",

@@ -2,7 +2,24 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.UI_PORT || 35000;
+// Lifecycle protection check - must run through Vrooli lifecycle system
+if (process.env.VROOLI_LIFECYCLE_MANAGED !== 'true') {
+    console.error(`❌ This server must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start privacy-terms-generator
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`);
+    process.exit(1);
+}
+
+const PORT = process.env.UI_PORT;
+if (!PORT) {
+    console.error('❌ UI_PORT environment variable is required');
+    process.exit(1);
+}
 
 const mimeTypes = {
     '.html': 'text/html',

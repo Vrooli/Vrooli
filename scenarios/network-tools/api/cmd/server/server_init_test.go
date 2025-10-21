@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -89,7 +90,7 @@ func TestNewServerEnvironmentVariables(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error when password not configured")
 		}
-		if err != nil && err.Error() != "database password not configured - set POSTGRES_PASSWORD or DB_PASSWORD environment variable" {
+		if err != nil && !strings.Contains(err.Error(), "database password not configured") {
 			t.Errorf("Expected password error, got: %v", err)
 		}
 	})

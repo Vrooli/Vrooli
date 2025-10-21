@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { ThemeProvider } from './hooks/use-theme'
 import { OptimizedMotionProvider } from './components/lazy/LazyMotion'
@@ -21,6 +21,8 @@ function AppContent() {
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   // Fetch campaigns
   const { data: campaigns = [], isLoading: campaignsLoading } = useQuery({
@@ -44,47 +46,75 @@ function AppContent() {
 
   const displayPrompts = searchQuery.length > 2 ? searchResults : prompts
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') {
+        return
+      }
+      setIsMobile(window.innerWidth < 1024)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsMobileSidebarOpen(false)
+    }
+  }, [isMobile])
+
+  const renderCampaignSection = () => (
+    <ErrorBoundary>
+      {campaignsLoading ? (
+        <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              📁 Campaigns
+            </h2>
+          </div>
+          <CampaignSkeleton />
+        </div>
+      ) : (
+        <CampaignTree
+          campaigns={campaigns}
+          selectedCampaign={selectedCampaign}
+          onSelectCampaign={(campaign) => {
+            setSelectedCampaign(campaign)
+            setIsMobileSidebarOpen(false)
+          }}
+        />
+      )}
+    </ErrorBoundary>
+  )
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-blue-950">
       {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{
-          width: sidebarCollapsed ? 60 : 320,
-        }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="relative border-r border-border/50 bg-card/50 backdrop-blur-sm"
-      >
-        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        
-        {!sidebarCollapsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="p-4 space-y-4"
-          >
-            <ErrorBoundary>
-              {campaignsLoading ? (
-                <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                      📁 Campaigns
-                    </h2>
-                  </div>
-                  <CampaignSkeleton />
-                </div>
-              ) : (
-                <CampaignTree
-                  campaigns={campaigns}
-                  selectedCampaign={selectedCampaign}
-                  onSelectCampaign={setSelectedCampaign}
-                />
-              )}
-            </ErrorBoundary>
-          </motion.div>
-        )}
-      </motion.aside>
+      {!isMobile && (
+        <motion.aside
+          initial={false}
+          animate={{
+            width: sidebarCollapsed ? 60 : 320,
+          }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="relative border-r border-border/50 bg-card/50 backdrop-blur-sm"
+        >
+          <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+
+          {!sidebarCollapsed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="p-4 space-y-4"
+            >
+              {renderCampaignSection()}
+            </motion.div>
+          )}
+        </motion.aside>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
@@ -93,6 +123,8 @@ function AppContent() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           selectedCampaign={selectedCampaign}
+          showSidebarToggle={isMobile}
+          onToggleSidebar={() => setIsMobileSidebarOpen(true)}
         />
 
         {/* Content Area */}
@@ -173,6 +205,49 @@ function AppContent() {
           }}
         />
       </ErrorBoundary>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isMobile && isMobileSidebarOpen && (
+          <motion.div
+            className="fixed inset-0 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-black/40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            <motion.div
+              initial={{ x: -40, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -40, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+              className="relative h-full w-[min(90vw,320px)] max-w-sm"
+            >
+              <div className="absolute left-0 top-0 h-full w-full">
+                <div className="flex h-full flex-col border-r border-border/40 bg-card/95 backdrop-blur-xl shadow-2xl">
+                  <Sidebar
+                    collapsed={false}
+                    onToggle={() => setIsMobileSidebarOpen(false)}
+                    variant="floating"
+                    onClose={() => setIsMobileSidebarOpen(false)}
+                  />
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="p-4 space-y-4">
+                      {renderCampaignSection()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

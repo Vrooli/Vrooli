@@ -147,12 +147,9 @@
           "description": "Initialize PostgreSQL schema and seed initial data"
         },
         {
-          "name": "initial-analysis",
-          "run": "echo 'Running initial dependency analysis of existing scenarios...' && ./cli/scenario-dependency-analyzer analyze all --output json > /tmp/initial-analysis.json && echo 'Initial analysis complete. Results saved to /tmp/initial-analysis.json'",
-          "description": "Perform initial dependency analysis of all existing scenarios",
-          "condition": {
-            "file_exists": "cli/scenario-dependency-analyzer"
-          }
+          "name": "verify-cli",
+          "run": "echo '✅ CLI installed at:' && which scenario-dependency-analyzer || echo '  /home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer'",
+          "description": "Verify CLI installation"
         },
         {
           "name": "show-urls",
@@ -175,11 +172,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && python3 -m http.server ${UI_PORT}",
+          "run": "cd ui && python3 server.py",
           "description": "Start dependency graph visualization UI server",
           "background": true,
           "condition": {
-            "file_exists": "ui/index.html"
+            "file_exists": "ui/server.py"
           }
         },
         {

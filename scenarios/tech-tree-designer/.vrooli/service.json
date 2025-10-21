@@ -108,7 +108,7 @@
            {
              "type": "binaries",
              "targets": [
-               "tech-tree-designer-api"
+               "api/tech-tree-designer-api"
              ]
            },
            {

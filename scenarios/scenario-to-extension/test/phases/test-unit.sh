@@ -8,7 +8,7 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 testing::phase::init --target-time "60s"
 source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+cd "$TESTING_PHASE_SCENARIO_DIR" || { echo "Failed to cd to scenario directory"; exit 1; }
 
 testing::unit::run_all_tests \
     --go-dir "api" \

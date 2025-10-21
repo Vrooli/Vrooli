@@ -113,13 +113,15 @@ func main() {
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		// Always use 'notes' database for SmartNotes scenario
 		dbName := "notes"
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
 			log.Fatal("❌ Database configuration missing. Provide NOTES_DB_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD")
 		}
-		
+
+		// Build connection string without logging sensitive info
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
+		log.Println("📝 Database connection string configured")
 	}
 
 	var err error
@@ -140,7 +142,6 @@ func main() {
 	maxDelay := 30 * time.Second
 	
 	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📝 Database URL configured")
 	
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {

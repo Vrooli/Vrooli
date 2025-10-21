@@ -15,8 +15,15 @@ class WebScraperDashboard {
     }
 
     getApiBaseUrl() {
-        // Try to get API URL from environment or use default
-        const apiPort = window.location.hostname === 'localhost' ? '8091' : '31750';
+        // Get API URL from server configuration via data attribute
+        const apiUrlElement = document.querySelector('[data-api-url]');
+        if (apiUrlElement) {
+            return apiUrlElement.getAttribute('data-api-url');
+        }
+
+        // Fallback: construct from current hostname and environment-based port
+        // This assumes API runs on standard port relative to UI deployment
+        const apiPort = window.location.hostname === 'localhost' ? '16604' : '31750';
         return `http://${window.location.hostname}:${apiPort}`;
     }
 

@@ -1,70 +1,60 @@
-# Scenario-to-Desktop Converter
-# 
-# This Makefile ensures the scenario is always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/scenario-to-desktop). ALWAYS use these commands.
+# Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/scenario-to-desktop-api). ALWAYS use these commands.
 #
 # Usage:
-#   make           - Show help
-#   make run       - Start scenario-to-desktop converter
-#   make stop      - Stop converter
-#   make dev       - Start in development mode with hot reload
-#   make test      - Run all tests
-#   make build     - Build for current platform
-#   make build-all - Build for all platforms
-#   make logs      - Show scenario logs
-#   make clean     - Clean build artifacts
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
-.PHONY: help run stop dev test logs logs-follow status clean build build-all build-linux build-macos build-windows deps fmt vet check docker-build docker-run health docs version validate
+.PHONY: help start run stop dev test logs logs-follow status clean build build-all build-linux build-macos build-windows deps fmt fmt-go fmt-ui vet lint lint-go lint-ui check docker-build docker-run health docs version validate
 
 # Default target - show help
 .DEFAULT_GOAL := help
 
-# Get scenario name
-SCENARIO_NAME := scenario-to-desktop
+# Get scenario name from directory
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+# Color palette for output (standard set only)
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+
+help: ## Show this help message
+	@echo "$(BLUE)Scenario-to-Desktop Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-18s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)' to run this scenario.$(RESET)"
+	@echo "$(RED)   Never run ./api/scenario-to-desktop-api directly!$(RESET)"
+
+# Build configuration
 BINARY_NAME := scenario-to-desktop-api
 BUILD_DIR := api/bin
 GO_FILES := $(shell find api -type f -name '*.go' -not -path "./vendor/*" 2>/dev/null)
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Colors for output
-GREEN := \033[1;32m
-YELLOW := \033[1;33m
-BLUE := \033[1;34m
-RED := \033[1;31m
-CYAN := \033[1;36m
-RESET := \033[0m
-
-help: ## Show this help message
-	@echo "$(BLUE)🖥️  Scenario-to-Desktop Converter Commands$(RESET)"
-	@echo ""
-	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
-	@echo ""
-	@echo "$(YELLOW)Lifecycle Commands:$(RESET)"
-	@grep -E '^(run|stop|dev|logs|status):.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(YELLOW)Build Commands:$(RESET)"
-	@grep -E '^(build|build-all|test|clean):.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(YELLOW)Additional Commands:$(RESET)"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		grep -v -E '^(run|stop|dev|logs|status|build|build-all|test|clean|help):' | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(BINARY_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
-
 # ============================================================================
 # LIFECYCLE COMMANDS - Use Vrooli lifecycle system
 # ============================================================================
 
-run: ## Start scenario-to-desktop (via Vrooli lifecycle)
+start: ## Start scenario-to-desktop (via Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting Scenario-to-Desktop Converter...$(RESET)"
-	@echo "$(CYAN)Converting scenarios to desktop applications$(RESET)"
+	@echo "$(BLUE)Converting scenarios to desktop applications$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME)
+
+run: start ## Alias for 'make start'
 
 stop: ## Stop scenario-to-desktop
 	@echo "$(YELLOW)⏹️  Stopping Scenario-to-Desktop Converter...$(RESET)"
@@ -107,7 +97,7 @@ build-all: deps ## Build for all platforms (Linux, macOS, Windows)
 	@echo "$(GREEN)✓ All platforms built$(RESET)"
 
 build-linux: ## Build for Linux (amd64 & arm64)
-	@echo "$(CYAN)Building for Linux...$(RESET)"
+	@echo "$(BLUE)Building for Linux...$(RESET)"
 	@mkdir -p $(BUILD_DIR)
 	@cd api && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
 		-ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" \
@@ -120,7 +110,7 @@ build-linux: ## Build for Linux (amd64 & arm64)
 	@echo "  $(GREEN)✓$(RESET) Linux builds complete"
 
 build-macos: ## Build for macOS (Intel & Apple Silicon)
-	@echo "$(CYAN)Building for macOS...$(RESET)"
+	@echo "$(BLUE)Building for macOS...$(RESET)"
 	@mkdir -p $(BUILD_DIR)
 	@cd api && GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build \
 		-ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" \
@@ -133,7 +123,7 @@ build-macos: ## Build for macOS (Intel & Apple Silicon)
 	@echo "  $(GREEN)✓$(RESET) macOS builds complete"
 
 build-windows: ## Build for Windows (amd64)
-	@echo "$(CYAN)Building for Windows...$(RESET)"
+	@echo "$(BLUE)Building for Windows...$(RESET)"
 	@mkdir -p $(BUILD_DIR)
 	@cd api && GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build \
 		-ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" \
@@ -155,10 +145,31 @@ deps: ## Install/update dependencies
 	@cd api && go mod tidy
 	@echo "$(GREEN)✓ Dependencies installed$(RESET)"
 
-fmt: ## Format code
-	@echo "$(BLUE)🎨 Formatting code...$(RESET)"
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
 	@cd api && go fmt ./...
-	@echo "$(GREEN)✓ Format complete$(RESET)"
+	@echo "$(GREEN)✓ Go format complete$(RESET)"
+
+fmt-ui: ## Format UI code (no-op if no UI formatting tool)
+	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
+	@echo "$(YELLOW)ℹ UI formatting not configured$(RESET)"
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		cd api && golangci-lint run ./...; \
+	else \
+		echo "$(YELLOW)ℹ golangci-lint not installed, skipping$(RESET)"; \
+	fi
+	@echo "$(GREEN)✓ Go lint complete$(RESET)"
+
+lint-ui: ## Lint UI code (no-op if no UI linter)
+	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
+	@echo "$(YELLOW)ℹ UI linting not configured$(RESET)"
 
 vet: ## Vet code
 	@echo "$(BLUE)🔍 Vetting code...$(RESET)"
@@ -199,26 +210,26 @@ health: ## Check API health
 docs: ## Show API documentation
 	@echo "$(BLUE)📚 API Endpoints:$(RESET)"
 	@echo ""
-	@echo "$(CYAN)Health & Status:$(RESET)"
+	@echo "$(YELLOW)Health & Status:$(RESET)"
 	@echo "  GET  /api/v1/health                         - Health check"
 	@echo "  GET  /api/v1/status                         - System status"
 	@echo ""
-	@echo "$(CYAN)Templates:$(RESET)"
+	@echo "$(YELLOW)Templates:$(RESET)"
 	@echo "  GET  /api/v1/templates                      - List templates"
 	@echo "  GET  /api/v1/templates/{type}               - Get template details"
 	@echo ""
-	@echo "$(CYAN)Desktop Generation:$(RESET)"
+	@echo "$(YELLOW)Desktop Generation:$(RESET)"
 	@echo "  POST /api/v1/desktop/generate               - Generate desktop app"
 	@echo "  GET  /api/v1/desktop/status/{build_id}      - Get build status"
 	@echo "  POST /api/v1/desktop/build                  - Build desktop app"
 	@echo "  POST /api/v1/desktop/test                   - Test desktop app"
 	@echo "  POST /api/v1/desktop/package                - Package desktop app"
 	@echo ""
-	@echo "$(CYAN)Webhooks:$(RESET)"
+	@echo "$(YELLOW)Webhooks:$(RESET)"
 	@echo "  POST /api/v1/desktop/webhook/build-complete - Build completion webhook"
 
 version: ## Show version info
-	@echo "$(CYAN)Version Information:$(RESET)"
+	@echo "$(YELLOW)Version Information:$(RESET)"
 	@echo "  Version:    $(VERSION)"
 	@echo "  Build Time: $(BUILD_TIME)"
 	@echo "  Go Version: $$(go version | cut -d' ' -f3)"

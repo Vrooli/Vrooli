@@ -1,5 +1,5 @@
 .app {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: #0a0a0a;
@@ -395,4 +395,109 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #00cc00;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 280px;
+  }
+
+  .content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0.75rem 1rem;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .stats {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .main-container {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #00ff00;
+  }
+
+  .search-box {
+    flex-direction: column;
+  }
+
+  .search-btn {
+    width: 100%;
+  }
+
+  .category-select {
+    width: 100%;
+  }
+
+  .algorithm-list {
+    max-height: 40vh;
+  }
+
+  .content {
+    padding: 1.5rem 1rem;
+  }
+
+  .detail-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .visualize-btn {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .ascii-art {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 1rem;
+  }
+
+  .algo-meta {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .algorithm-item {
+    padding: 0.5rem;
+  }
+
+  .detail-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .code-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .language-tabs {
+    width: 100%;
+  }
 }

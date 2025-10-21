@@ -1,4 +1,4 @@
-import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+import { initIframeBridgeChild } from './node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
 
 (function bootstrapIframeBridge() {
     if (typeof window === 'undefined' || window.parent === window || window.__pickerWheelBridgeInitialized) {

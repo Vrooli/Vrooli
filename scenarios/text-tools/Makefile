@@ -1,17 +1,18 @@
 # Scenario Makefile
-# 
+#
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
 #   make       - Show help
-#   make run   - Start this scenario
+#   make start - Start this scenario
+#   make run   - Start this scenario (alias)
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check install setup
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -37,11 +38,13 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
+
+run: start ## Start this scenario (alias for start)
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -132,11 +135,19 @@ check: ## Format, lint, and test code (pre-commit workflow)
 	@$(MAKE) test
 	@echo "$(GREEN)✓ All checks passed!$(RESET)"
 
+install: ## Install dependencies and CLI (alias for setup)
+	@echo "$(BLUE)📦 Installing $(SCENARIO_NAME) dependencies...$(RESET)"
+	@vrooli scenario setup $(SCENARIO_NAME)
+
+setup: ## Setup and initialize scenario
+	@echo "$(BLUE)⚙️  Setting up $(SCENARIO_NAME)...$(RESET)"
+	@vrooli scenario setup $(SCENARIO_NAME)
+
 # ============================================================================
 # Development shortcuts
 # ============================================================================
 
-r: run
+r: start
 s: stop
 d: dev
 t: test

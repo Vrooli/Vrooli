@@ -3,19 +3,67 @@ const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
-const API_PORT = process.env.API_PORT || '16917';
+
+// Fail fast if critical environment variables are missing
+if (!process.env.UI_PORT) {
+    console.error('ERROR: UI_PORT environment variable is required');
+    process.exit(1);
+}
+if (!process.env.API_PORT) {
+    console.error('ERROR: API_PORT environment variable is required');
+    process.exit(1);
+}
+
+const PORT = process.env.UI_PORT;
+const API_PORT = process.env.API_PORT;
 const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
 
 // Serve static files
 
 // Health check endpoint for orchestrator
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        scenario: 'palette-gen',
-        port: PORT,
-        timestamp: new Date().toISOString()
+app.get('/health', async (req, res) => {
+    const timestamp = new Date().toISOString();
+
+    // Check API connectivity
+    let apiConnectivity = {
+        connected: false,
+        api_url: API_URL,
+        last_check: timestamp,
+        error: null,
+        latency_ms: null
+    };
+
+    try {
+        const startTime = Date.now();
+        const response = await fetch(`${API_URL}/health`);
+        const latency = Date.now() - startTime;
+
+        if (response.ok) {
+            apiConnectivity.connected = true;
+            apiConnectivity.latency_ms = latency;
+        } else {
+            apiConnectivity.error = {
+                code: 'API_UNHEALTHY',
+                message: `API returned status ${response.status}`,
+                category: 'resource',
+                retryable: true
+            };
+        }
+    } catch (error) {
+        apiConnectivity.error = {
+            code: 'CONNECTION_FAILED',
+            message: error.message,
+            category: 'network',
+            retryable: true
+        };
+    }
+
+    res.json({
+        status: apiConnectivity.connected ? 'healthy' : 'degraded',
+        service: 'palette-gen-ui',
+        timestamp,
+        readiness: true,
+        api_connectivity: apiConnectivity
     });
 });
 

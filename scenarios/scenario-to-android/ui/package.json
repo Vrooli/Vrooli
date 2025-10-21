@@ -1,0 +1,13 @@
+{
+  "name": "scenario-to-android-ui",
+  "version": "1.0.0",
+  "description": "UI for Scenario to Android builder",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["android", "mobile", "vrooli"],
+  "author": "Vrooli Platform",
+  "license": "MIT"
+}

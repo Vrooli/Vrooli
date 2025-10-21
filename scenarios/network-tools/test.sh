@@ -78,7 +78,7 @@ test_endpoint "Health Check" "GET" "/health" "" "200"
 
 # Test HTTP client endpoint
 test_endpoint "HTTP Client - GET" "POST" "/api/v1/network/http" \
-    '{"url":"https://httpbin.org/get","method":"GET"}' "200"
+    '{"url":"https://httpbingo.org/get","method":"GET"}' "200"
 
 # Test DNS lookup
 test_endpoint "DNS Lookup" "POST" "/api/v1/network/dns" \
@@ -98,7 +98,7 @@ test_endpoint "Port Scan" "POST" "/api/v1/network/scan" \
 
 # Test API testing endpoint
 test_endpoint "API Test" "POST" "/api/v1/network/api/test" \
-    '{"base_url":"https://httpbin.org","test_suite":[{"endpoint":"/get","method":"GET","test_cases":[{"name":"Basic GET","input":{},"expected_status":200}]}]}' "200"
+    '{"base_url":"https://httpbingo.org","test_suite":[{"endpoint":"/get","method":"GET","test_cases":[{"name":"Basic GET","input":{},"expected_status":200}]}]}' "200"
 
 echo ""
 echo "======================================================================"

@@ -9,7 +9,15 @@ readonly CLI_NAME="network-tools"
 readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
-readonly DEFAULT_API_BASE="http://localhost:${API_PORT:-15000}"
+
+# API_PORT must be explicitly set - no hardcoded fallback for security
+if [[ -z "${API_PORT:-}" ]]; then
+    echo "ERROR: API_PORT environment variable must be set" >&2
+    echo "Example: export API_PORT=17124" >&2
+    exit 1
+fi
+
+readonly DEFAULT_API_BASE="http://localhost:${API_PORT}"
 readonly DEFAULT_TOKEN=""
 
 # Colors for output
@@ -646,9 +654,9 @@ Management Commands:
 
 Configuration:
     The CLI stores its configuration in: $CONFIG_FILE
-    
+
     Configure API endpoint:
-        $CLI_NAME configure api_base http://localhost:15000
+        $CLI_NAME configure api_base http://localhost:\$API_PORT
     
     Configure output format (json|table|raw):
         $CLI_NAME configure output_format json
@@ -678,7 +686,7 @@ Examples:
     $CLI_NAME api-test https://api.example.com tests.json
 
 Environment Variables:
-    API_PORT              Override default API port (default: 15000)
+    API_PORT              API port (required, no default)
     NETWORK_TOOLS_FORMAT  Override output format
 
 For more information, visit: https://github.com/Vrooli/Vrooli

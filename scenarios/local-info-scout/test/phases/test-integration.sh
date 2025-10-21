@@ -56,6 +56,16 @@ if [ -z "$SEARCH_RESULT" ]; then
     echo "❌ Search endpoint failed"
     exit 1
 fi
+
+# Verify response structure matches PRD spec (places and sources fields)
+if ! echo "$SEARCH_RESULT" | grep -q '"places"'; then
+    echo "❌ Search response missing 'places' field (PRD contract violation)"
+    exit 1
+fi
+if ! echo "$SEARCH_RESULT" | grep -q '"sources"'; then
+    echo "❌ Search response missing 'sources' field (PRD contract violation)"
+    exit 1
+fi
 echo "✅ Search endpoint working"
 
 # Test place details endpoint

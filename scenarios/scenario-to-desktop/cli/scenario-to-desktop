@@ -7,7 +7,9 @@ set -e  # Exit on error
 
 # Configuration
 CLI_VERSION="1.0.0"
-API_BASE_URL="http://localhost:3202"
+# Use environment variable for API URL, fallback to default port (middle of range 15000-19999)
+API_PORT="${API_PORT:-${PORT:-15200}}"
+API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT}}"
 DEFAULT_OUTPUT_DIR="./desktop-app"
 DEFAULT_FRAMEWORK="electron"
 DEFAULT_TEMPLATE="basic"
@@ -152,7 +154,7 @@ COMMANDS:
 GLOBAL OPTIONS:
     --verbose, -v       Enable verbose output
     --json             Output in JSON format (where applicable)
-    --api-url <url>    API base URL (default: http://localhost:3202)
+    --api-url <url>    API base URL (default: http://localhost:${API_PORT})
     --help, -h         Show help for specific command
 
 EXAMPLES:
@@ -259,9 +261,9 @@ cmd_templates() {
   Description: \(.description)
   Framework: \(.framework)
   Complexity: \(.complexity)
-  Use cases: \(.use_cases | join(\", \"))
-  Features: \(.features | join(\", \"))
-  Examples: \(.examples | join(\", \"))
+  Use cases: \(.use_cases | join(", "))
+  Features: \(.features | join(", "))
+  Examples: \(.examples | join(", "))
 "'
     fi
 }

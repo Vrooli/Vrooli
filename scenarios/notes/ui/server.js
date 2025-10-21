@@ -3,8 +3,21 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
+
+// Port configuration - REQUIRED, no defaults
 const PORT = process.env.UI_PORT || process.env.PORT;
-const API_PORT = process.env.API_PORT || '8950';
+if (!PORT) {
+    console.error('❌ UI_PORT or PORT environment variable is required');
+    process.exit(1);
+}
+
+// API configuration - REQUIRED
+const API_PORT = process.env.API_PORT;
+if (!API_PORT) {
+    console.error('❌ API_PORT environment variable is required');
+    process.exit(1);
+}
+
 const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
 
 // Enable CORS

@@ -31,7 +31,7 @@ OPTIMIZE=false
 print_color() {
     local color=$1
     shift
-    echo -e "${color}$@${NC}"
+    echo -e "${color}$*${NC}"
 }
 
 # Function to show usage
@@ -98,7 +98,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            print_color $RED "Unknown option: $1"
+            print_color "$RED" "Unknown option: $1"
             show_usage
             exit 1
             ;;
@@ -107,7 +107,7 @@ done
 
 # Validate required arguments
 if [ -z "$SCENARIO_NAME" ]; then
-    print_color $RED "Error: --scenario is required"
+    print_color "$RED" "Error: --scenario is required"
     show_usage
     exit 1
 fi
@@ -118,7 +118,7 @@ if [ ! -d "$SCENARIO_PATH" ]; then
     # Try absolute path
     SCENARIO_PATH="/home/matthalloran8/Vrooli/scenarios/${SCENARIO_NAME}"
     if [ ! -d "$SCENARIO_PATH" ]; then
-        print_color $RED "Error: Scenario '${SCENARIO_NAME}' not found"
+        print_color "$RED" "Error: Scenario '${SCENARIO_NAME}' not found"
         exit 1
     fi
 fi
@@ -142,23 +142,23 @@ fi
 # Validate signing configuration
 if $SIGN_APK; then
     if [ -z "$KEYSTORE_PATH" ] || [ -z "$KEY_ALIAS" ]; then
-        print_color $RED "Error: --keystore and --key-alias are required when using --sign"
+        print_color "$RED" "Error: --keystore and --key-alias are required when using --sign"
         exit 1
     fi
     if [ ! -f "$KEYSTORE_PATH" ]; then
-        print_color $RED "Error: Keystore file not found: $KEYSTORE_PATH"
+        print_color "$RED" "Error: Keystore file not found: $KEYSTORE_PATH"
         exit 1
     fi
 fi
 
-print_color $BLUE "========================================="
-print_color $BLUE "   Scenario to Android Converter"
-print_color $BLUE "========================================="
+print_color "$BLUE" "========================================="
+print_color "$BLUE" "   Scenario to Android Converter"
+print_color "$BLUE" "========================================="
 echo ""
-print_color $GREEN "Scenario: $SCENARIO_NAME"
-print_color $GREEN "App Name: $APP_NAME"
-print_color $GREEN "Version: $VERSION_NAME (code: $VERSION_CODE)"
-print_color $GREEN "Package: com.vrooli.scenario.$PACKAGE_SUFFIX"
+print_color "$GREEN" "Scenario: $SCENARIO_NAME"
+print_color "$GREEN" "App Name: $APP_NAME"
+print_color "$GREEN" "Version: $VERSION_NAME (code: $VERSION_CODE)"
+print_color "$GREEN" "Package: com.vrooli.scenario.$PACKAGE_SUFFIX"
 echo ""
 
 # Create output directory
@@ -166,7 +166,7 @@ PROJECT_DIR="${OUTPUT_DIR}/${SCENARIO_NAME}-android"
 rm -rf "$PROJECT_DIR"
 mkdir -p "$PROJECT_DIR"
 
-print_color $YELLOW "→ Copying Android template..."
+print_color "$YELLOW" "→ Copying Android template..."
 cp -r "$TEMPLATES_DIR"/* "$PROJECT_DIR/"
 
 # Function to replace template variables
@@ -175,7 +175,10 @@ replace_vars() {
     
     # Create temporary file for replacements
     local temp_file="${file}.tmp"
-    
+
+    # Allow API_URL override via environment variable or use default
+    local api_url="${API_URL:-http://localhost:8080}"
+
     # Perform replacements
     sed -e "s/{{SCENARIO_NAME}}/${SCENARIO_NAME}/g" \
         -e "s/{{SCENARIO_NAME_PACKAGE}}/${PACKAGE_SUFFIX}/g" \
@@ -183,7 +186,7 @@ replace_vars() {
         -e "s/{{VERSION_NAME}}/${VERSION_NAME}/g" \
         -e "s/{{VERSION_CODE}}/${VERSION_CODE}/g" \
         -e "s/{{THEME_COLOR}}/2196F3/g" \
-        -e "s/{{API_URL}}/http:\/\/localhost:8080/g" \
+        -e "s|{{API_URL}}|${api_url}|g" \
         -e "s/{{OFFLINE_MODE}}/true/g" \
         -e "s/{{ENABLE_ABI_SPLIT}}/false/g" \
         -e "s/{{ABI_FILTERS}}/\"arm64-v8a\", \"armeabi-v7a\"/g" \
@@ -196,15 +199,15 @@ replace_vars() {
     mv "$temp_file" "$file"
 }
 
-print_color $YELLOW "→ Processing template files..."
+print_color "$YELLOW" "→ Processing template files..."
 
 # Process all template files
-find "$PROJECT_DIR" -type f \( -name "*.kt" -o -name "*.java" -o -name "*.xml" -o -name "*.gradle" -o -name "*.html" \) | while read file; do
+find "$PROJECT_DIR" -type f \( -name "*.kt" -o -name "*.java" -o -name "*.xml" -o -name "*.gradle" -o -name "*.html" \) | while read -r file; do
     replace_vars "$file"
 done
 
 # Copy scenario UI files to assets
-print_color $YELLOW "→ Copying scenario UI files..."
+print_color "$YELLOW" "→ Copying scenario UI files..."
 SCENARIO_UI_DIR="${SCENARIO_PATH}/ui"
 if [ -d "$SCENARIO_UI_DIR" ]; then
     # Create assets directory structure
@@ -216,21 +219,21 @@ if [ -d "$SCENARIO_UI_DIR" ]; then
     
     # Check for index.html
     if [ ! -f "$ASSETS_DIR/index.html" ]; then
-        print_color $YELLOW "  Note: No index.html found in scenario UI, using template"
+        print_color "$YELLOW" "  Note: No index.html found in scenario UI, using template"
     fi
 else
-    print_color $YELLOW "  Warning: No UI directory found in scenario"
+    print_color "$YELLOW" "  Warning: No UI directory found in scenario"
 fi
 
 # Copy scenario data/config if exists
 SCENARIO_DATA_DIR="${SCENARIO_PATH}/data"
 if [ -d "$SCENARIO_DATA_DIR" ]; then
-    print_color $YELLOW "→ Copying scenario data..."
+    print_color "$YELLOW" "→ Copying scenario data..."
     cp -r "$SCENARIO_DATA_DIR" "$ASSETS_DIR/data" 2>/dev/null || true
 fi
 
 # Generate gradle.properties
-print_color $YELLOW "→ Generating gradle configuration..."
+print_color "$YELLOW" "→ Generating gradle configuration..."
 cat > "$PROJECT_DIR/gradle.properties" << EOF
 # Project-wide Gradle settings.
 org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
@@ -253,7 +256,7 @@ fi
 
 # Add signing configuration if requested
 if $SIGN_APK; then
-    print_color $YELLOW "→ Configuring APK signing..."
+    print_color "$YELLOW" "→ Configuring APK signing..."
     
     # Copy keystore to project
     cp "$KEYSTORE_PATH" "$PROJECT_DIR/keystore.jks"
@@ -265,11 +268,11 @@ if $SIGN_APK; then
     
     # Prompt for passwords if not in environment
     if [ -z "$KEYSTORE_PASSWORD" ]; then
-        read -sp "Enter keystore password: " KEYSTORE_PASSWORD
+        read -rsp "Enter keystore password: " KEYSTORE_PASSWORD
         echo
     fi
     if [ -z "$KEY_PASSWORD" ]; then
-        read -sp "Enter key password: " KEY_PASSWORD
+        read -rsp "Enter key password: " KEY_PASSWORD
         echo
     fi
     
@@ -279,7 +282,7 @@ if $SIGN_APK; then
 fi
 
 # Create gradlew wrapper
-print_color $YELLOW "→ Setting up Gradle wrapper..."
+print_color "$YELLOW" "→ Setting up Gradle wrapper..."
 cd "$PROJECT_DIR"
 if command -v gradle &> /dev/null; then
     gradle wrapper --gradle-version=8.2 --distribution-type=all &> /dev/null || true
@@ -295,7 +298,7 @@ fi
 
 # Check if we can build
 if command -v $GRADLE_CMD &> /dev/null || [ -f "./gradlew" ]; then
-    print_color $YELLOW "→ Building Android APK..."
+    print_color "$YELLOW" "→ Building Android APK..."
     
     BUILD_TYPE="assembleDebug"
     if $SIGN_APK; then
@@ -309,7 +312,7 @@ if command -v $GRADLE_CMD &> /dev/null || [ -f "./gradlew" ]; then
     
     # Attempt to build
     if $GRADLE_CMD $BUILD_TYPE; then
-        print_color $GREEN "✓ Build successful!"
+        print_color "$GREEN" "✓ Build successful!"
         
         # Find the generated APK
         APK_PATH=$(find "$PROJECT_DIR/app/build/outputs/apk" -name "*.apk" -type f | head -1)
@@ -318,53 +321,53 @@ if command -v $GRADLE_CMD &> /dev/null || [ -f "./gradlew" ]; then
             FINAL_APK="${OUTPUT_DIR}/${APK_NAME}"
             cp "$APK_PATH" "$FINAL_APK"
             
-            print_color $GREEN ""
-            print_color $GREEN "========================================="
-            print_color $GREEN "   Conversion Complete!"
-            print_color $GREEN "========================================="
-            print_color $GREEN "APK Location: $FINAL_APK"
-            print_color $GREEN "Project Location: $PROJECT_DIR"
+            print_color "$GREEN" ""
+            print_color "$GREEN" "========================================="
+            print_color "$GREEN" "   Conversion Complete!"
+            print_color "$GREEN" "========================================="
+            print_color "$GREEN" "APK Location: $FINAL_APK"
+            print_color "$GREEN" "Project Location: $PROJECT_DIR"
             
             # Show APK info
             if command -v aapt &> /dev/null; then
-                print_color $BLUE ""
-                print_color $BLUE "APK Information:"
+                print_color "$BLUE" ""
+                print_color "$BLUE" "APK Information:"
                 aapt dump badging "$FINAL_APK" | grep -E "package:|application-label:|launchable-activity:" | head -3
             fi
             
-            print_color $YELLOW ""
-            print_color $YELLOW "To install on device:"
-            print_color $YELLOW "  adb install $FINAL_APK"
-            print_color $YELLOW ""
-            print_color $YELLOW "To test in emulator:"
-            print_color $YELLOW "  emulator -avd <AVD_NAME>"
-            print_color $YELLOW "  adb install $FINAL_APK"
+            print_color "$YELLOW" ""
+            print_color "$YELLOW" "To install on device:"
+            print_color "$YELLOW" "  adb install $FINAL_APK"
+            print_color "$YELLOW" ""
+            print_color "$YELLOW" "To test in emulator:"
+            print_color "$YELLOW" "  emulator -avd <AVD_NAME>"
+            print_color "$YELLOW" "  adb install $FINAL_APK"
         else
-            print_color $YELLOW "Warning: APK built but not found in expected location"
+            print_color "$YELLOW" "Warning: APK built but not found in expected location"
         fi
     else
-        print_color $RED "✗ Build failed. Check the error messages above."
-        print_color $YELLOW "Project created at: $PROJECT_DIR"
-        print_color $YELLOW "You can manually build it with Android Studio"
+        print_color "$RED" "✗ Build failed. Check the error messages above."
+        print_color "$YELLOW" "Project created at: $PROJECT_DIR"
+        print_color "$YELLOW" "You can manually build it with Android Studio"
     fi
 else
-    print_color $YELLOW "→ Gradle not found. Skipping build step."
-    print_color $GREEN ""
-    print_color $GREEN "========================================="
-    print_color $GREEN "   Project Created Successfully!"
-    print_color $GREEN "========================================="
-    print_color $GREEN "Project Location: $PROJECT_DIR"
-    print_color $YELLOW ""
-    print_color $YELLOW "To build the APK:"
-    print_color $YELLOW "  1. Install Android Studio"
-    print_color $YELLOW "  2. Open project: $PROJECT_DIR"
-    print_color $YELLOW "  3. Build → Build APK"
+    print_color "$YELLOW" "→ Gradle not found. Skipping build step."
+    print_color "$GREEN" ""
+    print_color "$GREEN" "========================================="
+    print_color "$GREEN" "   Project Created Successfully!"
+    print_color "$GREEN" "========================================="
+    print_color "$GREEN" "Project Location: $PROJECT_DIR"
+    print_color "$YELLOW" ""
+    print_color "$YELLOW" "To build the APK:"
+    print_color "$YELLOW" "  1. Install Android Studio"
+    print_color "$YELLOW" "  2. Open project: $PROJECT_DIR"
+    print_color "$YELLOW" "  3. Build → Build APK"
 fi
 
-print_color $BLUE ""
-print_color $BLUE "Next steps:"
-print_color $BLUE "  - Test the app on various Android devices"
-print_color $BLUE "  - Customize the UI and features as needed"
-print_color $BLUE "  - Prepare for Google Play Store submission"
+print_color "$BLUE" ""
+print_color "$BLUE" "Next steps:"
+print_color "$BLUE" "  - Test the app on various Android devices"
+print_color "$BLUE" "  - Customize the UI and features as needed"
+print_color "$BLUE" "  - Prepare for Google Play Store submission"
 
 exit 0

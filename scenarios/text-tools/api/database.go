@@ -40,24 +40,8 @@ type DatabaseConnection struct {
 
 // NewDatabaseConfig creates a new database configuration from environment
 func NewDatabaseConfig() *DatabaseConfig {
-	// Try multiple possible environment variables
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = os.Getenv("POSTGRES_URL")
-	}
-	if dbURL == "" && os.Getenv("POSTGRES_HOST") != "" {
-		// Construct URL from individual components
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-			os.Getenv("POSTGRES_USER"),
-			os.Getenv("POSTGRES_PASSWORD"),
-			os.Getenv("POSTGRES_HOST"),
-			os.Getenv("POSTGRES_PORT"),
-			os.Getenv("POSTGRES_DB"),
-			os.Getenv("POSTGRES_SSLMODE"))
-	}
-	
 	return &DatabaseConfig{
-		URL:             dbURL,
+		URL:             os.Getenv("DATABASE_URL"),
 		MaxOpenConns:    25,
 		MaxIdleConns:    5,
 		ConnMaxLifetime: 5 * time.Minute,

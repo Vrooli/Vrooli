@@ -600,6 +600,7 @@ func TestProcessJob(t *testing.T) {
 
 	// Create a test HTTP server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`<html><h1>Test</h1></html>`))
 	}))

@@ -27,6 +27,11 @@
       "env_var": "API_PORT",
       "description": "Main coordination API port",
       "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Metareasoning dashboard port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -84,7 +89,8 @@
     "health": {
       "description": "Agent Metareasoning Manager health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -92,6 +98,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -161,8 +175,17 @@
           }
         },
         {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start proxy-aware metareasoning dashboard",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:$API_PORT/reasoning\\n  API: http://localhost:$API_PORT\\n  CLI: agent-metareasoning-manager --help\\n\\nReasoning endpoints:\\n  POST /reasoning/pros-cons\\n  POST /reasoning/swot\\n  POST /reasoning/risk-assessment\\n  POST /reasoning/self-review\\n  POST /reasoning/chain'",
+          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:$API_PORT/reasoning\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:${UI_PORT}\\n  CLI: agent-metareasoning-manager --help\\n\\nReasoning endpoints:\\n  POST /reasoning/pros-cons\\n  POST /reasoning/swot\\n  POST /reasoning/risk-assessment\\n  POST /reasoning/self-review\\n  POST /reasoning/chain'",
           "description": "Display all running service URLs"
         }
       ]
@@ -213,7 +236,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "true",
+          "run": "pkill -f \"agent-metareasoning-manager/ui/server.js\" || true",
           "description": "Stop UI process"
         }
       ]

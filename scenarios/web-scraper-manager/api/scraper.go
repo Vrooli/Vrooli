@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -84,40 +83,49 @@ func NewScraperOrchestrator(db *sql.DB) *ScraperOrchestrator {
 
 // Start begins the scraper orchestrator
 func (so *ScraperOrchestrator) Start() error {
-	log.Println("Starting scraper orchestrator...")
-	
+	logInfo("Starting scraper orchestrator", map[string]interface{}{
+		"component": "scraper_orchestrator",
+	})
+
 	// Start worker pool
 	for i := 0; i < so.workers; i++ {
 		so.wg.Add(1)
 		go so.worker()
 	}
-	
+
 	// Start scheduled job processor
 	go so.processScheduledJobs()
-	
+
 	// Start retry processor
 	go so.processRetries()
-	
-	log.Printf("Scraper orchestrator started with %d workers", so.workers)
+
+	logInfo("Scraper orchestrator started", map[string]interface{}{
+		"component": "scraper_orchestrator",
+		"workers": so.workers,
+	})
 	return nil
 }
 
 // Stop gracefully shuts down the orchestrator
 func (so *ScraperOrchestrator) Stop() {
-	log.Println("Stopping scraper orchestrator...")
-	
+	logInfo("Stopping scraper orchestrator", map[string]interface{}{
+		"component": "scraper_orchestrator",
+	})
+
 	so.cancel()
 	close(so.jobs)
 	so.wg.Wait()
-	
+
 	// Clean up rate limiters
 	so.mu.Lock()
 	for _, ticker := range so.rateLimiter {
 		ticker.Stop()
 	}
 	so.mu.Unlock()
-	
-	log.Println("Scraper orchestrator stopped")
+
+	logInfo("Scraper orchestrator stopped", map[string]interface{}{
+		"component": "scraper_orchestrator",
+	})
 }
 
 // SubmitJob adds a new scraping job to the queue
@@ -134,7 +142,11 @@ func (so *ScraperOrchestrator) SubmitJob(job *ScrapeJob) error {
 	// Add to queue
 	select {
 	case so.jobs <- job:
-		log.Printf("Job %s submitted for URL: %s", job.ID, job.URL)
+		logInfo("Job submitted", map[string]interface{}{
+			"component": "scraper_orchestrator",
+			"job_id": job.ID,
+			"url": job.URL,
+		})
 		return nil
 	case <-time.After(5 * time.Second):
 		return fmt.Errorf("job queue is full")
@@ -152,8 +164,12 @@ func (so *ScraperOrchestrator) worker() {
 
 // processJob executes a scraping job
 func (so *ScraperOrchestrator) processJob(job *ScrapeJob) {
-	log.Printf("Processing job %s for URL: %s", job.ID, job.URL)
-	
+	logInfo("Processing job", map[string]interface{}{
+		"component": "scraper_orchestrator",
+		"job_id": job.ID,
+		"url": job.URL,
+	})
+
 	// Apply rate limiting
 	so.applyRateLimit(job.URL)
 	
@@ -178,7 +194,11 @@ func (so *ScraperOrchestrator) processJob(job *ScrapeJob) {
 	
 	if err != nil {
 		// Handle failure
-		log.Printf("Job %s failed: %v", job.ID, err)
+		logError("Job failed", map[string]interface{}{
+			"component": "scraper_orchestrator",
+			"job_id": job.ID,
+			"error": err.Error(),
+		})
 		result = &ScrapeResult{
 			JobID:     job.ID,
 			URL:       job.URL,
@@ -479,7 +499,10 @@ func (so *ScraperOrchestrator) checkScheduledJobs() {
 	
 	rows, err := so.db.Query(query)
 	if err != nil {
-		log.Printf("Failed to query scheduled jobs: %v", err)
+		logError("Failed to query scheduled jobs", map[string]interface{}{
+			"component": "scraper_orchestrator",
+			"error": err.Error(),
+		})
 		return
 	}
 	defer rows.Close()
@@ -574,7 +597,12 @@ func (so *ScraperOrchestrator) checkRetries() {
 		// Queue for retry
 		select {
 		case so.jobs <- &job:
-			log.Printf("Retrying job %s (attempt %d/%d)", job.ID, job.RetryCount, job.MaxRetries)
+			logInfo("Retrying job", map[string]interface{}{
+				"component": "scraper_orchestrator",
+				"job_id": job.ID,
+				"attempt": job.RetryCount,
+				"max_retries": job.MaxRetries,
+			})
 		default:
 		}
 	}

@@ -18,48 +18,48 @@ import (
 
 // Configuration
 type Config struct {
-	Port              int    `json:"port"`
-	APIEndpoint       string `json:"api_endpoint"`
-	TemplatesPath     string `json:"templates_path"`
-	OutputPath        string `json:"output_path"`
-	BrowserlessURL    string `json:"browserless_url"`
-	PostgresURL       string `json:"postgres_url"`
-	RedisURL          string `json:"redis_url"`
-	Debug             bool   `json:"debug"`
+	Port           int    `json:"port"`
+	APIEndpoint    string `json:"api_endpoint"`
+	TemplatesPath  string `json:"templates_path"`
+	OutputPath     string `json:"output_path"`
+	BrowserlessURL string `json:"browserless_url"`
+	PostgresURL    string `json:"postgres_url"`
+	RedisURL       string `json:"redis_url"`
+	Debug          bool   `json:"debug"`
 }
 
 // Extension generation request
 type ExtensionGenerateRequest struct {
-	ScenarioName string            `json:"scenario_name"`
-	TemplateType string            `json:"template_type"`
-	Config       ExtensionConfig   `json:"config"`
+	ScenarioName string          `json:"scenario_name"`
+	TemplateType string          `json:"template_type"`
+	Config       ExtensionConfig `json:"config"`
 }
 
 // Extension configuration
 type ExtensionConfig struct {
-	AppName           string            `json:"app_name"`
-	Description       string            `json:"app_description"`
-	APIEndpoint       string            `json:"api_endpoint"`
-	Permissions       []string          `json:"permissions"`
-	HostPermissions   []string          `json:"host_permissions"`
-	Version           string            `json:"version"`
-	AuthorName        string            `json:"author_name"`
-	License           string            `json:"license"`
-	CustomVariables   map[string]interface{} `json:"custom_variables"`
+	AppName         string                 `json:"app_name"`
+	Description     string                 `json:"app_description"`
+	APIEndpoint     string                 `json:"api_endpoint"`
+	Permissions     []string               `json:"permissions"`
+	HostPermissions []string               `json:"host_permissions"`
+	Version         string                 `json:"version"`
+	AuthorName      string                 `json:"author_name"`
+	License         string                 `json:"license"`
+	CustomVariables map[string]interface{} `json:"custom_variables"`
 }
 
 // Extension build info
 type ExtensionBuild struct {
-	BuildID            string            `json:"build_id"`
-	ScenarioName       string            `json:"scenario_name"`
-	TemplateType       string            `json:"template_type"`
-	Config             ExtensionConfig   `json:"config"`
-	Status             string            `json:"status"` // building, ready, failed
-	ExtensionPath      string            `json:"extension_path"`
-	BuildLog           []string          `json:"build_log"`
-	ErrorLog           []string          `json:"error_log"`
-	CreatedAt          time.Time         `json:"created_at"`
-	CompletedAt        *time.Time        `json:"completed_at"`
+	BuildID       string          `json:"build_id"`
+	ScenarioName  string          `json:"scenario_name"`
+	TemplateType  string          `json:"template_type"`
+	Config        ExtensionConfig `json:"config"`
+	Status        string          `json:"status"` // building, ready, failed
+	ExtensionPath string          `json:"extension_path"`
+	BuildLog      []string        `json:"build_log"`
+	ErrorLog      []string        `json:"error_log"`
+	CreatedAt     time.Time       `json:"created_at"`
+	CompletedAt   *time.Time      `json:"completed_at"`
 }
 
 // Extension test request
@@ -72,10 +72,10 @@ type ExtensionTestRequest struct {
 
 // Extension test result
 type ExtensionTestResult struct {
-	Success     bool                    `json:"success"`
-	TestResults []ExtensionSiteResult   `json:"test_results"`
-	Summary     ExtensionTestSummary    `json:"summary"`
-	ReportTime  time.Time               `json:"report_time"`
+	Success     bool                  `json:"success"`
+	TestResults []ExtensionSiteResult `json:"test_results"`
+	Summary     ExtensionTestSummary  `json:"summary"`
+	ReportTime  time.Time             `json:"report_time"`
 }
 
 type ExtensionSiteResult struct {
@@ -95,9 +95,9 @@ type ExtensionTestSummary struct {
 
 // Global state
 var (
-	config     *Config
-	builds     map[string]*ExtensionBuild
-	buildsMux  sync.RWMutex
+	config    *Config
+	builds    map[string]*ExtensionBuild
+	buildsMux sync.RWMutex
 )
 
 func main() {
@@ -149,22 +149,28 @@ func main() {
 	log.Printf("scenario-to-extension API starting on port %d", config.Port)
 	log.Printf("Templates path: %s", config.TemplatesPath)
 	log.Printf("Output path: %s", config.OutputPath)
-	
+
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Port), handler))
 }
 
 func loadConfig() *Config {
+	// Note: API runs from api/ directory, so templates are one level up
 	config := &Config{
-		Port:              3201,
-		APIEndpoint:       "http://localhost:3201",
-		TemplatesPath:     "./templates",
-		OutputPath:        "./data/extensions",
-		BrowserlessURL:    "http://localhost:3000",
-		Debug:             os.Getenv("DEBUG") == "true",
+		Port:           3201,
+		APIEndpoint:    "http://localhost:3201",
+		TemplatesPath:  "../templates",
+		OutputPath:     "./data/extensions",
+		BrowserlessURL: "http://localhost:3000",
+		Debug:          os.Getenv("DEBUG") == "true",
 	}
 
 	// Override with environment variables
-	if port := os.Getenv("PORT"); port != "" {
+	// Try API_PORT first (lifecycle system), then PORT (fallback)
+	if port := os.Getenv("API_PORT"); port != "" {
+		if p, err := strconv.Atoi(port); err == nil {
+			config.Port = p
+		}
+	} else if port := os.Getenv("PORT"); port != "" {
 		if p, err := strconv.Atoi(port); err == nil {
 			config.Port = p
 		}
@@ -194,10 +200,12 @@ func loadConfig() *Config {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
-		"status":      "healthy",
-		"version":     "1.0.0",
-		"scenario":    "scenario-to-extension",
-		"timestamp":   time.Now(),
+		"status":    "healthy",
+		"service":   "scenario-to-extension-api",
+		"version":   "1.0.0",
+		"scenario":  "scenario-to-extension",
+		"timestamp": time.Now(),
+		"readiness": true,
 		"resources": map[string]interface{}{
 			"browserless": checkBrowserlessHealth(),
 			"templates":   checkTemplatesHealth(),
@@ -260,18 +268,18 @@ func generateExtensionHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Generate build ID
 	buildID := generateBuildID()
-	
+
 	// Create build record
 	build := &ExtensionBuild{
-		BuildID:      buildID,
-		ScenarioName: req.ScenarioName,
-		TemplateType: req.TemplateType,
-		Config:       req.Config,
-		Status:       "building",
+		BuildID:       buildID,
+		ScenarioName:  req.ScenarioName,
+		TemplateType:  req.TemplateType,
+		Config:        req.Config,
+		Status:        "building",
 		ExtensionPath: filepath.Join(config.OutputPath, req.ScenarioName, "platforms", "extension"),
-		BuildLog:     []string{},
-		ErrorLog:     []string{},
-		CreatedAt:    time.Now(),
+		BuildLog:      []string{},
+		ErrorLog:      []string{},
+		CreatedAt:     time.Now(),
 	}
 
 	buildsMux.Lock()
@@ -356,7 +364,7 @@ func testExtensionHandler(w http.ResponseWriter, r *http.Request) {
 
 func listTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 	templates := listAvailableTemplates()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"templates": templates,
@@ -371,7 +379,7 @@ func listBuildsHandler(w http.ResponseWriter, r *http.Request) {
 		buildList = append(buildList, build)
 	}
 	buildsMux.RUnlock()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"builds": buildList,
@@ -485,7 +493,7 @@ func copyAndProcessTemplates(templatePath, outputPath string, build *ExtensionBu
 	// 2. Replacing {{VARIABLES}} with actual values from build.Config
 	// 3. Writing processed files to output directory
 	// 4. Handling different template types (full, content-script-only, etc.)
-	
+
 	build.BuildLog = append(build.BuildLog, "Template processing would happen here")
 	return nil
 }
@@ -531,7 +539,7 @@ func testExtension(req *ExtensionTestRequest) *ExtensionTestResult {
 	successRate := float64(passed) / float64(total) * 100
 
 	return &ExtensionTestResult{
-		Success: passed == total,
+		Success:     passed == total,
 		TestResults: results,
 		Summary: ExtensionTestSummary{
 			TotalTests:  total,
@@ -546,28 +554,28 @@ func testExtension(req *ExtensionTestRequest) *ExtensionTestResult {
 func listAvailableTemplates() []map[string]interface{} {
 	templates := []map[string]interface{}{
 		{
-			"name":        "full",
+			"name":         "full",
 			"display_name": "Full Extension",
-			"description": "Complete extension with background, content scripts, and popup",
-			"files":       []string{"manifest.json", "background.js", "content.js", "popup.html", "popup.js"},
+			"description":  "Complete extension with background, content scripts, and popup",
+			"files":        []string{"manifest.json", "background.js", "content.js", "popup.html", "popup.js"},
 		},
 		{
-			"name":        "content-script-only",
+			"name":         "content-script-only",
 			"display_name": "Content Script Only",
-			"description": "Extension that only injects content scripts into web pages",
-			"files":       []string{"manifest.json", "content.js"},
+			"description":  "Extension that only injects content scripts into web pages",
+			"files":        []string{"manifest.json", "content.js"},
 		},
 		{
-			"name":        "background-only",
+			"name":         "background-only",
 			"display_name": "Background Only",
-			"description": "Extension with only a background service worker",
-			"files":       []string{"manifest.json", "background.js"},
+			"description":  "Extension with only a background service worker",
+			"files":        []string{"manifest.json", "background.js"},
 		},
 		{
-			"name":        "popup-only",
+			"name":         "popup-only",
 			"display_name": "Popup Only",
-			"description": "Extension with only a popup UI",
-			"files":       []string{"manifest.json", "popup.html", "popup.js"},
+			"description":  "Extension with only a popup UI",
+			"files":        []string{"manifest.json", "popup.html", "popup.js"},
 		},
 	}
 

@@ -1,8 +1,21 @@
 const express = require('express');
 const path = require('path');
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
-const API_PORT = process.env.API_PORT || '17320';
+
+// Environment variables must be explicitly set - fail fast if missing
+const PORT = process.env.UI_PORT;
+if (!PORT) {
+    console.error('❌ Error: UI_PORT environment variable is required');
+    console.error('💡 This service must be run through the Vrooli lifecycle system.');
+    console.error('   Use: vrooli scenario start qr-code-generator');
+    process.exit(1);
+}
+
+const API_PORT = process.env.API_PORT;
+if (!API_PORT) {
+    console.error('❌ Error: API_PORT environment variable is required');
+    process.exit(1);
+}
 
 // Serve static files
 app.use(express.static(__dirname));

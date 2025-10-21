@@ -377,6 +377,34 @@
     "homepage": "https://vrooli.com/scenarios/scenario-to-android"
    },
     "lifecycle": {
+      "health": {
+        "description": "Scenario to Android health check configuration",
+        "endpoints": {
+          "api": "/health",
+          "ui": "/health"
+        },
+        "checks": [
+          {
+            "name": "api_endpoint",
+            "type": "http",
+            "target": "http://localhost:${API_PORT}/health",
+            "critical": true,
+            "timeout": 5000,
+            "interval": 30000
+          },
+          {
+            "name": "ui_endpoint",
+            "type": "http",
+            "target": "http://localhost:${UI_PORT}/health",
+            "critical": false,
+            "timeout": 3000,
+            "interval": 45000
+          }
+        ],
+        "timeout": 5000,
+        "interval": 30000,
+        "startup_grace_period": 10000
+      },
       "setup": {
         "description": "Initialize scenario-to-android",
         "condition": {
@@ -384,7 +412,7 @@
              {
                "type": "binaries",
                "targets": [
-                 "scenario-to-android-api"
+                 "api/scenario-to-android-api"
                ]
              },
              {

@@ -171,12 +171,22 @@ func TestHealthHandlerDatabase(t *testing.T) {
 			t.Fatalf("Failed to decode health response: %v", err)
 		}
 
-		if health["database"] != "not_configured" {
-			t.Errorf("Expected database status 'not_configured', got: %v", health["database"])
+		// New health schema returns status="degraded" when DB not configured
+		if health["status"] != "degraded" {
+			t.Errorf("Expected overall status 'degraded' (no database), got: %v", health["status"])
 		}
 
-		if health["status"] != "healthy" {
-			t.Errorf("Expected overall status 'healthy', got: %v", health["status"])
+		// Check dependencies.database structure
+		if deps, ok := health["dependencies"].(map[string]interface{}); ok {
+			if dbInfo, ok := deps["database"].(map[string]interface{}); ok {
+				if connected, ok := dbInfo["connected"].(bool); !ok || connected {
+					t.Error("Expected database.connected=false when no database")
+				}
+			} else {
+				t.Error("Expected dependencies.database in health response")
+			}
+		} else {
+			t.Error("Expected dependencies in health response")
 		}
 	})
 }

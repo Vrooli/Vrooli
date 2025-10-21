@@ -268,7 +268,7 @@ func TestGenerateDesktopPerformance(t *testing.T) {
 	})
 
 	t.Run("ConcurrentGeneration", func(t *testing.T) {
-		requestCount := 10
+		requestCount := 12 // Changed to 12 so it divides evenly by 3 workers
 		concurrency := 3
 
 		var wg sync.WaitGroup

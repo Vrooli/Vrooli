@@ -22,9 +22,9 @@ scenario-to-desktop/
 ├── 📄 PRD.md                          # Product Requirements Document
 ├── 📄 README.md                       # This documentation
 ├── ⚙️  .vrooli/service.json           # Service configuration
-├── 🔧 api/                           # Go API server (port 3202)
+├── 🔧 api/                           # Go API server (dynamic port 15000-19999)
 ├── 💻 cli/                           # Command-line interface
-├── 🌐 ui/                            # Web management interface (port 3203)
+├── 🌐 ui/                            # Web management interface (dynamic port 35000-39999)
 ├── 🎨 templates/                     # Desktop app templates
 │   ├── vanilla/                     # Base Electron templates
 │   ├── advanced/                    # Specialized template configurations
@@ -258,12 +258,14 @@ scenario-to-desktop package <path>          # Package for distribution
 
 ## 🌍 Web Interface
 
-Access the web management interface at `http://localhost:3203`:
+Access the web management interface via the dynamically allocated UI port. Check the port with `vrooli scenario status scenario-to-desktop`:
 
 - **🎛️ Generation Dashboard**: Visual template selection and configuration
 - **📊 Build Monitoring**: Real-time build status and logs
 - **📋 Template Browser**: Explore available templates and features
 - **📈 System Statistics**: Build success rates and usage metrics
+
+**Example**: If UI_PORT is allocated as 39689, access at `http://localhost:39689`
 
 ## 🔄 Integration & Automation
 
@@ -290,16 +292,16 @@ scenario-to-desktop enhances these scenarios:
 ### Environment Variables
 ```bash
 # API Configuration
-PORT=3202                    # API server port
-API_BASE_URL=http://localhost:3202
+API_PORT=${API_PORT}              # API server port (allocated from range 15000-19999)
+API_BASE_URL=http://localhost:${API_PORT}
 
-# UI Configuration  
-UI_PORT=3203                # Web interface port
-NODE_ENV=production         # Environment mode
+# UI Configuration
+UI_PORT=${UI_PORT}                # Web interface port (allocated from range 35000-39999)
+NODE_ENV=production               # Environment mode
 
 # Build Configuration
-DESKTOP_BUILD_TIMEOUT=600000    # Build timeout (ms)
-BROWSERLESS_URL=http://localhost:3000  # Testing service
+DESKTOP_BUILD_TIMEOUT=600000      # Build timeout (ms)
+BROWSERLESS_URL=http://localhost:3000  # Testing service (if browserless resource enabled)
 ```
 
 ### Service Configuration (`.vrooli/service.json`)
@@ -307,10 +309,17 @@ BROWSERLESS_URL=http://localhost:3000  # Testing service
 {
   "name": "scenario-to-desktop",
   "version": "1.0.0",
-  "services": {
-    "api": { "enabled": true, "port": 3202 },
-    "cli": { "enabled": true, "binary": "scenario-to-desktop" },
-    "ui": { "enabled": true, "port": 3203 }
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Desktop build API server port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999",
+      "description": "Desktop build UI server port"
+    }
   }
 }
 ```
@@ -399,10 +408,13 @@ scenario-to-desktop generate test-app --output /tmp/test
 
 **API Connection**
 ```bash
-# Check API health
-curl http://localhost:3202/api/v1/health
+# Check service status and find allocated ports
+vrooli scenario status scenario-to-desktop
 
-# Verify service status
+# Check API health (replace ${API_PORT} with actual allocated port)
+curl http://localhost:${API_PORT}/api/v1/health
+
+# Or use the CLI status command
 scenario-to-desktop status
 ```
 
@@ -494,8 +506,8 @@ cd ui && npm install && npm start
 
 - **Homepage**: https://vrooli.com/scenarios/scenario-to-desktop
 - **Documentation**: https://docs.vrooli.com/scenarios/scenario-to-desktop
-- **API Reference**: http://localhost:3202/api/v1/status
-- **Web Interface**: http://localhost:3203
+- **API Reference**: Check allocated port via `vrooli scenario status scenario-to-desktop`
+- **Web Interface**: Check allocated port via `vrooli scenario status scenario-to-desktop`
 - **GitHub Issues**: https://github.com/vrooli/vrooli/issues
 - **Community**: https://discord.gg/vrooli
 

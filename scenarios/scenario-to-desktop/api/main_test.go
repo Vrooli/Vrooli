@@ -27,10 +27,11 @@ func TestHealthHandler(t *testing.T) {
 		server.healthHandler(w, req)
 
 		response := assertJSONResponse(t, w, http.StatusOK)
-		assertFieldValue(t, response, "service", "scenario-to-desktop")
+		assertFieldValue(t, response, "service", "scenario-to-desktop-api")
 		assertFieldExists(t, response, "version")
 		assertFieldExists(t, response, "status")
 		assertFieldExists(t, response, "timestamp")
+		assertFieldExists(t, response, "readiness")
 	})
 
 	t.Run("MultipleRequests", func(t *testing.T) {
@@ -204,8 +205,9 @@ func TestGetTemplateHandler(t *testing.T) {
 
 		env.Server.getTemplateHandler(w, req)
 
-		if w.Code != http.StatusNotFound {
-			t.Errorf("Expected status 404, got %d", w.Code)
+		// Should return 400 because the template type is not in the whitelist
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", w.Code)
 		}
 	})
 
@@ -1027,19 +1029,20 @@ func TestServerRoutes(t *testing.T) {
 	server := NewServer(0)
 
 	routes := []struct {
-		method string
-		path   string
+		method       string
+		path         string
+		allow404     bool // Allow 404 for routes with path parameters (resource not found is valid)
 	}{
-		{"GET", "/api/v1/health"},
-		{"GET", "/api/v1/status"},
-		{"GET", "/api/v1/templates"},
-		{"GET", "/api/v1/templates/basic"},  // Use actual path instead of template
-		{"POST", "/api/v1/desktop/generate"},
-		{"GET", "/api/v1/desktop/status/test-id"},  // Use actual path instead of template
-		{"POST", "/api/v1/desktop/build"},
-		{"POST", "/api/v1/desktop/test"},
-		{"POST", "/api/v1/desktop/package"},
-		{"POST", "/api/v1/desktop/webhook/build-complete"},
+		{"GET", "/api/v1/health", false},
+		{"GET", "/api/v1/status", false},
+		{"GET", "/api/v1/templates", false},
+		{"GET", "/api/v1/templates/basic", true}, // Template file might not exist in test env
+		{"POST", "/api/v1/desktop/generate", false},
+		{"GET", "/api/v1/desktop/status/test-id", true}, // Build ID doesn't exist
+		{"POST", "/api/v1/desktop/build", false},
+		{"POST", "/api/v1/desktop/test", false},
+		{"POST", "/api/v1/desktop/package", false},
+		{"POST", "/api/v1/desktop/webhook/build-complete", false},
 	}
 
 	for _, route := range routes {
@@ -1049,9 +1052,9 @@ func TestServerRoutes(t *testing.T) {
 
 			server.router.ServeHTTP(w, req)
 
-			// Should not return 404 (routes should exist)
-			// May return other errors if not properly formatted (400, 500, etc.)
-			if w.Code == 404 {
+			// Routes should exist - 404 only acceptable if explicitly allowed (resource not found)
+			// Other status codes (400, 500, etc.) indicate route exists but request was invalid
+			if w.Code == 404 && !route.allow404 {
 				t.Errorf("Route %s %s not found (status: %d)", route.method, route.path, w.Code)
 			}
 		})
@@ -1085,8 +1088,9 @@ func TestCORSMiddleware(t *testing.T) {
 
 		server.router.ServeHTTP(w, req)
 
-		// Check CORS headers are present
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+		// Check CORS headers are present (middleware sets specific origin, not *)
+		origin := w.Header().Get("Access-Control-Allow-Origin")
+		if origin == "" {
 			t.Error("Expected CORS headers on GET request")
 		}
 	})

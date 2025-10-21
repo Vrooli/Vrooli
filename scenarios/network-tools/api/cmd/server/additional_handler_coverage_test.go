@@ -20,6 +20,7 @@ func TestHTTPRequestHandlerAdditional(t *testing.T) {
 	t.Run("POSTWithBody", func(t *testing.T) {
 		// Mock HTTP server for testing
 		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(map[string]string{"result": "success"})
 		}))
@@ -261,6 +262,7 @@ func TestAPITestHandlerAdditional(t *testing.T) {
 	t.Run("MultipleTestCases", func(t *testing.T) {
 		// Create a test server
 		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
 			case "/users":
 				w.WriteHeader(http.StatusOK)
@@ -315,6 +317,7 @@ func TestAPITestHandlerAdditional(t *testing.T) {
 	t.Run("POSTTestCase", func(t *testing.T) {
 		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "POST" {
+				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusCreated)
 				json.NewEncoder(w).Encode(map[string]string{"id": "123"})
 			}

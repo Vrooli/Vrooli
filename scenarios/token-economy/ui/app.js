@@ -6,9 +6,142 @@ if (typeof window !== 'undefined' && window.parent !== window) {
     initIframeBridgeChild({ appId: 'token-economy-ui' })
 }
 
-const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:11080/api/v1' 
-    : '/api/v1';
+const API_PATH = '/api/v1';
+const DEFAULT_API_PORT = 11080;
+
+const API_URL = resolveApiUrl();
+
+function resolveApiUrl() {
+    if (typeof window === 'undefined') {
+        return `http://127.0.0.1:${DEFAULT_API_PORT}${API_PATH}`;
+    }
+
+    const proxyBase = resolveProxyBase();
+    if (proxyBase) {
+        return ensureApiPath(proxyBase);
+    }
+
+    const hostname = window.location?.hostname || '';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return `http://localhost:${DEFAULT_API_PORT}${API_PATH}`;
+    }
+
+    const origin = window.location?.origin;
+    if (origin) {
+        return ensureApiPath(origin);
+    }
+
+    return API_PATH;
+}
+
+function resolveProxyBase() {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+
+    const info = window.__APP_MONITOR_PROXY_INFO__;
+    if (!info || typeof info !== 'object') {
+        return undefined;
+    }
+
+    const candidates = [];
+
+    const pushCandidate = (candidate) => {
+        if (!candidate) {
+            return;
+        }
+        if (typeof candidate === 'string') {
+            const trimmed = candidate.trim();
+            if (trimmed) {
+                candidates.push(trimmed);
+            }
+            return;
+        }
+        if (typeof candidate === 'object') {
+            pushCandidate(candidate.apiBase);
+            pushCandidate(candidate.url);
+            pushCandidate(candidate.target);
+            pushCandidate(candidate.path);
+        }
+    };
+
+    pushCandidate(info.apiBase);
+    pushCandidate(info.apiUrl);
+    pushCandidate(info.primary);
+
+    const listFields = ['ports', 'endpoints', 'services'];
+    listFields.forEach((field) => {
+        const value = info[field];
+        if (Array.isArray(value)) {
+            value.forEach(pushCandidate);
+        }
+    });
+
+    for (const candidate of candidates) {
+        const normalized = normalizeProxyCandidate(candidate);
+        if (normalized) {
+            return normalized;
+        }
+    }
+
+    return undefined;
+}
+
+function normalizeProxyCandidate(candidate) {
+    if (typeof candidate !== 'string') {
+        return undefined;
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (trimmed.startsWith('//')) {
+        const protocol = window.location?.protocol || 'https:';
+        return stripTrailingSlash(`${protocol}${trimmed}`);
+    }
+
+    if (trimmed.startsWith('/')) {
+        const origin = window.location?.origin;
+        if (!origin) {
+            return stripTrailingSlash(trimmed);
+        }
+        return stripTrailingSlash(`${origin}${trimmed}`);
+    }
+
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(trimmed)) {
+        return stripTrailingSlash(`http://${trimmed}`);
+    }
+
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        return stripTrailingSlash(`${window.location.origin}/${trimmed.replace(/^\/+/, '')}`);
+    }
+
+    return stripTrailingSlash(`/${trimmed.replace(/^\/+/, '')}`);
+}
+
+function ensureApiPath(base) {
+    const sanitizedBase = stripTrailingSlash(base);
+    if (sanitizedBase.endsWith(API_PATH)) {
+        return sanitizedBase;
+    }
+    if (sanitizedBase.endsWith('/api')) {
+        return `${sanitizedBase}${API_PATH.slice(4)}`;
+    }
+    return `${sanitizedBase}${API_PATH}`;
+}
+
+function stripTrailingSlash(value) {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    return value.replace(/\/+$/, '');
+}
 
 // State management
 const state = {

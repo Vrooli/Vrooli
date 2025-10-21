@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -19,6 +21,16 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
+
+// Global logger for middleware and initialization code
+var globalLogger *slog.Logger
+
+func init() {
+	// Initialize global structured logger with JSON output
+	globalLogger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+}
 
 // DesktopConfig represents the configuration for generating a desktop application
 type DesktopConfig struct {
@@ -93,16 +105,24 @@ type Server struct {
 	router        *mux.Router
 	port          int
 	buildStatuses map[string]*BuildStatus
+	buildMutex    sync.RWMutex
 	templateDir   string
+	logger        *slog.Logger
 }
 
 // NewServer creates a new server instance
 func NewServer(port int) *Server {
+	// Initialize structured logger with JSON output
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
 	server := &Server{
 		router:        mux.NewRouter(),
 		port:          port,
 		buildStatuses: make(map[string]*BuildStatus),
-		templateDir:   "./templates",
+		templateDir:   "../templates", // Templates are in parent directory when running from api/
+		logger:        logger,
 	}
 
 	server.setupRoutes()
@@ -134,14 +154,17 @@ func (s *Server) setupRoutes() {
 	// Webhook endpoints
 	s.router.HandleFunc("/api/v1/desktop/webhook/build-complete", s.buildCompleteWebhookHandler).Methods("POST")
 
-	// Setup CORS
+	// Setup middleware - CORS must be registered before logging to handle OPTIONS requests correctly
 	s.router.Use(corsMiddleware)
 	s.router.Use(loggingMiddleware)
 }
 
 // Start starts the server
 func (s *Server) Start() error {
-	log.Printf("Starting scenario-to-desktop API server on port %d", s.port)
+	s.logger.Info("starting server",
+		"service", "scenario-to-desktop-api",
+		"port", s.port,
+		"endpoints", []string{"/api/v1/health", "/api/v1/status", "/api/v1/desktop/generate"})
 
 	// Setup graceful shutdown
 	server := &http.Server{
@@ -155,20 +178,22 @@ func (s *Server) Start() error {
 	// Start server in goroutine
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			s.logger.Error("server startup failed", "error", err)
+			log.Fatal(err)
 		}
 	}()
 
-	log.Printf("Desktop API server started at http://localhost:%d", s.port)
-	log.Printf("Health check: http://localhost:%d/api/v1/health", s.port)
-	log.Printf("API documentation: http://localhost:%d/api/v1/status", s.port)
+	s.logger.Info("server started successfully",
+		"url", fmt.Sprintf("http://localhost:%d", s.port),
+		"health_endpoint", fmt.Sprintf("http://localhost:%d/api/v1/health", s.port),
+		"status_endpoint", fmt.Sprintf("http://localhost:%d/api/v1/status", s.port))
 
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	s.logger.Info("shutdown signal received", "timeout", "10s")
 
 	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -178,7 +203,7 @@ func (s *Server) Start() error {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	log.Println("Server stopped")
+	s.logger.Info("server stopped successfully")
 	return nil
 }
 
@@ -186,10 +211,10 @@ func (s *Server) Start() error {
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"status":    "healthy",
-		"service":   "scenario-to-desktop",
+		"service":   "scenario-to-desktop-api",
 		"version":   "1.0.0",
-		"timestamp": time.Now().UTC(),
-		"uptime":    "unknown", // Could be tracked if needed
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true, // Required field for API health check schema
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -305,8 +330,22 @@ func (s *Server) getTemplateHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	templateType := vars["type"]
 
-	// Read template configuration file
-	templatePath := filepath.Join(s.templateDir, "advanced", templateType+".json")
+	// Map template types to actual filenames
+	templateFiles := map[string]string{
+		"basic":        "basic-app.json",
+		"advanced":     "advanced-app.json",
+		"multi_window": "multi-window.json",
+		"kiosk":        "kiosk-mode.json",
+	}
+
+	filename, valid := templateFiles[templateType]
+	if !valid {
+		http.Error(w, fmt.Sprintf("Invalid template type: %s", templateType), http.StatusBadRequest)
+		return
+	}
+
+	// Read template configuration file (now safe from path traversal)
+	templatePath := filepath.Join(s.templateDir, "advanced", filename)
 
 	data, err := os.ReadFile(templatePath)
 	if err != nil {
@@ -365,7 +404,9 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Store build status
+	s.buildMutex.Lock()
 	s.buildStatuses[buildID] = buildStatus
+	s.buildMutex.Unlock()
 
 	// Start build process asynchronously
 	go s.performDesktopGeneration(buildID, &config)
@@ -390,7 +431,10 @@ func (s *Server) getBuildStatusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	buildID := vars["build_id"]
 
+	s.buildMutex.RLock()
 	status, exists := s.buildStatuses[buildID]
+	s.buildMutex.RUnlock()
+
 	if !exists {
 		http.Error(w, "Build not found", http.StatusNotFound)
 		return
@@ -427,7 +471,9 @@ func (s *Server) buildDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		ErrorLog:   []string{},
 	}
 
+	s.buildMutex.Lock()
 	s.buildStatuses[buildID] = buildStatus
+	s.buildMutex.Unlock()
 
 	// Start build process
 	go s.performDesktopBuild(buildID, &request)
@@ -508,6 +554,7 @@ func (s *Server) buildCompleteWebhookHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Update build status if it exists
+	s.buildMutex.Lock()
 	if status, exists := s.buildStatuses[buildID]; exists {
 		if resultStatus, ok := result["status"].(string); ok {
 			status.Status = resultStatus
@@ -517,8 +564,12 @@ func (s *Server) buildCompleteWebhookHandler(w http.ResponseWriter, r *http.Requ
 			status.CompletedAt = &now
 		}
 	}
+	s.buildMutex.Unlock()
 
-	log.Printf("Build webhook received for %s: %v", buildID, result)
+	s.logger.Info("build webhook received",
+		"build_id", buildID,
+		"status", result["status"],
+		"has_error", result["error"] != nil)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "received"})
@@ -568,12 +619,16 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 
 // Perform desktop generation (async)
 func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig) {
+	s.buildMutex.RLock()
 	status := s.buildStatuses[buildID]
+	s.buildMutex.RUnlock()
 
 	defer func() {
 		if r := recover(); r != nil {
+			s.buildMutex.Lock()
 			status.Status = "failed"
 			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Panic: %v", r))
+			s.buildMutex.Unlock()
 			now := time.Now()
 			status.CompletedAt = &now
 		}
@@ -582,27 +637,35 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 	// Create configuration JSON file
 	configJSON, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
+		s.buildMutex.Lock()
 		status.Status = "failed"
 		status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to marshal config: %v", err))
+		s.buildMutex.Unlock()
 		return
 	}
 
 	// Write config to temporary file
 	configPath := filepath.Join(os.TempDir(), fmt.Sprintf("desktop-config-%s.json", buildID))
 	if err := os.WriteFile(configPath, configJSON, 0644); err != nil {
+		s.buildMutex.Lock()
 		status.Status = "failed"
 		status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to write config file: %v", err))
+		s.buildMutex.Unlock()
 		return
 	}
 	defer os.Remove(configPath)
 
 	// Execute template generator
+	// Path is relative to scenario root, not api directory
+	templateGeneratorPath := filepath.Join("..", "templates", "build-tools", "dist", "template-generator.js")
 	cmd := exec.Command("node",
-		"./templates/build-tools/dist/template-generator.js",
+		templateGeneratorPath,
 		configPath)
 
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
+
+	s.buildMutex.Lock()
 	status.BuildLog = append(status.BuildLog, outputStr)
 
 	if err != nil {
@@ -617,6 +680,7 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 
 	now := time.Now()
 	status.CompletedAt = &now
+	s.buildMutex.Unlock()
 }
 
 // Perform desktop build (async)
@@ -626,7 +690,9 @@ func (s *Server) performDesktopBuild(buildID string, request *struct {
 	Sign        bool     `json:"sign"`
 	Publish     bool     `json:"publish"`
 }) {
+	s.buildMutex.RLock()
 	status := s.buildStatuses[buildID]
+	s.buildMutex.RUnlock()
 
 	// Build steps: install dependencies, build, package
 	steps := []string{"npm install", "npm run build", "npm run dist"}
@@ -637,6 +703,8 @@ func (s *Server) performDesktopBuild(buildID string, request *struct {
 
 		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
+
+		s.buildMutex.Lock()
 		status.BuildLog = append(status.BuildLog, fmt.Sprintf("%s: %s", step, outputStr))
 
 		if err != nil {
@@ -644,13 +712,17 @@ func (s *Server) performDesktopBuild(buildID string, request *struct {
 			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("%s failed: %v", step, err))
 			now := time.Now()
 			status.CompletedAt = &now
+			s.buildMutex.Unlock()
 			return
 		}
+		s.buildMutex.Unlock()
 	}
 
+	s.buildMutex.Lock()
 	status.Status = "ready"
 	now := time.Now()
 	status.CompletedAt = &now
+	s.buildMutex.Unlock()
 }
 
 // Run desktop tests
@@ -705,9 +777,52 @@ func contains(slice []string, item string) bool {
 // Middleware
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// SECURITY: Get allowed origin from environment - required for production
+		allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
+		if allowedOrigin == "" {
+			// SECURITY: In development, UI_PORT must be provided by lifecycle system
+			// In production, ALLOWED_ORIGIN should be explicitly configured
+			uiPort := os.Getenv("UI_PORT")
+			if uiPort != "" {
+				// UI_PORT is set - use it to build allowed origins
+				origin := r.Header.Get("Origin")
+				allowedOrigins := []string{
+					"http://localhost:" + uiPort,
+					"http://127.0.0.1:" + uiPort,
+				}
+
+				// Check if origin matches any allowed origin
+				for _, allowed := range allowedOrigins {
+					if origin == allowed {
+						allowedOrigin = origin
+						break
+					}
+				}
+
+				// If no match found, use primary UI port
+				if allowedOrigin == "" {
+					allowedOrigin = "http://localhost:" + uiPort
+				}
+			} else {
+				// SECURITY: Neither ALLOWED_ORIGIN nor UI_PORT is set
+				// This is a configuration error - log and use restrictive CORS
+				globalLogger.Warn("CORS configuration missing",
+					"message", "Neither ALLOWED_ORIGIN nor UI_PORT is set",
+					"action", "using restrictive localhost-only CORS for security")
+				// Set to request origin only if it's localhost
+				origin := r.Header.Get("Origin")
+				if origin != "" && (origin == "http://localhost" || origin == "http://127.0.0.1") {
+					allowedOrigin = origin
+				} else {
+					allowedOrigin = "http://localhost" // Minimal fallback
+				}
+			}
+		}
+
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Build-ID")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -724,8 +839,9 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 // Main function
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+	// SECURITY: Validate required environment variable - fail fast if not set
+	lifecycleManaged := os.Getenv("VROOLI_LIFECYCLE_MANAGED")
+	if lifecycleManaged != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
@@ -737,17 +853,41 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Get port from environment or use default
-	port := 3202
-	if portStr := os.Getenv("PORT"); portStr != "" {
-		if p, err := strconv.Atoi(portStr); err == nil {
-			port = p
+	// SECURITY: Validate port environment variables - prefer API_PORT, fallback to PORT
+	port := 15200
+	apiPortStr := os.Getenv("API_PORT")
+	portStr := os.Getenv("PORT")
+
+	if apiPortStr != "" {
+		p, err := strconv.Atoi(apiPortStr)
+		if err != nil {
+			log.Fatalf("❌ Invalid API_PORT value '%s': must be a valid integer", apiPortStr)
 		}
+		if p < 1024 || p > 65535 {
+			log.Fatalf("❌ Invalid API_PORT value %d: must be between 1024 and 65535", p)
+		}
+		port = p
+	} else if portStr != "" {
+		// Fallback to PORT for compatibility
+		p, err := strconv.Atoi(portStr)
+		if err != nil {
+			log.Fatalf("❌ Invalid PORT value '%s': must be a valid integer", portStr)
+		}
+		if p < 1024 || p > 65535 {
+			log.Fatalf("❌ Invalid PORT value %d: must be between 1024 and 65535", p)
+		}
+		port = p
+	} else {
+		globalLogger.Warn("no port configuration found",
+			"message", "No API_PORT or PORT environment variable set",
+			"action", "using default port",
+			"default_port", port)
 	}
 
 	// Create and start server
 	server := NewServer(port)
 	if err := server.Start(); err != nil {
+		globalLogger.Error("server failed", "error", err)
 		log.Fatal(err)
 	}
 }

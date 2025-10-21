@@ -101,16 +101,25 @@
     "health": {
       "description": "Travel Map Filler health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -119,20 +128,20 @@
     },
     "setup": {
       "description": "Initialize Travel Map Filler",
-         "condition": {
-            "checks": [
-               {
-                  "type": "binaries",
-                  "targets": [
-                     "travel-map-filler-api"
-                  ]
-               },
-                {
-                   "type": "cli",
-                   "targets": [
-                      "travel-map-filler"
-                   ]
-                },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "travel-map-filler-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "travel-map-filler"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -181,26 +190,26 @@
     "develop": {
       "description": "Start Travel Map Filler with Go API and Node.js UI",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./travel-map-filler-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/travel-map-filler-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./travel-map-filler-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/travel-map-filler-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Travel Map Filler running - UI: http://localhost:${UI_PORT} - API: http://localhost:${PORT} - CLI: travel-map --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo 'Travel Map Filler running - UI: http://localhost:${UI_PORT} - API: http://localhost:${PORT} - CLI: travel-map --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {

@@ -1,132 +1,128 @@
-# Prompt Manager Makefile
-# Comprehensive management interface for the prompt-manager scenario
+# Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario (ALWAYS use this, never run binaries directly)
+#   make run   - Start this scenario (alias for 'start')
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
-SCENARIO_NAME := prompt-manager
-VROOLI_CMD := vrooli scenario
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
-# Color codes for output
-RED := \033[0;31m
-GREEN := \033[0;32m
+# Default target - show help
+.DEFAULT_GOAL := help
+
+# Get scenario name from current directory
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+# Colors for output
+GREEN := \033[1;32m
 YELLOW := \033[1;33m
-BLUE := \033[0;34m
-NC := \033[0m # No Color
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
 
-.PHONY: help
 help: ## Show this help message
-	@echo "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(BLUE)║           📝 Prompt Manager - Make Commands 📝              ║$(NC)"
-	@echo "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(NC)"
+	@echo "$(BLUE)📱 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
-	@echo "$(GREEN)Available commands:$(NC)"
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2}'
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
-	@echo "$(BLUE)Examples:$(NC)"
-	@echo "  make setup      # Initial setup of the scenario"
-	@echo "  make run        # Start the scenario"
-	@echo "  make test       # Run tests"
-	@echo "  make logs       # View logs"
-	@echo "  make stop       # Stop the scenario"
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-.PHONY: setup
-setup: ## Initial setup and build
-	@echo "$(GREEN)🔧 Setting up Prompt Manager...$(NC)"
-	@$(VROOLI_CMD) setup $(SCENARIO_NAME)
-	@echo "$(GREEN)✅ Setup complete!$(NC)"
+start: ## Start this scenario (uses Vrooli lifecycle)
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME)
 
-.PHONY: run
-run: ## Start the scenario
-	@echo "$(GREEN)🚀 Starting Prompt Manager...$(NC)"
-	@$(VROOLI_CMD) start $(SCENARIO_NAME)
-	@echo ""
-	@echo "$(GREEN)✅ Prompt Manager is running!$(NC)"
-	@echo "$(BLUE)📍 Dashboard: http://localhost:$${UI_PORT:-35000}$(NC)"
-	@echo "$(BLUE)📍 API: http://localhost:$${API_PORT:-15000}$(NC)"
-	@echo "$(BLUE)📍 CLI: prompt-manager --help$(NC)"
+run: start ## Alias for 'start'
 
-.PHONY: start
-start: run ## Alias for 'run'
+stop: ## Stop this scenario
+	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario stop $(SCENARIO_NAME)
 
-.PHONY: stop
-stop: ## Stop the scenario
-	@echo "$(YELLOW)⏹️  Stopping Prompt Manager...$(NC)"
-	@$(VROOLI_CMD) stop $(SCENARIO_NAME)
-	@echo "$(GREEN)✅ Stopped$(NC)"
-
-.PHONY: restart
-restart: stop run ## Restart the scenario
-
-.PHONY: status
-status: ## Check scenario status
-	@echo "$(BLUE)📊 Checking Prompt Manager status...$(NC)"
-	@$(VROOLI_CMD) status $(SCENARIO_NAME) || true
-	@echo ""
-	@echo "$(BLUE)🔍 Process status:$(NC)"
-	@ps aux | grep -E "prompt-manager-api|scenarios/prompt-manager.*server\.js" | grep -v grep || echo "  No processes running"
-
-.PHONY: logs
-logs: ## View scenario logs
-	@echo "$(BLUE)📋 Prompt Manager logs:$(NC)"
-	@$(VROOLI_CMD) logs $(SCENARIO_NAME)
-
-.PHONY: test
-test: ## Run tests for this scenario
+test: ## Run scenario tests
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
-.PHONY: clean
-clean: ## Clean build artifacts and data
-	@echo "$(YELLOW)🧹 Cleaning Prompt Manager...$(NC)"
+logs: ## Show scenario logs
+	@echo "$(BLUE)📋 Showing $(SCENARIO_NAME) logs...$(RESET)"
+	@vrooli scenario logs $(SCENARIO_NAME)
+
+status: ## Check scenario status
+	@echo "$(BLUE)📊 Checking $(SCENARIO_NAME) status...$(RESET)"
+	@vrooli scenario status $(SCENARIO_NAME)
+
+clean: ## Clean build artifacts
+	@echo "$(YELLOW)🧹 Cleaning build artifacts...$(RESET)"
 	@rm -rf api/prompt-manager-api
 	@rm -rf ui/node_modules
-	@rm -rf data/campaigns/*
-	@echo "$(GREEN)✅ Cleaned$(NC)"
+	@echo "$(GREEN)✅ Cleaned$(RESET)"
 
-.PHONY: reset
-reset: stop clean setup ## Full reset (stop, clean, setup)
-	@echo "$(GREEN)✅ Prompt Manager has been reset$(NC)"
-
-.PHONY: build-api
-build-api: ## Build API binary
-	@echo "$(BLUE)🔨 Building API...$(NC)"
+build: ## Build all components
+	@echo "$(BLUE)🔨 Building $(SCENARIO_NAME)...$(RESET)"
 	@cd api && go mod download && go build -o prompt-manager-api .
-	@echo "$(GREEN)✅ API built$(NC)"
-
-.PHONY: build-ui
-build-ui: ## Build UI
-	@echo "$(BLUE)🔨 Building UI...$(NC)"
 	@cd ui && npm install
-	@echo "$(GREEN)✅ UI dependencies installed$(NC)"
+	@echo "$(GREEN)✅ Build complete$(RESET)"
 
-.PHONY: dev
-dev: ## Start in development mode with live logs
-	@echo "$(GREEN)🔧 Starting Prompt Manager in development mode...$(NC)"
-	@$(VROOLI_CMD) develop $(SCENARIO_NAME)
+dev: ## Start in development mode
+	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
+	@vrooli scenario develop $(SCENARIO_NAME)
 
-.PHONY: cli-test
-cli-test: ## Test CLI commands
-	@echo "$(BLUE)🧪 Testing CLI...$(NC)"
-	@prompt-manager status || echo "$(YELLOW)⚠️  CLI not installed or service not running$(NC)"
-	@prompt-manager list-campaigns || true
-	@echo "$(GREEN)✅ CLI test complete$(NC)"
+fmt: fmt-go fmt-ui ## Format all code
 
-.PHONY: health
+fmt-go: ## Format Go code
+	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
+	@cd api && gofumpt -w . 2>/dev/null || go fmt ./...
+	@echo "$(GREEN)✅ Go code formatted$(RESET)"
+
+fmt-ui: ## Format UI code
+	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
+	@cd ui && npm run lint:fix 2>/dev/null || echo "$(YELLOW)⚠️  No lint:fix script$(RESET)"
+	@echo "$(GREEN)✅ UI code formatted$(RESET)"
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
+	@cd api && golangci-lint run 2>/dev/null || go vet ./...
+	@echo "$(GREEN)✅ Go code linted$(RESET)"
+
+lint-ui: ## Lint UI code
+	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
+	@cd ui && npm run lint 2>/dev/null || echo "$(YELLOW)⚠️  No lint script$(RESET)"
+	@echo "$(GREEN)✅ UI code linted$(RESET)"
+
+check: lint test ## Run all checks (lint + test)
+
+# Scenario-specific targets
+.PHONY: health db-status cli-test quick-test
+
 health: ## Check health endpoints
-	@echo "$(BLUE)🏥 Checking health...$(NC)"
-	@curl -sf http://localhost:$${API_PORT:-15000}/health | jq '.' || echo "$(RED)❌ API not responding$(NC)"
-	@curl -sf http://localhost:$${UI_PORT:-35000}/health | jq '.' || echo "$(RED)❌ UI not responding$(NC)"
+	@echo "$(BLUE)🏥 Checking health...$(RESET)"
+	@curl -sf http://localhost:$${API_PORT:-15000}/health | jq '.' || echo "$(RED)❌ API not responding$(RESET)"
+	@curl -sf http://localhost:$${UI_PORT:-35000}/health | jq '.' || echo "$(RED)❌ UI not responding$(RESET)"
 
-.PHONY: db-status
 db-status: ## Check database connection
-	@echo "$(BLUE)🗄️  Checking database status...$(NC)"
-	@curl -sf http://localhost:$${API_PORT:-15000}/health | jq '.services.database' || echo "$(RED)❌ Cannot check database status$(NC)"
+	@echo "$(BLUE)🗄️  Checking database status...$(RESET)"
+	@curl -sf http://localhost:$${API_PORT:-15000}/health | jq '.services.database' || echo "$(RED)❌ Cannot check database status$(RESET)"
 
-.PHONY: quick-test
+cli-test: ## Test CLI commands
+	@echo "$(BLUE)🧪 Testing CLI...$(RESET)"
+	@prompt-manager status || echo "$(YELLOW)⚠️  CLI not installed or service not running$(RESET)"
+	@prompt-manager list-campaigns || true
+	@echo "$(GREEN)✅ CLI test complete$(RESET)"
+
 quick-test: ## Quick API test
-	@echo "$(BLUE)⚡ Quick API test...$(NC)"
-	@curl -sf http://localhost:$${API_PORT:-15000}/api/v1/campaigns | jq '.' || echo "$(RED)❌ API test failed$(NC)"
-	@echo "$(GREEN)✅ Quick test complete$(NC)"
-
-# Default target
-.DEFAULT_GOAL := help
+	@echo "$(BLUE)⚡ Quick API test...$(RESET)"
+	@curl -sf http://localhost:$${API_PORT:-15000}/api/v1/campaigns | jq '.' || echo "$(RED)❌ API test failed$(RESET)"
+	@echo "$(GREEN)✅ Quick test complete$(RESET)"

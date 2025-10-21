@@ -527,7 +527,78 @@
         }
 
         // Configuration
-        const API_BASE_URL = 'http://localhost:3202';
+        const normalizeBaseUrl = (url) => {
+            if (!url) {
+                return null;
+            }
+            return String(url).replace(/\/+$/, '');
+        };
+
+        const joinUrl = (base, path) => {
+            const normalizedBase = normalizeBaseUrl(base);
+            if (!normalizedBase) {
+                return null;
+            }
+
+            if (!path) {
+                return normalizedBase;
+            }
+
+            const trimmedPath = String(path).replace(/^\/+/, '');
+            return `${normalizedBase}/${trimmedPath}`;
+        };
+
+        const resolveProxiedApiBase = () => {
+            const proxyBootstrap = window.__APP_MONITOR_PROXY_INFO__ || window.__APP_MONITOR_PROXY_INDEX__;
+            if (!proxyBootstrap) {
+                return null;
+            }
+
+            const ports = Array.isArray(proxyBootstrap.ports) ? proxyBootstrap.ports : [];
+            const apiPort = ports.find((entry) => {
+                const label = String(entry?.label || entry?.slug || '').toLowerCase();
+                const aliases = Array.isArray(entry?.aliases) ? entry.aliases.map((alias) => String(alias).toLowerCase()) : [];
+                return label.includes('api') || aliases.includes('api') || aliases.includes('api_port');
+            }) || proxyBootstrap.primary;
+
+            const proxyPath = apiPort?.path || apiPort?.url;
+            if (!proxyPath) {
+                return null;
+            }
+
+            const trimmedPath = proxyPath.endsWith('/') ? proxyPath.slice(0, -1) : proxyPath;
+            try {
+                if (/^https?:/i.test(trimmedPath)) {
+                    return normalizeBaseUrl(trimmedPath);
+                }
+                return `${window.location.origin}${trimmedPath}`;
+            } catch (error) {
+                console.warn('[ScenarioToDesktop] Failed to resolve proxy path', error);
+                return null;
+            }
+        };
+
+        const getApiBaseUrl = () => {
+            const proxied = resolveProxiedApiBase();
+            if (proxied) {
+                return proxied;
+            }
+
+            const hostname = window.location.hostname;
+            if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+                return normalizeBaseUrl(window.location.origin);
+            }
+
+            const metaBase = document.querySelector('meta[name="api-base"]')?.content;
+            if (metaBase) {
+                return normalizeBaseUrl(metaBase);
+            }
+
+            return 'http://localhost:3202';
+        };
+
+        const API_BASE_URL = getApiBaseUrl();
+        const API_ENDPOINT_BASE = joinUrl(API_BASE_URL, 'api');
         const POLL_INTERVAL = 2000; // 2 seconds
 
         // Global state
@@ -648,7 +719,7 @@
                 server_type: 'node',
                 server_port: 3000,
                 server_path: 'ui/server.js',
-                api_endpoint: 'http://localhost:3001/api',
+                api_endpoint: API_ENDPOINT_BASE,
                 framework: formData.get('framework'),
                 template_type: formData.get('template'),
                 platforms: platforms,

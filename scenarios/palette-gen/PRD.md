@@ -139,3 +139,14 @@
   - Enhanced CLI with harmony, colorblind, and history commands
   - All API endpoints tested and working
   - Redis connection established and caching verified
+- **2025-10-20**: Standards compliance and validation improvements
+  - Added missing cli/install.sh for CLI installation
+  - Added missing test/run-tests.sh test runner
+  - Fixed API health endpoint to comply with health-api.schema.json (added service, timestamp, readiness, dependencies)
+  - Fixed UI health endpoint to comply with health-ui.schema.json (added api_connectivity, readiness)
+  - Removed dangerous default values for environment variables (UI_PORT, API_PORT) - fail fast if missing
+  - Fixed test bug in coverage_boost_test.go (LargeNumColors test now correctly expects 10-color cap)
+  - Reduced critical violations from 2 to 0 ✅
+  - Reduced high-severity violations from 21 to 18
+  - All lifecycle tests passing
+  - All core features validated and working

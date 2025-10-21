@@ -55,7 +55,7 @@ case "${1:-help}" in
         ;;
     analyze) 
         [[ -z "${2:-}" || -z "${3:-}" ]] && { echo "Usage: $0 analyze <type> <input> [context]" >&2; exit 1; }
-        local data="{\"type\": \"$2\", \"input\": \"$3\""
+        data="{\"type\": \"$2\", \"input\": \"$3\""
         [[ -n "${4:-}" ]] && data+=", \"context\": \"$4\""
         data+="}"
         api_call POST "/analyze" "$data" | format_output

@@ -28,8 +28,15 @@ body {
 
 .container {
     max-width: 1400px;
+    width: 100%;
     margin: 0 auto;
     padding: 2rem;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
 }
 
 header {
@@ -51,6 +58,8 @@ header h1 {
 header p {
     font-size: 1.2rem;
     -webkit-text-fill-color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto;
 }
 
 .generator-section {
@@ -58,6 +67,7 @@ header p {
     grid-template-columns: 400px 1fr;
     gap: 2rem;
     margin-bottom: 3rem;
+    align-items: start;
 }
 
 .input-panel {
@@ -85,6 +95,44 @@ header p {
     letter-spacing: 0.05em;
 }
 
+.form-group .optional {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: none;
+    margin-left: 0.35rem;
+    background: rgba(148, 163, 184, 0.1);
+    padding: 0.15rem 0.35rem;
+    border-radius: 999px;
+}
+
+.field-hint {
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.checkbox-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.checkbox-inline input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary);
+}
+
+.form-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 1.5rem;
+}
+
 .form-group input[type="text"],
 .form-group select {
     width: 100%;
@@ -107,11 +155,26 @@ header p {
 .form-group input[type="range"] {
     width: calc(100% - 3rem);
     margin-right: 1rem;
+    accent-color: var(--primary);
+}
+
+#numColorsValue {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
 }
 
 .color-input-wrapper {
     display: flex;
     gap: 1rem;
+}
+
+.color-input-wrapper.disabled {
+    opacity: 0.5;
+}
+
+.color-input-wrapper.disabled input {
+    cursor: not-allowed;
 }
 
 .color-input-wrapper input[type="color"] {
@@ -265,6 +328,7 @@ header p {
     display: flex;
     gap: 1rem;
     margin-bottom: 1rem;
+    flex-wrap: wrap;
 }
 
 .export-code {
@@ -275,6 +339,90 @@ header p {
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
     line-height: 1.5;
+}
+
+.debug-panel {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    background: rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.debug-panel h3 {
+    color: var(--secondary);
+    font-size: 1.1rem;
+}
+
+.debug-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.debug-strategy {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.debug-context {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.debug-ai {
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.debug-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.debug-label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+}
+
+.debug-value {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.debug-code {
+    background: rgba(15, 23, 42, 0.8);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    max-height: 220px;
+    overflow: auto;
+    color: var(--text);
+}
+
+.debug-panel details {
+    background: rgba(30, 41, 59, 0.6);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.debug-panel summary {
+    cursor: pointer;
+    color: var(--secondary);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
 }
 
 .suggestions-section {
@@ -366,6 +514,16 @@ header p {
     color: var(--text);
 }
 
+.history-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: 0.15rem;
+}
+
+.history-subtitle:empty {
+    display: none;
+}
+
 .history-time {
     color: var(--text-secondary);
     font-size: 0.8rem;
@@ -409,7 +567,114 @@ header p {
         grid-template-columns: 1fr;
     }
     
+    .generator-section .input-panel,
+    .generator-section .output-panel {
+        padding: 1.5rem;
+    }
+
+    header h1 {
+        font-size: 2.4rem;
+    }
+
+    header p {
+        font-size: 1.05rem;
+    }
+
+    .container {
+        padding: 1.5rem;
+    }
+
     .suggestion-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .palette-colors {
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        line-height: 1.5;
+    }
+
+    .container {
+        padding: 1.25rem;
+    }
+
+    header h1 {
+        font-size: 2rem;
+    }
+
+    header p {
+        font-size: 1rem;
+    }
+
+    .form-group input[type="range"] {
+        width: 100%;
+        margin-right: 0;
+    }
+
+    #numColorsValue {
+        display: block;
+        margin-top: 0.5rem;
+        text-align: right;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .color-input-wrapper {
+        flex-direction: column;
+    }
+
+    .palette-colors {
+        flex-direction: column;
+    }
+
+    .color-card {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .export-buttons button {
+        flex: 1 1 45%;
+    }
+
+    .suggestion-grid,
+    .history-container {
+        grid-template-columns: 1fr;
+    }
+
+    .toast {
+        left: 1rem;
+        right: 1rem;
+        bottom: 1.25rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .container {
+        padding: 1rem;
+    }
+
+    main {
+        gap: 2rem;
+    }
+
+    header h1 {
+        font-size: 1.75rem;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+    }
+
+    .suggestion-btn {
+        padding: 0.85rem;
+    }
+
+    .toast {
+        font-size: 0.9rem;
     }
 }

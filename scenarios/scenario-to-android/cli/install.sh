@@ -19,7 +19,7 @@ NC='\033[0m'
 print_color() {
     local color=$1
     shift
-    echo -e "${color}$@${NC}"
+    echo -e "${color}$*${NC}"
 }
 
 # Create install directory
@@ -28,16 +28,16 @@ mkdir -p "$INSTALL_DIR"
 # Create symlink
 if [ -f "$CLI_PATH" ]; then
     ln -sf "$CLI_PATH" "${INSTALL_DIR}/${CLI_NAME}"
-    print_color $GREEN "✓ CLI installed to ${INSTALL_DIR}/${CLI_NAME}"
+    print_color "$GREEN" "✓ CLI installed to ${INSTALL_DIR}/${CLI_NAME}"
 else
-    print_color $RED "Error: CLI not found at $CLI_PATH"
+    print_color "$RED" "Error: CLI not found at $CLI_PATH"
     exit 1
 fi
 
 # Check if directory is in PATH
 if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
-    print_color $YELLOW "Adding ${INSTALL_DIR} to PATH..."
-    
+    print_color "$YELLOW" "Adding ${INSTALL_DIR} to PATH..."
+
     # Determine shell config file
     SHELL_CONFIG=""
     if [ -n "$BASH_VERSION" ]; then
@@ -47,22 +47,24 @@ if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
     else
         SHELL_CONFIG="$HOME/.profile"
     fi
-    
+
     # Add to PATH
-    echo "" >> "$SHELL_CONFIG"
-    echo "# Added by scenario-to-android" >> "$SHELL_CONFIG"
-    echo "export PATH=\"\$PATH:${INSTALL_DIR}\"" >> "$SHELL_CONFIG"
-    
-    print_color $GREEN "✓ PATH updated in $SHELL_CONFIG"
-    print_color $YELLOW "Run 'source $SHELL_CONFIG' or restart your terminal"
+    {
+        echo ""
+        echo "# Added by scenario-to-android"
+        echo "export PATH=\"\$PATH:${INSTALL_DIR}\""
+    } >> "$SHELL_CONFIG"
+
+    print_color "$GREEN" "✓ PATH updated in $SHELL_CONFIG"
+    print_color "$YELLOW" "Run 'source $SHELL_CONFIG' or restart your terminal"
 else
-    print_color $GREEN "✓ ${INSTALL_DIR} already in PATH"
+    print_color "$GREEN" "✓ ${INSTALL_DIR} already in PATH"
 fi
 
 # Verify installation
 if command -v scenario-to-android &> /dev/null; then
-    print_color $GREEN "✓ Installation successful!"
-    print_color $GREEN "Run 'scenario-to-android help' to get started"
+    print_color "$GREEN" "✓ Installation successful!"
+    print_color "$GREEN" "Run 'scenario-to-android help' to get started"
 else
-    print_color $YELLOW "Installation complete. Restart terminal to use 'scenario-to-android'"
+    print_color "$YELLOW" "Installation complete. Restart terminal to use 'scenario-to-android'"
 fi

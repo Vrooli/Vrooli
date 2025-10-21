@@ -403,8 +403,17 @@ func TestConfigEdgeCases(t *testing.T) {
 	defer loggerCleanup()
 
 	t.Run("InvalidPortEnvironmentVariable", func(t *testing.T) {
+		// Clear API_PORT to avoid interference from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
+
 		os.Setenv("PORT", "invalid")
-		defer os.Unsetenv("PORT")
+		defer func() {
+			os.Unsetenv("PORT")
+			if oldAPIPort != "" {
+				os.Setenv("API_PORT", oldAPIPort)
+			}
+		}()
 
 		cfg := loadConfig()
 

@@ -1,10 +1,110 @@
 // API Client Module
+
+const PROXY_INFO_KEY = '__APP_MONITOR_PROXY_INFO__';
+
+const trimTrailingSlashes = (value = '') => value.replace(/\/+$/, '');
+const ensureLeadingSlash = (value = '') => (value.startsWith('/') ? value : `/${value}`);
+
+const resolveProxyCandidate = (info) => {
+    const pushCandidate = (list, candidate) => {
+        if (!candidate) {
+            return;
+        }
+
+        if (typeof candidate === 'string') {
+            list.push(candidate);
+            return;
+        }
+
+        if (typeof candidate === 'object') {
+            pushCandidate(list, candidate.url || candidate.path || candidate.target || candidate.href);
+        }
+    };
+
+    const candidates = [];
+
+    if (Array.isArray(info?.endpoints)) {
+        info.endpoints.forEach((endpoint) => pushCandidate(candidates, endpoint));
+    }
+
+    pushCandidate(candidates, info?.api);
+    pushCandidate(candidates, info?.apiUrl || info?.apiURL);
+    pushCandidate(candidates, info?.baseUrl || info?.baseURL);
+    pushCandidate(candidates, info?.url);
+    pushCandidate(candidates, info?.target);
+
+    if (typeof info === 'string') {
+        pushCandidate(candidates, info);
+    }
+
+    for (const rawCandidate of candidates) {
+        if (typeof rawCandidate !== 'string') {
+            continue;
+        }
+
+        const candidate = rawCandidate.trim();
+        if (!candidate) {
+            continue;
+        }
+
+        if (/^https?:\/\//i.test(candidate)) {
+            return trimTrailingSlashes(candidate);
+        }
+
+        if (candidate.startsWith('/') && typeof window !== 'undefined' && window.location?.origin) {
+            return trimTrailingSlashes(`${window.location.origin}${candidate}`);
+        }
+    }
+
+    return undefined;
+};
+
+const resolveTextToolsApiOrigin = () => {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+
+    const proxyInfo = window[PROXY_INFO_KEY];
+    const proxyBase = resolveProxyCandidate(proxyInfo);
+    if (proxyBase) {
+        return proxyBase;
+    }
+
+    const port = window.API_PORT;
+    if (port) {
+        const protocol = window.location?.protocol === 'https:' ? 'https:' : 'http:';
+        return trimTrailingSlashes(`${protocol}//localhost:${port}`);
+    }
+
+    if (window.location?.origin) {
+        return trimTrailingSlashes(window.location.origin);
+    }
+
+    return undefined;
+};
+
+const joinApiPath = (origin, path) => {
+    const safeOrigin = trimTrailingSlashes(origin || '');
+    if (!safeOrigin) {
+        return undefined;
+    }
+    const safePath = ensureLeadingSlash(path || '');
+    return `${safeOrigin}${safePath}`;
+};
+
+if (typeof window !== 'undefined') {
+    window.resolveTextToolsApiOrigin = resolveTextToolsApiOrigin;
+}
+
 class APIClient {
     constructor(baseURL) {
-        if (!window.API_PORT) {
-            throw new Error('API_PORT not configured. Please ensure the API is running.');
+        const origin = resolveTextToolsApiOrigin();
+        if (!origin) {
+            throw new Error('Unable to resolve Text Tools API origin. Ensure the API is available.');
         }
-        this.baseURL = baseURL || `http://localhost:${window.API_PORT}/api/v1/text`;
+
+        this.origin = origin;
+        this.baseURL = baseURL || joinApiPath(origin, '/api/v1/text');
     }
 
     async request(endpoint, options = {}) {
@@ -91,8 +191,8 @@ class APIClient {
     // Pipeline API (v2 endpoint)
     async processPipeline(input, steps) {
         // Use v2 endpoint for pipeline processing
-        const url = `http://localhost:${window.API_PORT}/api/v2/text/pipeline`;
-        
+        const url = joinApiPath(this.origin, '/api/v2/text/pipeline');
+
         try {
             const response = await fetch(url, {
                 method: 'POST',
@@ -117,10 +217,12 @@ class APIClient {
 
     // Health check
     async checkHealth() {
-        if (!window.API_PORT) {
-            throw new Error('API_PORT not configured');
+        const url = joinApiPath(this.origin, '/health');
+        if (!url) {
+            throw new Error('Unable to resolve health endpoint');
         }
-        const response = await fetch(`http://localhost:${window.API_PORT}/health`);
+
+        const response = await fetch(url);
         return response.json();
     }
 }

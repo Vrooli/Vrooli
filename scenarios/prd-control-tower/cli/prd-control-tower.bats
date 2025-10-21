@@ -22,7 +22,18 @@ setup() {
     fi
 
     API_URL="http://localhost:${API_PORT}/api/v1"
-    CLI="./cli/prd-control-tower"
+
+    # Determine CLI path based on current directory
+    if [[ -f "./prd-control-tower" ]]; then
+        # Running from cli directory
+        CLI="./prd-control-tower"
+    elif [[ -f "./cli/prd-control-tower" ]]; then
+        # Running from scenario root
+        CLI="./cli/prd-control-tower"
+    else
+        # Fallback: try to find it
+        CLI="prd-control-tower"
+    fi
 }
 
 # Health Check Tests

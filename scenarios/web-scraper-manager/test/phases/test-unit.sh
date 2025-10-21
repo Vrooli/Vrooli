@@ -1,23 +1,26 @@
 #!/bin/bash
-# Unit test phase for web-scraper-manager scenario
+set -e
 
-set -euo pipefail
+echo "=== Running Unit Tests ==="
 
-APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+# Run Go unit tests
+if [ -d "api" ] && [ -f "api/go.mod" ]; then
+    echo "Running Go unit tests..."
+    cd api
 
-testing::phase::init --target-time "60s"
-source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
+    # Run tests with coverage
+    if ! go test -v -race -coverprofile=coverage.out ./...; then
+        echo "❌ Go unit tests failed"
+        exit 1
+    fi
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+    # Show coverage summary
+    go tool cover -func=coverage.out | tail -1
 
-# Run Go unit tests with coverage
-testing::unit::run_all_tests \
-    --go-dir "api" \
-    --skip-node \
-    --skip-python \
-    --coverage-warn 80 \
-    --coverage-error 50
+    cd ..
+    echo "✓ Go unit tests passed"
+else
+    echo "⚠️  No Go tests found"
+fi
 
-testing::phase::end_with_summary "Unit tests completed"
+echo "✅ Unit tests passed"

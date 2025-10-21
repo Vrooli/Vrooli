@@ -12,27 +12,27 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 
 interface DesktopConfig {
-    // Application identity
-    appName: string;
-    appDisplayName: string;
-    appDescription: string;
+    // Application identity (matching Go JSON tags)
+    app_name: string;
+    app_display_name: string;
+    app_description: string;
     version: string;
     author: string;
     license: string;
-    appId: string;
-    appUrl?: string;
-    
+    app_id: string;
+    app_url?: string;
+
     // Server configuration
-    serverType: 'node' | 'static' | 'external' | 'executable';
-    serverPort?: number;
-    serverPath: string;
-    apiEndpoint: string;
-    scenarioDistPath?: string;
-    
+    server_type: 'node' | 'static' | 'external' | 'executable';
+    server_port?: number;
+    server_path: string;
+    api_endpoint: string;
+    scenario_dist_path?: string;
+
     // Template configuration
     framework: 'electron' | 'tauri' | 'neutralino';
-    templateType: 'basic' | 'advanced' | 'kiosk' | 'multi_window';
-    
+    template_type: 'basic' | 'advanced' | 'kiosk' | 'multi_window';
+
     // Features
     features: {
         splash?: boolean;
@@ -42,7 +42,7 @@ interface DesktopConfig {
         singleInstance?: boolean;
         [key: string]: any;
     };
-    
+
     // Window configuration
     window: {
         width?: number;
@@ -50,12 +50,12 @@ interface DesktopConfig {
         background?: string;
         [key: string]: any;
     };
-    
+
     // Platform targets
     platforms: ('win' | 'mac' | 'linux')[];
-    
+
     // Output configuration
-    outputPath: string;
+    output_path: string;
     
     // Styling (for splash, etc.)
     styling?: {
@@ -80,14 +80,27 @@ class DesktopTemplateGenerator {
     
     constructor(config: DesktopConfig) {
         this.config = config;
-        this.templateBasePath = path.join(__dirname, '../');
-        this.outputPath = path.resolve(config.outputPath);
+        // SECURITY: __dirname is controlled by the build system (not user input).
+        // This path traversal is safe as it navigates from build-tools/dist/ to templates/.
+        // The path.resolve() ensures this becomes an absolute path without traversal.
+        this.templateBasePath = path.resolve(__dirname, '../../');
+
+        // Validate and sanitize output path to prevent path traversal from user input
+        const resolvedPath = path.resolve(config.output_path);
+        const normalizedPath = path.normalize(resolvedPath);
+
+        // Ensure the path doesn't contain traversal patterns after normalization
+        if (normalizedPath.includes('..')) {
+            throw new Error('Invalid output path: path traversal detected');
+        }
+
+        this.outputPath = normalizedPath;
     }
     
     async generate(): Promise<void> {
-        console.log(`🚀 Generating desktop application: ${this.config.appDisplayName}`);
+        console.log(`🚀 Generating desktop application: ${this.config.app_display_name}`);
         console.log(`📁 Output directory: ${this.outputPath}`);
-        console.log(`🎨 Template type: ${this.config.templateType}`);
+        console.log(`🎨 Template type: ${this.config.template_type}`);
         console.log(`⚡ Framework: ${this.config.framework}`);
         
         try {
@@ -121,12 +134,25 @@ class DesktopTemplateGenerator {
     }
     
     private async loadTemplateConfig(): Promise<any> {
+        // Map template types to actual filenames
+        const templateFiles: Record<string, string> = {
+            'basic': 'basic-app.json',
+            'advanced': 'advanced-app.json',
+            'multi_window': 'multi-window.json',
+            'kiosk': 'kiosk-mode.json'
+        };
+
+        const filename = templateFiles[this.config.template_type];
+        if (!filename) {
+            throw new Error(`Invalid template type: ${this.config.template_type}`);
+        }
+
         const templateConfigPath = path.join(
             this.templateBasePath,
             'advanced',
-            `${this.config.templateType}.json`
+            filename
         );
-        
+
         try {
             const configContent = await fs.readFile(templateConfigPath, 'utf-8');
             return JSON.parse(configContent);
@@ -217,22 +243,22 @@ class DesktopTemplateGenerator {
         
         const variables: Record<string, any> = {
             // Basic app info
-            APP_NAME: this.config.appName,
-            APP_DISPLAY_NAME: this.config.appDisplayName,
-            APP_DESCRIPTION: this.config.appDescription,
+            APP_NAME: this.config.app_name,
+            APP_DISPLAY_NAME: this.config.app_display_name,
+            APP_DESCRIPTION: this.config.app_description,
             VERSION: this.config.version,
             AUTHOR: this.config.author,
             LICENSE: this.config.license,
-            APP_ID: this.config.appId,
-            APP_URL: this.config.appUrl || '',
+            APP_ID: this.config.app_id,
+            APP_URL: this.config.app_url || '',
             YEAR: currentYear,
             
             // Server config
-            SERVER_TYPE: this.config.serverType,
-            SERVER_PORT: this.config.serverPort || 3000,
-            SERVER_PATH: this.config.serverPath,
-            API_ENDPOINT: this.config.apiEndpoint,
-            SCENARIO_DIST_PATH: this.config.scenarioDistPath || '../ui/dist',
+            SERVER_TYPE: this.config.server_type,
+            SERVER_PORT: this.config.server_port || 3000,
+            SERVER_PATH: this.config.server_path,
+            API_ENDPOINT: this.config.api_endpoint,
+            SCENARIO_DIST_PATH: this.config.scenario_dist_path || '../ui/dist',
             
             // Window config
             WINDOW_WIDTH: this.config.window.width || 1200,
@@ -272,7 +298,7 @@ class DesktopTemplateGenerator {
         return {
             provider: "github",
             owner: "your-organization",
-            repo: `${this.config.appName}-desktop`
+            repo: `${this.config.app_name}-desktop`
         };
     }
     
@@ -291,9 +317,9 @@ class DesktopTemplateGenerator {
     }
     
     private async generateReadme(): Promise<void> {
-        const readme = `# ${this.config.appDisplayName}
+        const readme = `# ${this.config.app_display_name}
 
-${this.config.appDescription}
+${this.config.app_description}
 
 ## 🚀 Quick Start
 
@@ -321,8 +347,8 @@ npm run dist:all
 ## 📦 Generated Application Details
 
 - **Framework**: ${this.config.framework}
-- **Template**: ${this.config.templateType}
-- **Server Type**: ${this.config.serverType}
+- **Template**: ${this.config.template_type}
+- **Server Type**: ${this.config.server_type}
 - **Target Platforms**: ${this.config.platforms.join(', ')}
 
 ## 🛠️ Development
@@ -331,7 +357,7 @@ This desktop application was generated using **scenario-to-desktop**.
 
 ### Project Structure
 \`\`\`
-${this.config.appName}-desktop/
+${this.config.app_name}-desktop/
 ├── src/
 │   ├── main.ts          # Main Electron process
 │   ├── preload.ts       # Renderer bridge
@@ -417,7 +443,7 @@ exports.default = async function notarizing(context) {
     const appName = context.packager.appInfo.productFilename;
 
     return await notarize({
-        appBundleId: '${this.config.appId}',
+        appBundleId: '${this.config.app_id}',
         appPath: \`\${appOutDir}/\${appName}.app\`,
         appleId: process.env.APPLE_ID,
         appleIdPassword: process.env.APPLE_ID_PASSWORD,
@@ -451,24 +477,45 @@ exports.default = async function notarizing(context) {
     }
     
     private async setupAssets(): Promise<void> {
-        const assetsDir = path.join(this.outputPath, 'assets');
+        // Validate and normalize output path to prevent path traversal
+        const normalizedOutput = path.normalize(this.outputPath);
+        const assetsDir = path.join(normalizedOutput, 'assets');
+
+        // Ensure assetsDir is within the output path
+        if (!assetsDir.startsWith(normalizedOutput)) {
+            throw new Error('Invalid output path: potential path traversal detected');
+        }
+
         await fs.mkdir(assetsDir, { recursive: true });
-        
-        // Create placeholder icon files
+
+        // Create placeholder icon files (fixed size list prevents injection)
         const iconSizes = [16, 32, 48, 128, 256, 512, 1024];
-        
+
         for (const size of iconSizes) {
             const iconData = this.generatePlaceholderIcon(size);
-            await fs.writeFile(path.join(assetsDir, `icon-${size}x${size}.png`), iconData);
+            const iconPath = path.join(assetsDir, `icon-${size}x${size}.png`);
+
+            // Verify the icon path is still within assetsDir
+            if (!iconPath.startsWith(assetsDir)) {
+                throw new Error('Invalid icon path detected');
+            }
+
+            await fs.writeFile(iconPath, iconData);
+        }
+
+        // Create platform-specific icons (with path validation)
+        const platformIcons = ['icon.ico', 'icon.icns', 'icon.png'];
+        for (const iconName of platformIcons) {
+            const iconPath = path.join(assetsDir, iconName);
+            if (!iconPath.startsWith(assetsDir)) {
+                throw new Error('Invalid platform icon path detected');
+            }
+            const iconSize = iconName === 'icon.icns' || iconName === 'icon.png' ? 512 : 256;
+            await fs.writeFile(iconPath, this.generatePlaceholderIcon(iconSize));
         }
         
-        // Create platform-specific icons
-        await fs.writeFile(path.join(assetsDir, 'icon.ico'), this.generatePlaceholderIcon(256));
-        await fs.writeFile(path.join(assetsDir, 'icon.icns'), this.generatePlaceholderIcon(512));
-        await fs.writeFile(path.join(assetsDir, 'icon.png'), this.generatePlaceholderIcon(512));
-        
         // Create license file
-        const licenseContent = `${this.config.appDisplayName}
+        const licenseContent = `${this.config.app_display_name}
 Copyright (c) ${new Date().getFullYear()} ${this.config.author}
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

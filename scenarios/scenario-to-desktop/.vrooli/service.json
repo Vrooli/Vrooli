@@ -47,23 +47,21 @@
   },
   "resources": {
     "required": [],
-    "optional": [
-      {
-        "name": "browserless",
+    "optional": ["browserless", "postgres", "redis"],
+    "details": {
+      "browserless": {
         "purpose": "Desktop application testing and screenshot validation",
         "fallback": "Manual testing workflow"
       },
-      {
-        "name": "postgres",
+      "postgres": {
         "purpose": "Store desktop application templates and build history",
         "fallback": "File-based template storage"
       },
-      {
-        "name": "redis",
+      "redis": {
         "purpose": "Cache compiled applications and build artifacts",
         "fallback": "Local filesystem caching"
       }
-    ]
+    }
   },
   "apis": {
     "endpoints": [
@@ -287,6 +285,34 @@
     "homepage": "https://vrooli.com/scenarios/scenario-to-desktop"
    },
     "lifecycle": {
+      "health": {
+        "description": "Scenario to Desktop health check configuration",
+        "endpoints": {
+          "api": "/health",
+          "ui": "/health"
+        },
+        "checks": [
+          {
+            "name": "api_endpoint",
+            "type": "http",
+            "target": "http://localhost:${API_PORT}/health",
+            "critical": true,
+            "timeout": 5000,
+            "interval": 30000
+          },
+          {
+            "name": "ui_endpoint",
+            "type": "http",
+            "target": "http://localhost:${UI_PORT}/health",
+            "critical": false,
+            "timeout": 3000,
+            "interval": 45000
+          }
+        ],
+        "timeout": 5000,
+        "interval": 30000,
+        "startup_grace_period": 10000
+      },
       "setup": {
         "description": "Initialize scenario-to-desktop",
         "condition": {
@@ -294,7 +320,7 @@
              {
                "type": "binaries",
                "targets": [
-                 "scenario-to-desktop-api"
+                 "api/scenario-to-desktop-api"
                ]
              },
              {
@@ -328,7 +354,7 @@
           },
           {
             "name": "setup-ui",
-            "run": "cd ui && npm install",
+            "run": "cd ui && pnpm install",
             "description": "Install UI dependencies"
           }
         ]
@@ -370,6 +396,21 @@
           "name": "stop-ui",
           "run": "pkill -f \"scenarios/scenario-to-desktop.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run scenario tests",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "cd api && go test -v -timeout 120s -coverprofile=coverage.out ./...",
+          "description": "Run API unit tests"
+        },
+        {
+          "name": "test-cli",
+          "run": "cd cli && bats scenario-to-desktop.bats || echo 'CLI tests not yet implemented'",
+          "description": "Run CLI tests"
         }
       ]
     }

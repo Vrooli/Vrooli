@@ -262,14 +262,43 @@ func (s *Server) setupRoutes() {
 	gin.SetMode(gin.ReleaseMode)
 	s.router = gin.Default()
 
-	// Add CORS middleware
+	// Add CORS middleware with explicit origin control
 	s.router.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
+		origin := c.Request.Header.Get("Origin")
+		// Allow requests from localhost (UI), localhost (CLI/testing), and deployed domains
+		allowedOrigins := []string{
+			"http://localhost:" + os.Getenv("UI_PORT"),
+			"http://127.0.0.1:" + os.Getenv("UI_PORT"),
+			"http://localhost:5678", // n8n workflows
+		}
+
+		// Check if origin is in allowed list
+		allowed := false
+		for _, allowedOrigin := range allowedOrigins {
+			if origin == allowedOrigin {
+				allowed = true
+				c.Header("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
+		// If no origin header (e.g., CLI/Postman), allow but don't set CORS header
+		if origin == "" {
+			allowed = true
+		}
+
+		if allowed {
+			c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
 
 		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
+			if allowed {
+				c.AbortWithStatus(204)
+			} else {
+				c.AbortWithStatus(403)
+			}
 			return
 		}
 		c.Next()

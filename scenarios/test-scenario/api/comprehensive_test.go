@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -260,5 +263,145 @@ func TestSetupTestDirectoryCoverage(t *testing.T) {
 
 		// Call cleanup
 		env.Cleanup()
+	})
+}
+
+// TestHandlerTestSuiteLifecycle validates full handler lifecycle coverage using the pattern helpers
+func TestHandlerTestSuiteLifecycle(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("LifecyclePatterns", func(t *testing.T) {
+		var (
+			setupCalled      bool
+			cleanupCalled    bool
+			invalidValidated bool
+			missingValidated bool
+			successValidated bool
+		)
+
+		suite := &HandlerTestSuite{
+			HandlerName: "LifecycleHandler",
+			BaseURL:     "/api",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				defer r.Body.Close()
+
+				var payload map[string]interface{}
+				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]string{"error": "invalid json"})
+					return
+				}
+
+				nameValue, _ := payload["name"].(string)
+				nameValue = strings.TrimSpace(nameValue)
+				if nameValue == "" {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]string{"error": "missing name"})
+					return
+				}
+
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(map[string]string{
+					"status": "ok",
+					"name":   nameValue,
+				})
+			},
+		}
+
+		builder := NewTestScenarioBuilder()
+		builder.AddCustom(ErrorTestPattern{
+			Name:           "InvalidJSONLifecycle",
+			Description:    "Invalid JSON payload should return a bad request",
+			ExpectedStatus: http.StatusBadRequest,
+			Setup: func(t *testing.T) interface{} {
+				setupCalled = true
+				return map[string]string{"scenario": "invalid-json"}
+			},
+			Execute: func(t *testing.T, setupData interface{}) *HTTPTestRequest {
+				if !setupCalled {
+					t.Fatalf("setup was not called before execute: %#v", setupData)
+				}
+				return &HTTPTestRequest{
+					Method: "POST",
+					Path:   suite.BaseURL + "/resources",
+					Body:   `{"name": "missing quote}`,
+				}
+			},
+			Validate: func(t *testing.T, w *httptest.ResponseRecorder, setupData interface{}) {
+				invalidValidated = true
+				assertErrorResponse(t, w, http.StatusBadRequest, "invalid json")
+				dataMap, ok := setupData.(map[string]string)
+				if !ok || dataMap["scenario"] != "invalid-json" {
+					t.Errorf("unexpected setup data in validation: %#v", setupData)
+				}
+			},
+			Cleanup: func(data interface{}) {
+				cleanupCalled = true
+				if dataMap, ok := data.(map[string]string); !ok || dataMap["scenario"] != "invalid-json" {
+					t.Errorf("unexpected cleanup data: %#v", data)
+				}
+			},
+		})
+
+		builder.AddCustom(ErrorTestPattern{
+			Name:           "MissingNameEdgeCase",
+			Description:    "Whitespace-only names should be rejected",
+			ExpectedStatus: http.StatusBadRequest,
+			Execute: func(t *testing.T, setupData interface{}) *HTTPTestRequest {
+				return &HTTPTestRequest{
+					Method: "POST",
+					Path:   suite.BaseURL + "/resources",
+					Body:   map[string]string{"name": "  "},
+				}
+			},
+			Validate: func(t *testing.T, w *httptest.ResponseRecorder, setupData interface{}) {
+				missingValidated = true
+				assertErrorResponse(t, w, http.StatusBadRequest, "missing name")
+			},
+		})
+
+		builder.AddCustom(ErrorTestPattern{
+			Name:           "ValidPayloadSuccess",
+			Description:    "Valid payload should succeed",
+			ExpectedStatus: http.StatusOK,
+			Execute: func(t *testing.T, setupData interface{}) *HTTPTestRequest {
+				return &HTTPTestRequest{
+					Method: "POST",
+					Path:   suite.BaseURL + "/resources",
+					Body:   map[string]string{"name": "LifecycleTester"},
+				}
+			},
+			Validate: func(t *testing.T, w *httptest.ResponseRecorder, setupData interface{}) {
+				successValidated = true
+				response := assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{"status": "ok"})
+				if response != nil {
+					if responseName, ok := response["name"].(string); !ok || responseName != "LifecycleTester" {
+						t.Errorf("expected response name 'LifecycleTester', got %v", response["name"])
+					}
+				}
+			},
+		})
+
+		suite.RunErrorTests(t, builder.Build())
+
+		if !setupCalled {
+			t.Error("expected setup to run before executing the pattern")
+		}
+		if !cleanupCalled {
+			t.Error("expected cleanup to run after executing the pattern")
+		}
+		if !invalidValidated {
+			t.Error("expected invalid JSON validation to run")
+		}
+		if !missingValidated {
+			t.Error("expected missing name validation to run")
+		}
+		if !successValidated {
+			t.Error("expected success validation to run")
+		}
 	})
 }

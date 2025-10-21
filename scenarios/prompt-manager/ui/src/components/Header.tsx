@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Search, Sparkles, Sun, Moon, Monitor } from 'lucide-react'
+import { Search, Sparkles, Sun, Moon, Monitor, PanelLeftOpen } from 'lucide-react'
 import { useTheme } from '@/hooks/use-theme'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -9,9 +9,11 @@ interface HeaderProps {
   searchQuery: string
   onSearchChange: (query: string) => void
   selectedCampaign: Campaign | null
+  showSidebarToggle?: boolean
+  onToggleSidebar?: () => void
 }
 
-export function Header({ searchQuery, onSearchChange, selectedCampaign }: HeaderProps) {
+export function Header({ searchQuery, onSearchChange, selectedCampaign, showSidebarToggle, onToggleSidebar }: HeaderProps) {
   const { theme, toggleTheme } = useTheme()
 
   const getThemeIcon = () => {
@@ -30,7 +32,24 @@ export function Header({ searchQuery, onSearchChange, selectedCampaign }: Header
     >
       <div className="flex items-center justify-between px-6 py-4">
         {/* Left side - Logo and breadcrumb */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
+          {showSidebarToggle && (
+            <motion.div
+              className="lg:hidden"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleSidebar}
+                className="h-10 w-10"
+                aria-label="Open navigation panel"
+              >
+                <PanelLeftOpen className="h-5 w-5" />
+              </Button>
+            </motion.div>
+          )}
           <motion.div
             className="flex items-center space-x-3"
             whileHover={{ scale: 1.02 }}
@@ -70,7 +89,7 @@ export function Header({ searchQuery, onSearchChange, selectedCampaign }: Header
         </div>
 
         {/* Center - Search */}
-        <div className="flex-1 max-w-xl mx-8">
+        <div className="flex-1 max-w-xl mx-3 md:mx-8">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input

@@ -7,7 +7,7 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 testing::phase::init --target-time "60s"
 
-cd "$TESTING_PHASE_SCENARIO_DIR/api"
+cd "$TESTING_PHASE_SCENARIO_DIR/api" || { echo "Failed to cd to api directory"; exit 1; }
 
 testing::phase::info "Starting business logic tests for scenario-to-extension"
 

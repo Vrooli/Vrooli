@@ -385,10 +385,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 		if originAllowed && origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-		} else if origin == "" && os.Getenv("VROOLI_ENV") == "development" {
-			// Only allow no-origin requests in development (CLI/direct API calls)
-			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
+		// Note: Requests without Origin header (e.g., CLI, curl) will not get CORS headers
+		// This is correct behavior - CORS is only needed for browser-based requests
 		
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
@@ -481,21 +480,55 @@ func authMiddleware(next http.Handler) http.Handler {
 // Handler functions
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Check database connection
-	dbStatus := "healthy"
+	dbConnected := false
+	var dbLatency *float64
+	var dbError map[string]interface{}
+
 	if s.db != nil {
-		if err := s.db.Ping(); err != nil {
-			dbStatus = "unhealthy"
+		start := time.Now()
+		if err := s.db.Ping(); err == nil {
+			dbConnected = true
+			latency := float64(time.Since(start).Milliseconds())
+			dbLatency = &latency
+		} else {
+			dbError = map[string]interface{}{
+				"code":      "CONNECTION_FAILED",
+				"message":   "Failed to connect to database",
+				"category":  "resource",
+				"retryable": true,
+			}
 		}
 	} else {
-		dbStatus = "not_configured"
+		dbError = map[string]interface{}{
+			"code":      "NOT_CONFIGURED",
+			"message":   "Database connection not configured",
+			"category":  "configuration",
+			"retryable": false,
+		}
+	}
+
+	// Determine overall status and readiness
+	status := "healthy"
+	readiness := true
+
+	if !dbConnected {
+		status = "degraded"
+		readiness = false
 	}
 
 	health := map[string]interface{}{
-		"status":   "healthy",
-		"database": dbStatus,
-		"version":  "1.0.0",
-		"service":  "network-tools",
-		"timestamp": time.Now().UTC(),
+		"status":    status,
+		"service":   "network-tools",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": readiness,
+		"version":   "1.0.0",
+		"dependencies": map[string]interface{}{
+			"database": map[string]interface{}{
+				"connected":  dbConnected,
+				"latency_ms": dbLatency,
+				"error":      dbError,
+			},
+		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -731,6 +764,20 @@ func (s *Server) handleConnectivityTest(w http.ResponseWriter, r *http.Request) 
 	}
 	if req.TestType == "" {
 		req.TestType = "ping"
+	}
+
+	// Validate test_type is valid
+	validTestTypes := map[string]bool{
+		"ping":       true,
+		"traceroute": true,
+		"mtr":        true,
+		"bandwidth":  true,
+		"latency":    true,
+		"tcp":        true,
+	}
+	if !validTestTypes[req.TestType] {
+		sendError(w, fmt.Sprintf("Invalid test_type '%s'. Valid types: ping, traceroute, mtr, bandwidth, latency, tcp", req.TestType), http.StatusBadRequest)
+		return
 	}
 
 	// Simple connectivity test (TCP connection)

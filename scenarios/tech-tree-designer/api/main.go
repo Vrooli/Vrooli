@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,35 +29,35 @@ type TechTree struct {
 }
 
 type Sector struct {
-	ID                 string  `json:"id" db:"id"`
-	TreeID             string  `json:"tree_id" db:"tree_id"`
-	Name               string  `json:"name" db:"name"`
-	Category           string  `json:"category" db:"category"`
-	Description        string  `json:"description" db:"description"`
-	ProgressPercentage float64 `json:"progress_percentage" db:"progress_percentage"`
-	PositionX          float64 `json:"position_x" db:"position_x"`
-	PositionY          float64 `json:"position_y" db:"position_y"`
-	Color              string  `json:"color" db:"color"`
-	CreatedAt          time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at" db:"updated_at"`
+	ID                 string             `json:"id" db:"id"`
+	TreeID             string             `json:"tree_id" db:"tree_id"`
+	Name               string             `json:"name" db:"name"`
+	Category           string             `json:"category" db:"category"`
+	Description        string             `json:"description" db:"description"`
+	ProgressPercentage float64            `json:"progress_percentage" db:"progress_percentage"`
+	PositionX          float64            `json:"position_x" db:"position_x"`
+	PositionY          float64            `json:"position_y" db:"position_y"`
+	Color              string             `json:"color" db:"color"`
+	CreatedAt          time.Time          `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at" db:"updated_at"`
 	Stages             []ProgressionStage `json:"stages,omitempty"`
 }
 
 type ProgressionStage struct {
-	ID                 string                  `json:"id" db:"id"`
-	SectorID           string                  `json:"sector_id" db:"sector_id"`
-	StageType          string                  `json:"stage_type" db:"stage_type"`
-	StageOrder         int                     `json:"stage_order" db:"stage_order"`
-	Name               string                  `json:"name" db:"name"`
-	Description        string                  `json:"description" db:"description"`
-	ProgressPercentage float64                 `json:"progress_percentage" db:"progress_percentage"`
-	Examples           json.RawMessage         `json:"examples" db:"examples"`
-	PositionX          float64                 `json:"position_x" db:"position_x"`
-	PositionY          float64                 `json:"position_y" db:"position_y"`
-	CreatedAt          time.Time               `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time               `json:"updated_at" db:"updated_at"`
-	ScenarioMappings   []ScenarioMapping       `json:"scenario_mappings,omitempty"`
-	Dependencies       []StageDependency       `json:"dependencies,omitempty"`
+	ID                 string            `json:"id" db:"id"`
+	SectorID           string            `json:"sector_id" db:"sector_id"`
+	StageType          string            `json:"stage_type" db:"stage_type"`
+	StageOrder         int               `json:"stage_order" db:"stage_order"`
+	Name               string            `json:"name" db:"name"`
+	Description        string            `json:"description" db:"description"`
+	ProgressPercentage float64           `json:"progress_percentage" db:"progress_percentage"`
+	Examples           json.RawMessage   `json:"examples" db:"examples"`
+	PositionX          float64           `json:"position_x" db:"position_x"`
+	PositionY          float64           `json:"position_y" db:"position_y"`
+	CreatedAt          time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time         `json:"updated_at" db:"updated_at"`
+	ScenarioMappings   []ScenarioMapping `json:"scenario_mappings,omitempty"`
+	Dependencies       []StageDependency `json:"dependencies,omitempty"`
 }
 
 type ScenarioMapping struct {
@@ -73,13 +75,13 @@ type ScenarioMapping struct {
 }
 
 type StageDependency struct {
-	ID                   string  `json:"id" db:"id"`
-	DependentStageID     string  `json:"dependent_stage_id" db:"dependent_stage_id"`
-	PrerequisiteStageID  string  `json:"prerequisite_stage_id" db:"prerequisite_stage_id"`
-	DependencyType       string  `json:"dependency_type" db:"dependency_type"`
-	DependencyStrength   float64 `json:"dependency_strength" db:"dependency_strength"`
-	Description          string  `json:"description" db:"description"`
-	CreatedAt            time.Time `json:"created_at" db:"created_at"`
+	ID                  string    `json:"id" db:"id"`
+	DependentStageID    string    `json:"dependent_stage_id" db:"dependent_stage_id"`
+	PrerequisiteStageID string    `json:"prerequisite_stage_id" db:"prerequisite_stage_id"`
+	DependencyType      string    `json:"dependency_type" db:"dependency_type"`
+	DependencyStrength  float64   `json:"dependency_strength" db:"dependency_strength"`
+	Description         string    `json:"description" db:"description"`
+	CreatedAt           time.Time `json:"created_at" db:"created_at"`
 }
 
 type StrategicMilestone struct {
@@ -112,10 +114,10 @@ type AnalysisRequest struct {
 }
 
 type AnalysisResponse struct {
-	Recommendations     []StrategicRecommendation `json:"recommendations"`
-	ProjectedTimeline   ProjectedTimeline         `json:"projected_timeline"`
-	BottleneckAnalysis  []string                  `json:"bottleneck_analysis"`
-	CrossSectorImpacts  []CrossSectorImpact       `json:"cross_sector_impacts"`
+	Recommendations    []StrategicRecommendation `json:"recommendations"`
+	ProjectedTimeline  ProjectedTimeline         `json:"projected_timeline"`
+	BottleneckAnalysis []string                  `json:"bottleneck_analysis"`
+	CrossSectorImpacts []CrossSectorImpact       `json:"cross_sector_impacts"`
 }
 
 type ProjectedTimeline struct {
@@ -139,30 +141,30 @@ var db *sql.DB
 
 func initDB() error {
 	_ = godotenv.Load()
-	
+
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
 		dbHost = "localhost"
 	}
-	
+
 	dbPort := os.Getenv("DB_PORT")
 	if dbPort == "" {
-		dbPort = "5432"
+		return fmt.Errorf("DB_PORT environment variable is required")
 	}
-	
+
 	dbUser := os.Getenv("DB_USER")
 	if dbUser == "" {
-		dbUser = "postgres"
+		return fmt.Errorf("DB_USER environment variable is required")
 	}
-	
+
 	dbPassword := os.Getenv("DB_PASSWORD")
 	if dbPassword == "" {
-		dbPassword = "postgres"
+		return fmt.Errorf("DB_PASSWORD environment variable is required (never use hardcoded passwords)")
 	}
-	
+
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
-		dbName = "vrooli"
+		return fmt.Errorf("DB_NAME environment variable is required")
 	}
 
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -174,7 +176,32 @@ func initDB() error {
 		return err
 	}
 
-	return db.Ping()
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	maxRetries := 10
+	baseDelay := 500 * time.Millisecond
+	maxDelay := 30 * time.Second
+	randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			return nil
+		}
+
+		delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(randSource.Float64() * jitterRange)
+		waitTime := delay + jitter
+
+		log.Printf("Database connection attempt %d/%d failed: %v. Retrying in %v", attempt+1, maxRetries, pingErr, waitTime)
+		time.Sleep(waitTime)
+	}
+
+	return fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, pingErr)
 }
 
 func main() {
@@ -199,9 +226,22 @@ func main() {
 	// Initialize Gin router
 	r := gin.Default()
 
-	// Add CORS middleware
+	// Add CORS middleware with explicit allowed origins
 	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+		if allowedOrigins == "" {
+			allowedOrigins = "http://localhost:3000,http://localhost:35000"
+		}
+
+		origin := c.Request.Header.Get("Origin")
+		// Only set CORS header if origin is in allowed list
+		for _, allowed := range []string{"http://localhost:3000", "http://localhost:35000"} {
+			if origin == allowed {
+				c.Header("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -226,31 +266,31 @@ func main() {
 		api.GET("/tech-tree/sectors", getSectors)
 		api.GET("/tech-tree/sectors/:id", getSector)
 		api.GET("/tech-tree/stages/:id", getStage)
-		
+
 		// Progress tracking routes
 		api.GET("/progress/scenarios", getScenarioMappings)
 		api.POST("/progress/scenarios", updateScenarioMapping)
 		api.PUT("/progress/scenarios/:scenario", updateScenarioStatus)
-		
+
 		// Strategic analysis routes
 		api.POST("/tech-tree/analyze", analyzeStrategicPath)
 		api.GET("/milestones", getStrategicMilestones)
 		api.GET("/recommendations", getRecommendations)
-		
+
 		// Dependencies and connections
 		api.GET("/dependencies", getDependencies)
 		api.GET("/connections", getCrossSectorConnections)
 	}
 
-	// Get port from environment or default
+	// Get port from environment (required)
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "8080"
+		log.Fatal("API_PORT environment variable is required (no default port allowed for security)")
 	}
 
 	log.Printf("🚀 Tech Tree Designer API starting on port %s", port)
 	log.Printf("🌟 Strategic Intelligence System ready for superintelligence guidance")
-	
+
 	r.Run(":" + port)
 }
 
@@ -260,14 +300,14 @@ func getTechTree(c *gin.Context) {
 	err := db.QueryRow(`
 		SELECT id, name, description, version, is_active, created_at, updated_at 
 		FROM tech_trees WHERE is_active = true ORDER BY created_at DESC LIMIT 1
-	`).Scan(&tree.ID, &tree.Name, &tree.Description, &tree.Version, &tree.IsActive, 
+	`).Scan(&tree.ID, &tree.Name, &tree.Description, &tree.Version, &tree.IsActive,
 		&tree.CreatedAt, &tree.UpdatedAt)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tech tree"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, tree)
 }
 
@@ -295,13 +335,13 @@ func getSectors(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan sector"})
 			return
 		}
-		
+
 		// Load stages for each sector
 		stages, err := getStagesForSector(sector.ID)
 		if err == nil {
 			sector.Stages = stages
 		}
-		
+
 		sectors = append(sectors, sector)
 	}
 
@@ -393,16 +433,16 @@ func getStagesForSector(sectorID string) ([]ProgressionStage, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Load scenario mappings for each stage
 		mappings, err := getScenarioMappingsForStage(stage.ID)
 		if err == nil {
 			stage.ScenarioMappings = mappings
 		}
-		
+
 		stages = append(stages, stage)
 	}
-	
+
 	return stages, nil
 }
 
@@ -432,7 +472,7 @@ func getScenarioMappingsForStage(stageID string) ([]ScenarioMapping, error) {
 		}
 		mappings = append(mappings, mapping)
 	}
-	
+
 	return mappings, nil
 }
 
@@ -465,7 +505,7 @@ func getScenarioMappings(c *gin.Context) {
 		if err != nil {
 			continue
 		}
-		
+
 		mappings = append(mappings, gin.H{
 			"mapping":     mapping,
 			"stage_name":  stageName,
@@ -479,18 +519,18 @@ func getScenarioMappings(c *gin.Context) {
 // Update scenario status
 func updateScenarioStatus(c *gin.Context) {
 	scenarioName := c.Param("scenario")
-	
+
 	var request struct {
 		CompletionStatus string  `json:"completion_status"`
-		Notes           string  `json:"notes"`
-		EstimatedImpact float64 `json:"estimated_impact,omitempty"`
+		Notes            string  `json:"notes"`
+		EstimatedImpact  float64 `json:"estimated_impact,omitempty"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Update scenario mapping
 	_, err := db.Exec(`
 		UPDATE scenario_mappings 
@@ -499,16 +539,16 @@ func updateScenarioStatus(c *gin.Context) {
 		    estimated_impact = CASE WHEN $3 > 0 THEN $3 ELSE estimated_impact END
 		WHERE scenario_name = $1
 	`, request.CompletionStatus, request.Notes, request.EstimatedImpact, scenarioName)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update scenario status"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Scenario status updated successfully",
+		"message":  "Scenario status updated successfully",
 		"scenario": scenarioName,
-		"status": request.CompletionStatus,
+		"status":   request.CompletionStatus,
 	})
 }
 
@@ -519,26 +559,26 @@ func analyzeStrategicPath(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Generate strategic recommendations based on current state
 	recommendations := generateStrategicRecommendations(request)
-	
+
 	// Calculate projected timeline
 	timeline := calculateProjectedTimeline(request)
-	
+
 	// Identify bottlenecks
 	bottlenecks := identifyBottlenecks()
-	
+
 	// Analyze cross-sector impacts
 	impacts := analyzeCrossSectorImpacts()
-	
+
 	response := AnalysisResponse{
 		Recommendations:    recommendations,
 		ProjectedTimeline:  timeline,
 		BottleneckAnalysis: bottlenecks,
 		CrossSectorImpacts: impacts,
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -565,7 +605,7 @@ func generateStrategicRecommendations(request AnalysisRequest) []StrategicRecomm
 			Reasoning:        "Data organization capabilities are required for all sector foundation stages",
 		},
 	}
-	
+
 	return recommendations
 }
 
@@ -588,7 +628,7 @@ func calculateProjectedTimeline(request AnalysisRequest) ProjectedTimeline {
 			Confidence:          0.4,
 		},
 	}
-	
+
 	return ProjectedTimeline{Milestones: milestones}
 }
 
@@ -660,13 +700,13 @@ func getRecommendations(c *gin.Context) {
 			resources = parsed
 		}
 	}
-	
+
 	request := AnalysisRequest{
 		CurrentResources: resources,
 		TimeHorizon:      12, // 12 months
 		PrioritySectors:  []string{"software", "manufacturing", "healthcare"},
 	}
-	
+
 	recommendations := generateStrategicRecommendations(request)
 	c.JSON(http.StatusOK, gin.H{"recommendations": recommendations})
 }
@@ -698,11 +738,11 @@ func getDependencies(c *gin.Context) {
 		if err != nil {
 			continue
 		}
-		
+
 		dependencies = append(dependencies, gin.H{
-			"dependency":         dep,
-			"dependent_name":     dependentName,
-			"prerequisite_name":  prerequisiteName,
+			"dependency":        dep,
+			"dependent_name":    dependentName,
+			"prerequisite_name": prerequisiteName,
 		})
 	}
 
@@ -729,27 +769,27 @@ func getCrossSectorConnections(c *gin.Context) {
 	var connections []gin.H
 	for rows.Next() {
 		var conn struct {
-			ID               string          `json:"id"`
-			SourceSectorID   string          `json:"source_sector_id"`
-			TargetSectorID   string          `json:"target_sector_id"`
-			ConnectionType   string          `json:"connection_type"`
-			Strength         float64         `json:"strength"`
-			Description      string          `json:"description"`
-			Examples         json.RawMessage `json:"examples"`
+			ID             string          `json:"id"`
+			SourceSectorID string          `json:"source_sector_id"`
+			TargetSectorID string          `json:"target_sector_id"`
+			ConnectionType string          `json:"connection_type"`
+			Strength       float64         `json:"strength"`
+			Description    string          `json:"description"`
+			Examples       json.RawMessage `json:"examples"`
 		}
 		var sourceName, targetName string
-		
+
 		err := rows.Scan(&conn.ID, &conn.SourceSectorID, &conn.TargetSectorID,
 			&conn.ConnectionType, &conn.Strength, &conn.Description, &conn.Examples,
 			&sourceName, &targetName)
 		if err != nil {
 			continue
 		}
-		
+
 		connections = append(connections, gin.H{
-			"connection":   conn,
-			"source_name":  sourceName,
-			"target_name":  targetName,
+			"connection":  conn,
+			"source_name": sourceName,
+			"target_name": targetName,
 		})
 	}
 
@@ -763,13 +803,13 @@ func updateScenarioMapping(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Set ID and timestamps
 	mapping.ID = uuid.New().String()
 	mapping.CreatedAt = time.Now()
 	mapping.UpdatedAt = time.Now()
 	mapping.LastStatusCheck = time.Now()
-	
+
 	_, err := db.Exec(`
 		INSERT INTO scenario_mappings (id, scenario_name, stage_id, contribution_weight,
 			completion_status, priority, estimated_impact, last_status_check, notes, created_at, updated_at)
@@ -780,12 +820,12 @@ func updateScenarioMapping(c *gin.Context) {
 	`, mapping.ID, mapping.ScenarioName, mapping.StageID, mapping.ContributionWeight,
 		mapping.CompletionStatus, mapping.Priority, mapping.EstimatedImpact,
 		mapping.LastStatusCheck, mapping.Notes, mapping.CreatedAt, mapping.UpdatedAt)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update scenario mapping"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Scenario mapping updated successfully",
 		"mapping": mapping,

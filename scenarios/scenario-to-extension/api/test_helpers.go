@@ -80,12 +80,12 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 	// Create test config
 	testConfig := &Config{
-		Port:              3201,
-		APIEndpoint:       "http://localhost:3201",
-		TemplatesPath:     filepath.Join(tempDir, "templates"),
-		OutputPath:        dataDir,
-		BrowserlessURL:    "http://localhost:3000",
-		Debug:             false,
+		Port:           3201,
+		APIEndpoint:    "http://localhost:3201",
+		TemplatesPath:  filepath.Join(tempDir, "templates"),
+		OutputPath:     dataDir,
+		BrowserlessURL: "http://localhost:3000",
+		Debug:          false,
 	}
 
 	return &TestEnvironment{

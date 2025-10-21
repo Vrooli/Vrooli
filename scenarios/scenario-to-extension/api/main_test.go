@@ -40,8 +40,10 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		response := assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{
-			"status":   "healthy",
-			"scenario": "scenario-to-extension",
+			"status":    "healthy",
+			"service":   "scenario-to-extension-api",
+			"scenario":  "scenario-to-extension",
+			"readiness": true,
 		})
 
 		if response == nil {
@@ -711,9 +713,17 @@ func TestConfigLoading(t *testing.T) {
 	defer loggerCleanup()
 
 	t.Run("DefaultConfig", func(t *testing.T) {
-		// Clear environment variables
+		// Clear environment variables including API_PORT from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
 		os.Unsetenv("PORT")
 		os.Unsetenv("API_ENDPOINT")
+
+		defer func() {
+			if oldAPIPort != "" {
+				os.Setenv("API_PORT", oldAPIPort)
+			}
+		}()
 
 		cfg := loadConfig()
 
@@ -725,12 +735,16 @@ func TestConfigLoading(t *testing.T) {
 			t.Errorf("Expected default API endpoint, got %s", cfg.APIEndpoint)
 		}
 
-		if cfg.TemplatesPath != "./templates" {
-			t.Errorf("Expected default templates path, got %s", cfg.TemplatesPath)
+		if cfg.TemplatesPath != "../templates" {
+			t.Errorf("Expected default templates path '../templates', got %s", cfg.TemplatesPath)
 		}
 	})
 
 	t.Run("EnvironmentOverrides", func(t *testing.T) {
+		// Clear API_PORT to avoid interference from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
+
 		os.Setenv("PORT", "8080")
 		os.Setenv("API_ENDPOINT", "http://custom:8080")
 		os.Setenv("TEMPLATES_PATH", "/custom/templates")
@@ -753,6 +767,9 @@ func TestConfigLoading(t *testing.T) {
 		os.Unsetenv("PORT")
 		os.Unsetenv("API_ENDPOINT")
 		os.Unsetenv("TEMPLATES_PATH")
+		if oldAPIPort != "" {
+			os.Setenv("API_PORT", oldAPIPort)
+		}
 	})
 }
 

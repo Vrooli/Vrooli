@@ -9,7 +9,6 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
@@ -134,9 +133,11 @@ update_path() {
             fi
             
             # Add to this config file
-            echo "" >> "$config_file"
-            echo "$path_comment" >> "$config_file"
-            echo "$path_export" >> "$config_file"
+            {
+                echo ""
+                echo "$path_comment"
+                echo "$path_export"
+            } >> "$config_file"
             added_to_files+=("$config_file")
         fi
     done
@@ -169,9 +170,7 @@ test_installation() {
         warn "PATH execution test: FAILED (PATH may not be updated yet)"
     fi
     
-    # Show version information
-    local version_info
-    version_info=$("$CLI_SYMLINK" version 2>/dev/null || echo "Version information unavailable")
+    # Installation test completed
     log "Installation test completed"
 }
 

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -8,9 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
@@ -24,6 +28,31 @@ func setupTestLogger() func() {
 	}
 }
 
+func execWithBackoff(t *testing.T, db *sql.DB, query string, args ...interface{}) error {
+	const maxRetries = 5
+	baseDelay := 50 * time.Millisecond
+	maxDelay := 500 * time.Millisecond
+	randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	var execErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if _, execErr = db.Exec(query, args...); execErr == nil {
+			return nil
+		}
+
+		if attempt == maxRetries-1 {
+			break
+		}
+
+		delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(randSource.Float64() * jitterRange)
+		time.Sleep(delay + jitter)
+	}
+
+	return execErr
+}
+
 // setupTestDB creates an in-memory test database
 func setupTestDB(t *testing.T) (*sql.DB, func()) {
 	// Create mock database connection
@@ -33,11 +62,34 @@ func setupTestDB(t *testing.T) (*sql.DB, func()) {
 		return nil, func() {}
 	}
 
-	// Test connection
-	if err := testDB.Ping(); err != nil {
-		t.Skipf("Skipping test: cannot connect to test database: %v", err)
-		testDB.Close()
-		return nil, func() {}
+	// Configure connection pool to avoid exhausting resources during tests
+	testDB.SetMaxOpenConns(5)
+	testDB.SetMaxIdleConns(5)
+	testDB.SetConnMaxLifetime(2 * time.Minute)
+
+	// Test connection with exponential backoff and jitter
+	maxRetries := 5
+	baseDelay := 200 * time.Millisecond
+	maxDelay := 3 * time.Second
+	randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = testDB.Ping()
+		if pingErr == nil {
+			break
+		}
+
+		if attempt == maxRetries-1 {
+			t.Skipf("Skipping test: cannot connect to test database after retries: %v", pingErr)
+			testDB.Close()
+			return nil, func() {}
+		}
+
+		delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(randSource.Float64() * jitterRange)
+		time.Sleep(delay + jitter)
 	}
 
 	// Store original db and replace with test db
@@ -182,13 +234,11 @@ func contains(s, substr string) bool {
 // createTestTechTree creates a test tech tree in the database
 func createTestTechTree(t *testing.T, db *sql.DB) string {
 	treeID := "00000000-0000-0000-0000-000000000001"
-	_, err := db.Exec(`
+	if err := execWithBackoff(t, db, `
 		INSERT INTO tech_trees (id, name, description, version, is_active, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET is_active = true
-	`, treeID, "Test Tech Tree", "Test Description", "1.0.0", true)
-
-	if err != nil {
+	`, treeID, "Test Tech Tree", "Test Description", "1.0.0", true); err != nil {
 		t.Fatalf("Failed to create test tech tree: %v", err)
 	}
 
@@ -198,15 +248,13 @@ func createTestTechTree(t *testing.T, db *sql.DB) string {
 // createTestSector creates a test sector in the database
 func createTestSector(t *testing.T, db *sql.DB, treeID string) string {
 	sectorID := "00000000-0000-0000-0000-000000000002"
-	_, err := db.Exec(`
+	if err := execWithBackoff(t, db, `
 		INSERT INTO sectors (id, tree_id, name, category, description, progress_percentage,
 			position_x, position_y, color, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET name = $3
 	`, sectorID, treeID, "Software Engineering", "software", "Core software capabilities",
-		45.5, 100.0, 200.0, "#3498db")
-
-	if err != nil {
+		45.5, 100.0, 200.0, "#3498db"); err != nil {
 		t.Fatalf("Failed to create test sector: %v", err)
 	}
 
@@ -217,15 +265,13 @@ func createTestSector(t *testing.T, db *sql.DB, treeID string) string {
 func createTestStage(t *testing.T, db *sql.DB, sectorID string) string {
 	stageID := "00000000-0000-0000-0000-000000000003"
 	examples := `["Example 1", "Example 2"]`
-	_, err := db.Exec(`
+	if err := execWithBackoff(t, db, `
 		INSERT INTO progression_stages (id, sector_id, stage_type, stage_order, name, description,
 			progress_percentage, examples, position_x, position_y, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET name = $5
 	`, stageID, sectorID, "foundation", 1, "Foundation Stage", "Core foundation",
-		30.0, examples, 150.0, 250.0)
-
-	if err != nil {
+		30.0, examples, 150.0, 250.0); err != nil {
 		t.Fatalf("Failed to create test stage: %v", err)
 	}
 
@@ -235,14 +281,12 @@ func createTestStage(t *testing.T, db *sql.DB, sectorID string) string {
 // createTestScenarioMapping creates a test scenario mapping in the database
 func createTestScenarioMapping(t *testing.T, db *sql.DB, stageID, scenarioName string) string {
 	mappingID := fmt.Sprintf("00000000-0000-0000-0000-0000000000%02d", 10)
-	_, err := db.Exec(`
+	if err := execWithBackoff(t, db, `
 		INSERT INTO scenario_mappings (id, scenario_name, stage_id, contribution_weight,
 			completion_status, priority, estimated_impact, last_status_check, notes, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, NOW(), NOW())
 		ON CONFLICT (scenario_name, stage_id) DO UPDATE SET completion_status = $5
-	`, mappingID, scenarioName, stageID, 0.8, "in_progress", 1, 7.5, "Test scenario")
-
-	if err != nil {
+	`, mappingID, scenarioName, stageID, 0.8, "in_progress", 1, 7.5, "Test scenario"); err != nil {
 		t.Fatalf("Failed to create test scenario mapping: %v", err)
 	}
 
@@ -254,16 +298,14 @@ func createTestMilestone(t *testing.T, db *sql.DB, treeID string) string {
 	milestoneID := "00000000-0000-0000-0000-000000000005"
 	requiredSectors := `["sector1", "sector2"]`
 	requiredStages := `["stage1", "stage2"]`
-	_, err := db.Exec(`
+	if err := execWithBackoff(t, db, `
 		INSERT INTO strategic_milestones (id, tree_id, name, description, milestone_type,
 			required_sectors, required_stages, completion_percentage, confidence_level,
 			business_value_estimate, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET name = $3
 	`, milestoneID, treeID, "Test Milestone", "Test milestone description",
-		"capability", requiredSectors, requiredStages, 45.0, 0.75, 50000)
-
-	if err != nil {
+		"capability", requiredSectors, requiredStages, 45.0, 0.75, 50000); err != nil {
 		t.Fatalf("Failed to create test milestone: %v", err)
 	}
 
@@ -273,14 +315,12 @@ func createTestMilestone(t *testing.T, db *sql.DB, treeID string) string {
 // createTestDependency creates a test stage dependency in the database
 func createTestDependency(t *testing.T, db *sql.DB, dependentID, prerequisiteID string) string {
 	depID := "00000000-0000-0000-0000-000000000006"
-	_, err := db.Exec(`
+	if err := execWithBackoff(t, db, `
 		INSERT INTO stage_dependencies (id, dependent_stage_id, prerequisite_stage_id,
 			dependency_type, dependency_strength, description, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW())
 		ON CONFLICT (id) DO UPDATE SET dependency_type = $4
-	`, depID, dependentID, prerequisiteID, "requires", 0.9, "Test dependency")
-
-	if err != nil {
+	`, depID, dependentID, prerequisiteID, "requires", 0.9, "Test dependency"); err != nil {
 		t.Fatalf("Failed to create test dependency: %v", err)
 	}
 
@@ -291,14 +331,12 @@ func createTestDependency(t *testing.T, db *sql.DB, dependentID, prerequisiteID 
 func createTestSectorConnection(t *testing.T, db *sql.DB, sourceID, targetID string) string {
 	connID := "00000000-0000-0000-0000-000000000007"
 	examples := `["Example connection"]`
-	_, err := db.Exec(`
+	if err := execWithBackoff(t, db, `
 		INSERT INTO sector_connections (id, source_sector_id, target_sector_id,
 			connection_type, strength, description, examples, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET strength = $5
-	`, connID, sourceID, targetID, "enables", 0.85, "Test connection", examples)
-
-	if err != nil {
+	`, connID, sourceID, targetID, "enables", 0.85, "Test connection", examples); err != nil {
 		t.Fatalf("Failed to create test sector connection: %v", err)
 	}
 

@@ -80,7 +80,7 @@
       "description": "Authentication service health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/"
+        "ui": "/health"
       },
       "checks": [
         {

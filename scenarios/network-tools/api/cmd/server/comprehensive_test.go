@@ -55,6 +55,7 @@ func TestHTTPRequestHandler(t *testing.T) {
 			if r.Method != "POST" {
 				t.Errorf("Expected POST method, got %s", r.Method)
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(map[string]string{"id": "12345"})
 		})

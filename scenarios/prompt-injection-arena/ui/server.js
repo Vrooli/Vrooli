@@ -3,7 +3,13 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const port = process.env.UI_PORT || 3300;
+
+// Require UI_PORT environment variable (no defaults)
+const port = process.env.UI_PORT;
+if (!port) {
+    console.error('❌ UI_PORT environment variable is required');
+    process.exit(1);
+}
 
 // Middleware
 app.use(cors());

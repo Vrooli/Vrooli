@@ -196,6 +196,7 @@ func TestGenerateHandler_AllPossiblePaths(t *testing.T) {
 	})
 
 	t.Run("LargeNumColors", func(t *testing.T) {
+		// Test that requesting 50 colors gets clamped to the max of 10
 		req := generateTestPaletteRequest("tech", "vibrant", 50, "")
 		w, err := makeHTTPRequest("POST", "/generate", req, generateHandler)
 		if err != nil {
@@ -203,7 +204,7 @@ func TestGenerateHandler_AllPossiblePaths(t *testing.T) {
 		}
 
 		response := assertJSONResponse(t, w, 200)
-		assertPaletteResponse(t, response, 50)
+		assertPaletteResponse(t, response, 10) // API caps at 10 colors
 	})
 
 	t.Run("BaseColorWithEachStyle", func(t *testing.T) {
