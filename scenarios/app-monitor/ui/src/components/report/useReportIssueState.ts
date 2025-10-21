@@ -19,7 +19,7 @@ import type {
 import useIframeBridgeDiagnostics from '@/hooks/useIframeBridgeDiagnostics';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { useReportScreenshot } from '@/hooks/useReportScreenshot';
-import { appService, healthService, buildApiUrlWithBase } from '@/services/api';
+import { appService, healthService } from '@/services/api';
 import type {
   ReportIssueConsoleLogEntry,
   ReportIssueNetworkEntry,
@@ -340,6 +340,7 @@ const useReportIssueState = ({
   const reportAppLogsFetchedForRef = useRef<string | null>(null);
   const reportConsoleLogsFetchedForRef = useRef<string | null>(null);
   const reportNetworkFetchedForRef = useRef<string | null>(null);
+  const reportHealthChecksFetchedForRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [shouldResetOnNextOpen, setShouldResetOnNextOpen] = useState(true);
   const lastResolvedAppIdRef = useRef<string | null>(null);
@@ -384,66 +385,6 @@ const useReportIssueState = ({
     reportScreenshotContainerRef.current = node;
   }, [reportScreenshotContainerRef]);
 
-  const normalizeHealthStatus = useCallback((value?: string | null): 'pass' | 'warn' | 'fail' => {
-    const normalized = (value ?? '').toString().trim().toLowerCase();
-    if (normalized === 'healthy' || normalized === 'ok' || normalized === 'pass') {
-      return 'pass';
-    }
-    if (normalized === 'degraded' || normalized === 'warning' || normalized === 'warn') {
-      return 'warn';
-    }
-    if (!normalized) {
-      return 'warn';
-    }
-    return 'fail';
-  }, []);
-
-  const parseHealthError = useCallback((reason: unknown): { message: string; code: string | null } => {
-    if (!reason) {
-      return { message: 'No response received.', code: null };
-    }
-    if (typeof reason === 'string') {
-      return { message: reason, code: null };
-    }
-    if (reason instanceof Error) {
-      const candidate = reason as Error & { code?: string; response?: { status?: number }; status?: number };
-      const statusCode = typeof candidate.response?.status === 'number'
-        ? candidate.response.status
-        : typeof candidate.status === 'number'
-          ? candidate.status
-          : null;
-      const code = typeof candidate.code === 'string'
-        ? candidate.code
-        : statusCode !== null
-          ? `HTTP_${statusCode}`
-          : null;
-      return {
-        message: candidate.message || 'Request failed.',
-        code,
-      };
-    }
-    if (typeof reason === 'object') {
-      const candidate = reason as { message?: string; code?: string; status?: number; response?: { status?: number } };
-      const statusCode = typeof candidate.response?.status === 'number'
-        ? candidate.response.status
-        : typeof candidate.status === 'number'
-          ? candidate.status
-          : null;
-      const code = typeof candidate.code === 'string'
-        ? candidate.code
-        : statusCode !== null
-          ? `HTTP_${statusCode}`
-          : null;
-      const message = typeof candidate.message === 'string'
-        ? candidate.message
-        : code
-          ? `Request failed (${code}).`
-          : 'Request failed.';
-      return { message, code };
-    }
-    return { message: 'Request failed.', code: null };
-  }, []);
-
   const resetState = useCallback(() => {
     setReportSubmitting(false);
     setReportError(null);
@@ -480,6 +421,7 @@ const useReportIssueState = ({
     reportAppLogsFetchedForRef.current = null;
     reportConsoleLogsFetchedForRef.current = null;
     reportNetworkFetchedForRef.current = null;
+    reportHealthChecksFetchedForRef.current = null;
   }, []);
 
   const resolveReportLogIdentifier = useCallback(() => {
@@ -782,153 +724,89 @@ const useReportIssueState = ({
       return;
     }
 
+    const targetAppId = (app?.id ?? appId ?? '').trim();
+    if (!targetAppId) {
+      setReportHealthChecks([]);
+      setReportHealthChecksTotal(null);
+      setReportHealthChecksError('Preview app unavailable.');
+      setReportHealthChecksFetchedAt(null);
+      reportHealthChecksFetchedForRef.current = null;
+      return;
+    }
+
+    const normalizedIdentifier = targetAppId.toLowerCase();
+    if (!options?.force && reportHealthChecksFetchedForRef.current === normalizedIdentifier) {
+      return;
+    }
+
     setReportHealthChecksLoading(true);
     setReportHealthChecksError(null);
 
-    const apiHealthUrl = buildApiUrlWithBase('/health');
-    const uiHealthUrl = typeof window !== 'undefined' && window.location
-      ? `${window.location.origin.replace(/\/+$/, '')}/health`
-      : '/health';
-
     try {
-      const [apiResult, uiResult] = await Promise.allSettled([
-        healthService.checkHealthWithMeta(),
-        healthService.checkUiHealth(),
-      ]);
+      const result = await healthService.checkPreviewHealth(targetAppId);
+      const entries = result.checks.map((entry, index): ReportHealthCheckEntry => {
+        const rawId = typeof entry.id === 'string' ? entry.id.trim() : '';
+        const id = rawId || `health-${index}`;
+        const rawName = typeof entry.name === 'string' ? entry.name.trim() : '';
+        const status: 'pass' | 'warn' | 'fail' = entry.status === 'pass'
+          ? 'pass'
+          : entry.status === 'warn'
+            ? 'warn'
+            : 'fail';
+        const latency = typeof entry.latencyMs === 'number' && Number.isFinite(entry.latencyMs)
+          ? Math.max(0, Math.round(entry.latencyMs))
+          : null;
 
-      const nextEntries: ReportHealthCheckEntry[] = [];
+        return {
+          id,
+          name: rawName || id,
+          status,
+          endpoint: entry.endpoint ?? null,
+          latencyMs: latency,
+          message: entry.message ?? null,
+          code: entry.code ?? null,
+          response: entry.response ?? null,
+        };
+      });
 
-      if (apiResult.status === 'fulfilled') {
-        const { data, url } = apiResult.value;
-        if (data) {
-          const status = normalizeHealthStatus(data.status);
-          const uptimeSeconds = typeof data.metrics?.uptime_seconds === 'number'
-            ? Math.round(data.metrics.uptime_seconds)
-            : null;
-          const parts: string[] = [];
-          if (typeof data.status === 'string' && data.status.trim()) {
-            parts.push(`Status ${data.status}`);
-          }
-          if (uptimeSeconds !== null) {
-            parts.push(`Uptime ${uptimeSeconds}s`);
-          }
-          nextEntries.push({
-            id: 'api',
-            name: 'App Monitor API',
-            status,
-            endpoint: url,
-            latencyMs: null,
-            message: parts.length > 0 ? parts.join(' • ') : 'API health responded successfully.',
-            code: null,
-          });
-        } else {
-          nextEntries.push({
-            id: 'api',
-            name: 'App Monitor API',
-            status: 'fail',
-            endpoint: url,
-            latencyMs: null,
-            message: 'API health response was empty.',
-            code: null,
-          });
+      setReportHealthChecks(entries);
+      setReportHealthChecksTotal(entries.length);
+
+      let capturedAtMs: number | null = null;
+      if (result.capturedAt) {
+        const parsed = Date.parse(result.capturedAt);
+        if (!Number.isNaN(parsed)) {
+          capturedAtMs = parsed;
         }
-      } else {
-        const { message, code } = parseHealthError(apiResult.reason);
-        logger.warn('API health check failed for issue report', apiResult.reason);
-        nextEntries.push({
-          id: 'api',
-          name: 'App Monitor API',
-          status: 'fail',
-          endpoint: apiHealthUrl,
-          latencyMs: null,
-          message,
-          code,
-        });
       }
+      const nextFetchedAt = entries.length > 0
+        ? capturedAtMs ?? Date.now()
+        : null;
+      setReportHealthChecksFetchedAt(nextFetchedAt);
+      reportHealthChecksFetchedForRef.current = normalizedIdentifier;
 
-      if (uiResult.status === 'fulfilled') {
-        const { data, url } = uiResult.value;
-        if (data) {
-          const status = normalizeHealthStatus(data.status);
-          const connectivity = data.api_connectivity;
-          const latency = typeof connectivity?.latency_ms === 'number' ? connectivity.latency_ms : null;
-          let message: string | null = null;
-          let code: string | null = null;
+      const combinedErrors = result.errors.filter(message => typeof message === 'string' && message.trim().length > 0);
+      const errorMessage = combinedErrors.length > 0 ? combinedErrors.join(' ') : null;
 
-          if (connectivity?.connected === false && connectivity.error) {
-            message = connectivity.error.message ?? 'API connectivity failed.';
-            code = connectivity.error.code ?? null;
-          } else if (connectivity?.connected) {
-            message = 'API connectivity confirmed.';
-          }
-
-          if (!message) {
-            const websocket = data.websocket;
-            if (websocket?.connected === false && websocket.error) {
-              message = websocket.error.message ?? 'WebSocket health failed.';
-              code = websocket.error.code ?? code;
-            }
-          }
-
-          if (!message && typeof data.readiness === 'boolean') {
-            message = data.readiness ? 'UI is ready to serve requests.' : 'UI is not ready.';
-          }
-
-          if (!message && typeof data.status === 'string' && data.status.trim()) {
-            message = `Status ${data.status}`;
-          }
-
-          nextEntries.push({
-            id: 'ui',
-            name: 'App Monitor UI',
-            status,
-            endpoint: url,
-            latencyMs: latency,
-            message: message ?? 'UI health responded successfully.',
-            code,
-          });
-        } else {
-          nextEntries.push({
-            id: 'ui',
-            name: 'App Monitor UI',
-            status: 'fail',
-            endpoint: url,
-            latencyMs: null,
-            message: 'UI health response was empty.',
-            code: null,
-          });
-        }
+      if (entries.length === 0) {
+        setReportHealthChecksError(errorMessage ?? 'No health checks available.');
       } else {
-        const { message, code } = parseHealthError(uiResult.reason);
-        logger.warn('UI health check failed for issue report', uiResult.reason);
-        nextEntries.push({
-          id: 'ui',
-          name: 'App Monitor UI',
-          status: 'fail',
-          endpoint: uiHealthUrl,
-          latencyMs: null,
-          message,
-          code,
-        });
-      }
-
-      setReportHealthChecks(nextEntries);
-      setReportHealthChecksTotal(nextEntries.length);
-      setReportHealthChecksFetchedAt(Date.now());
-
-      if (nextEntries.length === 0) {
-        setReportHealthChecksError('No health checks available.');
+        setReportHealthChecksError(errorMessage ?? null);
       }
     } catch (error) {
-      logger.warn('Failed to gather health checks for issue report', error);
+      logger.warn('Failed to gather preview health checks for issue report', error);
       setReportHealthChecks([]);
       setReportHealthChecksTotal(null);
       setReportHealthChecksFetchedAt(null);
-      setReportHealthChecksError('Unable to gather health checks.');
+      reportHealthChecksFetchedForRef.current = null;
+      const message = error instanceof Error && error.message
+        ? error.message
+        : 'Unable to gather health checks.';
+      setReportHealthChecksError(message);
     } finally {
       setReportHealthChecksLoading(false);
     }
-  }, [normalizeHealthStatus, parseHealthError, reportHealthChecksLoading]);
+  }, [app?.id, appId, reportHealthChecksLoading]);
 
   const handleReportLogStreamToggle = useCallback((key: string, checked: boolean) => {
     setReportAppLogSelections(prev => ({
@@ -1086,6 +964,7 @@ const useReportIssueState = ({
           latencyMs: typeof entry.latencyMs === 'number' ? entry.latencyMs : null,
           message: entry.message ?? null,
           code: entry.code ?? null,
+          response: entry.response ?? null,
         }));
         payload.healthChecks = healthEntries;
         const totalHealthChecks = typeof reportHealthChecksTotal === 'number'

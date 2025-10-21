@@ -94,6 +94,27 @@ export interface ReportIssueHealthCheckEntry {
   latencyMs?: number | null;
   message?: string | null;
   code?: string | null;
+  response?: string | null;
+}
+
+export interface PreviewHealthDiagnosticsResponse {
+  app_id: string;
+  app_name?: string | null;
+  scenario?: string | null;
+  captured_at?: string | null;
+  ports?: Record<string, number> | null;
+  checks?: ReportIssueHealthCheckEntry[] | null;
+  errors?: (string | null | undefined)[] | null;
+}
+
+export interface PreviewHealthDiagnosticsResult {
+  appId: string | null;
+  appName: string | null;
+  scenario: string | null;
+  capturedAt: string | null;
+  checks: ReportIssueHealthCheckEntry[];
+  errors: string[];
+  ports: Record<string, number>;
 }
 
 export interface ReportIssuePayload {
@@ -483,6 +504,73 @@ export const healthService = {
     const url = origin ? `${origin.replace(/\/+$/, '')}/health` : '/health';
     const { data } = await axios.get<UiHealthResponse>(url, { timeout: 10000 });
     return { url, data: data ?? null };
+  },
+
+  async checkPreviewHealth(appId: string): Promise<PreviewHealthDiagnosticsResult> {
+    const trimmed = appId.trim();
+    if (!trimmed) {
+      throw new Error('App identifier is required to run preview health diagnostics.');
+    }
+
+    try {
+      const { data } = await api.get<ApiResponse<PreviewHealthDiagnosticsResponse>>(
+        `/apps/${encodeURIComponent(trimmed)}/diagnostics/health`,
+      );
+
+      if (!data?.success) {
+        throw new Error(data?.error || data?.message || 'Failed to gather preview health diagnostics.');
+      }
+
+      const payload = data.data;
+      const checksRaw = Array.isArray(payload?.checks) ? payload?.checks ?? [] : [];
+      const checks = checksRaw.map((entry) => {
+        const status: 'pass' | 'warn' | 'fail' = entry.status === 'pass'
+          ? 'pass'
+          : entry.status === 'warn'
+            ? 'warn'
+            : 'fail';
+
+        return {
+          id: entry.id,
+          name: entry.name,
+          status,
+          endpoint: entry.endpoint ?? null,
+          latencyMs: typeof entry.latencyMs === 'number' ? Math.round(entry.latencyMs) : entry.latencyMs ?? null,
+          message: entry.message ?? null,
+          code: entry.code ?? null,
+          response: entry.response ?? null,
+        };
+      });
+
+      const errors: string[] = [];
+      if (Array.isArray(payload?.errors)) {
+        payload?.errors.forEach((value) => {
+          const normalized = typeof value === 'string' ? value.trim() : '';
+          if (normalized) {
+            errors.push(normalized);
+          }
+        });
+      }
+      if (data?.warning) {
+        const warning = data.warning.trim();
+        if (warning) {
+          errors.push(warning);
+        }
+      }
+
+      return {
+        appId: payload?.app_id ?? trimmed,
+        appName: payload?.app_name ?? null,
+        scenario: payload?.scenario ?? null,
+        capturedAt: payload?.captured_at ?? null,
+        checks,
+        errors,
+        ports: payload?.ports ?? {},
+      };
+    } catch (error) {
+      logger.warn('Failed to run preview health diagnostics', error);
+      throw error;
+    }
   },
 };
 

@@ -39,6 +39,7 @@ export interface ReportHealthCheckEntry {
   latencyMs: number | null;
   message: string | null;
   code: string | null;
+  response: string | null;
 }
 
 type ConsoleSeverity = 'error' | 'warn' | 'info' | 'log' | 'debug' | 'trace';

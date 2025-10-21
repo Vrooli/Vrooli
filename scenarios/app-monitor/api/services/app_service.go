@@ -1564,6 +1564,18 @@ type IssueHealthCheckEntry struct {
 	LatencyMs *int   `json:"latencyMs,omitempty"`
 	Message   string `json:"message,omitempty"`
 	Code      string `json:"code,omitempty"`
+	Response  string `json:"response,omitempty"`
+}
+
+// AppHealthDiagnostics captures health check results for the previewed application.
+type AppHealthDiagnostics struct {
+	AppID      string                  `json:"app_id"`
+	AppName    string                  `json:"app_name,omitempty"`
+	Scenario   string                  `json:"scenario,omitempty"`
+	CapturedAt string                  `json:"captured_at"`
+	Ports      map[string]int          `json:"ports,omitempty"`
+	Checks     []IssueHealthCheckEntry `json:"checks"`
+	Errors     []string                `json:"errors,omitempty"`
 }
 
 func stringValue(value *string) string {
@@ -1884,6 +1896,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		maxHealthEndpointLength = 512
 		maxHealthMessageLength  = 400
 		maxHealthCodeLength     = 120
+		maxHealthResponseLength = 4000
 	)
 	sanitizedLogs := make([]string, 0, len(req.Logs))
 	for _, line := range req.Logs {
@@ -1915,7 +1928,15 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		networkTotal = len(req.NetworkRequests)
 	}
 
-	healthEntries := sanitizeHealthChecks(req.HealthChecks, maxHealthEntries, maxHealthNameLength, maxHealthEndpointLength, maxHealthMessageLength, maxHealthCodeLength)
+	healthEntries := sanitizeHealthChecks(
+		req.HealthChecks,
+		maxHealthEntries,
+		maxHealthNameLength,
+		maxHealthEndpointLength,
+		maxHealthMessageLength,
+		maxHealthCodeLength,
+		maxHealthResponseLength,
+	)
 	healthTotal := valueOrDefault(req.HealthChecksTotal, len(req.HealthChecks))
 	if healthTotal <= 0 {
 		healthTotal = len(req.HealthChecks)
@@ -2130,6 +2151,102 @@ type scenarioAuditorViolation struct {
 	Standard       string `json:"standard"`
 }
 
+// CheckAppHealth queries the previewed scenario's /health endpoints for API and UI services.
+func (s *AppService) CheckAppHealth(ctx context.Context, appID string) (*AppHealthDiagnostics, error) {
+	id := strings.TrimSpace(appID)
+	if id == "" {
+		return nil, ErrAppIdentifierRequired
+	}
+
+	app, err := s.GetApp(ctx, id)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, fmt.Errorf("%w: %v", ErrAppNotFound, err)
+		}
+		return nil, err
+	}
+
+	displayName := strings.TrimSpace(app.Name)
+	if displayName == "" {
+		displayName = strings.TrimSpace(app.ScenarioName)
+	}
+	if displayName == "" {
+		displayName = id
+	}
+
+	apiPort := resolveAppPort(app, []string{"api", "api_port", "backend", "server", "API", "API_PORT"})
+	uiPort := resolveAppPort(app, []string{"ui", "ui_port", "frontend", "web", "UI", "UI_PORT", "WEB", "WEB_PORT"})
+
+	ports := make(map[string]int)
+	if apiPort > 0 {
+		ports["api"] = apiPort
+	}
+	if uiPort > 0 {
+		ports["ui"] = uiPort
+	}
+
+	checks := make([]IssueHealthCheckEntry, 0, 2)
+	var diagnosticsNotes []string
+
+	if apiPort > 0 {
+		endpoint := fmt.Sprintf("http://localhost:%d/health", apiPort)
+		entry, notes := executeScenarioHealthCheck(ctx, "api", fmt.Sprintf("%s API", displayName), endpoint)
+		checks = append(checks, entry)
+		diagnosticsNotes = append(diagnosticsNotes, notes...)
+	} else {
+		message := "API port unavailable for previewed app; unable to query /health."
+		checks = append(checks, IssueHealthCheckEntry{
+			ID:       "api",
+			Name:     fmt.Sprintf("%s API", displayName),
+			Status:   "fail",
+			Endpoint: "",
+			Message:  message,
+			Code:     "port_missing",
+		})
+		diagnosticsNotes = append(diagnosticsNotes, message)
+	}
+
+	if uiPort > 0 {
+		endpoint := fmt.Sprintf("http://localhost:%d/health", uiPort)
+		entry, notes := executeScenarioHealthCheck(ctx, "ui", fmt.Sprintf("%s UI", displayName), endpoint)
+		checks = append(checks, entry)
+		diagnosticsNotes = append(diagnosticsNotes, notes...)
+	} else {
+		message := "UI port unavailable for previewed app; unable to query /health."
+		checks = append(checks, IssueHealthCheckEntry{
+			ID:       "ui",
+			Name:     fmt.Sprintf("%s UI", displayName),
+			Status:   "fail",
+			Endpoint: "",
+			Message:  message,
+			Code:     "port_missing",
+		})
+		diagnosticsNotes = append(diagnosticsNotes, message)
+	}
+
+	for i := range checks {
+		if checks[i].Status == "" {
+			checks[i].Status = "fail"
+		}
+	}
+
+	diagnostics := &AppHealthDiagnostics{
+		AppID:      app.ID,
+		AppName:    strings.TrimSpace(app.Name),
+		Scenario:   strings.TrimSpace(app.ScenarioName),
+		CapturedAt: time.Now().UTC().Format(time.RFC3339),
+		Checks:     checks,
+	}
+	if len(ports) > 0 {
+		diagnostics.Ports = ports
+	}
+	if notes := dedupeStrings(diagnosticsNotes); len(notes) > 0 {
+		diagnostics.Errors = notes
+	}
+
+	return diagnostics, nil
+}
+
 // CheckIframeBridgeRule validates scenario iframe bridge compliance via scenario-auditor.
 func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*BridgeDiagnosticsReport, error) {
 	id := strings.TrimSpace(appID)
@@ -2190,6 +2307,7 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 		{ID: "localhost_proxy_compact", Name: "Proxy-Compatible UI Base"},
 		{ID: "secure_tunnel", Name: "Secure Tunnel Setup"},
 		{ID: "service_ports", Name: "Ports Configuration"},
+		{ID: "service_health_lifecycle", Name: "Lifecycle Health Configuration"},
 	}
 
 	results := make([]BridgeRuleReport, 0, len(rules))
@@ -2783,6 +2901,303 @@ func parsePortValue(value interface{}) (int, bool) {
 	return 0, false
 }
 
+func resolveAppPort(app *repository.App, preferredKeys []string) int {
+	if app == nil {
+		return 0
+	}
+
+	if port := resolvePort(app.PortMappings, preferredKeys); port > 0 {
+		return port
+	}
+
+	if configPorts := extractInterfaceMap(app.Config["ports"]); len(configPorts) > 0 {
+		if port := resolvePort(configPorts, preferredKeys); port > 0 {
+			return port
+		}
+	}
+
+	for _, key := range preferredKeys {
+		if value, ok := app.Config[key]; ok {
+			if port, parsed := parsePortValue(value); parsed {
+				return port
+			}
+		}
+	}
+
+	if port := resolvePort(app.Environment, preferredKeys); port > 0 {
+		return port
+	}
+
+	return 0
+}
+
+func extractInterfaceMap(value interface{}) map[string]interface{} {
+	if value == nil {
+		return nil
+	}
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		return typed
+	case map[string]int:
+		converted := make(map[string]interface{}, len(typed))
+		for k, v := range typed {
+			converted[k] = v
+		}
+		return converted
+	case map[string]float64:
+		converted := make(map[string]interface{}, len(typed))
+		for k, v := range typed {
+			converted[k] = v
+		}
+		return converted
+	case map[string]string:
+		converted := make(map[string]interface{}, len(typed))
+		for k, v := range typed {
+			converted[k] = v
+		}
+		return converted
+	default:
+		return nil
+	}
+}
+
+func executeScenarioHealthCheck(ctx context.Context, checkID, name, endpoint string) (IssueHealthCheckEntry, []string) {
+	entry := IssueHealthCheckEntry{
+		ID:       checkID,
+		Name:     name,
+		Status:   "fail",
+		Endpoint: endpoint,
+	}
+
+	var notes []string
+
+	curlPath, err := exec.LookPath("curl")
+	if err != nil {
+		entry.Message = "curl command not available on host"
+		entry.Code = "curl_not_found"
+		notes = append(notes, "curl is required to capture preview health diagnostics")
+		return entry, notes
+	}
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	args := []string{
+		"-sS",
+		"--show-error",
+		"--max-time", "8",
+		"--connect-timeout", "4",
+		"-H", "Accept: application/json",
+		"-w", "\n%{http_code}",
+		endpoint,
+	}
+
+	start := time.Now()
+	cmd := exec.CommandContext(ctxWithTimeout, curlPath, args...)
+	output, cmdErr := cmd.CombinedOutput()
+	latency := int(time.Since(start).Milliseconds())
+	entry.LatencyMs = &latency
+
+	trimmedOutput := strings.TrimRight(string(output), "\r\n")
+	body := trimmedOutput
+	statusCode := 0
+	if idx := strings.LastIndex(trimmedOutput, "\n"); idx != -1 {
+		body = trimmedOutput[:idx]
+		codeStr := strings.TrimSpace(trimmedOutput[idx+1:])
+		if parsed, parseErr := strconv.Atoi(codeStr); parseErr == nil {
+			statusCode = parsed
+		}
+	}
+
+	if cmdErr != nil {
+		message := strings.TrimSpace(body)
+		if message == "" {
+			message = cmdErr.Error()
+		}
+		entry.Message = message
+		entry.Code = "curl_error"
+		entry.Status = "fail"
+		notes = append(notes, fmt.Sprintf("curl error for %s health: %v", checkID, cmdErr))
+		return entry, notes
+	}
+
+	trimmedBody := strings.TrimSpace(body)
+	if trimmedBody != "" {
+		entry.Response = trimmedBody
+	}
+	if trimmedBody == "" {
+		entry.Status = statusFromHTTP(statusCode)
+		entry.Message = "Health response was empty."
+		return entry, notes
+	}
+
+	var data map[string]interface{}
+	if decodeErr := json.Unmarshal([]byte(trimmedBody), &data); decodeErr != nil {
+		entry.Status = statusFromHTTP(statusCode)
+		entry.Message = trimmedBody
+		entry.Code = "non_json_health_response"
+		notes = append(notes, fmt.Sprintf("health response for %s was not JSON: %v", checkID, decodeErr))
+		return entry, notes
+	}
+
+	if pretty, err := json.MarshalIndent(data, "", "  "); err == nil {
+		entry.Response = string(pretty)
+	}
+
+	normalized := normalizeHealthStatus(trimmedString(data["status"]))
+	if normalized == "" {
+		normalized = statusFromHTTP(statusCode)
+	}
+	if normalized == "" {
+		normalized = "fail"
+	}
+	entry.Status = normalized
+	entry.Message = summarizeHealthResponse(data)
+	if entry.Message == "" {
+		entry.Message = trimmedBody
+	}
+	entry.Code = firstNonEmpty(trimmedString(data["code"]), anyStringFromMap(data, "error", "code"))
+
+	return entry, notes
+}
+
+func normalizeHealthStatus(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "unknown":
+		return ""
+	case "pass", "ok", "healthy", "ready", "up", "online":
+		return "pass"
+	case "warn", "warning", "degraded":
+		return "warn"
+	default:
+		return "fail"
+	}
+}
+
+func statusFromHTTP(code int) string {
+	if code >= 200 && code < 300 {
+		return "pass"
+	}
+	if code >= 300 && code < 400 {
+		return "warn"
+	}
+	if code > 0 {
+		return "fail"
+	}
+	return ""
+}
+
+func summarizeHealthResponse(data map[string]interface{}) string {
+	if len(data) == 0 {
+		return ""
+	}
+
+	var parts []string
+	if status := trimmedString(data["status"]); status != "" {
+		parts = append(parts, fmt.Sprintf("Status %s", status))
+	}
+	if message := trimmedString(data["message"]); message != "" {
+		parts = append(parts, message)
+	}
+	if readiness, ok := data["readiness"].(bool); ok {
+		if readiness {
+			parts = append(parts, "Ready")
+		} else {
+			parts = append(parts, "Not ready")
+		}
+	}
+	if metrics, ok := data["metrics"].(map[string]interface{}); ok {
+		if uptime := anyNumber(metrics["uptime_seconds"]); uptime > 0 {
+			parts = append(parts, fmt.Sprintf("Uptime %ds", int(uptime)))
+		}
+	}
+
+	if len(parts) == 0 {
+		encoded, err := json.Marshal(data)
+		if err != nil {
+			return ""
+		}
+		return strings.TrimSpace(string(encoded))
+	}
+
+	return strings.Join(parts, " • ")
+}
+
+func anyStringFromMap(data map[string]interface{}, keys ...string) string {
+	current := data
+	for _, key := range keys {
+		if current == nil {
+			return ""
+		}
+		value, ok := current[key]
+		if !ok {
+			return ""
+		}
+		if nested, ok := value.(map[string]interface{}); ok {
+			current = nested
+			continue
+		}
+		return trimmedString(value)
+	}
+	return ""
+}
+
+func trimmedString(value interface{}) string {
+	return strings.TrimSpace(anyString(value))
+}
+
+func anyNumber(value interface{}) float64 {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case json.Number:
+		if f, err := v.Float64(); err == nil {
+			return f
+		}
+	case string:
+		if f, err := strconv.ParseFloat(strings.TrimSpace(v), 64); err == nil {
+			return f
+		}
+	}
+	return 0
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func dedupeStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	var deduped []string
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		deduped = append(deduped, trimmed)
+	}
+	return deduped
+}
+
 func normalizePreviewURL(raw string) string {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -3165,7 +3580,7 @@ func sanitizeNetworkRequests(entries []IssueNetworkEntry, maxEntries, maxURLLeng
 	return sanitized
 }
 
-func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLength, maxEndpointLength, maxMessageLength, maxCodeLength int) []IssueHealthCheckEntry {
+func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLength, maxEndpointLength, maxMessageLength, maxCodeLength, maxResponseLength int) []IssueHealthCheckEntry {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -3216,6 +3631,11 @@ func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLe
 			code = truncateString(code, maxCodeLength)
 		}
 
+		response := strings.TrimSpace(entry.Response)
+		if response != "" {
+			response = truncateString(response, maxResponseLength)
+		}
+
 		var latency *int
 		if entry.LatencyMs != nil && *entry.LatencyMs >= 0 {
 			value := *entry.LatencyMs
@@ -3230,6 +3650,7 @@ func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLe
 			LatencyMs: latency,
 			Message:   message,
 			Code:      code,
+			Response:  response,
 		})
 	}
 

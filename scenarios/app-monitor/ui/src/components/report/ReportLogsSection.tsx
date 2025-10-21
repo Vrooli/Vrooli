@@ -51,6 +51,22 @@ const ReportLogsSection = ({
     }
   };
 
+  const formatHealthResponse = (value: string | null) => {
+    if (!value) {
+      return null;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return trimmed;
+    }
+  };
+
   return (
     <div className="report-dialog__logs">
     <section className="report-dialog__logs-section">
@@ -469,42 +485,52 @@ const ReportLogsSection = ({
           <p className="report-dialog__logs-empty">No health checks available.</p>
         ) : (
           <div className="report-dialog__health-list">
-            {health.entries.map(entry => (
-              <div
-                key={entry.id}
-                className={clsx(
-                  'report-dialog__health-item',
-                  `report-dialog__health-item--${entry.status}`,
-                )}
-              >
-                <span
+            {health.entries.map(entry => {
+              const formattedResponse = formatHealthResponse(entry.response);
+
+              return (
+                <div
+                  key={entry.id}
                   className={clsx(
-                    'report-dialog__health-status',
-                    `report-dialog__health-status--${entry.status}`,
+                    'report-dialog__health-item',
+                    `report-dialog__health-item--${entry.status}`,
                   )}
-                  aria-label={`Health check ${entry.status}`}
                 >
-                  {renderHealthStatusIcon(entry.status)}
-                </span>
-                <div className="report-dialog__health-body">
-                  <div className="report-dialog__health-row">
-                    <span className="report-dialog__health-name">{entry.name}</span>
-                    {entry.latencyMs !== null && (
-                      <span className="report-dialog__health-latency">{`${entry.latencyMs} ms`}</span>
+                  <span
+                    className={clsx(
+                      'report-dialog__health-status',
+                      `report-dialog__health-status--${entry.status}`,
+                    )}
+                    aria-label={`Health check ${entry.status}`}
+                  >
+                    {renderHealthStatusIcon(entry.status)}
+                  </span>
+                  <div className="report-dialog__health-body">
+                    <div className="report-dialog__health-row">
+                      <span className="report-dialog__health-name">{entry.name}</span>
+                      {entry.latencyMs !== null && (
+                        <span className="report-dialog__health-latency">{`${entry.latencyMs} ms`}</span>
+                      )}
+                    </div>
+                    {entry.endpoint && (
+                      <div className="report-dialog__health-endpoint" title={entry.endpoint}>{entry.endpoint}</div>
+                    )}
+                    {entry.message && (
+                      <p className="report-dialog__health-message">{entry.message}</p>
+                    )}
+                    {entry.code && (
+                      <p className="report-dialog__health-code">{entry.code}</p>
+                    )}
+                    {formattedResponse && (
+                      <div className="report-dialog__health-response">
+                        <span className="report-dialog__health-response-label">Response</span>
+                        <pre>{formattedResponse}</pre>
+                      </div>
                     )}
                   </div>
-                  {entry.endpoint && (
-                    <div className="report-dialog__health-endpoint" title={entry.endpoint}>{entry.endpoint}</div>
-                  )}
-                  {entry.message && (
-                    <p className="report-dialog__health-message">{entry.message}</p>
-                  )}
-                  {entry.code && (
-                    <p className="report-dialog__health-code">{entry.code}</p>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

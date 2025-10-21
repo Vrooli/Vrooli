@@ -1016,6 +1016,34 @@ body.app-preview-immersive {
   color: rgba(255, 196, 148, 0.85);
 }
 
+.report-dialog__health-response {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.report-dialog__health-response-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(0, 255, 255, 0.65);
+}
+
+.report-dialog__health-response pre {
+  margin: 0;
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 255, 255, 0.14);
+  background: rgba(0, 32, 32, 0.5);
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: rgba(224, 255, 249, 0.9);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
 .report-dialog__bridge-refresh {
   margin-left: auto;
   display: inline-flex;
