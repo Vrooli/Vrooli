@@ -305,7 +305,7 @@ export default function TabSwitcherDialog() {
   return (
     <div className="tab-switcher" ref={dialogRef}>
       <header className="tab-switcher__header">
-        <div>
+        <div className="tab-switcher__header-text">
           <h2>{activeSegmentLabel}</h2>
           <p>Quickly jump between managed surfaces.</p>
         </div>
@@ -707,7 +707,20 @@ function WebTabCard({
   const screenshotSelector = useMemo(() => selectScreenshotBySurface('web', tab.id), [tab.id]);
   const storedScreenshot = useSurfaceMediaStore(screenshotSelector);
   const previewImage = storedScreenshot?.dataUrl ?? tab.screenshotData ?? null;
-  const thumbStyle = previewImage ? { backgroundImage: `url(${previewImage})` } : undefined;
+  const hasPreviewImage = Boolean(previewImage);
+  const faviconUrl = tab.faviconUrl && tab.faviconUrl.trim().length > 0 ? tab.faviconUrl.trim() : null;
+  const fallbackInitial = useMemo(() => {
+    const hostname = safeHostname(tab.url);
+    if (!hostname) {
+      const candidate = tab.title?.trim();
+      return candidate && candidate.length > 0 ? candidate.slice(0, 1).toUpperCase() : null;
+    }
+    const alpha = hostname.replace(/[^a-zA-Z]/g, '');
+    if (!alpha) {
+      return hostname.slice(0, 1).toUpperCase();
+    }
+    return alpha.slice(0, 1).toUpperCase();
+  }, [tab.title, tab.url]);
 
   return (
     <div className="tab-card tab-card--web">
@@ -716,13 +729,25 @@ function WebTabCard({
         className={clsx(
           'tab-card__thumb',
           'tab-card__thumb--web',
-          previewImage && 'tab-card__thumb--image',
+          hasPreviewImage && 'tab-card__thumb--image',
         )}
         onClick={() => onOpen(tab)}
         aria-label={`Open ${tab.title}`}
-        style={thumbStyle}
         title={storedScreenshot?.note ?? undefined}
-      />
+      >
+        {hasPreviewImage ? (
+          <img src={previewImage ?? undefined} alt="" className="tab-card__thumb-media" />
+        ) : (
+          <div className="tab-card__thumb-fallback" aria-hidden>
+            {faviconUrl ? (
+              <img src={faviconUrl} alt="" className="tab-card__thumb-favicon" />
+            ) : null}
+            {fallbackInitial ? (
+              <span className="tab-card__thumb-placeholder">{fallbackInitial}</span>
+            ) : null}
+          </div>
+        )}
+      </button>
       <div className="tab-card__body">
         <div className="tab-card__heading">
           <h4>{tab.title}</h4>

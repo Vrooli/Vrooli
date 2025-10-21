@@ -1068,7 +1068,7 @@ const AppPreviewToolbar = ({
                 disabled={!hasCurrentApp}
               >
                 <MonitorSmartphone aria-hidden size={16} />
-                <span>{isDeviceEmulationActive ? 'Hide device emulation toolbar' : 'Show device emulation toolbar'}</span>
+                <span>{isDeviceEmulationActive ? 'Hide emulator' : 'Show emulator'}</span>
               </button>
               <button
                 type="button"
@@ -1079,7 +1079,7 @@ const AppPreviewToolbar = ({
                 disabled={!hasCurrentApp}
               >
                 <ScrollText aria-hidden size={16} />
-                <span>{areLogsVisible ? 'Hide logs panel' : 'Show logs panel'}</span>
+                <span>{areLogsVisible ? 'Hide logs' : 'Show logs'}</span>
               </button>
               <button
                 type="button"

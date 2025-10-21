@@ -12,15 +12,28 @@
 }
 
 .tab-switcher__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 16px;
+}
+
+.tab-switcher__header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tab-switcher__header-text h2,
+.tab-switcher__header-text p {
+  min-width: 0;
 }
 
 .tab-switcher__header h2 {
   margin: 0;
   font-size: 1.75rem;
+  word-break: break-word;
 }
 
 .tab-switcher__header p {
@@ -40,6 +53,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  justify-self: end;
 }
 
 .tab-switcher__close:hover {
@@ -301,17 +315,53 @@
 }
 
 .tab-card__thumb {
+  position: relative;
   height: 120px;
   background: linear-gradient(135deg, rgba(122, 160, 255, 0.35), rgba(66, 82, 162, 0.4));
   border: none;
   width: 100%;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .tab-card__thumb--image {
+  background-color: rgba(12, 16, 28, 0.4);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+.tab-card__thumb-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tab-card__thumb-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(100, 162, 255, 0.18), rgba(64, 92, 203, 0.38));
+  color: rgba(239, 242, 255, 0.85);
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.tab-card__thumb-favicon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  box-shadow: 0 6px 14px rgba(12, 20, 40, 0.35);
+}
+
+.tab-card__thumb-placeholder {
+  text-transform: uppercase;
 }
 
 .tab-card__thumb:focus-visible {
@@ -477,9 +527,9 @@
   }
 
   .tab-switcher__header {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
   }
 
   .tab-switcher__controls {

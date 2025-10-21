@@ -31,6 +31,7 @@
 }
 
 .shell__nav-btn {
+  position: relative;
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
@@ -106,7 +107,7 @@
   background: rgba(16, 16, 28, 0.94);
   border-radius: 18px;
   padding: 24px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 24px 48px rgba(8, 12, 26, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.08);
   color: #f5f5ff;
   overflow: hidden;
   display: flex;
@@ -118,6 +119,7 @@
   width: min(960px, 100%);
   max-height: min(660px, 100%);
   min-height: 0;
+  box-shadow: 0 20px 48px rgba(12, 16, 28, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.14), 0 18px 36px rgba(255, 255, 255, 0.08);
 }
 
 @media (min-width: 768px) {

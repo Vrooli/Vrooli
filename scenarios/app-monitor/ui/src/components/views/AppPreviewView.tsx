@@ -1000,15 +1000,8 @@ const AppPreviewView = () => {
   }, [currentApp]);
 
   const isAppRunning = useMemo(() => (currentApp ? isRunningStatus(currentApp.status) : false), [currentApp]);
-  const scenarioDisplayName = useMemo(() => {
-    if (!currentApp) {
-      return 'application';
-    }
-    return currentApp.name || currentApp.scenario_name || currentApp.id || 'application';
-  }, [currentApp]);
-
   const toggleActionLabel = isAppRunning ? 'Stop scenario' : 'Start scenario';
-  const restartActionLabel = `Restart ${scenarioDisplayName}`;
+  const restartActionLabel = 'Restart scenario';
   const appStatusLabel = currentApp?.status ?? 'Unknown';
   const actionInProgress = pendingAction !== null;
 
