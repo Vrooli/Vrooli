@@ -1542,46 +1542,22 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
             ? requestOptions.scale
             : window.devicePixelRatio || 1;
           const selector = typeof requestOptions.selector === 'string' ? requestOptions.selector.trim() : '';
-          if (selector) {
+          let requestedClip = sanitizeClipRect(requestOptions.clip ?? null);
+          if (!requestedClip && selector) {
             const element = findElementForSelector(selector);
             if (element && typeof element.getBoundingClientRect === 'function') {
               const rect = element.getBoundingClientRect();
               if (rect.width > 0 && rect.height > 0) {
-                try {
-                  const elementCanvas = await html2canvas(element, {
-                    scale,
-                    logging: false,
-                    useCORS: true,
-                  });
-                  const elementDataUrl = elementCanvas.toDataURL('image/png');
-                  const elementBase64 = elementDataUrl.replace(/^data:image\/png;base64,/, '');
-                  const clipRect: Rect = {
-                    x: rect.x + window.scrollX,
-                    y: rect.y + window.scrollY,
-                    width: rect.width,
-                    height: rect.height,
-                  };
-                  post({
-                    v: 1,
-                    t: 'SCREENSHOT_RESULT',
-                    id: message.id,
-                    ok: true,
-                    data: elementBase64,
-                    width: elementCanvas.width,
-                    height: elementCanvas.height,
-                    note: 'Captured selected element region.',
-                    mode: 'clip',
-                    clip: clipRect,
-                  });
-                  return;
-                } catch (error) {
-                  console.warn('[BridgeChild] Element screenshot capture failed; falling back to clip capture', error);
-                }
+                requestedClip = {
+                  x: rect.x + window.scrollX,
+                  y: rect.y + window.scrollY,
+                  width: rect.width,
+                  height: rect.height,
+                };
               }
             }
           }
           let captureMode: BridgeScreenshotMode = requestOptions.mode === 'full-page' ? 'full-page' : 'viewport';
-          const requestedClip = sanitizeClipRect(requestOptions.clip ?? null);
           const target = document.documentElement as HTMLElement;
           const captureOptions: Record<string, unknown> = {
             scale,

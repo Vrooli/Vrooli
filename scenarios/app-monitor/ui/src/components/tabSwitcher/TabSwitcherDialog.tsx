@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { FormEvent, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
@@ -647,7 +647,16 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
   }, [app]);
   const screenshotSelector = useMemo(() => selectScreenshotBySurface('app', identifier), [identifier]);
   const screenshot = useSurfaceMediaStore(screenshotSelector);
-  const thumbStyle = screenshot ? { backgroundImage: `url(${screenshot.dataUrl})` } : undefined;
+  const thumbStyle = useMemo<CSSProperties | undefined>(() => (
+    screenshot
+      ? {
+          backgroundImage: `url(${screenshot.dataUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
+      : undefined
+  ), [screenshot]);
   const hasScreenshot = Boolean(screenshot);
   const viewCountLabel = formatViewCount(app.view_count);
   const statusClassName = useMemo(() => {
@@ -751,7 +760,16 @@ function EmptyState({ message }: { message: string }) {
 function ResourceTabCard({ resource, onSelect }: { resource: Resource; onSelect(resource: Resource): void }) {
   const screenshotSelector = useMemo(() => selectScreenshotBySurface('resource', resource.id), [resource.id]);
   const screenshot = useSurfaceMediaStore(screenshotSelector);
-  const thumbStyle = screenshot ? { backgroundImage: `url(${screenshot.dataUrl})` } : undefined;
+  const thumbStyle = useMemo<CSSProperties | undefined>(() => (
+    screenshot
+      ? {
+          backgroundImage: `url(${screenshot.dataUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
+      : undefined
+  ), [screenshot]);
   const hasScreenshot = Boolean(screenshot);
   const fallbackInitial = useMemo(() => {
     const base = (resource.name ?? resource.id ?? '').toString().trim();
