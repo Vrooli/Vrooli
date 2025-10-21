@@ -29,6 +29,9 @@
     <!-- Navigation Header -->
     <nav class="navbar">
         <div class="nav-container">
+            <button class="nav-button mobile-menu-button" id="mobileMenuToggle" aria-label="Toggle navigation" aria-expanded="false">
+                <i class="fas fa-bars"></i>
+            </button>
             <div class="nav-brand">
                 <i class="fas fa-search-dollar brand-icon"></i>
                 <h1 class="brand-title">AI Research Assistant</h1>
@@ -53,7 +56,7 @@
     <!-- Main Layout -->
     <div class="main-layout">
         <!-- Sidebar Navigation -->
-        <aside class="sidebar">
+        <aside class="sidebar" aria-label="Primary">
             <nav class="sidebar-nav">
                 <a href="#dashboard" class="nav-item active" data-tab="dashboard">
                     <i class="fas fa-tachometer-alt"></i>
@@ -94,6 +97,8 @@
                 </div>
             </div>
         </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
         <!-- Main Content Area -->
         <main class="content-area">

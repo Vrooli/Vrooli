@@ -62,7 +62,7 @@
       "description": "Scenario to MCP health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
+        "ui": "/health",
         "registry": "/health"
       },
       "checks": [
@@ -77,7 +77,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -99,18 +99,18 @@
       "description": "Initialize Scenario to MCP",
       "condition": {
         "checks": [
-            {
-              "type": "binaries",
-              "targets": [
-                "scenario-to-mcp-api"
-              ]
-            },
-            {
-              "type": "cli",
-              "targets": [
-                "scenario-to-mcp"
-              ]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-to-mcp-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "scenario-to-mcp"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -145,7 +145,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to MCP initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help'",
+          "run": "echo '\ud83d\ude80 Scenario to MCP initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -153,15 +153,15 @@
     "develop": {
       "description": "Start Scenario to MCP services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "export DATABASE_URL=$(./lib/get-db-url.sh) && cd api && ./scenario-to-mcp-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/scenario-to-mcp-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "export DATABASE_URL=$(./lib/get-db-url.sh) && cd api && ./scenario-to-mcp-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-mcp-api"
+          }
+        },
         {
           "name": "start-registry",
           "run": "export DATABASE_URL=$(./lib/get-db-url.sh) && cd api && ./scenario-to-mcp-api --registry-mode",
@@ -180,11 +180,11 @@
             "file_exists": "ui/package.json"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help\\n\\nKey endpoints:\\n  GET /api/v1/mcp/endpoints - List all MCP endpoints\\n  POST /api/v1/mcp/add - Add MCP to scenario\\n  GET /api/v1/mcp/registry - Service discovery'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help\\n\\nKey endpoints:\\n  GET /api/v1/mcp/endpoints - List all MCP endpoints\\n  POST /api/v1/mcp/add - Add MCP to scenario\\n  GET /api/v1/mcp/registry - Service discovery'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {

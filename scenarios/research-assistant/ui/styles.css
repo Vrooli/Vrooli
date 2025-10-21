@@ -116,6 +116,10 @@ body.dark-mode .content-area {
   margin: 0 auto;
 }
 
+.mobile-menu-button {
+  display: none;
+}
+
 .nav-brand {
   display: flex;
   align-items: center;
@@ -216,6 +220,9 @@ body.dark-mode .content-area {
   position: fixed;
   height: calc(100vh - 64px);
   overflow-y: auto;
+  top: 64px;
+  left: 0;
+  z-index: 2000;
 }
 
 .sidebar-nav {
@@ -304,6 +311,28 @@ body.dark-mode .content-area {
   margin-left: 280px;
   padding: var(--space-2xl);
   background-color: var(--gray-50);
+}
+
+.sidebar-overlay {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  width: 100vw;
+  height: calc(100vh - 64px);
+  background-color: rgba(15, 23, 42, 0.38);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1500;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.sidebar-open {
+  overflow: hidden;
 }
 
 /* Tab Content */
@@ -1220,9 +1249,54 @@ body.dark-mode .content-area {
 }
 
 @media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .nav-container {
+    flex-wrap: wrap;
+    gap: var(--space-md);
+  }
+
+  .mobile-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-brand {
+    flex: 1;
+    gap: var(--space-sm);
+  }
+
+  .brand-title {
+    font-size: 18px;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  .nav-actions {
+    margin-left: auto;
+    gap: var(--space-sm);
+  }
+
+  .user-profile {
+    padding: var(--space-xs);
+  }
+
+  .user-name {
+    display: none;
+  }
+
   .sidebar {
     transform: translateX(-100%);
     transition: transform 0.3s ease;
+    width: 85%;
+    max-width: 280px;
+    padding: var(--space-xl) var(--space-lg);
+    box-shadow: var(--shadow-lg);
   }
   
   .sidebar.open {
@@ -1236,6 +1310,10 @@ body.dark-mode .content-area {
   
   .navbar {
     padding: 0 var(--space-lg);
+  }
+
+  .sidebar-overlay {
+    display: block;
   }
   
   .welcome-section {
@@ -1269,6 +1347,27 @@ body.dark-mode .content-area {
   
   .settings-sidebar {
     width: 100%;
+  }
+
+  .toast-container {
+    top: auto;
+    bottom: var(--space-lg);
+    left: var(--space-lg);
+    right: var(--space-lg);
+    align-items: stretch;
+  }
+
+  .toast {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .welcome-text h2 {
+    font-size: 24px;
+  }
+
+  .welcome-text p {
+    font-size: 14px;
   }
 }
 

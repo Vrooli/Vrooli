@@ -111,8 +111,7 @@ fi
 
 # Check for valid developer certificate
 if security find-identity -p codesigning -v 2>/dev/null | grep -q "valid identities found"; then
-    CERT_COUNT=$(security find-identity -p codesigning -v 2>/dev/null | grep "valid identities found" | awk '{print $1}')
-    echo -e "${GREEN}✓ $CERT_COUNT valid code signing certificates found${NC}"
+    echo -e "${GREEN}✓ Code signing certificates found${NC}"
 else
     echo -e "${YELLOW}⚠ No valid code signing certificates found${NC}"
     echo -e "${YELLOW}  You'll need to set up certificates for App Store distribution${NC}"

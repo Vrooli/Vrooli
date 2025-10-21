@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -33,6 +34,9 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "demo"},
+  "ports": {
+    "api": {"env_var": "API_PORT"}
+  },
   "lifecycle": {
     "develop": {
       "steps": [
@@ -51,6 +55,9 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "demo"},
+  "ports": {
+    "api": {"env_var": "API_PORT"}
+  },
   "lifecycle": {
     "develop": {
       "steps": [
@@ -67,8 +74,8 @@ Targets: service_json
   }
 }
   ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>cd api && ./demo-api</expected-message>
+  <expected-violations>2</expected-violations>
+  <expected-message>must execute "./demo-api"</expected-message>
 </test-case>
 
 <test-case id="missing-start-ui" should-fail="true">
@@ -159,6 +166,102 @@ Targets: service_json
 }
   ]]></input>
 </test-case>
+
+<test-case id="start-api-env-preamble" should-fail="false">
+  <description>start-api allows environment preparation before launching binary</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "demo"},
+  "ports": {
+    "api": {"env_var": "API_PORT"}
+  },
+  "lifecycle": {
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "export DATABASE_URL=$(./lib/get-db-url.sh) && cd api && ENVIRONMENT=dev ./demo-api",
+          "description": "Start Go API server with prepared environment",
+          "background": true,
+          "condition": {"file_exists": "api/demo-api"}
+        },
+        {
+          "name": "show-urls",
+          "run": "echo done"
+        }
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
+<test-case id="ui-disabled" should-fail="false">
+  <description>UI component disabled so start-ui step is not required</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "demo"},
+  "ports": {
+    "api": {"env_var": "API_PORT"},
+    "ui": {"env_var": "UI_PORT"}
+  },
+  "components": {
+    "ui": {
+      "enabled": false
+    }
+  },
+  "lifecycle": {
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./demo-api",
+          "description": "Start Go API server",
+          "background": true,
+          "condition": {"file_exists": "api/demo-api"}
+        },
+        {
+          "name": "show-urls",
+          "run": "echo done"
+        }
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
+<test-case id="ui-only" should-fail="false">
+  <description>No API port so start-api step is not required</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "demo"},
+  "ports": {
+    "ui": {"env_var": "UI_PORT"}
+  },
+  "components": {
+    "api": {
+      "enabled": false
+    }
+  },
+  "lifecycle": {
+    "develop": {
+      "steps": [
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo done"
+        }
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
 */
 
 // CheckDevelopLifecycleSteps validates lifecycle.develop configuration in service.json.
@@ -201,62 +304,77 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 	scenarioName := strings.TrimSpace(getScenarioName(payload))
 	var violations []Violation
 
-	startAPIStep, _ := findStepByName(stepsSlice, "start-api")
-	if startAPIStep == nil {
-		line := findJSONLineDevelop(source, "\"start-api\"")
-		violations = append(violations, newDevelopViolation(filePath, line, "Develop steps must include a \"start-api\" command"))
-	} else {
-		expectedRun := fmt.Sprintf("cd api && ./%s-api", scenarioName)
-		if scenarioName == "" {
-			expectedRun = "cd api && ./<scenario>-api"
-		}
-
-		if runVal := strings.TrimSpace(getString(startAPIStep, "run")); runVal != expectedRun {
-			line := findJSONLineDevelop(source, "\"start-api\"", "\"run\"")
-			violations = append(violations, newDevelopViolation(filePath, line, fmt.Sprintf("start-api run command must be %q", expectedRun)))
-		}
-
-		if desc := strings.TrimSpace(getString(startAPIStep, "description")); desc != "Start Go API server in background" {
-			line := findJSONLineDevelop(source, "\"start-api\"", "\"description\"")
-			violations = append(violations, newDevelopViolation(filePath, line, "start-api description must be \"Start Go API server in background\""))
-		}
-
-		if bg, ok := startAPIStep["background"].(bool); !ok || !bg {
-			line := findJSONLineDevelop(source, "\"start-api\"", "\"background\"")
-			violations = append(violations, newDevelopViolation(filePath, line, "start-api must run in the background"))
-		}
-
-		if cond, ok := startAPIStep["condition"].(map[string]interface{}); ok {
-			expectedPath := fmt.Sprintf("api/%s-api", scenarioName)
-			if scenarioName == "" {
-				expectedPath = "api/<scenario>-api"
-			}
-			if fileExists := strings.TrimSpace(getString(cond, "file_exists")); fileExists != expectedPath {
-				line := findJSONLineDevelop(source, "\"start-api\"", "\"file_exists\"")
-				violations = append(violations, newDevelopViolation(filePath, line, fmt.Sprintf("start-api condition.file_exists must be %q", expectedPath)))
-			}
+	if requireAPIStart(payload) {
+		startAPIStep, _ := findStepByName(stepsSlice, "start-api")
+		if startAPIStep == nil {
+			line := findJSONLineDevelop(source, "\"start-api\"")
+			violations = append(violations, newDevelopViolation(filePath, line, "Develop steps must include a \"start-api\" command"))
 		} else {
-			line := findJSONLineDevelop(source, "\"start-api\"", "\"condition\"")
-			violations = append(violations, newDevelopViolation(filePath, line, "start-api must include a file_exists condition for the API binary"))
+			runVal := strings.TrimSpace(getString(startAPIStep, "run"))
+			lineRun := findJSONLineDevelop(source, "\"start-api\"", "\"run\"")
+			if !strings.Contains(runVal, "cd api") {
+				violations = append(violations, newDevelopViolation(filePath, lineRun, "start-api run command must change into the api directory (e.g. `cd api && ...`)"))
+			}
+
+			binaryName := extractBinaryName(runVal)
+			expectedBinary := ""
+			if scenarioName != "" {
+				expectedBinary = fmt.Sprintf("%s-api", scenarioName)
+			}
+
+			if expectedBinary != "" && binaryName != expectedBinary {
+				violations = append(violations, newDevelopViolation(filePath, lineRun, fmt.Sprintf("start-api must execute \"./%s\"", expectedBinary)))
+			} else if expectedBinary == "" && binaryName == "" {
+				violations = append(violations, newDevelopViolation(filePath, lineRun, "start-api run command must execute the scenario API binary (e.g. ./<scenario>-api)"))
+			}
+
+			if desc := strings.TrimSpace(getString(startAPIStep, "description")); desc == "" {
+				line := findJSONLineDevelop(source, "\"start-api\"", "\"description\"")
+				violations = append(violations, newDevelopViolation(filePath, line, "start-api description must be provided"))
+			}
+
+			if bg, ok := startAPIStep["background"].(bool); !ok || !bg {
+				line := findJSONLineDevelop(source, "\"start-api\"", "\"background\"")
+				violations = append(violations, newDevelopViolation(filePath, line, "start-api must run in the background"))
+			}
+
+			if cond, ok := startAPIStep["condition"].(map[string]interface{}); ok {
+				line := findJSONLineDevelop(source, "\"start-api\"", "\"file_exists\"")
+				fileExists := strings.TrimSpace(getString(cond, "file_exists"))
+				if fileExists == "" {
+					violations = append(violations, newDevelopViolation(filePath, line, "start-api condition.file_exists must reference the API binary"))
+				} else if binaryName != "" && !strings.Contains(fileExists, binaryName) {
+					expectedPath := fmt.Sprintf("api/%s", binaryName)
+					violations = append(violations, newDevelopViolation(filePath, line, fmt.Sprintf("start-api condition.file_exists should reference %q", expectedPath)))
+				}
+			} else {
+				line := findJSONLineDevelop(source, "\"start-api\"", "\"condition\"")
+				violations = append(violations, newDevelopViolation(filePath, line, "start-api must include a file_exists condition for the API binary"))
+			}
 		}
 	}
 
-	hasUI := strings.Contains(source, "UI_PORT")
-	if hasUI {
+	if requireUIStart(payload) {
 		startUIStep, _ := findStepByName(stepsSlice, "start-ui")
 		if startUIStep == nil {
 			line := findJSONLineDevelop(source, "\"start-ui\"")
-			violations = append(violations, newDevelopViolation(filePath, line, "Develop steps must include a \"start-ui\" command when UI_PORT is present"))
+			violations = append(violations, newDevelopViolation(filePath, line, "Develop steps must include a \"start-ui\" command when the UI is enabled"))
 		} else if bg, ok := startUIStep["background"].(bool); !ok || !bg {
 			line := findJSONLineDevelop(source, "\"start-ui\"", "\"background\"")
 			violations = append(violations, newDevelopViolation(filePath, line, "start-ui must run in the background when provided"))
 		}
 	}
 
-	lastStepName := strings.TrimSpace(getString(stepsSlice[len(stepsSlice)-1].(map[string]interface{}), "name"))
-	if lastStepName != "show-urls" {
-		line := findJSONLineDevelop(source, "\"show-urls\"")
-		violations = append(violations, newDevelopViolation(filePath, line, "show-urls step must be the final develop step"))
+	lastStepMap, ok := stepsSlice[len(stepsSlice)-1].(map[string]interface{})
+	if ok {
+		lastStepName := strings.TrimSpace(getString(lastStepMap, "name"))
+		if lastStepName != "show-urls" {
+			line := findJSONLineDevelop(source, "\"show-urls\"")
+			violations = append(violations, newDevelopViolation(filePath, line, "show-urls step must be the final develop step"))
+		}
+	} else {
+		line := findJSONLineDevelop(source, "\"develop\"", "\"steps\"")
+		violations = append(violations, newDevelopViolation(filePath, line, "Each develop step must be an object with a name"))
 	}
 
 	showStep, showIndex := findStepByName(stepsSlice, "show-urls")
@@ -331,6 +449,62 @@ func findStepByName(steps []interface{}, name string) (map[string]interface{}, i
 		}
 	}
 	return nil, -1
+}
+
+func requireAPIStart(payload map[string]interface{}) bool {
+	enabled, present := componentEnabled(payload, "api")
+	if present {
+		return enabled
+	}
+	return hasPort(payload, "api")
+}
+
+func requireUIStart(payload map[string]interface{}) bool {
+	enabled, present := componentEnabled(payload, "ui")
+	if present {
+		return enabled
+	}
+	return hasPort(payload, "ui")
+}
+
+func componentEnabled(payload map[string]interface{}, name string) (bool, bool) {
+	components, _ := getMap(payload, "components")
+	component, present := getMap(components, name)
+	if !present || component == nil {
+		return false, false
+	}
+	if enabledVal, ok := component["enabled"]; ok {
+		if enabled, ok := enabledVal.(bool); ok {
+			return enabled, true
+		}
+	}
+	return true, true
+}
+
+func hasPort(payload map[string]interface{}, name string) bool {
+	ports, _ := getMap(payload, "ports")
+	if ports == nil {
+		return false
+	}
+	if entry, ok := ports[name]; ok {
+		_, ok := entry.(map[string]interface{})
+		return ok
+	}
+	return false
+}
+
+func extractBinaryName(run string) string {
+	idx := strings.LastIndex(run, "cd api")
+	search := run
+	if idx != -1 {
+		search = run[idx:]
+	}
+	re := regexp.MustCompile(`\./([A-Za-z0-9._-]+)`)
+	match := re.FindStringSubmatch(search)
+	if len(match) >= 2 {
+		return match[1]
+	}
+	return ""
 }
 
 func shouldCheckDevelopServiceJSON(path string) bool {

@@ -63,7 +63,8 @@
     "health": {
       "description": "Retro Game Launcher health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -73,6 +74,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,

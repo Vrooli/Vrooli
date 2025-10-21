@@ -1,21 +1,101 @@
 {
-  \"name\": \"scenario-to-ios\",
-  \"version\": \"1.0.0\",
-  \"description\": \"Scenario to iOS conversion tool\",
-  \"lifecycle\": {
-    \"health\": {
-      \"endpoints\": {
-        \"api\": \"/api/v1/health\",
-        \"ui\": \"/\"
-      }
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "scenario-to-ios",
+    "displayName": "Scenario to iOS",
+    "description": "Scenario to iOS conversion tool"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Scenario to iOS API port",
+      "range": "15000-19999"
     }
   },
-  \"setup\": {
-    \"steps\": [
-      {
-        \"name\": \"build-api\",
-        \"run\": \"cd api && go build -o scenario-to-ios-api .\"
-      }
-    ]
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Scenario to iOS health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "develop": {
+      "description": "Start scenario-to-ios API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./scenario-to-ios-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-ios-api"
+          }
+        },
+        {
+          "name": "show-url",
+          "run": "echo '🚀 Scenario to iOS API running on http://localhost:${API_PORT}'",
+          "description": "Display API access URL"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run scenario-to-ios test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test/run-tests.sh",
+          "description": "Execute phased test suite",
+          "condition": {
+            "file_exists": "test/run-tests.sh"
+          }
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build Scenario to iOS API",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-to-ios-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "scenario-to-ios"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o scenario-to-ios-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI tool"
+        }
+      ]
+    }
   }
 }

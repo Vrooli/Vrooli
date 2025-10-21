@@ -48,7 +48,8 @@
     "health": {
       "description": "Resource Experimenter health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -58,7 +59,28 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
-        },\n        {\n          \"type\": \"binaries\",\n          \"targets\": [\n            \"api/resource-experimenter-api\"\n          ]\n        },\n        {\n          \"type\": \"cli\",\n          \"targets\": [\n            \"resource-experimenter\"\n          ]\n        }\n      ],
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        },
+        {
+          "type": "binaries",
+          "targets": [
+            "api/resource-experimenter-api"
+          ]
+        },
+        {
+          "type": "cli",
+          "targets": [
+            "resource-experimenter"
+          ]
+        }
+      ],
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 10000

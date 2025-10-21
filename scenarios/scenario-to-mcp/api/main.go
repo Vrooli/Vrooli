@@ -118,15 +118,21 @@ func (s *Server) setupRoutes() {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		// Only allow localhost origins for security
+		if origin == "http://localhost:3291" || origin == "http://localhost:36111" ||
+		   origin == "http://localhost:39942" || origin == "http://127.0.0.1:3291" ||
+		   origin == "http://127.0.0.1:36111" || origin == "http://127.0.0.1:39942" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -136,8 +142,9 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":    "healthy",
 		"timestamp": time.Now().UTC(),
 		"service":   "scenario-to-mcp",
+		"readiness": true,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -460,9 +467,11 @@ func main() {
 	port := config.APIPort
 	if registryMode {
 		port = config.RegistryPort
-		log.Printf("Starting MCP Registry on port %d", port)
+		fmt.Fprintf(os.Stdout, `{"level":"info","component":"registry","message":"Starting MCP Registry","port":%d,"timestamp":"%s"}`+"\n",
+			port, time.Now().Format(time.RFC3339))
 	} else {
-		log.Printf("Starting Scenario to MCP API on port %d", port)
+		fmt.Fprintf(os.Stdout, `{"level":"info","component":"api","message":"Starting Scenario to MCP API","port":%d,"timestamp":"%s"}`+"\n",
+			port, time.Now().Format(time.RFC3339))
 	}
 
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), server.router); err != nil {
