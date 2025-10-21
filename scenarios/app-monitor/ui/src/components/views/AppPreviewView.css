@@ -18,6 +18,8 @@
 
 .preview-logs-container .logs-panel {
   width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .app-preview-view--immersive {
@@ -101,7 +103,7 @@ body.app-preview-immersive {
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  z-index: 1100;
+  z-index: 6000;
   overflow-y: auto;
   scrollbar-gutter: stable;
 }

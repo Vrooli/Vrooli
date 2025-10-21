@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Outlet } from 'react-router-dom';
 import { Layers, MoreHorizontal } from 'lucide-react';
 import clsx from 'clsx';
@@ -7,6 +8,7 @@ import { useResourcesStore } from '@/state/resourcesStore';
 import TabSwitcherDialog from '@/components/tabSwitcher/TabSwitcherDialog';
 import ActionsDialog from '@/components/actions/ActionsDialog';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
+import { useShellOverlayStore } from '@/state/shellOverlayStore';
 import './Shell.css';
 
 type ShellProps = {
@@ -19,6 +21,7 @@ export default function Shell({ isConnected }: ShellProps) {
   const appsCount = useAppsStore(state => state.apps.length);
   const resourcesCount = useResourcesStore(state => state.resources.length);
   const { overlay: activeOverlay, openOverlay, closeOverlay } = useOverlayRouter();
+  const overlayHost = useShellOverlayStore(state => state.overlayHost);
 
   const totalSurfaceCount = useMemo(() => {
     const count = appsCount + resourcesCount;
@@ -39,6 +42,12 @@ export default function Shell({ isConnected }: ShellProps) {
   }, [totalSurfaceCount]);
 
   const anyOverlayOpen = activeOverlay !== null;
+
+  const overlayTarget = overlayHost && overlayHost.isConnected ? overlayHost : null;
+
+  const mountOverlay = (node: JSX.Element) => (
+    overlayTarget ? createPortal(node, overlayTarget) : node
+  );
 
   useEffect(() => {
     if (!anyOverlayOpen) {
@@ -153,20 +162,20 @@ export default function Shell({ isConnected }: ShellProps) {
         </button>
       </nav>
 
-      {activeOverlay === 'tabs' && (
+      {activeOverlay === 'tabs' && mountOverlay(
         <div className="shell__overlay" role="dialog" aria-modal="true" aria-label="Tab switcher">
           <div className="shell__overlay-content shell__overlay-content--wide">
             <TabSwitcherDialog />
           </div>
-        </div>
+        </div>,
       )}
 
-      {activeOverlay === 'actions' && (
+      {activeOverlay === 'actions' && mountOverlay(
         <div className="shell__overlay" role="dialog" aria-modal="true" aria-label="System actions">
           <div className="shell__overlay-content">
             <ActionsDialog isConnected={isConnected} />
           </div>
-        </div>
+        </div>,
       )}
     </div>
   );

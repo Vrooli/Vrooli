@@ -376,30 +376,60 @@
 }
 
 .tab-card__status {
+  display: inline-flex;
+  align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(244, 246, 255, 0.88);
+}
+
+.tab-card__status--scenario {
+  font-weight: 700;
 }
 
 .status-online,
 .status-running,
 .status-healthy {
-  background: rgba(77, 201, 152, 0.22);
+  background: rgba(77, 201, 152, 0.18);
+  border-color: rgba(124, 244, 198, 0.35);
   color: #7cf4c6;
 }
 
 .status-offline,
 .status-stopped,
 .status-error {
-  background: rgba(255, 102, 102, 0.22);
+  background: rgba(255, 102, 102, 0.18);
+  border-color: rgba(255, 153, 153, 0.35);
   color: #ff9d9d;
 }
 
 .status-warning,
 .status-degraded {
-  background: rgba(255, 198, 92, 0.22);
+  background: rgba(255, 198, 92, 0.18);
+  border-color: rgba(255, 210, 150, 0.32);
   color: #ffd991;
+}
+
+.status-starting,
+.status-pending,
+.status-launching {
+  background: rgba(122, 160, 255, 0.18);
+  border-color: rgba(149, 182, 255, 0.35);
+  color: #bed0ff;
+}
+
+.status-unknown,
+.status-idle,
+.status-inactive {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(235, 238, 255, 0.78);
 }
 
 .tab-card__heading {

@@ -1727,6 +1727,20 @@ const resolveProxyContextFromRequest = (req) => {
         }
     }
 
+    const requestInProxyNamespace =
+        typeof requestParts.path === 'string' &&
+        requestParts.path.startsWith(`${APP_PROXY_PREFIX}/`) &&
+        requestParts.path.includes(`/${APP_PROXY_SEGMENT}`);
+    const refererInProxyNamespace =
+        refererParts &&
+        typeof refererParts.path === 'string' &&
+        refererParts.path.startsWith(`${APP_PROXY_PREFIX}/`) &&
+        refererParts.path.includes(`/${APP_PROXY_SEGMENT}`);
+
+    if (!requestInProxyNamespace && !refererInProxyNamespace) {
+        return null;
+    }
+
     const requestKey = buildAffinityKey({
         host: hostHeader,
         path: requestParts.path,
@@ -2169,6 +2183,20 @@ app.use(async (req, res, next) => {
 
     const refererHeader = req.headers.referer || req.headers.referrer;
     const fetchSite = req.headers['sec-fetch-site'];
+    const acceptHeader = typeof req.headers.accept === 'string' ? req.headers.accept : '';
+    const secFetchMode = typeof req.headers['sec-fetch-mode'] === 'string'
+        ? req.headers['sec-fetch-mode'].toLowerCase()
+        : '';
+    const secFetchDest = typeof req.headers['sec-fetch-dest'] === 'string'
+        ? req.headers['sec-fetch-dest'].toLowerCase()
+        : '';
+    const isNavigationRequest =
+        req.method === 'GET' &&
+        acceptHeader.includes('text/html') &&
+        (secFetchMode === 'navigate' || secFetchMode === '' || secFetchDest === 'document' || secFetchDest === '');
+    if (isNavigationRequest && targetPath === '/') {
+        return next();
+    }
     const refererDetails =
         typeof refererHeader === 'string' && refererHeader.length > 0
             ? parseForAffinity(refererHeader, hostHeader)

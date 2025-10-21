@@ -15,7 +15,7 @@ import {
   ArrowRight,
   Bug,
   ExternalLink,
-  History,
+  Layers,
   Info,
   Loader2,
   Navigation2,
@@ -850,7 +850,7 @@ const AppPreviewToolbar = ({
                 aria-label="Open tabs switcher"
                 title="Open tabs switcher"
               >
-                <History aria-hidden size={18} />
+                <Layers aria-hidden size={18} />
               </button>
             )}
           </>

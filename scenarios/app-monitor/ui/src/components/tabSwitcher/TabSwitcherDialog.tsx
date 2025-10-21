@@ -580,6 +580,11 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
   const screenshot = useSurfaceMediaStore(screenshotSelector);
   const thumbStyle = screenshot ? { backgroundImage: `url(${screenshot.dataUrl})` } : undefined;
   const viewCountLabel = formatViewCount(app.view_count);
+  const statusClassName = useMemo(() => {
+    const source = (app.status ?? 'unknown').toLowerCase();
+    const normalized = source.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return `status-${normalized || 'unknown'}`;
+  }, [app.status]);
 
   return (
     <button
@@ -596,7 +601,17 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
       <div className="tab-card__body">
         <h4>{app.scenario_name ?? app.name ?? app.id}</h4>
         <div className="tab-card__meta">
-          {app.status && <span className="tab-card__chip">{app.status}</span>}
+          {app.status && (
+            <span
+              className={clsx(
+                'tab-card__status',
+                'tab-card__status--scenario',
+                statusClassName,
+              )}
+            >
+              {app.status.toUpperCase()}
+            </span>
+          )}
           {viewCountLabel && (
             <span className="tab-card__chip tab-card__chip--muted">
               👁 {viewCountLabel}

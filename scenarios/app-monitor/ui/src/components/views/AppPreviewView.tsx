@@ -54,6 +54,7 @@ const AppPreviewView = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeOverlay = useShellOverlayStore(state => state.activeView);
+  const registerOverlayHost = useShellOverlayStore(state => state.registerHost);
   const setSurfaceScreenshot = useSurfaceMediaStore(state => state.setScreenshot);
   const locationState: PreviewLocationState | null = location.state && typeof location.state === 'object'
     ? location.state as PreviewLocationState
@@ -138,6 +139,14 @@ const AppPreviewView = () => {
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
   const lastStateSnapshotRef = useRef<string>('');
+
+  useEffect(() => {
+    const host = (isFullscreen || isLayoutFullscreen) ? previewViewNode : null;
+    registerOverlayHost(host);
+    return () => {
+      registerOverlayHost(null);
+    };
+  }, [isFullscreen, isLayoutFullscreen, previewViewNode, registerOverlayHost]);
 
   const recordDebugEvent = useCallback((event: string, detail?: Record<string, unknown>) => {
     try {

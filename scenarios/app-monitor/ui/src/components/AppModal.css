@@ -6,7 +6,7 @@
   height: 100%;
   background: rgba(1, 12, 8, 0.68);
   backdrop-filter: blur(8px);
-  z-index: 1200;
+  z-index: 6000;
   padding: 3vh 1.5rem;
 }
 
