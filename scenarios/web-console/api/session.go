@@ -62,6 +62,7 @@ type session struct {
 	transcriptMu     sync.Mutex
 	transcriptFile   *os.File
 	transcriptWriter *bufio.Writer
+	flushInterval    time.Duration
 
 	readBuffer []byte
 
@@ -105,6 +106,7 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		lastInputSeq:        make(map[string]uint64),
 		termRows:            cfg.defaultTTYRows,
 		termCols:            cfg.defaultTTYCols,
+		flushInterval:       2 * time.Second,
 	}
 
 	command := strings.TrimSpace(req.Command)
@@ -192,6 +194,7 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		s.Close(reasonTTLExpired)
 	})
 
+	go s.flushTranscriptPeriodically()
 	go s.streamOutput()
 	go s.waitForExit()
 
@@ -379,6 +382,10 @@ func (s *session) Close(reason closeReason) {
 		}
 
 		s.cancel()
+		if s.ptyFile != nil {
+			_ = s.ptyFile.Close()
+			s.ptyFile = nil
+		}
 		if s.command != nil && s.command.Process != nil {
 			_ = s.command.Process.Signal(os.Interrupt)
 			time.AfterFunc(s.cfg.panicKillGrace, func() {
@@ -448,6 +455,38 @@ func (s *session) writeTranscript(entry transcriptEntry) {
 	}
 	if _, err := s.transcriptWriter.Write(encoded); err == nil {
 		_, _ = s.transcriptWriter.WriteString("\n")
+	}
+}
+
+func (s *session) flushTranscript() {
+	s.transcriptMu.Lock()
+	defer s.transcriptMu.Unlock()
+	if s.transcriptWriter == nil {
+		return
+	}
+	if err := s.transcriptWriter.Flush(); err != nil {
+		return
+	}
+	if s.transcriptFile != nil {
+		_ = s.transcriptFile.Sync()
+	}
+}
+
+func (s *session) flushTranscriptPeriodically() {
+	interval := s.flushInterval
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-s.done:
+			s.flushTranscript()
+			return
+		case <-ticker.C:
+			s.flushTranscript()
+		}
 	}
 }
 

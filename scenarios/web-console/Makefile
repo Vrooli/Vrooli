@@ -41,7 +41,10 @@ status:
 
 clean:
 	@echo "\033[1;33mRemoving build artefacts...\033[0m"
-	@rm -f api/web-console-api
+	@rm -f api/web-console-api api/codex-console-api
+	@rm -f api/coverage.out
+	@rm -rf api/data/sessions
+	@rm -rf bin
 	@rm -rf ui/dist
 	@echo "\033[1;32mClean complete\033[0m"
 
@@ -49,12 +52,17 @@ fmt: fmt-go fmt-ui
 
 fmt-go:
 	@if [ -d api ]; then \
-		cd api && gofmt -w .; \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd api && gofumpt -w .; \
+		else \
+			echo "gofumpt not found; falling back to gofmt"; \
+			cd api && gofmt -w .; \
+		fi; \
 	fi
 
 fmt-ui:
 	@if [ -d ui ]; then \
-		cd ui && pnpm exec prettier --write "src/**/*.{ts,tsx,css}"; \
+		cd ui && pnpm exec prettier --write "src/**/*.{js,ts,tsx,css}" "public/**/*.{html,css}"; \
 	fi
 
 lint: lint-go lint-ui

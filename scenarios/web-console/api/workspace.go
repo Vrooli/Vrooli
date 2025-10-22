@@ -146,8 +146,26 @@ func (ws *workspace) save() error {
 	}
 
 	tmpPath := ws.storagePath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
 		return fmt.Errorf("write workspace: %w", err)
+	}
+
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("write workspace: %w", err)
+	}
+
+	if err := tmpFile.Sync(); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("sync workspace: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("close workspace: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, ws.storagePath); err != nil {
@@ -155,7 +173,16 @@ func (ws *workspace) save() error {
 		return fmt.Errorf("commit workspace: %w", err)
 	}
 
-	return nil
+	// Ensure rename is durable by syncing the directory entry
+	dirHandle, err := os.Open(dir)
+	if err != nil {
+		return fmt.Errorf("open workspace dir: %w", err)
+	}
+	if err := dirHandle.Sync(); err != nil {
+		_ = dirHandle.Close()
+		return fmt.Errorf("sync workspace dir: %w", err)
+	}
+	return dirHandle.Close()
 }
 
 // getState returns the current workspace state as JSON

@@ -47,8 +47,8 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 func setupTestConfig(tempDir string) config {
 	return config{
 		addr:                "127.0.0.1:0",
-		defaultCommand:      "/bin/echo",
-		defaultArgs:         []string{"test"},
+		defaultCommand:      "/bin/sleep",
+		defaultArgs:         []string{"60"},
 		sessionTTL:          30 * time.Minute,
 		idleTimeout:         0,
 		storagePath:         filepath.Join(tempDir, "sessions"),

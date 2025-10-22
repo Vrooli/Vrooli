@@ -1,8 +1,6 @@
 module webconsole
 
-go 1.24
-
-toolchain go1.24.7
+go 1.21
 
 require (
 	github.com/creack/pty v1.1.21

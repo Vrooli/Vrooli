@@ -1,0 +1,6 @@
+# Ignore generated binaries, session transcripts, and build outputs
+/api/*.api
+/api/data/
+/api/coverage.out
+/bin/
+/ui/dist/

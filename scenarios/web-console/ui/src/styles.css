@@ -13,7 +13,13 @@ html {
   --accent: #38bdf8;
   --accent-strong: #0ea5e9;
   --danger: #ef4444;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 * {
@@ -21,7 +27,9 @@ html {
 }
 
 body {
-  background: radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 45%), var(--surface);
+  background:
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 45%),
+    var(--surface);
   color: var(--text-primary);
   margin: 0;
   min-height: 100vh;
@@ -64,7 +72,9 @@ body {
   border: 1px solid var(--surface-border);
   border-radius: 0.75rem;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .header-ai-group:focus-within {
@@ -182,7 +192,7 @@ body {
 }
 
 .quick-actions .shortcut-command {
-  font-family: 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace;
   font-size: 0.8rem;
   color: var(--text-secondary);
 }
@@ -247,7 +257,9 @@ body {
   display: none;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .details-drawer-close:hover,
@@ -280,7 +292,10 @@ body {
   background: rgba(148, 163, 184, 0.08);
   color: var(--text-primary);
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .drawer-toggle:hover,
@@ -370,7 +385,9 @@ body {
   font-size: 0.95rem;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .settings-select:hover {
@@ -593,7 +610,11 @@ body {
   appearance: none;
   -webkit-appearance: none;
   outline: none;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .session-overview-refresh:hover,
@@ -632,15 +653,17 @@ body {
   border-radius: 0.7rem;
   border: 1px solid rgba(148, 163, 184, 0.22);
   background: rgba(15, 23, 42, 0.55);
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
-.session-overview-item[data-active='true'] {
+.session-overview-item[data-active="true"] {
   border-color: rgba(56, 189, 248, 0.5);
   background: rgba(56, 189, 248, 0.16);
 }
 
-.session-overview-item[data-session-state='orphaned'] {
+.session-overview-item[data-session-state="orphaned"] {
   border-color: rgba(248, 113, 113, 0.45);
   background: rgba(248, 113, 113, 0.12);
 }
@@ -659,7 +682,7 @@ body {
 }
 
 .session-overview-id {
-  font-family: 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace;
   font-size: 0.8rem;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
@@ -682,7 +705,7 @@ body {
   background: rgba(56, 189, 248, 0.12);
 }
 
-.session-overview-item[data-active='true'].session-overview-clickable:hover {
+.session-overview-item[data-active="true"].session-overview-clickable:hover {
   border-color: rgba(56, 189, 248, 0.5);
   background: rgba(56, 189, 248, 0.16);
 }
@@ -701,7 +724,10 @@ body {
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .session-overview-close:hover,
@@ -722,7 +748,7 @@ body {
   transform: none;
 }
 
-.session-overview-item[data-session-state='orphaned'] .session-overview-status {
+.session-overview-item[data-session-state="orphaned"] .session-overview-status {
   color: #fca5a5;
 }
 
@@ -801,7 +827,7 @@ body {
 
 .event-feed .event-detail {
   white-space: pre-wrap;
-  font-family: 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace;
   font-size: 0.8rem;
   margin: 0.35rem 0 0 0;
   color: var(--text-secondary);
@@ -824,7 +850,11 @@ body {
   gap: 0.75rem;
   padding: 0 1rem;
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(11, 17, 32, 0.92) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.85) 0%,
+    rgba(11, 17, 32, 0.92) 100%
+  );
 }
 
 .tab-list {
@@ -870,13 +900,21 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-bottom: none;
   border-radius: 0.85rem 0.85rem 0 0;
-  background: linear-gradient(180deg, rgba(148, 163, 184, 0.16) 0%, rgba(30, 41, 59, 0.48) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(148, 163, 184, 0.16) 0%,
+    rgba(30, 41, 59, 0.48) 100%
+  );
   color: var(--text-secondary);
   font-size: 0.9rem;
   letter-spacing: 0.01em;
   cursor: pointer;
   min-width: 9.25rem;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   --tab-color-border: rgba(148, 163, 184, 0.25);
   --tab-color-border-hover: rgba(148, 163, 184, 0.45);
   --tab-color-border-active: rgba(56, 189, 248, 0.65);
@@ -889,7 +927,7 @@ body {
 }
 
 .tab-button::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0.85rem;
   top: 50%;
@@ -900,28 +938,31 @@ body {
   box-shadow: none;
   transform: translateY(-50%);
   opacity: 0;
-  transition: background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
 }
 
-.tab-button[data-session-state='none']::before {
+.tab-button[data-session-state="none"]::before {
   background: rgba(148, 163, 184, 0.45);
   box-shadow: 0 0 6px rgba(148, 163, 184, 0.35);
   opacity: 1;
 }
 
-.tab-button[data-session-state='starting']::before {
+.tab-button[data-session-state="starting"]::before {
   background: rgba(56, 189, 248, 0.65);
   box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
   opacity: 1;
 }
 
-.tab-button[data-session-state='closing']::before {
+.tab-button[data-session-state="closing"]::before {
   background: rgba(251, 191, 36, 0.7);
   box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
   opacity: 1;
 }
 
-.tab-button[data-session-state='detached']::before {
+.tab-button[data-session-state="detached"]::before {
   background: rgba(248, 113, 113, 0.7);
   box-shadow: 0 0 6px rgba(248, 113, 113, 0.55);
   opacity: 1;
@@ -939,11 +980,17 @@ body {
   opacity: 1;
 }
 
-.tab-button[aria-selected='true'] {
-  background: linear-gradient(180deg, var(--tab-color-selected-start) 0%, var(--tab-color-selected-end) 100%);
+.tab-button[aria-selected="true"] {
+  background: linear-gradient(
+    180deg,
+    var(--tab-color-selected-start) 0%,
+    var(--tab-color-selected-end) 100%
+  );
   border-color: var(--tab-color-border-active);
   color: var(--text-primary);
-  box-shadow: 0 10px 24px rgba(11, 17, 32, 0.55), 0 0 18px var(--tab-color-glow);
+  box-shadow:
+    0 10px 24px rgba(11, 17, 32, 0.55),
+    0 0 18px var(--tab-color-glow);
 }
 
 .tab-button:hover {
@@ -1014,7 +1061,9 @@ body {
   cursor: pointer;
   border-radius: 50%;
   opacity: 0.55;
-  transition: opacity 0.2s ease, background 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease;
 }
 
 .tab-item:hover .tab-close {
@@ -1034,7 +1083,11 @@ body {
   position: sticky;
   right: 0;
   padding-left: 0.25rem;
-  background: linear-gradient(90deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.95) 40%);
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0) 0%,
+    rgba(15, 23, 42, 0.95) 40%
+  );
   z-index: 2;
 }
 
@@ -1050,7 +1103,10 @@ body {
   color: var(--text-secondary);
   font-size: 1.15rem;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
   margin-left: 0.15rem;
   flex-shrink: 0;
 }
@@ -1199,7 +1255,9 @@ textarea {
   z-index: 70;
   opacity: 0;
   transform: scale(0.95);
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 
 .tab-context-menu.active {
@@ -1245,7 +1303,9 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .tab-context-close:hover,
@@ -1268,7 +1328,9 @@ textarea {
   color: var(--text-primary);
   padding: 0.55rem 0.75rem;
   font-size: 0.95rem;
-  transition: border 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .tab-context-field input:focus {
@@ -1303,11 +1365,14 @@ textarea {
   border-radius: 0.75rem;
   background: rgba(148, 163, 184, 0.12);
   cursor: pointer;
-  transition: transform 0.2s ease, border 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    border 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .tab-color-option::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0.25rem;
   border-radius: 0.55rem;
@@ -1320,7 +1385,7 @@ textarea {
   box-shadow: 0 8px 18px rgba(8, 12, 24, 0.45);
 }
 
-.tab-color-option[aria-selected='true'] {
+.tab-color-option[aria-selected="true"] {
   border-color: var(--swatch-color);
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
 }
@@ -1490,13 +1555,21 @@ textarea {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: var(--font-mono, 'IBM Plex Mono', ui-monospace, SFMono-Regular, Monaco, 'Courier New', monospace);
+  font-family: var(
+    --font-mono,
+    "IBM Plex Mono",
+    ui-monospace,
+    SFMono-Regular,
+    Monaco,
+    "Courier New",
+    monospace
+  );
   font-size: 0.95rem;
   color: var(--text-primary);
 }
 
 .compose-preview-content::after {
-  content: '\00a0';
+  content: "\00a0";
 }
 
 .compose-actions {
@@ -1549,7 +1622,9 @@ textarea {
   /* Increased z-index for iOS keyboard compatibility */
   z-index: 2147483647; /* Max z-index to ensure toolbar appears above keyboard */
   box-shadow: 0 -4px 12px rgba(8, 12, 24, 0.45);
-  transition: opacity 0.2s ease, bottom 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    bottom 0.2s ease;
   will-change: bottom, opacity;
   display: flex;
   align-items: center;
@@ -1659,7 +1734,10 @@ body:has(.mobile-toolbar.mode-top) .header {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background 0.2s ease;
   box-shadow: none;
 }
 
@@ -1674,7 +1752,10 @@ body:has(.mobile-toolbar.mode-top) .header {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
   flex: 0 0 auto;
   margin-left: 0.75rem;
   align-self: stretch;
@@ -1732,7 +1813,10 @@ body:has(.mobile-toolbar.mode-top) .header {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .toolbar-menu-toggle:hover,
@@ -1761,7 +1845,9 @@ body:has(.mobile-toolbar.mode-top) .header {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Context Mode Row */
@@ -1812,9 +1898,12 @@ body:has(.mobile-toolbar.mode-top) .header {
   color: var(--text-primary);
   font-size: 0.8rem;
   font-weight: 600;
-  font-family: 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1854,7 +1943,7 @@ body:has(.mobile-toolbar.mode-top) .header {
 }
 
 .terminal-screen.context-selection-mode::before {
-  content: '⚡ Context Mode: Tap lines to select';
+  content: "⚡ Context Mode: Tap lines to select";
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
@@ -1869,8 +1958,13 @@ body:has(.mobile-toolbar.mode-top) .header {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .terminal-screen.context-selection-mode .xterm {
@@ -1929,7 +2023,7 @@ body:has(.mobile-toolbar.mode-top) .header {
   background: rgba(148, 163, 184, 0.1);
   padding: 0.65rem 0.85rem;
   border-radius: 0.5rem;
-  font-family: 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace;
   font-size: 0.9rem;
   border-left: 3px solid var(--accent);
 }
@@ -1958,7 +2052,9 @@ body:has(.mobile-toolbar.mode-top) .header {
   min-width: 300px;
   max-width: 90vw;
   text-align: center;
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
   opacity: 0;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
