@@ -216,6 +216,7 @@
   transition: all 0.2s ease;
   text-decoration: none;
   padding: 0;
+  position: relative;
 }
 
 .preview-toolbar__icon-btn svg {
@@ -390,6 +391,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  justify-content: space-between;
   width: 100%;
   padding: 0.55rem 0.75rem;
   border-radius: 0.65rem;
@@ -412,6 +414,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  flex: 1;
 }
 
 .preview-toolbar__menu-item--with-note {
@@ -426,6 +429,41 @@
   text-transform: none;
   color: rgba(255, 138, 76, 0.9);
   line-height: 1.25;
+}
+
+.preview-toolbar__badge {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.45rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: radial-gradient(circle at 30% 30%, rgba(0, 255, 191, 0.95), rgba(0, 176, 255, 0.88));
+  color: var(--matrix-bg);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.35);
+}
+
+.preview-toolbar__menu-item-badge {
+  margin-left: auto;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  background: rgba(0, 255, 255, 0.12);
+  color: rgba(224, 255, 249, 0.92);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  min-width: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .preview-toolbar__menu-item--active {

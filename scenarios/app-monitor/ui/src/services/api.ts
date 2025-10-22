@@ -112,6 +112,29 @@ export interface ReportIssueAppStatus {
   details: string[];
 }
 
+export interface ReportIssueCapturePayload {
+  id: string;
+  type: 'page' | 'element';
+  width: number;
+  height: number;
+  data: string;
+  note?: string | null;
+  selector?: string | null;
+  tagName?: string | null;
+  elementId?: string | null;
+  classes?: string[] | null;
+  label?: string | null;
+  ariaDescription?: string | null;
+  title?: string | null;
+  role?: string | null;
+  text?: string | null;
+  boundingBox?: { x: number; y: number; width: number; height: number } | null;
+  clip?: { x: number; y: number; width: number; height: number } | null;
+  mode?: string | null;
+  filename?: string | null;
+  createdAt?: string | null;
+}
+
 export interface PreviewHealthDiagnosticsResponse {
   app_id: string;
   app_name?: string | null;
@@ -156,6 +179,7 @@ export interface ReportIssuePayload {
   appStatusLabel?: string | null;
   appStatusSeverity?: ReportIssueAppStatusSeverity | null;
   appStatusCapturedAt?: string | null;
+  captures?: ReportIssueCapturePayload[];
 }
 
 export interface ScenarioIssueSummary {

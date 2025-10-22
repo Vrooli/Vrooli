@@ -32,6 +32,7 @@ import {
 import ReportDiagnosticsPanel from './ReportDiagnosticsPanel';
 import ReportLogsSection from './ReportLogsSection';
 import ReportScreenshotPanel from './ReportScreenshotPanel';
+import type { ReportElementCapture } from './reportTypes';
 import useReportIssueState, { type BridgePreviewState } from './useReportIssueState';
 
 const REPORT_APP_LOGS_PANEL_ID = 'app-report-dialog-logs';
@@ -69,6 +70,11 @@ interface ReportIssueDialogProps {
   getRecentNetworkEvents: () => BridgeNetworkEvent[];
   requestNetworkBatch: (options?: { since?: number; afterSeq?: number; limit?: number }) => Promise<BridgeNetworkEvent[]>;
   bridgeCompliance: BridgeComplianceResult | null;
+  elementCaptures: ReportElementCapture[];
+  onElementCaptureNoteChange: (captureId: string, note: string) => void;
+  onElementCaptureRemove: (captureId: string) => void;
+  onElementCapturesReset: () => void;
+  onPrimaryCaptureDraftChange?: (hasCapture: boolean) => void;
 }
 
 const ReportIssueDialog = (props: ReportIssueDialogProps) => {
@@ -78,6 +84,10 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     canCaptureScreenshot,
     appId,
     app,
+    elementCaptures,
+    onElementCaptureNoteChange,
+    onElementCaptureRemove,
+    onElementCapturesReset,
   } = props;
 
   const {
@@ -389,6 +399,9 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                 canCaptureScreenshot={canCaptureScreenshot}
                 reportIncludeScreenshot={screenshot.reportIncludeScreenshot}
                 reportSubmitting={form.submitting}
+                elementCaptures={elementCaptures}
+                onElementNoteChange={onElementCaptureNoteChange}
+                onElementRemove={onElementCaptureRemove}
               />
             </div>
 
@@ -402,7 +415,10 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
               <button
                 type="button"
                 className="report-dialog__button"
-                onClick={modal.handleReset}
+                onClick={() => {
+                  onElementCapturesReset();
+                  modal.handleReset();
+                }}
               >
                 Close
               </button>

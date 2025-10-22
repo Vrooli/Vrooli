@@ -27,6 +27,7 @@ import type {
   ReportIssueHealthCheckEntry,
   ReportIssueAppStatusSeverity,
   ScenarioIssueSummary,
+  ReportIssueCapturePayload,
 } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App, BridgeRuleReport } from '@/types';
@@ -42,6 +43,7 @@ import type {
   ReportNetworkEntry,
   ReportHealthCheckEntry,
   ReportAppStatusSnapshot,
+  ReportElementCapture,
 } from './reportTypes';
 
 const REPORT_APP_LOGS_MAX_LINES = 200;
@@ -82,6 +84,9 @@ interface UseReportIssueStateParams {
   getRecentNetworkEvents: () => BridgeNetworkEvent[];
   requestNetworkBatch: (options?: { since?: number; afterSeq?: number; limit?: number }) => Promise<BridgeNetworkEvent[]>;
   bridgeCompliance: BridgeComplianceResult | null;
+  elementCaptures: ReportElementCapture[];
+  onElementCapturesReset: () => void;
+  onPrimaryCaptureDraftChange?: (hasCapture: boolean) => void;
 }
 
 interface ReportFormState {
@@ -311,6 +316,9 @@ const useReportIssueState = ({
   getRecentNetworkEvents,
   requestNetworkBatch,
   bridgeCompliance,
+  elementCaptures,
+  onElementCapturesReset,
+  onPrimaryCaptureDraftChange,
 }: UseReportIssueStateParams): ReportIssueStateResult => {
   const [reportMessage, setReportMessage] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
@@ -404,6 +412,27 @@ const useReportIssueState = ({
   const assignScreenshotContainerRef = useCallback((node: HTMLDivElement | null) => {
     reportScreenshotContainerRef.current = node;
   }, [reportScreenshotContainerRef]);
+
+  useEffect(() => {
+    if (!onPrimaryCaptureDraftChange) {
+      return;
+    }
+
+    const hasCaptureDraft = Boolean(
+      reportIncludeScreenshot
+      && canCaptureScreenshot
+      && reportScreenshotData
+      && !reportScreenshotLoading,
+    );
+
+    onPrimaryCaptureDraftChange(hasCaptureDraft);
+  }, [
+    onPrimaryCaptureDraftChange,
+    reportIncludeScreenshot,
+    canCaptureScreenshot,
+    reportScreenshotData,
+    reportScreenshotLoading,
+  ]);
 
   const resetState = useCallback(() => {
     setReportSubmitting(false);
@@ -947,8 +976,19 @@ const useReportIssueState = ({
     setShouldResetOnNextOpen(true);
     resetState();
     cleanupAfterDialogClose(canCaptureScreenshot);
+    onElementCapturesReset();
+    if (onPrimaryCaptureDraftChange) {
+      onPrimaryCaptureDraftChange(false);
+    }
     onClose();
-  }, [canCaptureScreenshot, cleanupAfterDialogClose, onClose, resetState]);
+  }, [
+    canCaptureScreenshot,
+    cleanupAfterDialogClose,
+    onClose,
+    onElementCapturesReset,
+    onPrimaryCaptureDraftChange,
+    resetState,
+  ]);
 
   const handleSubmitReport = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -987,8 +1027,86 @@ const useReportIssueState = ({
     }
 
     try {
+      const captureNotes = elementCaptures
+        .map((capture, index) => {
+          const note = capture.note.trim();
+          if (!note) {
+            return null;
+          }
+
+          const selectorLabel = capture.metadata.selector?.trim();
+          const descriptiveLabel = capture.metadata.label?.trim();
+          const tagLabel = capture.metadata.tagName ? `<${capture.metadata.tagName}>` : null;
+          const label = selectorLabel || descriptiveLabel || tagLabel || `Element capture ${index + 1}`;
+          return `- ${label}: ${note}`;
+        })
+        .filter((entry): entry is string => Boolean(entry));
+
+      const noteSection = captureNotes.length > 0
+        ? ['### Element Capture Notes', '', ...captureNotes].join('\n')
+        : null;
+
+      const finalMessage = noteSection
+        ? (trimmed ? `${trimmed}\n\n${noteSection}` : noteSection)
+        : trimmed;
+
+      const capturePayloads: ReportIssueCapturePayload[] = elementCaptures.map((capture, index) => {
+        const normalizedClasses = (capture.metadata.classes ?? []).filter(Boolean);
+        const createdAtIso = Number.isFinite(capture.createdAt)
+          ? new Date(capture.createdAt).toISOString()
+          : null;
+
+        return {
+          id: capture.id || `element-${index + 1}`,
+          type: 'element',
+          width: capture.width,
+          height: capture.height,
+          data: capture.data,
+          note: capture.note.trim() || null,
+          selector: capture.metadata.selector ?? null,
+          tagName: capture.metadata.tagName ?? null,
+          elementId: capture.metadata.elementId ?? null,
+          classes: normalizedClasses.length > 0 ? normalizedClasses : null,
+          label: capture.metadata.label ?? null,
+          ariaDescription: capture.metadata.ariaDescription ?? null,
+          title: capture.metadata.title ?? null,
+          role: capture.metadata.role ?? null,
+          text: capture.metadata.text ?? null,
+          boundingBox: capture.metadata.boundingBox ?? null,
+          clip: capture.clip ?? null,
+          mode: capture.mode ?? null,
+          filename: capture.filename ?? null,
+          createdAt: createdAtIso,
+        } satisfies ReportIssueCapturePayload;
+      });
+
+      if (includeScreenshot && reportScreenshotData) {
+        capturePayloads.unshift({
+          id: 'page-capture',
+          type: 'page',
+          width: reportScreenshotOriginalDimensions?.width ?? 0,
+          height: reportScreenshotOriginalDimensions?.height ?? 0,
+          data: reportScreenshotData,
+          note: null,
+          selector: null,
+          tagName: null,
+          elementId: null,
+          classes: null,
+          label: 'Preview',
+          ariaDescription: null,
+          title: null,
+          role: null,
+          text: null,
+          boundingBox: null,
+          clip: reportScreenshotClip ?? null,
+          mode: reportScreenshotClip ? 'clip' : 'full',
+          filename: null,
+          createdAt: new Date().toISOString(),
+        } satisfies ReportIssueCapturePayload);
+      }
+
       const payload: ReportIssuePayload = {
-        message: trimmed,
+        message: finalMessage,
         includeScreenshot,
         previewUrl: activePreviewUrl || null,
         appName: app?.name ?? null,
@@ -996,6 +1114,10 @@ const useReportIssueState = ({
         source: 'app-monitor',
         screenshotData: includeScreenshot ? reportScreenshotData ?? null : null,
       };
+
+      if (capturePayloads.length > 0) {
+        payload.captures = capturePayloads;
+      }
 
       if (reportIncludeAppLogs) {
         const selectedStreams = reportAppLogStreams.filter(stream => reportAppLogSelections[stream.key] !== false);
@@ -1075,10 +1197,10 @@ const useReportIssueState = ({
         if (totalHealthChecks > 0) {
           payload.healthChecksTotal = totalHealthChecks;
         }
-      if (reportHealthChecksFetchedAt) {
-        payload.healthChecksCapturedAt = new Date(reportHealthChecksFetchedAt).toISOString();
+        if (reportHealthChecksFetchedAt) {
+          payload.healthChecksCapturedAt = new Date(reportHealthChecksFetchedAt).toISOString();
+        }
       }
-    }
 
       if (reportIncludeAppStatus && reportAppStatusSnapshot && reportAppStatusSnapshot.details.length > 0) {
         payload.appStatusLines = reportAppStatusSnapshot.details;
@@ -1149,6 +1271,10 @@ const useReportIssueState = ({
         markScenarioIssueCreated(engagementIdentifier);
       }
 
+      onElementCapturesReset();
+      if (onPrimaryCaptureDraftChange) {
+        onPrimaryCaptureDraftChange(false);
+      }
       resetState();
       cleanupAfterDialogClose(canCaptureScreenshot);
       setShouldResetOnNextOpen(true);
@@ -1213,12 +1339,17 @@ const useReportIssueState = ({
     reportIncludeAppStatus,
     reportAppStatusSnapshot,
     reportAppStatusFetchedAt,
+    elementCaptures,
+    reportScreenshotClip,
+    reportScreenshotOriginalDimensions,
     flagScenarioIssueReported,
     markScenarioIssueCreated,
     reportMessage,
     cleanupAfterDialogClose,
     isOpen,
     onClose,
+    onElementCapturesReset,
+    onPrimaryCaptureDraftChange,
     resetState,
     setShouldResetOnNextOpen,
     snackPublisher,

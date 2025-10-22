@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import type { ChangeEvent, KeyboardEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { Info, Loader2, X, ChevronDown, Image, BoxSelect, Inspect } from 'lucide-react';
+import { Info, Loader2, X, ChevronDown, Image, BoxSelect, Inspect, PlusCircle } from 'lucide-react';
 import { appService } from '@/services/api';
 import { useAppsStore } from '@/state/appsStore';
 import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
@@ -13,6 +13,7 @@ import { useSurfaceMediaStore } from '@/state/surfaceMediaStore';
 import AppModal from '../AppModal';
 import AppPreviewToolbar from '../AppPreviewToolbar';
 import ReportIssueDialog from '../report/ReportIssueDialog';
+import type { ReportElementCapture } from '../report/reportTypes';
 import {
   buildPreviewUrl,
   isRunningStatus,
@@ -111,6 +112,9 @@ const AppPreviewView = () => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [pendingAction, setPendingAction] = useState<null | 'start' | 'stop' | 'restart'>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportElementCaptures, setReportElementCaptures] = useState<ReportElementCapture[]>([]);
+  const [hasPrimaryCaptureDraft, setHasPrimaryCaptureDraft] = useState(false);
+  const [inspectorCaptureNote, setInspectorCaptureNote] = useState('');
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [previewInteractionSignal, setPreviewInteractionSignal] = useState(0);
   const [previewOverlay, setPreviewOverlay] = useState<null | { type: 'restart' | 'waiting' | 'error'; message: string }>(null);
@@ -155,6 +159,7 @@ const AppPreviewView = () => {
   const inspectorDialogTitleId = useId();
   const inspectorDetailsSectionId = useId();
   const inspectorScreenshotSectionId = useId();
+  const inspectorReportNoteId = useId();
   const inspectorDetailsContentId = `${inspectorDetailsSectionId}-content`;
   const inspectorScreenshotContentId = `${inspectorScreenshotSectionId}-content`;
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -789,6 +794,98 @@ const AppPreviewView = () => {
     }, durationMs);
   }, [clearInspectMessageLock]);
 
+  const handleInspectorCaptureNoteChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setInspectorCaptureNote(event.target.value);
+  }, []);
+
+  const handleAddInspectorCaptureToReport = useCallback(() => {
+    if (!inspectorScreenshot) {
+      setLockedInspectMessage('Capture an element before adding it to the report.', 3200);
+      return;
+    }
+
+    const base64Payload = inspectorScreenshot.dataUrl.includes(',')
+      ? inspectorScreenshot.dataUrl.split(',')[1]
+      : inspectorScreenshot.dataUrl;
+
+    if (!base64Payload) {
+      setLockedInspectMessage('Unable to read captured image data.', 3200);
+      return;
+    }
+
+    const captureId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `capture-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const metadataClasses = Array.isArray(inspectMeta?.classes)
+      ? inspectMeta.classes.slice(0, 6)
+      : [];
+
+    const capture: ReportElementCapture = {
+      id: captureId,
+      type: 'element',
+      width: inspectorScreenshot.width,
+      height: inspectorScreenshot.height,
+      data: base64Payload,
+      createdAt: inspectorScreenshot.capturedAt ?? Date.now(),
+      filename: inspectorScreenshot.filename ?? null,
+      clip: inspectorScreenshot.clip ?? null,
+      mode: inspectorScreenshot.mode ?? null,
+      note: inspectorCaptureNote.trim(),
+      metadata: {
+        selector: inspectSelectorValue,
+        tagName: inspectMeta?.tag ?? null,
+        elementId: inspectMeta?.id ?? null,
+        classes: metadataClasses,
+        label: inspectLabelValue,
+        ariaDescription: inspectAriaDescription,
+        title: inspectTitleValue,
+        role: inspectMeta?.role ?? null,
+        text: inspectTextValue ?? null,
+        boundingBox: inspectRect
+          ? {
+              x: inspectRect.x,
+              y: inspectRect.y,
+              width: inspectRect.width,
+              height: inspectRect.height,
+            }
+          : null,
+      },
+    };
+
+    setReportElementCaptures(prev => [...prev, capture]);
+    setInspectorCaptureNote('');
+    setLockedInspectMessage('Element capture added to report.', 3200);
+  }, [
+    inspectAriaDescription,
+    inspectMeta,
+    inspectRect,
+    inspectSelectorValue,
+    inspectTextValue,
+    inspectorCaptureNote,
+    inspectorScreenshot,
+    inspectLabelValue,
+    inspectTitleValue,
+    setInspectorCaptureNote,
+    setReportElementCaptures,
+    setLockedInspectMessage,
+  ]);
+
+  const handleElementCaptureNoteChange = useCallback((captureId: string, note: string) => {
+    setReportElementCaptures(prev => prev.map(capture => (
+      capture.id === captureId ? { ...capture, note } : capture
+    )));
+  }, []);
+
+  const handleRemoveElementCapture = useCallback((captureId: string) => {
+    setReportElementCaptures(prev => prev.filter(capture => capture.id !== captureId));
+  }, []);
+
+  const handleResetElementCaptures = useCallback(() => {
+    setReportElementCaptures([]);
+    setInspectorCaptureNote('');
+  }, []);
+
   const handleInspectorPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isInspectorDialogOpen) {
       return;
@@ -1028,6 +1125,7 @@ const AppPreviewView = () => {
     inspectRect,
     inspectSelectorValue,
     requestScreenshot,
+    resolvePreviewBackgroundColor,
     setInspectorScreenshot,
     setInspectorScreenshotExpanded,
     setLockedInspectMessage,
@@ -2339,6 +2437,7 @@ const AppPreviewView = () => {
   }, [isLayoutFullscreen]);
 
   const isFullView = isFullscreen || isLayoutFullscreen;
+  const stagedCaptureCount = reportElementCaptures.length + (hasPrimaryCaptureDraft ? 1 : 0);
 
   return (
     <div
@@ -2388,6 +2487,7 @@ const AppPreviewView = () => {
         menuPortalContainer={previewViewNode}
         canOpenTabsOverlay={canOpenTabsOverlay}
         previewInteractionSignal={previewInteractionSignal}
+        issueCaptureCount={stagedCaptureCount}
       />
 
       {bridgeIssueMessage && !bridgeMessageDismissed && (
@@ -2672,6 +2772,32 @@ const AppPreviewView = () => {
                       </span>
                     )}
                   </figcaption>
+                  {inspectorScreenshot && (
+                    <div className="preview-inspector__report">
+                      <label className="preview-inspector__report-label" htmlFor={inspectorReportNoteId}>
+                        Report note
+                      </label>
+                      <div className="preview-inspector__report-input">
+                        <input
+                          id={inspectorReportNoteId}
+                          type="text"
+                          className="preview-inspector__report-field"
+                          value={inspectorCaptureNote}
+                          onChange={handleInspectorCaptureNoteChange}
+                          placeholder="Add note for issue report"
+                        />
+                        <button
+                          type="button"
+                          className="preview-inspector__report-action"
+                          onClick={handleAddInspectorCaptureToReport}
+                          title="Add capture to issue report"
+                          aria-label="Add capture to issue report"
+                        >
+                          <PlusCircle aria-hidden size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </figure>
               </div>
             </div>
@@ -2786,6 +2912,11 @@ const AppPreviewView = () => {
           getRecentNetworkEvents={getRecentNetworkEvents}
           requestNetworkBatch={requestNetworkBatch}
           bridgeCompliance={bridgeCompliance}
+          elementCaptures={reportElementCaptures}
+          onElementCaptureNoteChange={handleElementCaptureNoteChange}
+          onElementCaptureRemove={handleRemoveElementCapture}
+          onElementCapturesReset={handleResetElementCaptures}
+          onPrimaryCaptureDraftChange={setHasPrimaryCaptureDraft}
         />
       )}
     </div>

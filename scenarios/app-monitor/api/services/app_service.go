@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -1524,6 +1525,7 @@ type IssueReportRequest struct {
 	ScenarioName           *string                 `json:"scenarioName"`
 	Source                 *string                 `json:"source"`
 	ScreenshotData         *string                 `json:"screenshotData"`
+	Captures               []IssueCapture          `json:"captures"`
 	Logs                   []string                `json:"logs"`
 	LogsTotal              *int                    `json:"logsTotal"`
 	LogsCapturedAt         *string                 `json:"logsCapturedAt"`
@@ -1559,6 +1561,36 @@ type IssueNetworkEntry struct {
 	DurationMs *int   `json:"durationMs,omitempty"`
 	Error      string `json:"error,omitempty"`
 	RequestID  string `json:"requestId,omitempty"`
+}
+
+type IssueCapture struct {
+	ID          string           `json:"id"`
+	Type        string           `json:"type"`
+	Width       int              `json:"width"`
+	Height      int              `json:"height"`
+	Data        string           `json:"data"`
+	Note        string           `json:"note,omitempty"`
+	Selector    string           `json:"selector,omitempty"`
+	TagName     string           `json:"tagName,omitempty"`
+	ElementID   string           `json:"elementId,omitempty"`
+	Classes     []string         `json:"classes,omitempty"`
+	Label       string           `json:"label,omitempty"`
+	AriaDesc    string           `json:"ariaDescription,omitempty"`
+	Title       string           `json:"title,omitempty"`
+	Role        string           `json:"role,omitempty"`
+	Text        string           `json:"text,omitempty"`
+	BoundingBox *IssueCaptureBox `json:"boundingBox,omitempty"`
+	Clip        *IssueCaptureBox `json:"clip,omitempty"`
+	Mode        string           `json:"mode,omitempty"`
+	Filename    string           `json:"filename,omitempty"`
+	CreatedAt   string           `json:"createdAt,omitempty"`
+}
+
+type IssueCaptureBox struct {
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
 }
 
 type IssueHealthCheckEntry struct {
@@ -1926,7 +1958,21 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		maxHealthCodeLength     = 120
 		maxHealthResponseLength = 4000
 		maxStatusLines          = 120
+		maxCaptureEntries       = 12
+		maxCaptureNoteLength    = 600
+		maxCaptureLabelLength   = 160
+		maxCaptureTextLength    = 900
 	)
+	captures := sanitizeIssueCaptures(req.Captures, maxCaptureEntries, maxCaptureNoteLength, maxCaptureLabelLength, maxCaptureTextLength)
+	elementCaptureCount := 0
+	pageCaptureCount := 0
+	for _, capture := range captures {
+		if capture.Type == "page" {
+			pageCaptureCount++
+		} else {
+			elementCaptureCount++
+		}
+	}
 	sanitizedLogs := make([]string, 0, len(req.Logs))
 	for _, line := range req.Logs {
 		trimmed := strings.TrimRight(line, "\r\n")
@@ -1999,6 +2045,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		reportSource,
 		message,
 		screenshotData,
+		captures,
 		reportedAt,
 		sanitizedLogs,
 		logsTotal,
@@ -2076,6 +2123,15 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	if statusCapturedAt != "" {
 		metadataExtra["app_status_captured_at"] = statusCapturedAt
 	}
+	if len(captures) > 0 {
+		metadataExtra["captures_total"] = strconv.Itoa(len(captures))
+	}
+	if elementCaptureCount > 0 {
+		metadataExtra["captures_element_total"] = strconv.Itoa(elementCaptureCount)
+	}
+	if pageCaptureCount > 0 {
+		metadataExtra["captures_page_total"] = strconv.Itoa(pageCaptureCount)
+	}
 
 	artifacts := make([]map[string]interface{}, 0, 5)
 	if len(sanitizedLogs) > 0 {
@@ -2151,6 +2207,22 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 			"name":         attachmentScreenshotName,
 			"category":     "screenshot",
 			"content":      screenshotData,
+			"encoding":     "base64",
+			"content_type": "image/png",
+		})
+	}
+
+	elementAttachmentIndex := 0
+	for _, capture := range captures {
+		if capture.Type != "element" {
+			continue
+		}
+		elementAttachmentIndex++
+		name := fmt.Sprintf("app-monitor-element-%02d.png", elementAttachmentIndex)
+		artifacts = append(artifacts, map[string]interface{}{
+			"name":         name,
+			"category":     "screenshot",
+			"content":      capture.Data,
 			"encoding":     "base64",
 			"content_type": "image/png",
 		})
@@ -3532,6 +3604,7 @@ func summarizeIssueTitle(message string) string {
 
 func buildIssueDescription(
 	appName, scenarioName, previewURL, source, message, screenshotData string,
+	captures []IssueCapture,
 	reportedAt time.Time,
 	logs []string,
 	logsTotal int,
@@ -3613,6 +3686,13 @@ func buildIssueDescription(
 		builder.WriteString(fmt.Sprintf("- Screenshot attached as `%s` (base64 PNG).\n", attachmentScreenshotName))
 	} else {
 		builder.WriteString("- Screenshot: not captured for this report.\n")
+	}
+
+	if summaries := buildCaptureSummaries(captures); len(summaries) > 0 {
+		builder.WriteString("\n### Element Captures\n\n")
+		for _, summary := range summaries {
+			builder.WriteString(summary)
+		}
 	}
 
 	builder.WriteString("\nUse the artifacts above to reproduce the behavior before making any changes.\n")
@@ -4199,6 +4279,156 @@ func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLe
 	return sanitized
 }
 
+func sanitizeIssueCaptures(entries []IssueCapture, maxEntries, maxNoteLength, maxLabelLength, maxTextLength int) []IssueCapture {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	sanitized := make([]IssueCapture, 0, len(entries))
+	seen := make(map[string]struct{})
+
+	for _, entry := range entries {
+		if len(sanitized) >= maxEntries {
+			break
+		}
+
+		data := strings.TrimSpace(entry.Data)
+		if data == "" {
+			continue
+		}
+		if _, err := base64.StdEncoding.DecodeString(data); err != nil {
+			fmt.Printf("Warning: invalid capture data provided, ignoring element capture: %v\n", err)
+			continue
+		}
+
+		captureID := strings.TrimSpace(entry.ID)
+		if captureID == "" {
+			captureID = fmt.Sprintf("capture-%d", len(sanitized)+1)
+		}
+		if _, exists := seen[captureID]; exists {
+			captureID = fmt.Sprintf("%s-%d", captureID, len(sanitized)+1)
+		}
+		seen[captureID] = struct{}{}
+
+		mode := strings.TrimSpace(entry.Mode)
+		kind := strings.ToLower(strings.TrimSpace(entry.Type))
+		if kind != "element" && kind != "page" {
+			kind = "element"
+		}
+
+		sanitizedCapture := IssueCapture{
+			ID:        captureID,
+			Type:      kind,
+			Width:     clampCaptureDimension(entry.Width),
+			Height:    clampCaptureDimension(entry.Height),
+			Data:      data,
+			Note:      truncateString(strings.TrimSpace(entry.Note), maxNoteLength),
+			Selector:  truncateString(strings.TrimSpace(entry.Selector), maxLabelLength),
+			TagName:   truncateString(strings.TrimSpace(entry.TagName), maxLabelLength),
+			ElementID: truncateString(strings.TrimSpace(entry.ElementID), maxLabelLength),
+			Label:     truncateString(strings.TrimSpace(entry.Label), maxLabelLength),
+			AriaDesc:  truncateString(strings.TrimSpace(entry.AriaDesc), maxLabelLength),
+			Title:     truncateString(strings.TrimSpace(entry.Title), maxLabelLength),
+			Role:      truncateString(strings.TrimSpace(entry.Role), 60),
+			Text:      truncateString(strings.TrimSpace(entry.Text), maxTextLength),
+			Mode:      truncateString(mode, 32),
+			Filename:  truncateString(strings.TrimSpace(entry.Filename), 120),
+			CreatedAt: sanitizeCaptureTimestamp(entry.CreatedAt),
+		}
+
+		if classes := sanitizeCaptureClasses(entry.Classes, 8, maxLabelLength); len(classes) > 0 {
+			sanitizedCapture.Classes = classes
+		}
+		sanitizedCapture.BoundingBox = sanitizeCaptureBox(entry.BoundingBox)
+		sanitizedCapture.Clip = sanitizeCaptureBox(entry.Clip)
+
+		sanitized = append(sanitized, sanitizedCapture)
+	}
+
+	return sanitized
+}
+
+func sanitizeCaptureClasses(classes []string, maxEntries, maxLength int) []string {
+	if len(classes) == 0 || maxEntries <= 0 {
+		return nil
+	}
+
+	result := make([]string, 0, len(classes))
+	seen := make(map[string]struct{})
+	for _, class := range classes {
+		trimmed := strings.TrimSpace(class)
+		if trimmed == "" {
+			continue
+		}
+		trimmed = truncateString(trimmed, maxLength)
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+		if len(result) >= maxEntries {
+			break
+		}
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+
+	return result
+}
+
+func sanitizeCaptureBox(box *IssueCaptureBox) *IssueCaptureBox {
+	if box == nil {
+		return nil
+	}
+
+	sanitized := &IssueCaptureBox{
+		X:      roundFloat(box.X, 2),
+		Y:      roundFloat(box.Y, 2),
+		Width:  roundFloat(box.Width, 2),
+		Height: roundFloat(box.Height, 2),
+	}
+
+	if sanitized.Width < 0 {
+		sanitized.Width = 0
+	}
+	if sanitized.Height < 0 {
+		sanitized.Height = 0
+	}
+
+	return sanitized
+}
+
+func sanitizeCaptureTimestamp(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	if _, err := time.Parse(time.RFC3339, trimmed); err != nil {
+		return ""
+	}
+	return trimmed
+}
+
+func clampCaptureDimension(value int) int {
+	if value < 0 {
+		return 0
+	}
+	if value > 20000 {
+		return 20000
+	}
+	return value
+}
+
+func roundFloat(value float64, precision int) float64 {
+	if precision <= 0 {
+		return math.Round(value)
+	}
+	factor := math.Pow(10, float64(precision))
+	return math.Round(value*factor) / factor
+}
+
 func parseOrEchoTimestamp(value string) string {
 	if value == "" {
 		return value
@@ -4247,6 +4477,87 @@ func formatNetworkEntry(entry IssueNetworkEntry) string {
 	}
 
 	return fmt.Sprintf("%s %s %s -> %s%s", ts, entry.Method, entry.URL, status, tail)
+}
+
+func buildCaptureSummaries(captures []IssueCapture) []string {
+	if len(captures) == 0 {
+		return nil
+	}
+
+	summaries := make([]string, 0, len(captures))
+	for idx, capture := range captures {
+		if capture.Type == "page" && capture.Note == "" && capture.Mode == "" && capture.Clip == nil {
+			continue
+		}
+		summaries = append(summaries, formatCaptureSummary(capture, idx+1))
+	}
+
+	return summaries
+}
+
+func formatCaptureSummary(capture IssueCapture, index int) string {
+	var builder strings.Builder
+	label := strings.TrimSpace(capture.Label)
+	selector := strings.TrimSpace(capture.Selector)
+	if label == "" {
+		label = selector
+	}
+	if label == "" {
+		if capture.Type == "page" {
+			label = fmt.Sprintf("Preview capture #%d", index)
+		} else {
+			label = fmt.Sprintf("Element capture #%d", index)
+		}
+	}
+
+	builder.WriteString("- ")
+	builder.WriteString(label)
+
+	details := make([]string, 0, 5)
+	if selector != "" && selector != label {
+		details = append(details, fmt.Sprintf("selector `%s`", selector))
+	}
+	if capture.Width > 0 && capture.Height > 0 {
+		details = append(details, fmt.Sprintf("%dx%d px", capture.Width, capture.Height))
+	}
+	if capture.Role != "" {
+		details = append(details, fmt.Sprintf("role %s", capture.Role))
+	}
+	if len(capture.Classes) > 0 {
+		classes := strings.Join(capture.Classes, ", ")
+		details = append(details, fmt.Sprintf("classes %s", classes))
+	}
+	if capture.Mode != "" && capture.Mode != "full" {
+		details = append(details, fmt.Sprintf("mode %s", capture.Mode))
+	}
+
+	if len(details) > 0 {
+		builder.WriteString(" • ")
+		builder.WriteString(strings.Join(details, " • "))
+	}
+
+	if capture.Note != "" {
+		builder.WriteString("\n  Note: ")
+		builder.WriteString(capture.Note)
+	}
+
+	if capture.Text != "" {
+		builder.WriteString("\n  Text: ")
+		builder.WriteString(capture.Text)
+	}
+
+	if capture.BoundingBox != nil {
+		builder.WriteString("\n  Bounding box: ")
+		builder.WriteString(fmt.Sprintf("%.0fx%.0f at (%.0f, %.0f)", capture.BoundingBox.Width, capture.BoundingBox.Height, capture.BoundingBox.X, capture.BoundingBox.Y))
+	}
+
+	if capture.CreatedAt != "" {
+		builder.WriteString("\n  Captured at: ")
+		builder.WriteString(capture.CreatedAt)
+	}
+
+	builder.WriteString("\n")
+	return builder.String()
 }
 
 func formatMillisTimestamp(value int64) string {

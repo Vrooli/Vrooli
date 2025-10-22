@@ -78,6 +78,7 @@ export interface AppPreviewToolbarProps {
   menuPortalContainer: HTMLElement | null;
   canOpenTabsOverlay: boolean;
   previewInteractionSignal: number;
+  issueCaptureCount: number;
 }
 
 const AppPreviewToolbar = ({
@@ -119,6 +120,7 @@ const AppPreviewToolbar = ({
   menuPortalContainer,
   canOpenTabsOverlay,
   previewInteractionSignal,
+  issueCaptureCount,
 }: AppPreviewToolbarProps) => {
   const [lifecycleMenuOpen, setLifecycleMenuOpen] = useState(false);
   const [devMenuOpen, setDevMenuOpen] = useState(false);
@@ -160,6 +162,13 @@ const AppPreviewToolbar = ({
   const [devMenuStyle, setDevMenuStyle] = useState<CSSProperties | undefined>(undefined);
   const [navMenuStyle, setNavMenuStyle] = useState<CSSProperties | undefined>(undefined);
   const { openOverlay } = useOverlayRouter();
+
+  const captureBadgeCount = issueCaptureCount > 99 ? 99 : issueCaptureCount;
+  const captureBadgeLabel = captureBadgeCount > 9 ? '9+' : captureBadgeCount.toString();
+  const showCaptureBadge = issueCaptureCount > 0;
+  const captureAriaLabel = showCaptureBadge
+    ? `${issueCaptureCount} capture${issueCaptureCount === 1 ? '' : 's'} staged`
+    : null;
 
   const updateLifecycleAnchor = useCallback(() => {
     const button = lifecycleButtonRef.current;
@@ -1049,10 +1058,13 @@ const AppPreviewToolbar = ({
             disabled={!hasCurrentApp}
             aria-haspopup="menu"
             aria-expanded={devMenuOpen}
-            aria-label="Developer actions"
-            title="Developer actions"
+            aria-label={captureAriaLabel ? `Developer actions (${captureAriaLabel})` : 'Developer actions'}
+            title={captureAriaLabel ? `Developer actions (${captureAriaLabel})` : 'Developer actions'}
           >
             <Wrench aria-hidden size={18} />
+            {showCaptureBadge && (
+              <span className="preview-toolbar__badge" aria-hidden>{captureBadgeLabel}</span>
+            )}
           </button>
           {portalHost && devMenuOpen && devMenuStyle && createPortal(
             <div
@@ -1129,8 +1141,13 @@ const AppPreviewToolbar = ({
                 onClick={handleReportIssue}
                 disabled={!hasCurrentApp}
               >
-                <Bug aria-hidden size={16} />
-                <span>Report an issue</span>
+                <span className="preview-toolbar__menu-item-label">
+                  <Bug aria-hidden size={16} />
+                  <span>Report an issue</span>
+                </span>
+                {showCaptureBadge && (
+                  <span className="preview-toolbar__menu-item-badge" aria-hidden>{captureBadgeLabel}</span>
+                )}
               </button>
             </div>,
             portalHost,

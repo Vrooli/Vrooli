@@ -511,6 +511,74 @@ body.app-preview-immersive {
   color: rgba(148, 187, 233, 0.82);
 }
 
+.preview-inspector__report {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px dashed rgba(94, 234, 212, 0.35);
+  background: rgba(13, 95, 102, 0.32);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.preview-inspector__report-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(94, 234, 212, 0.78);
+}
+
+.preview-inspector__report-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.preview-inspector__report-field {
+  flex: 1;
+  border: 1px solid rgba(94, 234, 212, 0.35);
+  border-radius: 6px;
+  background: rgba(9, 64, 75, 0.55);
+  color: rgba(226, 255, 247, 0.95);
+  font-size: 0.85rem;
+  padding: 0.45rem 0.65rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.preview-inspector__report-field::placeholder {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+.preview-inspector__report-field:focus {
+  outline: none;
+  border-color: rgba(94, 234, 212, 0.65);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.18);
+  background: rgba(13, 95, 102, 0.45);
+}
+
+.preview-inspector__report-action {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 50%;
+  border: 1px solid rgba(94, 234, 212, 0.4);
+  background: rgba(45, 212, 191, 0.18);
+  color: rgba(94, 234, 212, 0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.preview-inspector__report-action:hover,
+.preview-inspector__report-action:focus-visible {
+  outline: none;
+  border-color: rgba(94, 234, 212, 0.75);
+  background: rgba(45, 212, 191, 0.3);
+  color: rgba(255, 255, 255, 0.95);
+}
+
 @media (max-width: 720px) {
   .preview-inspector {
     padding: 0.8rem 0.85rem;
@@ -1634,6 +1702,189 @@ body.app-preview-immersive {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.report-dialog__captures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.report-dialog__captures-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.report-dialog__capture-tab {
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(0, 44, 52, 0.6);
+  color: rgba(173, 255, 227, 0.85);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.report-dialog__capture-tab:hover,
+.report-dialog__capture-tab:focus-visible {
+  outline: none;
+  border-color: rgba(94, 234, 212, 0.65);
+  color: rgba(224, 255, 249, 0.95);
+}
+
+.report-dialog__capture-tab--active {
+  background: rgba(0, 191, 179, 0.85);
+  border-color: rgba(0, 255, 209, 0.85);
+  color: var(--matrix-bg);
+  box-shadow: 0 8px 20px rgba(0, 191, 179, 0.25);
+}
+
+.report-dialog__capture-panel {
+  display: none;
+}
+
+.report-dialog__capture-panel--active {
+  display: block;
+}
+
+.report-element-capture {
+  border: 1px solid rgba(0, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(0, 24, 32, 0.65);
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 255, 0.08);
+}
+
+.report-element-capture__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.report-element-capture__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.report-element-capture__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(226, 255, 249, 0.92);
+}
+
+.report-element-capture__meta {
+  margin: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(148, 187, 233, 0.75);
+}
+
+.report-element-capture__remove {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 99, 132, 0.45);
+  background: rgba(120, 0, 32, 0.4);
+  color: rgba(255, 214, 214, 0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.report-element-capture__remove:hover,
+.report-element-capture__remove:focus-visible {
+  outline: none;
+  border-color: rgba(255, 99, 132, 0.75);
+  background: rgba(120, 0, 32, 0.62);
+  color: rgba(255, 238, 238, 0.98);
+}
+
+.report-element-capture__image {
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.32);
+  padding: 0.55rem;
+}
+
+.report-element-capture__image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 10px 28px rgba(14, 165, 233, 0.25);
+}
+
+.report-element-capture__details {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  border: 1px solid rgba(0, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 36, 48, 0.5);
+  padding: 0.55rem 0.65rem;
+}
+
+.report-element-capture__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.report-element-capture__detail dt {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(94, 234, 212, 0.78);
+}
+
+.report-element-capture__detail dd {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: rgba(226, 255, 249, 0.92);
+  word-break: break-word;
+}
+
+.report-element-capture__note-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(94, 234, 212, 0.75);
+}
+
+.report-element-capture__note {
+  width: 100%;
+  min-height: 82px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.22);
+  background: rgba(0, 32, 40, 0.68);
+  color: rgba(226, 255, 247, 0.95);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  padding: 0.55rem 0.7rem;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.report-element-capture__note:focus {
+  outline: none;
+  border-color: rgba(94, 234, 212, 0.75);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2);
+  background: rgba(0, 44, 52, 0.76);
 }
 
 .report-dialog__bridge {
