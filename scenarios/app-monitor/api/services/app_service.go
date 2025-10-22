@@ -198,6 +198,7 @@ const (
 	attachmentNetworkName    = "app-monitor-network.json"
 	attachmentScreenshotName = "app-monitor-screenshot.png"
 	attachmentHealthName     = "app-monitor-health.json"
+	attachmentStatusName     = "app-monitor-status.txt"
 	issueTrackerScenarioID   = "app-issue-tracker"
 )
 
@@ -1535,6 +1536,10 @@ type IssueReportRequest struct {
 	HealthChecks           []IssueHealthCheckEntry `json:"healthChecks"`
 	HealthChecksTotal      *int                    `json:"healthChecksTotal"`
 	HealthChecksCapturedAt *string                 `json:"healthChecksCapturedAt"`
+	AppStatusLines         []string                `json:"appStatusLines"`
+	AppStatusLabel         *string                 `json:"appStatusLabel"`
+	AppStatusSeverity      *string                 `json:"appStatusSeverity"`
+	AppStatusCapturedAt    *string                 `json:"appStatusCapturedAt"`
 }
 
 type IssueConsoleLogEntry struct {
@@ -1576,6 +1581,29 @@ type AppHealthDiagnostics struct {
 	Ports      map[string]int          `json:"ports,omitempty"`
 	Checks     []IssueHealthCheckEntry `json:"checks"`
 	Errors     []string                `json:"errors,omitempty"`
+}
+
+// ScenarioStatusSeverity describes the overall health of a scenario status snapshot.
+type ScenarioStatusSeverity string
+
+const (
+	ScenarioStatusSeverityOK    ScenarioStatusSeverity = "ok"
+	ScenarioStatusSeverityWarn  ScenarioStatusSeverity = "warn"
+	ScenarioStatusSeverityError ScenarioStatusSeverity = "error"
+)
+
+// AppScenarioStatus captures a sanitized snapshot of `vrooli scenario status` for a single scenario.
+type AppScenarioStatus struct {
+	AppID           string                 `json:"appId"`
+	Scenario        string                 `json:"scenario"`
+	CapturedAt      string                 `json:"capturedAt,omitempty"`
+	StatusLabel     string                 `json:"statusLabel"`
+	Severity        ScenarioStatusSeverity `json:"severity"`
+	Runtime         string                 `json:"runtime,omitempty"`
+	ProcessCount    int                    `json:"processCount,omitempty"`
+	Ports           map[string]int         `json:"ports,omitempty"`
+	Recommendations []string               `json:"recommendations,omitempty"`
+	Details         []string               `json:"details"`
 }
 
 func stringValue(value *string) string {
@@ -1897,6 +1925,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		maxHealthMessageLength  = 400
 		maxHealthCodeLength     = 120
 		maxHealthResponseLength = 4000
+		maxStatusLines          = 120
 	)
 	sanitizedLogs := make([]string, 0, len(req.Logs))
 	for _, line := range req.Logs {
@@ -1943,6 +1972,24 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 	healthCapturedAt := strings.TrimSpace(stringValue(req.HealthChecksCapturedAt))
 
+	statusLines := filterNonEmptyStrings(req.AppStatusLines)
+	if len(statusLines) > maxStatusLines {
+		statusLines = statusLines[len(statusLines)-maxStatusLines:]
+	}
+	statusLabel := strings.TrimSpace(stringValue(req.AppStatusLabel))
+	statusSeverity := strings.ToLower(strings.TrimSpace(stringValue(req.AppStatusSeverity)))
+	switch statusSeverity {
+	case "", "ok", "warn", "error":
+		// use as-is
+	case "warning":
+		statusSeverity = "warn"
+	case "fail", "failed", "critical":
+		statusSeverity = "error"
+	default:
+		statusSeverity = "warn"
+	}
+	statusCapturedAt := strings.TrimSpace(stringValue(req.AppStatusCapturedAt))
+
 	title := fmt.Sprintf("[app-monitor] %s", summarizeIssueTitle(message))
 	reportSource := strings.TrimSpace(stringValue(req.Source))
 	description := buildIssueDescription(
@@ -1965,12 +2012,17 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		healthEntries,
 		healthTotal,
 		healthCapturedAt,
+		statusLines,
+		statusLabel,
+		statusCapturedAt,
+		statusSeverity,
 	)
 	hasScreenshot := screenshotData != ""
 	hasConsole := len(consoleLogs) > 0
 	hasNetwork := len(networkEntries) > 0
 	hasHealth := len(healthEntries) > 0
-	tags := buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth)
+	hasStatus := len(statusLines) > 0
+	tags := buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth, hasStatus)
 	environment := buildIssueEnvironment(appID, appName, previewURL, reportSource, reportedAt)
 
 	port, err := s.locateIssueTrackerAPIPort(ctx)
@@ -2011,6 +2063,18 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 	if screenshotData != "" {
 		metadataExtra["screenshot_included"] = "true"
+	}
+	if len(statusLines) > 0 {
+		metadataExtra["app_status_lines"] = strconv.Itoa(len(statusLines))
+	}
+	if statusLabel != "" {
+		metadataExtra["app_status_label"] = statusLabel
+	}
+	if statusSeverity != "" {
+		metadataExtra["app_status_severity"] = statusSeverity
+	}
+	if statusCapturedAt != "" {
+		metadataExtra["app_status_captured_at"] = statusCapturedAt
 	}
 
 	artifacts := make([]map[string]interface{}, 0, 5)
@@ -2070,6 +2134,16 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 			"content":      healthContent,
 			"encoding":     "plain",
 			"content_type": "application/json",
+		})
+	}
+	if len(statusLines) > 0 {
+		artifactContent := strings.Join(statusLines, "\n")
+		artifacts = append(artifacts, map[string]interface{}{
+			"name":         attachmentStatusName,
+			"category":     "status",
+			"content":      artifactContent,
+			"encoding":     "plain",
+			"content_type": "text/plain",
 		})
 	}
 	if screenshotData != "" {
@@ -2149,6 +2223,226 @@ type scenarioAuditorViolation struct {
 	LineNumber     int    `json:"line_number"`
 	Recommendation string `json:"recommendation"`
 	Standard       string `json:"standard"`
+}
+
+type scenarioStatusProcess struct {
+	PID      int               `json:"pid"`
+	Status   string            `json:"status"`
+	StepName string            `json:"step_name"`
+	Ports    map[string]int    `json:"ports"`
+	Meta     map[string]string `json:"meta"`
+}
+
+type scenarioStatusConnectivity struct {
+	Connected bool     `json:"connected"`
+	APIURL    string   `json:"api_url"`
+	Error     string   `json:"error"`
+	LatencyMs *float64 `json:"latency_ms"`
+}
+
+type scenarioStatusDependency struct {
+	Connected bool   `json:"connected"`
+	Status    string `json:"status"`
+}
+
+type scenarioStatusHealthCheck struct {
+	Name            string                                         `json:"name"`
+	Status          string                                         `json:"status"`
+	Port            int                                            `json:"port"`
+	Available       bool                                           `json:"available"`
+	ResponseTime    *float64                                       `json:"response_time"`
+	SchemaValid     *bool                                          `json:"schema_valid"`
+	APIConnectivity *scenarioStatusConnectivity                    `json:"api_connectivity"`
+	Dependencies    map[string]map[string]scenarioStatusDependency `json:"dependencies"`
+	Message         string                                         `json:"message"`
+}
+
+type scenarioStatusTestEntry struct {
+	Status          string   `json:"status"`
+	Message         string   `json:"message"`
+	Recommendation  string   `json:"recommendation"`
+	Recommendations []string `json:"recommendations"`
+	Types           []string `json:"types"`
+	Tests           []string `json:"tests"`
+	Workflows       []string `json:"workflows"`
+}
+
+type scenarioStatusTestInfrastructure struct {
+	Overall         *scenarioStatusTestEntry `json:"overall"`
+	TestLifecycle   *scenarioStatusTestEntry `json:"test_lifecycle"`
+	PhasedStructure *scenarioStatusTestEntry `json:"phased_structure"`
+	UnitTests       *scenarioStatusTestEntry `json:"unit_tests"`
+	CliTests        *scenarioStatusTestEntry `json:"cli_tests"`
+	UiTests         *scenarioStatusTestEntry `json:"ui_tests"`
+}
+
+type scenarioStatusCLIResponse struct {
+	Success      bool   `json:"success"`
+	ScenarioName string `json:"scenario_name"`
+	ScenarioData struct {
+		Status         string                  `json:"status"`
+		Runtime        string                  `json:"runtime"`
+		StartedAt      string                  `json:"started_at"`
+		AllocatedPorts map[string]int          `json:"allocated_ports"`
+		Processes      []scenarioStatusProcess `json:"processes"`
+	} `json:"scenario_data"`
+	Diagnostics struct {
+		HealthChecks map[string]scenarioStatusHealthCheck `json:"health_checks"`
+	} `json:"diagnostics"`
+	TestInfrastructure scenarioStatusTestInfrastructure `json:"test_infrastructure"`
+	Recommendations    []string                         `json:"recommendations"`
+	Metadata           struct {
+		Timestamp string `json:"timestamp"`
+	} `json:"metadata"`
+	RawResponse struct {
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	} `json:"raw_response"`
+}
+
+// GetAppScenarioStatus returns a sanitized snapshot of `vrooli scenario status <scenario>`.
+func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*AppScenarioStatus, error) {
+	id := strings.TrimSpace(appID)
+	if id == "" {
+		return nil, ErrAppIdentifierRequired
+	}
+
+	app, err := s.GetApp(ctx, id)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, fmt.Errorf("%w: %v", ErrAppNotFound, err)
+		}
+		return nil, err
+	}
+
+	scenarioName := strings.TrimSpace(app.ScenarioName)
+	if scenarioName == "" {
+		scenarioName = strings.TrimSpace(app.Name)
+	}
+	if scenarioName == "" {
+		scenarioName = id
+	}
+
+	commandIdentifier := sanitizeCommandIdentifier(scenarioName)
+	if commandIdentifier == "" {
+		commandIdentifier = sanitizeCommandIdentifier(app.ID)
+	}
+	if commandIdentifier == "" {
+		commandIdentifier = sanitizeCommandIdentifier(id)
+	}
+	if commandIdentifier == "" {
+		commandIdentifier = scenarioName
+	}
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", commandIdentifier, "--json")
+	cmd.Env = append(os.Environ(), "TERM=dumb")
+	output, cmdErr := cmd.CombinedOutput()
+	if cmdErr != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed != "" {
+			return nil, fmt.Errorf("failed to execute vrooli scenario status: %s", trimmed)
+		}
+		return nil, fmt.Errorf("failed to execute vrooli scenario status: %w", cmdErr)
+	}
+
+	var resp scenarioStatusCLIResponse
+	if err := json.Unmarshal(output, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse scenario status response: %w", err)
+	}
+
+	statusValue := strings.TrimSpace(resp.ScenarioData.Status)
+	if statusValue == "" {
+		statusValue = strings.TrimSpace(resp.RawResponse.Data.Status)
+	}
+	statusLabel, severity := formatScenarioStatusLabel(statusValue)
+	processCount := len(resp.ScenarioData.Processes)
+	if processCount == 0 && severity == ScenarioStatusSeverityOK {
+		severity = ScenarioStatusSeverityWarn
+	}
+
+	ports := make(map[string]int)
+	for key, value := range resp.ScenarioData.AllocatedPorts {
+		ports[strings.ToUpper(strings.TrimSpace(key))] = value
+	}
+
+	details := make([]string, 0, 32)
+	details = append(details, fmt.Sprintf("Scenario: %s", scenarioName))
+	details = append(details, fmt.Sprintf("Status:   %s", statusLabel))
+	if runtime := strings.TrimSpace(resp.ScenarioData.Runtime); runtime != "" {
+		details = append(details, fmt.Sprintf("Runtime:  %s", runtime))
+	}
+	if started := strings.TrimSpace(resp.ScenarioData.StartedAt); started != "" {
+		details = append(details, fmt.Sprintf("Started:  %s", started))
+	}
+	if processCount > 0 {
+		details = append(details, fmt.Sprintf("Processes: %d", processCount))
+	}
+
+	if len(ports) > 0 {
+		keys := make([]string, 0, len(ports))
+		for key := range ports {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		details = append(details, "", "Allocated Ports:")
+		for _, key := range keys {
+			details = append(details, fmt.Sprintf("  %s: %d", key, ports[key]))
+		}
+	}
+
+	healthSeverity, healthLines := summarizeScenarioHealth(resp.Diagnostics.HealthChecks)
+	severity = escalateScenarioSeverity(severity, healthSeverity)
+	if len(healthLines) > 0 {
+		details = append(details, "", "Health Checks:")
+		details = append(details, healthLines...)
+	}
+
+	testSeverity, testLines, testRecs := summarizeScenarioTests(resp.TestInfrastructure)
+	severity = escalateScenarioSeverity(severity, testSeverity)
+	if len(testLines) > 0 {
+		details = append(details, "", "Test Infrastructure:")
+		details = append(details, testLines...)
+	}
+
+	recs := resp.Recommendations
+	if len(testRecs) > 0 {
+		recs = append(recs, testRecs...)
+	}
+	if overall := resp.TestInfrastructure.Overall; overall != nil {
+		recs = append(recs, overall.Recommendations...)
+		if overall.Recommendation != "" {
+			recs = append(recs, overall.Recommendation)
+		}
+	}
+	recs = dedupeStrings(filterNonEmptyStrings(recs))
+	if len(recs) > 0 {
+		details = append(details, "", "Recommendations:")
+		for _, rec := range recs {
+			details = append(details, fmt.Sprintf("  - %s", rec))
+		}
+	}
+
+	capturedAt := strings.TrimSpace(resp.Metadata.Timestamp)
+	if capturedAt == "" {
+		capturedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	return &AppScenarioStatus{
+		AppID:           app.ID,
+		Scenario:        scenarioName,
+		CapturedAt:      capturedAt,
+		StatusLabel:     statusLabel,
+		Severity:        severity,
+		Runtime:         strings.TrimSpace(resp.ScenarioData.Runtime),
+		ProcessCount:    processCount,
+		Ports:           ports,
+		Recommendations: recs,
+		Details:         details,
+	}, nil
 }
 
 // CheckAppHealth queries the previewed scenario's /health endpoints for API and UI services.
@@ -3251,6 +3545,10 @@ func buildIssueDescription(
 	health []IssueHealthCheckEntry,
 	healthTotal int,
 	healthCapturedAt string,
+	statusLines []string,
+	statusLabel string,
+	statusCapturedAt string,
+	statusSeverity string,
 ) string {
 	var builder strings.Builder
 
@@ -3273,6 +3571,12 @@ func buildIssueDescription(
 	builder.WriteString("## Context\n\n")
 	builder.WriteString(fmt.Sprintf("- Scenario: `%s`\n", scenarioName))
 	builder.WriteString(fmt.Sprintf("- App Name: `%s`\n", appName))
+	if trimmed := strings.TrimSpace(statusLabel); trimmed != "" {
+		builder.WriteString(fmt.Sprintf("- Scenario status: %s\n", trimmed))
+	}
+	if trimmedSeverity := strings.TrimSpace(statusSeverity); trimmedSeverity != "" {
+		builder.WriteString(fmt.Sprintf("- Status severity: %s\n", strings.ToUpper(trimmedSeverity)))
+	}
 	if previewURL != "" {
 		builder.WriteString(fmt.Sprintf("- Preview URL: %s\n", previewURL))
 	} else {
@@ -3302,6 +3606,8 @@ func buildIssueDescription(
 	builder.WriteString(formatEvidenceLine("Network requests", len(network), networkTotal, networkCapturedAt, attachmentNetworkName))
 	builder.WriteString("\n")
 	builder.WriteString(formatEvidenceLine("Health checks", len(health), healthTotal, healthCapturedAt, attachmentHealthName))
+	builder.WriteString("\n")
+	builder.WriteString(formatEvidenceLine("App status", len(statusLines), len(statusLines), statusCapturedAt, attachmentStatusName))
 	builder.WriteString("\n")
 	if screenshotData != "" {
 		builder.WriteString(fmt.Sprintf("- Screenshot attached as `%s` (base64 PNG).\n", attachmentScreenshotName))
@@ -3377,6 +3683,235 @@ func formatEvidenceLine(label string, capturedCount, reportedTotal int, captured
 	}
 
 	return builder.String()
+}
+
+func filterNonEmptyStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	filtered := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		filtered = append(filtered, trimmed)
+	}
+	return filtered
+}
+
+func formatScenarioStatusLabel(status string) (string, ScenarioStatusSeverity) {
+	normalized := strings.TrimSpace(strings.ToLower(status))
+	if normalized == "" {
+		return "[WARN] UNKNOWN", ScenarioStatusSeverityWarn
+	}
+	label := strings.ToUpper(normalized)
+	switch normalized {
+	case "running", "healthy", "good", "ready", "ok":
+		return "[OK] " + label, ScenarioStatusSeverityOK
+	case "stopped", "failed", "error", "crashed", "down", "terminated", "exited":
+		return "[FAIL] " + label, ScenarioStatusSeverityError
+	case "starting", "initializing", "pending", "booting", "paused":
+		return "[WARN] " + label, ScenarioStatusSeverityWarn
+	case "degraded", "warn", "warning", "unstable":
+		return "[WARN] " + label, ScenarioStatusSeverityWarn
+	default:
+		return "[WARN] " + label, ScenarioStatusSeverityWarn
+	}
+}
+
+func escalateScenarioSeverity(current, candidate ScenarioStatusSeverity) ScenarioStatusSeverity {
+	order := map[ScenarioStatusSeverity]int{
+		ScenarioStatusSeverityOK:    0,
+		ScenarioStatusSeverityWarn:  1,
+		ScenarioStatusSeverityError: 2,
+	}
+	if order[candidate] > order[current] {
+		return candidate
+	}
+	return current
+}
+
+func summarizeScenarioHealth(health map[string]scenarioStatusHealthCheck) (ScenarioStatusSeverity, []string) {
+	if len(health) == 0 {
+		return ScenarioStatusSeverityWarn, []string{"  No health diagnostics returned."}
+	}
+
+	keys := make([]string, 0, len(health))
+	for key := range health {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	severity := ScenarioStatusSeverityOK
+	lines := make([]string, 0, len(keys)*4)
+	for _, key := range keys {
+		entry := health[key]
+		displayName := strings.TrimSpace(entry.Name)
+		if displayName == "" {
+			displayName = strings.Title(strings.ReplaceAll(key, "_", " "))
+		}
+		if displayName == "" {
+			displayName = strings.ToUpper(key)
+		}
+
+		header := fmt.Sprintf("  %s", displayName)
+		if entry.Port > 0 {
+			header = fmt.Sprintf("%s (port %d):", header, entry.Port)
+		} else {
+			header += ":"
+		}
+		lines = append(lines, header)
+
+		icon, entrySeverity, label := formatHealthStatusLabel(entry.Status)
+		severity = escalateScenarioSeverity(severity, entrySeverity)
+		lines = append(lines, fmt.Sprintf("    Status:      %s %s", icon, label))
+
+		if entry.APIConnectivity != nil {
+			conn := entry.APIConnectivity
+			if conn.Connected {
+				message := "[OK] Connected"
+				if conn.APIURL != "" {
+					message = fmt.Sprintf("%s to %s", message, conn.APIURL)
+				}
+				if conn.LatencyMs != nil && *conn.LatencyMs >= 0 {
+					latency := int(*conn.LatencyMs + 0.5)
+					message = fmt.Sprintf("%s (%dms)", message, latency)
+				}
+				lines = append(lines, fmt.Sprintf("    API link:    %s", message))
+			} else {
+				severity = escalateScenarioSeverity(severity, ScenarioStatusSeverityError)
+				note := "[FAIL] Not connected"
+				if strings.TrimSpace(conn.Error) != "" {
+					note = fmt.Sprintf("%s (%s)", note, strings.TrimSpace(conn.Error))
+				}
+				lines = append(lines, fmt.Sprintf("    API link:    %s", note))
+			}
+		}
+
+		if entry.ResponseTime != nil && *entry.ResponseTime > 0 {
+			latency := int((*entry.ResponseTime * 1000) + 0.5)
+			lines = append(lines, fmt.Sprintf("    Latency:     %dms", latency))
+		}
+
+		if entry.SchemaValid != nil {
+			if *entry.SchemaValid {
+				lines = append(lines, "    Schema:      [OK] Valid")
+			} else {
+				severity = escalateScenarioSeverity(severity, ScenarioStatusSeverityWarn)
+				lines = append(lines, "    Schema:      [WARN] Invalid response schema")
+			}
+		}
+
+		if strings.TrimSpace(entry.Message) != "" {
+			lines = append(lines, fmt.Sprintf("    Note:        %s", strings.TrimSpace(entry.Message)))
+		}
+	}
+
+	return severity, lines
+}
+
+func formatHealthStatusLabel(status string) (string, ScenarioStatusSeverity, string) {
+	normalized := strings.TrimSpace(strings.ToLower(status))
+	if normalized == "" {
+		return "[WARN]", ScenarioStatusSeverityWarn, "UNKNOWN"
+	}
+	label := strings.ToUpper(normalized)
+	switch normalized {
+	case "healthy", "pass", "ok", "good":
+		return "[OK]", ScenarioStatusSeverityOK, label
+	case "fail", "failed", "error", "critical", "down":
+		return "[FAIL]", ScenarioStatusSeverityError, label
+	case "degraded", "warn", "warning", "unstable":
+		return "[WARN]", ScenarioStatusSeverityWarn, label
+	default:
+		return "[WARN]", ScenarioStatusSeverityWarn, label
+	}
+}
+
+func summarizeScenarioTests(infra scenarioStatusTestInfrastructure) (ScenarioStatusSeverity, []string, []string) {
+	entries := []struct {
+		label string
+		entry *scenarioStatusTestEntry
+	}{
+		{"Overall Status", infra.Overall},
+		{"Test Lifecycle", infra.TestLifecycle},
+		{"Phased Testing", infra.PhasedStructure},
+		{"Unit Tests", infra.UnitTests},
+		{"CLI Tests", infra.CliTests},
+		{"UI Tests", infra.UiTests},
+	}
+
+	total := 0
+	for _, item := range entries {
+		if item.entry != nil && (strings.TrimSpace(item.entry.Status) != "" || strings.TrimSpace(item.entry.Message) != "") {
+			total++
+		}
+	}
+
+	if total == 0 {
+		return ScenarioStatusSeverityWarn, []string{"  No test diagnostics returned."}, nil
+	}
+
+	severity := ScenarioStatusSeverityOK
+	lines := make([]string, 0, total)
+	recommendations := make([]string, 0)
+	index := 0
+	for _, item := range entries {
+		entry := item.entry
+		if entry == nil {
+			continue
+		}
+		if strings.TrimSpace(entry.Status) == "" && strings.TrimSpace(entry.Message) == "" {
+			continue
+		}
+		index++
+		prefix := "|-"
+		if index == total {
+			prefix = "`-"
+		}
+
+		icon, entrySeverity := formatTestStatusIndicator(entry.Status)
+		severity = escalateScenarioSeverity(severity, entrySeverity)
+
+		message := strings.TrimSpace(entry.Message)
+		if message == "" {
+			statusLabel := strings.TrimSpace(entry.Status)
+			if statusLabel == "" {
+				message = "No diagnostics reported"
+			} else {
+				message = strings.ToUpper(statusLabel)
+			}
+		}
+
+		lines = append(lines, fmt.Sprintf("%s %s: %s %s", prefix, item.label, icon, message))
+
+		if entry.Recommendation != "" {
+			recommendations = append(recommendations, entry.Recommendation)
+		}
+		if len(entry.Recommendations) > 0 {
+			recommendations = append(recommendations, entry.Recommendations...)
+		}
+	}
+
+	return severity, lines, recommendations
+}
+
+func formatTestStatusIndicator(status string) (string, ScenarioStatusSeverity) {
+	normalized := strings.TrimSpace(strings.ToLower(status))
+	if normalized == "" {
+		return "[WARN]", ScenarioStatusSeverityWarn
+	}
+	switch normalized {
+	case "good", "complete", "present", "passing", "ready":
+		return "[OK]", ScenarioStatusSeverityOK
+	case "missing", "absent", "error", "failed", "critical":
+		return "[FAIL]", ScenarioStatusSeverityError
+	case "partial", "legacy", "warning", "degraded", "incomplete":
+		return "[WARN]", ScenarioStatusSeverityWarn
+	default:
+		return "[WARN]", ScenarioStatusSeverityWarn
+	}
 }
 
 func extractPreviewPath(previewURL string) string {
@@ -3455,7 +3990,7 @@ func sanitizeCommandIdentifier(value string) string {
 	return result
 }
 
-func buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth bool) []string {
+func buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth, hasStatus bool) []string {
 	tags := []string{"app-monitor", "preview"}
 	if hasScreenshot {
 		tags = append(tags, "screenshot")
@@ -3468,6 +4003,9 @@ func buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth bool) []str
 	}
 	if hasHealth {
 		tags = append(tags, "health-checks")
+	}
+	if hasStatus {
+		tags = append(tags, "status-snapshot")
 	}
 	return tags
 }

@@ -401,6 +401,33 @@ func (h *AppHandler) CheckAppIframeBridge(c *gin.Context) {
 	})
 }
 
+// GetAppScenarioStatus returns a snapshot of the scenario's orchestrator status.
+func (h *AppHandler) GetAppScenarioStatus(c *gin.Context) {
+	id := c.Param("id")
+
+	result, err := h.appService.GetAppScenarioStatus(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		}
+
+		c.JSON(status, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
+
 // CheckAppHealth executes health checks against the previewed app's API and UI endpoints.
 func (h *AppHandler) CheckAppHealth(c *gin.Context) {
 	id := c.Param("id")

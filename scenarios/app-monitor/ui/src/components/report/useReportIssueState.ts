@@ -25,6 +25,7 @@ import type {
   ReportIssueNetworkEntry,
   ReportIssuePayload,
   ReportIssueHealthCheckEntry,
+  ReportIssueAppStatusSeverity,
   ScenarioIssueSummary,
 } from '@/services/api';
 import { logger } from '@/services/logger';
@@ -40,6 +41,7 @@ import type {
   ReportConsoleEntry,
   ReportNetworkEntry,
   ReportHealthCheckEntry,
+  ReportAppStatusSnapshot,
 } from './reportTypes';
 
 const REPORT_APP_LOGS_MAX_LINES = 200;
@@ -151,6 +153,18 @@ interface ReportHealthChecksState {
   fetch: () => void;
 }
 
+interface ReportAppStatusState {
+  includeAppStatus: boolean;
+  setIncludeAppStatus: (value: boolean) => void;
+  snapshot: ReportAppStatusSnapshot | null;
+  expanded: boolean;
+  toggleExpanded: () => void;
+  loading: boolean;
+  error: string | null;
+  formattedCapturedAt: string | null;
+  fetch: () => void;
+}
+
 type ExistingIssuesStateInternal = {
   status: 'idle' | 'loading' | 'ready' | 'error';
   issues: ScenarioIssueSummary[];
@@ -255,6 +269,7 @@ interface ReportIssueStateResult {
   consoleLogs: ReportConsoleLogsState;
   network: ReportNetworkState;
   health: ReportHealthChecksState;
+  status: ReportAppStatusState;
   existingIssues: ReportExistingIssuesState;
   diagnostics: ReportDiagnosticsState;
   screenshot: ReportScreenshotState;
@@ -330,6 +345,12 @@ const useReportIssueState = ({
   const [reportHealthChecksFetchedAt, setReportHealthChecksFetchedAt] = useState<number | null>(null);
   const [reportHealthChecksTotal, setReportHealthChecksTotal] = useState<number | null>(null);
   const [reportIncludeHealthChecks, setReportIncludeHealthChecks] = useState(true);
+  const [reportAppStatusSnapshot, setReportAppStatusSnapshot] = useState<ReportAppStatusSnapshot | null>(null);
+  const [reportAppStatusLoading, setReportAppStatusLoading] = useState(false);
+  const [reportAppStatusError, setReportAppStatusError] = useState<string | null>(null);
+  const [reportAppStatusExpanded, setReportAppStatusExpanded] = useState(false);
+  const [reportAppStatusFetchedAt, setReportAppStatusFetchedAt] = useState<number | null>(null);
+  const [reportIncludeAppStatus, setReportIncludeAppStatus] = useState(true);
   const [existingIssuesState, setExistingIssuesState] = useState<ExistingIssuesStateInternal>(() => createExistingIssuesState());
   const markScenarioIssueCreated = useScenarioEngagementStore(state => state.markIssueCreated);
   const flagScenarioIssueReported = useScenarioIssuesStore(state => state.flagIssueReported);
@@ -339,6 +360,7 @@ const useReportIssueState = ({
   const reportConsoleLogsFetchedForRef = useRef<string | null>(null);
   const reportNetworkFetchedForRef = useRef<string | null>(null);
   const reportHealthChecksFetchedForRef = useRef<string | null>(null);
+  const reportAppStatusFetchedForRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [shouldResetOnNextOpen, setShouldResetOnNextOpen] = useState(true);
   const lastResolvedAppIdRef = useRef<string | null>(null);
@@ -414,11 +436,18 @@ const useReportIssueState = ({
     setReportHealthChecksFetchedAt(null);
     setReportHealthChecksTotal(null);
     setReportIncludeHealthChecks(true);
+    setReportAppStatusSnapshot(null);
+    setReportAppStatusLoading(false);
+    setReportAppStatusError(null);
+    setReportAppStatusExpanded(false);
+    setReportAppStatusFetchedAt(null);
+    setReportIncludeAppStatus(true);
     setExistingIssuesState(createExistingIssuesState());
     reportAppLogsFetchedForRef.current = null;
     reportConsoleLogsFetchedForRef.current = null;
     reportNetworkFetchedForRef.current = null;
     reportHealthChecksFetchedForRef.current = null;
+    reportAppStatusFetchedForRef.current = null;
   }, []);
 
   const resolveReportLogIdentifier = useCallback(() => {
@@ -805,6 +834,69 @@ const useReportIssueState = ({
     }
   }, [app?.id, appId, reportHealthChecksLoading]);
 
+  const fetchReportAppStatus = useCallback(async (options?: { force?: boolean }) => {
+    if (reportAppStatusLoading && !options?.force) {
+      return;
+    }
+
+    const targetAppId = (app?.id ?? appId ?? '').trim();
+    if (!targetAppId) {
+      setReportAppStatusSnapshot(null);
+      setReportAppStatusError('Preview app unavailable.');
+      setReportAppStatusFetchedAt(null);
+      reportAppStatusFetchedForRef.current = null;
+      return;
+    }
+
+    const normalizedIdentifier = targetAppId.toLowerCase();
+    if (!options?.force && reportAppStatusFetchedForRef.current === normalizedIdentifier) {
+      return;
+    }
+
+    setReportAppStatusLoading(true);
+    setReportAppStatusError(null);
+
+    try {
+      const result = await appService.getAppStatusSnapshot(targetAppId);
+      if (!result) {
+        setReportAppStatusSnapshot(null);
+        setReportAppStatusError('Unable to retrieve scenario status.');
+        setReportAppStatusFetchedAt(null);
+        reportAppStatusFetchedForRef.current = null;
+        return;
+      }
+
+      const runtimeValue = typeof result.runtime === 'string' ? result.runtime.trim() : '';
+      const snapshot: ReportAppStatusSnapshot = {
+        appId: (result.appId ?? targetAppId).trim() || targetAppId,
+        scenario: (result.scenario ?? targetAppId).trim() || targetAppId,
+        statusLabel: (result.statusLabel ?? 'UNKNOWN').trim() || 'UNKNOWN',
+        severity: (result.severity ?? 'warn') as ReportIssueAppStatusSeverity,
+        runtime: runtimeValue || null,
+        processCount: typeof result.processCount === 'number' ? result.processCount : null,
+        details: Array.isArray(result.details)
+          ? result.details.map(line => (typeof line === 'string' ? line : String(line))).filter(detail => detail.trim().length > 0)
+          : [],
+        capturedAt: result.capturedAt ?? null,
+      };
+
+      setReportAppStatusSnapshot(snapshot);
+      const capturedAtMs = snapshot.capturedAt ? Date.parse(snapshot.capturedAt) : Number.NaN;
+      const nextFetchedAt = Number.isNaN(capturedAtMs) ? Date.now() : capturedAtMs;
+      setReportAppStatusFetchedAt(nextFetchedAt);
+      setReportAppStatusError(null);
+      reportAppStatusFetchedForRef.current = normalizedIdentifier;
+    } catch (error) {
+      logger.warn('Failed to gather scenario status for issue report', error);
+      setReportAppStatusSnapshot(null);
+      setReportAppStatusError('Unable to gather scenario status.');
+      setReportAppStatusFetchedAt(null);
+      reportAppStatusFetchedForRef.current = null;
+    } finally {
+      setReportAppStatusLoading(false);
+    }
+  }, [app?.id, appId, reportAppStatusLoading]);
+
   const handleReportLogStreamToggle = useCallback((key: string, checked: boolean) => {
     setReportAppLogSelections(prev => ({
       ...prev,
@@ -827,6 +919,10 @@ const useReportIssueState = ({
   const handleRefreshReportHealthChecks = useCallback(() => {
     void fetchReportHealthChecks({ force: true });
   }, [fetchReportHealthChecks]);
+
+  const handleRefreshReportAppStatus = useCallback(() => {
+    void fetchReportAppStatus({ force: true });
+  }, [fetchReportAppStatus]);
 
   const handleRefreshExistingIssues = useCallback(() => {
     void fetchExistingIssues();
@@ -979,8 +1075,19 @@ const useReportIssueState = ({
         if (totalHealthChecks > 0) {
           payload.healthChecksTotal = totalHealthChecks;
         }
-        if (reportHealthChecksFetchedAt) {
-          payload.healthChecksCapturedAt = new Date(reportHealthChecksFetchedAt).toISOString();
+      if (reportHealthChecksFetchedAt) {
+        payload.healthChecksCapturedAt = new Date(reportHealthChecksFetchedAt).toISOString();
+      }
+    }
+
+      if (reportIncludeAppStatus && reportAppStatusSnapshot && reportAppStatusSnapshot.details.length > 0) {
+        payload.appStatusLines = reportAppStatusSnapshot.details;
+        payload.appStatusLabel = reportAppStatusSnapshot.statusLabel;
+        payload.appStatusSeverity = reportAppStatusSnapshot.severity;
+        const capturedSource = reportAppStatusSnapshot.capturedAt
+          ?? (reportAppStatusFetchedAt ? new Date(reportAppStatusFetchedAt).toISOString() : null);
+        if (capturedSource) {
+          payload.appStatusCapturedAt = capturedSource;
         }
       }
 
@@ -1103,6 +1210,9 @@ const useReportIssueState = ({
     reportHealthChecks,
     reportHealthChecksFetchedAt,
     reportHealthChecksTotal,
+    reportIncludeAppStatus,
+    reportAppStatusSnapshot,
+    reportAppStatusFetchedAt,
     flagScenarioIssueReported,
     markScenarioIssueCreated,
     reportMessage,
@@ -1393,6 +1503,7 @@ const useReportIssueState = ({
     void fetchReportConsoleLogs({ force: true });
     void fetchReportNetworkEvents({ force: true });
     void fetchReportHealthChecks({ force: true });
+    void fetchReportAppStatus({ force: true });
     void refreshDiagnostics();
     setShouldResetOnNextOpen(false);
   }, [
@@ -1405,6 +1516,7 @@ const useReportIssueState = ({
     fetchReportConsoleLogs,
     fetchReportNetworkEvents,
     fetchReportHealthChecks,
+    fetchReportAppStatus,
     refreshDiagnostics,
     resetState,
   ]);
@@ -1486,6 +1598,24 @@ const useReportIssueState = ({
       return null;
     }
   }, [reportHealthChecksFetchedAt]);
+
+  const formattedAppStatusTime = useMemo(() => {
+    if (reportAppStatusSnapshot?.capturedAt) {
+      try {
+        return new Date(reportAppStatusSnapshot.capturedAt).toLocaleTimeString();
+      } catch {
+        // Fall back to fetched-at timestamp if parsing fails.
+      }
+    }
+    if (!reportAppStatusFetchedAt) {
+      return null;
+    }
+    try {
+      return new Date(reportAppStatusFetchedAt).toLocaleTimeString();
+    } catch {
+      return null;
+    }
+  }, [reportAppStatusFetchedAt, reportAppStatusSnapshot?.capturedAt]);
 
   const bridgeComplianceCheckedAt = useMemo(() => {
     if (!bridgeCompliance) {
@@ -1608,6 +1738,17 @@ const useReportIssueState = ({
       total: reportHealthChecksTotal,
       fetch: handleRefreshReportHealthChecks,
     },
+    status: {
+      includeAppStatus: reportIncludeAppStatus,
+      setIncludeAppStatus: setReportIncludeAppStatus,
+      snapshot: reportAppStatusSnapshot,
+      expanded: reportAppStatusExpanded,
+      toggleExpanded: () => setReportAppStatusExpanded(prev => !prev),
+      loading: reportAppStatusLoading,
+      error: reportAppStatusError,
+      formattedCapturedAt: formattedAppStatusTime,
+      fetch: handleRefreshReportAppStatus,
+    },
     existingIssues: {
       status: existingIssuesState.status,
       issues: existingIssuesState.issues,
@@ -1673,6 +1814,7 @@ export type {
   ReportConsoleLogsState,
   ReportNetworkState,
   ReportHealthChecksState,
+  ReportAppStatusState,
   ReportDiagnosticsState,
   ReportScreenshotState,
   DiagnosticsViolation,

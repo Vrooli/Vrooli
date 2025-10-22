@@ -42,6 +42,17 @@ export interface ReportHealthCheckEntry {
   response: string | null;
 }
 
+export interface ReportAppStatusSnapshot {
+  appId: string;
+  scenario: string;
+  statusLabel: string;
+  severity: 'ok' | 'warn' | 'error';
+  runtime: string | null;
+  processCount: number | null;
+  details: string[];
+  capturedAt: string | null;
+}
+
 type ConsoleSeverity = 'error' | 'warn' | 'info' | 'log' | 'debug' | 'trace';
 
 export type { ConsoleSeverity };

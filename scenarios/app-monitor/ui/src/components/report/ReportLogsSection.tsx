@@ -14,6 +14,7 @@ import type {
   ReportLogsState,
   ReportNetworkState,
   ReportHealthChecksState,
+  ReportAppStatusState,
 } from './useReportIssueState';
 
 interface ReportLogsSectionProps {
@@ -21,11 +22,13 @@ interface ReportLogsSectionProps {
   consoleLogs: ReportConsoleLogsState;
   network: ReportNetworkState;
   health: ReportHealthChecksState;
+  status: ReportAppStatusState;
   bridgeCaps: string[];
   appLogsPanelId: string;
   consoleLogsPanelId: string;
   networkPanelId: string;
   healthPanelId: string;
+  statusPanelId: string;
 }
 
 const ReportLogsSection = ({
@@ -33,11 +36,13 @@ const ReportLogsSection = ({
   consoleLogs,
   network,
   health,
+  status,
   bridgeCaps,
   appLogsPanelId,
   consoleLogsPanelId,
   networkPanelId,
   healthPanelId,
+  statusPanelId,
 }: ReportLogsSectionProps) => {
   const renderHealthStatusIcon = (status: 'pass' | 'warn' | 'fail') => {
     switch (status) {
@@ -532,6 +537,94 @@ const ReportLogsSection = ({
               );
             })}
           </div>
+        )}
+      </div>
+    </section>
+
+    <section className="report-dialog__logs-section">
+      <div className="report-dialog__logs-header">
+        <label
+          className={clsx(
+            'report-dialog__logs-include',
+            !status.includeAppStatus && 'report-dialog__logs-include--off',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={status.includeAppStatus}
+            onChange={(event) => status.setIncludeAppStatus(event.target.checked)}
+            aria-label="Include app status in report"
+          />
+          <span className="report-dialog__logs-title">App status</span>
+        </label>
+        <button
+          type="button"
+          className="report-dialog__logs-toggle"
+          onClick={status.toggleExpanded}
+          aria-expanded={status.expanded}
+          aria-controls={statusPanelId}
+          aria-label={status.expanded ? 'Hide app status' : 'Show app status'}
+        >
+          {status.expanded ? (
+            <EyeOff aria-hidden size={18} />
+          ) : (
+            <Eye aria-hidden size={18} />
+          )}
+        </button>
+      </div>
+      <div
+        id={statusPanelId}
+        className="report-dialog__logs-panel"
+        style={status.expanded ? undefined : { display: 'none' }}
+        aria-hidden={!status.expanded}
+      >
+        <div className="report-dialog__logs-meta">
+          <span>
+            {status.loading
+              ? 'Fetching app status…'
+              : status.snapshot
+                ? `${status.snapshot.statusLabel}${status.formattedCapturedAt ? ` (captured ${status.formattedCapturedAt})` : ''}.`
+                : status.error
+                  ? 'App status unavailable.'
+                  : 'No app status captured.'}
+          </span>
+          <button
+            type="button"
+            className="report-dialog__logs-refresh"
+            onClick={status.fetch}
+            disabled={status.loading}
+          >
+            {status.loading ? (
+              <Loader2 aria-hidden size={14} className="spinning" />
+            ) : (
+              <RefreshCw aria-hidden size={14} />
+            )}
+            <span>{status.loading ? 'Loading' : 'Refresh'}</span>
+          </button>
+        </div>
+        {status.loading ? (
+          <div className="report-dialog__logs-loading">
+            <Loader2 aria-hidden size={18} className="spinning" />
+            <span>Gathering scenario status…</span>
+          </div>
+        ) : status.error ? (
+          <div className="report-dialog__logs-message">
+            <p>{status.error}</p>
+            <button
+              type="button"
+              className="report-dialog__button report-dialog__button--ghost"
+              onClick={status.fetch}
+              disabled={status.loading}
+            >
+              Retry
+            </button>
+          </div>
+        ) : !status.snapshot ? (
+          <p className="report-dialog__logs-empty">No status snapshot available.</p>
+        ) : status.snapshot.details.length === 0 ? (
+          <p className="report-dialog__logs-empty">Status snapshot did not include detailed output.</p>
+        ) : (
+          <pre className="report-dialog__logs-content">{status.snapshot.details.join('\n')}</pre>
         )}
       </div>
     </section>

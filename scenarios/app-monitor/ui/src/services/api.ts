@@ -97,6 +97,21 @@ export interface ReportIssueHealthCheckEntry {
   response?: string | null;
 }
 
+export type ReportIssueAppStatusSeverity = 'ok' | 'warn' | 'error';
+
+export interface ReportIssueAppStatus {
+  appId: string;
+  scenario: string;
+  capturedAt?: string | null;
+  statusLabel: string;
+  severity: ReportIssueAppStatusSeverity;
+  runtime?: string | null;
+  processCount?: number | null;
+  ports?: Record<string, number> | null;
+  recommendations?: string[] | null;
+  details: string[];
+}
+
 export interface PreviewHealthDiagnosticsResponse {
   app_id: string;
   app_name?: string | null;
@@ -137,6 +152,10 @@ export interface ReportIssuePayload {
   healthChecks?: ReportIssueHealthCheckEntry[];
   healthChecksTotal?: number;
   healthChecksCapturedAt?: string | null;
+  appStatusLines?: string[];
+  appStatusLabel?: string | null;
+  appStatusSeverity?: ReportIssueAppStatusSeverity | null;
+  appStatusCapturedAt?: string | null;
 }
 
 export interface ScenarioIssueSummary {
@@ -284,6 +303,27 @@ export const appService = {
     } catch (error) {
       logger.error(`Failed to report issue for app ${appId}`, error);
       throw error;
+    }
+  },
+
+  async getAppStatusSnapshot(appId: string): Promise<ReportIssueAppStatus | null> {
+    const trimmed = (appId ?? '').trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    try {
+      const { data } = await api.get<ApiResponse<ReportIssueAppStatus>>(
+        `/apps/${encodeURIComponent(trimmed)}/diagnostics/status`,
+      );
+      if (data?.success === false) {
+        logger.warn(`Scenario status request for ${trimmed} failed`, data?.error || data?.message);
+        return null;
+      }
+      return data?.data ?? null;
+    } catch (error) {
+      logger.warn(`Failed to fetch scenario status for ${trimmed}`, error);
+      return null;
     }
   },
 
