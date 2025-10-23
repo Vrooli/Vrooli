@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -31,6 +30,16 @@ const (
 	reasonInternalError   closeReason = "internal_error"
 )
 
+const (
+	transcriptSyncInterval = 30 * time.Second
+	transcriptSyncMinBytes = 128 * 1024
+)
+
+type bufferedOutput struct {
+	payload outputPayload
+	size    int
+}
+
 type session struct {
 	id        string
 	createdAt time.Time
@@ -52,27 +61,18 @@ type session struct {
 	done     chan struct{}
 	doneOnce sync.Once
 
-	clientsMu sync.Mutex
-	clients   map[*wsClient]struct{}
+	clients *clientRegistry
 
 	ttlTimer *time.Timer
 
 	lastActivity atomic.Int64 // unix nano
 
-	transcriptMu     sync.Mutex
-	transcriptFile   *os.File
-	transcriptWriter *bufio.Writer
-	flushInterval    time.Duration
+	transcript    *transcriptManager
+	flushInterval time.Duration
 
 	readBuffer []byte
 
-	// Rolling output buffer for reconnection replay (stores recent output chunks)
-	outputBufferMu      sync.RWMutex
-	outputBuffer        []outputPayload
-	outputBufferDropped bool
-	maxBufferSize       int
-	maxBufferBytes      int
-	currentBufferBytes  int
+	replayBuffer *outputReplayBuffer
 
 	inputSeqMu   sync.Mutex
 	lastInputSeq map[string]uint64
@@ -87,26 +87,22 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 
 	id := uuid.NewString()
 	s := &session{
-		id:                  id,
-		createdAt:           time.Now().UTC(),
-		expiresAt:           time.Now().UTC().Add(cfg.sessionTTL),
-		cfg:                 cfg,
-		metrics:             metrics,
-		manager:             manager,
-		ctx:                 ctx,
-		cancel:              cancel,
-		done:                make(chan struct{}),
-		clients:             make(map[*wsClient]struct{}),
-		readBuffer:          make([]byte, cfg.readBufferSizeBytes),
-		outputBuffer:        make([]outputPayload, 0, 500), // Keep last 500 chunks for better reconnect experience
-		outputBufferDropped: false,
-		maxBufferSize:       500,
-		maxBufferBytes:      1024 * 1024, // 1MB max buffer
-		currentBufferBytes:  0,
-		lastInputSeq:        make(map[string]uint64),
-		termRows:            cfg.defaultTTYRows,
-		termCols:            cfg.defaultTTYCols,
-		flushInterval:       2 * time.Second,
+		id:            id,
+		createdAt:     time.Now().UTC(),
+		expiresAt:     time.Now().UTC().Add(cfg.sessionTTL),
+		cfg:           cfg,
+		metrics:       metrics,
+		manager:       manager,
+		ctx:           ctx,
+		cancel:        cancel,
+		done:          make(chan struct{}),
+		clients:       newClientRegistry(),
+		readBuffer:    make([]byte, cfg.readBufferSizeBytes),
+		replayBuffer:  newOutputReplayBuffer(500, 1024*1024),
+		lastInputSeq:  make(map[string]uint64),
+		termRows:      cfg.defaultTTYRows,
+		termCols:      cfg.defaultTTYCols,
+		flushInterval: 2 * time.Second,
 	}
 
 	command := strings.TrimSpace(req.Command)
@@ -136,8 +132,7 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		s.cleanupOnInitFailure()
 		return nil, fmt.Errorf("open transcript file: %w", err)
 	}
-	s.transcriptFile = file
-	s.transcriptWriter = bufio.NewWriter(file)
+	s.transcript = newTranscriptManager(file)
 
 	cmd := exec.CommandContext(ctx, command, args...)
 	envExtras := []string{
@@ -216,11 +211,8 @@ func (s *session) cleanupOnInitFailure() {
 	if s.command != nil && s.command.Process != nil {
 		_ = s.command.Process.Kill()
 	}
-	if s.transcriptWriter != nil {
-		_ = s.transcriptWriter.Flush()
-	}
-	if s.transcriptFile != nil {
-		_ = s.transcriptFile.Close()
+	if s.transcript != nil {
+		s.transcript.close()
 	}
 }
 
@@ -234,9 +226,7 @@ func (s *session) streamOutput() {
 
 		n, err := s.ptyFile.Read(s.readBuffer)
 		if n > 0 {
-			chunk := make([]byte, n)
-			copy(chunk, s.readBuffer[:n])
-			s.handleOutput(chunk)
+			s.handleOutput(s.readBuffer[:n])
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
@@ -277,30 +267,7 @@ func (s *session) handleOutput(chunk []byte) {
 	})
 
 	// Add to rolling buffer for replay on reconnect
-	s.outputBufferMu.Lock()
-	chunkSize := len(chunk)
-	s.outputBuffer = append(s.outputBuffer, payload)
-	s.currentBufferBytes += chunkSize
-
-	// Trim buffer if it exceeds size or byte limits
-	for len(s.outputBuffer) > s.maxBufferSize || s.currentBufferBytes > s.maxBufferBytes {
-		if len(s.outputBuffer) == 0 {
-			break
-		}
-		// Remove oldest chunk
-		removed := s.outputBuffer[0]
-		s.outputBuffer = s.outputBuffer[1:]
-		s.outputBufferDropped = true
-
-		// Decode to get actual size
-		if removed.Data != "" {
-			decoded, err := base64.StdEncoding.DecodeString(removed.Data)
-			if err == nil {
-				s.currentBufferBytes -= len(decoded)
-			}
-		}
-	}
-	s.outputBufferMu.Unlock()
+	s.replayBuffer.append(payload, len(chunk))
 
 	s.broadcast(websocketEnvelope{
 		Type:    "output",
@@ -397,21 +364,13 @@ func (s *session) Close(reason closeReason) {
 
 		s.recordStatus("closed", string(reason))
 
-		s.clientsMu.Lock()
-		for client := range s.clients {
-			client.close()
-		}
-		s.clients = map[*wsClient]struct{}{}
-		s.clientsMu.Unlock()
+		s.clients.closeAll()
 
-		s.transcriptMu.Lock()
-		if s.transcriptWriter != nil {
-			_ = s.transcriptWriter.Flush()
+		s.flushTranscript(true)
+		if s.transcript != nil {
+			s.transcript.close()
+			s.transcript = nil
 		}
-		if s.transcriptFile != nil {
-			_ = s.transcriptFile.Close()
-		}
-		s.transcriptMu.Unlock()
 
 		s.metrics.activeSessions.Add(-1)
 		s.incrementReasonMetric(reason)
@@ -444,32 +403,17 @@ func (s *session) recordStatus(status string, reason string) {
 }
 
 func (s *session) writeTranscript(entry transcriptEntry) {
-	s.transcriptMu.Lock()
-	defer s.transcriptMu.Unlock()
-	if s.transcriptWriter == nil {
+	if s.transcript == nil {
 		return
 	}
-	encoded, err := json.Marshal(entry)
-	if err != nil {
-		return
-	}
-	if _, err := s.transcriptWriter.Write(encoded); err == nil {
-		_, _ = s.transcriptWriter.WriteString("\n")
-	}
+	s.transcript.write(entry)
 }
 
-func (s *session) flushTranscript() {
-	s.transcriptMu.Lock()
-	defer s.transcriptMu.Unlock()
-	if s.transcriptWriter == nil {
+func (s *session) flushTranscript(force bool) {
+	if s.transcript == nil {
 		return
 	}
-	if err := s.transcriptWriter.Flush(); err != nil {
-		return
-	}
-	if s.transcriptFile != nil {
-		_ = s.transcriptFile.Sync()
-	}
+	s.transcript.flush(force, transcriptSyncInterval, transcriptSyncMinBytes)
 }
 
 func (s *session) flushTranscriptPeriodically() {
@@ -482,27 +426,21 @@ func (s *session) flushTranscriptPeriodically() {
 	for {
 		select {
 		case <-s.done:
-			s.flushTranscript()
+			s.flushTranscript(true)
 			return
 		case <-ticker.C:
-			s.flushTranscript()
+			s.flushTranscript(false)
 		}
 	}
 }
 
 func (s *session) addClient(client *wsClient) {
-	s.clientsMu.Lock()
-	s.clients[client] = struct{}{}
-	s.clientsMu.Unlock()
+	s.clients.add(client)
 }
 
 // replayBufferToClient sends recent output history to a newly connected client
 func (s *session) replayBufferToClient(client *wsClient) {
-	s.outputBufferMu.RLock()
-	buffer := make([]outputPayload, len(s.outputBuffer))
-	copy(buffer, s.outputBuffer)
-	truncated := s.outputBufferDropped
-	s.outputBufferMu.RUnlock()
+	buffer, truncated := s.replayBuffer.snapshot()
 
 	client.enqueue(websocketEnvelope{
 		Type: "output_replay",
@@ -517,9 +455,7 @@ func (s *session) replayBufferToClient(client *wsClient) {
 }
 
 func (s *session) removeClient(client *wsClient) {
-	s.clientsMu.Lock()
-	delete(s.clients, client)
-	s.clientsMu.Unlock()
+	s.clients.remove(client)
 }
 
 func (s *session) shouldProcessInputSeq(key string, seq uint64) bool {
@@ -534,11 +470,7 @@ func (s *session) shouldProcessInputSeq(key string, seq uint64) bool {
 }
 
 func (s *session) broadcast(msg websocketEnvelope) {
-	s.clientsMu.Lock()
-	for client := range s.clients {
-		client.enqueue(msg)
-	}
-	s.clientsMu.Unlock()
+	s.clients.broadcast(msg)
 }
 
 func (s *session) touch() {

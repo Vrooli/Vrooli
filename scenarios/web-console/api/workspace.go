@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,6 +23,8 @@ func newValidationError(format string, args ...any) error {
 	return workspaceValidationError{message: fmt.Sprintf(format, args...)}
 }
 
+var errTabNotFound = errors.New("tab not found")
+
 // workspace represents the persisted layout and tab configuration
 type workspace struct {
 	mu                  sync.RWMutex
@@ -33,6 +36,8 @@ type workspace struct {
 	IdleTimeoutSeconds  int64     `json:"idleTimeoutSeconds,omitempty"`
 	broadcasters        map[chan workspaceEvent]struct{}
 	broadcasterMu       sync.RWMutex
+	tabIndex            map[string]int
+	sessionIndex        map[string]int
 }
 
 // tabMeta represents a single tab's persistent state
@@ -59,6 +64,8 @@ func newWorkspace(storagePath string) (*workspace, error) {
 		Tabs:                []tabMeta{},
 		KeyboardToolbarMode: "floating", // Default to floating mode
 		broadcasters:        make(map[chan workspaceEvent]struct{}),
+		tabIndex:            make(map[string]int),
+		sessionIndex:        make(map[string]int),
 	}
 
 	if err := ws.load(); err != nil {
@@ -100,6 +107,7 @@ func (ws *workspace) load() error {
 	if loaded.IdleTimeoutSeconds != nil && *loaded.IdleTimeoutSeconds >= 0 {
 		ws.IdleTimeoutSeconds = *loaded.IdleTimeoutSeconds
 	}
+	ws.rebuildIndexesLocked()
 	ws.mu.Unlock()
 
 	updatedActive, sanitizedTabs, changed := sanitizeLoadedWorkspace(loaded.ActiveTabID, loaded.Tabs)
@@ -107,6 +115,7 @@ func (ws *workspace) load() error {
 		ws.mu.Lock()
 		ws.ActiveTabID = updatedActive
 		ws.Tabs = sanitizedTabs
+		ws.rebuildIndexesLocked()
 		ws.mu.Unlock()
 		if err := ws.save(); err != nil {
 			return fmt.Errorf("repair workspace: %w", err)
@@ -219,6 +228,7 @@ func (ws *workspace) updateState(activeTabID string, tabs []tabMeta) error {
 	ws.ActiveTabID = normalizedActiveID
 	ws.Tabs = normalizedTabs
 	ws.Version++
+	ws.rebuildIndexesLocked()
 	ws.mu.Unlock()
 
 	if err := ws.save(); err != nil {
@@ -249,16 +259,17 @@ func (ws *workspace) addTab(tab tabMeta) error {
 		return newValidationError("tab id is required")
 	}
 	ws.mu.Lock()
-	// Check for duplicate ID
-	for _, existingTab := range ws.Tabs {
-		if existingTab.ID == tab.ID {
-			ws.mu.Unlock()
-			return fmt.Errorf("tab with ID %s already exists", tab.ID)
-		}
+	if _, exists := ws.tabIndex[tab.ID]; exists {
+		ws.mu.Unlock()
+		return fmt.Errorf("tab with ID %s already exists", tab.ID)
 	}
 	tab.Order = len(ws.Tabs)
 	ws.Tabs = append(ws.Tabs, tab)
 	ws.Version++
+	ws.tabIndex[tab.ID] = len(ws.Tabs) - 1
+	if tab.SessionID != nil && *tab.SessionID != "" {
+		ws.sessionIndex[*tab.SessionID] = len(ws.Tabs) - 1
+	}
 	ws.mu.Unlock()
 
 	if err := ws.save(); err != nil {
@@ -350,6 +361,19 @@ func sanitizeLoadedWorkspace(activeTabID string, tabs []tabMeta) (string, []tabM
 	return trimmedActive, sanitized, changed
 }
 
+func (ws *workspace) rebuildIndexesLocked() {
+	ws.tabIndex = make(map[string]int, len(ws.Tabs))
+	ws.sessionIndex = make(map[string]int)
+	for i := range ws.Tabs {
+		tab := &ws.Tabs[i]
+		tab.Order = i
+		ws.tabIndex[tab.ID] = i
+		if tab.SessionID != nil && *tab.SessionID != "" {
+			ws.sessionIndex[*tab.SessionID] = i
+		}
+	}
+}
+
 func (ws *workspace) idleTimeoutDuration() time.Duration {
 	ws.mu.RLock()
 	seconds := ws.IdleTimeoutSeconds
@@ -394,19 +418,13 @@ func (ws *workspace) setIdleTimeoutSeconds(seconds int64) error {
 // updateTab modifies an existing tab
 func (ws *workspace) updateTab(tabID string, label, colorID string) error {
 	ws.mu.Lock()
-	found := false
-	for i := range ws.Tabs {
-		if ws.Tabs[i].ID == tabID {
-			ws.Tabs[i].Label = label
-			ws.Tabs[i].ColorID = colorID
-			found = true
-			break
-		}
-	}
-	if !found {
+	idx, ok := ws.tabIndex[tabID]
+	if !ok {
 		ws.mu.Unlock()
-		return fmt.Errorf("tab not found: %s", tabID)
+		return fmt.Errorf("%w: %s", errTabNotFound, tabID)
 	}
+	ws.Tabs[idx].Label = label
+	ws.Tabs[idx].ColorID = colorID
 	ws.Version++
 	ws.mu.Unlock()
 
@@ -430,26 +448,12 @@ func (ws *workspace) updateTab(tabID string, label, colorID string) error {
 // removeTab deletes a tab from the workspace
 func (ws *workspace) removeTab(tabID string) error {
 	ws.mu.Lock()
-	newTabs := []tabMeta{}
-	found := false
-	for _, tab := range ws.Tabs {
-		if tab.ID != tabID {
-			newTabs = append(newTabs, tab)
-		} else {
-			found = true
-		}
-	}
-	if !found {
+	idx, ok := ws.tabIndex[tabID]
+	if !ok {
 		ws.mu.Unlock()
-		return fmt.Errorf("tab not found: %s", tabID)
+		return fmt.Errorf("%w: %s", errTabNotFound, tabID)
 	}
-
-	// Reorder remaining tabs
-	for i := range newTabs {
-		newTabs[i].Order = i
-	}
-
-	ws.Tabs = newTabs
+	ws.Tabs = append(ws.Tabs[:idx], ws.Tabs[idx+1:]...)
 	if ws.ActiveTabID == tabID {
 		if len(ws.Tabs) > 0 {
 			ws.ActiveTabID = ws.Tabs[0].ID
@@ -458,6 +462,7 @@ func (ws *workspace) removeTab(tabID string) error {
 		}
 	}
 	ws.Version++
+	ws.rebuildIndexesLocked()
 	ws.mu.Unlock()
 
 	if err := ws.save(); err != nil {
@@ -476,16 +481,11 @@ func (ws *workspace) removeTab(tabID string) error {
 // setActiveTab changes the active tab
 func (ws *workspace) setActiveTab(tabID string) error {
 	ws.mu.Lock()
-	found := false
-	for _, tab := range ws.Tabs {
-		if tab.ID == tabID {
-			found = true
-			break
+	if tabID != "" {
+		if _, ok := ws.tabIndex[tabID]; !ok {
+			ws.mu.Unlock()
+			return fmt.Errorf("%w: %s", errTabNotFound, tabID)
 		}
-	}
-	if !found && tabID != "" {
-		ws.mu.Unlock()
-		return fmt.Errorf("tab not found: %s", tabID)
 	}
 
 	ws.ActiveTabID = tabID
@@ -508,18 +508,22 @@ func (ws *workspace) setActiveTab(tabID string) error {
 // attachSession links a session to a tab
 func (ws *workspace) attachSession(tabID, sessionID string) error {
 	ws.mu.Lock()
-	found := false
-	for i := range ws.Tabs {
-		if ws.Tabs[i].ID == tabID {
-			ws.Tabs[i].SessionID = &sessionID
-			found = true
-			break
-		}
-	}
-	if !found {
+	idx, ok := ws.tabIndex[tabID]
+	if !ok {
 		ws.mu.Unlock()
-		return fmt.Errorf("tab not found: %s", tabID)
+		return fmt.Errorf("%w: %s", errTabNotFound, tabID)
 	}
+	tab := &ws.Tabs[idx]
+	if tab.SessionID != nil {
+		delete(ws.sessionIndex, *tab.SessionID)
+	}
+	if existingIdx, exists := ws.sessionIndex[sessionID]; exists && existingIdx != idx {
+		ws.Tabs[existingIdx].SessionID = nil
+		delete(ws.sessionIndex, sessionID)
+	}
+	sessionCopy := sessionID
+	tab.SessionID = &sessionCopy
+	ws.sessionIndex[sessionID] = idx
 	ws.Version++
 	ws.mu.Unlock()
 
@@ -542,18 +546,16 @@ func (ws *workspace) attachSession(tabID, sessionID string) error {
 // detachSession removes a session link from a tab
 func (ws *workspace) detachSession(tabID string) error {
 	ws.mu.Lock()
-	found := false
-	for i := range ws.Tabs {
-		if ws.Tabs[i].ID == tabID {
-			ws.Tabs[i].SessionID = nil
-			found = true
-			break
-		}
-	}
-	if !found {
+	idx, ok := ws.tabIndex[tabID]
+	if !ok {
 		ws.mu.Unlock()
-		return fmt.Errorf("tab not found: %s", tabID)
+		return fmt.Errorf("%w: %s", errTabNotFound, tabID)
 	}
+	tab := &ws.Tabs[idx]
+	if tab.SessionID != nil {
+		delete(ws.sessionIndex, *tab.SessionID)
+	}
+	tab.SessionID = nil
 	ws.Version++
 	ws.mu.Unlock()
 
@@ -568,6 +570,23 @@ func (ws *workspace) detachSession(tabID string) error {
 	})
 
 	return nil
+}
+
+func (ws *workspace) detachSessionBySessionID(sessionID string) error {
+	if strings.TrimSpace(sessionID) == "" {
+		return nil
+	}
+	ws.mu.RLock()
+	idx, ok := ws.sessionIndex[sessionID]
+	var tabID string
+	if ok && idx >= 0 && idx < len(ws.Tabs) {
+		tabID = ws.Tabs[idx].ID
+	}
+	ws.mu.RUnlock()
+	if tabID == "" {
+		return nil
+	}
+	return ws.detachSession(tabID)
 }
 
 // subscribe adds a broadcaster channel for workspace events

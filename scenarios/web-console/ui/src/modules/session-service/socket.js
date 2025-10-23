@@ -4,15 +4,20 @@ import { normalizeSocketData } from "../utils.js";
 import { notifySessionActionsChanged } from "./callbacks.js";
 import { setTabPhase, setTabSocketState } from "./tab-state.js";
 import { handleStreamEnvelope } from "./stream-handlers.js";
+import { openSessionStream } from "./transport.js";
 
+/**
+ * @param {import("../types.d.ts").TerminalTab} tab
+ * @param {string} sessionId
+ * @param {{ onReconnect?: () => Promise<unknown> | unknown }} [options]
+ */
 export function connectWebSocket(tab, sessionId, { onReconnect } = {}) {
   if (!tab || !sessionId) {
     return;
   }
 
-  const url = buildStreamUrl(sessionId);
   const previousSocket = tab.socket;
-  const socket = new WebSocket(url);
+  const socket = openSessionStream(sessionId);
   tab.inputSeq = 0;
   tab.socket = socket;
   tab.replayPending = true;
@@ -141,10 +146,4 @@ export function connectWebSocket(tab, sessionId, { onReconnect } = {}) {
 
     notifySessionActionsChanged();
   });
-}
-
-function buildStreamUrl(sessionId) {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.host;
-  return `${protocol}//${host}/ws/sessions/${sessionId}/stream`;
 }

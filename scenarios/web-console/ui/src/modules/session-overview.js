@@ -15,6 +15,13 @@ const relativeTimeFormatter =
     : null;
 let listHandlersBound = false;
 
+/**
+ * @param {{
+ *  updateSessionActions?: () => void;
+ *  closeSessionById?: (id: string) => Promise<boolean> | boolean;
+ *  focusSessionTab?: (tabId: string) => void;
+ * }} [options]
+ */
 export function configureSessionOverview({
   updateSessionActions,
   closeSessionById,
@@ -217,17 +224,159 @@ function handleSessionOverviewClick(event) {
   focusTabCallback(tabId, item.dataset.sessionId || "");
 }
 
-export function renderSessionOverview() {
-  const listEl = elements.sessionOverviewList;
-  if (!listEl) return;
-  bindSessionOverviewEvents();
+const SESSION_ITEM_PARTS = Symbol("sessionOverviewItemParts");
 
+/**
+ * @typedef {{
+ *   id: string;
+ *   shortId: string;
+ *   statusText: string;
+ *   status: "attached" | "orphaned";
+ *   tabId: string;
+ *   isClickable: boolean;
+ *   isActive: boolean;
+ *   commandLine: string;
+ *   timestamp: string;
+ *   isClosable: boolean;
+ *   closeLabel: string;
+ * }} SessionOverviewEntry
+ */
+function getSessionItemParts(li) {
+  return /** @type {{ idSpan: HTMLSpanElement; statusSpan: HTMLSpanElement; closeButton: HTMLButtonElement; commandLine: HTMLDivElement | null; timestamp: HTMLDivElement | null }} */ (
+    li[SESSION_ITEM_PARTS]
+  );
+}
+
+function updateSessionOverviewItem(li, entry) {
+  const parts = getSessionItemParts(li);
+
+  li.dataset.sessionId = entry.id;
+  parts.idSpan.textContent = entry.shortId;
+  parts.idSpan.title = entry.id;
+
+  if (entry.isClickable) {
+    li.dataset.tabId = entry.tabId;
+    li.classList.add('session-overview-clickable');
+  } else {
+    li.removeAttribute('data-tab-id');
+    li.classList.remove('session-overview-clickable');
+  }
+
+  if (entry.isActive) {
+    li.dataset.active = 'true';
+  } else {
+    delete li.dataset.active;
+  }
+
+  li.dataset.sessionState = entry.status;
+  parts.statusSpan.textContent = entry.statusText;
+
+  parts.closeButton.dataset.sessionId = entry.id;
+  parts.closeButton.setAttribute('aria-label', entry.closeLabel);
+  parts.closeButton.disabled = !entry.isClosable;
+
+  if (entry.commandLine) {
+    if (!parts.commandLine) {
+      parts.commandLine = document.createElement('div');
+      parts.commandLine.className = 'session-overview-command';
+      li.appendChild(parts.commandLine);
+    }
+    parts.commandLine.textContent = entry.commandLine;
+  } else if (parts.commandLine) {
+    parts.commandLine.remove();
+    parts.commandLine = null;
+  }
+
+  if (entry.timestamp) {
+    if (!parts.timestamp) {
+      parts.timestamp = document.createElement('div');
+      parts.timestamp.className = 'session-overview-timestamp';
+      li.appendChild(parts.timestamp);
+    }
+    parts.timestamp.textContent = entry.timestamp;
+  } else if (parts.timestamp) {
+    parts.timestamp.remove();
+    parts.timestamp = null;
+  }
+}
+
+function createSessionOverviewItem(entry) {
+  const li = document.createElement('li');
+  li.className = 'session-overview-item';
+
+  const header = document.createElement('div');
+  header.className = 'session-overview-row';
+  li.appendChild(header);
+
+  const idSpan = document.createElement('span');
+  idSpan.className = 'session-overview-id';
+  header.appendChild(idSpan);
+
+  const controls = document.createElement('div');
+  controls.className = 'session-overview-controls';
+  header.appendChild(controls);
+
+  const statusSpan = document.createElement('span');
+  statusSpan.className = 'session-overview-status';
+  controls.appendChild(statusSpan);
+
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'session-overview-close';
+  closeButton.dataset.sessionClose = 'true';
+  closeButton.textContent = '\u00D7';
+  controls.appendChild(closeButton);
+
+  li[SESSION_ITEM_PARTS] = {
+    idSpan,
+    statusSpan,
+    closeButton,
+    commandLine: /** @type {HTMLDivElement | null} */ (null),
+    timestamp: /** @type {HTMLDivElement | null} */ (null),
+  };
+
+  updateSessionOverviewItem(li, entry);
+  return li;
+}
+
+function buildTimestampLabel(value) {
+  if (!value) return '';
+  const relative = formatRelativeTimestamp(value, relativeTimeFormatter);
+  const absolute = formatAbsoluteTime(value);
+  if (relative && absolute) return `Last active ${relative} (${absolute})`;
+  if (relative) return `Last active ${relative}`;
+  if (absolute) return `Last active ${absolute}`;
+  return '';
+}
+
+function buildCommandLabel(command, args) {
+  if (!command) return '';
+  const parts = [command];
+  if (Array.isArray(args) && args.length > 0) {
+    parts.push(...args);
+  }
+  return parts.join(' ');
+}
+
+function getCapacityValue() {
+  if (
+    typeof state.sessions.capacity === 'number' &&
+    Number.isFinite(state.sessions.capacity) &&
+    state.sessions.capacity > 0
+  ) {
+    return state.sessions.capacity;
+  }
+  return null;
+}
+
+function buildSessionOverviewEntries() {
+  const sessionMap = new Map();
   const apiSessions = Array.isArray(state.sessions.items)
     ? state.sessions.items.slice()
     : [];
-  const sessionMap = new Map();
+
   apiSessions.forEach((session) => {
-    if (!session || typeof session.id !== "string") return;
+    if (!session || typeof session.id !== 'string') return;
     const id = session.id.trim();
     if (!id) return;
     sessionMap.set(id, { ...session });
@@ -236,9 +385,8 @@ export function renderSessionOverview() {
   state.tabs.forEach((tab) => {
     if (!tab || !tab.session) return;
     const tabSession = tab.session;
-    const id = typeof tabSession.id === "string" ? tabSession.id.trim() : "";
+    const id = typeof tabSession.id === 'string' ? tabSession.id.trim() : '';
     if (!id || sessionMap.has(id)) return;
-    const args = Array.isArray(tabSession.args) ? [...tabSession.args] : [];
     sessionMap.set(id, {
       id,
       createdAt: tabSession.createdAt || null,
@@ -248,221 +396,175 @@ export function renderSessionOverview() {
         tabSession.updatedAt ||
         tabSession.createdAt ||
         null,
-      state: tab.phase === "closed" ? "closed" : "active",
-      command: tabSession.command || "",
-      args,
+      state: tab.phase === 'closed' ? 'closed' : 'active',
+      command: tabSession.command || '',
+      args: Array.isArray(tabSession.args) ? [...tabSession.args] : [],
     });
   });
 
-  const sessions = Array.from(sessionMap.values());
   const tabBySessionId = new Map();
   state.tabs.forEach((tab) => {
     if (tab.session && tab.session.id) {
       tabBySessionId.set(tab.session.id, tab);
     }
   });
-  const detachedTabs = getDetachedTabs();
+
+  const activeTabId = state.activeTabId;
+  const activeSessionId = getActiveTab()?.session?.id || null;
+  const sessions = Array.from(sessionMap.values());
+  sessions.sort((a, b) => {
+    const aTime = a && a.lastActivity ? Date.parse(a.lastActivity) : 0;
+    const bTime = b && b.lastActivity ? Date.parse(b.lastActivity) : 0;
+    return bTime - aTime;
+  });
+
+  const entries = /** @type {SessionOverviewEntry[]} */ ([]);
+  let orphanCount = 0;
+
+  sessions.forEach((session) => {
+    if (!session || typeof session.id !== 'string') {
+      return;
+    }
+    const sessionId = session.id;
+    const attachedTab = tabBySessionId.get(sessionId) || null;
+    const tabLabel = attachedTab
+      ? attachedTab.label || attachedTab.defaultLabel || attachedTab.id
+      : '';
+    const isAttached = Boolean(attachedTab);
+    const isActiveTab = attachedTab ? attachedTab.id === activeTabId : false;
+    const isActiveSession = activeSessionId ? sessionId === activeSessionId : false;
+    const statusText = isAttached
+      ? isActiveTab
+        ? 'Active tab'
+        : `Attached (${tabLabel})`
+      : 'No tab attached';
+    const status = isAttached ? 'attached' : 'orphaned';
+    if (!isAttached) {
+      orphanCount += 1;
+    }
+
+    entries.push({
+      id: sessionId,
+      shortId: sessionId.slice(0, 8) || sessionId,
+      statusText,
+      status,
+      tabId: attachedTab?.id || '',
+      isClickable: isAttached,
+      isActive: isActiveSession,
+      commandLine: buildCommandLabel(session.command, session.args),
+      timestamp: buildTimestampLabel(session.lastActivity),
+      isClosable: session.state !== 'closed',
+      closeLabel: `Sign out session ${sessionId.slice(0, 8)}`,
+    });
+  });
+
+  return {
+    entries,
+    orphanCount,
+    detachedTabs: getDetachedTabs(),
+    capacityValue: getCapacityValue(),
+    loading: state.sessions.loading,
+    error: state.sessions.error,
+    lastFetched: state.sessions.lastFetched,
+  };
+}
+
+export function renderSessionOverview() {
+  const listEl = elements.sessionOverviewList;
+  if (!listEl) return;
+  bindSessionOverviewEvents();
+
+  const {
+    entries,
+    orphanCount,
+    detachedTabs,
+    capacityValue,
+    loading,
+    error,
+    lastFetched,
+  } = buildSessionOverviewEntries();
 
   const countElement = elements.sessionOverviewCount;
-  const capacityValue =
-    typeof state.sessions.capacity === "number" &&
-    Number.isFinite(state.sessions.capacity) &&
-    state.sessions.capacity > 0
-      ? state.sessions.capacity
-      : null;
-
   if (countElement) {
-    const base = state.sessions.loading
-      ? "…"
-      : state.sessions.error
-        ? "!"
-        : String(sessions.length);
+    const base = loading ? '…' : error ? '!' : String(entries.length);
     const hasCapacity = capacityValue !== null;
-    const displayCapacity = hasCapacity ? capacityValue : "—";
-    const countText = `${base} of ${displayCapacity}`;
-    countElement.textContent = countText;
+    const displayCapacity = hasCapacity ? capacityValue : '—';
+    countElement.textContent = `${base} of ${displayCapacity}`;
 
     let label;
-    if (state.sessions.loading) {
+    if (loading) {
       label = hasCapacity
         ? `Loading active sessions (capacity ${capacityValue})`
-        : "Loading active sessions (capacity unknown)";
-    } else if (state.sessions.error) {
+        : 'Loading active sessions (capacity unknown)';
+    } else if (error) {
       label = hasCapacity
         ? `Unable to load active sessions (capacity ${capacityValue})`
-        : "Unable to load active sessions (capacity unknown)";
+        : 'Unable to load active sessions (capacity unknown)';
     } else {
       label = hasCapacity
-        ? `${sessions.length} of ${capacityValue} sessions active`
-        : `${sessions.length} sessions active (capacity unknown)`;
+        ? `${entries.length} of ${capacityValue} sessions active`
+        : `${entries.length} sessions active (capacity unknown)`;
     }
-    countElement.setAttribute("aria-label", label);
+    countElement.setAttribute('aria-label', label);
     countElement.title = label;
   }
 
-  const preserveExistingList =
-    (state.sessions.loading || state.sessions.error) &&
-    listEl.childElementCount > 0;
+  const preserveExistingList = (loading || error) && listEl.childElementCount > 0;
   if (!preserveExistingList) {
-    listEl.innerHTML = "";
-  }
+    const existing = new Map();
+    Array.from(listEl.children).forEach((child) => {
+      if (child instanceof HTMLLIElement && child.dataset.sessionId) {
+        existing.set(child.dataset.sessionId, child);
+      }
+    });
 
-  const activeSessionId = getActiveTab()?.session?.id || null;
-  let orphanCount = 0;
-
-  if (!preserveExistingList) {
     const fragment = document.createDocumentFragment();
-
-    sessions.sort((a, b) => {
-      const aTime = a && a.lastActivity ? Date.parse(a.lastActivity) : 0;
-      const bTime = b && b.lastActivity ? Date.parse(b.lastActivity) : 0;
-      return bTime - aTime;
-    });
-
-    sessions.forEach((session) => {
-      if (!session || !session.id) return;
-      const li = document.createElement("li");
-      li.className = "session-overview-item";
-
-      const header = document.createElement("div");
-      header.className = "session-overview-row";
-
-      const sessionId = typeof session.id === "string" ? session.id : "";
-      if (!sessionId) {
-        return;
+    entries.forEach((entry) => {
+      let item = existing.get(entry.id) || null;
+      if (item) {
+        existing.delete(entry.id);
+        if (!item[SESSION_ITEM_PARTS]) {
+          item.remove();
+          item = null;
+        }
       }
-
-      li.dataset.sessionId = sessionId;
-
-      const idSpan = document.createElement("span");
-      idSpan.className = "session-overview-id";
-      idSpan.textContent = sessionId.slice(0, 8);
-      idSpan.title = sessionId;
-      header.appendChild(idSpan);
-
-      const statusSpan = document.createElement("span");
-      statusSpan.className = "session-overview-status";
-
-      const attachedTab = tabBySessionId.get(sessionId);
-      if (attachedTab) {
-        li.dataset.sessionState = "attached";
-        const tabLabel =
-          attachedTab.label || attachedTab.defaultLabel || attachedTab.id;
-        statusSpan.textContent =
-          attachedTab.id === state.activeTabId
-            ? "Active tab"
-            : `Attached (${tabLabel})`;
-        li.dataset.tabId = attachedTab.id;
-        li.classList.add("session-overview-clickable");
+      if (item) {
+        updateSessionOverviewItem(item, entry);
       } else {
-        li.dataset.sessionState = "orphaned";
-        statusSpan.textContent = "No tab attached";
-        orphanCount += 1;
-        li.removeAttribute("data-tab-id");
-        li.classList.remove("session-overview-clickable");
+        item = createSessionOverviewItem(entry);
       }
-
-      const controls = document.createElement("div");
-      controls.className = "session-overview-controls";
-      controls.appendChild(statusSpan);
-
-      const closeButton = document.createElement("button");
-      closeButton.type = "button";
-      closeButton.className = "session-overview-close";
-      closeButton.dataset.sessionClose = "true";
-      closeButton.dataset.sessionId = sessionId;
-      closeButton.setAttribute(
-        "aria-label",
-        `Sign out session ${sessionId.slice(0, 8)}`,
-      );
-      closeButton.textContent = "\u00D7";
-      if (session.state === "closed") {
-        closeButton.disabled = true;
-      }
-      controls.appendChild(closeButton);
-
-      header.appendChild(controls);
-      li.appendChild(header);
-
-      if (session.command) {
-        const commandLine = document.createElement("div");
-        commandLine.className = "session-overview-command";
-        const commandParts = [session.command];
-        if (Array.isArray(session.args) && session.args.length > 0) {
-          commandParts.push(...session.args);
-        }
-        commandLine.textContent = commandParts.join(" ");
-        li.appendChild(commandLine);
-      }
-
-      if (session.lastActivity) {
-        const timestampLine = document.createElement("div");
-        timestampLine.className = "session-overview-timestamp";
-        const relative = formatRelativeTimestamp(
-          session.lastActivity,
-          relativeTimeFormatter,
-        );
-        const absolute = formatAbsoluteTime(session.lastActivity);
-        if (relative && absolute) {
-          timestampLine.textContent = `Last active ${relative} (${absolute})`;
-        } else if (relative) {
-          timestampLine.textContent = `Last active ${relative}`;
-        } else if (absolute) {
-          timestampLine.textContent = `Last active ${absolute}`;
-        }
-        if (timestampLine.textContent) {
-          li.appendChild(timestampLine);
-        }
-      }
-
-      if (sessionId === activeSessionId) {
-        li.dataset.active = "true";
-      }
-
-      fragment.appendChild(li);
+      fragment.appendChild(item);
     });
 
-    listEl.appendChild(fragment);
-  } else {
-    sessions.forEach((session) => {
-      if (!session || !session.id) return;
-      if (!tabBySessionId.get(session.id)) {
-        orphanCount += 1;
-      }
-    });
+    existing.forEach((li) => li.remove());
+    listEl.replaceChildren(fragment);
   }
 
   const emptyEl = elements.sessionOverviewEmpty;
   if (emptyEl) {
-    if (
-      !state.sessions.loading &&
-      !state.sessions.error &&
-      sessions.length === 0
-    ) {
-      emptyEl.classList.remove("hidden");
+    if (!loading && !error && entries.length === 0) {
+      emptyEl.classList.remove('hidden');
     } else {
-      emptyEl.classList.add("hidden");
+      emptyEl.classList.add('hidden');
     }
   }
 
   const alertEl = elements.sessionOverviewAlert;
   if (alertEl) {
-    const messageSpan = alertEl.querySelector("span");
+    const messageSpan = alertEl.querySelector('span');
     if (messageSpan) {
       if (orphanCount <= 0) {
-        messageSpan.textContent =
-          "Unmapped sessions detected. Use “Sign out all sessions” to clean up.";
+        messageSpan.textContent = 'Unmapped sessions detected. Use “Sign out all sessions” to clean up.';
       } else if (orphanCount === 1) {
-        messageSpan.textContent =
-          "1 session is not mapped to a tab. Use “Sign out all sessions” to clean up.";
+        messageSpan.textContent = '1 session is not mapped to a tab. Use “Sign out all sessions” to clean up.';
       } else {
         messageSpan.textContent = `${orphanCount} sessions are not mapped to tabs. Use “Sign out all sessions” to clean up.`;
       }
     }
-    if (!state.sessions.loading && !state.sessions.error && orphanCount > 0) {
-      alertEl.classList.remove("hidden");
+    if (!loading && !error && orphanCount > 0) {
+      alertEl.classList.remove('hidden');
     } else {
-      alertEl.classList.add("hidden");
+      alertEl.classList.add('hidden');
     }
   }
 
@@ -472,40 +574,37 @@ export function renderSessionOverview() {
       const labels = detachedTabs.map(
         (tab) => tab.label || tab.defaultLabel || tab.id,
       );
-      const joined = labels.slice(0, 3).join(", ");
-      const remaining = labels.length > 3 ? `, +${labels.length - 3} more` : "";
+      const joined = labels.slice(0, 3).join(', ');
+      const remaining = labels.length > 3 ? `, +${labels.length - 3} more` : '';
       const label =
         detachedTabs.length === 1
           ? `1 tab is open without an active session (${labels[0]}).`
           : `${detachedTabs.length} tabs are open without active sessions (${joined}${remaining}).`;
       detachedMetaEl.textContent = `${label} Use “Close detached tabs” to clean up.`;
-      detachedMetaEl.classList.remove("hidden");
+      detachedMetaEl.classList.remove('hidden');
     } else {
-      detachedMetaEl.textContent = "";
-      detachedMetaEl.classList.add("hidden");
+      detachedMetaEl.textContent = '';
+      detachedMetaEl.classList.add('hidden');
     }
   }
 
   const metaEl = elements.sessionOverviewMeta;
   if (metaEl) {
-    metaEl.classList.toggle("error", Boolean(state.sessions.error));
+    metaEl.classList.toggle('error', Boolean(error));
     const capacityText = capacityValue ? `Capacity ${capacityValue}` : null;
-    if (state.sessions.error) {
-      const message =
-        state.sessions.error instanceof Error
-          ? state.sessions.error.message
-          : String(state.sessions.error);
-      const segments = [`Unable to load sessions: ${message}`];
-      segments.push(capacityText || "Capacity unknown");
-      metaEl.textContent = segments.join(" • ");
-    } else if (state.sessions.loading) {
-      metaEl.textContent = `Loading sessions… • ${capacityText || "Capacity unknown"}`;
-    } else if (state.sessions.lastFetched) {
-      const relative = formatRelativeTimestamp(
-        state.sessions.lastFetched,
-        relativeTimeFormatter,
-      );
-      const absolute = formatAbsoluteTime(state.sessions.lastFetched);
+    if (error) {
+      const errValue =
+        error && typeof error === 'object' && 'message' in error
+          ? String(/** @type {{ message?: unknown }} */ (error).message ?? '') || 'Unknown error'
+          : String(error);
+      const segments = [`Unable to load sessions: ${errValue}`];
+      segments.push(capacityText || 'Capacity unknown');
+      metaEl.textContent = segments.join(' • ');
+    } else if (loading) {
+      metaEl.textContent = `Loading sessions… • ${capacityText || 'Capacity unknown'}`;
+    } else if (lastFetched) {
+      const relative = formatRelativeTimestamp(lastFetched, relativeTimeFormatter);
+      const absolute = formatAbsoluteTime(lastFetched);
       const segments = [];
       if (relative && absolute) {
         segments.push(`Updated ${relative} (${absolute})`);
@@ -514,12 +613,12 @@ export function renderSessionOverview() {
       } else if (absolute) {
         segments.push(`Updated ${absolute}`);
       }
-      segments.push(capacityText || "Capacity unknown");
-      metaEl.textContent = segments.join(" • ");
+      segments.push(capacityText || 'Capacity unknown');
+      metaEl.textContent = segments.join(' • ');
     } else {
-      metaEl.textContent = capacityText || "Capacity unknown";
+      metaEl.textContent = capacityText || 'Capacity unknown';
     }
-    metaEl.classList.toggle("hidden", metaEl.textContent === "");
+    metaEl.classList.toggle('hidden', metaEl.textContent === '');
   }
 
   updateActionsCallback?.();

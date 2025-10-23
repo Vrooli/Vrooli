@@ -1,5 +1,12 @@
+// @ts-check
+
 import { debugFlags } from "./state.js";
 
+/**
+ * @param {import("./types.d.ts").TerminalTab | null | undefined} tab
+ * @param {string} message
+ * @param {Record<string, unknown> | undefined} [extra]
+ */
 export function debugLog(tab, message, extra) {
   if (!tab || typeof window === "undefined") return;
   const runtimeDebug = window.__WEB_CONSOLE_DEBUG__ || {};

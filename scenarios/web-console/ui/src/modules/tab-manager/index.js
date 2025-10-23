@@ -10,6 +10,8 @@ export {
 export {
   createTerminalTab,
   destroyTerminalTab,
+} from "./tab-factory.js";
+export {
   getActiveTab,
   findTab,
   setActiveTab,
@@ -19,4 +21,5 @@ export {
   isDetachedTab,
   getDetachedTabs,
   getTabs,
-} from "./tabs.js";
+} from "./tab-controller.js";
+export { resetTabRuntimeState } from "./tab-runtime.js";

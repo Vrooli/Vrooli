@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * Shared utility helpers for the web-console UI.
  */
@@ -8,6 +10,7 @@ const sharedTextEncoder = new TextEncoder();
 export const textDecoder = sharedTextDecoder;
 export const textEncoder = sharedTextEncoder;
 
+/** @type {ReturnType<typeof setTimeout> | null} */
 let resourceTimingCleanupTimer = null;
 
 function scheduleResourceTimingCleanup() {
@@ -30,16 +33,23 @@ function scheduleResourceTimingCleanup() {
   }, 15000);
 }
 
+/**
+ * @param {string} path
+ * @param {{ method?: string; json?: unknown; headers?: HeadersInit }} [options]
+ * @returns {Promise<Response>}
+ */
 export function proxyToApi(path, { method = "GET", json, headers } = {}) {
   const targetPath = path.startsWith("/api")
     ? path
     : `/api${path.startsWith("/") ? path : `/${path}`}`;
+  const requestHeaders = headers ? new Headers(headers) : new Headers();
+  /** @type {RequestInit} */
   const requestInit = {
     method,
-    headers: headers ? new Headers(headers) : new Headers(),
+    headers: requestHeaders,
   };
   if (json !== undefined) {
-    requestInit.headers.set("Content-Type", "application/json");
+    requestHeaders.set("Content-Type", "application/json");
     requestInit.body = JSON.stringify(json);
   }
   const request = fetch(targetPath, requestInit);
@@ -47,6 +57,10 @@ export function proxyToApi(path, { method = "GET", json, headers } = {}) {
   return request;
 }
 
+/**
+ * @param {string} path
+ * @returns {string}
+ */
 export function buildWebSocketUrl(path) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = window.location.host;
@@ -54,10 +68,23 @@ export function buildWebSocketUrl(path) {
   return `${protocol}//${host}${normalized}`;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is ArrayBufferView}
+ */
 export function isArrayBufferView(value) {
-  return value && typeof value === "object" && ArrayBuffer.isView(value);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    ArrayBuffer.isView(/** @type {ArrayBufferView} */ (value))
+  );
 }
 
+/**
+ * @param {unknown} data
+ * @param {(error: unknown) => void} [onError]
+ * @returns {Promise<string>}
+ */
 export async function normalizeSocketData(data, onError) {
   if (typeof data === "string") {
     return data;
@@ -90,6 +117,11 @@ export async function normalizeSocketData(data, onError) {
   return "";
 }
 
+/**
+ * @param {string} command
+ * @param {unknown} args
+ * @returns {string}
+ */
 export function formatCommandLabel(command, args) {
   if (!command) return "—";
   if (Array.isArray(args) && args.length > 0) {
@@ -98,6 +130,10 @@ export function formatCommandLabel(command, args) {
   return command;
 }
 
+/**
+ * @param {unknown} payload
+ * @returns {string}
+ */
 export function formatEventPayload(payload) {
   if (payload === undefined || payload === null) {
     return "";
@@ -112,10 +148,20 @@ export function formatEventPayload(payload) {
   }
 }
 
+/**
+ * @param {number | string | Date} value
+ * @param {Intl.RelativeTimeFormat} [formatter]
+ * @returns {string}
+ */
 export function formatRelativeTimestamp(value, formatter) {
   if (!value) return "";
   try {
-    const timestamp = typeof value === "number" ? value : Date.parse(value);
+    const timestamp =
+      typeof value === "number"
+        ? value
+        : value instanceof Date
+          ? value.getTime()
+          : Date.parse(String(value));
     if (Number.isNaN(timestamp)) {
       return "";
     }
@@ -139,10 +185,19 @@ export function formatRelativeTimestamp(value, formatter) {
   }
 }
 
+/**
+ * @param {number | string | Date} value
+ * @returns {string}
+ */
 export function formatAbsoluteTime(value) {
   if (!value) return "";
   try {
-    const timestamp = typeof value === "number" ? value : Date.parse(value);
+    const timestamp =
+      typeof value === "number"
+        ? value
+        : value instanceof Date
+          ? value.getTime()
+          : Date.parse(String(value));
     if (Number.isNaN(timestamp)) {
       return "";
     }
@@ -157,6 +212,11 @@ export function formatAbsoluteTime(value) {
   }
 }
 
+/**
+ * @param {unknown} raw
+ * @param {string} fallback
+ * @returns {{ message: string; raw?: unknown }}
+ */
 export function parseApiError(raw, fallback) {
   if (!raw) {
     return { message: fallback };
@@ -180,7 +240,12 @@ export function parseApiError(raw, fallback) {
   return { message: trimmed || fallback };
 }
 
+/** @type {(callback: () => void) => void} */
 export const scheduleMicrotask =
   typeof queueMicrotask === "function"
     ? queueMicrotask
-    : (cb) => Promise.resolve().then(cb);
+    : (cb) => {
+        Promise.resolve().then(() => {
+          cb();
+        });
+      };

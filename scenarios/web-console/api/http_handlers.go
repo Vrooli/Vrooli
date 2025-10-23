@@ -3,10 +3,15 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metricsRegistry, ws *workspace) {
@@ -121,38 +126,51 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 		}
 
 		id := parts[0]
-		if len(parts) == 2 && parts[1] == "stream" {
-			if r.Method != http.MethodGet {
-				writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		if len(parts) > 1 {
+			switch parts[1] {
+			case "stream":
+				if r.Method != http.MethodGet {
+					writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+					return
+				}
+				session, ok := manager.getSession(id)
+				if !ok {
+					writeJSONError(w, http.StatusNotFound, "session not found")
+					return
+				}
+				handleWebSocketStream(w, r, session, metrics)
+				return
+			case "panic":
+				if r.Method != http.MethodPost {
+					writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+					return
+				}
+				session, ok := manager.getSession(id)
+				if !ok {
+					writeJSONError(w, http.StatusNotFound, "session not found")
+					return
+				}
+				session.Close(reasonPanicStop)
+				writeJSON(w, http.StatusAccepted, map[string]string{"status": "panic_stop_triggered"})
+				return
+			case "transcript":
+				if r.Method != http.MethodGet {
+					writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+					return
+				}
+				handleGetSessionTranscript(w, r, manager, id)
+				return
+			case "":
+				// fall through to base session handler
+			default:
+				writeJSONError(w, http.StatusNotFound, "endpoint not found")
 				return
 			}
-			session, ok := manager.getSession(id)
-			if !ok {
-				writeJSONError(w, http.StatusNotFound, "session not found")
-				return
-			}
-			handleWebSocketStream(w, r, session, metrics)
-			return
-		}
-
-		if len(parts) > 1 && parts[1] != "" && parts[1] != "panic" {
-			writeJSONError(w, http.StatusNotFound, "endpoint not found")
-			return
 		}
 
 		session, ok := manager.getSession(id)
 		if !ok {
 			writeJSONError(w, http.StatusNotFound, "session not found")
-			return
-		}
-
-		if len(parts) == 2 && parts[1] == "panic" {
-			if r.Method != http.MethodPost {
-				writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-				return
-			}
-			session.Close(reasonPanicStop)
-			writeJSON(w, http.StatusAccepted, map[string]string{"status": "panic_stop_triggered"})
 			return
 		}
 
@@ -175,6 +193,42 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 		}
 	}))
 	mux.Handle("/api/v1/sessions/", sessionDetailHandler)
+}
+
+func handleGetSessionTranscript(w http.ResponseWriter, r *http.Request, manager *sessionManager, sessionID string) {
+	if _, err := uuid.Parse(sessionID); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid session id")
+		return
+	}
+
+	storagePath := strings.TrimSpace(manager.cfg.storagePath)
+	if storagePath == "" {
+		writeJSONError(w, http.StatusInternalServerError, "transcript storage unavailable")
+		return
+	}
+
+	name := fmt.Sprintf("session-%s.ndjson", sessionID)
+	filePath := filepath.Join(storagePath, name)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeJSONError(w, http.StatusNotFound, "transcript not found")
+		} else {
+			writeJSONError(w, http.StatusInternalServerError, "failed to open transcript")
+		}
+		return
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to inspect transcript")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	http.ServeContent(w, r, name, info.ModTime(), file)
 }
 
 func handleGetWorkspace(w http.ResponseWriter, _ *http.Request, ws *workspace) {
@@ -315,8 +369,20 @@ func handleCreateSession(w http.ResponseWriter, r *http.Request, manager *sessio
 	}
 
 	// Attach session to tab if tabId provided
-	if req.TabID != "" {
-		_ = ws.attachSession(req.TabID, s.id)
+	if ws != nil && req.TabID != "" {
+		if err := ws.attachSession(req.TabID, s.id); err != nil {
+			status := http.StatusInternalServerError
+			var validationErr workspaceValidationError
+			switch {
+			case errors.Is(err, errTabNotFound):
+				status = http.StatusNotFound
+			case errors.As(err, &validationErr):
+				status = http.StatusBadRequest
+			}
+			manager.deleteSession(s.id, reasonInternalError)
+			writeJSONError(w, status, err.Error())
+			return
+		}
 	}
 
 	resp := createSessionResponse{

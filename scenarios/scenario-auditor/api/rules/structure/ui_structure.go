@@ -85,6 +85,21 @@ Targets: structure
   <expected-message>Missing required UI script entrypoint (inline <script> or local JS/TS module)</expected-message>
 </test-case>
 
+<test-case id="remote-unreferenced-script" should-fail="true" path="testdata/remote-unreferenced">
+  <description>HTML shell loads CDN script while local assets exist but are never referenced</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/index.html",
+    "ui/scripts/app-utils.js"
+  ]
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing required UI script entrypoint (inline <script> or local JS/TS module)</expected-message>
+</test-case>
+
 <test-case id="missing-local-script" should-fail="true" path="testdata/missing-local-script">
   <description>HTML shell references local script that does not exist</description>
   <input language="json">
@@ -123,6 +138,36 @@ Targets: structure
   ]
 }
   </input>
+</test-case>
+
+<test-case id="cra-fallback-success" should-fail="false" path="testdata/cra-fallback-success">
+  <description>React create-react-app style UI relies on src/index.tsx fallback entrypoint</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/public/index.html",
+    "ui/package.json",
+    "ui/src/index.tsx",
+    "ui/src/App.tsx"
+  ]
+}
+  </input>
+</test-case>
+
+<test-case id="unreferenced-src-main" should-fail="true" path="testdata/unreferenced-src-main">
+  <description>Local React entry file exists but shell never references it</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/index.html",
+    "ui/src/main.tsx"
+  ]
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing required UI script entrypoint (inline <script> or local JS/TS module)</expected-message>
 </test-case>
 
 <test-case id="script-only-entry" should-fail="true" path="testdata/script-only-entry">
@@ -446,14 +491,39 @@ func hasInlineScript(content string) bool {
 		}
 		attrs := strings.ToLower(match[1])
 		body := strings.TrimSpace(match[2])
-		if !strings.Contains(attrs, "src=") {
-			return true
+		if strings.Contains(attrs, "src=") {
+			// Attribute source means the script is loaded externally; inline presence is not guaranteed.
+			continue
 		}
-		if body != "" {
-			return true
+		if body == "" {
+			continue
 		}
+		typeAttr := extractScriptType(attrs)
+		if typeAttr != "" {
+			typeAttr = strings.ToLower(typeAttr)
+			if !(strings.Contains(typeAttr, "javascript") || strings.Contains(typeAttr, "module") || strings.Contains(typeAttr, "jsx") || strings.Contains(typeAttr, "tsx")) {
+				continue
+			}
+		}
+		return true
 	}
 	return false
+}
+
+var scriptTypeRegex = regexp.MustCompile(`type\s*=\s*"([^"]+)"|type\s*=\s*'([^']+)'`)
+
+func extractScriptType(attrs string) string {
+	matches := scriptTypeRegex.FindStringSubmatch(attrs)
+	if len(matches) == 0 {
+		return ""
+	}
+	if len(matches) > 1 && matches[1] != "" {
+		return matches[1]
+	}
+	if len(matches) > 2 {
+		return matches[2]
+	}
+	return ""
 }
 
 func scriptFileExists(root, shellPath, src string, files map[string]struct{}) bool {
@@ -461,10 +531,31 @@ func scriptFileExists(root, shellPath, src string, files map[string]struct{}) bo
 	if normalized == "" {
 		return false
 	}
-	if _, ok := files[normalized]; ok {
-		return true
+
+	candidates := []string{normalized}
+	if strings.HasPrefix(normalized, "ui/") {
+		trimmed := strings.TrimPrefix(normalized, "ui/")
+		if trimmed != "" {
+			publicCandidate := filepath.ToSlash(filepath.Join("ui", "public", trimmed))
+			if publicCandidate != normalized {
+				candidates = append(candidates, publicCandidate)
+			}
+		}
 	}
-	return uiFileExists(root, normalized, files)
+
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if _, ok := files[candidate]; ok {
+			return true
+		}
+		if uiFileExists(root, candidate, files) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func normalizeScriptPath(shellPath, src string) string {
@@ -501,79 +592,48 @@ func normalizeScriptPath(shellPath, src string) string {
 }
 
 func hasFallbackEntrypoint(root string, files map[string]struct{}) bool {
-	explicitCandidates := []string{
-		"ui/scripts/main.js",
-		"ui/scripts/main.ts",
-		"ui/scripts/main.tsx",
-		"ui/scripts/app.js",
-		"ui/scripts/app.ts",
-		"ui/scripts/app.tsx",
-		"ui/dashboard.js",
-		"ui/dashboard.ts",
-		"ui/dashboard.tsx",
-		"ui/converter.js",
-		"ui/converter.ts",
-		"ui/tracker.js",
-		"ui/tracker.ts",
-		"ui/bridge-init.js",
-		"ui/electron/main.js",
-		"ui/electron/renderer.js",
-		"ui/electron/preload.js",
-		"ui/renderer.js",
-		"ui/runtime.js",
+	if isCreateReactAppEntrypoint(root, files) {
+		return true
 	}
 
-	for _, candidate := range explicitCandidates {
-		rel := filepath.ToSlash(candidate)
-		if _, ok := files[rel]; ok {
+	return false
+}
+
+func isCreateReactAppEntrypoint(root string, files map[string]struct{}) bool {
+	// CRA templates rely on the dev server to inject scripts. We only trust this
+	// pattern when the scenario clearly depends on react-scripts and ships the
+	// expected template under ui/public/index.html.
+	if !uiFileExists(root, "ui/public/index.html", files) {
+		return false
+	}
+
+	packageJSON := filepath.Join(root, "ui", "package.json")
+	data, err := os.ReadFile(packageJSON)
+	if err != nil {
+		return false
+	}
+
+	lower := strings.ToLower(string(data))
+	if !strings.Contains(lower, "react-scripts") {
+		return false
+	}
+
+	// Require a known CRA entry module so we know something will boot.
+	for _, candidate := range []string{"ui/src/index.tsx", "ui/src/index.ts", "ui/src/index.jsx", "ui/src/index.js"} {
+		if uiFileExists(root, candidate, files) {
 			return true
 		}
-		if uiFileExists(root, rel, files) {
+	}
+
+	return false
+}
+
+func hasSupportedScriptExtension(path string) bool {
+	for _, ext := range []string{".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"} {
+		if strings.HasSuffix(path, ext) {
 			return true
 		}
 	}
-
-	fallbackKeywords := []string{
-		"main",
-		"app",
-		"index",
-		"renderer",
-		"preload",
-		"bridge",
-		"dashboard",
-		"portal",
-		"shell",
-		"viewer",
-		"overlay",
-		"entry",
-		"startup",
-		"client",
-		"runtime",
-		"manager",
-		"controller",
-		"bootstrap",
-		"script",
-	}
-
-	for path := range files {
-		lower := strings.ToLower(path)
-		if !strings.HasPrefix(lower, "ui/") {
-			continue
-		}
-		if strings.Contains(lower, "/node_modules/") {
-			continue
-		}
-		if !(strings.HasSuffix(lower, ".js") || strings.HasSuffix(lower, ".ts") || strings.HasSuffix(lower, ".tsx")) {
-			continue
-		}
-		base := strings.TrimSuffix(filepath.Base(lower), filepath.Ext(lower))
-		for _, keyword := range fallbackKeywords {
-			if strings.Contains(base, keyword) {
-				return true
-			}
-		}
-	}
-
 	return false
 }
 
@@ -607,11 +667,17 @@ func resolveCandidate(path string) string {
 		filepath.Join(ruleDir, path),
 		filepath.Join(filepath.Dir(ruleDir), path),
 		filepath.Join(filepath.Dir(filepath.Dir(ruleDir)), path),
+		filepath.Join(ruleDir, "scenarios", path),
+		filepath.Join(filepath.Dir(ruleDir), "scenarios", path),
+		filepath.Join(filepath.Dir(filepath.Dir(ruleDir)), "scenarios", path),
 	}
 
 	for _, envVar := range []string{"VROOLI_ROOT", "APP_ROOT"} {
 		if base := strings.TrimSpace(os.Getenv(envVar)); base != "" {
-			tryPaths = append(tryPaths, filepath.Join(base, path))
+			tryPaths = append(tryPaths,
+				filepath.Join(base, path),
+				filepath.Join(base, "scenarios", path),
+			)
 		}
 	}
 
@@ -621,6 +687,7 @@ func resolveCandidate(path string) string {
 			filepath.Join(wd, "rules", "structure", path),
 			filepath.Join(wd, "api", "rules", "structure", path),
 			filepath.Join(wd, "scenarios", "scenario-auditor", "api", "rules", "structure", path),
+			filepath.Join(wd, "scenarios", path),
 		)
 	}
 
@@ -637,6 +704,27 @@ func resolveCandidate(path string) string {
 	}
 
 	return ""
+}
+
+func containsString(items []string, target string) bool {
+	for _, item := range items {
+		if item == target {
+			return true
+		}
+	}
+	return false
+}
+
+func isNumericString(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func discoverRuleDir() string {

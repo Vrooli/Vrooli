@@ -1,3 +1,5 @@
+// @ts-check
+
 import { elements, state } from "../state.js";
 import { proxyToApi, parseApiError } from "../utils.js";
 import { showToast } from "../notifications.js";
@@ -6,6 +8,9 @@ import {
   IDLE_TIMEOUT_MAX_MINUTES,
 } from "./constants.js";
 
+/**
+ * @param {unknown} value
+ */
 export function setWorkspaceLoading(value) {
   if (!state.workspace) {
     state.workspace = {
@@ -32,6 +37,9 @@ export function isWorkspaceLoading() {
   return Boolean(state.workspace && state.workspace.loading);
 }
 
+/**
+ * @param {number} seconds
+ */
 export function applyIdleTimeoutFromServer(seconds) {
   const normalized =
     Number.isFinite(seconds) && seconds > 0
@@ -50,8 +58,14 @@ export function initializeWorkspaceSettingsUI() {
 }
 
 function updateIdleTimeoutControls() {
-  const toggle = elements.idleTimeoutToggle;
-  const minutesInput = elements.idleTimeoutMinutes;
+  const toggle =
+    elements.idleTimeoutToggle instanceof HTMLInputElement
+      ? elements.idleTimeoutToggle
+      : null;
+  const minutesInput =
+    elements.idleTimeoutMinutes instanceof HTMLInputElement
+      ? elements.idleTimeoutMinutes
+      : null;
   if (!toggle || !minutesInput) {
     return;
   }
@@ -73,8 +87,14 @@ function initializeIdleTimeoutControls() {
   if (state.workspace.idleControlsInitialized) {
     return;
   }
-  const toggle = elements.idleTimeoutToggle;
-  const minutesInput = elements.idleTimeoutMinutes;
+  const toggle =
+    elements.idleTimeoutToggle instanceof HTMLInputElement
+      ? elements.idleTimeoutToggle
+      : null;
+  const minutesInput =
+    elements.idleTimeoutMinutes instanceof HTMLInputElement
+      ? elements.idleTimeoutMinutes
+      : null;
   if (toggle) {
     toggle.addEventListener("change", handleIdleToggleChange);
   }
@@ -86,9 +106,18 @@ function initializeIdleTimeoutControls() {
   updateIdleTimeoutControls();
 }
 
+/**
+ * @param {Event} event
+ */
 function handleIdleToggleChange(event) {
-  const checked = event.currentTarget?.checked === true;
-  const minutesInput = elements.idleTimeoutMinutes;
+  const target = event.currentTarget instanceof HTMLInputElement
+    ? event.currentTarget
+    : null;
+  const minutesInput =
+    elements.idleTimeoutMinutes instanceof HTMLInputElement
+      ? elements.idleTimeoutMinutes
+      : null;
+  const checked = target?.checked === true;
   if (!checked) {
     persistIdleTimeoutSeconds(0);
     return;
@@ -103,21 +132,36 @@ function handleIdleToggleChange(event) {
   persistIdleTimeoutSeconds(minutes * 60);
 }
 
+/**
+ * @param {Event} event
+ */
 function handleIdleMinutesChange(event) {
-  const toggle = elements.idleTimeoutToggle;
+  const toggle =
+    elements.idleTimeoutToggle instanceof HTMLInputElement
+      ? elements.idleTimeoutToggle
+      : null;
   if (!toggle || !toggle.checked) {
     return;
   }
-  const minutes = coerceMinutesValue(event.currentTarget?.value);
+  const target = event.currentTarget instanceof HTMLInputElement
+    ? event.currentTarget
+    : null;
+  const minutes = target ? coerceMinutesValue(target.value) : null;
   if (!minutes) {
-    event.currentTarget.value = String(
-      Math.max(1, Math.round((state.workspace.idleTimeoutSeconds || 60) / 60)),
-    );
+    if (target) {
+      target.value = String(
+        Math.max(1, Math.round((state.workspace.idleTimeoutSeconds || 60) / 60)),
+      );
+    }
     return;
   }
   persistIdleTimeoutSeconds(minutes * 60);
 }
 
+/**
+ * @param {string | number | null | undefined} value
+ * @returns {number | null}
+ */
 function coerceMinutesValue(value) {
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -126,6 +170,9 @@ function coerceMinutesValue(value) {
   return Math.min(Math.max(parsed, 1), IDLE_TIMEOUT_MAX_MINUTES);
 }
 
+/**
+ * @param {number} seconds
+ */
 async function persistIdleTimeoutSeconds(seconds) {
   if (state.workspace.updatingIdleTimeout) {
     return;

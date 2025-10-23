@@ -1,16 +1,30 @@
 import { elements } from "./state.js";
 
+/** @typedef {import("./types.d.ts").TerminalTab} TerminalTab */
+
+/** @type {() => TerminalTab | null} */
 let getActiveTabFn = () => null;
+/** @type {(tab: TerminalTab, value: string, meta?: Record<string, unknown>) => boolean} */
 let transmitInputFn = () => false;
+/** @type {(tab: TerminalTab, value: string, meta?: Record<string, unknown>) => void} */
 let queueInputFn = () => {};
+/** @type {(tab: TerminalTab, options?: Record<string, unknown>) => Promise<unknown>} */
 let startSessionFn = () => Promise.resolve();
 
+/**
+ * @param {{
+ *  getActiveTab?: () => TerminalTab | null;
+ *  transmitInput?: (tab: TerminalTab, value: string, meta?: Record<string, unknown>) => boolean;
+ *  queueInput?: (tab: TerminalTab, value: string, meta?: Record<string, unknown>) => void;
+ *  startSession?: (tab: TerminalTab, options?: Record<string, unknown>) => Promise<unknown>;
+ * }} [options]
+ */
 export function configureAIIntegration({
   getActiveTab,
   transmitInput,
   queueInput,
   startSession,
-}) {
+} = {}) {
   getActiveTabFn =
     typeof getActiveTab === "function" ? getActiveTab : () => null;
   transmitInputFn =
@@ -35,10 +49,13 @@ export function initializeAIIntegration() {
 async function initAICommandAsync() {
   try {
     const { generateAICommand, showSnackbar, initializeMobileToolbar } =
-      await import("./mobile-toolbar.js");
+      await import("./mobile-toolbar/index.js");
 
     const getActiveTabLocal = () => getActiveTabFn();
 
+    /**
+     * @param {string} key
+     */
     const sendKeyToTerminal = (key) => {
       const tab = getActiveTabFn();
       if (!tab) {
@@ -59,22 +76,31 @@ async function initAICommandAsync() {
       }
     };
 
+    /** @type {any} */
     const mobileToolbar = initializeMobileToolbar(
       getActiveTabLocal,
       sendKeyToTerminal,
     );
 
-    if (elements.aiGenerateBtn && elements.aiCommandInput) {
-      elements.aiGenerateBtn.addEventListener("click", async () => {
-        const prompt = elements.aiCommandInput.value.trim();
+    const generateBtn =
+      elements.aiGenerateBtn instanceof HTMLButtonElement
+        ? elements.aiGenerateBtn
+        : null;
+    const commandInput =
+      elements.aiCommandInput instanceof HTMLInputElement
+        ? elements.aiCommandInput
+        : null;
+
+    if (generateBtn && commandInput) {
+      generateBtn.addEventListener("click", async () => {
+        const prompt = commandInput.value.trim();
         if (!prompt) return;
 
-        const iconElement = elements.aiGenerateBtn.querySelector(".ai-icon");
+        const iconElement = generateBtn.querySelector(".ai-icon");
         const originalIcon = iconElement ? iconElement.outerHTML : "";
-        elements.aiGenerateBtn.disabled = true;
-        elements.aiGenerateBtn.classList.add("loading");
-        elements.aiGenerateBtn.innerHTML =
-          '<span class="loading-spinner"></span>';
+        generateBtn.disabled = true;
+        generateBtn.classList.add("loading");
+        generateBtn.innerHTML = '<span class="loading-spinner"></span>';
 
         try {
           const result = await generateAICommand(
@@ -84,7 +110,7 @@ async function initAICommandAsync() {
           );
 
           if (result.success) {
-            elements.aiCommandInput.value = "";
+            commandInput.value = "";
             showSnackbar("Command generated successfully", "success", 2000);
           } else {
             showSnackbar(
@@ -94,27 +120,28 @@ async function initAICommandAsync() {
             );
           }
         } finally {
-          elements.aiGenerateBtn.disabled = false;
-          elements.aiGenerateBtn.classList.remove("loading");
-          elements.aiGenerateBtn.innerHTML = originalIcon;
+          generateBtn.disabled = false;
+          generateBtn.classList.remove("loading");
+          generateBtn.innerHTML = originalIcon;
           if (window.lucide) {
             window.lucide.createIcons();
           }
         }
       });
 
-      elements.aiCommandInput.addEventListener("keydown", (e) => {
+      commandInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
-          elements.aiGenerateBtn.click();
+          generateBtn.click();
         }
       });
     }
 
     const debugToolbarToggle = document.getElementById("debugToolbarToggle");
-    if (debugToolbarToggle && mobileToolbar) {
+    if (debugToolbarToggle instanceof HTMLInputElement && mobileToolbar) {
       debugToolbarToggle.addEventListener("change", (e) => {
-        const isEnabled = e.target.checked;
+        const target = e.target instanceof HTMLInputElement ? e.target : null;
+        const isEnabled = target?.checked ?? false;
         localStorage.setItem("debugToolbarEnabled", isEnabled.toString());
 
         if (isEnabled) {

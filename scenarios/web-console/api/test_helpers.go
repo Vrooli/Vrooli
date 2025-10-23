@@ -220,9 +220,7 @@ func createTestSession(t *testing.T, manager *sessionManager, req createSessionR
 func waitForSessionOutput(t *testing.T, session *session, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		session.outputBufferMu.RLock()
-		hasOutput := len(session.outputBuffer) > 0
-		session.outputBufferMu.RUnlock()
+		hasOutput := session.replayBuffer != nil && session.replayBuffer.len() > 0
 		if hasOutput {
 			return true
 		}
@@ -244,6 +242,9 @@ func assertSessionState(t *testing.T, session *session, expectedCommand string) 
 	}
 	if session.expiresAt.IsZero() {
 		t.Error("Session expiresAt should not be zero")
+	}
+	if session.transcript == nil {
+		t.Error("Session transcript manager should be initialized")
 	}
 }
 

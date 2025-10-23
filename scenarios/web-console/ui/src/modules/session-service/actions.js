@@ -6,15 +6,20 @@ import {
   sendResize,
   handleTerminalData as bufferHandleTerminalData,
 } from "../input-buffer.js";
-import { proxyToApi, formatCommandLabel, parseApiError } from "../utils.js";
+import { formatCommandLabel, parseApiError } from "../utils.js";
 import { showToast } from "../notifications.js";
-import { refreshTabButton } from "../tab-manager.js";
+import { refreshTabButton, resetTabRuntimeState } from "../tab-manager.js";
 import { connectWebSocket } from "./socket.js";
 import {
   queueSessionOverviewRefresh,
   notifySessionActionsChanged,
 } from "./callbacks.js";
 import { setTabPhase, setTabSocketState } from "./tab-state.js";
+import {
+  createSessionRequest,
+  deleteSessionRequest,
+  fetchSessionRequest,
+} from "./transport.js";
 
 export async function startSession(tab, options = {}) {
   if (!tab || tab.phase === "creating" || tab.phase === "running") return;
@@ -31,10 +36,7 @@ export async function startSession(tab, options = {}) {
     if (options.metadata) payload.metadata = options.metadata;
     if (tab.id) payload.tabId = tab.id;
 
-    const response = await proxyToApi("/api/v1/sessions", {
-      method: "POST",
-      json: payload,
-    });
+    const response = await createSessionRequest(payload);
     if (!response.ok) {
       let text = "";
       try {
@@ -46,12 +48,14 @@ export async function startSession(tab, options = {}) {
         text,
         `API error (${response.status})`,
       );
-      const error = new Error(message);
-      error.status = response.status;
+      const apiError = /** @type {Error & { status?: number; payload?: unknown }} */ (
+        new Error(message)
+      );
+      apiError.status = response.status;
       if (raw) {
-        error.payload = raw;
+        apiError.payload = raw;
       }
-      throw error;
+      throw apiError;
     }
     const data = await response.json();
     const sessionArgs = Array.isArray(data.args)
@@ -66,27 +70,9 @@ export async function startSession(tab, options = {}) {
       args: sessionArgs,
       commandLine: formatCommandLabel(sessionCommand, sessionArgs),
     };
+    resetTabRuntimeState(tab);
     tab.wasDetached = false;
     refreshTabButton(tab);
-    tab.transcript = [];
-    tab.transcriptByteSize = 0;
-    tab.events = [];
-    tab.suppressed = tab.suppressed || {};
-    Object.keys(tab.suppressed).forEach((key) => {
-      tab.suppressed[key] = 0;
-    });
-    tab.pendingWrites = Array.isArray(tab.pendingWrites)
-      ? tab.pendingWrites
-      : [];
-    tab.errorMessage = "";
-    tab.lastSentSize = { cols: 0, rows: 0 };
-    tab.inputSeq = 0;
-    tab.replayPending = false;
-    tab.replayComplete = true;
-    tab.lastReplayCount = 0;
-    tab.lastReplayTruncated = false;
-    tab.hasReceivedLiveOutput = false;
-    tab.term.reset();
     renderEventMeta(tab);
     appendEvent(tab, "session-created", {
       ...data,
@@ -131,9 +117,7 @@ export async function stopSession(tab) {
   setTabSocketState(tab, "closing");
   appendEvent(tab, "session-stop-requested", { id: tab.session.id });
   try {
-    await proxyToApi(`/api/v1/sessions/${tab.session.id}`, {
-      method: "DELETE",
-    });
+    await deleteSessionRequest(tab.session.id);
   } catch (error) {
     appendEvent(tab, "session-stop-error", error);
   } finally {
@@ -163,7 +147,7 @@ export async function reconnectSession(tab, sessionId) {
   tab.reconnecting = true;
   try {
     setTabSocketState(tab, "connecting");
-    const response = await proxyToApi(`/api/v1/sessions/${sessionId}`);
+    const response = await fetchSessionRequest(sessionId);
     if (!response.ok) {
       const status = response.status;
       appendEvent(tab, "session-reconnect-miss", { sessionId, status });

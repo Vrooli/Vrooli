@@ -1,8 +1,29 @@
+// @ts-check
+
 import { state, debugFlags } from "./state.js";
 
+/**
+ * @typedef {{
+ *   timestamp: number;
+ *   tabCount: number;
+ *   tabIds: string[];
+ *   domTerminals: number;
+ *   domNodes: number;
+ *   resourceEntries: number | null;
+ *   paintEntries: number | null;
+ *   totalEntries: number | null;
+ *   heap: Performance['memory'] | null;
+ * }} DiagnosticsSnapshot
+ */
+
+/** @type {ReturnType<typeof setInterval> | null} */
 let diagnosticsTimer = null;
+/** @type {DiagnosticsSnapshot | null} */
 let lastSnapshot = null;
 
+/**
+ * @returns {DiagnosticsSnapshot}
+ */
 function sampleDiagnostics() {
   const tabIds = state.tabs.map((tab) => tab.id);
   const domTerminals = document.querySelectorAll(".terminal-screen").length;
@@ -39,6 +60,9 @@ function sampleDiagnostics() {
   };
 }
 
+/**
+ * @param {DiagnosticsSnapshot} snapshot
+ */
 function logDiagnostics(snapshot) {
   const messageParts = [
     `[workspace] tabs=${snapshot.tabCount} domTerminals=${snapshot.domTerminals} domNodes=${snapshot.domNodes}`,
@@ -56,6 +80,10 @@ function logDiagnostics(snapshot) {
   console.debug(messageParts.join(" | "), snapshot.tabIds);
 }
 
+/**
+ * @param {DiagnosticsSnapshot | null} prev
+ * @param {DiagnosticsSnapshot} next
+ */
 function hasMeaningfulChange(prev, next) {
   if (!prev) return true;
   if (prev.tabCount !== next.tabCount) return true;

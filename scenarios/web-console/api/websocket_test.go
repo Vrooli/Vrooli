@@ -22,8 +22,10 @@ func TestHandleBinaryMessageWritesToPTY(t *testing.T) {
 		ptyFile:      writeEnd,
 		lastInputSeq: make(map[string]uint64),
 		metrics:      newMetricsRegistry(),
+		transcript: &transcriptManager{
+			writer: bufio.NewWriter(io.Discard),
+		},
 	}
-	sess.transcriptWriter = bufio.NewWriter(io.Discard)
 
 	client := &wsClient{session: sess}
 

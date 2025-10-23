@@ -12,7 +12,7 @@ import {
   findTab,
   applyTabAppearance,
   refreshTabButton,
-} from "./tabs.js";
+} from "./tab-controller.js";
 
 const tabColorButtons = new Map();
 let tabMenuCloseTimer = null;

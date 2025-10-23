@@ -246,12 +246,9 @@ func TestSessionEdgeCases(t *testing.T) {
 		// Trigger output by writing to stdin which should echo
 		// Since we're using /bin/sleep, we can't easily test broadcast
 		// Just verify the function exists and session has buffer
-		s.outputBufferMu.RLock()
-		bufferSize := len(s.outputBuffer)
-		s.outputBufferMu.RUnlock()
-
-		// Buffer might be empty for sleep, that's ok
-		_ = bufferSize
+		if s.replayBuffer != nil {
+			_ = s.replayBuffer.len()
+		}
 	})
 
 	t.Run("SessionClose_Idempotent", func(t *testing.T) {

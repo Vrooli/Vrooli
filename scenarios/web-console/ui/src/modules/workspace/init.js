@@ -1,11 +1,7 @@
+// @ts-check
+
 import { state } from "../state.js";
-import {
-  createTerminalTab,
-  findTab,
-  setActiveTab,
-  renderTabs,
-  refreshTabButton,
-} from "../tab-manager.js";
+import { createTerminalTab, refreshTabButton } from "../tab-manager.js";
 import { appendEvent, showError } from "../event-feed.js";
 import { proxyToApi, scheduleMicrotask } from "../utils.js";
 import { reconnectSession, startSession } from "../session-service.js";
@@ -21,12 +17,16 @@ import {
   ensureSessionPlaceholder,
   syncTabToWorkspace,
   syncActiveTabState,
+  applyWorkspaceSnapshot,
 } from "./tabs.js";
 import { connectWorkspaceWebSocket } from "./socket.js";
 import { debugWorkspace } from "./constants.js";
 
+/** @typedef {import("../types.d.ts").TerminalTab} TerminalTab */
+
 export async function initializeWorkspace() {
   setWorkspaceLoading(true);
+  /** @type {Promise<unknown>[]} */
   const pendingReconnections = [];
   try {
     const response = await proxyToApi("/api/v1/workspace");
@@ -57,78 +57,46 @@ export async function initializeWorkspace() {
       reportWorkspaceAnomaly({ duplicateIds, invalidIds, localDuplicates });
     }
 
-    if (sanitizedTabs.length > 0) {
-      sanitizedTabs.forEach((tabMeta) => {
-        const existing = findTab(tabMeta.id);
-        if (existing) {
-          existing.label = tabMeta.label || existing.label;
-          existing.colorId = tabMeta.colorId || existing.colorId;
-          refreshTabButton(existing);
-          const sessionId =
-            typeof tabMeta.sessionId === "string"
-              ? tabMeta.sessionId.trim()
-              : "";
-          if (sessionId) {
-            ensureSessionPlaceholder(existing, sessionId);
-            const reconnectPromise = reconnectSession(
-              existing,
-              sessionId,
-            ).catch(() => {
-              if (debugWorkspace) {
-                console.log(
-                  `Session ${sessionId} no longer available for tab ${tabMeta.id}`,
-                );
-              }
-              existing.session = null;
-              refreshTabButton(existing);
-            });
-            pendingReconnections.push(reconnectPromise);
-          }
-          return;
-        }
+    const requestedActiveId =
+      typeof workspace.activeTabId === "string"
+        ? workspace.activeTabId.trim()
+        : null;
 
-        const tab = createTerminalTab({
-          focus: false,
-          id: tabMeta.id,
-          label: tabMeta.label,
-          colorId: tabMeta.colorId,
-        });
-        const sessionId =
-          typeof tabMeta.sessionId === "string" ? tabMeta.sessionId.trim() : "";
-        if (tab && sessionId) {
-          ensureSessionPlaceholder(tab, sessionId);
-          const reconnectPromise = reconnectSession(tab, sessionId).catch(
-            () => {
-              if (debugWorkspace) {
-                console.log(
-                  `Session ${sessionId} no longer available for tab ${tabMeta.id}`,
-                );
-              }
-              tab.session = null;
-              refreshTabButton(tab);
-            },
-          );
-          pendingReconnections.push(reconnectPromise);
-        }
+    if (sanitizedTabs.length > 0) {
+      const resolvedTabs = applyWorkspaceSnapshot(sanitizedTabs, {
+        activeTabId: requestedActiveId,
       });
 
-      renderTabs();
+      sanitizedTabs.forEach((tabMeta) => {
+        const tab = resolvedTabs.get(tabMeta.id);
+        if (!tab) {
+          return;
+        }
+        const sessionId =
+          typeof tabMeta.sessionId === "string" ? tabMeta.sessionId.trim() : "";
+        if (!sessionId) {
+          return;
+        }
+        ensureSessionPlaceholder(tab, sessionId);
+        const reconnectPromise = reconnectSession(tab, sessionId).catch(() => {
+          if (debugWorkspace) {
+            console.log(
+              `Session ${sessionId} no longer available for tab ${tabMeta.id}`,
+            );
+          }
+          tab.session = null;
+          refreshTabButton(tab);
+        });
+        pendingReconnections.push(reconnectPromise);
+      });
 
       if (pendingReconnections.length > 0) {
         await Promise.allSettled(pendingReconnections);
       }
-
-      const requestedActiveId =
-        typeof workspace.activeTabId === "string"
-          ? workspace.activeTabId.trim()
-          : "";
-      if (requestedActiveId && findTab(requestedActiveId)) {
-        setActiveTab(requestedActiveId);
-      } else if (sanitizedTabs[0]) {
-        setActiveTab(sanitizedTabs[0].id);
-      }
     } else {
-      const initialTab = createTerminalTab({ focus: true });
+      const initialTab = /** @type {TerminalTab | null} */ (
+        createTerminalTab({ focus: true })
+      );
       if (initialTab) {
         await syncTabToWorkspace(initialTab);
         startSession(initialTab, { reason: "initial-tab" }).catch((error) => {
@@ -145,7 +113,9 @@ export async function initializeWorkspace() {
   } catch (error) {
     console.error("Failed to initialize workspace:", error);
     applyIdleTimeoutFromServer(0);
-    const initialTab = createTerminalTab({ focus: true });
+    const initialTab = /** @type {TerminalTab | null} */ (
+      createTerminalTab({ focus: true })
+    );
     if (initialTab) {
       await syncTabToWorkspace(initialTab);
       startSession(initialTab, { reason: "initial-tab" }).catch(

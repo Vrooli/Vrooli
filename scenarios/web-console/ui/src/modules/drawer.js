@@ -109,6 +109,9 @@ export function closeDrawer() {
   });
 }
 
+/**
+ * @param {boolean} [forceState]
+ */
 export function toggleDrawer(forceState) {
   if (typeof forceState === "boolean") {
     return forceState ? openDrawer() : closeDrawer();

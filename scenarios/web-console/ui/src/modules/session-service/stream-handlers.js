@@ -3,8 +3,11 @@ import { appendEvent, recordTranscript, showError } from "../event-feed.js";
 import { filterLocalEcho } from "../input-buffer.js";
 import { debugLog } from "../debug.js";
 import { textDecoder } from "../utils.js";
+import { showToast } from "../notifications.js";
+import { fitTerminal } from "../app/terminal-utils.js";
 import { notifyActiveTabUpdate } from "./callbacks.js";
 import { setTabPhase, setTabSocketState } from "./tab-state.js";
+import { fetchSessionTranscriptRequest } from "./transport.js";
 
 export function handleStreamEnvelope(tab, envelope) {
   if (!tab || !envelope || typeof envelope.type !== "string") return;
@@ -41,30 +44,25 @@ function handleOutputPayload(tab, payload, options = {}) {
     }
   }
 
-  const filteredText = filterLocalEcho(tab, text);
+  const shouldFilter = options.replay !== true && options.skipLocalEcho !== true;
+  const renderedText = shouldFilter ? filterLocalEcho(tab, text) : text;
 
   debugLog(tab, "output-received", {
     length: typeof text === "string" ? text.length : 0,
-    renderedLength: typeof filteredText === "string" ? filteredText.length : 0,
+    renderedLength: typeof renderedText === "string" ? renderedText.length : 0,
     replay: options.replay === true,
     timestamp: payload.timestamp || null,
   });
 
-  if (filteredText.length > 0) {
-    tab.term.write(filteredText);
+  if (typeof renderedText === "string" && renderedText.length > 0) {
+    tab.term.write(renderedText);
   }
 
   if (options.replay !== true && !tab.hasReceivedLiveOutput) {
     tab.hasReceivedLiveOutput = true;
     const forceRender = () => {
       try {
-        if (tab.id === state.activeTabId && document.hasFocus()) {
-          tab.term.focus();
-        }
-        tab.fitAddon?.fit();
-        tab.term.scrollToBottom();
-        tab.term.write("");
-        tab.term.refresh(0, tab.term.rows - 1);
+        fitTerminal(tab);
       } catch (error) {
         console.warn("Failed to refresh terminal on first output:", error);
       }
@@ -125,7 +123,11 @@ function handleReplayPayload(tab, payload) {
   });
 
   if (payload.truncated !== undefined) {
-    tab.lastReplayTruncated = Boolean(payload.truncated);
+    const truncated = Boolean(payload.truncated);
+    if (truncated && !tab.lastReplayTruncated) {
+      notifyReplayTruncated(tab, payload);
+    }
+    tab.lastReplayTruncated = truncated;
   }
 
   if (payload.complete) {
@@ -146,11 +148,7 @@ function handleReplayPayload(tab, payload) {
     if (tab.id === state.activeTabId) {
       const forceRender = () => {
         try {
-          tab.term.focus();
-          tab.fitAddon?.fit();
-          tab.term.scrollToBottom();
-          tab.term.write("");
-          tab.term.refresh(0, tab.term.rows - 1);
+          fitTerminal(tab);
         } catch (error) {
           console.warn("Failed to refresh terminal after replay:", error);
         }
@@ -158,6 +156,11 @@ function handleReplayPayload(tab, payload) {
       requestAnimationFrame(forceRender);
       setTimeout(forceRender, 50);
     }
+
+    void hydrateTranscriptForTab(tab, {
+      generatedAt: payload.generated,
+      reason: wasPending ? "replay-pending" : "replay",
+    });
   } else {
     tab.replayPending = true;
   }
@@ -220,4 +223,227 @@ function notifyPanic(tab, payload) {
       : "unknown error";
   tab.term.write(`\r\n\u001b[31mCommand exited\u001b[0m: ${reason}\r\n`);
   tab.term.write("Review the event feed or transcripts for details.\r\n");
+}
+
+function notifyReplayTruncated(tab, payload) {
+  const eventPayload = {
+    count: typeof payload.count === "number" ? payload.count : null,
+    truncated: true,
+    generatedAt: payload.generated || null,
+  };
+  appendEvent(tab, "output-replay-truncated", eventPayload);
+  if (tab.id === state.activeTabId) {
+    const promise = showToast(
+      "Session history was trimmed; loading archived transcript…",
+      "warning",
+      4200,
+    );
+    if (promise && typeof promise.catch === "function") {
+      promise.catch(() => {});
+    }
+  }
+  notifyActiveTabUpdate();
+}
+
+export async function hydrateTranscriptForTab(tab, options = {}) {
+  if (!tab || !tab.session || !tab.session.id) return;
+  if (tab.transcriptHydrated || tab.transcriptHydrating) return;
+
+  tab.transcriptHydrating = true;
+  appendEvent(tab, "transcript-hydration-start", {
+    reason: options.reason || null,
+    sessionId: tab.session.id,
+  });
+
+  try {
+    const response = await fetchSessionTranscriptRequest(tab.session.id);
+    if (!response || !response.ok) {
+      const status = response ? response.status : null;
+      appendEvent(tab, "transcript-hydration-failed", {
+        status,
+        message: response ? await safeReadText(response) : "no response",
+      });
+      return;
+    }
+
+    const raw = await response.text();
+    if (!raw) {
+      tab.transcriptHydrated = true;
+      appendEvent(tab, "transcript-hydration-complete", {
+        sessionId: tab.session.id,
+        entryCount: 0,
+      });
+      return;
+    }
+
+    const entries = parseTranscriptNdjson(tab, raw);
+    renderHydratedTranscript(tab, entries);
+    tab.transcriptHydrated = true;
+    appendEvent(tab, "transcript-hydration-complete", {
+      sessionId: tab.session.id,
+      entryCount: entries.length,
+      generatedAt: options.generatedAt || null,
+    });
+  } catch (error) {
+    appendEvent(tab, "transcript-hydration-error", {
+      message: error instanceof Error ? error.message : String(error),
+      sessionId: tab.session?.id || null,
+    });
+  } finally {
+    tab.transcriptHydrating = false;
+    if (tab.id === state.activeTabId) {
+      notifyActiveTabUpdate();
+    }
+  }
+}
+
+async function safeReadText(response) {
+  try {
+    return await response.text();
+  } catch (_error) {
+    return "";
+  }
+}
+
+function parseTranscriptNdjson(tab, raw) {
+  const entries = [];
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return entries;
+  }
+
+  raw.split(/\r?\n/).forEach((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    try {
+      const parsed = JSON.parse(trimmed);
+      entries.push(parsed);
+    } catch (error) {
+      appendEvent(tab, "transcript-parse-error", {
+        index,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  return entries;
+}
+
+function renderHydratedTranscript(tab, entries) {
+  if (!tab || !tab.term || typeof tab.term.write !== "function") {
+    return entries;
+  }
+
+  try {
+    if (typeof tab.term.reset === "function") {
+      tab.term.reset();
+    }
+  } catch (_error) {
+    // ignore reset errors
+  }
+
+  tab.transcript = [];
+  tab.transcriptByteSize = 0;
+
+  let outputChunks = 0;
+
+  entries.forEach((entry) => {
+    const normalized = normalizeTranscriptEntry(entry);
+    if (!normalized) return;
+
+    recordTranscript(tab, normalized);
+
+    if (
+      normalized.direction === "stdout" ||
+      normalized.direction === "stderr"
+    ) {
+      const text = decodeTranscriptChunk(normalized);
+      if (text) {
+        tab.term.write(text);
+        outputChunks += 1;
+      }
+    }
+  });
+
+  if (!tab.hasReceivedLiveOutput && outputChunks > 0) {
+    tab.hasReceivedLiveOutput = true;
+  }
+
+  forceTerminalRender(tab);
+
+  return entries;
+}
+
+function normalizeTranscriptEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const direction =
+    typeof entry.direction === "string" ? entry.direction : "stdout";
+
+  let timestamp = Date.now();
+  if (entry.timestamp !== undefined) {
+    if (typeof entry.timestamp === "number" && Number.isFinite(entry.timestamp)) {
+      timestamp = entry.timestamp;
+    } else {
+      const parsed = Date.parse(String(entry.timestamp));
+      if (!Number.isNaN(parsed)) {
+        timestamp = parsed;
+      }
+    }
+  }
+
+  return {
+    timestamp,
+    direction,
+    encoding:
+      typeof entry.encoding === "string" && entry.encoding
+        ? entry.encoding
+        : undefined,
+    data: typeof entry.data === "string" ? entry.data : undefined,
+    message: typeof entry.message === "string" ? entry.message : undefined,
+  };
+}
+
+function decodeTranscriptChunk(entry) {
+  if (!entry || typeof entry.data !== "string") {
+    return "";
+  }
+
+  if (entry.encoding === "base64") {
+    try {
+      const binary = atob(entry.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return textDecoder.decode(bytes);
+    } catch (error) {
+      console.warn("Failed to decode transcript chunk:", error);
+      return "";
+    }
+  }
+
+  return entry.data;
+}
+
+function forceTerminalRender(tab) {
+  if (!tab || !tab.term || typeof tab.term.refresh !== "function") {
+    return;
+  }
+
+  const render = () => {
+    try {
+      fitTerminal(tab);
+    } catch (error) {
+      console.warn("Failed to refresh terminal after hydration:", error);
+    }
+  };
+
+  render();
+
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(render);
+  }
+  setTimeout(render, 50);
 }

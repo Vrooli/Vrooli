@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { state } from "../state.js";
 import { buildWebSocketUrl, textDecoder } from "../utils.js";
 import { debugWorkspace } from "./constants.js";
@@ -8,6 +10,9 @@ import {
   handleActiveTabChanged,
   handleSessionAttached,
   handleSessionDetached,
+  sanitizeWorkspaceTabsFromServer,
+  reportWorkspaceAnomaly,
+  applyWorkspaceSnapshot,
 } from "./tabs.js";
 import { applyIdleTimeoutFromServer } from "./idle-timeout.js";
 
@@ -41,7 +46,7 @@ export function connectWorkspaceWebSocket() {
     }
   });
 
-  socket.addEventListener("message", async (event) => {
+  socket.addEventListener("message", async (/** @type {MessageEvent} */ event) => {
     if (state.workspaceSocket !== socket) {
       return;
     }
@@ -98,15 +103,35 @@ export function connectWorkspaceWebSocket() {
   });
 }
 
+/**
+ * @param {import("../types.d.ts").WorkspaceEventEnvelope | { type?: string; [key: string]: unknown }} event
+ */
 function handleWorkspaceEvent(event) {
   if (!event || !event.type) return;
 
   switch (event.type) {
-    case "workspace-full-update":
+    case "workspace-full-update": {
       if (debugWorkspace) {
         console.log("Full workspace update:", event.payload);
       }
+      const payload = event && typeof event.payload === "object" ? event.payload : null;
+      if (!payload) {
+        return;
+      }
+
+      const rawTabs = Array.isArray(payload.tabs) ? payload.tabs : [];
+      const { tabs: sanitizedTabs, duplicateIds, invalidIds } =
+        sanitizeWorkspaceTabsFromServer(rawTabs);
+      if (duplicateIds.length || invalidIds.length) {
+        reportWorkspaceAnomaly({ duplicateIds, invalidIds });
+      }
+
+      const requestedActiveId =
+        typeof payload.activeTabId === "string" ? payload.activeTabId.trim() : null;
+      applyWorkspaceSnapshot(sanitizedTabs, { activeTabId: requestedActiveId });
+
       break;
+    }
     case "tab-added":
       handleTabAdded(event.payload);
       break;

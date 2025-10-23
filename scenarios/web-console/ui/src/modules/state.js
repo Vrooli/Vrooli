@@ -2,58 +2,98 @@
  * Global DOM references, shared constants, and mutable state for the web-console UI.
  */
 
-const byId = (id) => document.getElementById(id);
+/**
+ * @typedef {import("./types.d.ts").TerminalTab} TerminalTab
+ * @typedef {import("./types.d.ts").AppState} AppState
+ */
 
-export const elements = {
-  sessionOverviewCount: byId("sessionOverviewCount"),
-  sessionOverviewList: byId("sessionOverviewList"),
-  sessionOverviewEmpty: byId("sessionOverviewEmpty"),
-  sessionOverviewMeta: byId("sessionOverviewMeta"),
-  sessionOverviewAlert: byId("sessionOverviewAlert"),
-  sessionOverviewRefresh: byId("sessionOverviewRefresh"),
-  detachedTabsMeta: byId("detachedTabsMeta"),
-  closeDetachedTabs: byId("closeDetachedTabs"),
-  eventFeed: byId("eventFeed"),
-  eventFeedCount: byId("eventFeedCount"),
-  eventMeta: byId("eventMeta"),
-  errorBanner: byId("errorBanner"),
-  tabList: byId("tabList"),
-  addTabBtn: byId("addTabBtn"),
-  tabAddSlot: byId("tabAddSlot"),
-  terminalHost: byId("terminalHost"),
-  layout: byId("mainLayout"),
-  drawerToggle: byId("drawerToggle"),
-  drawerClose: byId("drawerClose"),
-  drawerIndicator: byId("drawerIndicator"),
-  detailsDrawer: byId("detailsDrawer"),
-  drawerBackdrop: byId("drawerBackdrop"),
-  tabContextMenu: byId("tabContextMenu"),
-  tabContextForm: byId("tabContextForm"),
-  tabContextName: byId("tabContextName"),
-  tabContextColors: byId("tabContextColors"),
-  tabContextCancel: byId("tabContextCancel"),
-  tabContextReset: byId("tabContextReset"),
-  tabContextBackdrop: byId("tabContextBackdrop"),
-  signOutAllSessions: byId("signOutAllSessions"),
-  aiCommandInput: byId("aiCommandInput"),
-  aiGenerateBtn: byId("aiGenerateBtn"),
-  composeBtn: byId("composeInputBtn"),
-  composeDialog: byId("composeDialog"),
-  composeBackdrop: byId("composeBackdrop"),
-  composeForm: byId("composeForm"),
-  composeClose: byId("composeClose"),
-  composeCancel: byId("composeCancel"),
-  composeTextarea: byId("composeTextarea"),
-  composeAppendNewline: byId("composeAppendNewline"),
-  composeCharCount: byId("composeCharCount"),
-  composeSend: byId("composeSend"),
-  idleTimeoutToggle: byId("idleTimeoutToggle"),
-  idleTimeoutMinutes: byId("idleTimeoutMinutes"),
-};
+const DOM_ELEMENT_IDS = Object.freeze({
+  sessionOverviewCount: "sessionOverviewCount",
+  sessionOverviewList: "sessionOverviewList",
+  sessionOverviewEmpty: "sessionOverviewEmpty",
+  sessionOverviewMeta: "sessionOverviewMeta",
+  sessionOverviewAlert: "sessionOverviewAlert",
+  sessionOverviewRefresh: "sessionOverviewRefresh",
+  detachedTabsMeta: "detachedTabsMeta",
+  closeDetachedTabs: "closeDetachedTabs",
+  eventFeed: "eventFeed",
+  eventFeedCount: "eventFeedCount",
+  eventMeta: "eventMeta",
+  errorBanner: "errorBanner",
+  tabList: "tabList",
+  addTabBtn: "addTabBtn",
+  tabAddSlot: "tabAddSlot",
+  terminalHost: "terminalHost",
+  layout: "mainLayout",
+  drawerToggle: "drawerToggle",
+  drawerClose: "drawerClose",
+  drawerIndicator: "drawerIndicator",
+  detailsDrawer: "detailsDrawer",
+  drawerBackdrop: "drawerBackdrop",
+  tabContextMenu: "tabContextMenu",
+  tabContextForm: "tabContextForm",
+  tabContextName: "tabContextName",
+  tabContextColors: "tabContextColors",
+  tabContextCancel: "tabContextCancel",
+  tabContextReset: "tabContextReset",
+  tabContextBackdrop: "tabContextBackdrop",
+  signOutAllSessions: "signOutAllSessions",
+  aiCommandInput: "aiCommandInput",
+  aiGenerateBtn: "aiGenerateBtn",
+  composeBtn: "composeInputBtn",
+  composeDialog: "composeDialog",
+  composeBackdrop: "composeBackdrop",
+  composeForm: "composeForm",
+  composeClose: "composeClose",
+  composeCancel: "composeCancel",
+  composeTextarea: "composeTextarea",
+  composeAppendNewline: "composeAppendNewline",
+  composeCharCount: "composeCharCount",
+  composeSend: "composeSend",
+  idleTimeoutToggle: "idleTimeoutToggle",
+  idleTimeoutMinutes: "idleTimeoutMinutes",
+});
 
-export const shortcutButtons = Array.from(
-  document.querySelectorAll("[data-shortcut-id]"),
+export const elements = /** @type {Record<keyof typeof DOM_ELEMENT_IDS, HTMLElement | null>} */ (
+  Object.fromEntries(
+    Object.keys(DOM_ELEMENT_IDS).map((key) => [key, /** @type {HTMLElement | null} */ (null)]),
+  )
 );
+
+export const shortcutButtons = /** @type {HTMLButtonElement[]} */ ([]);
+
+/**
+ * Populate cached DOM references and shortcut button list using the provided document.
+ * Falls back to `globalThis.document` when available.
+ * @param {Document | null | undefined} [root]
+ * @returns {typeof elements}
+ */
+export function initializeDomElements(root) {
+  const doc = root || (typeof document !== "undefined" ? document : null);
+
+  if (!doc) {
+    Object.keys(DOM_ELEMENT_IDS).forEach((key) => {
+      elements[/** @type {keyof typeof DOM_ELEMENT_IDS} */ (key)] = null;
+    });
+    shortcutButtons.splice(0, shortcutButtons.length);
+    return elements;
+  }
+
+  Object.entries(DOM_ELEMENT_IDS).forEach(([key, id]) => {
+    const node = typeof doc.getElementById === "function" ? doc.getElementById(id) : null;
+    elements[/** @type {keyof typeof DOM_ELEMENT_IDS} */ (key)] = /** @type {HTMLElement | null} */ (node);
+  });
+
+  const shortcuts = typeof doc.querySelectorAll === "function"
+    ? /** @type {HTMLButtonElement[]} */ (
+        Array.from(doc.querySelectorAll("[data-shortcut-id]"))
+          .filter((node) => node instanceof HTMLButtonElement)
+      )
+    : [];
+  shortcutButtons.splice(0, shortcutButtons.length, ...shortcuts);
+
+  return elements;
+}
 
 export const debugFlags = (() => {
   if (typeof window === "undefined") {
@@ -204,8 +244,8 @@ export function initialSuppressedState() {
   };
 }
 
-export const state = {
-  tabs: [],
+export const state = /** @type {AppState} */ ({
+  tabs: /** @type {TerminalTab[]} */ ([]),
   activeTabId: null,
   bridge: null,
   workspaceSocket: null,
@@ -227,10 +267,10 @@ export const state = {
     appendNewline: true,
   },
   sessions: {
-    items: [],
+    items: /** @type {import("./types.d.ts").SessionOverviewItem[]} */ ([]),
     loading: false,
     lastFetched: 0,
-    error: null,
+    error: /** @type {Error | null} */ (null),
     pollHandle: null,
     refreshTimer: null,
     needsRefresh: false,
@@ -242,7 +282,7 @@ export const state = {
     updatingIdleTimeout: false,
     idleControlsInitialized: false,
   },
-};
+});
 
 let tabSequence = 0;
 

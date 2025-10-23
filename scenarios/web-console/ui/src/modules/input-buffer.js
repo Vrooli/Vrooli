@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import {
   INPUT_BATCH_MAX_CHARS,
   INPUT_CONTROL_FLUSH_PATTERN,

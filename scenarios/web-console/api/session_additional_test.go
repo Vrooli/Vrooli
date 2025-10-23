@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestSessionRespondCursorQuery(t *testing.T) {
@@ -47,18 +48,18 @@ func TestSessionHandleOutputBufferManagement(t *testing.T) {
 	transcriptBuf := &bytes.Buffer{}
 
 	s := &session{
-		ptyFile:          w,
-		metrics:          metrics,
-		termRows:         24,
-		termCols:         100,
-		outputBuffer:     make([]outputPayload, 0, 2),
-		maxBufferSize:    1,
-		maxBufferBytes:   8,
-		transcriptWriter: bufio.NewWriter(transcriptBuf),
-		clients:          make(map[*wsClient]struct{}),
-		readBuffer:       make([]byte, 0),
-		lastInputSeq:     make(map[string]uint64),
-		done:             make(chan struct{}),
+		ptyFile:      w,
+		metrics:      metrics,
+		termRows:     24,
+		termCols:     100,
+		replayBuffer: newOutputReplayBuffer(1, 8),
+		transcript: &transcriptManager{
+			writer: bufio.NewWriter(transcriptBuf),
+		},
+		clients:      newClientRegistry(),
+		readBuffer:   make([]byte, 0),
+		lastInputSeq: make(map[string]uint64),
+		done:         make(chan struct{}),
 	}
 
 	s.handleOutput([]byte("out1\x1b[6n"))
@@ -75,16 +76,13 @@ func TestSessionHandleOutputBufferManagement(t *testing.T) {
 	// Second chunk forces buffer trimming due to maxBufferSize=1
 	s.handleOutput([]byte("second"))
 
-	if err := s.transcriptWriter.Flush(); err != nil {
-		t.Fatalf("flush transcript: %v", err)
-	}
+	s.transcript.flush(true, time.Second, 0)
 
-	s.outputBufferMu.RLock()
-	defer s.outputBufferMu.RUnlock()
-	if len(s.outputBuffer) != 1 {
-		t.Fatalf("expected buffer length 1, got %d", len(s.outputBuffer))
+	entries, truncated := s.replayBuffer.snapshot()
+	if len(entries) != 1 {
+		t.Fatalf("expected buffer length 1, got %d", len(entries))
 	}
-	if !s.outputBufferDropped {
+	if !truncated {
 		t.Fatal("expected output buffer to mark dropped chunks")
 	}
 }

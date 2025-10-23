@@ -1,8 +1,20 @@
+/**
+ * @typedef {(message: any, emit: (type: string, payload: unknown) => void) => Promise<unknown> | unknown} BridgeHandler
+ */
+
+/**
+ * @param {Record<string, BridgeHandler>} handlers
+ * @returns {import("./types.d.ts").IframeBridge}
+ */
 export function initializeIframeBridge(handlers) {
   const CHANNEL = "web-console";
   const hasParent =
     typeof window !== "undefined" && window.parent && window.parent !== window;
 
+  /**
+   * @param {string} type
+   * @param {unknown} payload
+   */
   const emit = (type, payload) => {
     if (!hasParent) {
       return;

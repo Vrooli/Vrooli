@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 /**
  * Event feed management – logging, transcript tracking, and rendering helpers.
  */
@@ -54,6 +56,9 @@ function trimTranscript(tab) {
   }
 }
 
+/**
+ * @param {{ onActiveTabMutation?: (reason: string) => void }} [options]
+ */
 export function configureEventFeed({ onActiveTabMutation } = {}) {
   activeTabMutationHandler =
     typeof onActiveTabMutation === "function" ? onActiveTabMutation : null;
