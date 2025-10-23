@@ -1,24 +1,31 @@
 package server
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
+
+	"app-issue-tracker-api/internal/agents"
+	"app-issue-tracker-api/internal/logging"
+	"app-issue-tracker-api/internal/server/handlers"
+	services "app-issue-tracker-api/internal/server/services"
 )
+
+const maxInvestigationPayloadBytes int64 = 1 << 20 // 1 MiB
 
 // previewInvestigationPromptHandler generates an investigation prompt preview
 func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *http.Request) {
 	var req PromptPreviewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := handlers.DecodeJSON(r, &req, maxInvestigationPayloadBytes); err != nil {
+		handlers.WriteDecodeError(w, err)
 		return
 	}
 
 	agentID := strings.TrimSpace(req.AgentID)
 	if agentID == "" {
-		agentID = "unified-resolver"
+		agentID = agents.UnifiedResolverID
 	}
 
 	var (
@@ -35,25 +42,25 @@ func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *htt
 	} else {
 		issueID := strings.TrimSpace(req.IssueID)
 		if issueID == "" {
-			http.Error(w, "Issue data is required", http.StatusBadRequest)
+			handlers.WriteError(w, http.StatusBadRequest, "Issue data is required")
 			return
 		}
 		var loadErr error
 		issue, issueDir, _, loadErr = s.loadIssueWithStatus(issueID)
 		if loadErr != nil {
-			if strings.Contains(loadErr.Error(), "issue not found") {
-				http.Error(w, "Issue not found", http.StatusNotFound)
+			if errors.Is(loadErr, services.ErrIssueNotFound) {
+				handlers.WriteError(w, http.StatusNotFound, "Issue not found")
 				return
 			}
-			LogErrorErr("Failed to load issue for prompt preview", loadErr, "issue_id", issueID)
-			http.Error(w, "Failed to load issue", http.StatusInternalServerError)
+			logging.LogErrorErr("Failed to load issue for prompt preview", loadErr, "issue_id", issueID)
+			handlers.WriteError(w, http.StatusInternalServerError, "Failed to load issue")
 			return
 		}
 		source = "issue_directory"
 	}
 
 	if issue == nil {
-		http.Error(w, "Issue data is required", http.StatusBadRequest)
+		handlers.WriteError(w, http.StatusBadRequest, "Issue data is required")
 		return
 	}
 
@@ -88,9 +95,8 @@ func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *htt
 		resp.ErrorMessage = msg
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		LogErrorErr("Failed to encode prompt preview response", err, "issue_id", resp.IssueID)
+	if err := handlers.WriteJSON(w, http.StatusOK, resp); err != nil {
+		logging.LogErrorErr("Failed to encode prompt preview response", err, "issue_id", resp.IssueID)
 	}
 }
 
@@ -104,14 +110,14 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		Force       bool   `json:"force"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := handlers.DecodeJSON(r, &req, maxInvestigationPayloadBytes); err != nil {
+		handlers.WriteDecodeError(w, err)
 		return
 	}
 
 	issueID := strings.TrimSpace(req.IssueID)
 	if issueID == "" {
-		http.Error(w, "Issue ID is required", http.StatusBadRequest)
+		handlers.WriteError(w, http.StatusBadRequest, "Issue ID is required")
 		return
 	}
 
@@ -122,12 +128,12 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 
 	agentID := strings.TrimSpace(req.AgentID)
 	if agentID == "" {
-		agentID = "unified-resolver"
+		agentID = agents.UnifiedResolverID
 	}
 
 	if !req.Force {
 		if s.processor.IsRunning(issueID) {
-			http.Error(w, "Agent is already running for the specified issue", http.StatusConflict)
+			handlers.WriteError(w, http.StatusConflict, "Agent is already running for the specified issue")
 			return
 		}
 
@@ -136,20 +142,16 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		if slots > 0 {
 			running := len(s.processor.RunningProcesses())
 			if running >= slots {
-				http.Error(
-					w,
-					fmt.Sprintf("Concurrent slot limit (%d) reached. Try again later or enable force.", slots),
-					http.StatusTooManyRequests,
-				)
+				handlers.WriteError(w, http.StatusTooManyRequests, fmt.Sprintf("Concurrent slot limit (%d) reached. Try again later or enable force.", slots))
 				return
 			}
 		}
 	}
 
 	// Use the reusable triggerInvestigation method
-	if err := s.triggerInvestigation(issueID, agentID, autoResolve); err != nil {
-		LogErrorErr("Failed to trigger investigation", err, "issue_id", issueID, "agent_id", agentID)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err := s.TriggerInvestigation(issueID, agentID, autoResolve); err != nil {
+		logging.LogErrorErr("Failed to trigger investigation", err, "issue_id", issueID, "agent_id", agentID)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to trigger investigation", err.Error())
 		return
 	}
 
@@ -170,6 +172,7 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
+		logging.LogErrorErr("Failed to write investigation response", err, "issue_id", issueID)
+	}
 }

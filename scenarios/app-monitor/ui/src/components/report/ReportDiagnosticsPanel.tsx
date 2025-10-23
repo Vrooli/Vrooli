@@ -308,18 +308,24 @@ const ReportDiagnosticsPanel = ({ diagnostics }: ReportDiagnosticsPanelProps) =>
               Scanned {diagnosticsScannedFileCount} file{diagnosticsScannedFileCount === 1 ? '' : 's'} and found no violations.
             </p>
           )}
+        </div>
+      )}
 
-          {showDiagnosticsSetDescription && (
-            <div className="report-dialog__bridge-actions">
-              <button
-                type="button"
-                className="report-dialog__button report-dialog__button--ghost"
-                onClick={handleApplyDiagnosticsDescription}
-              >
-                Use details in description
-              </button>
-            </div>
+      {showDiagnosticsSetDescription && (
+        <div
+          className={clsx(
+            'report-dialog__bridge-actions',
+            'report-dialog__bridge-actions--description',
+            isCollapsed && 'report-dialog__bridge-actions--collapsed',
           )}
+        >
+          <button
+            type="button"
+            className="report-dialog__button report-dialog__button--ghost report-dialog__button--compact"
+            onClick={handleApplyDiagnosticsDescription}
+          >
+            Use details in description
+          </button>
         </div>
       )}
     </div>

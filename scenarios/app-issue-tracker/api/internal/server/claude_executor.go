@@ -14,7 +14,129 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"app-issue-tracker-api/internal/logging"
 )
+
+type commandOptions struct {
+	Dir   string
+	Env   []string
+	Stdin io.Reader
+}
+
+type agentCommand interface {
+	StdoutPipe() (io.ReadCloser, error)
+	StderrPipe() (io.ReadCloser, error)
+	Start() error
+	Wait() error
+	Kill() error
+	Process() *os.Process
+}
+
+type execAgentCommand struct {
+	cmd *exec.Cmd
+}
+
+func (c *execAgentCommand) StdoutPipe() (io.ReadCloser, error) {
+	return c.cmd.StdoutPipe()
+}
+
+func (c *execAgentCommand) StderrPipe() (io.ReadCloser, error) {
+	return c.cmd.StderrPipe()
+}
+
+func (c *execAgentCommand) Start() error {
+	return c.cmd.Start()
+}
+
+func (c *execAgentCommand) Wait() error {
+	return c.cmd.Wait()
+}
+
+func (c *execAgentCommand) Kill() error {
+	if c.cmd.Process == nil {
+		return nil
+	}
+	return c.cmd.Process.Kill()
+}
+
+func (c *execAgentCommand) Process() *os.Process {
+	return c.cmd.Process
+}
+
+type commandFactory func(ctx context.Context, name string, args []string, opts commandOptions) (agentCommand, error)
+
+func defaultCommandFactory(ctx context.Context, name string, args []string, opts commandOptions) (agentCommand, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = opts.Dir
+	cmd.Env = opts.Env
+	cmd.Stdin = opts.Stdin
+	return &execAgentCommand{cmd: cmd}, nil
+}
+
+func buildAgentCommandArgs(rawParts []string, issueID string) (string, []string) {
+	agentTag := fmt.Sprintf("app-issue-tracker-%s", issueID)
+	parts := rawParts
+	if len(parts) == 0 {
+		parts = []string{"run", "--tag", "{{TAG}}", "-"}
+	}
+
+	args := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "{{TAG}}" {
+			args = append(args, agentTag)
+			continue
+		}
+		args = append(args, part)
+	}
+
+	return agentTag, args
+}
+
+func buildClaudeEnvironment(base []string, settings AgentSettings, agentTag, transcriptFile, lastMessageFile string, timeoutSeconds int) []string {
+	skipPermissionsValue := "no"
+	if settings.SkipPermissions {
+		skipPermissionsValue = "yes"
+	}
+	codexSkipValue := "false"
+	codexSkipConfirm := "false"
+	if settings.SkipPermissions {
+		codexSkipValue = "true"
+		codexSkipConfirm = "true"
+	}
+
+	env := append([]string{}, base...)
+	env = append(env,
+		"MAX_TURNS="+strconv.Itoa(settings.MaxTurns),
+		"ALLOWED_TOOLS="+settings.AllowedTools,
+		"TIMEOUT="+strconv.Itoa(timeoutSeconds),
+		"SKIP_PERMISSIONS="+skipPermissionsValue,
+		"AGENT_TAG="+agentTag,
+		"CODEX_MAX_TURNS="+strconv.Itoa(settings.MaxTurns),
+		"CODEX_ALLOWED_TOOLS="+settings.AllowedTools,
+		"CODEX_TIMEOUT="+strconv.Itoa(timeoutSeconds),
+		"CODEX_SKIP_PERMISSIONS="+codexSkipValue,
+		"CODEX_SKIP_CONFIRMATIONS="+codexSkipConfirm,
+		"CODEX_AGENT_TAG="+agentTag,
+		"CODEX_TRANSCRIPT_FILE="+transcriptFile,
+		"CODEX_LAST_MESSAGE_FILE="+lastMessageFile,
+	)
+	return env
+}
+
+func createTranscriptPaths(root, agentTag string, now func() time.Time) (string, string, error) {
+	transcriptDir := filepath.Join(root, "tmp", "codex")
+	if err := os.MkdirAll(transcriptDir, 0o755); err != nil {
+		return "", "", err
+	}
+
+	fileSafeTag := sanitizeForFilename(agentTag)
+	timestamp := now().UnixNano()
+	baseName := fmt.Sprintf("%s-%d", fileSafeTag, timestamp)
+	transcriptFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-conversation.jsonl", baseName))
+	lastMessageFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-last.txt", baseName))
+	return transcriptFile, lastMessageFile, nil
+}
 
 // ClaudeExecutionResult contains the result of Claude Code execution
 type ClaudeExecutionResult struct {
@@ -35,94 +157,52 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	settings := GetAgentSettings()
 	const idleTimeout = 10 * time.Minute
 
-	LogInfo(
+	logging.LogInfo(
 		"Executing Claude Code",
 		"issue_id", issueID,
 		"prompt_length", len(prompt),
 		"timeout", timeoutDuration,
 	)
 
-	// Create agent tag for tracking
-	agentTag := fmt.Sprintf("app-issue-tracker-%s", issueID)
+	agentTag, args := buildAgentCommandArgs(settings.Command, issueID)
 
-	commandParts := settings.Command
-	if len(commandParts) == 0 {
-		commandParts = []string{"run", "--tag", "{{TAG}}", "-"}
-	}
-
-	args := make([]string, 0, len(commandParts))
-	for _, part := range commandParts {
-		if part == "{{TAG}}" {
-			args = append(args, agentTag)
-			continue
-		}
-		args = append(args, part)
-	}
-
-	LogDebug(
+	logging.LogDebug(
 		"Prepared agent CLI command",
 		"command", settings.CLICommand,
 		"arguments", strings.Join(args, " "),
 	)
 
-	// Build command with context timeout
-	cmd := exec.CommandContext(ctx, settings.CLICommand, args...)
-	cmd.Dir = s.config.ScenarioRoot
-
-	transcriptDir := filepath.Join(s.config.ScenarioRoot, "tmp", "codex")
-	if err := os.MkdirAll(transcriptDir, 0o755); err != nil {
-		return &ClaudeExecutionResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create Codex transcript directory: %v", err),
-		}, err
-	}
-
-	fileSafeTag := sanitizeForFilename(agentTag)
-	timestamp := time.Now().UnixNano()
-	transcriptFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-%d-conversation.jsonl", fileSafeTag, timestamp))
-	lastMessageFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-%d-last.txt", fileSafeTag, timestamp))
-
-	// Set environment variables (ecosystem-manager pattern)
-	skipPermissionsValue := "no"
-	if settings.SkipPermissions {
-		skipPermissionsValue = "yes"
-	}
-	codexSkipValue := "false"
-	codexSkipConfirm := "false"
-	if settings.SkipPermissions {
-		codexSkipValue = "true"
-		codexSkipConfirm = "true"
+	transcriptFile, lastMessageFile, pathErr := createTranscriptPaths(s.config.ScenarioRoot, agentTag, time.Now)
+	if pathErr != nil {
+		err := fmt.Errorf("failed to create Codex transcript directory: %w", pathErr)
+		return &ClaudeExecutionResult{Success: false, Error: err.Error()}, err
 	}
 
 	timeoutSeconds := int(timeoutDuration.Seconds())
-	env := append([]string{}, os.Environ()...)
-	env = append(env,
-		"MAX_TURNS="+strconv.Itoa(settings.MaxTurns),
-		"ALLOWED_TOOLS="+settings.AllowedTools,
-		"TIMEOUT="+strconv.Itoa(timeoutSeconds),
-		"SKIP_PERMISSIONS="+skipPermissionsValue,
-		"AGENT_TAG="+agentTag,
-		"CODEX_MAX_TURNS="+strconv.Itoa(settings.MaxTurns),
-		"CODEX_ALLOWED_TOOLS="+settings.AllowedTools,
-		"CODEX_TIMEOUT="+strconv.Itoa(timeoutSeconds),
-		"CODEX_SKIP_PERMISSIONS="+codexSkipValue,
-		"CODEX_SKIP_CONFIRMATIONS="+codexSkipConfirm,
-		"CODEX_AGENT_TAG="+agentTag,
-		"CODEX_TRANSCRIPT_FILE="+transcriptFile,
-		"CODEX_LAST_MESSAGE_FILE="+lastMessageFile,
-	)
-	cmd.Env = env
+	env := buildClaudeEnvironment(os.Environ(), settings, agentTag, transcriptFile, lastMessageFile, timeoutSeconds)
 
-	LogInfo(
+	cmd, cmdErr := s.commandFactory(ctx, settings.CLICommand, args, commandOptions{
+		Dir:   s.config.ScenarioRoot,
+		Env:   env,
+		Stdin: strings.NewReader(prompt),
+	})
+	if cmdErr != nil {
+		err := fmt.Errorf("failed to construct Claude command: %w", cmdErr)
+		return &ClaudeExecutionResult{
+			Success:         false,
+			Error:           err.Error(),
+			TranscriptPath:  transcriptFile,
+			LastMessagePath: lastMessageFile,
+		}, err
+	}
+
+	logging.LogInfo(
 		"Claude execution settings applied",
 		"max_turns", settings.MaxTurns,
 		"allowed_tools", settings.AllowedTools,
 		"skip_permissions", settings.SkipPermissions,
 		"timeout_seconds", timeoutSeconds,
 	)
-
-	// Pipe prompt via stdin
-	cmd.Stdin = strings.NewReader(prompt)
 
 	// Set up stdout/stderr pipes for streaming
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -155,7 +235,11 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		}, err
 	}
 
-	LogInfo("Claude Code agent started", "agent_tag", agentTag, "pid", cmd.Process.Pid)
+	if proc := cmd.Process(); proc != nil {
+		logging.LogInfo("Claude Code agent started", "agent_tag", agentTag, "pid", proc.Pid)
+	} else {
+		logging.LogInfo("Claude Code agent started", "agent_tag", agentTag, "pid", 0)
+	}
 
 	// Stream output (like ecosystem-manager)
 	var stdoutBuilder, stderrBuilder, combinedBuilder strings.Builder
@@ -181,19 +265,17 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 					last := time.Unix(0, atomic.LoadInt64(&lastActivity))
 					if time.Since(last) >= idleTimeout {
 						idleTriggered.Store(true)
-						LogWarn(
+						logging.LogWarn(
 							"Idle timeout detected for Claude agent",
 							"issue_id", issueID,
 							"idle_timeout", idleTimeout,
 						)
-						if cmd.Process != nil {
-							if err := cmd.Process.Kill(); err != nil {
-								LogWarn(
-									"Failed to terminate idle Claude agent",
-									"issue_id", issueID,
-									"error", err,
-								)
-							}
+						if err := cmd.Kill(); err != nil {
+							logging.LogWarn(
+								"Failed to terminate idle Claude agent",
+								"issue_id", issueID,
+								"error", err,
+							)
 						}
 						return
 					}
@@ -228,7 +310,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			combinedMu.Unlock()
 		}
 		if scanErr := scanner.Err(); scanErr != nil && scanErr != io.EOF {
-			LogWarn("Failed to read agent stream", "stream", stream, "issue_id", issueID, "error", scanErr)
+			logging.LogWarn("Failed to read agent stream", "stream", stream, "issue_id", issueID, "error", scanErr)
 		}
 	}
 
@@ -290,7 +372,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	// Check for timeout (CRITICAL: ecosystem-manager pattern)
 	// Timeout takes precedence regardless of wait error
 	if ctxErr == context.DeadlineExceeded {
-		LogWarn(
+		logging.LogWarn(
 			"Claude Code execution timed out",
 			"issue_id", issueID,
 			"timeout", timeoutDuration,
@@ -311,7 +393,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 
 	// Check for max turns exceeded
 	if detectMaxTurnsExceeded(combinedOutput) {
-		LogWarn(
+		logging.LogWarn(
 			"Claude max turns limit reached",
 			"issue_id", issueID,
 			"max_turns", settings.MaxTurns,
@@ -339,7 +421,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		strings.Contains(lowerOutput, "429") ||
 		strings.Contains(lowerOutput, "too many requests") ||
 		strings.Contains(lowerOutput, "quota exceeded") {
-		LogWarn("Rate limit detected during Claude execution", "issue_id", issueID)
+		logging.LogWarn("Rate limit detected during Claude execution", "issue_id", issueID)
 		// Note: Rate limit handling will be done by caller
 		result := &ClaudeExecutionResult{
 			Success:         false,
@@ -381,7 +463,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		}
 
 		if hasValidReport {
-			LogInfo(
+			logging.LogInfo(
 				"Agent produced structured output despite non-zero exit",
 				"issue_id", issueID,
 				"exit_code", exitCode,
@@ -400,7 +482,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		}
 
 		// Real failure - no valid output
-		LogError(
+		logging.LogError(
 			"Claude Code execution failed",
 			"issue_id", issueID,
 			"exit_code", exitCode,
@@ -420,7 +502,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	}
 
 	// Success case
-	LogInfo(
+	logging.LogInfo(
 		"Claude Code execution completed",
 		"issue_id", issueID,
 		"output_length", len(combinedOutput),
@@ -455,11 +537,11 @@ func (s *Server) completeClaudeResult(result *ClaudeExecutionResult, transcriptF
 	}
 
 	if err := ensureLastMessageFile(lastMessageFile, result.LastMessage); err != nil {
-		LogWarn("Failed to persist last message fallback", "path", lastMessageFile, "error", err)
+		logging.LogWarn("Failed to persist last message fallback", "path", lastMessageFile, "error", err)
 	}
 
 	if err := ensureTranscriptFile(transcriptFile, prompt, result.LastMessage, combinedOutput, settings); err != nil {
-		LogWarn("Failed to persist transcript fallback", "path", transcriptFile, "error", err)
+		logging.LogWarn("Failed to persist transcript fallback", "path", transcriptFile, "error", err)
 	}
 
 	return result

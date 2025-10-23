@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"app-issue-tracker-api/internal/server/metadata"
 )
 
 func newTestServer(t *testing.T) *Server {
@@ -371,8 +373,8 @@ func TestGetIssueAgentConversationHandler(t *testing.T) {
 		t.Fatalf("failed to write last message: %v", err)
 	}
 
-	issue.Metadata.Extra["agent_transcript_path"] = transcriptPath
-	issue.Metadata.Extra["agent_last_message_path"] = lastMessagePath
+	issue.Metadata.Extra[metadata.AgentTranscriptPathKey] = transcriptPath
+	issue.Metadata.Extra[metadata.AgentLastMessagePathKey] = lastMessagePath
 	issue.Investigation.AgentID = "codex"
 
 	if _, err := server.saveIssue(issue, "completed"); err != nil {

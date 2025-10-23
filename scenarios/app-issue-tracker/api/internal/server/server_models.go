@@ -1,6 +1,9 @@
 package server
 
-import issuespkg "app-issue-tracker-api/internal/issues"
+import (
+	automationpkg "app-issue-tracker-api/internal/automation"
+	issuespkg "app-issue-tracker-api/internal/issues"
+)
 
 const (
 	metadataFilename = issuespkg.MetadataFilename
@@ -45,38 +48,27 @@ func cloneStringMap(values map[string]string) map[string]string {
 }
 
 type Config struct {
-	Port         string
-	QdrantURL    string
-	IssuesDir    string
-	ScenarioRoot string
+	Port                    string
+	QdrantURL               string
+	IssuesDir               string
+	ScenarioRoot            string
+	WebsocketAllowedOrigins []string
 }
 
 const (
-	AgentStatusRunning    = "running"
-	AgentStatusCancelling = "cancelling"
-	AgentStatusCompleted  = "completed"
-	AgentStatusFailed     = "failed"
-	AgentStatusCancelled  = "cancelled"
+	AgentStatusRunning    = automationpkg.AgentStatusRunning
+	AgentStatusCancelling = automationpkg.AgentStatusCancelling
+	AgentStatusCompleted  = automationpkg.AgentStatusCompleted
+	AgentStatusFailed     = automationpkg.AgentStatusFailed
+	AgentStatusCancelled  = automationpkg.AgentStatusCancelled
 
-	AgentStatusExtraKey          = "agent_last_status"
-	AgentStatusTimestampExtraKey = "agent_last_status_at"
+	AgentStatusExtraKey          = automationpkg.AgentStatusExtraKey
+	AgentStatusTimestampExtraKey = automationpkg.AgentStatusTimestampExtraKey
 )
 
-type ProcessorState struct {
-	Active            bool `json:"active"`
-	ConcurrentSlots   int  `json:"concurrent_slots"`
-	RefreshInterval   int  `json:"refresh_interval"`
-	CurrentlyRunning  int  `json:"currently_running"`
-	MaxIssues         int  `json:"max_issues"`
-	MaxIssuesDisabled bool `json:"max_issues_disabled"`
-}
+type ProcessorState = automationpkg.ProcessorState
 
-type RunningProcess struct {
-	IssueID   string `json:"issue_id"`
-	AgentID   string `json:"agent_id"`
-	StartTime string `json:"start_time"`
-	Status    string `json:"status,omitempty"`
-}
+type RunningProcess = automationpkg.RunningProcess
 
 type ApiResponse struct {
 	Success bool        `json:"success"`

@@ -2,10 +2,14 @@ package server
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"app-issue-tracker-api/internal/logging"
 )
 
 const (
@@ -21,6 +25,76 @@ const (
 	// Maximum message size allowed from peer
 	maxMessageSize = 512
 )
+
+type originAllowlist struct {
+	allowAll bool
+	values   map[string]struct{}
+}
+
+func newOriginAllowlist(origins []string) originAllowlist {
+	allowlist := originAllowlist{values: make(map[string]struct{})}
+	for _, origin := range origins {
+		trimmed := strings.TrimSpace(origin)
+		if trimmed == "" {
+			continue
+		}
+		if trimmed == "*" {
+			allowlist.allowAll = true
+			return allowlist
+		}
+		lower := strings.ToLower(trimmed)
+		allowlist.values[lower] = struct{}{}
+		if parsed, err := url.Parse(trimmed); err == nil && parsed.Host != "" {
+			allowlist.values[strings.ToLower(parsed.Host)] = struct{}{}
+		}
+	}
+	return allowlist
+}
+
+func (o originAllowlist) contains(value string) bool {
+	if o.allowAll {
+		return true
+	}
+	if len(o.values) == 0 {
+		return false
+	}
+	if _, ok := o.values[strings.ToLower(strings.TrimSpace(value))]; ok {
+		return true
+	}
+	return false
+}
+
+func newWebSocketUpgrader(cfg *Config) websocket.Upgrader {
+	allowlist := newOriginAllowlist(cfg.WebsocketAllowedOrigins)
+	return websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			origin := strings.TrimSpace(r.Header.Get("Origin"))
+			if origin == "" {
+				return true
+			}
+			if allowlist.allowAll {
+				return true
+			}
+			parsed, err := url.Parse(origin)
+			if err != nil {
+				logging.LogWarn("Rejected websocket connection due to invalid origin", "origin", origin, "error", err)
+				return false
+			}
+			host := strings.ToLower(parsed.Host)
+			requestHost := strings.ToLower(r.Host)
+			if host == requestHost {
+				return true
+			}
+			if allowlist.contains(origin) || allowlist.contains(host) {
+				return true
+			}
+			logging.LogWarn("Rejected websocket connection due to disallowed origin", "origin", origin, "request_host", r.Host)
+			return false
+		},
+	}
+}
 
 // Hub maintains the set of active clients and broadcasts events to them
 type Hub struct {
@@ -38,6 +112,10 @@ type Hub struct {
 
 	// Mutex for thread-safe operations
 	mu sync.RWMutex
+
+	stop     chan struct{}
+	done     chan struct{}
+	stopOnce sync.Once
 }
 
 // NewHub creates a new Hub instance
@@ -47,11 +125,14 @@ func NewHub() *Hub {
 		broadcast:  make(chan Event, 256),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
+		stop:       make(chan struct{}),
+		done:       make(chan struct{}),
 	}
 }
 
 // Run starts the hub's main loop
 func (h *Hub) Run() {
+	defer close(h.done)
 	for {
 		select {
 		case client := <-h.register:
@@ -59,7 +140,7 @@ func (h *Hub) Run() {
 			h.clients[client] = true
 			current := len(h.clients)
 			h.mu.Unlock()
-			LogInfo("WebSocket client registered", "clients", current)
+			logging.LogInfo("WebSocket client registered", "clients", current)
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -69,7 +150,7 @@ func (h *Hub) Run() {
 			}
 			current := len(h.clients)
 			h.mu.Unlock()
-			LogInfo("WebSocket client unregistered", "clients", current)
+			logging.LogInfo("WebSocket client unregistered", "clients", current)
 
 		case event := <-h.broadcast:
 			h.mu.RLock()
@@ -83,7 +164,7 @@ func (h *Hub) Run() {
 			// Serialize event once
 			message, err := event.ToJSON()
 			if err != nil {
-				LogErrorErr("Failed to serialize websocket event", err, "event_type", event.Type)
+				logging.LogErrorErr("Failed to serialize websocket event", err, "event_type", event.Type)
 				continue
 			}
 
@@ -98,22 +179,46 @@ func (h *Hub) Run() {
 					delete(h.clients, client)
 					h.mu.Unlock()
 					h.mu.RLock()
-					LogWarn("WebSocket client send buffer full - disconnecting")
+					logging.LogWarn("WebSocket client send buffer full - disconnecting")
 				}
 			}
 			h.mu.RUnlock()
+
+		case <-h.stop:
+			h.disconnectAll()
+			return
 		}
+	}
+}
+
+func (h *Hub) disconnectAll() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for client := range h.clients {
+		close(client.send)
+		delete(h.clients, client)
 	}
 }
 
 // Publish sends an event to all connected clients
 func (h *Hub) Publish(event Event) {
 	select {
+	case <-h.stop:
+		logging.LogWarn("WebSocket hub shutting down; dropping event", "event_type", event.Type)
+		return
 	case h.broadcast <- event:
-		LogDebug("Queued websocket event", "event_type", event.Type)
+		logging.LogDebug("Queued websocket event", "event_type", event.Type)
 	default:
-		LogWarn("Websocket broadcast channel full", "event_type", event.Type)
+		logging.LogWarn("Websocket broadcast channel full", "event_type", event.Type)
 	}
+}
+
+// Shutdown signals the hub to stop and waits for cleanup to finish.
+func (h *Hub) Shutdown() {
+	h.stopOnce.Do(func() {
+		close(h.stop)
+	})
+	<-h.done
 }
 
 // Client represents a WebSocket client connection
@@ -147,7 +252,7 @@ func (c *Client) readPump() {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				LogWarn("Unexpected websocket close", "error", err)
+				logging.LogWarn("Unexpected websocket close", "error", err)
 			}
 			break
 		}
@@ -198,20 +303,11 @@ func (c *Client) writePump() {
 	}
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins for now (can be restricted in production)
-		return true
-	},
-}
-
 // handleWebSocket handles WebSocket upgrade requests
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := s.wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		LogErrorErr("Websocket upgrade failed", err)
+		logging.LogErrorErr("Websocket upgrade failed", err)
 		return
 	}
 

@@ -1,6 +1,15 @@
 package server
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+	"sync"
+
+	"github.com/gorilla/websocket"
+
+	"app-issue-tracker-api/internal/automation"
+	"app-issue-tracker-api/internal/server/services"
+)
 
 type Option func(*Server)
 
@@ -16,15 +25,72 @@ func WithHub(h *Hub) Option {
 	}
 }
 
+func WithCommandFactory(factory commandFactory) Option {
+	return func(s *Server) {
+		s.commandFactory = factory
+	}
+}
+
 type Server struct {
-	config    *Config
-	store     IssueStorage
-	processor *AutomationProcessor
-	hub       *Hub
+	config         *Config
+	store          IssueStorage
+	processor      *automation.Processor
+	hub            *Hub
+	issues         *services.IssueService
+	investigations *InvestigationService
+	content        *IssueContentService
+	commandFactory commandFactory
+	startOnce      sync.Once
+	stopOnce       sync.Once
+	stopMu         sync.Mutex
+	stopCtx        context.CancelFunc
+	started        bool
+	wsUpgrader     websocket.Upgrader
 }
 
 func (s *Server) Config() *Config {
 	return s.config
+}
+
+func (s *Server) storeIssueArtifacts(issue *Issue, issueDir string, payloads []ArtifactPayload, replaceExisting bool) error {
+	return s.issues.StoreArtifacts(issue, issueDir, payloads, replaceExisting)
+}
+
+func (s *Server) Start() {
+	s.startOnce.Do(func() {
+		if s.hub != nil {
+			go s.hub.Run()
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		s.stopMu.Lock()
+		s.stopCtx = cancel
+		s.started = true
+		s.stopMu.Unlock()
+
+		s.processor.Start(ctx)
+	})
+}
+
+func (s *Server) Stop() {
+	s.stopOnce.Do(func() {
+		s.stopMu.Lock()
+		cancel := s.stopCtx
+		s.stopCtx = nil
+		started := s.started
+		s.stopMu.Unlock()
+
+		if cancel != nil {
+			cancel()
+		}
+
+		if started && s.processor != nil {
+			s.processor.Stop()
+		}
+		if started && s.hub != nil {
+			s.hub.Shutdown()
+		}
+	})
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -60,6 +126,12 @@ func (s *Server) ensureHub() bool {
 		return true
 	}
 	return false
+}
+
+func (s *Server) ensureCommandFactory() {
+	if s.commandFactory == nil {
+		s.commandFactory = defaultCommandFactory
+	}
 }
 
 func (s *Server) ensureStore(defaultIssuesDir string) bool {

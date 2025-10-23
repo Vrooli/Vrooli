@@ -1,6 +1,3 @@
-//go:build testing
-// +build testing
-
 package server
 
 import (
@@ -35,27 +32,35 @@ func NewTestScenarioBuilder() *TestScenarioBuilder {
 
 // AddInvalidIssueID adds a test for invalid issue ID format
 func (b *TestScenarioBuilder) AddInvalidIssueID(method, path string) *TestScenarioBuilder {
-	b.scenarios = append(b.scenarios, TestScenario{
+	scenario := TestScenario{
 		Name:           "Invalid Issue ID",
 		Method:         method,
 		Path:           path,
 		URLVars:        map[string]string{"id": "not-a-valid-id"},
 		ExpectedStatus: http.StatusNotFound,
 		ExpectedError:  "",
-	})
+	}
+	if method == http.MethodPut || method == http.MethodPatch {
+		scenario.Body = map[string]interface{}{"title": "Updated"}
+	}
+	b.scenarios = append(b.scenarios, scenario)
 	return b
 }
 
 // AddNonExistentIssue adds a test for non-existent issue
 func (b *TestScenarioBuilder) AddNonExistentIssue(method, path string) *TestScenarioBuilder {
-	b.scenarios = append(b.scenarios, TestScenario{
+	scenario := TestScenario{
 		Name:           "Non-Existent Issue",
 		Method:         method,
 		Path:           path,
 		URLVars:        map[string]string{"id": "issue-nonexistent"},
 		ExpectedStatus: http.StatusNotFound,
 		ExpectedError:  "",
-	})
+	}
+	if method == http.MethodPut || method == http.MethodPatch {
+		scenario.Body = map[string]interface{}{"title": "Updated"}
+	}
+	b.scenarios = append(b.scenarios, scenario)
 	return b
 }
 

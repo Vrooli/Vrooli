@@ -3,6 +3,8 @@ package server
 import (
 	"testing"
 	"time"
+
+	"app-issue-tracker-api/internal/agents"
 )
 
 func TestPersistInvestigationStartSetsRunningStatus(t *testing.T) {
@@ -29,7 +31,7 @@ func TestPersistInvestigationStartSetsRunningStatus(t *testing.T) {
 	}
 
 	startedAt := time.Now().UTC().Format(time.RFC3339)
-	if err := env.Server.persistInvestigationStart(loadedIssue, issueDir, "unified-resolver", startedAt); err != nil {
+	if err := env.Server.persistInvestigationStart(loadedIssue, issueDir, agents.UnifiedResolverID, startedAt); err != nil {
 		t.Fatalf("persistInvestigationStart failed: %v", err)
 	}
 

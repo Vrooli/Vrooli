@@ -1,6 +1,3 @@
-//go:build testing
-// +build testing
-
 package server
 
 import (
@@ -253,7 +250,7 @@ func TestStoreIssueArtifactsReplace(t *testing.T) {
 	defer env.Cleanup()
 
 	issue := createTestIssue("artifact-replace", "Artifact Replace", "bug", "high", "artifact-app")
-	issueDir, err := env.Server.saveIssue(tissue, "open")
+	issueDir, err := env.Server.saveIssue(issue, "open")
 	if err != nil {
 		t.Fatalf("Failed to save issue: %v", err)
 	}
@@ -275,16 +272,16 @@ func TestStoreIssueArtifactsReplace(t *testing.T) {
 		},
 	}
 
-	if err := env.Server.storeIssueArtifacts(tissue, tissueDir, payloads, true); err != nil {
+	if err := env.Server.storeIssueArtifacts(issue, issueDir, payloads, true); err != nil {
 		t.Fatalf("storeIssueArtifacts failed: %v", err)
 	}
 
-	if len(tissue.Attachments) != len(payloads) {
-		t.Fatalf("expected %d attachments, got %d", len(payloads), len(tissue.Attachments))
+	if len(issue.Attachments) != len(payloads) {
+		t.Fatalf("expected %d attachments, got %d", len(payloads), len(issue.Attachments))
 	}
 
-	for idx, att := range tissue.Attachments {
-		path := filepath.Join(tissueDir, filepath.FromSlash(att.Path))
+	for idx, att := range issue.Attachments {
+		path := filepath.Join(issueDir, filepath.FromSlash(att.Path))
 		data, readErr := os.ReadFile(path)
 		if readErr != nil {
 			t.Fatalf("failed to read artifact %s: %v", att.Path, readErr)
@@ -303,7 +300,7 @@ func TestStoreIssueArtifactsAppend(t *testing.T) {
 	defer env.Cleanup()
 
 	issue := createTestIssue("artifact-append", "Artifact Append", "bug", "high", "artifact-app")
-	issueDir, err := env.Server.saveIssue(tissue, "open")
+	issueDir, err := env.Server.saveIssue(issue, "open")
 	if err != nil {
 		t.Fatalf("Failed to save issue: %v", err)
 	}
@@ -314,7 +311,7 @@ func TestStoreIssueArtifactsAppend(t *testing.T) {
 		Encoding:    "plain",
 		ContentType: "text/plain",
 	}}
-	if err := env.Server.storeIssueArtifacts(tissue, tissueDir, initialPayload, true); err != nil {
+	if err := env.Server.storeIssueArtifacts(issue, issueDir, initialPayload, true); err != nil {
 		t.Fatalf("initial artifact store failed: %v", err)
 	}
 
@@ -325,20 +322,20 @@ func TestStoreIssueArtifactsAppend(t *testing.T) {
 		ContentType: "text/plain",
 		Category:    "additional",
 	}}
-	if err := env.Server.storeIssueArtifacts(tissue, tissueDir, appendPayload, false); err != nil {
+	if err := env.Server.storeIssueArtifacts(issue, issueDir, appendPayload, false); err != nil {
 		t.Fatalf("append artifact store failed: %v", err)
 	}
 
-	if len(tissue.Attachments) != 2 {
-		t.Fatalf("expected 2 attachments after append, got %d", len(tissue.Attachments))
+	if len(issue.Attachments) != 2 {
+		t.Fatalf("expected 2 attachments after append, got %d", len(issue.Attachments))
 	}
 
-	last := tissue.Attachments[len(tissue.Attachments)-1]
+	last := issue.Attachments[len(issue.Attachments)-1]
 	if last.Name != "extra.txt" {
 		t.Errorf("expected appended attachment name 'extra.txt', got %s", last.Name)
 	}
 
-	path := filepath.Join(tissueDir, filepath.FromSlash(last.Path))
+	path := filepath.Join(issueDir, filepath.FromSlash(last.Path))
 	data, readErr := os.ReadFile(path)
 	if readErr != nil {
 		t.Fatalf("failed to read appended artifact: %v", readErr)

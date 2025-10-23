@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { HTMLAttributes, PointerEvent, ReactNode } from 'react';
+import { HTMLAttributes, PointerEvent, ReactNode, Ref } from 'react';
 import './ResponsiveDialog.css';
 
 type ResponsiveDialogSize = 'default' | 'wide' | 'xl';
@@ -13,6 +13,7 @@ type ResponsiveDialogProps = {
   size?: ResponsiveDialogSize;
   overlayClassName?: string;
   role?: 'dialog' | 'alertdialog';
+  contentRef?: Ref<HTMLDivElement>;
 } & HTMLAttributes<HTMLDivElement>;
 
 const sizeClassMap: Record<ResponsiveDialogSize, string | null> = {
@@ -30,6 +31,7 @@ export default function ResponsiveDialog({
   size = 'default',
   overlayClassName,
   role = 'dialog',
+  contentRef,
   className,
   ...contentProps
 }: ResponsiveDialogProps) {
@@ -59,6 +61,7 @@ export default function ResponsiveDialog({
         aria-modal="true"
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
+        ref={contentRef}
         className={clsx(
           'responsive-dialog__content',
           sizeClassMap[size],

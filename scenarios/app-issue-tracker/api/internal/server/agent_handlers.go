@@ -9,56 +9,26 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"app-issue-tracker-api/internal/agents"
+	"app-issue-tracker-api/internal/logging"
+	"app-issue-tracker-api/internal/server/handlers"
 )
+
+const maxAgentSettingsPayloadBytes int64 = 256 << 10 // 256 KiB
 
 // getStatsHandler returns dashboard statistics
 func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
-	// Count issues by status
-	var totalIssues, openIssues, inProgress, completedToday int
-
-	allIssues, _ := s.getAllIssues("", "", "", "", 0)
-	totalIssues = len(allIssues)
-
-	today := time.Now().UTC().Format("2006-01-02")
-
-	for _, issue := range allIssues {
-		switch issue.Status {
-		case "open":
-			openIssues++
-		case "active":
-			inProgress++
-		case "completed":
-			if strings.HasPrefix(issue.Metadata.ResolvedAt, today) {
-				completedToday++
-			}
-		}
+	issues, err := s.getAllIssues("", "", "", "", 0)
+	if err != nil {
+		logging.LogErrorErr("Failed to load issues for stats", err)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to load stats")
+		return
 	}
 
-	// Count by app
-	appCounts := make(map[string]int)
-	for _, issue := range allIssues {
-		appCounts[issue.AppID]++
-	}
-
-	// Convert to top apps list
-	type appCount struct {
-		AppName    string `json:"app_name"`
-		IssueCount int    `json:"issue_count"`
-	}
-	var topApps []appCount
-	for appID, count := range appCounts {
-		topApps = append(topApps, appCount{AppName: appID, IssueCount: count})
-	}
-
-	// Sort by issue count
-	sort.Slice(topApps, func(i, j int) bool {
-		return topApps[i].IssueCount > topApps[j].IssueCount
-	})
-
-	// Limit to top 5
-	if len(topApps) > 5 {
-		topApps = topApps[:5]
-	}
+	analytics := newIssueAnalytics(issues, time.Now())
+	totalIssues, openIssues, inProgress, completedToday, avgResolutionHours := analytics.totals()
+	topApps := analytics.topApps(5)
 
 	response := ApiResponse{
 		Success: true,
@@ -68,14 +38,15 @@ func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 				"open_issues":          openIssues,
 				"in_progress":          inProgress,
 				"completed_today":      completedToday,
-				"avg_resolution_hours": 24.5, // TODO: Calculate from resolved issues
+				"avg_resolution_hours": avgResolutionHours,
 				"top_apps":             topApps,
 			},
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
+		logging.LogErrorErr("Failed to write stats response", err)
+	}
 }
 
 // getAgentsHandler returns available agents
@@ -83,8 +54,8 @@ func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 	// Single unified agent exposed for the simplified workflow
 	agents := []Agent{
 		{
-			ID:             "unified-resolver",
-			Name:           "unified-resolver",
+			ID:             agents.UnifiedResolverID,
+			Name:           agents.UnifiedResolverID,
 			DisplayName:    "Unified Issue Resolver",
 			Description:    "Single-pass agent that triages, investigates, and proposes fixes",
 			Capabilities:   []string{"triage", "investigate", "fix", "test"},
@@ -103,45 +74,48 @@ func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
+		logging.LogErrorErr("Failed to write agents response", err)
+	}
 }
 
 // triggerFixGenerationHandler returns deprecation notice
 func (s *Server) triggerFixGenerationHandler(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Fix generation now runs automatically as part of the unified /investigate workflow. Pass auto_resolve=false to /investigate for investigation-only runs.", http.StatusGone)
+	handlers.WriteError(w, http.StatusGone, "Fix generation now runs automatically as part of the unified /investigate workflow. Pass auto_resolve=false to /investigate for investigation-only runs.")
 }
 
 // getAppsHandler returns a list of applications with issue counts
 func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
-	// Count issues per app
-	allIssues, _ := s.getAllIssues("", "", "", "", 0)
-	appStats := make(map[string]struct {
-		total int
-		open  int
-	})
-
-	for _, issue := range allIssues {
-		stats := appStats[issue.AppID]
-		stats.total++
-		if issue.Status == "open" || issue.Status == "active" {
-			stats.open++
-		}
-		appStats[issue.AppID] = stats
+	issues, err := s.getAllIssues("", "", "", "", 0)
+	if err != nil {
+		logging.LogErrorErr("Failed to load issues for app summary", err)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to load apps")
+		return
 	}
 
-	var apps []App
-	for appID, stats := range appStats {
+	analytics := newIssueAnalytics(issues, time.Now())
+	summaries := analytics.appSummaries()
+
+	apps := make([]App, 0, len(summaries))
+	for appID, stats := range summaries {
+		displayName := strings.Title(strings.ReplaceAll(appID, "-", " "))
 		apps = append(apps, App{
 			ID:          appID,
 			Name:        appID,
-			DisplayName: strings.Title(strings.ReplaceAll(appID, "-", " ")),
+			DisplayName: displayName,
 			Type:        "scenario",
 			Status:      "active",
 			TotalIssues: stats.total,
 			OpenIssues:  stats.open,
 		})
 	}
+
+	sort.Slice(apps, func(i, j int) bool {
+		if apps[i].TotalIssues == apps[j].TotalIssues {
+			return apps[i].ID < apps[j].ID
+		}
+		return apps[i].TotalIssues > apps[j].TotalIssues
+	})
 
 	response := ApiResponse{
 		Success: true,
@@ -151,8 +125,9 @@ func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
+		logging.LogErrorErr("Failed to write apps response", err)
+	}
 }
 
 // getAgentSettingsHandler returns the current agent backend settings
@@ -162,15 +137,15 @@ func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request)
 	// Load settings from file
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
-		LogErrorErr("Failed to read agent settings", err, "path", settingsPath)
-		http.Error(w, "Failed to load agent settings", http.StatusInternalServerError)
+		logging.LogErrorErr("Failed to read agent settings", err, "path", settingsPath)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to load agent settings")
 		return
 	}
 
 	var settings map[string]interface{}
 	if err := json.Unmarshal(data, &settings); err != nil {
-		LogErrorErr("Failed to parse agent settings", err)
-		http.Error(w, "Failed to parse agent settings", http.StatusInternalServerError)
+		logging.LogErrorErr("Failed to parse agent settings", err)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to parse agent settings")
 		return
 	}
 
@@ -179,8 +154,9 @@ func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request)
 		Data:    settings,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
+		logging.LogErrorErr("Failed to write agent settings response", err)
+	}
 }
 
 // getIssueStatusesHandler returns the list of supported issue lifecycle statuses
@@ -201,8 +177,9 @@ func (s *Server) getIssueStatusesHandler(w http.ResponseWriter, r *http.Request)
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
+		logging.LogErrorErr("Failed to write issue statuses response", err)
+	}
 }
 
 // updateAgentSettingsHandler updates agent backend settings
@@ -216,8 +193,8 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		SkipPermissions *bool   `json:"skip_permissions"` // Optional skip permissions update
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := handlers.DecodeJSON(r, &req, maxAgentSettingsPayloadBytes); err != nil {
+		handlers.WriteDecodeError(w, err)
 		return
 	}
 
@@ -229,7 +206,7 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		}
 
 		if !validProviders[req.Provider] {
-			http.Error(w, "Invalid provider. Must be 'codex' or 'claude-code'", http.StatusBadRequest)
+			handlers.WriteError(w, http.StatusBadRequest, "Invalid provider. Must be 'codex' or 'claude-code'")
 			return
 		}
 	}
@@ -239,15 +216,15 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 	// Load current settings
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
-		LogErrorErr("Failed to read agent settings", err, "path", settingsPath)
-		http.Error(w, "Failed to load agent settings", http.StatusInternalServerError)
+		logging.LogErrorErr("Failed to read agent settings", err, "path", settingsPath)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to load agent settings")
 		return
 	}
 
 	var settings map[string]interface{}
 	if err := json.Unmarshal(data, &settings); err != nil {
-		LogErrorErr("Failed to parse agent settings", err)
-		http.Error(w, "Failed to parse agent settings", http.StatusInternalServerError)
+		logging.LogErrorErr("Failed to parse agent settings", err)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to parse agent settings")
 		return
 	}
 
@@ -293,7 +270,7 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 
 						if req.TimeoutSeconds != nil && *req.TimeoutSeconds > 0 {
 							opMap["timeout_seconds"] = *req.TimeoutSeconds
-							LogInfo(
+							logging.LogInfo(
 								"Updated agent timeout",
 								"provider", targetProvider,
 								"operation", opKey,
@@ -303,12 +280,12 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 						}
 						if req.MaxTurns != nil && *req.MaxTurns > 0 {
 							opMap["max_turns"] = *req.MaxTurns
-							LogInfo("Updated agent max turns", "provider", targetProvider, "operation", opKey, "max_turns", *req.MaxTurns)
+							logging.LogInfo("Updated agent max turns", "provider", targetProvider, "operation", opKey, "max_turns", *req.MaxTurns)
 						}
 						if req.AllowedTools != nil {
 							trimmed := strings.TrimSpace(*req.AllowedTools)
 							opMap["allowed_tools"] = trimmed
-							LogInfo("Updated agent allowed tools", "provider", targetProvider, "operation", opKey, "allowed_tools", trimmed)
+							logging.LogInfo("Updated agent allowed tools", "provider", targetProvider, "operation", opKey, "allowed_tools", trimmed)
 						}
 					}
 				}
@@ -319,21 +296,25 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 	// Write back to file with proper formatting
 	updatedData, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
-		LogErrorErr("Failed to marshal agent settings", err)
-		http.Error(w, "Failed to save agent settings", http.StatusInternalServerError)
+		logging.LogErrorErr("Failed to marshal agent settings", err)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to save agent settings")
 		return
 	}
 
 	if err := os.WriteFile(settingsPath, updatedData, 0o644); err != nil {
-		LogErrorErr("Failed to write agent settings", err, "path", settingsPath)
-		http.Error(w, "Failed to save agent settings", http.StatusInternalServerError)
+		logging.LogErrorErr("Failed to write agent settings", err, "path", settingsPath)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to save agent settings")
 		return
 	}
 
 	// CRITICAL: Reload settings into memory so changes take effect immediately
-	ReloadAgentSettings()
+	if err := ReloadAgentSettings(); err != nil {
+		logging.LogErrorErr("Failed to reload agent settings", err)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to reload agent settings")
+		return
+	}
 
-	LogInfo("Agent settings updated", "provider", targetProvider, "auto_fallback", req.AutoFallback)
+	logging.LogInfo("Agent settings updated", "provider", targetProvider, "auto_fallback", req.AutoFallback)
 
 	response := ApiResponse{
 		Success: true,
@@ -343,8 +324,9 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
+		logging.LogErrorErr("Failed to write agent settings update response", err)
+	}
 }
 
 func formatStatusLabel(status string) string {

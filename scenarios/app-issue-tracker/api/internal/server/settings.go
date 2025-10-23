@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+
+	"app-issue-tracker-api/internal/logging"
 )
 
 // AgentSettings holds configuration for AI agent execution
@@ -23,34 +25,49 @@ type AgentSettings struct {
 }
 
 var (
-	agentSettings     AgentSettings
-	agentSettingsMu   sync.RWMutex
-	agentSettingsOnce sync.Once
-	scenarioRootPath  string
+	agentSettings    AgentSettings
+	agentSettingsMu  sync.RWMutex
+	scenarioRootPath string
+	agentSettingsErr error
 )
 
-// LoadAgentSettings loads agent settings from configuration file
-// This is called once at startup to initialize settings
-func LoadAgentSettings(scenarioRoot string) AgentSettings {
-	agentSettingsOnce.Do(func() {
-		scenarioRootPath = scenarioRoot
-		reloadAgentSettings()
-	})
+// LoadAgentSettings loads agent settings from configuration file. If called with a
+// different scenario root than previous invocations, the settings are reloaded so
+// tests and multi-scenario runs can supply their own configuration roots.
+func LoadAgentSettings(scenarioRoot string) (AgentSettings, error) {
+	cleaned := strings.TrimSpace(scenarioRoot)
+	if cleaned == "" {
+		return AgentSettings{}, fmt.Errorf("scenario root must not be empty")
+	}
+	cleaned = filepath.Clean(cleaned)
 
-	agentSettingsMu.RLock()
-	defer agentSettingsMu.RUnlock()
-	return agentSettings
+	agentSettingsMu.Lock()
+	defer agentSettingsMu.Unlock()
+
+	if scenarioRootPath == "" || filepath.Clean(scenarioRootPath) != cleaned {
+		scenarioRootPath = cleaned
+		agentSettingsErr = reloadAgentSettingsLocked()
+	} else if agentSettingsErr != nil {
+		// Allow callers to recover from a previous failure by retrying the load.
+		agentSettingsErr = reloadAgentSettingsLocked()
+	}
+
+	return agentSettings, agentSettingsErr
 }
 
 // ReloadAgentSettings reloads settings from disk (for runtime updates)
-func ReloadAgentSettings() {
+func ReloadAgentSettings() error {
 	agentSettingsMu.Lock()
 	defer agentSettingsMu.Unlock()
-	reloadAgentSettings()
+	if strings.TrimSpace(scenarioRootPath) == "" {
+		return fmt.Errorf("agent settings scenario root not configured")
+	}
+	agentSettingsErr = reloadAgentSettingsLocked()
+	return agentSettingsErr
 }
 
-// reloadAgentSettings performs the actual loading (must be called with lock held or from Once)
-func reloadAgentSettings() {
+// reloadAgentSettingsLocked performs the actual loading. Caller must hold agentSettingsMu.
+func reloadAgentSettingsLocked() error {
 	// Default settings (aligned with ecosystem-manager)
 	agentSettings = AgentSettings{
 		MaxTurns:        80,
@@ -66,8 +83,8 @@ func reloadAgentSettings() {
 	configPath := filepath.Join(scenarioRootPath, "initialization", "configuration", "agent-settings.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		LogWarn("Could not load agent settings file", "path", configPath, "error", err)
-		return
+		logging.LogWarn("Could not load agent settings file", "path", configPath, "error", err)
+		return fmt.Errorf("load agent settings: %w", err)
 	}
 
 	var config struct {
@@ -87,8 +104,8 @@ func reloadAgentSettings() {
 	}
 
 	if err := json.Unmarshal(data, &config); err != nil {
-		LogWarn("Failed to parse agent settings file", "path", configPath, "error", err)
-		return
+		logging.LogWarn("Failed to parse agent settings file", "path", configPath, "error", err)
+		return fmt.Errorf("parse agent settings: %w", err)
 	}
 
 	// Extract provider settings
@@ -103,8 +120,9 @@ func reloadAgentSettings() {
 
 	providerConfig, ok := config.Providers[provider]
 	if !ok {
-		LogWarn("Provider missing from agent settings", "provider", provider)
-		return
+		err := fmt.Errorf("provider %q missing from agent settings", provider)
+		logging.LogWarn("Provider missing from agent settings", "provider", provider)
+		return err
 	}
 
 	// Load investigation operation settings
@@ -121,7 +139,7 @@ func reloadAgentSettings() {
 		}
 		if command := strings.TrimSpace(investigateOp.Command); command != "" {
 			if parts, err := parseCommandParts(command); err != nil {
-				LogWarn("Failed to parse investigate command", "raw_command", command, "error", err)
+				logging.LogWarn("Failed to parse investigate command", "raw_command", command, "error", err)
 			} else if len(parts) > 0 {
 				agentSettings.Command = parts
 			}
@@ -133,7 +151,7 @@ func reloadAgentSettings() {
 		agentSettings.CLICommand = providerConfig.CLICommand
 	}
 
-	LogInfo(
+	logging.LogInfo(
 		"Agent settings loaded",
 		"provider", agentSettings.Provider,
 		"cli_command", agentSettings.CLICommand,
@@ -142,6 +160,8 @@ func reloadAgentSettings() {
 		"timeout_seconds", agentSettings.TimeoutSeconds,
 		"timeout_minutes", agentSettings.TimeoutSeconds/60,
 	)
+
+	return nil
 }
 
 // GetAgentSettings returns current agent settings (thread-safe)
@@ -149,6 +169,25 @@ func GetAgentSettings() AgentSettings {
 	agentSettingsMu.RLock()
 	defer agentSettingsMu.RUnlock()
 	return agentSettings
+}
+
+// resetAgentSettingsForTest clears cached agent settings allowing tests to provide
+// isolated configuration roots. It is a no-op in production code paths.
+func resetAgentSettingsForTest() {
+	agentSettingsMu.Lock()
+	defer agentSettingsMu.Unlock()
+	agentSettings = AgentSettings{}
+	scenarioRootPath = ""
+	agentSettingsErr = nil
+}
+
+// setAgentSettingsForTest seeds the cached agent settings for unit tests.
+func setAgentSettingsForTest(settings AgentSettings, root string) {
+	agentSettingsMu.Lock()
+	defer agentSettingsMu.Unlock()
+	agentSettings = settings
+	scenarioRootPath = root
+	agentSettingsErr = nil
 }
 
 func parseCommandParts(input string) ([]string, error) {

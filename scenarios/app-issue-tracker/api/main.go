@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"app-issue-tracker-api/internal/logging"
 	serverpkg "app-issue-tracker-api/internal/server"
 )
 
@@ -22,14 +23,15 @@ func loadConfig() *serverpkg.Config {
 
 	qdrantURL := strings.TrimSpace(os.Getenv("QDRANT_URL"))
 	if qdrantURL == "" {
-		serverpkg.LogInfo("Qdrant URL not provided; semantic search disabled")
+		logging.LogInfo("Qdrant URL not provided; semantic search disabled")
 	}
 
 	return &serverpkg.Config{
-		Port:         getEnv("API_PORT", getEnv("PORT", "")),
-		QdrantURL:    qdrantURL,
-		IssuesDir:    getEnv("ISSUES_DIR", defaultIssuesDir),
-		ScenarioRoot: scenarioRoot,
+		Port:                    getEnv("API_PORT", getEnv("PORT", "")),
+		QdrantURL:               qdrantURL,
+		IssuesDir:               getEnv("ISSUES_DIR", defaultIssuesDir),
+		ScenarioRoot:            scenarioRoot,
+		WebsocketAllowedOrigins: parseAllowedOrigins(os.Getenv("API_WS_ALLOWED_ORIGINS")),
 	}
 }
 
@@ -40,11 +42,40 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+func parseAllowedOrigins(raw string) []string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	parts := strings.Split(trimmed, ",")
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		candidate := strings.TrimSpace(part)
+		if candidate == "" {
+			continue
+		}
+		origins = append(origins, candidate)
+	}
+	if len(origins) == 0 {
+		return nil
+	}
+	return origins
+}
+
 func getVrooliRoot() string {
+	if root, ok := os.LookupEnv("APP_ISSUE_TRACKER_ROOT"); ok {
+		trimmed := strings.TrimSpace(root)
+		if trimmed == "" {
+			logging.LogError("APP_ISSUE_TRACKER_ROOT environment variable is set but empty")
+			os.Exit(1)
+		}
+		return trimmed
+	}
+
 	if root, ok := os.LookupEnv("VROOLI_ROOT"); ok {
 		trimmed := strings.TrimSpace(root)
 		if trimmed == "" {
-			serverpkg.LogError("VROOLI_ROOT environment variable is set but empty")
+			logging.LogError("VROOLI_ROOT environment variable is set but empty")
 			os.Exit(1)
 		}
 		return trimmed
@@ -74,24 +105,28 @@ func main() {
 	}
 
 	config := loadConfig()
-
-	srv, handler, err := serverpkg.NewServer(config)
-	if err != nil {
-		serverpkg.LogErrorErr("Failed to initialize server", err)
+	if strings.TrimSpace(config.Port) == "" {
+		logging.LogError("API_PORT (or PORT) must be configured before starting the server")
 		os.Exit(1)
 	}
 
-	cancelProcessor := srv.StartProcessorLoop()
-	defer cancelProcessor()
+	srv, handler, err := serverpkg.NewServer(config)
+	if err != nil {
+		logging.LogErrorErr("Failed to initialize server", err)
+		os.Exit(1)
+	}
 
-	serverpkg.LogInfo("Starting App Issue Tracker API", "port", config.Port)
-	serverpkg.LogInfo("API health endpoint configured", "url", fmt.Sprintf("http://localhost:%s/health", config.Port))
-	serverpkg.LogInfo("API base URL", "url", fmt.Sprintf("http://localhost:%s/api/v1", config.Port))
-	serverpkg.LogInfo("Scenario configuration", "issues_dir", config.IssuesDir, "scenario_root", config.ScenarioRoot)
-	serverpkg.LogInfo("Processor loop state", "active", false)
+	srv.Start()
+	defer srv.Stop()
+
+	logging.LogInfo("Starting App Issue Tracker API", "port", config.Port)
+	logging.LogInfo("API health endpoint configured", "url", fmt.Sprintf("http://localhost:%s/health", config.Port))
+	logging.LogInfo("API base URL", "url", fmt.Sprintf("http://localhost:%s/api/v1", config.Port))
+	logging.LogInfo("Scenario configuration", "issues_dir", config.IssuesDir, "scenario_root", config.ScenarioRoot)
+	logging.LogInfo("Processor loop state", "active", false)
 
 	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
-		serverpkg.LogErrorErr("Server failed to start", err, "port", config.Port)
+		logging.LogErrorErr("Server failed to start", err, "port", config.Port)
 		os.Exit(1)
 	}
 }

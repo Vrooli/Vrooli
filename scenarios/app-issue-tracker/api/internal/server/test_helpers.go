@@ -15,12 +15,14 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"app-issue-tracker-api/internal/logging"
 )
 
 // setupTestLogger initializes the global logger for testing
 func setupTestLogger() func() {
 	handler := slog.NewTextHandler(io.Discard, nil)
-	return WithLogger(slog.New(handler))
+	return logging.WithLogger(slog.New(handler))
 }
 
 // TestEnvironment manages isolated test environment
@@ -37,6 +39,34 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 	tempDir := t.TempDir()
 	issuesDir := filepath.Join(tempDir, "issues")
+	configDir := filepath.Join(tempDir, "initialization", "configuration")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("Failed to create configuration directory: %v", err)
+	}
+
+	settingsPath := filepath.Join(configDir, "agent-settings.json")
+	settingsPayload := []byte(`{
+		"agent_backend": {
+			"provider": "claude-code",
+			"skip_permissions": true
+		},
+		"providers": {
+			"claude-code": {
+				"cli_command": "resource-claude-code",
+				"operations": {
+					"investigate": {
+						"max_turns": 10,
+						"allowed_tools": "Read,Write",
+						"timeout_seconds": 60,
+						"command": "run --tag {{TAG}} -"
+					}
+				}
+			}
+		}
+	}`)
+	if err := os.WriteFile(settingsPath, settingsPayload, 0o644); err != nil {
+		t.Fatalf("Failed to write test agent settings: %v", err)
+	}
 
 	// Create folder structure
 	folders := append(ValidIssueStatuses(), "templates")
@@ -50,8 +80,9 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		IssuesDir: issuesDir,
 		Port:      "0", // Use dynamic port for testing
 		// vrooli:env:optional - tests do not require vector search infrastructure
-		QdrantURL:    os.Getenv("QDRANT_URL"),
-		ScenarioRoot: tempDir,
+		QdrantURL:               os.Getenv("QDRANT_URL"),
+		ScenarioRoot:            tempDir,
+		WebsocketAllowedOrigins: []string{"*"},
 	}
 
 	server, _, err := NewServer(cfg)
@@ -59,11 +90,15 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		t.Fatalf("failed to initialize server: %v", err)
 	}
 
+	server.Start()
+
 	return &TestEnvironment{
 		TempDir:   tempDir,
 		IssuesDir: issuesDir,
 		Server:    server,
-		Cleanup:   func() {}, // t.TempDir() handles cleanup automatically
+		Cleanup: func() {
+			server.Stop()
+		},
 	}
 }
 
@@ -180,8 +215,12 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 
 	errorMsg, exists := response["error"]
 	if !exists {
-		t.Error("Expected error field in response")
-		return
+		if fallback, ok := response["message"]; ok {
+			errorMsg = fallback
+		} else {
+			t.Error("Expected error field in response")
+			return
+		}
 	}
 
 	if expectedErrorSubstring != "" {

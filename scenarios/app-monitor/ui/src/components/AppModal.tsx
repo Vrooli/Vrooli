@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Copy, ExternalLink, Play, RotateCcw, ScrollText, Square } from 'lucide-react';
+import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import type { App, AppProxyMetadata, AppProxyPortInfo, LocalhostUsageReport } from '@/types';
 import { buildPreviewUrl } from '@/utils/appPreview';
 import './AppModal.css';
@@ -228,16 +229,15 @@ export default function AppModal({
   }
 
   return (
-    <div className="modal active" onClick={onClose}>
-      <div
-        className="modal-content"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        ref={modalContentRef}
-        onClick={(event) => event.stopPropagation()}
-      >
+    <ResponsiveDialog
+      isOpen
+      onDismiss={onClose}
+      ariaLabelledBy={titleId}
+      aria-describedby={descriptionId}
+      className="modal-content app-modal"
+      overlayClassName="app-modal__overlay"
+      contentRef={modalContentRef}
+    >
         <div className="modal-header">
           <div className="modal-header__titles">
             <h2 id={titleId}>{displayName}</h2>
@@ -371,8 +371,7 @@ export default function AppModal({
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </ResponsiveDialog>
   );
 }
 

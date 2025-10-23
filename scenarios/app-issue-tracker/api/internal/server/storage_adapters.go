@@ -1,9 +1,6 @@
 package server
 
 import (
-	"sort"
-	"strings"
-
 	storagepkg "app-issue-tracker-api/internal/storage"
 )
 
@@ -63,47 +60,5 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 }
 
 func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter, appIDFilter string, limit int) ([]Issue, error) {
-	var allIssues []Issue
-
-	folders := ValidIssueStatuses()
-	if strings.TrimSpace(statusFilter) != "" {
-		if normalized, ok := NormalizeIssueStatus(statusFilter); ok {
-			folders = []string{normalized}
-		} else {
-			return []Issue{}, nil
-		}
-	}
-
-	for _, folder := range folders {
-		folderIssues, err := s.loadIssuesFromFolder(folder)
-		if err != nil {
-			LogWarn("Failed to load issues from folder", "folder", folder, "error", err)
-			continue
-		}
-		allIssues = append(allIssues, folderIssues...)
-	}
-
-	var filteredIssues []Issue
-	for _, issue := range allIssues {
-		if priorityFilter != "" && issue.Priority != priorityFilter {
-			continue
-		}
-		if typeFilter != "" && issue.Type != typeFilter {
-			continue
-		}
-		if appIDFilter != "" && !strings.EqualFold(issue.AppID, appIDFilter) {
-			continue
-		}
-		filteredIssues = append(filteredIssues, issue)
-	}
-
-	sort.Slice(filteredIssues, func(i, j int) bool {
-		return filteredIssues[i].Metadata.CreatedAt > filteredIssues[j].Metadata.CreatedAt
-	})
-
-	if limit > 0 && len(filteredIssues) > limit {
-		filteredIssues = filteredIssues[:limit]
-	}
-
-	return filteredIssues, nil
+	return s.issues.ListIssues(statusFilter, priorityFilter, typeFilter, appIDFilter, limit)
 }

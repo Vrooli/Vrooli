@@ -1,4 +1,4 @@
-package server
+package services
 
 import (
 	"encoding/base64"
@@ -15,7 +15,12 @@ import (
 
 var whitespaceSequence = regexp.MustCompile("-+")
 
-// decodeBase64Payload decodes a base64-encoded payload
+type ArtifactManager struct{}
+
+func NewArtifactManager() *ArtifactManager {
+	return &ArtifactManager{}
+}
+
 func decodeBase64Payload(data string) ([]byte, error) {
 	trimmed := strings.TrimSpace(data)
 	if trimmed == "" {
@@ -29,7 +34,6 @@ func decodeBase64Payload(data string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(trimmed)
 }
 
-// extensionFromContentType returns file extension for a content type
 func extensionFromContentType(contentType string) string {
 	switch strings.ToLower(strings.TrimSpace(contentType)) {
 	case "image/png":
@@ -47,7 +51,6 @@ func extensionFromContentType(contentType string) string {
 	}
 }
 
-// looksLikeJSON checks if a string looks like JSON
 func looksLikeJSON(payload string) bool {
 	trimmed := strings.TrimSpace(payload)
 	if trimmed == "" {
@@ -58,7 +61,6 @@ func looksLikeJSON(payload string) bool {
 	return (first == '{' && last == '}') || (first == '[' && last == ']')
 }
 
-// sanitizeFileComponent creates a safe filename component
 func sanitizeFileComponent(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -85,7 +87,6 @@ func sanitizeFileComponent(value string) string {
 	return sanitized
 }
 
-// ensureUniqueFilename ensures a filename is unique by appending a counter if needed
 func ensureUniqueFilename(filename string, used map[string]int) string {
 	if used == nil {
 		used = make(map[string]int)
@@ -116,7 +117,6 @@ func ensureUniqueFilename(filename string, used map[string]int) string {
 	}
 }
 
-// resolveAttachmentPath resolves and validates an attachment path
 func resolveAttachmentPath(issueDir, relativeRef string) (string, error) {
 	normalized := issuespkg.NormalizeAttachmentPath(relativeRef)
 	if normalized == "" {
@@ -134,8 +134,7 @@ func resolveAttachmentPath(issueDir, relativeRef string) (string, error) {
 	return full, nil
 }
 
-// decodeArtifactContent decodes artifact content based on encoding
-func decodeArtifactContent(payload ArtifactPayload) ([]byte, error) {
+func decodeArtifactContent(payload issuespkg.ArtifactPayload) ([]byte, error) {
 	encoding := strings.ToLower(strings.TrimSpace(payload.Encoding))
 	switch encoding {
 	case "", "plain", "text", "markdown", "json":
@@ -147,8 +146,7 @@ func decodeArtifactContent(payload ArtifactPayload) ([]byte, error) {
 	}
 }
 
-// determineContentType determines content type for an artifact
-func determineContentType(payload ArtifactPayload, defaultForPlain string) string {
+func determineContentType(payload issuespkg.ArtifactPayload, defaultForPlain string) string {
 	contentType := strings.TrimSpace(payload.ContentType)
 	if contentType != "" {
 		return contentType
@@ -167,12 +165,11 @@ func determineContentType(payload ArtifactPayload, defaultForPlain string) strin
 	}
 }
 
-// persistArtifacts saves artifacts to disk and returns attachment metadata
-func (s *Server) persistArtifacts(issueDir string, payloads []ArtifactPayload) ([]Attachment, error) {
+func (am *ArtifactManager) persistArtifacts(issueDir string, payloads []issuespkg.ArtifactPayload) ([]issuespkg.Attachment, error) {
 	if len(payloads) == 0 {
 		return nil, nil
 	}
-	trimmed := make([]ArtifactPayload, 0, len(payloads))
+	trimmed := make([]issuespkg.ArtifactPayload, 0, len(payloads))
 	for _, payload := range payloads {
 		if strings.TrimSpace(payload.Content) == "" {
 			continue
@@ -182,12 +179,13 @@ func (s *Server) persistArtifacts(issueDir string, payloads []ArtifactPayload) (
 	if len(trimmed) == 0 {
 		return nil, nil
 	}
-	destination := filepath.Join(issueDir, artifactsDirName)
-	if err := os.MkdirAll(destination, 0755); err != nil {
+	destination := filepath.Join(issueDir, issuespkg.ArtifactsDirName)
+	if err := os.MkdirAll(destination, 0o755); err != nil {
 		return nil, err
 	}
+
 	usedFilenames := make(map[string]int)
-	var attachments []Attachment
+	var attachments []issuespkg.Attachment
 	for idx, artifact := range trimmed {
 		data, err := decodeArtifactContent(artifact)
 		if err != nil {
@@ -224,6 +222,7 @@ func (s *Server) persistArtifacts(issueDir string, payloads []ArtifactPayload) (
 			}
 		}
 		filename = ensureUniqueFilename(filename, usedFilenames)
+
 		contentType := determineContentType(artifact, "")
 		if contentType == "" {
 			switch strings.ToLower(filepath.Ext(filename)) {
@@ -241,12 +240,14 @@ func (s *Server) persistArtifacts(issueDir string, payloads []ArtifactPayload) (
 				contentType = "application/octet-stream"
 			}
 		}
-		relativePath := path.Join(artifactsDirName, filename)
+
+		relativePath := path.Join(issuespkg.ArtifactsDirName, filename)
 		filePath := filepath.Join(destination, filename)
-		if err := os.WriteFile(filePath, data, 0644); err != nil {
+		if err := os.WriteFile(filePath, data, 0o644); err != nil {
 			return nil, fmt.Errorf("artifact %q: %w", filename, err)
 		}
-		attachments = append(attachments, Attachment{
+
+		attachments = append(attachments, issuespkg.Attachment{
 			Name:     displayName,
 			Type:     contentType,
 			Path:     relativePath,
@@ -257,10 +258,7 @@ func (s *Server) persistArtifacts(issueDir string, payloads []ArtifactPayload) (
 	return attachments, nil
 }
 
-// storeIssueArtifacts persists artifacts and merges resulting attachments into the issue.
-// When replaceExisting is true, the issue's attachment list is replaced with the new attachments;
-// otherwise, the new attachments are appended.
-func (s *Server) storeIssueArtifacts(issue *Issue, issueDir string, payloads []ArtifactPayload, replaceExisting bool) error {
+func (am *ArtifactManager) StoreIssueArtifacts(issue *issuespkg.Issue, issueDir string, payloads []issuespkg.ArtifactPayload, replaceExisting bool) error {
 	if len(payloads) == 0 {
 		if replaceExisting {
 			issue.Attachments = nil
@@ -268,7 +266,7 @@ func (s *Server) storeIssueArtifacts(issue *Issue, issueDir string, payloads []A
 		return nil
 	}
 
-	attachments, err := s.persistArtifacts(issueDir, payloads)
+	attachments, err := am.persistArtifacts(issueDir, payloads)
 	if err != nil {
 		return err
 	}
@@ -288,12 +286,11 @@ func (s *Server) storeIssueArtifacts(issue *Issue, issueDir string, payloads []A
 	return nil
 }
 
-// mergeCreateArtifacts merges all artifact sources from a create request
-func mergeCreateArtifacts(req *CreateIssueRequest) []ArtifactPayload {
-	var artifacts []ArtifactPayload
+func MergeCreateArtifacts(req *issuespkg.CreateIssueRequest) []issuespkg.ArtifactPayload {
+	var artifacts []issuespkg.ArtifactPayload
 	artifacts = append(artifacts, req.Artifacts...)
 	if strings.TrimSpace(req.AppLogs) != "" {
-		artifacts = append(artifacts, ArtifactPayload{
+		artifacts = append(artifacts, issuespkg.ArtifactPayload{
 			Name:        "Application Logs",
 			Category:    "logs",
 			Content:     req.AppLogs,
@@ -302,7 +299,7 @@ func mergeCreateArtifacts(req *CreateIssueRequest) []ArtifactPayload {
 		})
 	}
 	if strings.TrimSpace(req.ConsoleLogs) != "" {
-		artifacts = append(artifacts, ArtifactPayload{
+		artifacts = append(artifacts, issuespkg.ArtifactPayload{
 			Name:        "Console Logs",
 			Category:    "console",
 			Content:     req.ConsoleLogs,
@@ -315,7 +312,7 @@ func mergeCreateArtifacts(req *CreateIssueRequest) []ArtifactPayload {
 		if !looksLikeJSON(req.NetworkLogs) {
 			contentType = "text/plain"
 		}
-		artifacts = append(artifacts, ArtifactPayload{
+		artifacts = append(artifacts, issuespkg.ArtifactPayload{
 			Name:        "Network Requests",
 			Category:    "network",
 			Content:     req.NetworkLogs,
@@ -328,7 +325,7 @@ func mergeCreateArtifacts(req *CreateIssueRequest) []ArtifactPayload {
 		if contentType == "" {
 			contentType = "image/png"
 		}
-		artifacts = append(artifacts, ArtifactPayload{
+		artifacts = append(artifacts, issuespkg.ArtifactPayload{
 			Name:        fallbackScreenshotName(req.ScreenshotFilename),
 			Category:    "screenshot",
 			Content:     req.ScreenshotData,
@@ -346,7 +343,7 @@ func mergeCreateArtifacts(req *CreateIssueRequest) []ArtifactPayload {
 		if encoding == "" {
 			encoding = "plain"
 		}
-		artifacts = append(artifacts, ArtifactPayload{
+		artifacts = append(artifacts, issuespkg.ArtifactPayload{
 			Name:        name,
 			Category:    "attachment",
 			Content:     content,
@@ -357,11 +354,14 @@ func mergeCreateArtifacts(req *CreateIssueRequest) []ArtifactPayload {
 	return artifacts
 }
 
-// fallbackScreenshotName provides a default name for screenshots
 func fallbackScreenshotName(filename string) string {
 	trimmed := strings.TrimSpace(filename)
 	if trimmed == "" {
 		return "Screenshot"
 	}
 	return trimmed
+}
+
+func ResolveAttachmentPath(issueDir, relativeRef string) (string, error) {
+	return resolveAttachmentPath(issueDir, relativeRef)
 }

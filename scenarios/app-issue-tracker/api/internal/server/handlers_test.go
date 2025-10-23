@@ -1,6 +1,3 @@
-//go:build testing
-// +build testing
-
 package server
 
 import (
@@ -9,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"app-issue-tracker-api/internal/agents"
 )
 
 // TestSearchIssuesHandler tests the search functionality
@@ -65,6 +64,37 @@ func TestSearchIssuesHandler(t *testing.T) {
 		w := makeHTTPRequest(env.Server.searchIssuesHandler, req)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400 for missing query, got %d", w.Code)
+		}
+	})
+}
+
+func TestNormalizeListLimit(t *testing.T) {
+	testCases := []struct {
+		name     string
+		raw      string
+		expected int
+	}{
+		{name: "empty uses default", raw: "", expected: defaultIssueListLimit},
+		{name: "negative resets", raw: "-5", expected: defaultIssueListLimit},
+		{name: "zero resets", raw: "0", expected: defaultIssueListLimit},
+		{name: "within bounds", raw: "15", expected: 15},
+		{name: "above max", raw: "1200", expected: maxIssueListLimit},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := normalizeListLimit(tc.raw, defaultIssueListLimit, maxIssueListLimit); got != tc.expected {
+				t.Fatalf("normalizeListLimit(%q) = %d, expected %d", tc.raw, got, tc.expected)
+			}
+		})
+	}
+
+	t.Run("custom defaults", func(t *testing.T) {
+		if got := normalizeListLimit("", 5, 10); got != 5 {
+			t.Fatalf("expected override default 5, got %d", got)
+		}
+		if got := normalizeListLimit("50", 5, 10); got != 10 {
+			t.Fatalf("expected max clamp 10, got %d", got)
 		}
 	})
 }
@@ -172,7 +202,7 @@ func TestPreviewInvestigationPromptHandler(t *testing.T) {
 			Path:   "/api/v1/investigate/preview",
 			Body: map[string]interface{}{
 				"issue_id": "issue-prompt-preview",
-				"agent_id": "unified-resolver",
+				"agent_id": agents.UnifiedResolverID,
 			},
 		}
 
@@ -210,7 +240,7 @@ func TestTriggerInvestigationHandler_RespectsConcurrentSlots(t *testing.T) {
 		"high",
 		"concurrency-suite",
 	)
-	if _, err := env.Server.saveIssue(tissue, "open"); err != nil {
+	if _, err := env.Server.saveIssue(issue, "open"); err != nil {
 		t.Fatalf("Failed to create test issue: %v", err)
 	}
 
@@ -228,7 +258,7 @@ func TestTriggerInvestigationHandler_RespectsConcurrentSlots(t *testing.T) {
 		Method: http.MethodPost,
 		Path:   "/api/v1/investigate",
 		Body: map[string]interface{}{
-			"issue_id": tissue.ID,
+			"issue_id": issue.ID,
 		},
 	}
 
@@ -428,10 +458,10 @@ func TestStopRunningProcessHandler(t *testing.T) {
 		t.Errorf("Expected issue_id %s in response, got %#v", issueID, data["issue_id"])
 	}
 
-	// Subsequent stop should return not found
+	// Subsequent stop should be idempotent
 	w = makeHTTPRequest(env.Server.stopRunningProcessHandler, req)
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status 404 for non-running issue, got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for repeated stop request, got %d", w.Code)
 	}
 }
 

@@ -1,6 +1,11 @@
 package server
 
-import "testing"
+import (
+	"testing"
+
+	"app-issue-tracker-api/internal/agents"
+	"app-issue-tracker-api/internal/server/metadata"
+)
 
 func TestHandleInvestigationRateLimitMovesIssueToFailed(t *testing.T) {
 	cleanup := setupTestLogger()
@@ -21,7 +26,7 @@ func TestHandleInvestigationRateLimitMovesIssueToFailed(t *testing.T) {
 		Output:  "upstream responded with 429 Too Many Requests; next window resumes at " + resetTime,
 	}
 
-	handled := env.Server.handleInvestigationRateLimit(issue.ID, "unified-resolver", result)
+	handled := env.Server.handleInvestigationRateLimit(issue.ID, agents.UnifiedResolverID, result)
 	if !handled {
 		t.Fatal("Expected rate limit handler to consume result")
 	}
@@ -39,11 +44,11 @@ func TestHandleInvestigationRateLimitMovesIssueToFailed(t *testing.T) {
 		t.Fatal("Expected metadata extras to be initialized")
 	}
 
-	if got := updated.Metadata.Extra["rate_limit_agent"]; got != "unified-resolver" {
-		t.Errorf("Expected rate_limit_agent to be 'unified-resolver', got %q", got)
+	if got := updated.Metadata.Extra[metadata.RateLimitAgentKey]; got != agents.UnifiedResolverID {
+		t.Errorf("Expected rate_limit_agent to be %q, got %q", agents.UnifiedResolverID, got)
 	}
 
-	if got := updated.Metadata.Extra["rate_limit_until"]; got != resetTime {
+	if got := updated.Metadata.Extra[metadata.RateLimitUntilKey]; got != resetTime {
 		t.Errorf("Expected rate_limit_until to be %s, got %s", resetTime, got)
 	}
 }

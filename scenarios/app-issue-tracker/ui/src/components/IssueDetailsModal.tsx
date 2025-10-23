@@ -113,6 +113,7 @@ export function IssueDetailsModal({
   const followUpAvailable =
     (issue.status === 'completed' || issue.status === 'failed') && typeof onFollowUp === 'function';
   const followUpLoading = followUpLoadingId === issue.id;
+  const shouldShowTranscriptView = conversationExpanded && hasAgentTranscript;
 
   useEffect(() => {
     if (fetchAbortRef.current) {
@@ -229,6 +230,55 @@ export function IssueDetailsModal({
     return <AgentConversationPanel conversation={conversation} />;
   };
 
+  const renderTranscriptView = () => {
+    const { headingId, contentId } = buildSectionIds('agent-transcript');
+
+    if (!hasAgentTranscript) {
+      return (
+        <div className="issue-transcript-view" id={contentId}>
+          <div className="agent-transcript-empty">Transcript not captured for this run.</div>
+        </div>
+      );
+    }
+
+    const header = (
+      <div className="issue-section-heading issue-transcript-heading">
+        <div className="issue-section-title">
+          <h3 id={headingId}>Agent Transcript</h3>
+          {providerLabel && <span className="issue-section-meta">Backend: {providerLabel}</span>}
+        </div>
+      </div>
+    );
+
+    if (conversationError) {
+      return (
+        <div className="issue-transcript-view" id={contentId} role="region" aria-labelledby={headingId}>
+          {header}
+          <div className="agent-transcript-error" role="alert">
+            {conversationError}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="issue-transcript-view" id={contentId} role="region" aria-labelledby={headingId}>
+        {header}
+        {conversation?.last_message && (
+          <p className="agent-transcript-last-message">
+            <strong>Last message:</strong> {conversation.last_message}
+          </p>
+        )}
+        {conversation?.transcript_timestamp && (
+          <p className="agent-transcript-timestamp">
+            Captured: {formatDateTime(conversation.transcript_timestamp)}
+          </p>
+        )}
+        {renderConversationContent()}
+      </div>
+    );
+  };
+
   const handleArchive = async () => {
     if (!onArchive || issue.status === 'archived' || archivePending) {
       return;
@@ -305,7 +355,7 @@ export function IssueDetailsModal({
                 {typeof onDelete === 'function' && (
                   <button
                     type="button"
-                    className="icon-button icon-button--danger-ghost"
+                    className="icon-button icon-button--ghost icon-button--danger"
                     onClick={handleDelete}
                     aria-label={deletePending ? 'Deleting issue…' : 'Delete issue'}
                     title="Delete issue"
@@ -342,7 +392,11 @@ export function IssueDetailsModal({
             </div>
           </header>
 
-          <div className="issue-details-content">
+          <div className={`issue-details-content${shouldShowTranscriptView ? ' is-transcript' : ''}`}>
+            {shouldShowTranscriptView ? (
+              renderTranscriptView()
+            ) : (
+              <>
             {onStatusChange && (
               <div className="form-field form-field-full">
                 <label htmlFor="issue-status-selector">
@@ -578,199 +632,148 @@ export function IssueDetailsModal({
               );
             })()}
 
-            {issue.investigation?.report && (() => {
-              const { headingId, contentId } = buildSectionIds('investigation');
-              const collapsed = isSectionCollapsed('investigation');
+                {issue.investigation?.report && (() => {
+                  const { headingId, contentId } = buildSectionIds('investigation');
+                  const collapsed = isSectionCollapsed('investigation');
 
-              return (
-                <section
-                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
-                  aria-labelledby={headingId}
-                >
-                  <div className="issue-section-heading">
-                    <div className="issue-section-title">
-                      <h3 id={headingId}>Investigation Report</h3>
-                    </div>
-                    <button
-                      type="button"
-                      className="issue-section-toggle"
-                      onClick={handleToggleInvestigation}
-                      aria-expanded={!collapsed}
-                      aria-controls={contentId}
-                      aria-label={collapsed ? 'Expand investigation report' : 'Collapse investigation report'}
-                      title={collapsed ? 'Expand investigation report' : 'Collapse investigation report'}
+                  return (
+                    <section
+                      className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                      aria-labelledby={headingId}
                     >
-                      <ChevronDown
-                        size={16}
-                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
-                      />
-                    </button>
-                  </div>
-                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
-                    <div className="investigation-report">
-                      {issue.investigation.agent_id && (
-                        <div className="investigation-meta">
-                          <Brain size={14} />
-                          <span>Agent: {issue.investigation.agent_id}</span>
+                      <div className="issue-section-heading">
+                        <div className="issue-section-title">
+                          <h3 id={headingId}>Investigation Report</h3>
                         </div>
-                      )}
-                      <div className="investigation-report-body">
-                        <MarkdownView content={issue.investigation.report} />
+                        <button
+                          type="button"
+                          className="issue-section-toggle"
+                          onClick={handleToggleInvestigation}
+                          aria-expanded={!collapsed}
+                          aria-controls={contentId}
+                          aria-label={collapsed ? 'Expand investigation report' : 'Collapse investigation report'}
+                          title={collapsed ? 'Expand investigation report' : 'Collapse investigation report'}
+                        >
+                          <ChevronDown
+                            size={16}
+                            className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                          />
+                        </button>
                       </div>
-                    </div>
-                  </div>
-                </section>
-              );
-            })()}
-            {hasAgentTranscript && (() => {
-              const { headingId, contentId } = buildSectionIds('agent-transcript');
-              const collapsed = isSectionCollapsed('agent-transcript');
-
-              return (
-                <section
-                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
-                  aria-labelledby={headingId}
-                >
-                  <div className="issue-section-heading">
-                    <div className="issue-section-title">
-                      <h3 id={headingId}>Agent Transcript</h3>
-                      {providerLabel && <span className="issue-section-meta">Backend: {providerLabel}</span>}
-                    </div>
-                    <button
-                      type="button"
-                      className="issue-section-toggle"
-                      onClick={() => handleToggleSection('agent-transcript')}
-                      aria-expanded={!collapsed}
-                      aria-controls={contentId}
-                      aria-label={collapsed ? 'Expand agent transcript section' : 'Collapse agent transcript section'}
-                      title={collapsed ? 'Expand agent transcript section' : 'Collapse agent transcript section'}
-                    >
-                      <ChevronDown
-                        size={16}
-                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
-                      />
-                    </button>
-                  </div>
-                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
-                    {conversation?.last_message && (
-                      <p className="agent-transcript-last-message">
-                        <strong>Last message:</strong> {conversation.last_message}
-                      </p>
-                    )}
-                    {conversation?.transcript_timestamp && (
-                      <p className="agent-transcript-timestamp">
-                        Captured: {formatDateTime(conversation.transcript_timestamp)}
-                      </p>
-                    )}
-                    {!conversationExpanded && conversation && conversation.available === false && (
-                      <span className="agent-transcript-hint">Transcript not captured for this run.</span>
-                    )}
-                    {conversationError && (
-                      <div className="agent-transcript-error" role="alert">
-                        {conversationError}
+                      <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                        <div className="investigation-report">
+                          {issue.investigation.agent_id && (
+                            <div className="investigation-meta">
+                              <Brain size={14} />
+                              <span>Agent: {issue.investigation.agent_id}</span>
+                            </div>
+                          )}
+                          <div className="investigation-report-body">
+                            <MarkdownView content={issue.investigation.report} />
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    {conversationExpanded && renderConversationContent()}
-                  </div>
-                </section>
-              );
-            })()}
+                    </section>
+                  );
+                })()}
 
-            {issue.metadata?.extra?.agent_last_error && (() => {
-              const { headingId, contentId } = buildSectionIds('agent-error');
-              const collapsed = isSectionCollapsed('agent-error');
+                {issue.metadata?.extra?.agent_last_error && (() => {
+                  const { headingId, contentId } = buildSectionIds('agent-error');
+                  const collapsed = isSectionCollapsed('agent-error');
 
-              return (
-                <section
-                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
-                  aria-labelledby={headingId}
-                >
-                  <div className="issue-section-heading">
-                    <div className="issue-section-title">
-                      <h3 id={headingId}>Agent Execution Error</h3>
-                    </div>
-                    <button
-                      type="button"
-                      className="issue-section-toggle"
-                      onClick={() => handleToggleSection('agent-error')}
-                      aria-expanded={!collapsed}
-                      aria-controls={contentId}
-                      aria-label={collapsed ? 'Expand agent error details' : 'Collapse agent error details'}
-                      title={collapsed ? 'Expand agent error details' : 'Collapse agent error details'}
+                  return (
+                    <section
+                      className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                      aria-labelledby={headingId}
                     >
-                      <ChevronDown
-                        size={16}
-                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
-                      />
-                    </button>
-                  </div>
-                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
-                    <div className="issue-error-details">
-                      <div className="issue-error-header">
-                        <AlertCircle size={16} />
-                        <span className="issue-error-status">
-                          Status: {issue.metadata?.extra?.agent_last_status || 'failed'}
-                        </span>
-                        {issue.metadata?.extra?.agent_failure_time && (
-                          <span className="issue-error-time">
-                            Failed at: {formatDateTime(issue.metadata.extra.agent_failure_time)}
-                          </span>
-                        )}
+                      <div className="issue-section-heading">
+                        <div className="issue-section-title">
+                          <h3 id={headingId}>Agent Execution Error</h3>
+                        </div>
+                        <button
+                          type="button"
+                          className="issue-section-toggle"
+                          onClick={() => handleToggleSection('agent-error')}
+                          aria-expanded={!collapsed}
+                          aria-controls={contentId}
+                          aria-label={collapsed ? 'Expand agent error details' : 'Collapse agent error details'}
+                          title={collapsed ? 'Expand agent error details' : 'Collapse agent error details'}
+                        >
+                          <ChevronDown
+                            size={16}
+                            className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                          />
+                        </button>
                       </div>
-                      <pre className="issue-error-content">{issue.metadata.extra.agent_last_error}</pre>
-                    </div>
-                  </div>
-                </section>
-              );
-            })()}
+                      <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                        <div className="issue-error-details">
+                          <div className="issue-error-header">
+                            <AlertCircle size={16} />
+                            <span className="issue-error-status">
+                              Status: {issue.metadata?.extra?.agent_last_status || 'failed'}
+                            </span>
+                            {issue.metadata?.extra?.agent_failure_time && (
+                              <span className="issue-error-time">
+                                Failed at: {formatDateTime(issue.metadata.extra.agent_failure_time)}
+                              </span>
+                            )}
+                          </div>
+                          <pre className="issue-error-content">{issue.metadata.extra.agent_last_error}</pre>
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })()}
 
-            {(issue.reporterName || issue.reporterEmail) && (() => {
-              const { headingId, contentId } = buildSectionIds('reporter');
-              const collapsed = isSectionCollapsed('reporter');
+                {(issue.reporterName || issue.reporterEmail) && (() => {
+                  const { headingId, contentId } = buildSectionIds('reporter');
+                  const collapsed = isSectionCollapsed('reporter');
 
-              return (
-                <section
-                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
-                  aria-labelledby={headingId}
-                >
-                  <div className="issue-section-heading">
-                    <div className="issue-section-title">
-                      <h3 id={headingId}>Reporter</h3>
-                    </div>
-                    <button
-                      type="button"
-                      className="issue-section-toggle"
-                      onClick={() => handleToggleSection('reporter')}
-                      aria-expanded={!collapsed}
-                      aria-controls={contentId}
-                      aria-label={collapsed ? 'Expand reporter details' : 'Collapse reporter details'}
-                      title={collapsed ? 'Expand reporter details' : 'Collapse reporter details'}
+                  return (
+                    <section
+                      className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                      aria-labelledby={headingId}
                     >
-                      <ChevronDown
-                        size={16}
-                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
-                      />
-                    </button>
-                  </div>
-                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
-                    <div className="issue-detail-inline">
-                      {issue.reporterName && (
-                        <span>
-                          <User size={14} />
-                          {issue.reporterName}
-                        </span>
-                      )}
-                      {issue.reporterEmail && (
-                        <a href={`mailto:${issue.reporterEmail}`}>
-                          <Mail size={14} />
-                          {issue.reporterEmail}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </section>
-              );
-            })()}
+                      <div className="issue-section-heading">
+                        <div className="issue-section-title">
+                          <h3 id={headingId}>Reporter</h3>
+                        </div>
+                        <button
+                          type="button"
+                          className="issue-section-toggle"
+                          onClick={() => handleToggleSection('reporter')}
+                          aria-expanded={!collapsed}
+                          aria-controls={contentId}
+                          aria-label={collapsed ? 'Expand reporter details' : 'Collapse reporter details'}
+                          title={collapsed ? 'Expand reporter details' : 'Collapse reporter details'}
+                        >
+                          <ChevronDown
+                            size={16}
+                            className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                          />
+                        </button>
+                      </div>
+                      <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                        <div className="issue-detail-inline">
+                          {issue.reporterName && (
+                            <span>
+                              <User size={14} />
+                              {issue.reporterName}
+                            </span>
+                          )}
+                          {issue.reporterEmail && (
+                            <a href={`mailto:${issue.reporterEmail}`}>
+                              <Mail size={14} />
+                              {issue.reporterEmail}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })()}
+              </>
+            )}
           </div>
         </div>
         {(followUpAvailable || hasAgentTranscript) && (

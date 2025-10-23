@@ -1,11 +1,15 @@
 package server
 
 import (
-	"encoding/json"
+	"encoding/csv"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
+
+	issuespkg "app-issue-tracker-api/internal/issues"
+	"app-issue-tracker-api/internal/logging"
+	"app-issue-tracker-api/internal/server/handlers"
 )
 
 // exportIssuesHandler exports issues in various formats (JSON, CSV, Markdown)
@@ -23,13 +27,13 @@ func (s *Server) exportIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	// Get all matching issues
 	issues, err := s.getAllIssues(status, priority, issueType, appID, 1000)
 	if err != nil {
-		LogErrorErr("Failed to load issues for export", err,
+		logging.LogErrorErr("Failed to load issues for export", err,
 			"status", status,
 			"priority", priority,
 			"type", issueType,
 			"app_id", appID,
 		)
-		http.Error(w, "Failed to load issues", http.StatusInternalServerError)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to load issues")
 		return
 	}
 
@@ -41,13 +45,12 @@ func (s *Server) exportIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	case "markdown", "md":
 		s.exportMarkdown(w, issues)
 	default:
-		http.Error(w, fmt.Sprintf("Unsupported format: %s. Use json, csv, or markdown", format), http.StatusBadRequest)
+		handlers.WriteError(w, http.StatusBadRequest, fmt.Sprintf("Unsupported format: %s. Use json, csv, or markdown", format))
 	}
 }
 
 // exportJSON exports issues as JSON
 func (s *Server) exportJSON(w http.ResponseWriter, issues []Issue) {
-	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"issues-%s.json\"", time.Now().Format("2006-01-02")))
 
 	data := map[string]interface{}{
@@ -56,7 +59,9 @@ func (s *Server) exportJSON(w http.ResponseWriter, issues []Issue) {
 		"issues":      issues,
 	}
 
-	json.NewEncoder(w).Encode(data)
+	if err := handlers.WriteJSON(w, http.StatusOK, data); err != nil {
+		logging.LogErrorErr("Failed to write JSON export", err)
+	}
 }
 
 // exportCSV exports issues as CSV
@@ -64,28 +69,36 @@ func (s *Server) exportCSV(w http.ResponseWriter, issues []Issue) {
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"issues-%s.csv\"", time.Now().Format("2006-01-02")))
 
-	// Write CSV header
-	fmt.Fprintf(w, "ID,Title,Description,Type,Priority,Status,App ID,Tags,Created At,Updated At\n")
+	csvWriter := csv.NewWriter(w)
+	defer csvWriter.Flush()
 
-	// Write each issue
+	header := []string{"ID", "Title", "Description", "Type", "Priority", "Status", "App ID", "Tags", "Created At", "Updated At"}
+	if err := csvWriter.Write(header); err != nil {
+		logging.LogErrorErr("Failed to write CSV header", err)
+		return
+	}
+
 	for _, issue := range issues {
-		// Escape CSV fields
-		title := strings.ReplaceAll(issue.Title, "\"", "\"\"")
-		desc := strings.ReplaceAll(issue.Description, "\"", "\"\"")
-		tags := strings.Join(issue.Metadata.Tags, "; ")
-
-		fmt.Fprintf(w, "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+		record := []string{
 			issue.ID,
-			title,
-			desc,
+			issue.Title,
+			issue.Description,
 			issue.Type,
 			issue.Priority,
 			issue.Status,
 			issue.AppID,
-			tags,
+			strings.Join(issue.Metadata.Tags, "; "),
 			issue.Metadata.CreatedAt,
 			issue.Metadata.UpdatedAt,
-		)
+		}
+		if err := csvWriter.Write(record); err != nil {
+			logging.LogErrorErr("Failed to write CSV record", err, "issue_id", issue.ID)
+			return
+		}
+	}
+
+	if err := csvWriter.Error(); err != nil {
+		logging.LogErrorErr("CSV writer encountered an error", err)
 	}
 }
 
@@ -106,7 +119,7 @@ func (s *Server) exportMarkdown(w http.ResponseWriter, issues []Issue) {
 	}
 
 	// Write each status section
-	statuses := []string{"open", "active", "completed", "failed"}
+	statuses := issuespkg.ValidStatuses()
 	for _, status := range statuses {
 		statusIssues := byStatus[status]
 		if len(statusIssues) == 0 {

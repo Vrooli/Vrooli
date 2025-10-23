@@ -158,7 +158,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./app-issue-tracker-api",
+          "run": "cd api && API_WS_ALLOWED_ORIGINS='*' ./app-issue-tracker-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

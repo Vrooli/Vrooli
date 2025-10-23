@@ -215,8 +215,9 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
           </button>
       </div>
       <form className="report-dialog__form" onSubmit={form.handleSubmit}>
-            <div className="report-dialog__layout">
-              <div className="report-dialog__lane report-dialog__lane--primary">
+        <div className="report-dialog__body">
+          <div className="report-dialog__layout">
+            <div className="report-dialog__lane report-dialog__lane--primary">
                 {existingIssuesLoading && (
                   <div className="report-dialog__issues-alert report-dialog__issues-alert--loading">
                     <Loader2 aria-hidden size={16} className="spinning" />
@@ -376,19 +377,19 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
 
                 <ReportDiagnosticsPanel diagnostics={diagnostics} />
 
-              <ReportLogsSection
-                logs={logs}
-                consoleLogs={consoleLogs}
-                network={network}
-                health={health}
-                status={status}
-                bridgeCaps={bridgeState.caps}
-                appLogsPanelId={REPORT_APP_LOGS_PANEL_ID}
-                consoleLogsPanelId={REPORT_CONSOLE_LOGS_PANEL_ID}
-                networkPanelId={REPORT_NETWORK_PANEL_ID}
-                healthPanelId={REPORT_HEALTH_PANEL_ID}
-                statusPanelId={REPORT_STATUS_PANEL_ID}
-              />
+                <ReportLogsSection
+                  logs={logs}
+                  consoleLogs={consoleLogs}
+                  network={network}
+                  health={health}
+                  status={status}
+                  bridgeCaps={bridgeState.caps}
+                  appLogsPanelId={REPORT_APP_LOGS_PANEL_ID}
+                  consoleLogsPanelId={REPORT_CONSOLE_LOGS_PANEL_ID}
+                  networkPanelId={REPORT_NETWORK_PANEL_ID}
+                  healthPanelId={REPORT_HEALTH_PANEL_ID}
+                  statusPanelId={REPORT_STATUS_PANEL_ID}
+                />
               </div>
 
               <ReportScreenshotPanel
@@ -400,41 +401,44 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                 onElementNoteChange={onElementCaptureNoteChange}
                 onElementRemove={onElementCaptureRemove}
               />
-            </div>
+          </div>
+        </div>
 
-            {form.error && (
-              <p className="report-dialog__error" role="alert">
-                {form.error}
-              </p>
-            )}
+        <div className="report-dialog__footer">
+          {form.error && (
+            <p className="report-dialog__error" role="alert">
+              {form.error}
+            </p>
+          )}
 
-            <div className="report-dialog__actions">
-              <button
-                type="button"
-                className="report-dialog__button"
-                onClick={() => {
-                  onElementCapturesReset();
-                  modal.handleReset();
-                }}
-              >
-                Close
-              </button>
-              <button
-                type="submit"
-                className="report-dialog__button report-dialog__button--primary"
-                disabled={sendDisabled}
-              >
-                {form.submitting ? (
-                  <>
-                    <Loader2 aria-hidden size={16} className="spinning" />
-                    Sending…
-                  </>
-                ) : (
-                  'Send Report'
-                )}
-              </button>
-            </div>
-          </form>
+          <div className="report-dialog__actions">
+            <button
+              type="button"
+              className="report-dialog__button"
+              onClick={() => {
+                onElementCapturesReset();
+                modal.handleReset();
+              }}
+            >
+              Close
+            </button>
+            <button
+              type="submit"
+              className="report-dialog__button report-dialog__button--primary"
+              disabled={sendDisabled}
+            >
+              {form.submitting ? (
+                <>
+                  <Loader2 aria-hidden size={16} className="spinning" />
+                  Sending…
+                </>
+              ) : (
+                'Send Report'
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
 
   </ResponsiveDialog>
   );

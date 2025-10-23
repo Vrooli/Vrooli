@@ -9,6 +9,11 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
+	"app-issue-tracker-api/internal/automation"
+	issuespkg "app-issue-tracker-api/internal/issues"
+	"app-issue-tracker-api/internal/logging"
+	"app-issue-tracker-api/internal/server/services"
 )
 
 // NewServer constructs a configured Server instance and the associated HTTP handler.
@@ -22,22 +27,28 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 	}
 
 	// Load agent settings once per process to ensure downstream dependencies are ready.
-	_ = LoadAgentSettings(config.ScenarioRoot)
-	LogInfo("Agent settings loaded", "scenario_root", config.ScenarioRoot)
+	if _, err := LoadAgentSettings(config.ScenarioRoot); err != nil {
+		return nil, nil, fmt.Errorf("failed to load agent settings: %w", err)
+	}
+	logging.LogInfo("Agent settings loaded", "scenario_root", config.ScenarioRoot)
 
 	// Ensure issues directory structure exists before wiring storage.
-	folders := []string{"open", "active", "completed", "failed", "templates"}
-	for _, folder := range folders {
+	for _, folder := range issuespkg.ValidStatuses() {
 		folderPath := filepath.Join(config.IssuesDir, folder)
 		if err := os.MkdirAll(folderPath, 0o755); err != nil {
 			return nil, nil, fmt.Errorf("failed to ensure issue folder exists (%s): %w", folderPath, err)
 		}
 	}
 
+	templatesDir := filepath.Join(config.IssuesDir, "templates")
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
+		return nil, nil, fmt.Errorf("failed to ensure templates folder exists (%s): %w", templatesDir, err)
+	}
+
 	legacyWaitingDir := filepath.Join(config.IssuesDir, "waiting")
 	if entries, err := os.ReadDir(legacyWaitingDir); err == nil {
 		if len(entries) > 0 {
-			LogInfo("Migrating legacy waiting issues into open queue", "count", len(entries))
+			logging.LogInfo("Migrating legacy waiting issues into open queue", "count", len(entries))
 			for _, entry := range entries {
 				if !entry.IsDir() {
 					continue
@@ -45,15 +56,15 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 				oldPath := filepath.Join(legacyWaitingDir, entry.Name())
 				newPath := filepath.Join(config.IssuesDir, "open", entry.Name())
 				if err := os.Rename(oldPath, newPath); err != nil {
-					LogWarn("Failed to migrate waiting issue", "issue", entry.Name(), "error", err)
+					logging.LogWarn("Failed to migrate waiting issue", "issue", entry.Name(), "error", err)
 				}
 			}
 		}
 		if err := os.Remove(legacyWaitingDir); err != nil && !errors.Is(err, os.ErrNotExist) {
-			LogWarn("Failed to remove legacy waiting directory", "path", legacyWaitingDir, "error", err)
+			logging.LogWarn("Failed to remove legacy waiting directory", "path", legacyWaitingDir, "error", err)
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
-		LogWarn("Failed to inspect legacy waiting directory", "path", legacyWaitingDir, "error", err)
+		logging.LogWarn("Failed to inspect legacy waiting directory", "path", legacyWaitingDir, "error", err)
 	}
 
 	server := &Server{config: config}
@@ -62,20 +73,23 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 		opt(server)
 	}
 
-	server.processor = NewAutomationProcessor(server)
+	server.processor = automation.NewProcessor(newProcessorHost(server))
 
 	storeWasDefault := server.ensureStore(config.IssuesDir)
-	hubCreated := server.ensureHub()
-	if hubCreated {
-		go server.hub.Run()
-	}
+	server.ensureHub()
+	server.ensureCommandFactory()
+	server.wsUpgrader = newWebSocketUpgrader(config)
+
+	server.issues = services.NewIssueService(server.store, services.NewArtifactManager(), server.processor, nil)
+	server.investigations = NewInvestigationService(server)
+	server.content = NewIssueContentService(server)
 
 	storageType := fmt.Sprintf("%T", server.store)
 	attrs := []any{"type", storageType}
 	if storeWasDefault {
 		attrs = append(attrs, "issues_dir", config.IssuesDir)
 	}
-	LogInfo("Issue storage configured", attrs...)
+	logging.LogInfo("Issue storage configured", attrs...)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/health", server.healthHandler).Methods("GET")

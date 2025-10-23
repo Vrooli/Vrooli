@@ -2688,6 +2688,24 @@ textarea::placeholder {
   gap: 24px;
 }
 
+.issue-details-content.is-transcript {
+  gap: 16px;
+}
+
+.issue-transcript-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.issue-transcript-heading {
+  align-items: center;
+}
+
+.issue-transcript-view .agent-conversation {
+  margin-top: 4px;
+}
+
 .issue-details-footer {
   display: flex;
   justify-content: flex-end;

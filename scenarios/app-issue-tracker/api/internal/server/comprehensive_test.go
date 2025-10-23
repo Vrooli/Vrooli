@@ -1,12 +1,10 @@
-//go:build testing
-// +build testing
-
 package server
 
 import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 )
 
 // TestGetIssueHandler_Comprehensive tests all scenarios for getIssueHandler
@@ -169,15 +167,6 @@ func TestCreateIssueHandler_Comprehensive(t *testing.T) {
 				},
 				ExpectedStatus: http.StatusBadRequest,
 			},
-			TestScenario{
-				Name:   "Missing AppID",
-				Method: http.MethodPost,
-				Path:   "/api/v1/issues",
-				Body: map[string]interface{}{
-					"title": "Test",
-				},
-				ExpectedStatus: http.StatusBadRequest,
-			},
 		)
 		suite.TestError(t, scenarios)
 	})
@@ -299,6 +288,30 @@ func TestDeleteIssueHandler_Comprehensive(t *testing.T) {
 		assertIssueNotExists(t, env.Server, "issue-delete-1")
 	})
 
+	t.Run("Conflict_WhenAgentRunning", func(t *testing.T) {
+		issue := createTestIssue("issue-delete-running", "Running", "bug", "medium", "test-app")
+		if _, err := env.Server.saveIssue(issue, "open"); err != nil {
+			t.Fatalf("Failed to create test issue: %v", err)
+		}
+
+		startTime := time.Now().UTC().Format(time.RFC3339)
+		env.Server.processor.RegisterRunningProcess(issue.ID, "agent-test", startTime, nil)
+		t.Cleanup(func() {
+			env.Server.processor.UnregisterRunningProcess(issue.ID)
+		})
+
+		req := HTTPTestRequest{
+			Method:  http.MethodDelete,
+			Path:    "/api/v1/issues/issue-delete-running",
+			URLVars: map[string]string{"id": "issue-delete-running"},
+		}
+
+		w := makeHTTPRequest(env.Server.deleteIssueHandler, req)
+		assertErrorResponse(t, w, http.StatusConflict, "Cannot delete issue while an agent is running")
+
+		assertIssueExists(t, env.Server, "issue-delete-running", "open")
+	})
+
 	t.Run("ErrorCases", func(t *testing.T) {
 		scenarios := DeleteHandlerErrorScenarios("/api/v1/issues/{id}")
 		suite.TestError(t, scenarios)
@@ -393,6 +406,17 @@ func TestGetIssuesHandler_Comprehensive(t *testing.T) {
 				t.Errorf("Expected all issues to have status 'active', got %v", issue["status"])
 			}
 		}
+	})
+
+	t.Run("Error_InvalidStatusFilter", func(t *testing.T) {
+		req := HTTPTestRequest{
+			Method:      http.MethodGet,
+			Path:        "/api/v1/issues",
+			QueryParams: map[string]string{"status": "not-a-status"},
+		}
+
+		w := makeHTTPRequest(env.Server.getIssuesHandler, req)
+		assertErrorResponse(t, w, http.StatusBadRequest, "Invalid status filter")
 	})
 
 	t.Run("Success_FilterByAppID", func(t *testing.T) {

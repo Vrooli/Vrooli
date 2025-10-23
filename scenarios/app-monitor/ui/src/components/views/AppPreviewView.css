@@ -607,8 +607,7 @@ body.app-preview-immersive {
   flex-direction: column;
   gap: 1rem;
   max-height: 100%;
-  overflow-y: auto;
-  scrollbar-gutter: stable both-edges;
+  overflow: hidden;
 }
 
 .report-dialog__header {
@@ -684,12 +683,26 @@ body.app-preview-immersive {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.report-dialog__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .report-dialog__layout {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
 }
 
 .report-dialog__lane {
@@ -884,7 +897,15 @@ body.app-preview-immersive {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  margin-top: 0.5rem;
+}
+
+.report-dialog__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 255, 255, 0.15);
+  background: linear-gradient(180deg, rgba(0, 12, 10, 0.2) 0%, rgba(0, 32, 32, 0.05) 100%);
 }
 
 .report-dialog__button {
@@ -940,6 +961,11 @@ body.app-preview-immersive {
   border-color: rgba(0, 255, 255, 0.45);
   background: rgba(0, 255, 255, 0.18);
   color: var(--matrix-bg);
+}
+
+.report-dialog__button--compact {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.78rem;
 }
 
 .report-dialog__state {
@@ -2661,6 +2687,14 @@ body.app-preview-immersive {
   flex-wrap: wrap;
   gap: 0.55rem;
   margin-top: 0.75rem;
+}
+
+.report-dialog__bridge-actions--description {
+  justify-content: flex-end;
+}
+
+.report-dialog__bridge-actions--collapsed {
+  margin-top: 0.5rem;
 }
 
 .report-dialog__bridge-icon {
