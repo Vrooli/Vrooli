@@ -419,10 +419,23 @@ body.app-preview-immersive {
   background: rgba(8, 47, 73, 0.55);
   padding: 0.55rem;
   max-height: 280px;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-inspector__screenshot-frame--empty {
+  min-height: 180px;
+}
+
+.preview-inspector__screenshot-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 6px;
+}
+
+.preview-inspector__screenshot-content--empty {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -464,6 +477,40 @@ body.app-preview-immersive {
   background: rgba(8, 47, 73, 0.48);
   border-radius: inherit;
   pointer-events: none;
+}
+
+.preview-inspector__screenshot-download {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(94, 234, 212, 0.55);
+  background: rgba(8, 47, 73, 0.78);
+  color: rgba(226, 255, 247, 0.92);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.preview-inspector__screenshot-download:hover,
+.preview-inspector__screenshot-download:focus-visible {
+  background: rgba(13, 148, 136, 0.32);
+  border-color: rgba(16, 185, 129, 0.6);
+  color: rgba(236, 253, 245, 0.98);
+}
+
+.preview-inspector__screenshot-download:focus-visible {
+  outline: 2px solid rgba(45, 212, 191, 0.65);
+  outline-offset: 2px;
+}
+
+.preview-inspector__screenshot-download:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .preview-inspector__screenshot-spinner {

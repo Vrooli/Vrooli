@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2, Eye } from 'lucide-react';
+import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2, Eye, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import { selectScreenshotBySurface, useSurfaceMediaStore } from '@/state/surfaceMediaStore';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
@@ -106,6 +106,7 @@ export default function TabSwitcherDialog() {
     appsLength: state.apps.length,
     error: state.error,
   }));
+  const loadApps = useAppsStore(state => state.loadApps);
   const resourceLoadState = useResourcesStore(state => ({
     loading: state.loading,
     hasInitialized: state.hasInitialized,
@@ -345,6 +346,10 @@ export default function TabSwitcherDialog() {
     });
   };
 
+  const handleRetryLoadApps = () => {
+    void loadApps({ force: true });
+  };
+
   return (
     <div className="tab-switcher" ref={dialogRef}>
       <header className="tab-switcher__header">
@@ -496,6 +501,7 @@ export default function TabSwitcherDialog() {
                 onSelect={handleAppSelect}
                 emptyMessage="No scenarios match your search."
                 isLoading={isLoadingApps}
+                onRetry={handleRetryLoadApps}
               />
             </Section>
           </div>
@@ -613,18 +619,26 @@ function AppGrid({
   emptyMessage,
   isLoading,
   skeletonCount = 8,
+  onRetry,
 }: {
   apps: App[];
   onSelect(app: App): void;
   emptyMessage?: string;
   isLoading?: boolean;
   skeletonCount?: number;
+  onRetry?: () => void;
 }) {
   if (isLoading) {
     return <AppsGridSkeleton count={skeletonCount} viewMode="grid" />;
   }
   if (apps.length === 0) {
-    return <EmptyState message={emptyMessage ?? 'No scenarios available.'} />;
+    return (
+      <EmptyState
+        message={emptyMessage ?? 'No scenarios available.'}
+        onRetry={onRetry}
+        retryLabel="Try loading scenarios again"
+      />
+    );
   }
   return (
     <div className="tab-switcher__grid">
@@ -753,10 +767,30 @@ function ResourceGrid({
   );
 }
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({
+  message,
+  onRetry,
+  retryLabel = 'Retry loading',
+}: {
+  message: string;
+  onRetry?: () => void;
+  retryLabel?: string;
+}) {
   return (
     <div className="tab-switcher__empty">
       <p>{message}</p>
+      {onRetry && (
+        <button
+          type="button"
+          className="tab-switcher__empty-refresh"
+          onClick={onRetry}
+          aria-label={retryLabel}
+          title={retryLabel}
+        >
+          <RefreshCw size={20} aria-hidden />
+          <span className="visually-hidden">{retryLabel}</span>
+        </button>
+      )}
     </div>
   );
 }

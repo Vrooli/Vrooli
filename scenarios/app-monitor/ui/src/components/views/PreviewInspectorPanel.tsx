@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { BoxSelect, ChevronDown, Image, Inspect, Loader2, PlusCircle, X } from 'lucide-react';
+import { BoxSelect, ChevronDown, Download, Image, Inspect, Loader2, PlusCircle, X } from 'lucide-react';
 import type { BridgeInspectState } from '@/hooks/useIframeBridge';
 import type { PreviewInspectorState } from './usePreviewInspector';
 
@@ -54,6 +54,7 @@ const PreviewInspectorPanel = ({
     handleAddInspectorCaptureToReport,
     handleCopySelector,
     handleCopyText,
+    handleDownloadInspectorScreenshot,
     handleToggleInspectMode,
     handleInspectorDialogClose,
     handleInspectorPointerDown,
@@ -295,22 +296,41 @@ const PreviewInspectorPanel = ({
                   !inspectorScreenshot && 'preview-inspector__screenshot-frame--empty',
                 )}
               >
-                {inspectorScreenshot ? (
-                  <img
-                    src={inspectorScreenshot.dataUrl}
-                    alt={`Captured element screenshot (${inspectorScreenshot.width} × ${inspectorScreenshot.height} pixels)`}
-                  />
-                ) : (
-                  <div className="preview-inspector__screenshot-placeholder" role="presentation">
-                    <Image aria-hidden size={36} className="preview-inspector__screenshot-placeholder-icon" />
-                    <span>No screenshot captured yet</span>
-                  </div>
-                )}
+                <div
+                  className={clsx(
+                    'preview-inspector__screenshot-content',
+                    !inspectorScreenshot && 'preview-inspector__screenshot-content--empty',
+                  )}
+                >
+                  {inspectorScreenshot ? (
+                    <img
+                      src={inspectorScreenshot.dataUrl}
+                      alt={`Captured element screenshot (${inspectorScreenshot.width} × ${inspectorScreenshot.height} pixels)`}
+                    />
+                  ) : (
+                    <div className="preview-inspector__screenshot-placeholder" role="presentation">
+                      <Image aria-hidden size={36} className="preview-inspector__screenshot-placeholder-icon" />
+                      <span>No screenshot captured yet</span>
+                    </div>
+                  )}
+                </div>
                 {isInspectorScreenshotCapturing && (
                   <div className="preview-inspector__screenshot-overlay" role="status" aria-live="polite">
                     <Loader2 aria-hidden size={28} className="spinning preview-inspector__screenshot-spinner" />
                     <span className="preview-inspector__screenshot-spinner-label">Capturing screenshot...</span>
                   </div>
+                )}
+                {inspectorScreenshot && (
+                  <button
+                    type="button"
+                    className="preview-inspector__screenshot-download"
+                    onClick={handleDownloadInspectorScreenshot}
+                    aria-label="Download element screenshot"
+                    title="Download element screenshot"
+                    disabled={isInspectorScreenshotCapturing}
+                  >
+                    <Download aria-hidden size={16} />
+                  </button>
                 )}
               </div>
               <figcaption className="preview-inspector__screenshot-meta">

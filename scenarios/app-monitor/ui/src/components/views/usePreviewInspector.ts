@@ -91,6 +91,7 @@ export type PreviewInspectorState = {
   handleAddInspectorCaptureToReport: () => void;
   handleCopySelector: () => void;
   handleCopyText: () => void;
+  handleDownloadInspectorScreenshot: () => void;
   handleToggleInspectMode: () => void;
   handleInspectorDialogClose: () => void;
   handleInspectorPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -522,14 +523,6 @@ export const usePreviewInspector = ({
         return;
       }
       const capturedAt = Date.now();
-      if (typeof document !== 'undefined') {
-        const anchor = document.createElement('a');
-        anchor.href = dataUrl;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-      }
       setInspectorScreenshot({
         dataUrl,
         width: result.width,
@@ -541,7 +534,7 @@ export const usePreviewInspector = ({
         clip: result.clip ?? null,
       });
       setInspectorScreenshotExpanded(true);
-      setLockedInspectMessage('Element screenshot downloaded.', 3200);
+      setLockedInspectMessage('Element screenshot captured. Use the download button to save it.', 3600);
     } catch (error) {
       logger.error('Failed to capture element screenshot', error);
       setLockedInspectMessage('Failed to capture element screenshot.', 3400);
@@ -558,6 +551,28 @@ export const usePreviewInspector = ({
     resolvePreviewBackgroundColor,
     setLockedInspectMessage,
   ]);
+
+  const handleDownloadInspectorScreenshot = useCallback(() => {
+    if (!inspectorScreenshot) {
+      setLockedInspectMessage('Capture an element before downloading.', 3200);
+      return;
+    }
+    if (typeof document === 'undefined') {
+      return;
+    }
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = inspectorScreenshot.dataUrl;
+      anchor.download = inspectorScreenshot.filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      setLockedInspectMessage('Element screenshot downloaded.', 3200);
+    } catch (error) {
+      logger.error('Failed to download element screenshot', error);
+      setLockedInspectMessage('Unable to download the screenshot.', 3200);
+    }
+  }, [inspectorScreenshot, setLockedInspectMessage]);
 
   useEffect(() => {
     captureElementScreenshotRef.current = handleCaptureElementScreenshot;
@@ -809,6 +824,7 @@ export const usePreviewInspector = ({
     handleAddInspectorCaptureToReport,
     handleCopySelector,
     handleCopyText,
+    handleDownloadInspectorScreenshot,
     handleToggleInspectMode,
     handleInspectorDialogClose,
     handleInspectorPointerDown,

@@ -1,4 +1,4 @@
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+import { initIframeBridgeChild } from '/bridge/iframeBridgeChild.js';
 
 // Fall Foliage Explorer - Interactive Application
 
@@ -22,6 +22,17 @@ if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_
 const DEFAULT_API_PORT = 17175;
 const LOOPBACK_HOST = '127.0.0.1';
 const API_BASE = resolveApiBase();
+
+function formatStatus(status) {
+    if (typeof status !== 'string') {
+        return 'Unknown';
+    }
+    return status
+        .split('_')
+        .filter(Boolean)
+        .map(token => token.charAt(0).toUpperCase() + token.slice(1))
+        .join(' ') || 'Unknown';
+}
 
 function resolveApiBase() {
     const win = typeof window !== 'undefined' ? window : undefined;
@@ -283,11 +294,6 @@ function getColorForStatus(status) {
         'past_peak': '#8b4513'
     };
     return colors[status] || '#8b7355';
-}
-
-// Format status for display
-function formatStatus(status) {
-    return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
 // Setup event listeners
@@ -798,13 +804,6 @@ async function handlePhotoSubmit(e) {
         console.error('Failed to submit photo:', error);
         alert('Failed to share photo. Please try again.');
     }
-}
-
-// Format status for display
-function formatStatus(status) {
-    return status.split('_').map(word =>
-        word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
 }
 
 // Format date for display

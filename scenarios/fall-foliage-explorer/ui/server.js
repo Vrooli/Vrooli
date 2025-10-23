@@ -49,6 +49,20 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if (req.url === '/bridge/iframeBridgeChild.js') {
+        const bridgePath = path.join(__dirname, 'node_modules', '@vrooli', 'iframe-bridge', 'dist', 'iframeBridgeChild.js');
+        fs.readFile(bridgePath, (bridgeError, bridgeContent) => {
+            if (bridgeError) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Bridge asset unavailable', detail: bridgeError.message }));
+                return;
+            }
+            res.writeHead(200, { 'Content-Type': 'application/javascript' });
+            res.end(bridgeContent, 'utf-8');
+        });
+        return;
+    }
+
     let filePath = '.' + req.url;
     if (filePath === './') {
         filePath = './index.html';
