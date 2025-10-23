@@ -36,6 +36,10 @@ export const parseTimestampValue = (value?: string | null): number | null => {
 
 const APP_PROXY_PREFIX = '/apps';
 
+export const buildProxyPreviewUrl = (identifier: string): string => {
+  return `${APP_PROXY_PREFIX}/${encodeURIComponent(identifier)}/proxy/`;
+};
+
 export const normalizeStatus = (status?: string | null) => (status ?? '').toLowerCase();
 
 export const isRunningStatus = (status?: string | null) => {
@@ -237,8 +241,8 @@ export const buildPreviewUrl = (app: App): string | null => {
   const environment = (app.environment ?? {}) as Record<string, unknown>;
   const uiPort = computeAppUIPort(app);
 
-  if (uiPort !== null) {
-    return `${APP_PROXY_PREFIX}/${encodeURIComponent(app.id)}/proxy/`;
+  if (uiPort !== null && typeof app.id === 'string' && app.id.trim()) {
+    return buildProxyPreviewUrl(app.id);
   }
 
   if (typeof config.ui_url === 'string' && config.ui_url.trim()) {

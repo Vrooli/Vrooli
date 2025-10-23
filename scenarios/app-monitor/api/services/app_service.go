@@ -1116,7 +1116,18 @@ func (s *AppService) GetApps(ctx context.Context) ([]repository.App, error) {
 
 	// Fall back to database if orchestrator fails
 	if s.repo != nil {
-		return s.repo.GetApps(ctx)
+		fallbackApps, repoErr := s.repo.GetApps(ctx)
+		if repoErr == nil {
+			for i := range fallbackApps {
+				markFallbackApp(&fallbackApps[i])
+			}
+			return fallbackApps, nil
+		}
+
+		// If repository lookup fails, prefer bubbling the orchestrator error chain
+		if err == nil {
+			return nil, repoErr
+		}
 	}
 
 	// If no database either, return empty list
@@ -1150,6 +1161,7 @@ func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, er
 	if s.repo != nil {
 		app, repoErr := s.repo.GetApp(ctx, id)
 		if repoErr == nil {
+			markFallbackApp(app)
 			return app, nil
 		}
 
@@ -1175,6 +1187,24 @@ func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, er
 	}
 
 	return nil, fmt.Errorf("app not found: %s", id)
+}
+
+func markFallbackApp(app *repository.App) {
+	if app == nil {
+		return
+	}
+
+	app.IsPartial = true
+
+	trimmedStatus := strings.ToLower(strings.TrimSpace(app.Status))
+	if trimmedStatus == "" {
+		trimmedStatus = "unknown"
+	}
+	app.Status = trimmedStatus
+
+	if strings.TrimSpace(app.HealthStatus) == "" {
+		app.HealthStatus = trimmedStatus
+	}
 }
 
 // UpdateAppStatus updates the status of an app
@@ -2036,7 +2066,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 	statusCapturedAt := strings.TrimSpace(stringValue(req.AppStatusCapturedAt))
 
-	title := fmt.Sprintf("[app-monitor] %s", summarizeIssueTitle(message))
+	title := summarizeIssueTitle(message)
 	reportSource := strings.TrimSpace(stringValue(req.Source))
 	description := buildIssueDescription(
 		appName,
@@ -2064,12 +2094,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		statusCapturedAt,
 		statusSeverity,
 	)
-	hasScreenshot := screenshotData != ""
-	hasConsole := len(consoleLogs) > 0
-	hasNetwork := len(networkEntries) > 0
-	hasHealth := len(healthEntries) > 0
-	hasStatus := len(statusLines) > 0
-	tags := buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth, hasStatus)
+	tags := buildIssueTags(scenarioName)
 	environment := buildIssueEnvironment(appID, appName, previewURL, reportSource, reportedAt)
 
 	port, err := s.locateIssueTrackerAPIPort(ctx)
@@ -4070,24 +4095,12 @@ func sanitizeCommandIdentifier(value string) string {
 	return result
 }
 
-func buildIssueTags(hasScreenshot, hasConsole, hasNetwork, hasHealth, hasStatus bool) []string {
-	tags := []string{"app-monitor", "preview"}
-	if hasScreenshot {
-		tags = append(tags, "screenshot")
+func buildIssueTags(scenarioName string) []string {
+	tags := []string{"app-monitor"}
+	if trimmed := strings.TrimSpace(scenarioName); trimmed != "" {
+		tags = append(tags, trimmed)
 	}
-	if hasConsole {
-		tags = append(tags, "console-capture")
-	}
-	if hasNetwork {
-		tags = append(tags, "network-capture")
-	}
-	if hasHealth {
-		tags = append(tags, "health-checks")
-	}
-	if hasStatus {
-		tags = append(tags, "status-snapshot")
-	}
-	return tags
+	return uniqueStrings(tags)
 }
 
 func sanitizeConsoleLogs(entries []IssueConsoleLogEntry, maxEntries, maxText int) []IssueConsoleLogEntry {

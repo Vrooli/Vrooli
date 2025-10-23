@@ -142,3 +142,11 @@
     padding: 20px 14px;
   }
 }
+
+body.app-preview-immersive .shell__content {
+  padding-bottom: 0;
+}
+
+body.app-preview-immersive .shell__bottom-nav {
+  display: none;
+}
