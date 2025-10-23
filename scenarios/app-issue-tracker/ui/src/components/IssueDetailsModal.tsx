@@ -1,5 +1,5 @@
 import type { ChangeEvent, ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
 import {
   AlertCircle,
   Archive,
@@ -99,7 +99,7 @@ export function IssueDetailsModal({
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [conversationExpanded, setConversationExpanded] = useState(false);
-  const [investigationExpanded, setInvestigationExpanded] = useState(true);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [archivePending, setArchivePending] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
   const fetchAbortRef = useRef<AbortController | null>(null);
@@ -123,7 +123,7 @@ export function IssueDetailsModal({
     setConversationError(null);
     setConversationExpanded(false);
     setConversationLoading(false);
-    setInvestigationExpanded(true);
+    setCollapsedSections({});
     setArchivePending(false);
     setDeletePending(false);
   }, [issue.id]);
@@ -172,6 +172,23 @@ export function IssueDetailsModal({
     };
   }, []);
 
+  const isSectionCollapsed = (key: string) => Boolean(collapsedSections[key]);
+
+  const handleToggleSection = (key: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const buildSectionIds = (key: string) => {
+    const normalizedKey = key.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+    return {
+      headingId: `issue-${issue.id}-${normalizedKey}-heading`,
+      contentId: `issue-${issue.id}-${normalizedKey}-content`,
+    };
+  };
+
   const handleToggleConversation = () => {
     const next = !conversationExpanded;
     setConversationExpanded(next);
@@ -181,7 +198,7 @@ export function IssueDetailsModal({
   };
 
   const handleToggleInvestigation = () => {
-    setInvestigationExpanded((state) => !state);
+    handleToggleSection('investigation');
   };
 
   const handleStatusChange = async (event: ChangeEvent<HTMLSelectElement>) => {
@@ -265,69 +282,64 @@ export function IssueDetailsModal({
   return (
     <Modal onClose={onClose} labelledBy="issue-details-title" panelClassName="modal-panel--issue-details">
       <div className="issue-details-container">
-        <div className="issue-details-topbar">
-          <button className="modal-close" type="button" aria-label="Close issue details" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
         <div className="issue-details-scroll">
           <header className="issue-details-header">
-            <p className="modal-eyebrow">
-              <Hash size={14} />
-              {issue.id}
-            </p>
-            <h2 id="issue-details-title" className="modal-title">
-              {issue.title}
-            </h2>
-            {(typeof onArchive === 'function' || typeof onDelete === 'function' ||
-              (issue.status === 'open' && typeof onEdit === 'function')) && (
-              <div className="issue-details-actions">
+            <div className="issue-header-bar">
+              <p className="modal-eyebrow">
+                <Hash size={14} />
+                {issue.id}
+              </p>
+              <div className="issue-header-controls">
                 {typeof onArchive === 'function' && (
                   <button
                     type="button"
-                    className="ghost-button"
+                    className="icon-button icon-button--ghost"
                     onClick={handleArchive}
-                    aria-label={issue.status === 'archived' ? 'Issue already archived' : 'Archive issue'}
+                    aria-label={archivePending ? 'Archiving issue…' : issue.status === 'archived' ? 'Issue archived' : 'Archive issue'}
+                    title={issue.status === 'archived' ? 'Issue archived' : 'Archive issue'}
                     disabled={archivePending || issue.status === 'archived'}
                   >
-                    {archivePending ? (
-                      <Loader2 size={16} className="button-spinner" />
-                    ) : (
-                      <Archive size={16} />
-                    )}
-                    <span>{issue.status === 'archived' ? 'Archived' : 'Archive'}</span>
+                    {archivePending ? <Loader2 size={18} className="button-spinner" /> : <Archive size={18} />}
                   </button>
                 )}
                 {typeof onDelete === 'function' && (
                   <button
                     type="button"
-                    className="ghost-button ghost-button--danger"
+                    className="icon-button icon-button--danger-ghost"
                     onClick={handleDelete}
-                    aria-label="Delete issue"
+                    aria-label={deletePending ? 'Deleting issue…' : 'Delete issue'}
+                    title="Delete issue"
                     disabled={deletePending}
                   >
-                    {deletePending ? (
-                      <Loader2 size={16} className="button-spinner" />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                    <span>{deletePending ? 'Deleting…' : 'Delete'}</span>
+                    {deletePending ? <Loader2 size={18} className="button-spinner" /> : <Trash2 size={18} />}
                   </button>
                 )}
-                {issue.status === 'open' && typeof onEdit === 'function' && (
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={() => onEdit(issue)}
-                    aria-label="Edit issue"
-                  >
-                    <Pencil size={16} />
-                    <span>Edit</span>
-                  </button>
-                )}
+                <button
+                  className="icon-button icon-button--ghost"
+                  type="button"
+                  aria-label="Close issue details"
+                  onClick={onClose}
+                >
+                  <X size={18} />
+                </button>
               </div>
-            )}
+            </div>
+            <div className="issue-header-main">
+              <h2 id="issue-details-title" className="modal-title">
+                {issue.title}
+              </h2>
+              {issue.status === 'open' && typeof onEdit === 'function' && (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => onEdit(issue)}
+                  aria-label="Edit issue"
+                >
+                  <Pencil size={16} />
+                  <span>Edit</span>
+                </button>
+              )}
+            </div>
           </header>
 
           <div className="issue-details-content">
@@ -349,113 +361,438 @@ export function IssueDetailsModal({
               </div>
             )}
 
-            <div className="issue-detail-grid">
-              <IssueMetaTile label="Status" value={toTitleCase(issue.status.replace(/-/g, ' '))} />
-              <IssueMetaTile label="Priority" value={issue.priority} />
-              <IssueMetaTile label="Assignee" value={issue.assignee || 'Unassigned'} />
-              <IssueMetaTile label="App" value={issue.app} />
-              <IssueMetaTile
-                label="Created"
-                value={createdText}
-                hint={createdHint}
-                icon={<CalendarClock size={14} />}
-              />
-              {issue.updatedAt && (
-                <IssueMetaTile
-                  label="Updated"
-                  value={updatedText}
-                  hint={updatedHint}
-                  icon={<CalendarClock size={14} />}
-                />
-              )}
-              {issue.resolvedAt && (
-                <IssueMetaTile
-                  label="Resolved"
-                  value={resolvedText}
-                  hint={resolvedHint}
-                  icon={<CalendarClock size={14} />}
-                />
-              )}
-            </div>
+            {(() => {
+              const { headingId, contentId } = buildSectionIds('overview');
+              const collapsed = isSectionCollapsed('overview');
 
-            {description && (
-              <section className="issue-detail-section">
-                <h3>Description</h3>
-                <MarkdownView content={description} />
-              </section>
-            )}
+              return (
+                <section
+                  className={`issue-detail-section issue-detail-section--grid${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Overview</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={() => handleToggleSection('overview')}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand overview details' : 'Collapse overview details'}
+                      title={collapsed ? 'Expand overview details' : 'Collapse overview details'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div
+                    id={contentId}
+                    className="issue-section-content"
+                    hidden={collapsed}
+                  >
+                    <div className="issue-detail-grid">
+                      <IssueMetaTile label="Status" value={toTitleCase(issue.status.replace(/-/g, ' '))} />
+                      <IssueMetaTile label="Priority" value={issue.priority} />
+                      <IssueMetaTile label="Assignee" value={issue.assignee || 'Unassigned'} />
+                      <IssueMetaTile label="App" value={issue.app} />
+                      <IssueMetaTile
+                        label="Created"
+                        value={createdText}
+                        hint={createdHint}
+                        icon={<CalendarClock size={14} />}
+                      />
+                      {issue.updatedAt && (
+                        <IssueMetaTile
+                          label="Updated"
+                          value={updatedText}
+                          hint={updatedHint}
+                          icon={<CalendarClock size={14} />}
+                        />
+                      )}
+                      {issue.resolvedAt && (
+                        <IssueMetaTile
+                          label="Resolved"
+                          value={resolvedText}
+                          hint={resolvedHint}
+                          icon={<CalendarClock size={14} />}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
 
-            {notes && (
-              <section className="issue-detail-section">
-                <h3>Notes</h3>
-                <MarkdownView content={notes} />
-              </section>
-            )}
+            {description && (() => {
+              const { headingId, contentId } = buildSectionIds('description');
+              const collapsed = isSectionCollapsed('description');
 
-            {issue.attachments.length > 0 && (
-              <section className="issue-detail-section">
-                <h3>Attachments</h3>
-                <div className="issue-attachments">
-                  {issue.attachments.map((attachment) => (
-                    <AttachmentPreview key={attachment.path} attachment={attachment} />
-                  ))}
-                </div>
-              </section>
-            )}
+              return (
+                <section
+                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Description</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={() => handleToggleSection('description')}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand description' : 'Collapse description'}
+                      title={collapsed ? 'Expand description' : 'Collapse description'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                    <MarkdownView content={description} />
+                  </div>
+                </section>
+              );
+            })()}
 
-            {issue.tags.length > 0 && (
-              <section className="issue-detail-section">
-                <h3>Tags</h3>
-                <div className="issue-detail-tags">
-                  <Tag size={14} />
-                  {issue.tags.map((tag) => (
-                    <span key={tag} className="issue-detail-tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
+            {notes && (() => {
+              const { headingId, contentId } = buildSectionIds('notes');
+              const collapsed = isSectionCollapsed('notes');
 
-            {issue.investigation?.report && (
-              <section className="issue-detail-section">
-                <div className="issue-section-heading">
-                  <h3>Investigation Report</h3>
+              return (
+                <section
+                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Notes</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={() => handleToggleSection('notes')}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand notes' : 'Collapse notes'}
+                      title={collapsed ? 'Expand notes' : 'Collapse notes'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                    <MarkdownView content={notes} />
+                  </div>
+                </section>
+              );
+            })()}
+
+            {issue.attachments.length > 0 && (() => {
+              const { headingId, contentId } = buildSectionIds('attachments');
+              const collapsed = isSectionCollapsed('attachments');
+
+              return (
+                <section
+                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Attachments</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={() => handleToggleSection('attachments')}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand attachments' : 'Collapse attachments'}
+                      title={collapsed ? 'Expand attachments' : 'Collapse attachments'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                    <div className="issue-attachments-grid">
+                      {issue.attachments.map((attachment) => (
+                        <AttachmentPreview key={attachment.path} attachment={attachment} />
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
+
+            {issue.tags.length > 0 && (() => {
+              const { headingId, contentId } = buildSectionIds('tags');
+              const collapsed = isSectionCollapsed('tags');
+
+              return (
+                <section
+                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Tags</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={() => handleToggleSection('tags')}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand tags' : 'Collapse tags'}
+                      title={collapsed ? 'Expand tags' : 'Collapse tags'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                    <div className="issue-detail-tags">
+                      <Tag size={14} />
+                      {issue.tags.map((tag) => (
+                        <span key={tag} className="issue-detail-tag">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
+
+            {issue.investigation?.report && (() => {
+              const { headingId, contentId } = buildSectionIds('investigation');
+              const collapsed = isSectionCollapsed('investigation');
+
+              return (
+                <section
+                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Investigation Report</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={handleToggleInvestigation}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand investigation report' : 'Collapse investigation report'}
+                      title={collapsed ? 'Expand investigation report' : 'Collapse investigation report'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                    <div className="investigation-report">
+                      {issue.investigation.agent_id && (
+                        <div className="investigation-meta">
+                          <Brain size={14} />
+                          <span>Agent: {issue.investigation.agent_id}</span>
+                        </div>
+                      )}
+                      <div className="investigation-report-body">
+                        <MarkdownView content={issue.investigation.report} />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
+            {hasAgentTranscript && (() => {
+              const { headingId, contentId } = buildSectionIds('agent-transcript');
+              const collapsed = isSectionCollapsed('agent-transcript');
+
+              return (
+                <section
+                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Agent Transcript</h3>
+                      {providerLabel && <span className="issue-section-meta">Backend: {providerLabel}</span>}
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={() => handleToggleSection('agent-transcript')}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand agent transcript section' : 'Collapse agent transcript section'}
+                      title={collapsed ? 'Expand agent transcript section' : 'Collapse agent transcript section'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                    {conversation?.last_message && (
+                      <p className="agent-transcript-last-message">
+                        <strong>Last message:</strong> {conversation.last_message}
+                      </p>
+                    )}
+                    {conversation?.transcript_timestamp && (
+                      <p className="agent-transcript-timestamp">
+                        Captured: {formatDateTime(conversation.transcript_timestamp)}
+                      </p>
+                    )}
+                    {!conversationExpanded && conversation && conversation.available === false && (
+                      <span className="agent-transcript-hint">Transcript not captured for this run.</span>
+                    )}
+                    {conversationError && (
+                      <div className="agent-transcript-error" role="alert">
+                        {conversationError}
+                      </div>
+                    )}
+                    {conversationExpanded && renderConversationContent()}
+                  </div>
+                </section>
+              );
+            })()}
+
+            {issue.metadata?.extra?.agent_last_error && (() => {
+              const { headingId, contentId } = buildSectionIds('agent-error');
+              const collapsed = isSectionCollapsed('agent-error');
+
+              return (
+                <section
+                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Agent Execution Error</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={() => handleToggleSection('agent-error')}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand agent error details' : 'Collapse agent error details'}
+                      title={collapsed ? 'Expand agent error details' : 'Collapse agent error details'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                    <div className="issue-error-details">
+                      <div className="issue-error-header">
+                        <AlertCircle size={16} />
+                        <span className="issue-error-status">
+                          Status: {issue.metadata?.extra?.agent_last_status || 'failed'}
+                        </span>
+                        {issue.metadata?.extra?.agent_failure_time && (
+                          <span className="issue-error-time">
+                            Failed at: {formatDateTime(issue.metadata.extra.agent_failure_time)}
+                          </span>
+                        )}
+                      </div>
+                      <pre className="issue-error-content">{issue.metadata.extra.agent_last_error}</pre>
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
+
+            {(issue.reporterName || issue.reporterEmail) && (() => {
+              const { headingId, contentId } = buildSectionIds('reporter');
+              const collapsed = isSectionCollapsed('reporter');
+
+              return (
+                <section
+                  className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                  aria-labelledby={headingId}
+                >
+                  <div className="issue-section-heading">
+                    <div className="issue-section-title">
+                      <h3 id={headingId}>Reporter</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="issue-section-toggle"
+                      onClick={() => handleToggleSection('reporter')}
+                      aria-expanded={!collapsed}
+                      aria-controls={contentId}
+                      aria-label={collapsed ? 'Expand reporter details' : 'Collapse reporter details'}
+                      title={collapsed ? 'Expand reporter details' : 'Collapse reporter details'}
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                      />
+                    </button>
+                  </div>
+                  <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                    <div className="issue-detail-inline">
+                      {issue.reporterName && (
+                        <span>
+                          <User size={14} />
+                          {issue.reporterName}
+                        </span>
+                      )}
+                      {issue.reporterEmail && (
+                        <a href={`mailto:${issue.reporterEmail}`}>
+                          <Mail size={14} />
+                          {issue.reporterEmail}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
+          </div>
+        </div>
+        {(followUpAvailable || hasAgentTranscript) && (
+          <footer className="issue-details-footer">
+            <div className="issue-footer-actions">
+              {hasAgentTranscript && (() => {
+                const { contentId } = buildSectionIds('agent-transcript');
+                return (
                   <button
                     type="button"
-                    className="issue-section-toggle"
-                    onClick={handleToggleInvestigation}
-                    aria-expanded={investigationExpanded}
+                    className="agent-transcript-toggle"
+                    onClick={handleToggleConversation}
+                    aria-label={conversationExpanded ? 'Hide transcript' : 'View transcript'}
+                    aria-controls={contentId}
+                    aria-expanded={conversationExpanded}
                   >
-                    <ChevronDown
-                      size={16}
-                      className={`issue-section-toggle-icon${investigationExpanded ? ' is-open' : ''}`}
-                    />
-                    <span>{investigationExpanded ? 'Hide report' : 'Show report'}</span>
+                    {conversationExpanded ? 'Hide Transcript' : 'View Transcript'}
+                    {conversationLoading && <Loader2 size={14} className="agent-transcript-spinner" />}
                   </button>
-                </div>
-                <div className={`investigation-report${investigationExpanded ? ' is-expanded' : ' is-collapsed'}`}>
-                  {issue.investigation.agent_id && (
-                    <div className="investigation-meta">
-                      <Brain size={14} />
-                      <span>Agent: {issue.investigation.agent_id}</span>
-                    </div>
-                  )}
-                  {investigationExpanded ? (
-                    <div className="investigation-report-body">
-                      <MarkdownView content={issue.investigation.report} />
-                    </div>
-                  ) : (
-                    <p className="investigation-report-placeholder">
-                      Report hidden. Expand to review the findings.
-                    </p>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {followUpAvailable && (
-              <div className="issue-followup-actions">
+                );
+              })()}
+              {followUpAvailable && (
                 <button
                   type="button"
                   className="primary-button follow-up-button"
@@ -466,84 +803,10 @@ export function IssueDetailsModal({
                   {followUpLoading ? <Loader2 size={16} className="button-spinner" /> : <KanbanSquare size={16} />}
                   <span>{followUpLoading ? 'Preparing…' : 'Follow Up'}</span>
                 </button>
-              </div>
-            )}
-
-            {hasAgentTranscript && (
-              <section className="issue-detail-section">
-                <div className="issue-section-heading">
-                  <h3>Agent Transcript</h3>
-                  {providerLabel && <span className="issue-section-meta">Backend: {providerLabel}</span>}
-                </div>
-                {conversation?.last_message && (
-                  <p className="agent-transcript-last-message">
-                    <strong>Last message:</strong> {conversation.last_message}
-                  </p>
-                )}
-                {conversation?.transcript_timestamp && (
-                  <p className="agent-transcript-timestamp">
-                    Captured: {formatDateTime(conversation.transcript_timestamp)}
-                  </p>
-                )}
-                <div className="agent-transcript-actions">
-                  <button type="button" className="agent-transcript-toggle" onClick={handleToggleConversation}>
-                    {conversationExpanded ? 'Hide Transcript' : 'View Transcript'}
-                    {conversationLoading && <Loader2 size={14} className="agent-transcript-spinner" />}
-                  </button>
-                  {!conversationExpanded && conversation && conversation.available === false && (
-                    <span className="agent-transcript-hint">Transcript not captured for this run.</span>
-                  )}
-                </div>
-                {conversationError && (
-                  <div className="agent-transcript-error" role="alert">
-                    {conversationError}
-                  </div>
-                )}
-            {conversationExpanded && renderConversationContent()}
-              </section>
-            )}
-
-            {issue.metadata?.extra?.agent_last_error && (
-              <section className="issue-detail-section">
-                <h3>Agent Execution Error</h3>
-                <div className="issue-error-details">
-                  <div className="issue-error-header">
-                    <AlertCircle size={16} />
-                    <span className="issue-error-status">
-                      Status: {issue.metadata?.extra?.agent_last_status || 'failed'}
-                    </span>
-                    {issue.metadata?.extra?.agent_failure_time && (
-                      <span className="issue-error-time">
-                        Failed at: {formatDateTime(issue.metadata.extra.agent_failure_time)}
-                      </span>
-                    )}
-                  </div>
-                  <pre className="issue-error-content">{issue.metadata.extra.agent_last_error}</pre>
-                </div>
-              </section>
-            )}
-
-            {(issue.reporterName || issue.reporterEmail) && (
-              <section className="issue-detail-section">
-                <h3>Reporter</h3>
-                <div className="issue-detail-inline">
-                  {issue.reporterName && (
-                    <span>
-                      <User size={14} />
-                      {issue.reporterName}
-                    </span>
-                  )}
-                  {issue.reporterEmail && (
-                    <a href={`mailto:${issue.reporterEmail}`}>
-                      <Mail size={14} />
-                      {issue.reporterEmail}
-                    </a>
-                  )}
-                </div>
-              </section>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
+          </footer>
+        )}
       </div>
     </Modal>
   );
@@ -632,6 +895,7 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const previewRequested = useRef(false);
   const isCollapsible = canPreviewText;
+  const previewId = useId();
 
   useEffect(() => {
     setExpanded(kind === 'image');
@@ -699,8 +963,18 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
     };
   }, [attachment.url, canPreviewText, content, expanded, kind]);
 
-  const storageName = attachment.name || attachment.path.split(/[\\/]+/).pop() || 'attachment';
+  const storageName = attachment.name?.trim() || attachment.path.split(/[\\/]+/).pop() || 'attachment';
+  const displayName = attachment.name?.trim() || storageName;
   const sizeLabel = formatFileSize(attachment.size);
+  const kindLabel = kind === 'json' ? 'JSON' : kind === 'text' ? 'Text' : kind === 'image' ? 'Image' : 'File';
+  const extension = storageName.includes('.') ? storageName.split('.').pop()?.toUpperCase() ?? null : null;
+  const categoryLabel = attachment.category
+    ? toTitleCase(attachment.category.replace(/[-_]+/g, ' '))
+    : null;
+  const detailParts = [sizeLabel, kindLabel, extension && extension !== kindLabel ? extension : null].filter(
+    Boolean,
+  ) as string[];
+  const collapsed = isCollapsible && !expanded;
 
   const toggle = () => {
     if (!isCollapsible) {
@@ -709,65 +983,103 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
     setExpanded((state) => !state);
   };
 
+  const renderIcon = () => {
+    if (kind === 'image') {
+      return <ImageIcon size={16} />;
+    }
+    if (kind === 'json') {
+      return <FileCode size={16} />;
+    }
+    if (kind === 'text') {
+      return <FileText size={16} />;
+    }
+    return <Paperclip size={16} />;
+  };
+
   return (
-    <article className={`attachment-card attachment-card--${kind}`}>
-      <header className="attachment-header">
-        <div className="attachment-heading">
-          <Paperclip size={14} />
-          <div>
-            <p className="attachment-title">{attachment.name || storageName}</p>
-            <p className="attachment-subtitle">
-              {kind === 'image' && <ImageIcon size={12} />}
-              {kind === 'json' && <FileCode size={12} />}
-              {kind === 'text' && <FileText size={12} />}
-              <span>
-                {sizeLabel ?? 'Unknown size'}
-                {attachment.category && ` · ${toTitleCase(attachment.category.replace(/[-_]+/g, ' '))}`}
-              </span>
+    <article
+      className={`attachment-card attachment-card--${kind}${collapsed ? ' attachment-card--collapsed' : ' attachment-card--expanded'}`}
+    >
+      <header className="attachment-card-header">
+        <div className="attachment-card-heading">
+          <span className={`attachment-icon attachment-icon--${kind}`} aria-hidden="true">
+            {renderIcon()}
+          </span>
+          <div className="attachment-card-meta">
+            <p className="attachment-card-name" title={displayName}>
+              {displayName}
+            </p>
+            <p className="attachment-card-details">
+              {detailParts.map((part) => (
+                <span key={part}>{part}</span>
+              ))}
             </p>
           </div>
         </div>
-        {isCollapsible && (
-          <button type="button" className="attachment-toggle" onClick={toggle} aria-expanded={expanded}>
-            {expanded ? 'Hide preview' : 'Show preview'}
-          </button>
-        )}
-      </header>
-
-      {(expanded || !isCollapsible) && (
-        <div className="attachment-preview">
-          {kind === 'image' && (
-            <img className="attachment-preview-image" src={attachment.url} alt={attachment.name || storageName} />
-          )}
-
-          {canPreviewText && expanded && (
-            <>
-              {loading && (
-                <div className="attachment-preview-placeholder">
-                  <Loader2 size={16} className="attachment-spinner" />
-                  <span>Loading preview…</span>
-                </div>
-              )}
-              {!loading && errorMessage && (
-                <div className="attachment-preview-error">{errorMessage}</div>
-              )}
-              {!loading && !errorMessage && content !== null && (
-                <pre className="attachment-preview-text">{content}</pre>
-              )}
-              {!loading && !errorMessage && content === null && (
-                <div className="attachment-preview-placeholder">No preview available.</div>
-              )}
-            </>
+        <div className="attachment-header-actions">
+          {categoryLabel && <span className="attachment-category">{categoryLabel}</span>}
+          {isCollapsible && (
+            <button
+              type="button"
+              className="attachment-toggle"
+              onClick={toggle}
+              aria-expanded={expanded}
+              aria-controls={previewId}
+            >
+              <span>{expanded ? 'Hide preview' : 'Show preview'}</span>
+              <ChevronDown size={14} className={`attachment-toggle-icon${expanded ? ' is-open' : ''}`} aria-hidden="true" />
+            </button>
           )}
         </div>
-      )}
+      </header>
+
+      <div className="attachment-preview" id={previewId} hidden={isCollapsible && !expanded}>
+        {kind === 'image' && (
+          <img
+            className="attachment-preview-image"
+            src={attachment.url}
+            alt={displayName}
+            loading="lazy"
+            decoding="async"
+          />
+        )}
+
+        {canPreviewText && expanded && (
+          <>
+            {loading && (
+              <div className="attachment-preview-placeholder">
+                <Loader2 size={16} className="attachment-spinner" />
+                <span>Loading preview…</span>
+              </div>
+            )}
+            {!loading && errorMessage && <div className="attachment-preview-error">{errorMessage}</div>}
+            {!loading && !errorMessage && content !== null && (
+              <pre className="attachment-preview-text">{content}</pre>
+            )}
+            {!loading && !errorMessage && content === null && (
+              <div className="attachment-preview-placeholder">No preview available.</div>
+            )}
+          </>
+        )}
+      </div>
 
       <div className="attachment-actions">
-        <a className="attachment-button" href={attachment.url} target="_blank" rel="noopener noreferrer">
+        <a
+          className="attachment-button"
+          href={attachment.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open ${displayName} in a new tab`}
+        >
           <ExternalLink size={14} />
           <span>Open</span>
         </a>
-        <a className="attachment-button" href={attachment.url} download={storageName}>
+        <a
+          className="attachment-button"
+          href={attachment.url}
+          download={storageName}
+          aria-label={`Download ${displayName}`}
+        >
           <FileDown size={14} />
           <span>Download</span>
         </a>

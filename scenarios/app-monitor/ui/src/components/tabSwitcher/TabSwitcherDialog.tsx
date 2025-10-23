@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2 } from 'lucide-react';
+import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2, Eye } from 'lucide-react';
 import clsx from 'clsx';
 import { selectScreenshotBySurface, useSurfaceMediaStore } from '@/state/surfaceMediaStore';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
@@ -350,7 +350,6 @@ export default function TabSwitcherDialog() {
       <header className="tab-switcher__header">
         <div className="tab-switcher__header-text">
           <h2>{activeSegmentLabel}</h2>
-          <p>Quickly jump between managed surfaces.</p>
         </div>
         <button
           type="button"
@@ -664,6 +663,7 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
     const normalized = source.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     return `status-${normalized || 'unknown'}`;
   }, [app.status]);
+  const statusLabel = app.status ?? 'Unknown';
   const fallbackInitial = useMemo(() => {
     const base = (app.scenario_name ?? app.name ?? app.id ?? '').trim();
     if (!base) {
@@ -690,6 +690,28 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
         style={thumbStyle}
         title={screenshot?.note ?? undefined}
       >
+        {(app.status || viewCountLabel) && (
+          <div className="tab-card__thumb-overlay">
+            {app.status && (
+              <span className="tab-card__status-indicator">
+                <span
+                  className={clsx('tab-card__status-dot', statusClassName)}
+                  aria-hidden
+                />
+                <span className="visually-hidden">Status: {statusLabel}</span>
+              </span>
+            )}
+            {viewCountLabel && (
+              <span
+                className="tab-card__chip tab-card__chip--muted tab-card__chip--views"
+                aria-label={`Views: ${viewCountLabel}`}
+              >
+                <Eye size={14} aria-hidden />
+                <span className="tab-card__views-count" aria-hidden>{viewCountLabel}</span>
+              </span>
+            )}
+          </div>
+        )}
         {!hasScreenshot && (
           <div className="tab-card__thumb-fallback" aria-hidden>
             <span className="tab-card__thumb-placeholder">{fallbackInitial}</span>
@@ -698,24 +720,6 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
       </div>
       <div className="tab-card__body">
         <h4>{app.scenario_name ?? app.name ?? app.id}</h4>
-        <div className="tab-card__meta">
-          {app.status && (
-            <span
-              className={clsx(
-                'tab-card__status',
-                'tab-card__status--scenario',
-                statusClassName,
-              )}
-            >
-              {app.status.toUpperCase()}
-            </span>
-          )}
-          {viewCountLabel && (
-            <span className="tab-card__chip tab-card__chip--muted">
-              👁 {viewCountLabel}
-            </span>
-          )}
-        </div>
       </div>
     </button>
   );

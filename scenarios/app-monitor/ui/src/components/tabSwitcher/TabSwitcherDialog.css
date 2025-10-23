@@ -453,6 +453,35 @@
   overflow: hidden;
 }
 
+.tab-card__thumb-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(4, 6, 16, 0) 0%, rgba(4, 6, 16, 0.78) 100%);
+  pointer-events: none;
+}
+
+.tab-card__status-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.tab-card__status-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(4, 7, 12, 0.6);
+  box-shadow: 0 0 0 2px rgba(4, 7, 12, 0.45);
+}
+
 .tab-card__thumb--image {
   background-color: rgba(12, 16, 28, 0.4);
   background-size: cover;
@@ -524,7 +553,7 @@
   padding: 14px 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tab-card__body h4 {
@@ -559,6 +588,23 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+.tab-card__chip--views {
+  background: rgba(11, 15, 28, 0.6);
+  color: rgba(240, 243, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 16px rgba(4, 6, 16, 0.35);
+  pointer-events: none;
+}
+
+.tab-card__chip--views svg {
+  flex-shrink: 0;
+}
+
+.tab-card__views-count {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .tab-card__status {
   display: inline-flex;
   align-items: center;
@@ -585,6 +631,14 @@
   color: #7cf4c6;
 }
 
+.tab-card__status-dot.status-online,
+.tab-card__status-dot.status-running,
+.tab-card__status-dot.status-healthy {
+  background: #46d6a2;
+  border-color: rgba(86, 219, 173, 0.75);
+  box-shadow: 0 0 0 2px rgba(4, 7, 12, 0.5);
+}
+
 .status-offline,
 .status-stopped,
 .status-error {
@@ -593,11 +647,26 @@
   color: #ff9d9d;
 }
 
+.tab-card__status-dot.status-offline,
+.tab-card__status-dot.status-stopped,
+.tab-card__status-dot.status-error {
+  background: #ff6666;
+  border-color: rgba(255, 165, 165, 0.75);
+  box-shadow: 0 0 0 2px rgba(4, 7, 12, 0.5);
+}
+
 .status-warning,
 .status-degraded {
   background: rgba(255, 198, 92, 0.18);
   border-color: rgba(255, 210, 150, 0.32);
   color: #ffd991;
+}
+
+.tab-card__status-dot.status-warning,
+.tab-card__status-dot.status-degraded {
+  background: #ffc85c;
+  border-color: rgba(255, 221, 150, 0.75);
+  box-shadow: 0 0 0 2px rgba(4, 7, 12, 0.5);
 }
 
 .status-starting,
@@ -608,12 +677,28 @@
   color: #bed0ff;
 }
 
+.tab-card__status-dot.status-starting,
+.tab-card__status-dot.status-pending,
+.tab-card__status-dot.status-launching {
+  background: #7aa0ff;
+  border-color: rgba(158, 190, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(4, 7, 12, 0.5);
+}
+
 .status-unknown,
 .status-idle,
 .status-inactive {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.2);
   color: rgba(235, 238, 255, 0.78);
+}
+
+.tab-card__status-dot.status-unknown,
+.tab-card__status-dot.status-idle,
+.tab-card__status-dot.status-inactive {
+  background: rgba(226, 229, 244, 0.7);
+  border-color: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 0 0 2px rgba(4, 7, 12, 0.45);
 }
 
 .tab-card__heading {
@@ -710,7 +795,7 @@
   }
 
   .tab-switcher__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .tab-switcher__web-form {

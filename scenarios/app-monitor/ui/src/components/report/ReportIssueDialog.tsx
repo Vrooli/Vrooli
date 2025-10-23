@@ -29,6 +29,7 @@ import {
   type RefObject,
 } from 'react';
 
+import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import ReportDiagnosticsPanel from './ReportDiagnosticsPanel';
 import ReportLogsSection from './ReportLogsSection';
 import ReportScreenshotPanel from './ReportScreenshotPanel';
@@ -186,19 +187,15 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
   }
 
   return (
-    <div
-      className="report-dialog__overlay"
-      role="presentation"
-      onClick={modal.handleDismiss}
+    <ResponsiveDialog
+      isOpen
+      onDismiss={modal.handleDismiss}
+      ariaLabelledBy="app-report-dialog-title"
+      size="xl"
+      className="report-dialog"
+      overlayClassName="report-dialog__overlay"
     >
-      <div
-        className="report-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="app-report-dialog-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="report-dialog__header">
+      <div className="report-dialog__header">
           <h2 id="app-report-dialog-title" className="report-dialog__title">
             <Bug aria-hidden size={20} />
             <span>Report an Issue</span>
@@ -216,8 +213,8 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
           >
             <X aria-hidden size={16} />
           </button>
-        </div>
-        <form className="report-dialog__form" onSubmit={form.handleSubmit}>
+      </div>
+      <form className="report-dialog__form" onSubmit={form.handleSubmit}>
             <div className="report-dialog__layout">
               <div className="report-dialog__lane report-dialog__lane--primary">
                 {existingIssuesLoading && (
@@ -439,8 +436,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
             </div>
           </form>
 
-      </div>
-    </div>
+  </ResponsiveDialog>
   );
 };
 

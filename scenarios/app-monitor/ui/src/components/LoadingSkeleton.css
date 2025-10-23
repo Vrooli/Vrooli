@@ -107,6 +107,16 @@
   }
 }
 
+@media (max-width: 560px) {
+  .surface-grid-skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .surface-grid-skeleton.list {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loading-skeleton {
     animation: none;

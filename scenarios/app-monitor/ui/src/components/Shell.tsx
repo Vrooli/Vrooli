@@ -7,6 +7,7 @@ import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
 import TabSwitcherDialog from '@/components/tabSwitcher/TabSwitcherDialog';
 import ActionsDialog from '@/components/actions/ActionsDialog';
+import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useShellOverlayStore } from '@/state/shellOverlayStore';
 import './Shell.css';
@@ -165,19 +166,24 @@ export default function Shell({ isConnected }: ShellProps) {
       </nav>
 
       {activeOverlay === 'tabs' && mountOverlay(
-        <div className="shell__overlay" role="dialog" aria-modal="true" aria-label="Tab switcher">
-          <div className="shell__overlay-content shell__overlay-content--wide">
-            <TabSwitcherDialog />
-          </div>
-        </div>,
+        <ResponsiveDialog
+          isOpen
+          ariaLabel="Tab switcher"
+          size="wide"
+          className="shell__dialog shell__dialog--wide"
+        >
+          <TabSwitcherDialog />
+        </ResponsiveDialog>,
       )}
 
       {activeOverlay === 'actions' && mountOverlay(
-        <div className="shell__overlay" role="dialog" aria-modal="true" aria-label="System actions">
-          <div className="shell__overlay-content">
-            <ActionsDialog isConnected={isConnected} />
-          </div>
-        </div>,
+        <ResponsiveDialog
+          isOpen
+          ariaLabel="System actions"
+          className="shell__dialog"
+        >
+          <ActionsDialog isConnected={isConnected} />
+        </ResponsiveDialog>,
       )}
     </div>
   );

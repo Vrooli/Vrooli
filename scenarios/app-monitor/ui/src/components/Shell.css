@@ -90,22 +90,10 @@
   letter-spacing: 0.04em;
 }
 
-.shell__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  background: rgba(4, 7, 12, 0.72);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 16px;
-}
 
-.shell__overlay-content {
-  width: min(720px, 100%);
-  max-height: 100%;
+.shell__dialog {
   background: rgba(16, 16, 28, 0.94);
-  border-radius: 18px;
+  border-radius: inherit;
   padding: 24px;
   box-shadow: 0 24px 48px rgba(8, 12, 26, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.08);
   color: #f5f5ff;
@@ -115,11 +103,9 @@
   min-height: 0;
 }
 
-.shell__overlay-content--wide {
-  width: min(960px, 100%);
-  max-height: min(660px, 100%);
-  min-height: 0;
+.shell__dialog--wide {
   box-shadow: 0 20px 48px rgba(12, 16, 28, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.14), 0 18px 36px rgba(255, 255, 255, 0.08);
+  padding: 24px 24px 24px;
 }
 
 @media (min-width: 768px) {
@@ -148,16 +134,11 @@
 }
 
 @media (max-width: 560px) {
-  .shell__overlay {
-    padding: 16px 10px;
-  }
-
-  .shell__overlay-content {
+  .shell__dialog {
     padding: 20px 16px;
-    border-radius: 16px;
   }
 
-  .shell__overlay-content--wide {
+  .shell__dialog--wide {
     padding: 20px 14px;
   }
 }
