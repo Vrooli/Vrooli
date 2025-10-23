@@ -15,14 +15,15 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Swarm Manager API port",
-       "range": "15000-19999"
-     },
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Swarm Manager API port",
+      "range": "15000-19999"
+    },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31011,
+      "range": "35000-39999",
+      "port": 37510,
       "description": "Swarm Manager dashboard UI port"
     }
   },
@@ -65,7 +66,7 @@
       "description": "Swarm Manager health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
+        "ui": "/health",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -76,6 +77,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -85,18 +94,20 @@
     "setup": {
       "description": "Initialize Swarm Manager",
       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "swarm-manager-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["swarm-manager"]
-            }
-         ]
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "swarm-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "swarm-manager"
+            ]
+          }
+        ]
       },
       "steps": [
         {
@@ -113,29 +124,29 @@
         }
       ]
     },
-     "develop": {
-       "description": "Start Swarm Manager services",
-       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./swarm-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/swarm-manager-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.js",
-           "background": true
-         },
-         {
-           "name": "show-urls",
-           "run": "echo \"✅ Swarm Manager is running at http://localhost:${UI_PORT}\""
-         }
-       ]
-     },
+    "develop": {
+      "description": "Start Swarm Manager services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./swarm-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/swarm-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"\u2705 Swarm Manager is running at http://localhost:${UI_PORT}\""
+        }
+      ]
+    },
     "test": {
       "description": "Run Swarm Manager tests",
       "steps": [

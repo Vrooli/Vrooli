@@ -114,7 +114,8 @@
     "health": {
       "description": "Stream of Consciousness Analyzer health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -122,6 +123,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -134,16 +143,18 @@
       "description": "Initialize Stream of Consciousness Analyzer",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "stream-of-consciousness-analyzer-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["stream-of-consciousness-analyzer"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "stream-of-consciousness-analyzer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "stream-of-consciousness-analyzer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -176,26 +187,26 @@
     "develop": {
       "description": "Start Stream of Consciousness Analyzer services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./stream-of-consciousness-analyzer-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/stream-of-consciousness-analyzer-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./stream-of-consciousness-analyzer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/stream-of-consciousness-analyzer-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {

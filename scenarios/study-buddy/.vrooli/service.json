@@ -124,7 +124,8 @@
     "health": {
       "description": "Study Buddy health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -132,6 +133,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -144,16 +153,18 @@
       "description": "Initialize Study Buddy",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "study-buddy-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["study-buddy"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "study-buddy-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "study-buddy"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -217,11 +228,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: study-buddy --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: study-buddy --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {

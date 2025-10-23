@@ -105,7 +105,8 @@
     "health": {
       "description": "Smart File Photo Manager health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -113,6 +114,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -125,18 +134,18 @@
       "description": "Initialize Smart File Photo Manager",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "smart-file-photo-manager-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "smart-file-photo-manager"
-              ]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "smart-file-photo-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "smart-file-photo-manager"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -166,7 +175,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '\ud83d\ude80 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -174,15 +183,15 @@
     "develop": {
       "description": "Start smart file photo manager with Go API server",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./smart-file-photo-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/smart-file-photo-manager-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./smart-file-photo-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/smart-file-photo-manager-api"
+          }
+        },
         {
           "name": "install-ui-dependencies",
           "run": "cd ui && npm install",
@@ -200,11 +209,11 @@
             "file_exists": "ui/server.js"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {

@@ -89,7 +89,8 @@
     "health": {
       "description": "SEO Optimizer health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -97,6 +98,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -109,18 +118,18 @@
       "description": "Initialize SEO Optimizer",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "seo-optimizer-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "seo-optimizer"
-              ]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "seo-optimizer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "seo-optimizer"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -136,7 +145,7 @@
       "steps": [
         {
           "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "run": "if [ -f .vrooli/app-identity.json ]; then if curl -fsS http://localhost:6333/health >/dev/null 2>&1; then vrooli resource qdrant embeddings refresh --force || echo 'Embeddings generation skipped (non-critical failure)'; else echo 'Embeddings refresh skipped (qdrant unavailable)'; fi; else echo 'Embeddings refresh skipped (identity not initialized)'; fi",
           "description": "Generate code embeddings for AI assistance"
         },
         {
@@ -161,7 +170,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 SEO Optimizer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\udd0d SEO Optimizer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -169,26 +178,26 @@
     "develop": {
       "description": "Start SEO Optimizer services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./seo-optimizer-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/seo-optimizer-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./seo-optimizer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/seo-optimizer-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 SEO Optimizer running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 SEO Optimizer running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
@@ -201,7 +210,7 @@
         },
         {
           "name": "test-audit",
-          "run": "curl -sf http://localhost:$API_PORT/api/audit",
+          "run": "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"url\":\"https://example.com\"}' http://localhost:$API_PORT/api/audit",
           "description": "Test audit endpoint"
         }
       ]
