@@ -50,7 +50,7 @@
 @media (max-width: 640px) {
   .responsive-dialog__overlay {
     align-items: flex-end;
-    justify-content: center;
+    justify-content: stretch;
     padding: 0;
   }
 
@@ -59,6 +59,7 @@
     max-height: 100vh;
     border-radius: 24px 24px 0 0;
     margin: 0;
+    margin-top: auto;
     box-shadow: 0 -12px 36px rgba(8, 12, 26, 0.4);
     padding-bottom: max(env(safe-area-inset-bottom), 0px);
   }

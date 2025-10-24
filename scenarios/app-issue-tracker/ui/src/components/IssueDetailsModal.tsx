@@ -130,6 +130,7 @@ export function IssueDetailsModal({
   const [deletePending, setDeletePending] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const fetchAbortRef = useRef<AbortController | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const providerLabel = conversation?.provider ?? issue.investigation?.agent_id ?? null;
 
@@ -197,6 +198,26 @@ export function IssueDetailsModal({
         fetchAbortRef.current.abort();
         fetchAbortRef.current = null;
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) {
+      return;
+    }
+
+    const handleScroll = () => {
+      if (scrollElement.scrollTop > 10) {
+        scrollElement.setAttribute('data-scrolled', 'true');
+      } else {
+        scrollElement.removeAttribute('data-scrolled');
+      }
+    };
+
+    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      scrollElement.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -360,7 +381,6 @@ export function IssueDetailsModal({
     <>
       <Modal onClose={onClose} labelledBy="issue-details-title" panelClassName="modal-panel--issue-details">
         <div className="issue-details-container">
-        <div className="issue-details-scroll">
           <header className="issue-details-header">
             <div className="issue-header-bar">
               <p className="modal-eyebrow">
@@ -414,6 +434,8 @@ export function IssueDetailsModal({
                 </button>
               </div>
             </div>
+          </header>
+        <div className="issue-details-scroll" ref={scrollRef}>
             <div className="issue-header-main">
               <div className="issue-header-title-row">
                 <h2 id="issue-details-title" className="modal-title">
@@ -450,7 +472,6 @@ export function IssueDetailsModal({
                 )}
               </div>
             </div>
-          </header>
 
           <div className={`issue-details-content${shouldShowTranscriptView ? ' is-transcript' : ''}`}>
             {shouldShowTranscriptView ? (

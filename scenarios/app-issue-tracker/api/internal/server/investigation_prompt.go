@@ -60,6 +60,7 @@ func (pb *PromptBuilder) BuildPrompt(issue *Issue, issueDir, agentID, projectPat
 		"{{issue_metadata}}":    fallbackValue,
 		"{{issue_artifacts}}":   fallbackValue,
 		"{{issue_dir}}":         fallbackValue,
+		"{{issue_dir_absolute}}": fallbackValue,
 		"{{agent_id}}":          fallbackValue,
 		"{{project_path}}":      fallbackValue,
 		"{{timestamp}}":         fallbackValue,
@@ -80,6 +81,7 @@ func (pb *PromptBuilder) BuildPrompt(issue *Issue, issueDir, agentID, projectPat
 	replacements["{{issue_metadata}}"] = sanitizeValue(pb.readIssueMetadataRaw(issueDir, issue))
 	replacements["{{issue_artifacts}}"] = sanitizeValue(pb.listArtifactPaths(issueDir, issue))
 	replacements["{{issue_dir}}"] = sanitizeValue(pb.computeIssueDirRelativePath(issueDir))
+	replacements["{{issue_dir_absolute}}"] = sanitizeValue(issueDir)
 	replacements["{{agent_id}}"] = sanitizeValue(agentID)
 	replacements["{{project_path}}"] = sanitizeValue(projectPath)
 	replacements["{{timestamp}}"] = sanitizeValue(timestamp)
@@ -111,9 +113,6 @@ func (pb *PromptBuilder) readIssueMetadataRaw(issueDir string, issue *Issue) str
 func (pb *PromptBuilder) listArtifactPaths(issueDir string, issue *Issue) string {
 	var lines []string
 
-	// Compute relative path prefix from scenarioRoot to issueDir
-	relIssueDir := pb.computeIssueDirRelativePath(issueDir)
-
 	// Build lines with descriptions from issue attachments
 	if issue != nil && len(issue.Attachments) > 0 {
 		for _, att := range issue.Attachments {
@@ -122,11 +121,11 @@ func (pb *PromptBuilder) listArtifactPaths(issueDir string, issue *Issue) string
 				continue
 			}
 
-			// Construct full relative path from scenarioRoot
-			fullRelPath := filepath.Join(relIssueDir, path)
-			fullRelPath = filepath.ToSlash(fullRelPath) // Normalize to forward slashes
+			// Construct absolute path
+			absPath := filepath.Join(issueDir, path)
+			absPath = filepath.ToSlash(absPath) // Normalize to forward slashes
 
-			line := fmt.Sprintf("- `%s`", fullRelPath)
+			line := fmt.Sprintf("- `%s`", absPath)
 			if desc := strings.TrimSpace(att.Description); desc != "" {
 				line = fmt.Sprintf("%s — %s", line, desc)
 			} else if cat := strings.TrimSpace(att.Category); cat != "" {
@@ -148,12 +147,8 @@ func (pb *PromptBuilder) listArtifactPaths(issueDir string, issue *Issue) string
 				if d.IsDir() {
 					return nil
 				}
-				// Compute path relative to scenarioRoot
-				rel, relErr := filepath.Rel(pb.scenarioRoot, path)
-				if relErr != nil {
-					return nil
-				}
-				normalized := filepath.ToSlash(rel)
+				// Use absolute path
+				normalized := filepath.ToSlash(path)
 				paths = append(paths, normalized)
 				return nil
 			})
