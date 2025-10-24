@@ -6,6 +6,7 @@ export interface ApiAttachment {
   path?: string;
   size?: number;
   category?: string;
+  description?: string;
 }
 
 export interface ApiIssue {
@@ -355,6 +356,7 @@ export function transformIssue(raw: ApiIssue, options: TransformIssueOptions): I
         size: typeof attachment?.size === 'number' ? attachment.size : undefined,
         url: buildAttachmentUrl(options.apiBaseUrl, raw.id, path),
         category: (attachment?.category ?? '').trim() || undefined,
+        description: (attachment?.description ?? '').trim() || undefined,
       });
     });
   }

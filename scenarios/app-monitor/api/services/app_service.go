@@ -1547,33 +1547,33 @@ func (s *AppService) RecordAppView(ctx context.Context, identifier string) (*rep
 
 // IssueReportRequest captures a request to forward an issue to app-issue-tracker
 type IssueReportRequest struct {
-	AppID                  string                  `json:"-"`
-	Message                string                  `json:"message"`
-	IncludeScreenshot      *bool                   `json:"includeScreenshot"`
-	PreviewURL             *string                 `json:"previewUrl"`
-	AppName                *string                 `json:"appName"`
-	ScenarioName           *string                 `json:"scenarioName"`
-	Source                 *string                 `json:"source"`
-	ScreenshotData         *string                 `json:"screenshotData"`
-	Captures               []IssueCapture          `json:"captures"`
-	Logs                   []string                `json:"logs"`
-	LogsTotal              *int                    `json:"logsTotal"`
-	LogsCapturedAt         *string                 `json:"logsCapturedAt"`
-	ConsoleLogs            []IssueConsoleLogEntry  `json:"consoleLogs"`
-	ConsoleLogsTotal       *int                    `json:"consoleLogsTotal"`
-	ConsoleCapturedAt      *string                 `json:"consoleLogsCapturedAt"`
-	NetworkRequests        []IssueNetworkEntry     `json:"networkRequests"`
-	NetworkTotal           *int                    `json:"networkRequestsTotal"`
-	NetworkCapturedAt      *string                 `json:"networkCapturedAt"`
-	HealthChecks           []IssueHealthCheckEntry `json:"healthChecks"`
-	HealthChecksTotal      *int                    `json:"healthChecksTotal"`
-	HealthChecksCapturedAt *string                 `json:"healthChecksCapturedAt"`
-	AppStatusLines         []string                `json:"appStatusLines"`
-	AppStatusLabel         *string                 `json:"appStatusLabel"`
-	AppStatusSeverity      *string                 `json:"appStatusSeverity"`
-	AppStatusCapturedAt    *string                 `json:"appStatusCapturedAt"`
-	PrimaryDescription     *string                 `json:"primaryDescription"`
-	IncludeDiagnosticsSummary *bool                `json:"includeDiagnosticsSummary"`
+	AppID                     string                  `json:"-"`
+	Message                   string                  `json:"message"`
+	IncludeScreenshot         *bool                   `json:"includeScreenshot"`
+	PreviewURL                *string                 `json:"previewUrl"`
+	AppName                   *string                 `json:"appName"`
+	ScenarioName              *string                 `json:"scenarioName"`
+	Source                    *string                 `json:"source"`
+	ScreenshotData            *string                 `json:"screenshotData"`
+	Captures                  []IssueCapture          `json:"captures"`
+	Logs                      []string                `json:"logs"`
+	LogsTotal                 *int                    `json:"logsTotal"`
+	LogsCapturedAt            *string                 `json:"logsCapturedAt"`
+	ConsoleLogs               []IssueConsoleLogEntry  `json:"consoleLogs"`
+	ConsoleLogsTotal          *int                    `json:"consoleLogsTotal"`
+	ConsoleCapturedAt         *string                 `json:"consoleLogsCapturedAt"`
+	NetworkRequests           []IssueNetworkEntry     `json:"networkRequests"`
+	NetworkTotal              *int                    `json:"networkRequestsTotal"`
+	NetworkCapturedAt         *string                 `json:"networkCapturedAt"`
+	HealthChecks              []IssueHealthCheckEntry `json:"healthChecks"`
+	HealthChecksTotal         *int                    `json:"healthChecksTotal"`
+	HealthChecksCapturedAt    *string                 `json:"healthChecksCapturedAt"`
+	AppStatusLines            []string                `json:"appStatusLines"`
+	AppStatusLabel            *string                 `json:"appStatusLabel"`
+	AppStatusSeverity         *string                 `json:"appStatusSeverity"`
+	AppStatusCapturedAt       *string                 `json:"appStatusCapturedAt"`
+	PrimaryDescription        *string                 `json:"primaryDescription"`
+	IncludeDiagnosticsSummary *bool                   `json:"includeDiagnosticsSummary"`
 }
 
 type IssueConsoleLogEntry struct {
@@ -1918,6 +1918,55 @@ func anyString(value interface{}) string {
 	}
 }
 
+// Helper functions for artifact description generation
+
+func countConsoleErrors(logs []IssueConsoleLogEntry) int {
+	count := 0
+	for _, log := range logs {
+		if strings.ToLower(strings.TrimSpace(log.Level)) == "error" {
+			count++
+		}
+	}
+	return count
+}
+
+func countFailedRequests(requests []IssueNetworkEntry) int {
+	count := 0
+	for _, req := range requests {
+		if (req.OK != nil && !*req.OK) || (req.Status != nil && *req.Status >= 400) {
+			count++
+		}
+	}
+	return count
+}
+
+func getFirstFailedRequest(requests []IssueNetworkEntry) *IssueNetworkEntry {
+	for i := range requests {
+		req := &requests[i]
+		if (req.OK != nil && !*req.OK) || (req.Status != nil && *req.Status >= 400) {
+			return req
+		}
+	}
+	return nil
+}
+
+func countPassingHealthChecks(checks []IssueHealthCheckEntry) int {
+	count := 0
+	for _, check := range checks {
+		if strings.ToLower(strings.TrimSpace(check.Status)) == "pass" {
+			count++
+		}
+	}
+	return count
+}
+
+func plural(count int) string {
+	if count == 1 {
+		return ""
+	}
+	return "s"
+}
+
 // IssueReportResult represents the outcome of forwarding an issue report
 type IssueReportResult struct {
 	IssueID  string
@@ -2170,12 +2219,18 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	artifacts := make([]map[string]interface{}, 0, 5)
 	if len(sanitizedLogs) > 0 {
 		artifactContent := strings.Join(sanitizedLogs, "\n")
+		description := fmt.Sprintf("Scenario startup logs (%d lines captured", len(sanitizedLogs))
+		if logsTotal > len(sanitizedLogs) {
+			description = fmt.Sprintf("%s, %d total", description, logsTotal)
+		}
+		description = description + ")"
 		artifacts = append(artifacts, map[string]interface{}{
 			"name":         attachmentLifecycleName,
 			"category":     "logs",
 			"content":      artifactContent,
 			"encoding":     "plain",
 			"content_type": "text/plain",
+			"description":  description,
 		})
 	}
 	if len(consoleLogs) > 0 {
@@ -2186,12 +2241,18 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		} else {
 			consoleContent = "[]"
 		}
+		errorCount := countConsoleErrors(consoleLogs)
+		description := fmt.Sprintf("Browser console events (%d captured)", len(consoleLogs))
+		if errorCount > 0 {
+			description = fmt.Sprintf("Browser console events (%d error%s logged)", errorCount, plural(errorCount))
+		}
 		artifacts = append(artifacts, map[string]interface{}{
 			"name":         attachmentConsoleName,
 			"category":     "console",
 			"content":      consoleContent,
 			"encoding":     "plain",
 			"content_type": "application/json",
+			"description":  description,
 		})
 	}
 	if len(networkEntries) > 0 {
@@ -2202,12 +2263,24 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		} else {
 			networkContent = "[]"
 		}
+		failedCount := countFailedRequests(networkEntries)
+		description := fmt.Sprintf("Network requests (%d captured)", len(networkEntries))
+		if failedCount > 0 {
+			firstFailed := getFirstFailedRequest(networkEntries)
+			if firstFailed != nil && firstFailed.Status != nil {
+				method := strings.ToUpper(firstFailed.Method)
+				description = fmt.Sprintf("Network requests (%d failed: %s %s → %d)", failedCount, method, firstFailed.URL, *firstFailed.Status)
+			} else {
+				description = fmt.Sprintf("Network requests (%d failed)", failedCount)
+			}
+		}
 		artifacts = append(artifacts, map[string]interface{}{
 			"name":         attachmentNetworkName,
 			"category":     "network",
 			"content":      networkContent,
 			"encoding":     "plain",
 			"content_type": "application/json",
+			"description":  description,
 		})
 	}
 	if len(healthEntries) > 0 {
@@ -2218,22 +2291,31 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		} else {
 			healthContent = "[]"
 		}
+		passCount := countPassingHealthChecks(healthEntries)
+		failCount := len(healthEntries) - passCount
+		description := fmt.Sprintf("Health checks (%d passed, %d failed)", passCount, failCount)
+		if failCount == 0 {
+			description = fmt.Sprintf("Health checks (all %d passed)", passCount)
+		}
 		artifacts = append(artifacts, map[string]interface{}{
 			"name":         attachmentHealthName,
 			"category":     "health",
 			"content":      healthContent,
 			"encoding":     "plain",
 			"content_type": "application/json",
+			"description":  description,
 		})
 	}
 	if len(statusLines) > 0 {
 		artifactContent := strings.Join(statusLines, "\n")
+		description := fmt.Sprintf("Scenario status output (%s severity)", strings.ToUpper(statusSeverity))
 		artifacts = append(artifacts, map[string]interface{}{
 			"name":         attachmentStatusName,
 			"category":     "status",
 			"content":      artifactContent,
 			"encoding":     "plain",
 			"content_type": "text/plain",
+			"description":  description,
 		})
 	}
 	if screenshotData != "" {
@@ -2243,6 +2325,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 			"content":      screenshotData,
 			"encoding":     "base64",
 			"content_type": "image/png",
+			"description":  "Full page screenshot captured at report time",
 		})
 	}
 
@@ -2253,12 +2336,17 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		}
 		elementAttachmentIndex++
 		name := fmt.Sprintf("element-%02d.png", elementAttachmentIndex)
+		description := fmt.Sprintf("Element capture: %s", resolveCaptureLabel(capture, elementAttachmentIndex-1))
+		if note := strings.TrimSpace(capture.Note); note != "" {
+			description = fmt.Sprintf("%s - %s", description, truncateTitle(note, 80))
+		}
 		artifacts = append(artifacts, map[string]interface{}{
 			"name":         name,
 			"category":     "screenshot",
 			"content":      capture.Data,
 			"encoding":     "base64",
 			"content_type": "image/png",
+			"description":  description,
 		})
 	}
 
@@ -3646,29 +3734,84 @@ func firstLine(value string) string {
 }
 
 func resolveCaptureLabel(capture IssueCapture, index int) string {
-	candidates := []string{
-		capture.Label,
-		capture.Title,
-		capture.Selector,
-		capture.AriaDesc,
-		capture.Text,
+	// Priority 1: CSS selector (most semantic for debugging - prioritize over Label which might be auto-generated text)
+	if selector := strings.TrimSpace(capture.Selector); selector != "" {
+		// For short selectors, use as-is
+		if len(selector) <= reportLabelMaxLength {
+			return selector
+		}
+		// For long selectors, try to extract meaningful ID
+		if elementID := strings.TrimSpace(capture.ElementID); elementID != "" {
+			return fmt.Sprintf("#%s", elementID)
+		}
+		// Truncate long selector
+		return truncateTitle(selector, reportLabelMaxLength)
 	}
 
-	for _, candidate := range candidates {
-		trimmed := strings.TrimSpace(candidate)
-		if trimmed != "" {
-			return truncateTitle(trimmed, reportLabelMaxLength)
+	// Priority 2: Element ID (if selector wasn't available but ID is)
+	if elementID := strings.TrimSpace(capture.ElementID); elementID != "" {
+		return fmt.Sprintf("#%s", elementID)
+	}
+
+	// Priority 3: User's custom label (only if it looks intentional/semantic, not auto-generated text)
+	if label := strings.TrimSpace(capture.Label); label != "" {
+		// Use label if it's short and doesn't look like element text content
+		// (i.e., doesn't contain symbols like +−, ©, |, typical of UI text)
+		if len(label) <= 40 && !strings.ContainsAny(label, "©®™±×÷+−|•◦▪▫") {
+			return truncateTitle(label, reportLabelMaxLength)
 		}
 	}
 
+	// Priority 4: ARIA description (accessibility label)
+	if aria := strings.TrimSpace(capture.AriaDesc); aria != "" {
+		return truncateTitle(aria, reportLabelMaxLength)
+	}
+
+	// Priority 5: Title attribute
+	if title := strings.TrimSpace(capture.Title); title != "" {
+		return truncateTitle(title, reportLabelMaxLength)
+	}
+
+	// Priority 6: Role + first class (semantic structure)
 	role := strings.TrimSpace(capture.Role)
 	if role != "" {
+		if len(capture.Classes) > 0 {
+			firstClass := strings.TrimSpace(capture.Classes[0])
+			if firstClass != "" {
+				combined := fmt.Sprintf("%s.%s", role, firstClass)
+				if len(combined) <= reportLabelMaxLength {
+					return combined
+				}
+			}
+		}
 		return truncateTitle(role, 32)
 	}
 
+	// Priority 7: Tag name + first class
 	tagName := strings.TrimSpace(capture.TagName)
 	if tagName != "" {
+		if len(capture.Classes) > 0 {
+			firstClass := strings.TrimSpace(capture.Classes[0])
+			if firstClass != "" {
+				combined := fmt.Sprintf("<%s.%s>", strings.ToLower(tagName), firstClass)
+				if len(combined) <= reportLabelMaxLength {
+					return combined
+				}
+			}
+		}
 		return fmt.Sprintf("<%s>", strings.ToLower(tagName))
+	}
+
+	// Priority 8: Use Label even if it looks like text (better than nothing)
+	if label := strings.TrimSpace(capture.Label); label != "" {
+		truncated := truncateTitle(label, 28) // Leave room for " element"
+		return truncated + " element"
+	}
+
+	// Priority 9 (LAST RESORT): Truncated text content with indicator
+	if text := strings.TrimSpace(capture.Text); text != "" {
+		truncated := truncateTitle(text, 28) // Leave room for " element"
+		return truncated + " element"
 	}
 
 	return fmt.Sprintf("element %d", index+1)
@@ -3697,10 +3840,18 @@ func deriveIssueTitle(primaryDescription, message string, captures []IssueCaptur
 
 	if includeDiagnosticsSummary {
 		if !hasPrimary && captureCount == 0 {
-			return "Address diagnostics issues"
+			// Try to extract specific diagnostic issue from message
+			lowerMessage := strings.ToLower(message)
+			if strings.Contains(lowerMessage, "bridge") || strings.Contains(lowerMessage, "iframe") {
+				return "Fix iframe bridge compliance issues"
+			}
+			if strings.Contains(lowerMessage, "localhost") || strings.Contains(lowerMessage, "proxy") {
+				return "Fix localhost proxy bypass violations"
+			}
+			return "Address diagnostics findings"
 		}
 		if hasPrimary && captureCount == 0 {
-			return "Address diagnostics issues and feedback"
+			return "Address diagnostics findings and feedback"
 		}
 		if !hasPrimary && captureCount == 1 && firstCaptureLabel != "" {
 			return truncateTitle("Diagnostics issues and feedback on "+firstCaptureLabel, reportTitleMaxLength)
@@ -3779,6 +3930,8 @@ func buildIssueDescription(
 		)
 	}
 
+	builder.WriteString("\nWhile reviewing this scenario in the app-monitor, an issue or missing capability was observed. Investigate the details below and implement the necessary change(s) in the scenario.\n")
+
 	builder.WriteString("## Context\n\n")
 	builder.WriteString(fmt.Sprintf("- Scenario: `%s`\n", scenarioName))
 	builder.WriteString(fmt.Sprintf("- App Name: `%s`\n", appName))
@@ -3797,8 +3950,6 @@ func buildIssueDescription(
 		builder.WriteString(fmt.Sprintf("- Reported via: %s\n", source))
 	}
 	builder.WriteString(fmt.Sprintf("- Reported at: %s\n", reportedAt.Format(time.RFC3339)))
-
-	builder.WriteString("\nWhile reviewing this scenario in App Monitor, an issue or missing capability was observed. Investigate the details below, implement the necessary change in the scenario, and confirm the fix within App Monitor after completion.\n")
 
 	trimmedMessage := strings.TrimSpace(message)
 	builder.WriteString("\n## Reporter Notes\n\n")
@@ -3867,6 +4018,8 @@ func buildIssueDescription(
 	builder.WriteString(fmt.Sprintf("- [ ] `make test` passes for `scenarios/%s`.\n", scenarioName))
 	builder.WriteString("- [ ] Any new logs are clean (no unexpected errors).\n")
 	builder.WriteString("- [ ] Scenario lifecycle commands complete without errors (`make start`, `make stop`).\n")
+	builder.WriteString("- [ ] **Scenario remains RUNNING after fix validation.**\n")
+	builder.WriteString("- [ ] **Health checks continue to pass after changes.**\n")
 
 	builder.WriteString("\n## Completion Notes\n\n")
 	builder.WriteString("Document the fix in the issue, including the files touched and any follow-up work that may be required. Attach updated artifacts if additional evidence is gathered during the fix.\n")

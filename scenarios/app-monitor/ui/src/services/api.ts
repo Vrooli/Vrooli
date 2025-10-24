@@ -157,6 +157,8 @@ export interface PreviewHealthDiagnosticsResult {
 
 export interface ReportIssuePayload {
   message: string;
+  primaryDescription?: string | null;
+  includeDiagnosticsSummary?: boolean;
   includeScreenshot?: boolean;
   previewUrl?: string | null;
   appName?: string | null;

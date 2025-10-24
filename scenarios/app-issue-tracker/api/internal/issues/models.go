@@ -107,11 +107,12 @@ type Issue struct {
 }
 
 type Attachment struct {
-	Name     string `yaml:"name" json:"name"`
-	Type     string `yaml:"type,omitempty" json:"type,omitempty"`
-	Path     string `yaml:"path" json:"path"`
-	Size     int64  `yaml:"size,omitempty" json:"size,omitempty"`
-	Category string `yaml:"category,omitempty" json:"category,omitempty"`
+	Name        string `yaml:"name" json:"name"`
+	Type        string `yaml:"type,omitempty" json:"type,omitempty"`
+	Path        string `yaml:"path" json:"path"`
+	Size        int64  `yaml:"size,omitempty" json:"size,omitempty"`
+	Category    string `yaml:"category,omitempty" json:"category,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 }
 
 type PromptPreviewRequest struct {
@@ -196,6 +197,7 @@ type ArtifactPayload struct {
 	Content     string `json:"content"`
 	Encoding    string `json:"encoding"`
 	ContentType string `json:"content_type"`
+	Description string `json:"description,omitempty"`
 }
 
 type LegacyAttachmentPayload struct {

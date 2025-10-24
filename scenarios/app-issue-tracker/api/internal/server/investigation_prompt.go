@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -106,9 +107,29 @@ func (pb *PromptBuilder) readIssueMetadataRaw(issueDir string, issue *Issue) str
 }
 
 func (pb *PromptBuilder) listArtifactPaths(issueDir string, issue *Issue) string {
-	var paths []string
+	var lines []string
 
-	if issueDir != "" {
+	// Build lines with descriptions from issue attachments
+	if issue != nil && len(issue.Attachments) > 0 {
+		for _, att := range issue.Attachments {
+			path := strings.TrimSpace(att.Path)
+			if path == "" {
+				continue
+			}
+
+			line := fmt.Sprintf("- `%s`", path)
+			if desc := strings.TrimSpace(att.Description); desc != "" {
+				line = fmt.Sprintf("%s — %s", line, desc)
+			} else if cat := strings.TrimSpace(att.Category); cat != "" {
+				line = fmt.Sprintf("%s (%s)", line, cat)
+			}
+			lines = append(lines, line)
+		}
+	}
+
+	// Fallback: scan directory if no attachment metadata
+	if len(lines) == 0 && issueDir != "" {
+		var paths []string
 		artifactsDir := filepath.Join(issueDir, artifactsDirName)
 		if info, err := os.Stat(artifactsDir); err == nil && info.IsDir() {
 			filepath.WalkDir(artifactsDir, func(path string, d fs.DirEntry, walkErr error) error {
@@ -127,26 +148,20 @@ func (pb *PromptBuilder) listArtifactPaths(issueDir string, issue *Issue) string
 				return nil
 			})
 		}
-	}
 
-	if len(paths) == 0 && issue != nil {
-		for _, att := range issue.Attachments {
-			if p := strings.TrimSpace(att.Path); p != "" {
-				normalized := filepath.ToSlash(p)
-				paths = append(paths, normalized)
+		if len(paths) > 0 {
+			sort.Strings(paths)
+			for _, p := range paths {
+				lines = append(lines, fmt.Sprintf("- `%s`", p))
 			}
 		}
 	}
 
-	if len(paths) == 0 {
+	if len(lines) == 0 {
 		return fallbackValue
 	}
 
-	sort.Strings(paths)
-	for i, p := range paths {
-		paths[i] = "- " + p
-	}
-	return strings.Join(paths, "\n")
+	return strings.Join(lines, "\n")
 }
 
 func sanitizeValue(str string) string {

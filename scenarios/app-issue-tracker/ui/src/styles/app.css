@@ -2879,26 +2879,27 @@ textarea::placeholder {
 }
 
 .timeline-summary {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  background: rgba(99, 102, 241, 0.08);
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.1);
+  box-shadow: none;
   color: inherit;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
     transform 0.2s ease;
-  text-align: left;
-  width: 100%;
 }
 
 .timeline-summary:hover,
 .timeline-summary:focus-visible {
-  border-color: rgba(99, 102, 241, 0.45);
+  border-color: rgba(99, 102, 241, 0.55);
   background: rgba(99, 102, 241, 0.12);
   outline: none;
   transform: translateY(-1px);
@@ -2908,33 +2909,26 @@ textarea::placeholder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: rgba(99, 102, 241, 0.18);
+  width: 16px;
+  height: 16px;
   color: #4338ca;
   flex-shrink: 0;
 }
 
-.timeline-summary-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-}
-
 .timeline-summary-label {
   font-weight: 600;
-  font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1;
 }
 
-.timeline-summary-subtext {
+.timeline-summary-separator {
+  font-size: 12px;
+  color: rgba(71, 85, 105, 0.6);
+}
+
+.timeline-summary-value {
   font-size: 12px;
   color: var(--muted);
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2944,23 +2938,23 @@ textarea::placeholder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgba(71, 85, 105, 0.75);
+  color: rgba(71, 85, 105, 0.6);
 }
 
 .dark .timeline-summary {
-  border-color: rgba(129, 140, 248, 0.35);
-  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(129, 140, 248, 0.55);
+  background: rgba(129, 140, 248, 0.22);
+  color: #e0e7ff;
 }
 
 .dark .timeline-summary:hover,
 .dark .timeline-summary:focus-visible {
-  border-color: rgba(129, 140, 248, 0.55);
-  background: rgba(99, 102, 241, 0.24);
+  border-color: rgba(129, 140, 248, 0.75);
+  background: rgba(129, 140, 248, 0.32);
 }
 
 .dark .timeline-summary-icon {
-  background: rgba(99, 102, 241, 0.28);
-  color: #e0e7ff;
+  color: #ede9fe;
 }
 
 .timeline-dialog-overlay {
@@ -3584,6 +3578,29 @@ textarea::placeholder {
   color: rgba(99, 102, 241, 0.5);
   display: inline-block;
   line-height: 1;
+}
+
+.attachment-description {
+  padding: 12px 14px;
+  background-color: rgba(99, 102, 241, 0.04);
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 0 0 12px 12px;
+  margin: 0 -14px -14px -14px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgba(71, 85, 105, 0.9);
+}
+
+.dark .attachment-description {
+  background-color: rgba(99, 102, 241, 0.08);
+  border-top-color: rgba(148, 163, 184, 0.2);
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.attachment-description-text {
+  margin: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .attachment-preview {

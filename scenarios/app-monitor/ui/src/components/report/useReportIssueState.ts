@@ -280,10 +280,8 @@ interface ReportIssueStateResult {
   reportSubmitting: boolean;
   reportError: string | null;
   reportIncludeScreenshot: boolean;
-  includeDiagnosticsSummary: boolean;
   diagnosticsSummaryIncluded: boolean;
   setIncludeDiagnosticsSummary: (value: boolean) => void;
-  issueTitlePreview: string;
   resetOnClose: () => void;
 }
 
@@ -294,114 +292,6 @@ const BRIDGE_FAILURE_LABELS: Record<string, string> = {
   'BACK/FWD': 'History navigation commands were not acknowledged by the iframe.',
   CHECK_FAILED: 'Runtime bridge check could not complete. Try refreshing the preview.',
   NO_IFRAME: 'Preview iframe was unavailable when the runtime check executed.',
-};
-
-const REPORT_TITLE_MAX_LENGTH = 80;
-
-const truncateTitle = (value: string, limit = REPORT_TITLE_MAX_LENGTH) => {
-  const chars = Array.from(value);
-  if (chars.length <= limit) {
-    return value;
-  }
-  return `${chars.slice(0, limit).join('')}...`;
-};
-
-const resolveElementLabel = (capture: ReportElementCapture, index: number) => {
-  const pick = (input?: string | null) => (input ?? '').trim();
-  const metadata = capture.metadata ?? {};
-  const candidates = [
-    pick(metadata.label),
-    pick(metadata.selector),
-    pick(metadata.ariaDescription),
-    pick(metadata.text),
-  ];
-
-  for (const candidate of candidates) {
-    if (candidate) {
-      return truncateTitle(candidate, 48);
-    }
-  }
-
-  const role = pick(metadata.role);
-  if (role) {
-    return role;
-  }
-
-  const tagName = pick(metadata.tagName);
-  if (tagName) {
-    return `<${tagName.toLowerCase()}>`;
-  }
-
-  return `element ${index + 1}`;
-};
-
-interface TitleContext {
-  primaryDescription: string;
-  elementCaptures: ReportElementCapture[];
-  includeDiagnosticsSummary: boolean;
-  includeScreenshot: boolean;
-}
-
-const deriveReportIssueTitle = ({
-  primaryDescription,
-  elementCaptures,
-  includeDiagnosticsSummary,
-  includeScreenshot,
-}: TitleContext) => {
-  const trimmedPrimary = primaryDescription.trim();
-  const capturesWithNotes = elementCaptures.filter(capture => capture.note.trim().length > 0);
-  const captureCount = capturesWithNotes.length;
-  const firstCaptureLabel = captureCount > 0 ? resolveElementLabel(capturesWithNotes[0], 0) : null;
-
-  const hasPrimary = trimmedPrimary.length > 0;
-
-  if (includeDiagnosticsSummary) {
-    if (!hasPrimary && captureCount === 0) {
-      return 'Address diagnostics issues';
-    }
-    if (hasPrimary && captureCount === 0) {
-      return 'Address diagnostics issues and feedback';
-    }
-    if (!hasPrimary && captureCount === 1 && firstCaptureLabel) {
-      return truncateTitle(`Diagnostics issues and feedback on ${firstCaptureLabel}`);
-    }
-    if (!hasPrimary && captureCount > 1) {
-      return `Diagnostics issues with feedback on ${captureCount} elements`;
-    }
-    if (hasPrimary && captureCount === 1 && firstCaptureLabel) {
-      return truncateTitle(`Address diagnostics issues and ${firstCaptureLabel} feedback`);
-    }
-    if (hasPrimary && captureCount > 1) {
-      return 'Address diagnostics issues with captured feedback';
-    }
-  }
-
-  if (!hasPrimary && captureCount > 0) {
-    if (captureCount === 1 && firstCaptureLabel) {
-      return truncateTitle(`Feedback on ${firstCaptureLabel}`);
-    }
-    return `Feedback on ${captureCount} elements`;
-  }
-
-  if (hasPrimary) {
-    const firstLine = (() => {
-      const newlineIdx = trimmedPrimary.search(/[\r\n]/);
-      if (newlineIdx === -1) {
-        return trimmedPrimary;
-      }
-      return trimmedPrimary.slice(0, newlineIdx).trim();
-    })();
-
-    if (firstLine) {
-      return truncateTitle(firstLine);
-    }
-  }
-
-  if (includeScreenshot) {
-    return 'Screenshot feedback';
-  }
-
-  return 'Issue reported from App Monitor';
 };
 
 const useReportIssueState = ({
@@ -1927,19 +1817,6 @@ const useReportIssueState = ({
     return 'idle';
   }, [diagnosticsLoading, diagnosticsStatus, diagnosticsEvaluation]);
 
-  const issueTitlePreview = useMemo(() => deriveReportIssueTitle({
-    primaryDescription: reportMessage,
-    elementCaptures,
-    includeDiagnosticsSummary: diagnosticsSummaryIncluded,
-    includeScreenshot: reportIncludeScreenshot && canCaptureScreenshot,
-  }), [
-    reportMessage,
-    elementCaptures,
-    diagnosticsSummaryIncluded,
-    reportIncludeScreenshot,
-    canCaptureScreenshot,
-  ]);
-
   return {
     textareaRef,
     form: {
@@ -2073,10 +1950,8 @@ const useReportIssueState = ({
     reportSubmitting,
     reportError,
     reportIncludeScreenshot,
-    includeDiagnosticsSummary: reportIncludeDiagnostics,
     diagnosticsSummaryIncluded,
     setIncludeDiagnosticsSummary: handleIncludeDiagnosticsSummaryChange,
-    issueTitlePreview,
     resetOnClose: resetState,
   };
 };

@@ -248,11 +248,12 @@ func (am *ArtifactManager) persistArtifacts(issueDir string, payloads []issuespk
 		}
 
 		attachments = append(attachments, issuespkg.Attachment{
-			Name:     displayName,
-			Type:     contentType,
-			Path:     relativePath,
-			Size:     int64(len(data)),
-			Category: strings.TrimSpace(artifact.Category),
+			Name:        displayName,
+			Type:        contentType,
+			Path:        relativePath,
+			Size:        int64(len(data)),
+			Category:    strings.TrimSpace(artifact.Category),
+			Description: strings.TrimSpace(artifact.Description),
 		})
 	}
 	return attachments, nil

@@ -6,17 +6,24 @@ Full Metadata (YAML)
 --------------------
 {{issue_metadata}}
 
-Artifacts
----------
+Artifacts (Priority Evidence Files)
+------------------------------------
 {{issue_artifacts}}
+
+**Investigation Notes:**
+- Artifact descriptions indicate what evidence each file contains
+- **Prioritize files with error/failure indicators** (console errors, failed network requests)
+- Cross-reference artifact evidence with the issue description's "Captured Evidence" section
+- Screenshots provide visual context but read error logs first
 
 Execution Playbook
 ------------------
-1. Ingest the metadata, artifacts, and git history to understand the true state of the issue.
-2. Investigate root causes using the available tools (Read, Write, Edit, Bash, LS, Glob, Grep). Inspect code, configs, and logs as needed.
-3. Implement the fix directly in the repository. Do not stop at a plan when you can make concrete changes.
-4. Run safe validations and smoke checks (fast unit tests, formatters, targeted scripts) when they reduce risk. Capture the command output.
-5. If you are blocked, explicitly state why and what information or access you need to continue.
+1. **Review artifacts strategically**: Read console/network artifacts first if they show errors
+2. **Investigate root causes** using the available tools (Read, Write, Edit, Bash, Glob, Grep). Inspect code, configs, and logs as needed.
+3. **Implement the fix directly** in the repository. Do not stop at a plan when you can make concrete changes.
+4. **Run validations** mentioned in the issue's "Testing & Validation" section. Capture the command output.
+5. **Verify success criteria** listed in the issue description before considering the task complete.
+6. If you are blocked, explicitly state why and what information or access you need to continue.
 
 Deliverable
 -----------

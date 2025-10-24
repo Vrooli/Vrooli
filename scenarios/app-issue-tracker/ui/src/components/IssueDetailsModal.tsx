@@ -445,6 +445,9 @@ export function IssueDetailsModal({
                   icon={<AppWindow size={14} />}
                   showLabel={false}
                 />
+                {timelineEntries.length > 0 && (
+                  <TimelineSummary entries={timelineEntries} onOpen={() => setTimelineOpen(true)} />
+                )}
               </div>
             </div>
           </header>
@@ -473,10 +476,6 @@ export function IssueDetailsModal({
                   </div>
                 </label>
               </div>
-            )}
-
-            {timelineEntries.length > 0 && (
-              <TimelineSummary entries={timelineEntries} onOpen={() => setTimelineOpen(true)} />
             )}
 
             {description && (() => {
@@ -909,6 +908,7 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
     sizeLabel ? { key: 'size', text: sizeLabel, className: 'attachment-card-detail' } : null,
   ].filter(Boolean) as Array<{ key: string; text: string; className: string }>;
   const isImage = kind === 'image';
+  const showDescription = !isImage && attachment.description?.trim();
 
   const renderIcon = () => {
     if (kind === 'image') {
@@ -945,6 +945,12 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
           </div>
         </div>
       </header>
+
+      {showDescription && (
+        <div className="attachment-description">
+          <p className="attachment-description-text">{attachment.description}</p>
+        </div>
+      )}
 
       {isImage && (
         <div className="attachment-preview">
@@ -1268,20 +1274,21 @@ function TimelineSummary({ entries, onOpen }: { entries: IssueTimelineEntry[]; o
   return (
     <button
       type="button"
-      className="timeline-summary"
+      className="issue-header-badge timeline-summary"
       onClick={onOpen}
       aria-label={accessibleLabel}
       title={latest.value}
     >
       <span className="timeline-summary-icon" aria-hidden="true">
-        <CalendarClock size={16} />
+        <CalendarClock size={12} />
       </span>
-      <span className="timeline-summary-content">
-        <span className="timeline-summary-label">{latest.label}</span>
-        <span className="timeline-summary-subtext">{summaryText}</span>
+      <span className="timeline-summary-label">{latest.label}</span>
+      <span className="timeline-summary-separator" aria-hidden="true">
+        •
       </span>
+      <span className="timeline-summary-value">{summaryText}</span>
       <span className="timeline-summary-chevron" aria-hidden="true">
-        <ChevronRight size={16} />
+        <ChevronRight size={12} />
       </span>
     </button>
   );

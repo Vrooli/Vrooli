@@ -104,7 +104,6 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     screenshot,
     diagnosticsSummaryIncluded,
     setIncludeDiagnosticsSummary,
-    issueTitlePreview,
   } = useReportIssueState(props);
 
   const sendDisabled = form.submitting || (
@@ -216,11 +215,6 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
               </span>
             )}
           </h2>
-          {issueTitlePreview && (
-            <p className="report-dialog__hint" aria-live="polite">
-              Title preview: {issueTitlePreview}
-            </p>
-          )}
           <button
             type="button"
             className="report-dialog__close"
