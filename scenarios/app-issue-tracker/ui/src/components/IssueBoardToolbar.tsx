@@ -53,6 +53,7 @@ export function IssueBoardToolbar({
       onClose={onRequestClose}
       labelledBy="issue-filters-heading"
       panelClassName="modal-panel--compact"
+      size="compact"
     >
       <div className="issues-toolbar-dialog">
         <div className="issues-toolbar-popover-header">

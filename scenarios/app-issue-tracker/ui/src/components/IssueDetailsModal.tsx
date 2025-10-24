@@ -1,5 +1,5 @@
 import type { ChangeEvent, ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Archive,
@@ -13,7 +13,6 @@ import {
   Hash,
   Image as ImageIcon,
   KanbanSquare,
-  Loader2,
   Mail,
   Pencil,
   Paperclip,
@@ -28,8 +27,6 @@ import { formatFileSize } from '../utils/files';
 import { toTitleCase } from '../utils/string';
 import { getFallbackStatuses } from '../utils/issues';
 import { Modal } from './Modal';
-
-const MAX_ATTACHMENT_PREVIEW_CHARS = 8000;
 
 interface AgentConversationEntryPayload {
   kind: string;
@@ -891,100 +888,22 @@ interface AttachmentPreviewProps {
 
 function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
   const kind = classifyAttachment(attachment);
-  const canPreviewText = kind === 'text' || kind === 'json';
-  const [expanded, setExpanded] = useState(kind === 'image');
-  const [content, setContent] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const previewRequested = useRef(false);
-  const isCollapsible = canPreviewText;
-  const previewId = useId();
-
-  useEffect(() => {
-    setExpanded(kind === 'image');
-    setContent(null);
-    setErrorMessage(null);
-    setLoading(false);
-    previewRequested.current = false;
-  }, [attachment.path, kind]);
-
-  useEffect(() => {
-    if (!canPreviewText || !expanded) {
-      return;
-    }
-    if (content !== null || previewRequested.current) {
-      return;
-    }
-
-    previewRequested.current = true;
-    const controller = new AbortController();
-    const { signal } = controller;
-
-    setLoading(true);
-    setErrorMessage(null);
-
-    fetch(attachment.url, { signal })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Preview request failed with status ${response.status}`);
-        }
-        return response.text();
-      })
-      .then((data) => {
-        if (signal.aborted) {
-          return;
-        }
-        let previewText = data;
-        if (kind === 'json') {
-          try {
-            previewText = JSON.stringify(JSON.parse(data), null, 2);
-          } catch (parseError) {
-            // Keep raw response if parsing fails
-          }
-        }
-        if (previewText.length > MAX_ATTACHMENT_PREVIEW_CHARS) {
-          previewText = `${previewText.slice(0, MAX_ATTACHMENT_PREVIEW_CHARS)}\n…`;
-        }
-        setContent(previewText);
-      })
-      .catch((error) => {
-        if (signal.aborted) {
-          return;
-        }
-        console.error('[IssueTracker] Failed to fetch attachment preview', error);
-        setErrorMessage('Failed to load preview');
-      })
-      .finally(() => {
-        if (signal.aborted) {
-          return;
-        }
-        setLoading(false);
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [attachment.url, canPreviewText, content, expanded, kind]);
-
   const storageName = attachment.name?.trim() || attachment.path.split(/[\\/]+/).pop() || 'attachment';
   const displayName = attachment.name?.trim() || storageName;
+  const dotIndex = displayName.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? displayName.slice(0, dotIndex) : displayName;
+  const extension = dotIndex > 0 ? displayName.slice(dotIndex) : '';
   const sizeLabel = formatFileSize(attachment.size);
-  const kindLabel = kind === 'json' ? 'JSON' : kind === 'text' ? 'Text' : kind === 'image' ? 'Image' : 'File';
-  const extension = storageName.includes('.') ? storageName.split('.').pop()?.toUpperCase() ?? null : null;
   const categoryLabel = attachment.category
     ? toTitleCase(attachment.category.replace(/[-_]+/g, ' '))
     : null;
-  const detailParts = [sizeLabel, kindLabel, extension && extension !== kindLabel ? extension : null].filter(
-    Boolean,
-  ) as string[];
-  const collapsed = isCollapsible && !expanded;
-
-  const toggle = () => {
-    if (!isCollapsible) {
-      return;
-    }
-    setExpanded((state) => !state);
-  };
+  const detailItems = [
+    categoryLabel
+      ? { key: 'category', text: categoryLabel, className: 'attachment-card-detail attachment-card-detail--category' }
+      : null,
+    sizeLabel ? { key: 'size', text: sizeLabel, className: 'attachment-card-detail' } : null,
+  ].filter(Boolean) as Array<{ key: string; text: string; className: string }>;
+  const isImage = kind === 'image';
 
   const renderIcon = () => {
     if (kind === 'image') {
@@ -1000,44 +919,30 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
   };
 
   return (
-    <article
-      className={`attachment-card attachment-card--${kind}${collapsed ? ' attachment-card--collapsed' : ' attachment-card--expanded'}`}
-    >
+    <article className={`attachment-card attachment-card--${kind}`}>
       <header className="attachment-card-header">
         <div className="attachment-card-heading">
           <span className={`attachment-icon attachment-icon--${kind}`} aria-hidden="true">
             {renderIcon()}
           </span>
           <div className="attachment-card-meta">
-            <p className="attachment-card-name" title={displayName}>
-              {displayName}
+            <p className="attachment-card-name" title={displayName} aria-label={displayName}>
+              <span className="attachment-card-name-base">{baseName}</span>
+              {extension && <span className="attachment-card-name-ext">{extension}</span>}
             </p>
             <p className="attachment-card-details">
-              {detailParts.map((part) => (
-                <span key={part}>{part}</span>
+              {detailItems.map((item) => (
+                <span key={item.key} className={item.className}>
+                  {item.text}
+                </span>
               ))}
             </p>
           </div>
         </div>
-        <div className="attachment-header-actions">
-          {categoryLabel && <span className="attachment-category">{categoryLabel}</span>}
-          {isCollapsible && (
-            <button
-              type="button"
-              className="attachment-toggle"
-              onClick={toggle}
-              aria-expanded={expanded}
-              aria-controls={previewId}
-            >
-              <span>{expanded ? 'Hide preview' : 'Show preview'}</span>
-              <ChevronDown size={14} className={`attachment-toggle-icon${expanded ? ' is-open' : ''}`} aria-hidden="true" />
-            </button>
-          )}
-        </div>
       </header>
 
-      <div className="attachment-preview" id={previewId} hidden={isCollapsible && !expanded}>
-        {kind === 'image' && (
+      {isImage && (
+        <div className="attachment-preview">
           <img
             className="attachment-preview-image"
             src={attachment.url}
@@ -1045,26 +950,8 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
             loading="lazy"
             decoding="async"
           />
-        )}
-
-        {canPreviewText && expanded && (
-          <>
-            {loading && (
-              <div className="attachment-preview-placeholder">
-                <Loader2 size={16} className="attachment-spinner" />
-                <span>Loading preview…</span>
-              </div>
-            )}
-            {!loading && errorMessage && <div className="attachment-preview-error">{errorMessage}</div>}
-            {!loading && !errorMessage && content !== null && (
-              <pre className="attachment-preview-text">{content}</pre>
-            )}
-            {!loading && !errorMessage && content === null && (
-              <div className="attachment-preview-placeholder">No preview available.</div>
-            )}
-          </>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="attachment-actions">
         <a
@@ -1075,7 +962,6 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
           aria-label={`Open ${displayName} in a new tab`}
         >
           <ExternalLink size={14} />
-          <span>Open</span>
         </a>
         <a
           className="attachment-button"
@@ -1084,7 +970,6 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
           aria-label={`Download ${displayName}`}
         >
           <FileDown size={14} />
-          <span>Download</span>
         </a>
       </div>
     </article>
@@ -1136,6 +1021,7 @@ function classifyAttachment(attachment: IssueAttachment): 'image' | 'text' | 'js
   }
   return 'other';
 }
+
 
 function escapeHtml(value: string): string {
   return value

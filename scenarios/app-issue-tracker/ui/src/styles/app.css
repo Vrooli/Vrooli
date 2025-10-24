@@ -2271,16 +2271,13 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
+  padding: 0;
   z-index: 1000;
 }
 
 .modal-panel {
-  width: min(720px, 100%);
-  max-height: 90vh;
   background: var(--card-bg);
   color: inherit;
-  border-radius: 20px;
   box-shadow: 0 32px 68px rgba(15, 23, 42, 0.32);
   display: flex;
   flex-direction: column;
@@ -2296,7 +2293,6 @@ textarea::placeholder {
 }
 
 .modal-panel--compact {
-  width: min(440px, 100%);
   max-height: 80vh;
 }
 
@@ -2305,7 +2301,6 @@ textarea::placeholder {
 }
 
 .modal-panel--wide {
-  width: min(1200px, 95vw);
   max-height: 92vh;
 }
 
@@ -2313,7 +2308,6 @@ textarea::placeholder {
   .modal-panel--wide {
     width: 100%;
     max-height: 100vh;
-    border-radius: 0;
   }
 
   .modal-body--dashboard .stats-grid {
@@ -3203,23 +3197,17 @@ textarea::placeholder {
 
 .issue-attachments-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 0.5fr));
   gap: 18px;
-}
-
-@media (max-width: 960px) {
-  .issue-attachments-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .attachment-card {
   border: 1px solid var(--card-border);
   border-radius: 14px;
-  padding: 16px 18px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   background: var(--card-bg);
   box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
   transition:
@@ -3267,13 +3255,13 @@ textarea::placeholder {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
 }
 
 .attachment-icon {
   display: inline-flex;
-  padding: 10px;
-  border-radius: 12px;
+  padding: 8px;
+  border-radius: 11px;
   background: rgba(99, 102, 241, 0.12);
   color: #4338ca;
 }
@@ -3324,43 +3312,30 @@ textarea::placeholder {
 .attachment-card-heading {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.attachment-header-actions {
-  display: flex;
-  align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-
-.attachment-category {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  background: rgba(99, 102, 241, 0.16);
-  color: #312e81;
-}
-
-.dark .attachment-category {
-  background: rgba(129, 140, 248, 0.28);
-  color: #e0e7ff;
+  min-width: 0;
 }
 
 .attachment-card-name {
   font-weight: 600;
   line-height: 1.4;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  min-width: 0;
+}
+
+.attachment-card-name-base {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  margin: 0;
+  min-width: 0;
+}
+
+.attachment-card-name-ext {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .attachment-card-details {
@@ -3370,25 +3345,42 @@ textarea::placeholder {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.attachment-card-detail {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.attachment-card-detail--category {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: rgba(79, 70, 229, 0.72);
+  line-height: 1;
+}
+
+.dark .attachment-card-detail--category {
+  color: rgba(199, 210, 254, 0.8);
 }
 
 .attachment-card-details span + span::before {
   content: '·';
   margin-right: 6px;
   color: rgba(99, 102, 241, 0.5);
+  display: inline-block;
+  line-height: 1;
 }
 
 .attachment-preview {
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: rgba(15, 23, 42, 0.03);
-  padding: 12px;
-  max-height: 260px;
-  overflow: auto;
-}
-
-.attachment-card--collapsed .attachment-preview {
-  display: none;
+  padding: 10px;
+  max-height: 220px;
+  overflow: hidden;
 }
 
 .dark .attachment-preview {
@@ -3401,98 +3393,28 @@ textarea::placeholder {
   height: auto;
   border-radius: 10px;
   display: block;
-  object-fit: cover;
-}
-
-.attachment-preview-text {
-  margin: 0;
-  font-family:
-    "Fira Code", "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 13px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.attachment-preview-placeholder,
-.attachment-preview-error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.attachment-preview-error {
-  color: #dc2626;
-}
-
-.dark .attachment-preview-error {
-  color: #fca5a5;
+  object-fit: contain;
 }
 
 .attachment-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 8px;
   margin-top: auto;
-}
-
-.attachment-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 8px;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.attachment-toggle:hover,
-.attachment-toggle:focus-visible {
-  background: rgba(99, 102, 241, 0.15);
-  color: #312e81;
-  outline: none;
-}
-
-.dark .attachment-toggle:hover,
-.dark .attachment-toggle:focus-visible {
-  background: rgba(129, 140, 248, 0.22);
-  color: #c7d2fe;
-}
-
-.attachment-toggle-icon {
-  transition: transform 0.2s ease;
-}
-
-.attachment-card--collapsed .attachment-toggle-icon {
-  transform: rotate(0deg);
-}
-
-.attachment-card--expanded .attachment-toggle-icon {
-  transform: rotate(180deg);
 }
 
 .attachment-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  padding: 7px 12px;
-  border-radius: 10px;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
   border: 1px solid rgba(99, 102, 241, 0.25);
   background: rgba(99, 102, 241, 0.1);
   color: #312e81;
   cursor: pointer;
   text-decoration: none;
-  font-weight: 600;
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
@@ -3519,18 +3441,6 @@ textarea::placeholder {
   border-color: rgba(129, 140, 248, 0.48);
 }
 
-.attachment-spinner {
-  animation: attachment-spin 1s linear infinite;
-}
-
-@keyframes attachment-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 .issue-detail-text {
   margin: 0;

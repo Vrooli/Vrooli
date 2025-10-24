@@ -33,7 +33,12 @@ export function SettingsDialog({
   issuesRemaining,
 }: SettingsDialogProps) {
   return (
-    <Modal onClose={onClose} labelledBy="settings-dialog-title" panelClassName="modal-panel--wide">
+    <Modal
+      onClose={onClose}
+      labelledBy="settings-dialog-title"
+      panelClassName="modal-panel--wide"
+      size="xl"
+    >
       <div className="modal-header">
         <div>
           <p className="modal-eyebrow">Configuration</p>
