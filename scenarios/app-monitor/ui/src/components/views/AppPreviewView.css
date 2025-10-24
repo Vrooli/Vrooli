@@ -255,6 +255,27 @@ body.app-preview-immersive {
   color: rgba(248, 113, 113, 0.88);
 }
 
+.preview-inspector__active-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.35rem 0.6rem;
+  border-radius: 9999px;
+  background: rgba(59, 130, 246, 0.22);
+  color: rgba(226, 255, 247, 0.98);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.28);
+  gap: 0.4rem;
+}
+
+.preview-inspector__active-chip-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .preview-inspector__section {
   margin-top: 0.9rem;
   padding-top: 0.6rem;

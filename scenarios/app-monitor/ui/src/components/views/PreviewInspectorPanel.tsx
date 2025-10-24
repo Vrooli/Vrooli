@@ -33,6 +33,7 @@ const PreviewInspectorPanel = ({
     inspectStatusMessage,
     inspectCopyFeedback,
     inspectTarget,
+    inspectActiveChipLabel,
     inspectMeta,
     inspectRect,
     inspectSizeLabel,
@@ -66,6 +67,10 @@ const PreviewInspectorPanel = ({
   const handleDialogRef = (node: HTMLDivElement | null) => {
     inspectorDialogRef.current = node;
   };
+
+  const showDetailsSection = !inspectState.active && Boolean(inspectTarget);
+  const showScreenshotSection = !inspectState.active;
+  const activeChipLabel = inspectActiveChipLabel ?? 'Move finger to highlight an element';
 
   return (
     <div
@@ -138,7 +143,14 @@ const PreviewInspectorPanel = ({
             {inspectStatusMessage}
           </p>
         )}
-        {inspectTarget && (
+        {inspectState.active && (
+          <div className="preview-inspector__active-chip" role="status">
+            <span className="preview-inspector__active-chip-label" title={activeChipLabel}>
+              {activeChipLabel}
+            </span>
+          </div>
+        )}
+        {showDetailsSection && (
           <div className="preview-inspector__section">
             <button
               type="button"
@@ -264,10 +276,11 @@ const PreviewInspectorPanel = ({
           </div>
         )}
 
-        <div className="preview-inspector__section">
-          <button
-            type="button"
-            className={clsx(
+        {showScreenshotSection && (
+          <div className="preview-inspector__section">
+            <button
+              type="button"
+              className={clsx(
               'preview-inspector__section-toggle',
               inspectorScreenshotExpanded && 'preview-inspector__section-toggle--expanded',
             )}
@@ -383,7 +396,8 @@ const PreviewInspectorPanel = ({
               )}
             </figure>
           </div>
-        </div>
+          </div>
+        )}
       </section>
     </div>
   );

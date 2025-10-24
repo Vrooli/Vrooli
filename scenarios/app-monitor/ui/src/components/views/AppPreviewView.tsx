@@ -192,6 +192,8 @@ const AppPreviewView = () => {
     previewIdentifier ? buildProxyPreviewUrl(previewIdentifier) : null
   ), [previewIdentifier]);
 
+  const previousPreviewIdentifierRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
@@ -771,6 +773,14 @@ const AppPreviewView = () => {
     previewViewNode,
     onCaptureAdd: handleInspectorCaptureAdded,
   });
+
+  useEffect(() => {
+    const identifier = previewIdentifier ?? null;
+    if (previousPreviewIdentifierRef.current && previousPreviewIdentifierRef.current !== identifier) {
+      inspector.handleInspectorDialogClose();
+    }
+    previousPreviewIdentifierRef.current = identifier;
+  }, [previewIdentifier, inspector.handleInspectorDialogClose]);
 
   const resolvePreviewBackgroundColor = useCallback(() => {
     if (typeof window === 'undefined') {

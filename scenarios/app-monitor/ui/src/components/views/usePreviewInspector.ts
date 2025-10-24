@@ -70,6 +70,7 @@ export type PreviewInspectorState = {
   inspectStatusMessage: string | null;
   inspectCopyFeedback: 'selector' | 'text' | null;
   inspectTarget: BridgeInspectHoverPayload | BridgeInspectResultPayload | null;
+  inspectActiveChipLabel: string | null;
   inspectMeta: (BridgeInspectHoverPayload | BridgeInspectResultPayload)['meta'] | null;
   inspectRect: BridgeInspectRect | null;
   inspectSizeLabel: string | null;
@@ -131,6 +132,7 @@ export const usePreviewInspector = ({
   const inspectorDragStateRef = useRef<DragState | null>(null);
   const inspectorSuppressClickRef = useRef(false);
   const inspectMessageLockRef = useRef<InspectMessageLock>({ locked: false, timer: null });
+  const inspectorAutoOpenSuppressedRef = useRef(false);
 
   const inspectorDialogTitleId = useId();
   const inspectorDetailsSectionId = useId();
@@ -138,6 +140,22 @@ export const usePreviewInspector = ({
   const inspectorReportNoteId = useId();
   const inspectorDetailsContentId = `${inspectorDetailsSectionId}-content`;
   const inspectorScreenshotContentId = `${inspectorScreenshotSectionId}-content`;
+  const prefersCoarsePointer = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0) {
+        return true;
+      }
+      if (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) {
+        return true;
+      }
+    } catch (error) {
+      logger.debug('Failed to determine pointer characteristics', error);
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
     if (!inspectCopyFeedback) {
@@ -159,6 +177,8 @@ export const usePreviewInspector = ({
   }, [isInspectorDialogOpen]);
 
   const inspectTarget = useMemo(() => inspectState.hover ?? inspectState.result, [inspectState.hover, inspectState.result]);
+  const inspectActiveTarget = inspectState.active ? inspectState.hover : null;
+  const inspectActiveMeta = inspectActiveTarget?.meta ?? null;
   const inspectMeta = inspectTarget?.meta ?? null;
   const inspectRect = inspectTarget?.documentRect ?? null;
   const inspectSizeLabel = inspectRect
@@ -188,6 +208,45 @@ export const usePreviewInspector = ({
   } else if (inspectState.active && inspectTarget?.pointerType) {
     inspectMethodLabel = `${inspectTarget.pointerType} pointer`;
   }
+
+  const inspectActiveChipLabel = useMemo(() => {
+    if (!inspectState.active) {
+      return null;
+    }
+    if (!inspectActiveMeta) {
+      return 'Move finger to highlight an element';
+    }
+    const preferred = [
+      inspectActiveMeta.label,
+      inspectActiveMeta.ariaLabel,
+      inspectActiveMeta.title,
+    ].find(value => value && value.trim().length > 0);
+    if (preferred) {
+      return preferred.trim();
+    }
+    const textValue = inspectActiveMeta.text?.trim();
+    if (textValue) {
+      return textValue.length > 160 ? `${textValue.slice(0, 160)}…` : textValue;
+    }
+    const selector = inspectActiveMeta.selector?.trim();
+    if (selector) {
+      return selector.length > 160 ? `${selector.slice(0, 160)}…` : selector;
+    }
+    const tokens: string[] = [];
+    if (inspectActiveMeta.tag) {
+      tokens.push(inspectActiveMeta.tag.toLowerCase());
+    }
+    if (inspectActiveMeta.id) {
+      tokens.push(`#${inspectActiveMeta.id}`);
+    }
+    if (Array.isArray(inspectActiveMeta.classes) && inspectActiveMeta.classes.length > 0) {
+      tokens.push(`.${inspectActiveMeta.classes[0]}`);
+    }
+    if (tokens.length > 0) {
+      return tokens.join('');
+    }
+    return 'Element';
+  }, [inspectActiveMeta, inspectState.active]);
 
   const resolvePreviewBackgroundColor = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -444,6 +503,7 @@ export const usePreviewInspector = ({
   }, []);
 
   const handleInspectorDialogClose = useCallback(() => {
+    inspectorAutoOpenSuppressedRef.current = true;
     setIsInspectorDialogOpen(false);
     setIsInspectorDragging(false);
     inspectorDragStateRef.current = null;
@@ -626,17 +686,21 @@ export const usePreviewInspector = ({
       setLockedInspectMessage('Load the preview before inspecting elements.', 3200);
       return;
     }
+    inspectorAutoOpenSuppressedRef.current = false;
     const started = startInspect();
     if (!started) {
       setLockedInspectMessage('Element inspector is unavailable for this preview.', 3600);
       return;
     }
     clearInspectMessageLock();
-    setInspectStatusMessage('Select an element in the preview. Press Esc to cancel.');
+    setInspectStatusMessage(prefersCoarsePointer
+      ? 'Drag on the preview to target an element and lift your finger to capture. Press Esc to cancel.'
+      : 'Select an element in the preview. Press Esc to cancel.');
   }, [
     clearInspectMessageLock,
     inspectState.active,
     inspectState.supported,
+    prefersCoarsePointer,
     previewUrl,
     setLockedInspectMessage,
     startInspect,
@@ -645,15 +709,22 @@ export const usePreviewInspector = ({
 
   useEffect(() => {
     if (inspectState.active && !isInspectorDialogOpen) {
+      inspectorAutoOpenSuppressedRef.current = false;
       setIsInspectorDialogOpen(true);
     }
   }, [inspectState.active, isInspectorDialogOpen]);
 
   useEffect(() => {
-    if (inspectStatusMessage && !isInspectorDialogOpen) {
+    if (inspectStatusMessage && !isInspectorDialogOpen && !inspectorAutoOpenSuppressedRef.current) {
       setIsInspectorDialogOpen(true);
     }
   }, [inspectStatusMessage, isInspectorDialogOpen]);
+
+  useEffect(() => {
+    if (isInspectorDialogOpen) {
+      inspectorAutoOpenSuppressedRef.current = false;
+    }
+  }, [isInspectorDialogOpen]);
 
   useEffect(() => {
     if (!isInspectorDialogOpen) {
@@ -723,7 +794,9 @@ export const usePreviewInspector = ({
     }
     if (inspectState.active) {
       clearInspectMessageLock();
-      setInspectStatusMessage('Select an element in the preview. Press Esc to cancel.');
+      setInspectStatusMessage(prefersCoarsePointer
+        ? 'Drag on the preview to target an element and lift your finger to capture. Press Esc to cancel.'
+        : 'Select an element in the preview. Press Esc to cancel.');
       return;
     }
     if (inspectState.lastReason === 'complete') {
@@ -744,6 +817,7 @@ export const usePreviewInspector = ({
     inspectState.error,
     inspectState.lastReason,
     inspectState.supported,
+    prefersCoarsePointer,
     inspectTarget,
     setLockedInspectMessage,
   ]);
@@ -803,6 +877,7 @@ export const usePreviewInspector = ({
     inspectStatusMessage,
     inspectCopyFeedback,
     inspectTarget,
+    inspectActiveChipLabel,
     inspectMeta,
     inspectRect,
     inspectSizeLabel,
