@@ -268,6 +268,18 @@ codex::cli::execute() {
         codex_args+=(${CODEX_CLI_EXTRA_ARGS})
     fi
 
+    # Add transcript capture if environment variables are set
+    local transcript_file="${CODEX_TRANSCRIPT_FILE:-}"
+    local last_message_file="${CODEX_LAST_MESSAGE_FILE:-}"
+
+    if [[ -n "$transcript_file" ]]; then
+        codex_args+=("--json")
+    fi
+
+    if [[ -n "$last_message_file" ]]; then
+        codex_args+=("--output-last-message" "$last_message_file")
+    fi
+
     # Ensure API key available for CLI
     local api_key
     api_key=$(codex::get_api_key)
@@ -280,10 +292,18 @@ codex::cli::execute() {
     local exit_code
     local task_timeout="${CODEX_TIMEOUT:-}"
     if [[ -n "$task_timeout" && "$task_timeout" =~ ^[0-9]+$ && "$task_timeout" -gt 0 ]]; then
-        timeout "$task_timeout" "${codex_args[@]}" < "$prompt_file"
+        if [[ -n "$transcript_file" ]]; then
+            timeout "$task_timeout" "${codex_args[@]}" < "$prompt_file" > "$transcript_file"
+        else
+            timeout "$task_timeout" "${codex_args[@]}" < "$prompt_file"
+        fi
         exit_code=$?
     else
-        "${codex_args[@]}" < "$prompt_file"
+        if [[ -n "$transcript_file" ]]; then
+            "${codex_args[@]}" < "$prompt_file" > "$transcript_file"
+        else
+            "${codex_args[@]}" < "$prompt_file"
+        fi
         exit_code=$?
     fi
 

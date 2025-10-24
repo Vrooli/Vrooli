@@ -8,6 +8,8 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronRight,
+  Copy,
+  Check,
   ExternalLink,
   FileCode,
   FileDown,
@@ -289,19 +291,14 @@ export function IssueDetailsModal({
       );
     }
 
-    const header = (
-      <div className="issue-section-heading issue-transcript-heading">
-        <div className="issue-section-title">
-          <h3 id={headingId}>Agent Transcript</h3>
-          {providerLabel && <span className="issue-section-meta">Backend: {providerLabel}</span>}
-        </div>
-      </div>
-    );
-
     if (conversationError) {
       return (
         <div className="issue-transcript-view" id={contentId} role="region" aria-labelledby={headingId}>
-          {header}
+          <div className="issue-section-heading issue-transcript-heading">
+            <div className="issue-section-title">
+              <h3 id={headingId}>Agent Transcript</h3>
+            </div>
+          </div>
           <div className="agent-transcript-error" role="alert">
             {conversationError}
           </div>
@@ -311,17 +308,29 @@ export function IssueDetailsModal({
 
     return (
       <div className="issue-transcript-view" id={contentId} role="region" aria-labelledby={headingId}>
-        {header}
-        {conversation?.last_message && (
-          <p className="agent-transcript-last-message">
-            <strong>Last message:</strong> {conversation.last_message}
-          </p>
-        )}
-        {conversation?.transcript_timestamp && (
-          <p className="agent-transcript-timestamp">
-            Captured: {formatDateTime(conversation.transcript_timestamp)}
-          </p>
-        )}
+        <div className="issue-section-heading issue-transcript-heading">
+          <div className="issue-section-title">
+            <h3 id={headingId}>Agent Transcript</h3>
+          </div>
+        </div>
+
+        <div className="agent-transcript-metadata-card">
+          {providerLabel && (
+            <div className="agent-transcript-metadata-row">
+              <span className="agent-transcript-metadata-label">Backend:</span>
+              <span className="agent-transcript-metadata-value">{providerLabel}</span>
+            </div>
+          )}
+          {conversation?.transcript_timestamp && (
+            <div className="agent-transcript-metadata-row">
+              <span className="agent-transcript-metadata-label">Captured:</span>
+              <span className="agent-transcript-metadata-value">
+                {formatDateTime(conversation.transcript_timestamp)}
+              </span>
+            </div>
+          )}
+        </div>
+
         {renderConversationContent()}
       </div>
     );
@@ -852,51 +861,205 @@ interface AgentConversationPanelProps {
 
 function AgentConversationPanel({ conversation }: AgentConversationPanelProps) {
   const entries = Array.isArray(conversation.entries) ? conversation.entries : [];
+  const [expandedEntries, setExpandedEntries] = useState<Set<number>>(new Set());
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [selectedKinds, setSelectedKinds] = useState<Set<string>>(new Set());
 
-  if (entries.length === 0 && !conversation.prompt) {
+  if (entries.length === 0) {
     return <div className="agent-transcript-empty">Transcript captured but no events were recorded.</div>;
   }
 
+  const handleToggleEntry = (index: number) => {
+    setExpandedEntries((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const handleCopyEntry = async (entry: AgentConversationEntryPayload, index: number) => {
+    const textToCopy = [
+      `Kind: ${entry.kind}`,
+      entry.type ? `Type: ${entry.type}` : null,
+      entry.role ? `Role: ${entry.role}` : null,
+      entry.text ? `\n${entry.text}` : null,
+      entry.data && Object.keys(entry.data).length > 0 ? `\nDetails:\n${JSON.stringify(entry.data, null, 2)}` : null,
+      entry.raw && Object.keys(entry.raw).length > 0 ? `\nRaw:\n${JSON.stringify(entry.raw, null, 2)}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+    }
+  };
+
+  // Calculate message type counts
+  const messageCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    entries.forEach((entry) => {
+      const kind = entry.kind || 'unknown';
+      counts[kind] = (counts[kind] || 0) + 1;
+    });
+    return counts;
+  }, [entries]);
+
+  const messageCountSummary = Object.entries(messageCounts)
+    .map(([kind, count]) => `${count} ${kind}${count > 1 ? 's' : ''}`)
+    .join(', ');
+
+  // Get unique kinds for filter buttons
+  const uniqueKinds = useMemo(() => {
+    return Array.from(new Set(entries.map((entry) => entry.kind || 'unknown'))).sort();
+  }, [entries]);
+
+  const handleToggleKind = (kind: string) => {
+    setSelectedKinds((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) {
+        next.delete(kind);
+      } else {
+        next.add(kind);
+      }
+      return next;
+    });
+  };
+
+  const handleClearFilters = () => {
+    setSelectedKinds(new Set());
+  };
+
+  // Filter entries based on selected kinds
+  const filteredEntries = useMemo(() => {
+    if (selectedKinds.size === 0) {
+      return entries;
+    }
+    return entries.filter((entry) => selectedKinds.has(entry.kind || 'unknown'));
+  }, [entries, selectedKinds]);
+
+  const filteredCount = filteredEntries.length;
+  const totalCount = entries.length;
+
   return (
-    <div className="agent-conversation" role="log" aria-live="polite">
-      {conversation.prompt && (
-        <details className="agent-conversation-prompt">
-          <summary>Initial prompt</summary>
-          <pre>{conversation.prompt}</pre>
-        </details>
+    <div className="agent-conversation" role="log">
+      <div className="agent-conversation-metadata">
+        <div className="agent-conversation-metadata-item">
+          <span className="agent-conversation-metadata-label">Messages:</span>
+          <span className="agent-conversation-metadata-value">
+            {selectedKinds.size > 0 ? `${filteredCount} / ${totalCount} entries` : `${totalCount} entries`}
+          </span>
+        </div>
+        {messageCountSummary && (
+          <div className="agent-conversation-metadata-item">
+            <span className="agent-conversation-metadata-label">Breakdown:</span>
+            <span className="agent-conversation-metadata-value">{messageCountSummary}</span>
+          </div>
+        )}
+      </div>
+
+      {uniqueKinds.length > 1 && (
+        <div className="agent-conversation-filters">
+          <span className="agent-conversation-filters-label">Filter by type:</span>
+          <div className="agent-conversation-filters-chips">
+            {uniqueKinds.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                className={`agent-conversation-filter-chip agent-conversation-chip--${kind}${
+                  selectedKinds.has(kind) ? ' is-active' : ''
+                }`}
+                onClick={() => handleToggleKind(kind)}
+                aria-pressed={selectedKinds.has(kind)}
+              >
+                {kind}
+                <span className="agent-conversation-filter-count">{messageCounts[kind]}</span>
+              </button>
+            ))}
+            {selectedKinds.size > 0 && (
+              <button
+                type="button"
+                className="agent-conversation-filter-clear"
+                onClick={handleClearFilters}
+                aria-label="Clear all filters"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
       )}
+
       <ol className="agent-conversation-list">
-        {entries.map((entry, index) => {
+        {filteredEntries.map((entry, index) => {
           const key = `${entry.id ?? index}-${entry.type ?? entry.kind}-${index}`;
           const detailsData = entry.data && Object.keys(entry.data).length > 0 ? entry.data : null;
           const rawData = !detailsData && entry.raw && Object.keys(entry.raw).length > 0 ? entry.raw : null;
+          const isExpanded = expandedEntries.has(index);
+          const isCopied = copiedIndex === index;
 
           return (
             <li key={key} className="agent-conversation-item">
-              <div className="agent-conversation-entry">
-                <div className="agent-conversation-entry-meta">
-                  <span className={`agent-conversation-chip agent-conversation-chip--${entry.kind}`}>
-                    {entry.kind}
-                  </span>
-                  {entry.type && <span className="agent-conversation-type">{entry.type}</span>}
-                  {entry.role && <span className="agent-conversation-role">{entry.role}</span>}
-                </div>
-                {entry.text && (
-                  <div className="agent-conversation-text">
-                    <MarkdownView content={entry.text} />
+              <div className={`agent-conversation-entry${isExpanded ? ' is-expanded' : ''}`}>
+                <button
+                  type="button"
+                  className="agent-conversation-entry-header"
+                  onClick={() => handleToggleEntry(index)}
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? 'Collapse message' : 'Expand message'}
+                >
+                  <ChevronRight
+                    size={16}
+                    className={`agent-conversation-chevron${isExpanded ? ' is-expanded' : ''}`}
+                  />
+                  <div className="agent-conversation-entry-meta">
+                    <span className={`agent-conversation-chip agent-conversation-chip--${entry.kind}`}>
+                      {entry.kind}
+                    </span>
+                    {entry.type && <span className="agent-conversation-type">{entry.type}</span>}
+                    {entry.role && <span className="agent-conversation-role">{entry.role}</span>}
                   </div>
-                )}
-                {detailsData && (
-                  <details className="agent-conversation-data">
-                    <summary>Details</summary>
-                    <pre>{JSON.stringify(detailsData, null, 2)}</pre>
-                  </details>
-                )}
-                {rawData && (
-                  <details className="agent-conversation-data">
-                    <summary>Raw event</summary>
-                    <pre>{JSON.stringify(rawData, null, 2)}</pre>
-                  </details>
+                  <button
+                    type="button"
+                    className="agent-conversation-copy-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleCopyEntry(entry, index);
+                    }}
+                    aria-label="Copy message content"
+                    title="Copy message content"
+                  >
+                    {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
+                </button>
+
+                {isExpanded && (
+                  <div className="agent-conversation-entry-content">
+                    {entry.text && (
+                      <div className="agent-conversation-text">
+                        <MarkdownView content={entry.text} />
+                      </div>
+                    )}
+                    {detailsData && (
+                      <details className="agent-conversation-data">
+                        <summary>Details</summary>
+                        <pre>{JSON.stringify(detailsData, null, 2)}</pre>
+                      </details>
+                    )}
+                    {rawData && (
+                      <details className="agent-conversation-data">
+                        <summary>Raw event</summary>
+                        <pre>{JSON.stringify(rawData, null, 2)}</pre>
+                      </details>
+                    )}
+                  </div>
                 )}
               </div>
             </li>

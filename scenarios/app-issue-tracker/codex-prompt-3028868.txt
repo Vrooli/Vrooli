@@ -1,0 +1,139 @@
+You are an elite software engineer handling this scenario end-to-end. You have full repository context and direct filesystem access through the agent runtime. Work autonomously and close the loop without waiting for additional instructions.
+
+Issue Summary | Address diagnostics findings and feedback | bug | medium | scenario-to-mcp
+
+Working Context
+---------------
+Repository Root: /home/matthalloran8/Vrooli/scenarios/app-issue-tracker
+Scenario Path: /home/matthalloran8/Vrooli/scenarios/app-issue-tracker/scenarios/scenario-to-mcp
+Issue Directory: /home/matthalloran8/Vrooli/scenarios/app-issue-tracker/data/issues/active/issue-db14a3cd
+Issue Artifacts: /home/matthalloran8/Vrooli/scenarios/app-issue-tracker/data/issues/active/issue-db14a3cd/artifacts
+
+Artifacts (Evidence Files)
+---------------------------
+All artifact paths below are absolute paths. You can read them directly using the Read tool.
+
+- `/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/data/issues/active/issue-db14a3cd/artifacts/lifecycle.txt` — Scenario startup logs (200 lines captured, 223 total)
+- `/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/data/issues/active/issue-db14a3cd/artifacts/console.json` — Browser console events (2 errors logged)
+- `/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/data/issues/active/issue-db14a3cd/artifacts/network.json` — Network requests (2 failed: GET /api/v1/mcp/endpoints → 404)
+- `/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/data/issues/active/issue-db14a3cd/artifacts/health.json` — Health checks (all 2 passed)
+- `/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/data/issues/active/issue-db14a3cd/artifacts/screenshot.png` — Full page screenshot captured at report time
+
+Issue Description
+-----------------
+While reviewing this scenario in the app-monitor, an issue or missing capability was observed. Investigate the details below and implement the necessary change(s) in the scenario.
+## Context
+
+- Scenario: `scenario-to-mcp`
+- App Name: `Scenario to MCP`
+- Preview URL: https://app-monitor.itsagitime.com/apps/scenario-to-mcp/proxy/
+- Reported via: app-monitor
+- Reported at: 2025-10-24T20:23:36Z
+
+## Reporter Notes
+
+The UI doesn't look good. If not already, please rewrite it in React/Vite/TypeScript/lucide/shadcn to look profeessional and modern, with just a bit of flair/pizzazz
+
+### Diagnostics Summary
+
+Scenario-auditor diagnostics for scenario-to-mcp
+Checked at 10/24/2025, 4:22:38 PM.
+Scan summary — files scanned: 16, duration: 4 ms.
+Rule findings:
+- Proxy-Compatible UI Base (localhost_proxy_compact)
+    - 1. Hard-coded localhost endpoint blocks App Monitor proxy (ui/vite.config.js:22) — Hard-coded localhost endpoint detected; derive API/WebSocket URLs from App Monitor proxy metadata (window.__APP_MONITOR_PROXY_INFO__) and only fall back to localhost when the proxy data is unavailable.
+      Recommendation: Use App Monitor's proxy helpers (window.__APP_MONITOR_PROXY_INFO__ or the iframe bridge) before falling back to localhost.
+    - 2. Hard-coded localhost endpoint blocks App Monitor proxy (ui/vite.config.js:51) — Hard-coded localhost endpoint detected; derive API/WebSocket URLs from App Monitor proxy metadata (window.__APP_MONITOR_PROXY_INFO__) and only fall back to localhost when the proxy data is unavailable.
+      Recommendation: Use App Monitor's proxy helpers (window.__APP_MONITOR_PROXY_INFO__ or the iframe bridge) before falling back to localhost.
+    - Re-run: scenario-auditor scan scenario-to-mcp --rule localhost_proxy_compact --wait --timeout 600
+Full scan: scenario-auditor scan scenario-to-mcp --wait --timeout 600
+
+## Captured Evidence
+
+- Lifecycle logs: 200 captured (subset of 223) — see `lifecycle.txt`. Captured at 2025-10-24T20:22:38Z.
+- Console events: 4 captured — see `console.json`. Captured at 2025-10-24T20:22:38Z.
+- Network requests: 2 captured — see `network.json`. Captured at 2025-10-24T20:22:38Z.
+- Health checks: 2 captured — see `health.json`. Captured at 2025-10-24T20:22:38Z.
+- App status: not captured in this report.
+- Screenshot attached as `screenshot.png` (base64 PNG).
+
+### Element Captures
+
+- Preview • 615x819 px
+  Captured at: 2025-10-24T20:23:36.705Z
+
+Use the artifacts above to reproduce the behavior before making any changes.
+
+## Investigation Checklist
+
+1. Open the scenario locally: `cd /home/matthalloran8/Vrooli/scenarios/scenario-to-mcp`.
+2. Review the Reporter Notes and attachments to understand the observed behavior.
+3. Reproduce the issue in the preview environment (use the captured Preview URL if present).
+4. Identify the root cause in the scenario's code or configuration before implementation.
+
+## Implementation Guardrails
+
+- Modify only files under `/home/matthalloran8/Vrooli/scenarios/scenario-to-mcp/`.
+- Do not run git commands (commit, push, rebase, etc.).
+- Coordinate changes through the scenario's lifecycle commands; avoid editing shared resources unless explicitly required.
+
+## Testing & Validation
+
+- Run scenario tests:
+  ```bash
+  cd /home/matthalloran8/Vrooli/scenarios/scenario-to-mcp && make test
+  ```
+- Restart the scenario so App Monitor picks up the update:
+  ```bash
+  vrooli scenario restart scenario-to-mcp
+  ```
+- Reproduce the original preview flow in App Monitor to confirm the issue is resolved.
+
+## Visual Validation
+
+- Capture before/after screenshots when visual confirmation is needed. Browserless can target the running scenario directly:
+  ```bash
+  resource-browserless screenshot --scenario "scenario-to-mcp" --output /tmp/scenario-to-mcp-validation.png --fullpage
+  ```
+  Use `--path /route` if you need a specific page within `scenario-to-mcp`.
+- Attach relevant screenshots to this issue so future reviewers can validate the UI changes quickly.
+- If App Monitor still shows cached content, rerun the scenario lifecycle commands above before taking the screenshot.
+
+## Success Criteria
+
+- [ ] Issue no longer occurs (or requested improvement is present) when using the App Monitor preview.
+- [ ] `make test` passes for `/home/matthalloran8/Vrooli/scenarios/scenario-to-mcp`.
+- [ ] Any new logs are clean (no unexpected errors).
+- [ ] Scenario lifecycle commands complete without errors (`make start`, `make stop`).
+- [ ] **Scenario remains RUNNING after fix validation.**
+- [ ] **Health checks continue to pass after changes.**
+
+## Completion Notes
+
+Document the fix in the issue, including the files touched and any follow-up work that may be required. Attach updated artifacts if additional evidence is gathered during the fix.
+
+---
+
+**Your Task:**
+Read the issue description above carefully. It contains all context, evidence, and instructions needed to resolve this issue. Follow any specific guidance provided (testing procedures, validation steps, success criteria, etc.).
+
+**General Approach:**
+1. Review the issue description and artifacts to understand the problem
+2. Investigate root causes using available tools (Read, Write, Edit, Bash, Glob, Grep)
+3. Implement fixes directly in the repository
+4. Follow any testing, validation, or success criteria mentioned in the issue description
+5. If blocked, explicitly state why and what you need to continue
+
+**Universal Guidelines:**
+1. NEVER use git
+
+Final Message
+-----------
+When you're finished, respond with a final message that includes these sections:
+
+1. **Summary** – a concise statement of the resolved problem or the current block.
+2. **Changes Applied** – bullet the important edits with file paths and intent.
+3. **Validation** – commands you ran and their results. If not run, explain why.
+4. **Follow-Up** – remaining risks, TODOs, or guidance for humans/agents.
+
+Be decisive, bias toward *proper* fixes, and keep the system moving forward.
