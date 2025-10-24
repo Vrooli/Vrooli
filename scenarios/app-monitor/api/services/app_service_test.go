@@ -200,6 +200,91 @@ func TestNewAppService(t *testing.T) {
 	})
 }
 
+func TestDeriveIssueTitle(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		primary                 string
+		message                 string
+		captures                []IssueCapture
+		includeDiagnostics      bool
+		includeScreenshot       bool
+		expected                string
+	}{
+		{
+			name:               "diagnostics only",
+			primary:            "",
+			message:            "### Diagnostics Summary\n- bridge failure",
+			captures:           nil,
+			includeDiagnostics: true,
+			includeScreenshot:  false,
+			expected:           "Address diagnostics issues",
+		},
+		{
+			name:               "diagnostics and primary",
+			primary:            "Button fails to submit",
+			message:            "Button fails to submit\n\n### Diagnostics Summary\n- rule violation",
+			captures:           nil,
+			includeDiagnostics: true,
+			includeScreenshot:  false,
+			expected:           "Address diagnostics issues and feedback",
+		},
+		{
+			name:    "diagnostics with single capture",
+			primary: "",
+			message:  "### Diagnostics Summary\n- bridge failure\n\n### Element Capture Notes\n- Primary CTA: does nothing",
+			captures: []IssueCapture{
+				{
+					Type:  "element",
+					Note:  "does nothing",
+					Label: "Primary CTA",
+				},
+			},
+			includeDiagnostics: true,
+			includeScreenshot: false,
+			expected:           "Diagnostics issues and feedback on Primary CTA",
+		},
+		{
+			name:    "multiple capture feedback",
+			primary: "",
+			message:  "### Element Capture Notes\n- CTA: broken\n- Footer: hidden",
+			captures: []IssueCapture{
+				{Type: "element", Note: "broken", Label: "CTA"},
+				{Type: "element", Note: "hidden", Label: "Footer"},
+			},
+			includeDiagnostics: false,
+			includeScreenshot:  false,
+			expected:           "Feedback on 2 elements",
+		},
+		{
+			name:    "primary description only",
+			primary: "First line summary\nwith details",
+			message: "First line summary\nwith details",
+			captures: nil,
+			includeDiagnostics: false,
+			includeScreenshot:  false,
+			expected:           "First line summary",
+		},
+		{
+			name:               "screenshot fallback",
+			primary:            "",
+			message:            "Screenshot attached",
+			captures:           []IssueCapture{{Type: "page"}},
+			includeDiagnostics: false,
+			includeScreenshot:  true,
+			expected:           "Screenshot feedback",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := deriveIssueTitle(tc.primary, tc.message, tc.captures, tc.includeDiagnostics, tc.includeScreenshot)
+			if result != tc.expected {
+				t.Fatalf("expected %q, got %q", tc.expected, result)
+			}
+		})
+	}
+}
+
 func TestAppServiceErrors(t *testing.T) {
 	t.Run("ErrorTypes", func(t *testing.T) {
 		if ErrAppIdentifierRequired == nil {

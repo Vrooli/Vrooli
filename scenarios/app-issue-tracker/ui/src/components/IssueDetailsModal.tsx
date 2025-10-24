@@ -2,14 +2,17 @@ import type { ChangeEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  AppWindow,
   Archive,
   Brain,
   CalendarClock,
   ChevronDown,
+  ChevronRight,
   ExternalLink,
   FileCode,
   FileDown,
   FileText,
+  Loader2,
   Hash,
   Image as ImageIcon,
   KanbanSquare,
@@ -82,14 +85,40 @@ export function IssueDetailsModal({
   followUpLoadingId,
   validStatuses = getFallbackStatuses(),
 }: IssueDetailsModalProps) {
-  const createdText = formatDateTime(issue.createdAt);
-  const updatedText = formatDateTime(issue.updatedAt);
-  const resolvedText = formatDateTime(issue.resolvedAt);
-  const createdHint = formatRelativeTime(issue.createdAt);
-  const updatedHint = formatRelativeTime(issue.updatedAt);
-  const resolvedHint = formatRelativeTime(issue.resolvedAt);
+  const statusLabel = toTitleCase(issue.status.replace(/-/g, ' '));
+  const assigneeLabel = issue.assignee || 'Unassigned';
   const description = issue.description?.trim();
   const notes = issue.notes?.trim();
+  const timelineEntries = useMemo<IssueTimelineEntry[]>(() => {
+    const entries: Array<IssueTimelineEntry | null> = [
+      issue.createdAt
+        ? {
+            label: 'Created',
+            value: formatDateTime(issue.createdAt),
+            hint: formatRelativeTime(issue.createdAt),
+            timestamp: parseTimestamp(issue.createdAt),
+          }
+        : null,
+      issue.updatedAt
+        ? {
+            label: 'Updated',
+            value: formatDateTime(issue.updatedAt),
+            hint: formatRelativeTime(issue.updatedAt),
+            timestamp: parseTimestamp(issue.updatedAt),
+          }
+        : null,
+      issue.resolvedAt
+        ? {
+            label: 'Resolved',
+            value: formatDateTime(issue.resolvedAt),
+            hint: formatRelativeTime(issue.resolvedAt),
+            timestamp: parseTimestamp(issue.resolvedAt),
+          }
+        : null,
+    ];
+
+    return entries.filter(isTimelineEntry).sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+  }, [issue.createdAt, issue.updatedAt, issue.resolvedAt]);
 
   const conversationUrl = useMemo(() => buildAgentConversationUrl(apiBaseUrl, issue.id), [apiBaseUrl, issue.id]);
   const [conversation, setConversation] = useState<AgentConversationPayloadResponse | null>(null);
@@ -99,6 +128,7 @@ export function IssueDetailsModal({
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [archivePending, setArchivePending] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const fetchAbortRef = useRef<AbortController | null>(null);
 
   const providerLabel = conversation?.provider ?? issue.investigation?.agent_id ?? null;
@@ -327,8 +357,9 @@ export function IssueDetailsModal({
   };
 
   return (
-    <Modal onClose={onClose} labelledBy="issue-details-title" panelClassName="modal-panel--issue-details">
-      <div className="issue-details-container">
+    <>
+      <Modal onClose={onClose} labelledBy="issue-details-title" panelClassName="modal-panel--issue-details">
+        <div className="issue-details-container">
         <div className="issue-details-scroll">
           <header className="issue-details-header">
             <div className="issue-header-bar">
@@ -337,6 +368,17 @@ export function IssueDetailsModal({
                 {issue.id}
               </p>
               <div className="issue-header-controls">
+                {issue.status === 'open' && typeof onEdit === 'function' && (
+                  <button
+                    type="button"
+                    className="icon-button icon-button--ghost"
+                    onClick={() => onEdit(issue)}
+                    aria-label="Edit issue"
+                    title="Edit issue"
+                  >
+                    <Pencil size={18} />
+                  </button>
+                )}
                 {typeof onArchive === 'function' && (
                   <button
                     type="button"
@@ -352,7 +394,7 @@ export function IssueDetailsModal({
                 {typeof onDelete === 'function' && (
                   <button
                     type="button"
-                    className="icon-button icon-button--ghost icon-button--danger"
+                    className="icon-button icon-button--danger-ghost"
                     onClick={handleDelete}
                     aria-label={deletePending ? 'Deleting issue…' : 'Delete issue'}
                     title="Delete issue"
@@ -366,26 +408,44 @@ export function IssueDetailsModal({
                   type="button"
                   aria-label="Close issue details"
                   onClick={onClose}
+                  title="Close"
                 >
                   <X size={18} />
                 </button>
               </div>
             </div>
             <div className="issue-header-main">
-              <h2 id="issue-details-title" className="modal-title">
-                {issue.title}
-              </h2>
-              {issue.status === 'open' && typeof onEdit === 'function' && (
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => onEdit(issue)}
-                  aria-label="Edit issue"
-                >
-                  <Pencil size={16} />
-                  <span>Edit</span>
-                </button>
-              )}
+              <div className="issue-header-title-row">
+                <h2 id="issue-details-title" className="modal-title">
+                  {issue.title}
+                </h2>
+              </div>
+              <div className="issue-header-meta">
+                <IssueHeaderBadge
+                  label="Status"
+                  value={statusLabel}
+                  icon={<KanbanSquare size={14} />}
+                  showLabel={false}
+                />
+                <IssueHeaderBadge
+                  label="Priority"
+                  value={issue.priority}
+                  icon={<Tag size={14} />}
+                  showLabel={false}
+                />
+                <IssueHeaderBadge
+                  label="Assignee"
+                  value={assigneeLabel}
+                  icon={<User size={14} />}
+                  showLabel={false}
+                />
+                <IssueHeaderBadge
+                  label="App"
+                  value={issue.app}
+                  icon={<AppWindow size={14} />}
+                  showLabel={false}
+                />
+              </div>
             </div>
           </header>
 
@@ -397,8 +457,11 @@ export function IssueDetailsModal({
             {onStatusChange && (
               <div className="form-field form-field-full">
                 <label htmlFor="issue-status-selector">
-                  <span>Status (Accessibility Feature)</span>
-                  <div className="select-wrapper">
+                  <span>Status</span>
+                  <div className="select-wrapper select-wrapper--with-icon">
+                    <span className="select-leading-icon" aria-hidden="true">
+                      <KanbanSquare size={16} />
+                    </span>
                     <select id="issue-status-selector" value={issue.status} onChange={handleStatusChange}>
                       {validStatuses.map((status) => (
                         <option key={status} value={status}>
@@ -412,71 +475,9 @@ export function IssueDetailsModal({
               </div>
             )}
 
-            {(() => {
-              const { headingId, contentId } = buildSectionIds('overview');
-              const collapsed = isSectionCollapsed('overview');
-
-              return (
-                <section
-                  className={`issue-detail-section issue-detail-section--grid${collapsed ? ' is-collapsed' : ''}`}
-                  aria-labelledby={headingId}
-                >
-                  <div className="issue-section-heading">
-                    <div className="issue-section-title">
-                      <h3 id={headingId}>Overview</h3>
-                    </div>
-                    <button
-                      type="button"
-                      className="issue-section-toggle"
-                      onClick={() => handleToggleSection('overview')}
-                      aria-expanded={!collapsed}
-                      aria-controls={contentId}
-                      aria-label={collapsed ? 'Expand overview details' : 'Collapse overview details'}
-                      title={collapsed ? 'Expand overview details' : 'Collapse overview details'}
-                    >
-                      <ChevronDown
-                        size={16}
-                        className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
-                      />
-                    </button>
-                  </div>
-                  <div
-                    id={contentId}
-                    className="issue-section-content"
-                    hidden={collapsed}
-                  >
-                    <div className="issue-detail-grid">
-                      <IssueMetaTile label="Status" value={toTitleCase(issue.status.replace(/-/g, ' '))} />
-                      <IssueMetaTile label="Priority" value={issue.priority} />
-                      <IssueMetaTile label="Assignee" value={issue.assignee || 'Unassigned'} />
-                      <IssueMetaTile label="App" value={issue.app} />
-                      <IssueMetaTile
-                        label="Created"
-                        value={createdText}
-                        hint={createdHint}
-                        icon={<CalendarClock size={14} />}
-                      />
-                      {issue.updatedAt && (
-                        <IssueMetaTile
-                          label="Updated"
-                          value={updatedText}
-                          hint={updatedHint}
-                          icon={<CalendarClock size={14} />}
-                        />
-                      )}
-                      {issue.resolvedAt && (
-                        <IssueMetaTile
-                          label="Resolved"
-                          value={resolvedText}
-                          hint={resolvedHint}
-                          icon={<CalendarClock size={14} />}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </section>
-              );
-            })()}
+            {timelineEntries.length > 0 && (
+              <TimelineSummary entries={timelineEntries} onOpen={() => setTimelineOpen(true)} />
+            )}
 
             {description && (() => {
               const { headingId, contentId } = buildSectionIds('description');
@@ -807,8 +808,12 @@ export function IssueDetailsModal({
             </div>
           </footer>
         )}
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+      {timelineOpen && (
+        <TimelineDialog entries={timelineEntries} onClose={() => setTimelineOpen(false)} />
+      )}
+    </>
   );
 }
 
@@ -1206,22 +1211,152 @@ function renderMarkdownToHtml(markdown: string): string {
   return blocks.join('');
 }
 
-interface IssueMetaTileProps {
+interface IssueHeaderBadgeProps {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+  showLabel?: boolean;
+}
+
+function IssueHeaderBadge({ label, value, icon, showLabel = true }: IssueHeaderBadgeProps) {
+  const accessibleLabel = `${label}: ${value}`;
+
+  return (
+    <span
+      className="issue-header-badge"
+      {...(!showLabel ? { 'aria-label': accessibleLabel, title: accessibleLabel } : {})}
+    >
+      {icon && (
+        <span className="issue-header-badge-icon" aria-hidden="true">
+          {icon}
+        </span>
+      )}
+      {showLabel && <span className="issue-header-badge-label">{label}</span>}
+      <span className="issue-header-badge-value">{value}</span>
+    </span>
+  );
+}
+
+interface IssueTimelineEntry {
   label: string;
   value: string;
   hint?: string;
-  icon?: ReactNode;
+  timestamp?: number;
 }
 
-function IssueMetaTile({ label, value, hint, icon }: IssueMetaTileProps) {
+function isTimelineEntry(entry: IssueTimelineEntry | null): entry is IssueTimelineEntry {
+  return Boolean(entry && entry.value && entry.value !== '—');
+}
+
+function parseTimestamp(value?: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function TimelineSummary({ entries, onOpen }: { entries: IssueTimelineEntry[]; onOpen: () => void }) {
+  if (!entries.length) {
+    return null;
+  }
+
+  const latest = entries[entries.length - 1];
+  const summaryText = latest.hint ?? latest.value;
+  const accessibleLabel = `Open timeline. Latest event: ${latest.label}, ${summaryText}.`;
+
   return (
-    <div className="issue-detail-tile">
-      <span className="issue-detail-label">{label}</span>
-      <span className="issue-detail-value">
-        {icon && <span className="issue-detail-value-icon">{icon}</span>}
-        {value}
+    <button
+      type="button"
+      className="timeline-summary"
+      onClick={onOpen}
+      aria-label={accessibleLabel}
+      title={latest.value}
+    >
+      <span className="timeline-summary-icon" aria-hidden="true">
+        <CalendarClock size={16} />
       </span>
-      {hint && <span className="issue-detail-hint">{hint}</span>}
+      <span className="timeline-summary-content">
+        <span className="timeline-summary-label">{latest.label}</span>
+        <span className="timeline-summary-subtext">{summaryText}</span>
+      </span>
+      <span className="timeline-summary-chevron" aria-hidden="true">
+        <ChevronRight size={16} />
+      </span>
+    </button>
+  );
+}
+
+interface TimelineDialogProps {
+  entries: IssueTimelineEntry[];
+  onClose: () => void;
+}
+
+function TimelineDialog({ entries, onClose }: TimelineDialogProps) {
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    const options: AddEventListenerOptions = { capture: true };
+    window.addEventListener('keydown', handleKeyDown, options);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, options);
+    };
+  }, [onClose]);
+
+  if (!entries.length) {
+    return null;
+  }
+
+  const sorted = [...entries].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+
+  return (
+    <div className="timeline-dialog-overlay" role="presentation" onClick={onClose}>
+      <div
+        className="timeline-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="timeline-dialog-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="timeline-dialog-header">
+          <div className="timeline-dialog-title" id="timeline-dialog-title">
+            <CalendarClock size={16} />
+            <span>Timeline</span>
+          </div>
+          <button
+            type="button"
+            className="icon-button icon-button--ghost"
+            onClick={onClose}
+            aria-label="Close timeline"
+            ref={closeButtonRef}
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <ul className="timeline-dialog-list">
+          {sorted.map((entry) => (
+            <li key={`${entry.label}-${entry.value}`} className="timeline-dialog-item">
+              <div className="timeline-dialog-item-header">
+                <span className="timeline-dialog-item-label">{entry.label}</span>
+                {entry.hint && <span className="timeline-dialog-item-hint">{entry.hint}</span>}
+              </div>
+              <span className="timeline-dialog-item-value">{entry.value}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

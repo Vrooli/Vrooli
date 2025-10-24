@@ -31,7 +31,6 @@ import {
 
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import ReportDiagnosticsPanel from './ReportDiagnosticsPanel';
-import ReportLogsSection from './ReportLogsSection';
 import ReportScreenshotPanel from './ReportScreenshotPanel';
 import type { ReportElementCapture } from './reportTypes';
 import useReportIssueState, { type BridgePreviewState } from './useReportIssueState';
@@ -103,6 +102,9 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     existingIssues,
     diagnostics,
     screenshot,
+    diagnosticsSummaryIncluded,
+    setIncludeDiagnosticsSummary,
+    issueTitlePreview,
   } = useReportIssueState(props);
 
   const sendDisabled = form.submitting || (
@@ -143,6 +145,15 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
       : existingIssues.fromCache
         ? 'Showing cached results.'
         : null;
+  const captureNoteCount = useMemo(
+    () => elementCaptures.reduce(
+      (total, capture) => (capture.note.trim() ? total + 1 : total),
+      0,
+    ),
+    [elementCaptures],
+  );
+  const hasDescription = form.message.trim().length > 0;
+  const descriptionRequired = !hasDescription && captureNoteCount === 0 && !diagnosticsSummaryIncluded;
   const [issuesCollapsed, setIssuesCollapsed] = useState(false);
   const prevIssuesWarningRef = useRef(existingIssuesShouldWarn);
   useEffect(() => {
@@ -205,6 +216,11 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
               </span>
             )}
           </h2>
+          {issueTitlePreview && (
+            <p className="report-dialog__hint" aria-live="polite">
+              Title preview: {issueTitlePreview}
+            </p>
+          )}
           <button
             type="button"
             className="report-dialog__close"
@@ -218,12 +234,12 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
         <div className="report-dialog__body">
           <div className="report-dialog__layout">
             <div className="report-dialog__lane report-dialog__lane--primary">
-                {existingIssuesLoading && (
-                  <div className="report-dialog__issues-alert report-dialog__issues-alert--loading">
-                    <Loader2 aria-hidden size={16} className="spinning" />
-                    <span>Checking existing issues…</span>
-                  </div>
-                )}
+        {existingIssuesLoading && (
+          <div className="report-dialog__issues-alert report-dialog__issues-alert--loading">
+            <Loader2 aria-hidden size={16} className="spinning" />
+            <span>Checking existing issues…</span>
+          </div>
+        )}
 
                 {existingIssuesError && (
                   <div className="report-dialog__issues-alert report-dialog__issues-alert--error">
@@ -372,23 +388,14 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                   rows={6}
                   placeholder="What are you seeing? Include steps to reproduce if possible."
                   disabled={form.submitting}
-                  required
+                  required={descriptionRequired}
                 />
 
-                <ReportDiagnosticsPanel diagnostics={diagnostics} />
-
-                <ReportLogsSection
-                  logs={logs}
-                  consoleLogs={consoleLogs}
-                  network={network}
-                  health={health}
-                  status={status}
-                  bridgeCaps={bridgeState.caps}
-                  appLogsPanelId={REPORT_APP_LOGS_PANEL_ID}
-                  consoleLogsPanelId={REPORT_CONSOLE_LOGS_PANEL_ID}
-                  networkPanelId={REPORT_NETWORK_PANEL_ID}
-                  healthPanelId={REPORT_HEALTH_PANEL_ID}
-                  statusPanelId={REPORT_STATUS_PANEL_ID}
+                <ReportDiagnosticsPanel
+                  diagnostics={diagnostics}
+                  includeSummary={diagnosticsSummaryIncluded}
+                  onIncludeSummaryChange={setIncludeDiagnosticsSummary}
+                  disabled={form.submitting}
                 />
               </div>
 
@@ -400,6 +407,19 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                 elementCaptures={elementCaptures}
                 onElementNoteChange={onElementCaptureNoteChange}
                 onElementRemove={onElementCaptureRemove}
+                logsPanel={{
+                  logs,
+                  consoleLogs,
+                  network,
+                  health,
+                  status,
+                  bridgeCaps: bridgeState.caps,
+                  appLogsPanelId: REPORT_APP_LOGS_PANEL_ID,
+                  consoleLogsPanelId: REPORT_CONSOLE_LOGS_PANEL_ID,
+                  networkPanelId: REPORT_NETWORK_PANEL_ID,
+                  healthPanelId: REPORT_HEALTH_PANEL_ID,
+                  statusPanelId: REPORT_STATUS_PANEL_ID,
+                }}
               />
           </div>
         </div>

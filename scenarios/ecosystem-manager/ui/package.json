@@ -10,6 +10,7 @@
     "serve": "python3 -m http.server ${UI_PORT}"
   },
   "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "sortablejs": "^1.15.0"
   },
   "devDependencies": {

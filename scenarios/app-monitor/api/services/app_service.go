@@ -194,12 +194,12 @@ func NewAppService(repo repository.AppRepository) *AppService {
 }
 
 const (
-	attachmentLifecycleName  = "app-monitor-lifecycle.txt"
-	attachmentConsoleName    = "app-monitor-console.json"
-	attachmentNetworkName    = "app-monitor-network.json"
-	attachmentScreenshotName = "app-monitor-screenshot.png"
-	attachmentHealthName     = "app-monitor-health.json"
-	attachmentStatusName     = "app-monitor-status.txt"
+	attachmentLifecycleName  = "lifecycle.txt"
+	attachmentConsoleName    = "console.json"
+	attachmentNetworkName    = "network.json"
+	attachmentScreenshotName = "screenshot.png"
+	attachmentHealthName     = "health.json"
+	attachmentStatusName     = "status.txt"
 	issueTrackerScenarioID   = "app-issue-tracker"
 )
 
@@ -1572,6 +1572,8 @@ type IssueReportRequest struct {
 	AppStatusLabel         *string                 `json:"appStatusLabel"`
 	AppStatusSeverity      *string                 `json:"appStatusSeverity"`
 	AppStatusCapturedAt    *string                 `json:"appStatusCapturedAt"`
+	PrimaryDescription     *string                 `json:"primaryDescription"`
+	IncludeDiagnosticsSummary *bool                `json:"includeDiagnosticsSummary"`
 }
 
 type IssueConsoleLogEntry struct {
@@ -1939,6 +1941,12 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		return nil, errors.New("issue message is required")
 	}
 
+	primaryDescription := strings.TrimSpace(stringValue(req.PrimaryDescription))
+	includeDiagnosticsSummary := false
+	if req.IncludeDiagnosticsSummary != nil && *req.IncludeDiagnosticsSummary {
+		includeDiagnosticsSummary = true
+	}
+
 	reportedAt := time.Now().UTC()
 
 	appName := strings.TrimSpace(stringValue(req.AppName))
@@ -2066,7 +2074,8 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 	statusCapturedAt := strings.TrimSpace(stringValue(req.AppStatusCapturedAt))
 
-	title := summarizeIssueTitle(message)
+	includeScreenshot := pageCaptureCount > 0 || screenshotData != ""
+	title := deriveIssueTitle(primaryDescription, message, captures, includeDiagnosticsSummary, includeScreenshot)
 	reportSource := strings.TrimSpace(stringValue(req.Source))
 	description := buildIssueDescription(
 		appName,
@@ -2243,7 +2252,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 			continue
 		}
 		elementAttachmentIndex++
-		name := fmt.Sprintf("app-monitor-element-%02d.png", elementAttachmentIndex)
+		name := fmt.Sprintf("element-%02d.png", elementAttachmentIndex)
 		artifacts = append(artifacts, map[string]interface{}{
 			"name":         name,
 			"category":     "screenshot",
@@ -3608,23 +3617,127 @@ func normalizePreviewURL(raw string) string {
 	return parsed.String()
 }
 
-func summarizeIssueTitle(message string) string {
-	trimmed := strings.TrimSpace(message)
+const reportTitleMaxLength = 80
+const reportLabelMaxLength = 48
+
+func truncateTitle(value string, limit int) string {
+	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return "Issue reported from App Monitor"
+		return ""
+	}
+	runes := []rune(trimmed)
+	if len(runes) <= limit {
+		return trimmed
+	}
+	return string(runes[:limit]) + "..."
+}
+
+func firstLine(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	for index, r := range trimmed {
+		if r == '\n' || r == '\r' {
+			return strings.TrimSpace(trimmed[:index])
+		}
+	}
+	return trimmed
+}
+
+func resolveCaptureLabel(capture IssueCapture, index int) string {
+	candidates := []string{
+		capture.Label,
+		capture.Title,
+		capture.Selector,
+		capture.AriaDesc,
+		capture.Text,
 	}
 
-	firstLine := trimmed
-	if idx := strings.IndexAny(trimmed, "\n\r"); idx != -1 {
-		firstLine = strings.TrimSpace(trimmed[:idx])
+	for _, candidate := range candidates {
+		trimmed := strings.TrimSpace(candidate)
+		if trimmed != "" {
+			return truncateTitle(trimmed, reportLabelMaxLength)
+		}
 	}
 
-	runes := []rune(firstLine)
-	if len(runes) > 60 {
-		return string(runes[:60]) + "..."
+	role := strings.TrimSpace(capture.Role)
+	if role != "" {
+		return truncateTitle(role, 32)
 	}
 
-	return firstLine
+	tagName := strings.TrimSpace(capture.TagName)
+	if tagName != "" {
+		return fmt.Sprintf("<%s>", strings.ToLower(tagName))
+	}
+
+	return fmt.Sprintf("element %d", index+1)
+}
+
+func deriveIssueTitle(primaryDescription, message string, captures []IssueCapture, includeDiagnosticsSummary bool, includeScreenshot bool) string {
+	trimmedPrimary := strings.TrimSpace(primaryDescription)
+	hasPrimary := trimmedPrimary != ""
+
+	notedCaptures := make([]IssueCapture, 0, len(captures))
+	for _, capture := range captures {
+		if strings.ToLower(strings.TrimSpace(capture.Type)) != "element" {
+			continue
+		}
+		if strings.TrimSpace(capture.Note) == "" {
+			continue
+		}
+		notedCaptures = append(notedCaptures, capture)
+	}
+
+	captureCount := len(notedCaptures)
+	firstCaptureLabel := ""
+	if captureCount > 0 {
+		firstCaptureLabel = resolveCaptureLabel(notedCaptures[0], 0)
+	}
+
+	if includeDiagnosticsSummary {
+		if !hasPrimary && captureCount == 0 {
+			return "Address diagnostics issues"
+		}
+		if hasPrimary && captureCount == 0 {
+			return "Address diagnostics issues and feedback"
+		}
+		if !hasPrimary && captureCount == 1 && firstCaptureLabel != "" {
+			return truncateTitle("Diagnostics issues and feedback on "+firstCaptureLabel, reportTitleMaxLength)
+		}
+		if !hasPrimary && captureCount > 1 {
+			return fmt.Sprintf("Diagnostics issues with feedback on %d elements", captureCount)
+		}
+		if hasPrimary && captureCount == 1 && firstCaptureLabel != "" {
+			return truncateTitle("Address diagnostics issues and "+firstCaptureLabel+" feedback", reportTitleMaxLength)
+		}
+		if hasPrimary && captureCount > 1 {
+			return "Address diagnostics issues with captured feedback"
+		}
+	}
+
+	if !hasPrimary && captureCount > 0 {
+		if captureCount == 1 && firstCaptureLabel != "" {
+			return truncateTitle("Feedback on "+firstCaptureLabel, reportTitleMaxLength)
+		}
+		return fmt.Sprintf("Feedback on %d elements", captureCount)
+	}
+
+	if hasPrimary {
+		if line := firstLine(trimmedPrimary); line != "" {
+			return truncateTitle(line, reportTitleMaxLength)
+		}
+	}
+
+	if includeScreenshot {
+		return "Screenshot feedback"
+	}
+
+	if line := firstLine(message); line != "" {
+		return truncateTitle(line, reportTitleMaxLength)
+	}
+
+	return "Issue reported from App Monitor"
 }
 
 func buildIssueDescription(

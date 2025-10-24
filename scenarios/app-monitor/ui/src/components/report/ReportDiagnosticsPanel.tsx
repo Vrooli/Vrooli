@@ -12,9 +12,17 @@ import type { ReportDiagnosticsState } from './useReportIssueState';
 
 interface ReportDiagnosticsPanelProps {
   diagnostics: ReportDiagnosticsState;
+  includeSummary: boolean;
+  onIncludeSummaryChange: (value: boolean) => void;
+  disabled?: boolean;
 }
 
-const ReportDiagnosticsPanel = ({ diagnostics }: ReportDiagnosticsPanelProps) => {
+const ReportDiagnosticsPanel = ({
+  diagnostics,
+  includeSummary,
+  onIncludeSummaryChange,
+  disabled = false,
+}: ReportDiagnosticsPanelProps) => {
   const {
     diagnosticsState,
     diagnosticsLoading,
@@ -22,14 +30,13 @@ const ReportDiagnosticsPanel = ({ diagnostics }: ReportDiagnosticsPanelProps) =>
     diagnosticsError,
     diagnosticsScannedFileCount,
     diagnosticsCheckedAt,
-    showDiagnosticsSetDescription,
-    handleApplyDiagnosticsDescription,
     refreshDiagnostics,
     bridgeCompliance,
     bridgeComplianceCheckedAt,
     bridgeComplianceFailures,
     diagnosticsRuleResults,
     diagnosticsWarnings,
+    diagnosticsDescription,
   } = diagnostics;
 
   const hasScanFailure = diagnosticsState === 'fail' && diagnosticsScannedFileCount <= 0;
@@ -311,21 +318,17 @@ const ReportDiagnosticsPanel = ({ diagnostics }: ReportDiagnosticsPanelProps) =>
         </div>
       )}
 
-      {showDiagnosticsSetDescription && (
-        <div
-          className={clsx(
-            'report-dialog__bridge-actions',
-            'report-dialog__bridge-actions--description',
-            isCollapsed && 'report-dialog__bridge-actions--collapsed',
-          )}
-        >
-          <button
-            type="button"
-            className="report-dialog__button report-dialog__button--ghost report-dialog__button--compact"
-            onClick={handleApplyDiagnosticsDescription}
-          >
-            Use details in description
-          </button>
+      {diagnosticsDescription && (
+        <div className="report-dialog__bridge-actions">
+          <label className="report-dialog__checkbox">
+            <input
+              type="checkbox"
+              checked={includeSummary}
+              onChange={event => onIncludeSummaryChange(event.target.checked)}
+              disabled={disabled}
+            />
+            <span>Include diagnostics summary in description</span>
+          </label>
         </div>
       )}
     </div>

@@ -633,3 +633,4 @@ const ReportLogsSection = ({
 };
 
 export default ReportLogsSection;
+export type { ReportLogsSectionProps };

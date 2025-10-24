@@ -9,10 +9,12 @@ import {
   type ReactNode,
 } from 'react';
 
+import ReportLogsSection, { type ReportLogsSectionProps } from './ReportLogsSection';
 import type { ReportElementCapture } from './reportTypes';
 import type { ReportScreenshotState } from './useReportIssueState';
 
 const PRIMARY_TAB_ID = 'page';
+const LOGS_TAB_ID = 'logs';
 
 interface ReportScreenshotPanelProps {
   screenshot: ReportScreenshotState;
@@ -22,10 +24,12 @@ interface ReportScreenshotPanelProps {
   elementCaptures: ReportElementCapture[];
   onElementNoteChange: (captureId: string, note: string) => void;
   onElementRemove: (captureId: string) => void;
+  logsPanel?: ReportLogsSectionProps;
 }
 
 type CaptureTab =
   | { id: string; label: string; type: 'page' }
+  | { id: string; label: string; type: 'logs' }
   | { id: string; label: string; type: 'element'; capture: ReportElementCapture; index: number };
 
 const ReportScreenshotPanel = ({
@@ -36,6 +40,7 @@ const ReportScreenshotPanel = ({
   elementCaptures,
   onElementNoteChange,
   onElementRemove,
+  logsPanel,
 }: ReportScreenshotPanelProps) => {
   const {
     reportScreenshotData,
@@ -58,6 +63,7 @@ const ReportScreenshotPanel = ({
 
   const tabs = useMemo<CaptureTab[]>(() => {
     const pageTab: CaptureTab = { id: PRIMARY_TAB_ID, label: 'Preview', type: 'page' };
+    const logsTab: CaptureTab[] = logsPanel ? [{ id: LOGS_TAB_ID, label: 'Logs', type: 'logs' }] : [];
     const elementTabs = elementCaptures.map<CaptureTab>((capture, index) => {
       const label = capture.metadata.selector?.trim()
         || capture.metadata.label?.trim()
@@ -71,8 +77,8 @@ const ReportScreenshotPanel = ({
         index,
       };
     });
-    return [pageTab, ...elementTabs];
-  }, [elementCaptures]);
+    return [pageTab, ...logsTab, ...elementTabs];
+  }, [elementCaptures, logsPanel]);
 
   const [activeTab, setActiveTab] = useState<string>(() => (
     reportIncludeScreenshot || elementCaptures.length === 0
@@ -401,7 +407,9 @@ const ReportScreenshotPanel = ({
             >
               {tab.type === 'page'
                 ? renderPrimaryPanel()
-                : renderElementPanel(tab.capture, tab.index)}
+                : tab.type === 'logs'
+                  ? (logsPanel ? <ReportLogsSection {...logsPanel} /> : null)
+                  : renderElementPanel(tab.capture, tab.index)}
             </div>
           );
         })}

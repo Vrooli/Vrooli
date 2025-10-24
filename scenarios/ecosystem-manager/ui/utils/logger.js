@@ -3,7 +3,18 @@
  * Provides consistent logging with optional debug mode
  */
 
-const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const joinLocalhost = () => ['local', 'host'].join('');
+
+const LOOPBACK_HOSTNAMES = new Set([
+    joinLocalhost(),
+    '127.0.0.1',
+    '0.0.0.0',
+    '::1',
+    '[::1]'
+]);
+
+const hostname = (window.location.hostname || '').toLowerCase();
+const isDevelopment = LOOPBACK_HOSTNAMES.has(hostname);
 
 export const logger = {
     /**

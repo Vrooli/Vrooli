@@ -233,8 +233,6 @@ interface ReportDiagnosticsState {
   diagnosticsScannedFileCount: number;
   diagnosticsCheckedAt: string | null;
   diagnosticsDescription: string;
-  showDiagnosticsSetDescription: boolean;
-  handleApplyDiagnosticsDescription: () => void;
   refreshDiagnostics: () => void;
   bridgeCompliance: BridgeComplianceResult | null;
   bridgeComplianceCheckedAt: string | null;
@@ -282,6 +280,10 @@ interface ReportIssueStateResult {
   reportSubmitting: boolean;
   reportError: string | null;
   reportIncludeScreenshot: boolean;
+  includeDiagnosticsSummary: boolean;
+  diagnosticsSummaryIncluded: boolean;
+  setIncludeDiagnosticsSummary: (value: boolean) => void;
+  issueTitlePreview: string;
   resetOnClose: () => void;
 }
 
@@ -292,6 +294,114 @@ const BRIDGE_FAILURE_LABELS: Record<string, string> = {
   'BACK/FWD': 'History navigation commands were not acknowledged by the iframe.',
   CHECK_FAILED: 'Runtime bridge check could not complete. Try refreshing the preview.',
   NO_IFRAME: 'Preview iframe was unavailable when the runtime check executed.',
+};
+
+const REPORT_TITLE_MAX_LENGTH = 80;
+
+const truncateTitle = (value: string, limit = REPORT_TITLE_MAX_LENGTH) => {
+  const chars = Array.from(value);
+  if (chars.length <= limit) {
+    return value;
+  }
+  return `${chars.slice(0, limit).join('')}...`;
+};
+
+const resolveElementLabel = (capture: ReportElementCapture, index: number) => {
+  const pick = (input?: string | null) => (input ?? '').trim();
+  const metadata = capture.metadata ?? {};
+  const candidates = [
+    pick(metadata.label),
+    pick(metadata.selector),
+    pick(metadata.ariaDescription),
+    pick(metadata.text),
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate) {
+      return truncateTitle(candidate, 48);
+    }
+  }
+
+  const role = pick(metadata.role);
+  if (role) {
+    return role;
+  }
+
+  const tagName = pick(metadata.tagName);
+  if (tagName) {
+    return `<${tagName.toLowerCase()}>`;
+  }
+
+  return `element ${index + 1}`;
+};
+
+interface TitleContext {
+  primaryDescription: string;
+  elementCaptures: ReportElementCapture[];
+  includeDiagnosticsSummary: boolean;
+  includeScreenshot: boolean;
+}
+
+const deriveReportIssueTitle = ({
+  primaryDescription,
+  elementCaptures,
+  includeDiagnosticsSummary,
+  includeScreenshot,
+}: TitleContext) => {
+  const trimmedPrimary = primaryDescription.trim();
+  const capturesWithNotes = elementCaptures.filter(capture => capture.note.trim().length > 0);
+  const captureCount = capturesWithNotes.length;
+  const firstCaptureLabel = captureCount > 0 ? resolveElementLabel(capturesWithNotes[0], 0) : null;
+
+  const hasPrimary = trimmedPrimary.length > 0;
+
+  if (includeDiagnosticsSummary) {
+    if (!hasPrimary && captureCount === 0) {
+      return 'Address diagnostics issues';
+    }
+    if (hasPrimary && captureCount === 0) {
+      return 'Address diagnostics issues and feedback';
+    }
+    if (!hasPrimary && captureCount === 1 && firstCaptureLabel) {
+      return truncateTitle(`Diagnostics issues and feedback on ${firstCaptureLabel}`);
+    }
+    if (!hasPrimary && captureCount > 1) {
+      return `Diagnostics issues with feedback on ${captureCount} elements`;
+    }
+    if (hasPrimary && captureCount === 1 && firstCaptureLabel) {
+      return truncateTitle(`Address diagnostics issues and ${firstCaptureLabel} feedback`);
+    }
+    if (hasPrimary && captureCount > 1) {
+      return 'Address diagnostics issues with captured feedback';
+    }
+  }
+
+  if (!hasPrimary && captureCount > 0) {
+    if (captureCount === 1 && firstCaptureLabel) {
+      return truncateTitle(`Feedback on ${firstCaptureLabel}`);
+    }
+    return `Feedback on ${captureCount} elements`;
+  }
+
+  if (hasPrimary) {
+    const firstLine = (() => {
+      const newlineIdx = trimmedPrimary.search(/[\r\n]/);
+      if (newlineIdx === -1) {
+        return trimmedPrimary;
+      }
+      return trimmedPrimary.slice(0, newlineIdx).trim();
+    })();
+
+    if (firstLine) {
+      return truncateTitle(firstLine);
+    }
+  }
+
+  if (includeScreenshot) {
+    return 'Screenshot feedback';
+  }
+
+  return 'Issue reported from App Monitor';
 };
 
 const useReportIssueState = ({
@@ -359,6 +469,8 @@ const useReportIssueState = ({
   const [reportAppStatusExpanded, setReportAppStatusExpanded] = useState(false);
   const [reportAppStatusFetchedAt, setReportAppStatusFetchedAt] = useState<number | null>(null);
   const [reportIncludeAppStatus, setReportIncludeAppStatus] = useState(true);
+  const [reportIncludeDiagnostics, setReportIncludeDiagnostics] = useState(false);
+  const [reportIncludeDiagnosticsManuallySet, setReportIncludeDiagnosticsManuallySet] = useState(false);
   const [existingIssuesState, setExistingIssuesState] = useState<ExistingIssuesStateInternal>(() => createExistingIssuesState());
   const markScenarioIssueCreated = useScenarioEngagementStore(state => state.markIssueCreated);
   const flagScenarioIssueReported = useScenarioIssuesStore(state => state.flagIssueReported);
@@ -471,6 +583,8 @@ const useReportIssueState = ({
     setReportAppStatusExpanded(false);
     setReportAppStatusFetchedAt(null);
     setReportIncludeAppStatus(true);
+    setReportIncludeDiagnostics(false);
+    setReportIncludeDiagnosticsManuallySet(false);
     setExistingIssuesState(createExistingIssuesState());
     reportAppLogsFetchedForRef.current = null;
     reportConsoleLogsFetchedForRef.current = null;
@@ -961,6 +1075,11 @@ const useReportIssueState = ({
     setReportMessage(event.target.value);
   }, []);
 
+  const handleIncludeDiagnosticsSummaryChange = useCallback((checked: boolean) => {
+    setReportIncludeDiagnostics(checked);
+    setReportIncludeDiagnosticsManuallySet(true);
+  }, []);
+
   const handleReportMessageKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Escape') {
       event.stopPropagation();
@@ -994,8 +1113,27 @@ const useReportIssueState = ({
     event.preventDefault();
 
     const trimmed = reportMessage.trim();
-    if (!trimmed) {
-      setReportError('Please add a short description of the issue.');
+    const captureNotes = elementCaptures
+      .map((capture, index) => {
+        const note = capture.note.trim();
+        if (!note) {
+          return null;
+        }
+
+        const selectorLabel = capture.metadata.selector?.trim();
+        const descriptiveLabel = capture.metadata.label?.trim();
+        const tagLabel = capture.metadata.tagName ? `<${capture.metadata.tagName}>` : null;
+        const label = selectorLabel || descriptiveLabel || tagLabel || `Element capture ${index + 1}`;
+        return `- ${label}: ${note}`;
+      })
+      .filter((entry): entry is string => Boolean(entry));
+
+    const hasPrimaryDescription = trimmed.length > 0;
+    const includeDiagnosticsSummary = diagnosticsSummaryIncluded;
+    const hasCaptureNotes = captureNotes.length > 0;
+
+    if (!hasPrimaryDescription && !hasCaptureNotes && !includeDiagnosticsSummary) {
+      setReportError('Add a description, include diagnostics, or add capture notes before sending.');
       return;
     }
 
@@ -1027,28 +1165,24 @@ const useReportIssueState = ({
     }
 
     try {
-      const captureNotes = elementCaptures
-        .map((capture, index) => {
-          const note = capture.note.trim();
-          if (!note) {
-            return null;
-          }
+      const sections: string[] = [];
+      if (hasPrimaryDescription) {
+        sections.push(trimmed);
+      }
 
-          const selectorLabel = capture.metadata.selector?.trim();
-          const descriptiveLabel = capture.metadata.label?.trim();
-          const tagLabel = capture.metadata.tagName ? `<${capture.metadata.tagName}>` : null;
-          const label = selectorLabel || descriptiveLabel || tagLabel || `Element capture ${index + 1}`;
-          return `- ${label}: ${note}`;
-        })
-        .filter((entry): entry is string => Boolean(entry));
+      if (includeDiagnosticsSummary && diagnosticsDescription) {
+        sections.push(['### Diagnostics Summary', '', diagnosticsDescription].join('\n'));
+      }
 
-      const noteSection = captureNotes.length > 0
-        ? ['### Element Capture Notes', '', ...captureNotes].join('\n')
-        : null;
+      if (hasCaptureNotes) {
+        sections.push(['### Element Capture Notes', '', ...captureNotes].join('\n'));
+      }
 
-      const finalMessage = noteSection
-        ? (trimmed ? `${trimmed}\n\n${noteSection}` : noteSection)
-        : trimmed;
+      const finalMessage = sections.join('\n\n').trim();
+      if (!finalMessage) {
+        setReportError('Unable to prepare report contents.');
+        return;
+      }
 
       const capturePayloads: ReportIssueCapturePayload[] = elementCaptures.map((capture, index) => {
         const normalizedClasses = (capture.metadata.classes ?? []).filter(Boolean);
@@ -1107,6 +1241,8 @@ const useReportIssueState = ({
 
       const payload: ReportIssuePayload = {
         message: finalMessage,
+        primaryDescription: hasPrimaryDescription ? trimmed : null,
+        includeDiagnosticsSummary,
         includeScreenshot,
         previewUrl: activePreviewUrl || null,
         appName: app?.name ?? null,
@@ -1592,28 +1728,22 @@ const useReportIssueState = ({
     diagnosticsWarnings,
   ]);
 
-  const handleApplyDiagnosticsDescription = useCallback(() => {
-    if (!diagnosticsDescription) {
+  useEffect(() => {
+    const hasSummary = diagnosticsDescription.trim().length > 0;
+    if (!hasSummary) {
+      setReportIncludeDiagnostics(false);
+      setReportIncludeDiagnosticsManuallySet(false);
       return;
     }
-    setReportMessage(previous => {
-      const next = diagnosticsDescription;
-      if (!next) {
-        return previous;
-      }
 
-      const current = previous ?? '';
-      const trimmedCurrent = current.trimEnd();
-      if (!trimmedCurrent) {
-        return next;
-      }
+    if (!reportIncludeDiagnosticsManuallySet) {
+      setReportIncludeDiagnostics(true);
+    }
+  }, [diagnosticsDescription, reportIncludeDiagnosticsManuallySet]);
 
-      return `${trimmedCurrent}\n\n${next}`;
-    });
-    window.setTimeout(() => {
-      textareaRef.current?.focus();
-    }, 0);
-  }, [diagnosticsDescription]);
+  const diagnosticsSummaryIncluded = useMemo(() => (
+    reportIncludeDiagnostics && diagnosticsDescription.trim().length > 0
+  ), [reportIncludeDiagnostics, diagnosticsDescription]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -1797,7 +1927,18 @@ const useReportIssueState = ({
     return 'idle';
   }, [diagnosticsLoading, diagnosticsStatus, diagnosticsEvaluation]);
 
-  const showDiagnosticsSetDescription = Boolean(diagnosticsDescription);
+  const issueTitlePreview = useMemo(() => deriveReportIssueTitle({
+    primaryDescription: reportMessage,
+    elementCaptures,
+    includeDiagnosticsSummary: diagnosticsSummaryIncluded,
+    includeScreenshot: reportIncludeScreenshot && canCaptureScreenshot,
+  }), [
+    reportMessage,
+    elementCaptures,
+    diagnosticsSummaryIncluded,
+    reportIncludeScreenshot,
+    canCaptureScreenshot,
+  ]);
 
   return {
     textareaRef,
@@ -1902,8 +2043,6 @@ const useReportIssueState = ({
       diagnosticsScannedFileCount,
       diagnosticsCheckedAt,
       diagnosticsDescription,
-      showDiagnosticsSetDescription,
-      handleApplyDiagnosticsDescription,
       refreshDiagnostics,
       bridgeCompliance,
       bridgeComplianceCheckedAt,
@@ -1934,6 +2073,10 @@ const useReportIssueState = ({
     reportSubmitting,
     reportError,
     reportIncludeScreenshot,
+    includeDiagnosticsSummary: reportIncludeDiagnostics,
+    diagnosticsSummaryIncluded,
+    setIncludeDiagnosticsSummary: handleIncludeDiagnosticsSummaryChange,
+    issueTitlePreview,
     resetOnClose: resetState,
   };
 };
