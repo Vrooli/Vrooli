@@ -53,6 +53,9 @@ const PreviewInspectorPanel = ({
     inspectorCaptureNote,
     handleInspectorCaptureNoteChange,
     handleAddInspectorCaptureToReport,
+    inspectorReportStatus,
+    handleInspectorViewReport,
+    handleInspectorInspectAnother,
     handleCopySelector,
     handleCopyText,
     handleDownloadInspectorScreenshot,
@@ -370,28 +373,64 @@ const PreviewInspectorPanel = ({
               </figcaption>
               {inspectorScreenshot && (
                 <div className="preview-inspector__report">
-                  <label className="preview-inspector__report-label" htmlFor={inspectorReportNoteId}>
-                    Report note
-                  </label>
-                  <div className="preview-inspector__report-input">
-                    <input
-                      id={inspectorReportNoteId}
-                      type="text"
-                      className="preview-inspector__report-field"
-                      value={inspectorCaptureNote}
-                      onChange={handleInspectorCaptureNoteChange}
-                      placeholder="Add note for issue report"
-                    />
-                    <button
-                      type="button"
-                      className="preview-inspector__report-action"
-                      onClick={handleAddInspectorCaptureToReport}
-                      title="Add capture to issue report"
-                      aria-label="Add capture to issue report"
-                    >
-                      <PlusCircle aria-hidden size={16} />
-                    </button>
-                  </div>
+                  {inspectorReportStatus ? (
+                    <div className="preview-inspector__report-feedback" role="status">
+                      <p className="preview-inspector__report-feedback-message">
+                        {inspectorReportStatus.message}
+                      </p>
+                      <p
+                        className={clsx(
+                          'preview-inspector__report-feedback-note',
+                          !inspectorReportStatus.note && 'preview-inspector__report-feedback-note--empty',
+                        )}
+                      >
+                        {inspectorReportStatus.note && inspectorReportStatus.note.length > 0
+                          ? inspectorReportStatus.note
+                          : 'No note added.'}
+                      </p>
+                      <div className="preview-inspector__report-feedback-actions">
+                        <button
+                          type="button"
+                          className="preview-inspector__report-button"
+                          onClick={handleInspectorViewReport}
+                        >
+                          View Report
+                        </button>
+                        <button
+                          type="button"
+                          className="preview-inspector__report-button preview-inspector__report-button--secondary"
+                          onClick={handleInspectorInspectAnother}
+                        >
+                          Inspect Another
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="preview-inspector__report-label" htmlFor={inspectorReportNoteId}>
+                        Report note
+                      </label>
+                      <div className="preview-inspector__report-input">
+                        <input
+                          id={inspectorReportNoteId}
+                          type="text"
+                          className="preview-inspector__report-field"
+                          value={inspectorCaptureNote}
+                          onChange={handleInspectorCaptureNoteChange}
+                          placeholder="Add note for issue report"
+                        />
+                        <button
+                          type="button"
+                          className="preview-inspector__report-action"
+                          onClick={handleAddInspectorCaptureToReport}
+                          title="Add capture to issue report"
+                          aria-label="Add capture to issue report"
+                        >
+                          <PlusCircle aria-hidden size={16} />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </figure>

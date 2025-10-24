@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ChangeEvent,
   type ReactNode,
 } from 'react';
@@ -78,22 +79,29 @@ const ReportScreenshotPanel = ({
       ? PRIMARY_TAB_ID
       : elementCaptures[0]?.id ?? PRIMARY_TAB_ID
   ));
+  const previousIncludeRef = useRef(reportIncludeScreenshot);
 
   useEffect(() => {
-    if (reportIncludeScreenshot) {
-      setActiveTab(PRIMARY_TAB_ID);
-      return;
+    const tabIds = tabs.map(tab => tab.id);
+    if (!tabIds.includes(activeTab)) {
+      const fallback = tabIds.includes(PRIMARY_TAB_ID)
+        ? PRIMARY_TAB_ID
+        : elementCaptures[0]?.id ?? PRIMARY_TAB_ID;
+      setActiveTab(fallback);
     }
+  }, [activeTab, elementCaptures, tabs]);
 
-    if (elementCaptures.length === 0) {
+  useEffect(() => {
+    const previousInclude = previousIncludeRef.current;
+    if (reportIncludeScreenshot && !previousInclude) {
       setActiveTab(PRIMARY_TAB_ID);
-      return;
+    } else if (!reportIncludeScreenshot && previousInclude && activeTab === PRIMARY_TAB_ID) {
+      const firstCaptureId = elementCaptures[0]?.id;
+      if (firstCaptureId) {
+        setActiveTab(firstCaptureId);
+      }
     }
-
-    const isActiveElement = elementCaptures.some(capture => capture.id === activeTab);
-    if (!isActiveElement) {
-      setActiveTab(elementCaptures[0].id);
-    }
+    previousIncludeRef.current = reportIncludeScreenshot;
   }, [activeTab, elementCaptures, reportIncludeScreenshot]);
 
   const showPreviewContent = reportIncludeScreenshot && canCaptureScreenshot;

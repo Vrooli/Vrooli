@@ -417,6 +417,11 @@
   flex: 1;
 }
 
+.preview-toolbar__menu-item > span:last-child {
+  margin-left: auto;
+  text-align: right;
+}
+
 .preview-toolbar__menu-item--with-note {
   flex-direction: column;
   align-items: flex-start;
@@ -429,6 +434,15 @@
   text-transform: none;
   color: rgba(255, 138, 76, 0.9);
   line-height: 1.25;
+}
+
+.preview-toolbar__menu-item-label {
+  justify-content: flex-end;
+}
+
+.preview-toolbar__menu-item-label > span:last-child {
+  margin-left: auto;
+  text-align: right;
 }
 
 .preview-toolbar__badge {

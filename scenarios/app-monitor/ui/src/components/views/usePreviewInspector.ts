@@ -34,6 +34,7 @@ type UsePreviewInspectorParams = {
   previewViewRef: React.RefObject<HTMLDivElement | null>;
   previewViewNode: HTMLDivElement | null;
   onCaptureAdd: (capture: ReportElementCapture) => void;
+  onViewReportRequest: () => void;
 };
 
 type DragState = {
@@ -52,6 +53,12 @@ type DragState = {
 type InspectMessageLock = {
   locked: boolean;
   timer: number | null;
+};
+
+type InspectorReportStatus = {
+  message: string;
+  note: string;
+  captureId: string;
 };
 
 export type PreviewInspectorState = {
@@ -90,6 +97,9 @@ export type PreviewInspectorState = {
   inspectorCaptureNote: string;
   handleInspectorCaptureNoteChange: (event: ChangeEvent<HTMLInputElement>) => void;
   handleAddInspectorCaptureToReport: () => void;
+  inspectorReportStatus: InspectorReportStatus | null;
+  handleInspectorViewReport: () => void;
+  handleInspectorInspectAnother: () => void;
   handleCopySelector: () => void;
   handleCopyText: () => void;
   handleDownloadInspectorScreenshot: () => void;
@@ -112,6 +122,7 @@ export const usePreviewInspector = ({
   previewViewRef,
   previewViewNode,
   onCaptureAdd,
+  onViewReportRequest,
 }: UsePreviewInspectorParams): PreviewInspectorState => {
   const [inspectStatusMessage, setInspectStatusMessage] = useState<string | null>(null);
   const [inspectCopyFeedback, setInspectCopyFeedback] = useState<'selector' | 'text' | null>(null);
@@ -123,6 +134,7 @@ export const usePreviewInspector = ({
   const [inspectorDialogPosition, setInspectorDialogPosition] = useState<InspectorPosition>(() => ({ ...DEFAULT_INSPECTOR_POSITION }));
   const [isInspectorDragging, setIsInspectorDragging] = useState(false);
   const [inspectorCaptureNote, setInspectorCaptureNote] = useState('');
+  const [inspectorReportStatus, setInspectorReportStatus] = useState<InspectorReportStatus | null>(null);
 
   const inspectorDialogRef = useRef<HTMLDivElement | null>(null);
   const inspectorDefaultPositionAppliedRef = useRef(false);
@@ -133,6 +145,7 @@ export const usePreviewInspector = ({
   const inspectorSuppressClickRef = useRef(false);
   const inspectMessageLockRef = useRef<InspectMessageLock>({ locked: false, timer: null });
   const inspectorAutoOpenSuppressedRef = useRef(false);
+  const lastInspectorScreenshotAtRef = useRef<number | null>(null);
 
   const inspectorDialogTitleId = useId();
   const inspectorDetailsSectionId = useId();
@@ -357,6 +370,8 @@ export const usePreviewInspector = ({
       return;
     }
 
+    const trimmedNote = inspectorCaptureNote.trim();
+
     const captureId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : `capture-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -375,7 +390,7 @@ export const usePreviewInspector = ({
       filename: inspectorScreenshot.filename ?? null,
       clip: inspectorScreenshot.clip ?? null,
       mode: inspectorScreenshot.mode ?? null,
-      note: inspectorCaptureNote.trim(),
+      note: trimmedNote,
       metadata: {
         selector: inspectSelectorValue,
         tagName: inspectMeta?.tag ?? null,
@@ -399,7 +414,11 @@ export const usePreviewInspector = ({
 
     onCaptureAdd(capture);
     setInspectorCaptureNote('');
-    setLockedInspectMessage('Element capture added to report.', 3200);
+    setInspectorReportStatus({
+      message: 'Element capture added to report.',
+      note: trimmedNote,
+      captureId,
+    });
   }, [
     inspectorScreenshot,
     inspectorCaptureNote,
@@ -412,6 +431,7 @@ export const usePreviewInspector = ({
     inspectRect,
     onCaptureAdd,
     setLockedInspectMessage,
+    setInspectorReportStatus,
   ]);
 
   const handleInspectorPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -510,7 +530,48 @@ export const usePreviewInspector = ({
     inspectorSuppressClickRef.current = false;
     stopInspect();
     clearInspectMessageLock();
+    setInspectorReportStatus(null);
+    setInspectorCaptureNote('');
   }, [clearInspectMessageLock, stopInspect]);
+
+  const handleInspectorInspectAnother = useCallback(() => {
+    setInspectorReportStatus(null);
+    setInspectorCaptureNote('');
+    if (inspectState.active) {
+      return;
+    }
+    if (!inspectState.supported) {
+      setLockedInspectMessage('Element inspector requires the latest bridge in the previewed app.', 3600);
+      return;
+    }
+    if (!previewUrl) {
+      setLockedInspectMessage('Load the preview before inspecting elements.', 3200);
+      return;
+    }
+    inspectorAutoOpenSuppressedRef.current = false;
+    const started = startInspect();
+    if (!started) {
+      setLockedInspectMessage('Element inspector is unavailable for this preview.', 3600);
+      return;
+    }
+    clearInspectMessageLock();
+    setInspectStatusMessage(prefersCoarsePointer
+      ? 'Drag on the preview to target an element and lift your finger to capture. Press Esc to cancel.'
+      : 'Select an element in the preview. Press Esc to cancel.');
+  }, [
+    clearInspectMessageLock,
+    inspectState.active,
+    inspectState.supported,
+    prefersCoarsePointer,
+    previewUrl,
+    setLockedInspectMessage,
+    startInspect,
+  ]);
+
+  const handleInspectorViewReport = useCallback(() => {
+    handleInspectorDialogClose();
+    onViewReportRequest();
+  }, [handleInspectorDialogClose, onViewReportRequest]);
 
   const handleCopyValue = useCallback(async (value: string, kind: 'selector' | 'text') => {
     try {
@@ -637,6 +698,17 @@ export const usePreviewInspector = ({
   useEffect(() => {
     captureElementScreenshotRef.current = handleCaptureElementScreenshot;
   }, [handleCaptureElementScreenshot]);
+
+  useEffect(() => {
+    const capturedAt = inspectorScreenshot?.capturedAt ?? null;
+    if (capturedAt === lastInspectorScreenshotAtRef.current) {
+      return;
+    }
+    lastInspectorScreenshotAtRef.current = capturedAt;
+    if (inspectorReportStatus !== null) {
+      setInspectorReportStatus(null);
+    }
+  }, [inspectorReportStatus, inspectorScreenshot]);
 
   useEffect(() => {
     if (inspectState.active) {
@@ -897,6 +969,9 @@ export const usePreviewInspector = ({
     inspectorCaptureNote,
     handleInspectorCaptureNoteChange,
     handleAddInspectorCaptureToReport,
+    inspectorReportStatus,
+    handleInspectorViewReport,
+    handleInspectorInspectAnother,
     handleCopySelector,
     handleCopyText,
     handleDownloadInspectorScreenshot,

@@ -193,6 +193,7 @@ const AppPreviewView = () => {
   ), [previewIdentifier]);
 
   const previousPreviewIdentifierRef = useRef<string | null>(null);
+  const previousReportScenarioRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -761,6 +762,14 @@ const AppPreviewView = () => {
       });
   }, [appId, bridgeState.href, commitAppUpdate, hasCustomPreviewUrl, previewUrl, reloadPreview]);
 
+  const handleOpenReportDialog = useCallback(() => {
+    setReportDialogOpen(true);
+  }, []);
+
+  const handleCloseReportDialog = useCallback(() => {
+    setReportDialogOpen(false);
+  }, []);
+
   const inspector = usePreviewInspector({
     inspectState,
     startInspect,
@@ -772,15 +781,30 @@ const AppPreviewView = () => {
     previewViewRef,
     previewViewNode,
     onCaptureAdd: handleInspectorCaptureAdded,
+    onViewReportRequest: handleOpenReportDialog,
   });
+  const inspectorHandleDialogClose = inspector.handleInspectorDialogClose;
 
   useEffect(() => {
     const identifier = previewIdentifier ?? null;
     if (previousPreviewIdentifierRef.current && previousPreviewIdentifierRef.current !== identifier) {
-      inspector.handleInspectorDialogClose();
+      inspectorHandleDialogClose();
     }
     previousPreviewIdentifierRef.current = identifier;
-  }, [previewIdentifier, inspector.handleInspectorDialogClose]);
+  }, [previewIdentifier, inspectorHandleDialogClose]);
+
+  useEffect(() => {
+    const scenarioKey = currentAppIdentifier ?? null;
+    const previousScenario = previousReportScenarioRef.current;
+    if (previousScenario !== null && previousScenario !== scenarioKey) {
+      setReportDialogOpen(false);
+      setReportElementCaptures([]);
+      setHasPrimaryCaptureDraft(false);
+    }
+    if (scenarioKey !== previousScenario) {
+      previousReportScenarioRef.current = scenarioKey;
+    }
+  }, [currentAppIdentifier]);
 
   const resolvePreviewBackgroundColor = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -1515,14 +1539,6 @@ const AppPreviewView = () => {
       return { type: 'error', message };
     });
   }, [previewUrl]);
-
-  const handleOpenReportDialog = useCallback(() => {
-    setReportDialogOpen(true);
-  }, []);
-
-  const handleCloseReportDialog = useCallback(() => {
-    setReportDialogOpen(false);
-  }, []);
 
   const handleToggleFullscreen = useCallback(() => {
     if (typeof document === 'undefined') {

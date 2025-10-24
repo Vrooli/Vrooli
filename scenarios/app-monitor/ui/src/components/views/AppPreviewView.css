@@ -647,6 +647,82 @@ body.app-preview-immersive {
   color: rgba(255, 255, 255, 0.95);
 }
 
+.preview-inspector__report-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  background: rgba(12, 78, 90, 0.4);
+  color: rgba(226, 255, 247, 0.95);
+}
+
+.preview-inspector__report-feedback-message {
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(94, 234, 212, 0.85);
+}
+
+.preview-inspector__report-feedback-note {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(45, 212, 191, 0.32);
+  background: rgba(4, 20, 24, 0.55);
+  color: rgba(217, 255, 244, 0.95);
+  word-break: break-word;
+}
+
+.preview-inspector__report-feedback-note--empty {
+  font-style: italic;
+  color: rgba(148, 187, 233, 0.75);
+}
+
+.preview-inspector__report-feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.preview-inspector__report-button {
+  min-width: 8rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(45, 212, 191, 0.45);
+  background: rgba(45, 212, 191, 0.16);
+  color: rgba(226, 255, 247, 0.95);
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-inspector__report-button:hover,
+.preview-inspector__report-button:focus-visible {
+  outline: none;
+  background: rgba(45, 212, 191, 0.28);
+  border-color: rgba(45, 212, 191, 0.65);
+  color: var(--matrix-bg);
+}
+
+.preview-inspector__report-button--secondary {
+  border-color: rgba(148, 187, 233, 0.35);
+  background: rgba(148, 187, 233, 0.14);
+  color: rgba(173, 216, 230, 0.95);
+}
+
+.preview-inspector__report-button--secondary:hover,
+.preview-inspector__report-button--secondary:focus-visible {
+  background: rgba(148, 187, 233, 0.24);
+  border-color: rgba(148, 187, 233, 0.55);
+  color: var(--matrix-bg);
+}
+
 @media (max-width: 720px) {
   .preview-inspector {
     padding: 0.8rem 0.85rem;
