@@ -39,40 +39,7 @@ const API_BASE_INPUT = resolveApiBase({
   appendSuffix: true,
 });
 
-function stripTrailingSlash(value: string): string {
-  let end = value.length;
-  while (end > 0 && value.charAt(end - 1) === '/') {
-    end -= 1;
-  }
-  return end < value.length ? value.slice(0, end) : value;
-}
-
-function normalizeApiBaseForRuntime(base: string): string {
-  if (typeof window === 'undefined') {
-    return base;
-  }
-
-  try {
-    const parsed = new URL(base);
-    const isLoopback = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(parsed.hostname);
-    const currentHost = window.location.hostname;
-    const currentIsLoopback = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(currentHost);
-
-    if (isLoopback && !currentIsLoopback) {
-      const origin = stripTrailingSlash(window.location.origin);
-      const normalizedPath = stripTrailingSlash(parsed.pathname);
-      const rebuilt = stripTrailingSlash(`${origin}${normalizedPath}${parsed.search}${parsed.hash}`);
-      console.info('[IssueTracker] Using proxied API base', rebuilt);
-      return rebuilt;
-    }
-
-    return stripTrailingSlash(parsed.href);
-  } catch {
-    return stripTrailingSlash(base);
-  }
-}
-
-const API_BASE_URL = normalizeApiBaseForRuntime(API_BASE_INPUT);
+const API_BASE_URL = API_BASE_INPUT;
 const ISSUE_FETCH_LIMIT = 200;
 const SNACK_IDS = {
   loading: 'snack:data-loading',

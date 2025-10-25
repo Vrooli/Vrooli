@@ -10,6 +10,7 @@
     --cozy-cream: #faf3e0;
     --bark-brown: #4a3c2a;
     --shadow: rgba(74, 60, 42, 0.2);
+    --panel-bg: rgba(38, 24, 14, 0.94);
 }
 
 * {
@@ -660,5 +661,216 @@ h1 {
 
     .export-btn {
         width: 100%;
+    }
+}
+
+/* Data Transparency View */
+.data-container {
+    background: var(--panel-bg, rgba(38, 24, 14, 0.94));
+    border-radius: 18px;
+    padding: 2rem;
+    box-shadow: 0 15px 40px var(--shadow);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    color: #fff4e8;
+}
+
+.data-container h2,
+.data-container h3 {
+    color: #fff7eb;
+}
+
+.data-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.data-api-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.data-label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.api-base-value {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    color: #ffe7c2;
+}
+
+.api-base-pill {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffe7c2;
+    border-radius: 999px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.data-description {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.6;
+}
+
+.data-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.data-source-pill {
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.data-source-pill.status-live {
+    background: rgba(46, 204, 113, 0.18);
+    color: #b2ffce;
+    box-shadow: inset 0 0 0 1px rgba(46, 204, 113, 0.35);
+}
+
+.data-source-pill.status-fallback {
+    background: rgba(255, 165, 0, 0.18);
+    color: #ffe1aa;
+    box-shadow: inset 0 0 0 1px rgba(255, 165, 0, 0.4);
+}
+
+.data-source-pill.status-error {
+    background: rgba(220, 20, 60, 0.22);
+    color: #ffc6d1;
+    box-shadow: inset 0 0 0 1px rgba(220, 20, 60, 0.45);
+}
+
+.data-meta {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.data-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.data-section {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 14px;
+    padding: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.data-section h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.data-table thead {
+    background: linear-gradient(135deg, rgba(255, 140, 0, 0.4), rgba(220, 20, 60, 0.4));
+    color: #fff7eb;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem 0.9rem;
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.data-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.data-footnote {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.55);
+    margin-top: 0.75rem;
+}
+
+.endpoint-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.endpoint-list li {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.endpoint-name {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.endpoint-url {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    color: #ffe7c2;
+}
+
+.endpoint-note {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+@media (max-width: 768px) {
+    .data-container {
+        padding: 1.5rem;
+    }
+
+    .data-api-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .data-actions {
+        flex-direction: column;
+    }
+
+    .data-actions .export-btn {
+        width: 100%;
+        text-align: center;
     }
 }

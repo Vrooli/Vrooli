@@ -24,6 +24,7 @@
                     <button class="nav-btn" data-view="regions">Regions</button>
                     <button class="nav-btn" data-view="planner">Trip Planner</button>
                     <button class="nav-btn" data-view="gallery">Photo Gallery</button>
+                    <button class="nav-btn" data-view="data">Data Sources</button>
                 </nav>
             </div>
         </header>
@@ -190,6 +191,52 @@
                     </div>
                     <div class="photo-grid" id="photo-grid">
                         <!-- Photos will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Transparency View -->
+            <div id="data-view" class="view-panel">
+                <div class="data-container">
+                    <div class="data-header">
+                        <h2>Data Transparency</h2>
+                        <div class="data-api-info">
+                            <span class="data-label">API Base</span>
+                            <code id="api-base-display" class="api-base-value">Loading…</code>
+                            <span id="api-base-source" class="api-base-pill">Resolving…</span>
+                        </div>
+                    </div>
+                    <p id="data-source-description" class="data-description">Live and sample datasets are surfaced here so you always know what powers this experience.</p>
+                    <div class="data-status-row">
+                        <span id="data-source-status" class="data-source-pill">Pending</span>
+                        <span id="data-source-meta" class="data-meta">Awaiting first load…</span>
+                    </div>
+                    <div class="data-actions">
+                        <button id="refresh-data-btn" class="export-btn" type="button">Refresh Snapshot</button>
+                        <a id="download-regions-json" class="export-btn" href="#" target="_blank" rel="noopener">Open Regions JSON</a>
+                    </div>
+                    <div class="data-section">
+                        <h3>Regions Dataset Preview</h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Region</th>
+                                    <th>State</th>
+                                    <th>Lat</th>
+                                    <th>Lng</th>
+                                    <th>Source</th>
+                                </tr>
+                            </thead>
+                            <tbody id="regions-data-table-body">
+                                <tr><td colspan="6" style="text-align:center;">Loading dataset…</td></tr>
+                            </tbody>
+                        </table>
+                        <p id="data-source-message" class="data-footnote"></p>
+                    </div>
+                    <div class="data-section">
+                        <h3>Key API Endpoints</h3>
+                        <ul id="endpoint-list" class="endpoint-list"></ul>
                     </div>
                 </div>
             </div>

@@ -10,6 +10,10 @@ export {
   type BridgeLogLevel,
   type BridgeScreenshotMode,
   type BridgeScreenshotOptions,
+  type BridgeInspectRect,
+  type BridgeInspectElementMeta,
+  type BridgeInspectHoverPayload,
+  type BridgeInspectResultPayload,
   type LogCaptureOptions,
   type NetworkCaptureOptions,
 } from './iframeBridgeChild';

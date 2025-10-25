@@ -2833,6 +2833,7 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 	rules := []auditorRuleSpec{
 		{ID: "iframe_bridge_quality", Name: "Scenario UI Bridge Quality"},
 		{ID: "localhost_proxy_compact", Name: "Proxy-Compatible UI Base"},
+		{ID: "proxy_base_override", Name: "Proxy Base Preservation"},
 		{ID: "secure_tunnel", Name: "Secure Tunnel Setup"},
 		{ID: "service_ports", Name: "Ports Configuration"},
 		{ID: "service_health_lifecycle", Name: "Lifecycle Health Configuration"},

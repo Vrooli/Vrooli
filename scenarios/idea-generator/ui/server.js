@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 const cors = require('cors');
 const axios = require('axios');
 
@@ -23,9 +25,96 @@ const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT || '35100';
 const API_URL = process.env.API_URL || `http://localhost:${process.env.API_PORT || '15100'}`;
 
+let parsedApiUrl;
+try {
+    parsedApiUrl = new URL(API_URL);
+} catch (error) {
+    console.error('[idea-generator] API_URL could not be parsed:', API_URL, error);
+    parsedApiUrl = null;
+}
+
+function proxyToApi(req, res, upstreamPath) {
+    if (!parsedApiUrl) {
+        res.status(502).json({
+            error: 'API proxy misconfigured',
+            message: 'API_URL could not be parsed',
+            target: API_URL
+        });
+        return;
+    }
+
+    const targetPath = upstreamPath || req.originalUrl || req.url || '/';
+    const targetUrl = new URL(targetPath, parsedApiUrl);
+    const client = targetUrl.protocol === 'https:' ? https : http;
+
+    const headers = {
+        ...req.headers,
+        host: targetUrl.host
+    };
+
+    delete headers['content-length'];
+
+    const options = {
+        hostname: targetUrl.hostname,
+        port: targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80),
+        path: `${targetUrl.pathname}${targetUrl.search}`,
+        method: req.method,
+        headers
+    };
+
+    console.log(`[idea-generator][proxy] ${req.method} ${req.originalUrl} -> ${targetUrl.href}`);
+
+    const proxyReq = client.request(options, (proxyRes) => {
+        if (!res.headersSent) {
+            res.status(proxyRes.statusCode || 500);
+            Object.entries(proxyRes.headers).forEach(([key, value]) => {
+                if (typeof value !== 'undefined') {
+                    res.setHeader(key, value);
+                }
+            });
+        }
+
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (error) => {
+        console.error('[idea-generator][proxy] error:', error.message);
+        if (!res.headersSent) {
+            res.status(502).json({
+                error: 'API server unavailable',
+                message: error.message,
+                target: targetUrl.href
+            });
+        } else {
+            res.end();
+        }
+    });
+
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+        proxyReq.end();
+        return;
+    }
+
+    if (req.readable && typeof req.body === 'undefined') {
+        req.pipe(proxyReq);
+        return;
+    }
+
+    if (typeof req.body !== 'undefined') {
+        const payload = Buffer.isBuffer(req.body)
+            ? req.body
+            : typeof req.body === 'string'
+                ? Buffer.from(req.body)
+                : Buffer.from(JSON.stringify(req.body));
+
+        proxyReq.write(payload);
+    }
+
+    proxyReq.end();
+}
+
 // Middleware
 app.use(cors());
-app.use(express.json());
 app.use(express.static(__dirname));
 
 // Serve the main HTML file
@@ -70,26 +159,9 @@ app.get('/health', async (req, res) => {
 });
 
 // Proxy API requests to the backend
-app.use('/api', async (req, res) => {
-    try {
-        const response = await axios({
-            method: req.method,
-            url: `${API_URL}/api${req.path}`,
-            data: req.body,
-            headers: {
-                'Content-Type': 'application/json',
-                ...req.headers
-            }
-        });
-        res.status(response.status).json(response.data);
-    } catch (error) {
-        console.error('API proxy error:', error.message);
-        if (error.response) {
-            res.status(error.response.status).json(error.response.data);
-        } else {
-            res.status(500).json({ error: 'Internal server error', message: error.message });
-        }
-    }
+app.use('/api', (req, res) => {
+    const pathForProxy = req.originalUrl || `/api${req.url}`;
+    proxyToApi(req, res, pathForProxy);
 });
 
 // Start server
@@ -98,4 +170,7 @@ app.listen(PORT, () => {
     console.log(`📡 Proxying API requests to ${API_URL}`);
 });
 
+app.proxyToApi = proxyToApi;
+
 module.exports = app;
+module.exports.proxyToApi = proxyToApi;

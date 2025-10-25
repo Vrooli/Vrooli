@@ -85,6 +85,59 @@ if (typeof window !== 'undefined' && window.parent !== window) {
   <expected-message>log capture</expected-message>
 </test-case>
 
+<test-case id="entry-static-missing-guard" should-fail="true" path="testdata/entry-static-missing-guard/ui/app.js">
+  <description>Static bootstrap without iframe guard must violate</description>
+  <input language="javascript"><![CDATA[
+if (typeof window !== 'undefined') {
+  window.initIframeBridgeChild({ appId: 'demo' })
+}
+]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>iframe guard</expected-message>
+</test-case>
+
+<test-case id="entry-html-container" should-fail="false" path="testdata/entry-html-container/ui/index.html">
+  <description>HTML shell that defers bridge work to bundled entry should pass</description>
+  <input language="html"><![CDATA[
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Bridge Shell</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+]]></input>
+</test-case>
+
+<test-case id="entry-alt-guard" should-fail="false" path="testdata/entry-alt-guard/ui/src/main.tsx">
+  <description>Alternate guard ordering is accepted</description>
+  <input language="typescript"><![CDATA[
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window !== window.parent) {
+  initIframeBridgeChild({ appId: 'demo', captureLogs: { enabled: true } })
+}
+]]></input>
+</test-case>
+
+<test-case id="entry-electron-main" should-fail="false" path="testdata/entry-electron/ui/electron/main.js">
+  <description>Electron main process should not be treated as an iframe entry</description>
+  <input language="javascript"><![CDATA[
+const { app, BrowserWindow } = require('electron');
+
+function createWindow() {
+  const win = new BrowserWindow({ width: 800, height: 600 });
+  win.loadFile('index.html');
+}
+
+app.whenReady().then(createWindow);
+]]></input>
+</test-case>
+
 <test-case id="entry-network-disabled" should-fail="true" path="testdata/entry-network-disabled/ui/src/main.tsx">
   <description>Entry disables iframe network capture</description>
   <input language="typescript"><![CDATA[
@@ -157,9 +210,9 @@ if (typeof window !== 'undefined' && window.parent !== window) {
 var (
 	bridgeCallPattern             = regexp.MustCompile(`initIframeBridgeChild\s*\(`)
 	windowBridgeCallPattern       = regexp.MustCompile(`window\.(?:parent\.)?initIframeBridgeChild\s*\(`)
-	bridgeGuardPattern            = regexp.MustCompile(`window\.parent\s*(?:!==|!=|===|==)\s*window`)
-	appIDPattern                  = regexp.MustCompile(`appId\s*:\s*['"]`)
-	bridgeImportPattern           = regexp.MustCompile(`(?m)(import\s+[^;]*@vrooli/iframe-bridge[^\n]*|require\([^\n]*@vrooli/iframe-bridge[^\n]*\))`)
+	bridgeGuardPattern            = regexp.MustCompile(`(?:(?:window\.parent\s*(?:!==|!=|===|==)\s*window)|(?:window\s*(?:!==|!=|===|==)\s*window\.parent))`)
+	appIDPropertyPattern          = regexp.MustCompile(`(?m)(?:['"])?appId(?:['"])?\s*:`)
+	bridgeImportPattern           = regexp.MustCompile(`(?m)(import\s+[^;]*@vrooli/iframe-bridge/(?:child|dist/iframeBridgeChild)[^\n]*|require\([^\n]*@vrooli/iframe-bridge/(?:child|dist/iframeBridgeChild)[^\n]*\))`)
 	captureLogsDisabledPattern    = regexp.MustCompile(`(?s)captureLogs\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
 	captureNetworkDisabledPattern = regexp.MustCompile(`(?s)captureNetwork\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
 	iframeRuleDir                 string
@@ -186,26 +239,28 @@ func CheckIframeBridgeQuality(content []byte, filePath string) []rules.Violation
 	switch {
 	case base == "package.json" && strings.Contains(path, "/ui/"):
 		return validateBridgePackage(content, path)
-	case isEntryCandidate(base, source):
+	case isEntryCandidate(path, base, source):
 		return validateEntry(content, path)
 	default:
 		return nil
 	}
 }
 
-func isEntryCandidate(base, source string) bool {
-	if isEntryFileName(base) {
+func isEntryCandidate(path, base, source string) bool {
+	if bridgeCallPattern.MatchString(source) || windowBridgeCallPattern.MatchString(source) {
 		return true
 	}
 
-	lower := strings.ToLower(source)
-	if strings.Contains(lower, "window.initiframebridgechild") || strings.Contains(lower, "initiframebridgechild(") {
+	isHTML := strings.HasSuffix(strings.ToLower(base), ".html") || strings.HasSuffix(strings.ToLower(base), ".htm")
+	if isHTML {
+		return likelyStaticBootstrapSource(source)
+	}
+
+	if bridgeImportPattern.MatchString(source) {
 		return true
 	}
-	if strings.Contains(lower, "typeof window.initiframebridgechild") {
-		return true
-	}
-	return false
+
+	return isLikelyEntryPath(path, base)
 }
 
 func isEntryFileName(base string) bool {
@@ -227,11 +282,43 @@ func isEntryFileName(base string) bool {
 	return false
 }
 
+func isLikelyEntryPath(path, base string) bool {
+	if base == "" {
+		return false
+	}
+
+	normalized := strings.ToLower(filepath.ToSlash(path))
+	if !strings.Contains(normalized, "/ui/") {
+		return false
+	}
+
+	if strings.HasSuffix(base, ".html") || strings.HasSuffix(base, ".htm") {
+		return true
+	}
+
+	clientSegments := []string{
+		"/ui/src/",
+		"/ui/public/",
+		"/ui/app",
+		"/ui/scripts/",
+		"/ui/script",
+		"/ui/index",
+	}
+
+	for _, segment := range clientSegments {
+		if strings.Contains(normalized, segment) {
+			return isEntryFileName(base)
+		}
+	}
+
+	return false
+}
+
 func validateEntry(content []byte, path string) []rules.Violation {
 	source := string(content)
-	lower := strings.ToLower(path)
+	lower := strings.ToLower(filepath.ToSlash(path))
 
-	isStaticBootstrap := strings.Contains(lower, "ui/app.") || strings.Contains(lower, "ui/script.") || strings.Contains(lower, "/app.") || likelyStaticBootstrapSource(source)
+	isStaticBootstrap := strings.Contains(lower, "ui/app.") || strings.Contains(lower, "ui/script.") || strings.Contains(lower, "/app.") || strings.HasSuffix(lower, ".html") || strings.HasSuffix(lower, ".htm") || likelyStaticBootstrapSource(source)
 	called := bridgeCallPattern.MatchString(source) || windowBridgeCallPattern.MatchString(source)
 
 	var violations []rules.Violation
@@ -239,7 +326,6 @@ func validateEntry(content []byte, path string) []rules.Violation {
 	if isStaticBootstrap {
 		if !called {
 			violations = append(violations, newBridgeViolation(path, "Static UI bootstrap must call window.initIframeBridgeChild"))
-			return dedupeViolations(violations)
 		}
 	} else {
 		if !bridgeImportPattern.MatchString(source) {
@@ -254,7 +340,7 @@ func validateEntry(content []byte, path string) []rules.Violation {
 		violations = append(violations, newBridgeViolation(path, "Missing iframe guard; UI entry file must guard bridge initialization with an iframe check"))
 	}
 
-	if called && !appIDPattern.MatchString(source) {
+	if called && !appIDPropertyPattern.MatchString(source) {
 		violations = append(violations, newBridgeViolation(path, "UI entry file must pass appId in bridge options"))
 	}
 

@@ -37,14 +37,40 @@ function resolveUiPort() {
 
 const PORT = resolveUiPort();
 const API_PORT = parsePort(requireEnv('API_PORT'), 'API_PORT');
-const API_TARGET = `http://localhost:${API_PORT}`;
+const API_PROTOCOL = (process.env.API_PROTOCOL || process.env.APP_ISSUE_TRACKER_API_PROTOCOL || 'http').toLowerCase() === 'https' ? 'https' : 'http';
+const API_HOST = process.env.API_HOST || process.env.APP_ISSUE_TRACKER_API_HOST || '127.0.0.1';
+const API_TARGET = `${API_PROTOCOL}://${API_HOST}:${API_PORT}`;
 
 const apiProxy = httpProxy.createProxyServer({
   target: API_TARGET,
   ws: true,
   changeOrigin: true,
   proxyTimeout: 30_000,
+  secure: API_PROTOCOL === 'https',
 });
+
+function normalizeUpstreamPath(pathInput) {
+  if (!pathInput) {
+    return '/';
+  }
+  return pathInput.startsWith('/') ? pathInput : `/${pathInput}`;
+}
+
+function proxyToApi(req, res, upstreamPath) {
+  const normalizedPath = normalizeUpstreamPath(upstreamPath ?? req.url ?? '/');
+  const upstreamTarget = new URL(normalizedPath, API_TARGET).toString();
+
+  logProxyEvent('request', req);
+  apiProxy.web(req, res, { target: upstreamTarget, ignorePath: true });
+}
+
+function proxyWebSocketToApi(req, socket, head, upstreamPath) {
+  const normalizedPath = normalizeUpstreamPath(upstreamPath ?? req.url ?? '/');
+  const upstreamTarget = new URL(normalizedPath, API_TARGET).toString();
+
+  logProxyEvent('upgrade', req);
+  apiProxy.ws(req, socket, head, { target: upstreamTarget, ignorePath: true });
+}
 
 function logProxyEvent(phase, req) {
   const method = req.method ?? 'GET';
@@ -87,7 +113,7 @@ apiProxy.on('proxyReq', (proxyReq, req) => {
     logProxyEvent('forward:http', req);
   }
   proxyReq.setHeader('origin', API_TARGET);
-  proxyReq.setHeader('host', `localhost:${API_PORT}`);
+  proxyReq.setHeader('host', `${API_HOST}:${API_PORT}`);
 });
 
 apiProxy.on('proxyReqWs', (proxyReq, req) => {
@@ -95,7 +121,7 @@ apiProxy.on('proxyReqWs', (proxyReq, req) => {
     logProxyEvent('forward:ws', req);
   }
   proxyReq.setHeader('origin', API_TARGET);
-  proxyReq.setHeader('host', `localhost:${API_PORT}`);
+  proxyReq.setHeader('host', `${API_HOST}:${API_PORT}`);
 });
 
 apiProxy.on('proxyRes', (proxyRes, req, res) => {
@@ -129,13 +155,11 @@ apiProxy.on('close', (_res, socket) => {
 });
 
 app.get('/health', (req, res) => {
-  logProxyEvent('request', req);
-  apiProxy.web(req, res);
+  proxyToApi(req, res, '/health');
 });
 
 app.use('/api', (req, res) => {
-  logProxyEvent('request', req);
-  apiProxy.web(req, res);
+  proxyToApi(req, res);
 });
 
 const distDir = path.join(__dirname, 'dist');
@@ -148,16 +172,18 @@ app.get('*', (_req, res) => {
 const server = http.createServer(app);
 
 server.on('upgrade', (req, socket, head) => {
-  logProxyEvent('upgrade', req);
   if (!req.url?.startsWith('/api')) {
     socket.destroy();
     return;
   }
 
-  apiProxy.ws(req, socket, head);
+  proxyWebSocketToApi(req, socket, head);
 });
 
 server.listen(PORT, () => {
-  console.log(`App Issue Tracker UI available at http://localhost:${PORT}`);
+  const displayHost = process.env.UI_HOST || '127.0.0.1';
+  console.log(`App Issue Tracker UI available at http://${displayHost}:${PORT}`);
   console.log(`Proxying API requests to ${API_TARGET}`);
 });
+
+export { proxyToApi };

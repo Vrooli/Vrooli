@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { buildApiUrl } from '@vrooli/api-base';
 import type { Issue } from '../data/sampleData';
 import type { RateLimitStatusPayload } from '../services/issues';
 import { normalizeStatus, transformIssue } from '../utils/issues';
@@ -65,31 +66,25 @@ function resolveWebSocketUrl(apiBaseUrl: string): string {
     return '';
   }
 
-  const normalizedBase = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
+  const httpEndpoint = buildApiUrl('/ws', { baseUrl: apiBaseUrl, appendSuffix: false });
 
-  if (normalizedBase.startsWith('http://') || normalizedBase.startsWith('https://')) {
-    const absoluteUrl = new URL(normalizedBase);
-    const wsProtocol = absoluteUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-    const path = absoluteUrl.pathname.endsWith('/') ? absoluteUrl.pathname.slice(0, -1) : absoluteUrl.pathname;
-    return `${wsProtocol}//${absoluteUrl.host}${path || ''}/ws`;
+  try {
+    const absolute = new URL(httpEndpoint);
+    absolute.protocol = absolute.protocol === 'https:' ? 'wss:' : 'ws:';
+    return absolute.toString();
+  } catch {
+    try {
+      const viaLocation = new URL(httpEndpoint, window.location.href);
+      viaLocation.protocol = viaLocation.protocol === 'https:' ? 'wss:' : 'ws:';
+      return viaLocation.toString();
+    } catch {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const normalizedPath = httpEndpoint.startsWith('/') ? httpEndpoint : `/${httpEndpoint}`;
+      const apiPort = typeof __API_PORT__ === 'string' && __API_PORT__.trim() ? __API_PORT__ : undefined;
+      const host = apiPort ? `${window.location.hostname}:${apiPort}` : window.location.host;
+      return `${wsProtocol}//${host}${normalizedPath}`;
+    }
   }
-
-  const hostname = window.location.hostname;
-  const isProxied =
-    hostname !== 'localhost' &&
-    hostname !== '127.0.0.1' &&
-    !hostname.match(/^192\.168\./);
-
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const basePath = normalizedBase.startsWith('/') ? normalizedBase : `/${normalizedBase}`;
-  const path = basePath.endsWith('/ws') ? basePath : `${basePath}/ws`;
-
-  if (isProxied) {
-    return `${wsProtocol}//${window.location.host}${path}`;
-  }
-
-  const apiPort = typeof __API_PORT__ !== 'undefined' ? __API_PORT__ : '8090';
-  return `${wsProtocol}//${hostname}:${apiPort}${path}`;
 }
 
 export function useIssueRealtimeSync({

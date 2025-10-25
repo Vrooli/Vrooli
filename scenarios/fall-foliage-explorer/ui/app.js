@@ -3,6 +3,7 @@ import { initIframeBridgeChild } from '/bridge/iframeBridgeChild.js';
 // Fall Foliage Explorer - Interactive Application
 
 const BRIDGE_STATE_KEY = '__fallFoliageBridgeInitialized';
+const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
 
 if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_STATE_KEY]) {
     let parentOrigin;
@@ -21,7 +22,10 @@ if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_
 // Configuration
 const DEFAULT_API_PORT = 17175;
 const LOOPBACK_HOST = '127.0.0.1';
-const API_BASE = resolveApiBase();
+const apiResolution = resolveApiBase();
+const API_BASE = apiResolution.base;
+const API_BASE_SOURCE = apiResolution.source;
+const API_BASE_NOTES = apiResolution.notes;
 
 function formatStatus(status) {
     if (typeof status !== 'string') {
@@ -36,29 +40,61 @@ function formatStatus(status) {
 
 function resolveApiBase() {
     const win = typeof window !== 'undefined' ? window : undefined;
-    const fallbackBase = buildLoopbackBase(DEFAULT_API_PORT, win);
-    const proxyInfo = win?.__APP_MONITOR_PROXY_INFO__;
+    const resolution = {
+        base: buildLoopbackBase(DEFAULT_API_PORT, win),
+        source: 'loopback-fallback',
+        notes: 'Using default loopback developer API base'
+    };
 
     if (!win) {
-        return fallbackBase;
+        return resolution;
     }
 
-    const proxyBase = resolveProxyBase(proxyInfo, win);
+    const proxyBootstrap = readProxyBootstrap(win);
+    const proxyBase = resolveProxyBase(proxyBootstrap, win);
     if (proxyBase) {
-        return proxyBase;
+        resolution.base = proxyBase;
+        resolution.source = 'app-monitor-proxy';
+        resolution.notes = 'Resolved via App Monitor proxy metadata';
+        return resolution;
+    }
+
+    const derivedFromPath = deriveProxyBaseFromLocation(win);
+    if (derivedFromPath) {
+        resolution.base = derivedFromPath;
+        resolution.source = 'location-derived';
+        resolution.notes = 'Derived from current location pathname';
+        return resolution;
     }
 
     const { origin, hostname } = win.location || {};
     if (origin && hostname && !isLocalHostname(hostname)) {
-        return stripTrailingSlash(origin);
+        resolution.base = stripTrailingSlash(origin);
+        resolution.source = 'same-origin';
+        resolution.notes = 'Using current origin as API base';
+        return resolution;
     }
 
-    return fallbackBase;
+    return resolution;
 }
 
 function buildLoopbackBase(port = DEFAULT_API_PORT, win) {
     const protocol = win?.location?.protocol || 'http:';
     return `${protocol}//${LOOPBACK_HOST}:${port}`;
+}
+
+function readProxyBootstrap(win) {
+    if (!win) {
+        return undefined;
+    }
+
+    for (const key of PROXY_INFO_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(win, key) && win[key]) {
+            return win[key];
+        }
+    }
+
+    return undefined;
 }
 
 function resolveProxyBase(proxyInfo, win) {
@@ -67,6 +103,10 @@ function resolveProxyBase(proxyInfo, win) {
     }
 
     const candidates = collectProxyCandidates(proxyInfo);
+    const derivedFromLocation = deriveProxyBaseFromLocation(win);
+    if (derivedFromLocation) {
+        candidates.unshift(derivedFromLocation);
+    }
     for (const candidate of candidates) {
         const normalized = normalizeProxyCandidate(candidate, win);
         if (normalized) {
@@ -101,7 +141,9 @@ function collectProxyCandidates(source) {
         'host',
         'hosts',
         'port',
-        'ports'
+        'ports',
+        'httpProxyBase',
+        'http_proxy_base'
     ];
 
     while (queue.length > 0) {
@@ -170,6 +212,24 @@ function normalizeProxyCandidate(candidate, win) {
     return undefined;
 }
 
+function deriveProxyBaseFromLocation(win) {
+    if (!win || !win.location) {
+        return undefined;
+    }
+
+    const { origin, pathname } = win.location;
+    if (!origin || !pathname) {
+        return undefined;
+    }
+
+    const proxyMatch = pathname.match(/^(.*?\/apps\/[^/]+)\/(?:proxy|ui)(?:\/|$)/i);
+    if (proxyMatch && proxyMatch[1]) {
+        return stripTrailingSlash(`${origin}${proxyMatch[1]}`);
+    }
+
+    return undefined;
+}
+
 function stripTrailingSlash(value) {
     return typeof value === 'string' ? value.replace(/\/+$/, '') : value;
 }
@@ -218,6 +278,17 @@ let map = null;
 let markers = [];
 let currentView = 'map';
 let regionsData = [];  // Will be populated from API
+let regionsMeta = {
+    source: 'pending',
+    description: 'Dataset has not been loaded yet.',
+    lastFetched: null,
+    rowCount: 0,
+    usingFallback: false,
+    message: '',
+    apiBase: API_BASE,
+    apiBaseSource: API_BASE_SOURCE,
+    apiBaseNotes: API_BASE_NOTES
+};
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', () => {
@@ -225,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadRegions();
     updateTimeSlider();
+    renderDataTransparencyPanel();
 });
 
 // Initialize Leaflet map
@@ -248,39 +320,59 @@ async function addFoliageMarkers() {
 
     // Fetch current foliage status for each region
     for (const region of regions) {
+        let status = typeof region.current_status === 'string'
+            ? region.current_status
+            : 'not_started';
+        let intensity = Number.isFinite(region.color_intensity)
+            ? region.color_intensity
+            : Number.isFinite(Number(region.color_intensity))
+                ? Number(region.color_intensity)
+                : 0;
+
         try {
             const foliageResponse = await fetch(buildApiUrl('/api/foliage', { region_id: region.id }));
-            const foliageData = await foliageResponse.json();
 
-            const status = foliageData.data?.peak_status || 'not_started';
-            const intensity = foliageData.data?.color_intensity || 0;
-
-            const color = getColorForStatus(status);
-            const marker = L.circleMarker([region.latitude, region.longitude], {
-                radius: 10 + intensity,
-                fillColor: color,
-                color: '#4a3c2a',
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.7
-            }).addTo(map);
-
-            marker.bindPopup(`
-                <div class="popup-content">
-                    <h3>${region.name}</h3>
-                    <p>${region.state}</p>
-                    <p><strong>Status:</strong> ${formatStatus(status)}</p>
-                    <p><strong>Color Intensity:</strong> ${intensity}/10</p>
-                    <button onclick="showRegionDetails(${region.id})">View Details</button>
-                </div>
-            `);
-
-            // Store status and intensity on marker for later updates
-            marker.regionData = { id: region.id, status, intensity };
-            markers.push(marker);
+            if (foliageResponse.ok) {
+                try {
+                    const foliageData = await foliageResponse.json();
+                    status = foliageData.data?.peak_status || status;
+                    const apiIntensity = Number(foliageData.data?.color_intensity);
+                    if (Number.isFinite(apiIntensity)) {
+                        intensity = apiIntensity;
+                    }
+                } catch (parseErr) {
+                    console.warn(`Failed to parse foliage data for region ${region.id}`, parseErr);
+                }
+            } else {
+                console.warn(`Foliage API responded with ${foliageResponse.status} for region ${region.id}`);
+            }
         } catch (err) {
             console.error(`Failed to load foliage data for region ${region.id}:`, err);
         }
+
+        const color = getColorForStatus(status);
+        const marker = L.circleMarker([region.latitude, region.longitude], {
+            radius: 10 + intensity,
+            fillColor: color,
+            color: '#4a3c2a',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.7
+        }).addTo(map);
+
+        marker.bindPopup(`
+            <div class="popup-content">
+                <h3>${region.name}</h3>
+                <p>${region.state}</p>
+                <p><strong>Status:</strong> ${formatStatus(status)}</p>
+                <p><strong>Color Intensity:</strong> ${intensity}/10</p>
+                <button onclick="showRegionDetails(${region.id})">View Details</button>
+            </div>
+        `);
+
+        // Store status and intensity on marker for later updates
+        marker.regionData = { id: region.id, status, intensity };
+        markers.push(marker);
     }
 }
 
@@ -311,6 +403,15 @@ function setupEventListeners() {
     
     // Trip planner
     document.querySelector('.save-trip-btn')?.addEventListener('click', saveTripPlan);
+
+    document.getElementById('refresh-data-btn')?.addEventListener('click', () => {
+        loadRegions(true);
+    });
+
+    const downloadLink = document.getElementById('download-regions-json');
+    if (downloadLink) {
+        downloadLink.href = buildApiUrl('/api/regions');
+    }
 }
 
 // Switch between views
@@ -344,6 +445,9 @@ function switchView(view) {
             break;
         case 'gallery':
             initializeGallery();
+            break;
+        case 'data':
+            renderDataTransparencyPanel();
             break;
     }
 }
@@ -476,37 +580,70 @@ async function loadRegionsGrid() {
 }
 
 // Load regions
-async function loadRegions() {
+async function loadRegions(forceRefresh = false) {
     try {
         const response = await fetch(buildApiUrl('/api/regions'));
         const data = await response.json();
         const normalizedRegions = normalizeRegionsResponse(data);
 
         if (normalizedRegions.length > 0) {
-            regionsData = normalizedRegions;
+            const meta = extractRegionsMeta(data, normalizedRegions);
+            regionsData = decorateRegions(normalizedRegions, meta);
+            updateRegionsMeta({
+                source: meta.source,
+                description: meta.description,
+                rowCount: regionsData.length,
+                usingFallback: meta.usingFallback,
+                lastFetched: new Date().toISOString(),
+                message: data?.message || ''
+            });
+
             console.log('Regions loaded from API:', regionsData);
 
             if (map) {
                 clearMarkers();
                 addFoliageMarkers();
             }
+            renderDataTransparencyPanel();
             return;
         }
 
         console.warn('Regions API returned no data, using fallback dataset.');
     } catch (err) {
         console.error('Failed to load regions from API:', err);
+        updateRegionsMeta({
+            source: 'api-error',
+            description: 'The API request failed, falling back to the packaged dataset.',
+            usingFallback: true,
+            message: err?.message || 'Network error',
+            lastFetched: new Date().toISOString()
+        });
     }
 
     // Fallback to sample data for demo
     regionsData = [
-        { id: 1, name: 'White Mountains', state: 'New Hampshire', latitude: 44.2700, longitude: -71.3034, current_status: 'near_peak', color_intensity: 7 },
-        { id: 2, name: 'Green Mountains', state: 'Vermont', latitude: 43.9207, longitude: -72.8986, current_status: 'peak', color_intensity: 9 },
-        { id: 3, name: 'Adirondacks', state: 'New York', latitude: 44.1127, longitude: -74.0524, current_status: 'progressing', color_intensity: 5 },
-        { id: 4, name: 'Great Smoky Mountains', state: 'Tennessee', latitude: 35.6532, longitude: -83.5070, current_status: 'near_peak', color_intensity: 8 },
-        { id: 5, name: 'Blue Ridge Parkway', state: 'Virginia', latitude: 37.5615, longitude: -79.3553, current_status: 'peak', color_intensity: 10 },
-        { id: 6, name: 'Berkshires', state: 'Massachusetts', latitude: 42.3604, longitude: -73.2290, current_status: 'progressing', color_intensity: 6 },
+        { id: 1, name: 'White Mountains', state: 'New Hampshire', latitude: 44.2700, longitude: -71.3034, current_status: 'near_peak', color_intensity: 7, data_source: 'ui-fallback' },
+        { id: 2, name: 'Green Mountains', state: 'Vermont', latitude: 43.9207, longitude: -72.8986, current_status: 'peak', color_intensity: 9, data_source: 'ui-fallback' },
+        { id: 3, name: 'Adirondacks', state: 'New York', latitude: 44.1127, longitude: -74.0524, current_status: 'progressing', color_intensity: 5, data_source: 'ui-fallback' },
+        { id: 4, name: 'Great Smoky Mountains', state: 'Tennessee', latitude: 35.6532, longitude: -83.5070, current_status: 'near_peak', color_intensity: 8, data_source: 'ui-fallback' },
+        { id: 5, name: 'Blue Ridge Parkway', state: 'Virginia', latitude: 37.5615, longitude: -79.3553, current_status: 'peak', color_intensity: 10, data_source: 'ui-fallback' },
+        { id: 6, name: 'Berkshires', state: 'Massachusetts', latitude: 42.3604, longitude: -73.2290, current_status: 'progressing', color_intensity: 6, data_source: 'ui-fallback' },
     ];
+
+    updateRegionsMeta({
+        source: 'ui-fallback',
+        description: 'Static dataset bundled with the UI (no live database connection).',
+        rowCount: regionsData.length,
+        usingFallback: true,
+        lastFetched: new Date().toISOString()
+    });
+
+    if (map) {
+        clearMarkers();
+        addFoliageMarkers();
+    }
+
+    renderDataTransparencyPanel();
 }
 
 function normalizeRegionsResponse(payload) {
@@ -527,6 +664,230 @@ function normalizeRegionsResponse(payload) {
     }
 
     return [];
+}
+
+function extractRegionsMeta(payload, normalizedRegions) {
+    const defaultDescription = 'Live data provided by the Fall Foliage Explorer API.';
+    const meta = payload?.data?.meta;
+
+    if (meta && typeof meta === 'object') {
+        return {
+            source: meta.source || 'live-api',
+            description: meta.source_description || defaultDescription,
+            usingFallback: Boolean(meta.using_fallback),
+        };
+    }
+
+    if (payload?.message) {
+        const message = String(payload.message).toLowerCase();
+        if (message.includes('sample')) {
+            return {
+                source: 'api-sample-dataset',
+                description: payload.message,
+                usingFallback: true,
+            };
+        }
+    }
+
+    return {
+        source: 'live-api',
+        description: defaultDescription,
+        usingFallback: false,
+    };
+}
+
+function decorateRegions(regions, meta) {
+    return regions.map((region, index) => ({
+        ...region,
+        data_source: region.data_source || meta?.source || 'live-api',
+        current_status: region.current_status || inferDefaultStatus(index),
+    }));
+}
+
+function inferDefaultStatus(index) {
+    const statuses = ['progressing', 'near_peak', 'peak'];
+    return statuses[index % statuses.length];
+}
+
+function updateRegionsMeta(partial = {}) {
+    regionsMeta = {
+        ...regionsMeta,
+        ...partial,
+        apiBase: API_BASE,
+        apiBaseSource: API_BASE_SOURCE,
+        apiBaseNotes: API_BASE_NOTES,
+        lastFetched: partial.lastFetched || regionsMeta.lastFetched,
+    };
+
+    renderDataTransparencyPanel();
+}
+
+function renderDataTransparencyPanel() {
+    const statusEl = document.getElementById('data-source-status');
+    if (!statusEl) {
+        return;
+    }
+
+    const statusClass = regionsMeta.usingFallback
+        ? 'status-fallback'
+        : regionsMeta.source === 'api-error'
+            ? 'status-error'
+            : 'status-live';
+
+    statusEl.textContent = regionsMeta.usingFallback
+        ? 'Fallback Dataset'
+        : regionsMeta.source === 'api-error'
+            ? 'API Error'
+            : 'Live Dataset';
+    statusEl.className = `data-source-pill ${statusClass}`;
+
+    const descriptionEl = document.getElementById('data-source-description');
+    if (descriptionEl) {
+        descriptionEl.textContent = regionsMeta.description || 'Dataset details unavailable.';
+    }
+
+    const metaEl = document.getElementById('data-source-meta');
+    if (metaEl) {
+        const timestamp = regionsMeta.lastFetched
+            ? new Date(regionsMeta.lastFetched).toLocaleString()
+            : '—';
+        const cohort = regionsMeta.rowCount === 1 ? 'region' : 'regions';
+        metaEl.textContent = `${regionsMeta.rowCount} ${cohort} • Updated ${timestamp}`;
+    }
+
+    const messageEl = document.getElementById('data-source-message');
+    if (messageEl) {
+        messageEl.textContent = regionsMeta.message || '';
+    }
+
+    const apiBaseEl = document.getElementById('api-base-display');
+    if (apiBaseEl) {
+        apiBaseEl.textContent = regionsMeta.apiBase || API_BASE;
+    }
+
+    const apiSourceEl = document.getElementById('api-base-source');
+    if (apiSourceEl) {
+        apiSourceEl.textContent = formatApiSource(regionsMeta.apiBaseSource);
+    }
+
+    populateRegionsTable();
+    populateEndpointList();
+}
+
+function formatApiSource(source) {
+    switch (source) {
+        case 'app-monitor-proxy':
+            return 'App Monitor Proxy';
+        case 'location-derived':
+            return 'Derived from Location';
+        case 'same-origin':
+            return 'Same Origin';
+        case 'loopback-fallback':
+            return 'Loopback (Local Dev)';
+        default:
+            return source ? source.replace(/[-_]/g, ' ') : 'Unknown';
+    }
+}
+
+function populateRegionsTable() {
+    const tableBody = document.getElementById('regions-data-table-body');
+    if (!tableBody) {
+        return;
+    }
+
+    tableBody.innerHTML = '';
+
+    if (!regionsData || regionsData.length === 0) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 6;
+        cell.style.textAlign = 'center';
+        cell.textContent = 'No dataset available yet.';
+        row.appendChild(cell);
+        tableBody.appendChild(row);
+        return;
+    }
+
+    const maxRows = 8;
+    regionsData.slice(0, maxRows).forEach((region) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${region.id}</td>
+            <td>${region.name}</td>
+            <td>${region.state || region.country || ''}</td>
+            <td>${Number(region.latitude).toFixed(2)}</td>
+            <td>${Number(region.longitude).toFixed(2)}</td>
+            <td>${formatSourceLabel(region.data_source)}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+
+    if (regionsData.length > maxRows) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 6;
+        cell.style.textAlign = 'center';
+        cell.textContent = `+ ${regionsData.length - maxRows} more regions…`;
+        row.appendChild(cell);
+        tableBody.appendChild(row);
+    }
+}
+
+function populateEndpointList() {
+    const listEl = document.getElementById('endpoint-list');
+    if (!listEl) {
+        return;
+    }
+
+    const endpoints = [
+        {
+            name: 'GET /api/regions',
+            path: '/api/regions',
+            note: 'Returns regions with source metadata'
+        },
+        {
+            name: 'GET /api/foliage?region_id=1',
+            path: '/api/foliage',
+            params: { region_id: 1 },
+            note: 'Latest foliage snapshot for a region'
+        },
+        {
+            name: 'POST /api/reports',
+            path: '/api/reports',
+            note: 'Submit user-generated foliage reports'
+        }
+    ];
+
+    listEl.innerHTML = '';
+
+    endpoints.forEach((endpoint) => {
+        const item = document.createElement('li');
+        const url = endpoint.params
+            ? buildApiUrl(endpoint.path, endpoint.params)
+            : buildApiUrl(endpoint.path);
+        item.innerHTML = `
+            <span class="endpoint-name">${endpoint.name}</span>
+            <span class="endpoint-url">${url}</span>
+            <span class="endpoint-note">${endpoint.note}</span>
+        `;
+        listEl.appendChild(item);
+    });
+}
+
+function formatSourceLabel(source) {
+    if (!source) {
+        return 'unknown';
+    }
+
+    if (source.includes('postgres')) {
+        return 'postgres';
+    }
+
+    if (source.includes('sample') || source.includes('fallback')) {
+        return 'sample dataset';
+    }
+
+    return source;
 }
 
 // Clear existing markers
