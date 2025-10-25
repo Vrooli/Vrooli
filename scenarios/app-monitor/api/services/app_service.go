@@ -36,8 +36,8 @@ type orchestratorCache struct {
 }
 
 const (
-	orchestratorCacheTTL   = 60 * time.Second
-	partialCacheTTL        = 30 * time.Second
+	orchestratorCacheTTL   = 90 * time.Second // Increased from 60s to reduce cache misses during slow scenario status calls
+	partialCacheTTL        = 45 * time.Second // Increased proportionally
 	issueTrackerCacheTTL   = 30 * time.Second
 	issueTrackerFetchLimit = 50
 )
@@ -70,6 +70,7 @@ type AppService struct {
 	issueCacheMu  sync.RWMutex
 	issueCache    map[string]*issueCacheEntry
 	issueCacheTTL time.Duration
+	repoRoot      string
 }
 
 var (
@@ -182,14 +183,45 @@ type backgroundLogCandidate struct {
 
 var backgroundViewCommandRegex = regexp.MustCompile(`^View:\s+vrooli\s+scenario\s+logs\s+(\S+)\s+--step\s+([^\s]+)`)
 
+// findRepoRoot locates the repository root directory
+func findRepoRoot() (string, error) {
+	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+		return root, nil
+	}
+	if root := os.Getenv("APP_ROOT"); root != "" {
+		return root, nil
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	dir := wd
+	for {
+		if dir == "" || dir == string(filepath.Separator) {
+			break
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return wd, nil
+}
+
 // NewAppService creates a new app service
 func NewAppService(repo repository.AppRepository) *AppService {
+	repoRoot, _ := findRepoRoot()
 	return &AppService{
 		repo:          repo,
 		cache:         &orchestratorCache{},
 		viewStats:     make(map[string]*viewStatsEntry),
 		issueCache:    make(map[string]*issueCacheEntry),
 		issueCacheTTL: issueTrackerCacheTTL,
+		repoRoot:      repoRoot,
 	}
 }
 
@@ -281,6 +313,12 @@ type OrchestratorResponse struct {
 	Scenarios []OrchestratorApp `json:"scenarios"`
 }
 
+// ecosystemManagerResponse represents the direct API response from ecosystem-manager
+type ecosystemManagerResponse struct {
+	Success bool              `json:"success"`
+	Data    []OrchestratorApp `json:"data"`
+}
+
 // OrchestratorApp represents an app from the orchestrator
 type OrchestratorApp struct {
 	Name         string         `json:"name"`
@@ -347,7 +385,8 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	// Keep the lock while fetching to prevent concurrent fetches
 	defer s.cache.mu.Unlock()
 
-	// Execute `vrooli scenario status --json`
+	// Use vrooli scenario status CLI for runtime data (includes running/stopped status, health, processes, runtime)
+	// This is the canonical way to get scenario status without hard-coded ports or API dependencies
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 
@@ -364,7 +403,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	var orchestratorResp OrchestratorResponse
 	if err := json.Unmarshal(output, &orchestratorResp); err != nil {
 		s.cache.loading = false
-		return nil, fmt.Errorf("failed to parse orchestrator response: %w", err)
+		return nil, fmt.Errorf("failed to parse vrooli scenario status response: %w", err)
 	}
 
 	metadataMap, metaErr := s.fetchScenarioMetadata(ctx)
@@ -2151,6 +2190,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		statusLabel,
 		statusCapturedAt,
 		statusSeverity,
+		s.repoRoot,
 	)
 	tags := buildIssueTags(scenarioName)
 	environment := buildIssueEnvironment(appID, appName, previewURL, reportSource, reportedAt)
@@ -3911,9 +3951,11 @@ func buildIssueDescription(
 	statusLabel string,
 	statusCapturedAt string,
 	statusSeverity string,
+	repoRoot string,
 ) string {
 	var builder strings.Builder
 
+	scenarioPath := filepath.Join(repoRoot, "scenarios", scenarioName)
 	safeScenarioName := sanitizeCommandIdentifier(scenarioName)
 	previewPath := extractPreviewPath(previewURL)
 	screenshotCommand := fmt.Sprintf(
@@ -3944,7 +3986,7 @@ func buildIssueDescription(
 	if previewURL != "" {
 		builder.WriteString(fmt.Sprintf("- Preview URL: %s\n", previewURL))
 	} else {
-		builder.WriteString(fmt.Sprintf("- Preview URL: _Not captured_. Launch with:\n  ```bash\n  cd scenarios/%s\n  make start\n  ```\n", scenarioName))
+		builder.WriteString(fmt.Sprintf("- Preview URL: _Not captured_. Launch with:\n  ```bash\n  cd %s && make start\n  ```\n", scenarioPath))
 	}
 	if source != "" {
 		builder.WriteString(fmt.Sprintf("- Reported via: %s\n", source))
@@ -3987,18 +4029,18 @@ func buildIssueDescription(
 	builder.WriteString("\nUse the artifacts above to reproduce the behavior before making any changes.\n")
 
 	builder.WriteString("\n## Investigation Checklist\n\n")
-	builder.WriteString(fmt.Sprintf("1. Open the scenario locally: `cd scenarios/%s`.\n", scenarioName))
+	builder.WriteString(fmt.Sprintf("1. Open the scenario locally: `cd %s`.\n", scenarioPath))
 	builder.WriteString("2. Review the Reporter Notes and attachments to understand the observed behavior.\n")
 	builder.WriteString("3. Reproduce the issue in the preview environment (use the captured Preview URL if present).\n")
 	builder.WriteString("4. Identify the root cause in the scenario's code or configuration before implementation.\n")
 
 	builder.WriteString("\n## Implementation Guardrails\n\n")
-	builder.WriteString(fmt.Sprintf("- Modify only files under `scenarios/%s/`.\n", scenarioName))
+	builder.WriteString(fmt.Sprintf("- Modify only files under `%s/`.\n", scenarioPath))
 	builder.WriteString("- Do not run git commands (commit, push, rebase, etc.).\n")
 	builder.WriteString("- Coordinate changes through the scenario's lifecycle commands; avoid editing shared resources unless explicitly required.\n")
 
 	builder.WriteString("\n## Testing & Validation\n\n")
-	builder.WriteString(fmt.Sprintf("- Run scenario tests:\n  ```bash\n  cd scenarios/%s\n  make test\n  ```\n", scenarioName))
+	builder.WriteString(fmt.Sprintf("- Run scenario tests:\n  ```bash\n  cd %s && make test\n  ```\n", scenarioPath))
 	builder.WriteString(fmt.Sprintf("- Restart the scenario so App Monitor picks up the update:\n  ```bash\n  vrooli scenario restart %s\n  ```\n", scenarioName))
 	builder.WriteString("- Reproduce the original preview flow in App Monitor to confirm the issue is resolved.\n")
 
@@ -4015,7 +4057,7 @@ func buildIssueDescription(
 
 	builder.WriteString("\n## Success Criteria\n\n")
 	builder.WriteString("- [ ] Issue no longer occurs (or requested improvement is present) when using the App Monitor preview.\n")
-	builder.WriteString(fmt.Sprintf("- [ ] `make test` passes for `scenarios/%s`.\n", scenarioName))
+	builder.WriteString(fmt.Sprintf("- [ ] `make test` passes for `%s`.\n", scenarioPath))
 	builder.WriteString("- [ ] Any new logs are clean (no unexpected errors).\n")
 	builder.WriteString("- [ ] Scenario lifecycle commands complete without errors (`make start`, `make stop`).\n")
 	builder.WriteString("- [ ] **Scenario remains RUNNING after fix validation.**\n")

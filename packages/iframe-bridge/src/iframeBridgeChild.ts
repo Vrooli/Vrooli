@@ -571,6 +571,12 @@ const createInspectController = (post: PostFn): InspectController => {
   let lastRect: BridgeInspectRect | null = null;
   let lastPointerType: string | undefined;
   let previousCursor: string | null = null;
+  let previousTouchAction: string | null = null;
+  let previousRootOverflow: string | null = null;
+  let previousBodyOverflow: string | null = null;
+  let activePointerId: number | null = null;
+  let activePointerCaptureTarget: Element | null = null;
+  let touchMoveGuardRef: ((event: TouchEvent) => void) | null = null;
 
   const ensureOverlayNodes = () => {
     if (!overlay) {
@@ -653,6 +659,112 @@ const createInspectController = (post: PostFn): InspectController => {
     body.style.cursor = 'crosshair';
   };
 
+  const restoreTouchAction = () => {
+    const root = document.documentElement;
+    if (!root) {
+      return;
+    }
+    if (previousTouchAction === null) {
+      return;
+    }
+    if (previousTouchAction === '') {
+      root.style.removeProperty('touch-action');
+    } else {
+      root.style.touchAction = previousTouchAction;
+    }
+    previousTouchAction = null;
+  };
+
+  const applyTouchAction = () => {
+    const root = document.documentElement;
+    if (!root) {
+      return;
+    }
+    if (previousTouchAction === null) {
+      previousTouchAction = root.style.touchAction || '';
+    }
+    root.style.touchAction = 'none';
+  };
+
+  const applyScrollLock = () => {
+    const root = document.documentElement;
+    const body = document.body;
+    if (root && previousRootOverflow === null) {
+      previousRootOverflow = root.style.overflow || '';
+      root.style.overflow = 'hidden';
+    }
+    if (body && previousBodyOverflow === null) {
+      previousBodyOverflow = body.style.overflow || '';
+      body.style.overflow = 'hidden';
+    }
+  };
+
+  const restoreScrollLock = () => {
+    const root = document.documentElement;
+    const body = document.body;
+    if (root && previousRootOverflow !== null) {
+      if (previousRootOverflow === '') {
+        root.style.removeProperty('overflow');
+      } else {
+        root.style.overflow = previousRootOverflow;
+      }
+      previousRootOverflow = null;
+    }
+    if (body && previousBodyOverflow !== null) {
+      if (previousBodyOverflow === '') {
+        body.style.removeProperty('overflow');
+      } else {
+        body.style.overflow = previousBodyOverflow;
+      }
+      previousBodyOverflow = null;
+    }
+  };
+
+  const installTouchMoveGuard = () => {
+    if (touchMoveGuardRef || typeof window === 'undefined') {
+      return;
+    }
+    const handler = (event: TouchEvent) => {
+      if (!active) {
+        return;
+      }
+      if (event.touches.length === 0) {
+        return;
+      }
+      try {
+        event.preventDefault();
+      } catch (error) {
+        console.debug('[BridgeChild] touch gesture preventDefault failed', error);
+      }
+    };
+    window.addEventListener('touchmove', handler, { passive: false, capture: true });
+    window.addEventListener('touchstart', handler, { passive: false, capture: true });
+    touchMoveGuardRef = handler;
+  };
+
+  const removeTouchMoveGuard = () => {
+    if (!touchMoveGuardRef || typeof window === 'undefined') {
+      return;
+    }
+    window.removeEventListener('touchmove', touchMoveGuardRef, true);
+    window.removeEventListener('touchstart', touchMoveGuardRef, true);
+    touchMoveGuardRef = null;
+  };
+
+  const resetPointerTracking = () => {
+    if (activePointerCaptureTarget && activePointerId !== null && typeof (activePointerCaptureTarget as any).releasePointerCapture === 'function') {
+      try {
+        (activePointerCaptureTarget as any).releasePointerCapture(activePointerId);
+      } catch (error) {
+        console.warn('[BridgeChild] Failed to release pointer capture', error);
+      }
+    }
+    activePointerCaptureTarget = null;
+    activePointerId = null;
+    restoreTouchAction();
+    restoreScrollLock();
+  };
+
   const isOverlayElement = (node: EventTarget | null | undefined): boolean => {
     if (!node || !(node instanceof Element)) {
       return false;
@@ -676,6 +788,47 @@ const createInspectController = (post: PostFn): InspectController => {
       }
     }
     return null;
+  };
+
+  const resolveElementFromPoint = (clientX: number, clientY: number): Element | null => {
+    if (typeof document.elementFromPoint !== 'function') {
+      return null;
+    }
+    const candidate = document.elementFromPoint(clientX, clientY);
+    if (!candidate || !(candidate instanceof Element)) {
+      return null;
+    }
+    if (!isOverlayElement(candidate)) {
+      return candidate;
+    }
+    let parent: Element | null = candidate.parentElement;
+    while (parent) {
+      if (!isOverlayElement(parent)) {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return null;
+  };
+
+  const shouldDisableScrollForInspect = () => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0) {
+        return true;
+      }
+      if (typeof window.matchMedia === 'function') {
+        const mediaQuery = window.matchMedia('(pointer: coarse)');
+        if (mediaQuery?.matches) {
+          return true;
+        }
+      }
+    } catch (error) {
+      console.debug('[BridgeChild] Unable to evaluate pointer characteristics', error);
+    }
+    return false;
   };
 
   const buildHoverPayload = (element: Element, pointerType?: string): BridgeInspectHoverPayload | null => {
@@ -821,11 +974,32 @@ const createInspectController = (post: PostFn): InspectController => {
     stop('complete');
   };
 
+  const isCoarsePointer = (pointerType: string | undefined) => {
+    return pointerType === 'touch' || pointerType === 'pen';
+  };
+
   const handlePointerMove = (event: PointerEvent) => {
     if (!active) {
       return;
     }
-    const element = findInspectableElement(event.target ?? event.currentTarget ?? null);
+
+    if (isCoarsePointer(event.pointerType)) {
+      if (activePointerId !== null && event.pointerId !== activePointerId) {
+        return;
+      }
+      if (activePointerId === null) {
+        // Ignore passive touch moves until we have an active touch pointer.
+        return;
+      }
+    }
+
+    let element: Element | null = null;
+    if (isCoarsePointer(event.pointerType)) {
+      element = resolveElementFromPoint(event.clientX, event.clientY);
+    }
+    if (!element) {
+      element = findInspectableElement(event.target ?? event.currentTarget ?? null);
+    }
     if (!element) {
       resetHover();
       return;
@@ -837,7 +1011,14 @@ const createInspectController = (post: PostFn): InspectController => {
     if (!active) {
       return;
     }
-    const element = findInspectableElement(event.target ?? event.currentTarget ?? null);
+    const coarse = isCoarsePointer(event.pointerType);
+    let element: Element | null = null;
+    if (coarse) {
+      element = resolveElementFromPoint(event.clientX, event.clientY);
+    }
+    if (!element) {
+      element = findInspectableElement(event.target ?? event.currentTarget ?? null);
+    }
     if (!element) {
       return;
     }
@@ -846,8 +1027,75 @@ const createInspectController = (post: PostFn): InspectController => {
     if (typeof (event as any).stopImmediatePropagation === 'function') {
       (event as any).stopImmediatePropagation();
     }
+    if (coarse) {
+      if (activePointerId !== null && event.pointerId !== activePointerId) {
+        return;
+      }
+      updateHover(element, event.pointerType);
+      activePointerId = event.pointerId;
+      applyTouchAction();
+      let captureTarget: Element | null = null;
+      const candidateTargets: Array<Element | null> = [element, event.target instanceof Element ? event.target : null];
+      for (const candidate of candidateTargets) {
+        if (candidate && typeof (candidate as any).setPointerCapture === 'function') {
+          captureTarget = candidate;
+          break;
+        }
+      }
+      if (captureTarget) {
+        try {
+          (captureTarget as any).setPointerCapture(event.pointerId);
+          activePointerCaptureTarget = captureTarget;
+        } catch (error) {
+          console.warn('[BridgeChild] Failed to set pointer capture', error);
+          activePointerCaptureTarget = null;
+        }
+      } else {
+        activePointerCaptureTarget = null;
+      }
+      return;
+    }
+
     updateHover(element, event.pointerType);
     finalizeSelection('pointer');
+  };
+
+  const handlePointerUp = (event: PointerEvent) => {
+    if (!active || !isCoarsePointer(event.pointerType)) {
+      return;
+    }
+    if (activePointerId === null || event.pointerId !== activePointerId) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof (event as any).stopImmediatePropagation === 'function') {
+      (event as any).stopImmediatePropagation();
+    }
+
+    let element = resolveElementFromPoint(event.clientX, event.clientY);
+    if (!element) {
+      element = findInspectableElement(event.target ?? event.currentTarget ?? lastHoverElement);
+    }
+    if (element) {
+      updateHover(element, event.pointerType);
+      finalizeSelection('pointer');
+      return;
+    }
+
+    emitCancel();
+    stop('cancel');
+  };
+
+  const handlePointerCancel = (event: PointerEvent) => {
+    if (!active) {
+      return;
+    }
+    if (activePointerId === null || event.pointerId !== activePointerId) {
+      return;
+    }
+    emitCancel();
+    stop('cancel');
   };
 
   const handleClick = (event: MouseEvent) => {
@@ -895,6 +1143,13 @@ const createInspectController = (post: PostFn): InspectController => {
       return false;
     }
     active = true;
+    activePointerId = null;
+    activePointerCaptureTarget = null;
+    if (shouldDisableScrollForInspect()) {
+      applyTouchAction();
+      applyScrollLock();
+      installTouchMoveGuard();
+    }
     ensureOverlayNodes();
     if (overlay && !overlay.parentElement) {
       document.body.appendChild(overlay);
@@ -905,6 +1160,8 @@ const createInspectController = (post: PostFn): InspectController => {
     applyCursor();
     window.addEventListener('pointermove', handlePointerMove, true);
     window.addEventListener('pointerdown', handlePointerDown, true);
+    window.addEventListener('pointerup', handlePointerUp, true);
+    window.addEventListener('pointercancel', handlePointerCancel, true);
     window.addEventListener('click', handleClick, true);
     window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('scroll', handleScrollOrResize, true);
@@ -920,13 +1177,17 @@ const createInspectController = (post: PostFn): InspectController => {
     active = false;
     window.removeEventListener('pointermove', handlePointerMove, true);
     window.removeEventListener('pointerdown', handlePointerDown, true);
+    window.removeEventListener('pointerup', handlePointerUp, true);
+    window.removeEventListener('pointercancel', handlePointerCancel, true);
     window.removeEventListener('click', handleClick, true);
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('scroll', handleScrollOrResize, true);
     window.removeEventListener('resize', handleScrollOrResize, true);
     restoreCursor();
+    resetPointerTracking();
     resetHover();
     removeOverlayNodes();
+    removeTouchMoveGuard();
     emitState(false, reason);
   };
 

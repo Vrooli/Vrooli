@@ -57,9 +57,12 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
         }
       } catch (error) {
         console.warn('[appsStore] Failed to fetch detailed app data', error);
-        if (!get().error) {
+        // Only set error if we have no apps loaded at all (summaries also failed)
+        const currentState = get();
+        if (!currentState.error && currentState.apps.length === 0) {
           set({ error: 'Unable to load complete scenario data.' });
         }
+        // Otherwise, we silently degrade to summary data and will retry on next cache expiry
       } finally {
         set({ loadingDetailed: false });
       }
