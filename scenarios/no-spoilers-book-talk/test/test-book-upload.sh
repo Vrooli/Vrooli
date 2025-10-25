@@ -317,10 +317,10 @@ main() {
         
         if eval "$test_command"; then
             log_info "✅ PASS: $test_name"
-            ((tests_passed++))
+            ((tests_passed += 1))
         else
             log_error "❌ FAIL: $test_name"
-            ((tests_failed++))
+            ((tests_failed += 1))
         fi
     }
     

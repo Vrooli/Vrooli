@@ -520,8 +520,9 @@ func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructi
 
 	b.WriteString("3. **Run Scenario Tests**: Execute scenario's test suite:\n")
 	b.WriteString("   ```bash\n")
-	b.WriteString("   cd scenarios/{scenario-name} && make test\n")
-	b.WriteString("   ```\n\n")
+	b.WriteString("   cd $VROOLI_ROOT/scenarios/{scenario-name} && make test\n")
+	b.WriteString("   ```\n")
+	b.WriteString("   Replace `{scenario-name}` with the specific scenario you're fixing.\n\n")
 
 	b.WriteString("4. **Check Service Health**: Start scenario and verify it works:\n")
 	b.WriteString("   ```bash\n")
@@ -828,7 +829,7 @@ func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) st
 	b.WriteString("2. **Understand**: Review the code context and violation description\n")
 	b.WriteString("3. **Apply Fix**: Use the recommended fix pattern or follow the passing examples\n")
 	b.WriteString("4. **Verify**: Run `scenario-auditor scan " + scenarios[0] + " --rule " + rule.ID + "` to confirm fix\n")
-	b.WriteString("5. **Test**: Run scenario tests: `cd scenarios/{scenario} && make test`\n")
+	b.WriteString("5. **Test**: Run scenario tests: `cd $VROOLI_ROOT/scenarios/{scenario} && make test`\n")
 	b.WriteString("6. **Validate**: Verify service still starts and functions correctly\n\n")
 
 	b.WriteString("**Repeat for all scenarios listed above.**\n")

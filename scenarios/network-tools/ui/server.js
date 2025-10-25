@@ -27,12 +27,11 @@ const HOST = process.env.HOST || '127.0.0.1'
 
 // Require UI_PORT to be explicitly set (no defaults for ports)
 // Prefer UI_PORT, but accept standard PORT env var for compatibility
-const uiPortValue = process.env.UI_PORT || process.env.PORT
-if (!uiPortValue) {
+if (!process.env.UI_PORT && !process.env.PORT) {
   console.error('[network-tools][ui] FATAL: UI_PORT or PORT environment variable must be set')
   process.exit(1)
 }
-const UI_PORT = validatePort(uiPortValue, 'UI_PORT')
+const UI_PORT = validatePort(process.env.UI_PORT || process.env.PORT, 'UI_PORT')
 
 // Require API_PORT to be explicitly set (no defaults)
 if (!process.env.API_PORT) {

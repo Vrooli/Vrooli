@@ -88,10 +88,11 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 func setupTestDatabase(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
 
-	// Use environment variable or default test database
+	// Require explicit test database configuration for security
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/scenario_to_mcp_test?sslmode=disable"
+		t.Skip("TEST_DATABASE_URL environment variable not set - skipping database tests")
+		return nil, func() {}
 	}
 
 	db, err := sql.Open("postgres", dbURL)

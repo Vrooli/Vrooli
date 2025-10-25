@@ -304,6 +304,10 @@ func shouldSkipForCoverage(path, scenarioRoot string) bool {
 		return true
 	}
 
+	if hasFile && !fileHasExecutableLogic(absPath) {
+		return true
+	}
+
 	return false
 }
 
@@ -436,6 +440,9 @@ func fileIsTrivialMain(path string) bool {
 func fileHasExecutableLogic(path string) bool {
 	src, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
 		return true
 	}
 	fset := token.NewFileSet()

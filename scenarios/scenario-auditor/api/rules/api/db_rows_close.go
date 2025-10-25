@@ -271,6 +271,44 @@ func handleRows(r *sql.Rows) {
 ]]></input>
 </test-case>
 
+<test-case id="rows-defer-func-param" should-fail="false">
+  <description>Deferred function literal rebinds parameter but still closes rows</description>
+  <input language="go"><![CDATA[
+func literalDefer(db *sql.DB) error {
+    rows, err := db.Query("SELECT 1")
+    if err != nil {
+        return err
+    }
+    defer func(r *sql.Rows) {
+        r.Close()
+    }(rows)
+    return nil
+}
+]]></input>
+</test-case>
+
+<test-case id="rows-helper-method-close" should-fail="false">
+  <description>Method helper closes rows internally</description>
+  <input language="go"><![CDATA[
+type closer struct{}
+
+func (c *closer) handle(rows *sql.Rows) {
+    if rows != nil {
+        rows.Close()
+    }
+}
+
+func useMethodHelper(db *sql.DB, c *closer) error {
+    rows, err := db.Query("SELECT 1")
+    if err != nil {
+        return err
+    }
+    defer c.handle(rows)
+    return nil
+}
+]]></input>
+</test-case>
+
 <test-case id="rows-queryx-context" should-fail="true">
   <description>sqlx-style QueryxContext without close should fail</description>
   <input language="go"><![CDATA[
@@ -324,6 +362,25 @@ func commentOnly() {
     // rows, err := db.Query("SELECT 1")
 }
 ]]></input>
+</test-case>
+
+<test-case id="rows-conditional-return-leak" should-fail="true">
+  <description>Conditional branch closes rows but fallthrough path leaks</description>
+  <input language="go"><![CDATA[
+func conditionalLeak(db *sql.DB, shortcut bool) error {
+    rows, err := db.Query("SELECT 1")
+    if err != nil {
+        return err
+    }
+    if shortcut {
+        rows.Close()
+        return nil
+    }
+    return rows.Err()
+}
+]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Database Rows Not Closed</expected-message>
 </test-case>
 
 <test-case id="rows-defer-nonclosing" should-fail="true">
@@ -718,10 +775,10 @@ func statementProvidesCleanup(ctx *rowsRuleContext, stmt ast.Stmt, rowsName stri
 			if !blockProvidesCleanup(ctx, s.Body, rowsName) {
 				return false
 			}
-			if blockTerminates(s.Body) || conditionAllowsCleanup(s.Cond, rowsName) {
-				return true
+			if !conditionAllowsCleanup(s.Cond, rowsName) {
+				return false
 			}
-			return false
+			return true
 		}
 
 		if !bodyUses && !elseUses {
@@ -976,7 +1033,37 @@ func deferClosesRows(ctx *rowsRuleContext, deferStmt *ast.DeferStmt, rowsName st
 		return true
 	}
 	if lit, ok := call.Fun.(*ast.FuncLit); ok {
-		return nodeContainsRowsClose(lit.Body, rowsName)
+		return funcLiteralClosesRows(lit, call.Args, rowsName)
+	}
+	return false
+}
+
+func funcLiteralClosesRows(lit *ast.FuncLit, args []ast.Expr, rowsName string) bool {
+	if lit == nil || lit.Body == nil {
+		return false
+	}
+	if nodeContainsRowsClose(lit.Body, rowsName) {
+		return true
+	}
+	if lit.Type == nil || lit.Type.Params == nil {
+		return false
+	}
+	paramCount := parametersCount(lit.Type.Params)
+	limit := len(args)
+	if limit > paramCount {
+		limit = paramCount
+	}
+	for idx := 0; idx < limit; idx++ {
+		if !exprUsesIdent(args[idx], rowsName) {
+			continue
+		}
+		paramName := parameterNameByIndex(lit.Type.Params, idx)
+		if paramName == "" {
+			continue
+		}
+		if nodeContainsRowsClose(lit.Body, paramName) {
+			return true
+		}
 	}
 	return false
 }
@@ -1011,8 +1098,13 @@ func helperLikelyCloses(ctx *rowsRuleContext, call *ast.CallExpr, rowsName strin
 		return false
 	}
 	if ctx != nil {
-		if ident, ok := call.Fun.(*ast.Ident); ok {
-			if ctx.helperClosesRows(ident.Name, argIndex, rowsName) {
+		switch fun := call.Fun.(type) {
+		case *ast.Ident:
+			if ctx.helperClosesRows(fun.Name, argIndex, rowsName) {
+				return true
+			}
+		case *ast.SelectorExpr:
+			if ctx.helperClosesRows(fun.Sel.Name, argIndex, rowsName) {
 				return true
 			}
 		}
@@ -1065,6 +1157,21 @@ func parameterNameByIndex(fieldList *ast.FieldList, target int) string {
 		}
 	}
 	return ""
+}
+
+func parametersCount(fieldList *ast.FieldList) int {
+	if fieldList == nil {
+		return 0
+	}
+	count := 0
+	for _, field := range fieldList.List {
+		if len(field.Names) == 0 {
+			count++
+			continue
+		}
+		count += len(field.Names)
+	}
+	return count
 }
 
 func callUsesIdent(args []ast.Expr, rowsName string) bool {

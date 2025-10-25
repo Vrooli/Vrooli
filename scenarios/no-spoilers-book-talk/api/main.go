@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math"
 	"math/rand"
@@ -26,6 +28,9 @@ const (
 	maxFileSize    = 50 * 1024 * 1024 // 50MB max file size
 	maxChatHistory = 50               // Maximum chat history to return
 )
+
+//go:embed static/*
+var embeddedStaticFiles embed.FS
 
 // Book represents a book in the system
 type Book struct {
@@ -502,7 +507,7 @@ func (s *BookTalkService) ChatWithBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = s.db.Exec(`
-		INSERT INTO conversations (id, book_id, user_id, user_message, ai_response, 
+		INSERT INTO book_talk_conversations (id, book_id, user_id, user_message, ai_response, 
 		                          user_position, position_type, context_chunks_used, 
 		                          sources_referenced, position_boundary_respected, processing_time_ms)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -661,7 +666,7 @@ func (s *BookTalkService) GetConversations(w http.ResponseWriter, r *http.Reques
 		SELECT id, user_message, ai_response, user_position, position_type,
 		       context_chunks_used, sources_referenced, position_boundary_respected,
 		       processing_time_ms, created_at
-		FROM conversations 
+		FROM book_talk_conversations 
 		WHERE book_id = $1 AND user_id = $2 
 		ORDER BY created_at DESC 
 		LIMIT $3`
@@ -942,6 +947,14 @@ func main() {
 	r.HandleFunc("/api/v1/books/{book_id}/chat", service.ChatWithBook).Methods("POST")
 	r.HandleFunc("/api/v1/books/{book_id}/progress", service.UpdateProgress).Methods("PUT")
 	r.HandleFunc("/api/v1/books/{book_id}/conversations", service.GetConversations).Methods("GET")
+
+	// Static UI assets served from embedded filesystem
+	staticFS, fsErr := fs.Sub(embeddedStaticFiles, "static")
+	if fsErr != nil {
+		log.Fatalf("Failed to load embedded static assets: %v", fsErr)
+	}
+	staticHandler := http.FileServer(http.FS(staticFS))
+	r.PathPrefix("/").Handler(staticHandler)
 
 	// Start server
 	log.Printf("Starting No Spoilers Book Talk API on port %s", port)

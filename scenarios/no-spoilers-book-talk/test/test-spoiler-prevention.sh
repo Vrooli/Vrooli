@@ -32,10 +32,10 @@ run_test() {
     
     if eval "$test_command"; then
         log_info "✅ PASS: $test_name"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED += 1))
     else
         log_error "❌ FAIL: $test_name"
-        ((TESTS_FAILED++))
+        ((TESTS_FAILED += 1))
     fi
 }
 

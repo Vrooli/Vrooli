@@ -36,17 +36,18 @@ class PickerWheel {
             speed: 'normal',
             theme: 'neon'
         };
+        this.svgNS = 'http://www.w3.org/2000/svg';
         
         this.init();
     }
 
     init() {
+        this.generateSessionId();
         this.loadSettings();
         this.setupEventListeners();
         this.loadPresetWheel('dinner');
         this.loadHistory();
         this.loadSavedWheels();
-        this.generateSessionId();
     }
 
     generateSessionId() {
@@ -197,31 +198,25 @@ class PickerWheel {
             // Create path for segment
             const path = this.createSegmentPath(centerX, centerY, radius, currentAngle, endAngle);
             
-            const segment = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const segment = document.createElementNS(this.svgNS, 'path');
             segment.setAttribute('d', path);
             segment.setAttribute('fill', option.color || '#333');
             segment.setAttribute('stroke', '#fff');
             segment.setAttribute('stroke-width', '2');
+            segment.setAttribute('stroke-linejoin', 'round');
             segment.classList.add('wheel-segment');
             svg.appendChild(segment);
 
             // Add text label
-            const textAngle = currentAngle + angle / 2;
-            const textRadius = radius * 0.7;
-            const textX = centerX + textRadius * Math.cos(textAngle * Math.PI / 180);
-            const textY = centerY + textRadius * Math.sin(textAngle * Math.PI / 180);
-
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', textX);
-            text.setAttribute('y', textY);
-            text.setAttribute('text-anchor', 'middle');
-            text.setAttribute('dominant-baseline', 'middle');
-            text.setAttribute('fill', '#fff');
-            text.setAttribute('font-size', '14');
-            text.setAttribute('font-weight', 'bold');
-            text.setAttribute('transform', `rotate(${textAngle + 90}, ${textX}, ${textY})`);
-            text.textContent = option.label;
-            svg.appendChild(text);
+            const labelGroup = this.createLabelGroup({
+                centerX,
+                centerY,
+                radius,
+                angle: currentAngle + angle / 2,
+                sliceAngle: angle,
+                label: option.label
+            });
+            svg.appendChild(labelGroup);
 
             currentAngle = endAngle;
         });
@@ -246,6 +241,87 @@ class PickerWheel {
             x: centerX + (radius * Math.cos(angleInRadians)),
             y: centerY + (radius * Math.sin(angleInRadians))
         };
+    }
+
+    createLabelGroup({ centerX, centerY, radius, angle, sliceAngle, label }) {
+        const group = document.createElementNS(this.svgNS, 'g');
+        group.setAttribute('transform', `rotate(${angle}, ${centerX}, ${centerY})`);
+
+        const labelRadius = radius * this.getLabelRadiusMultiplier(sliceAngle);
+        const text = document.createElementNS(this.svgNS, 'text');
+        text.classList.add('wheel-label');
+        text.setAttribute('x', centerX);
+        text.setAttribute('y', centerY - labelRadius);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'middle');
+        text.setAttribute('font-size', this.getLabelFontSize(sliceAngle));
+        text.setAttribute('fill', '#fff');
+
+        const normalizedAngle = ((angle % 360) + 360) % 360;
+        if (normalizedAngle > 90 && normalizedAngle < 270) {
+            text.setAttribute('transform', `rotate(180, ${centerX}, ${centerY - labelRadius})`);
+        }
+
+        const lines = this.splitLabel(label);
+        lines.forEach((line, index) => {
+            const tspan = document.createElementNS(this.svgNS, 'tspan');
+            tspan.setAttribute('x', centerX);
+            tspan.setAttribute('dy', index === 0 ? '0' : '1.1em');
+            tspan.textContent = line;
+            text.appendChild(tspan);
+        });
+
+        group.appendChild(text);
+        return group;
+    }
+
+    getLabelFontSize(sliceAngle) {
+        if (sliceAngle >= 90) return '18';
+        if (sliceAngle >= 60) return '16';
+        if (sliceAngle >= 40) return '14';
+        if (sliceAngle >= 25) return '12';
+        return '10';
+    }
+
+    getLabelRadiusMultiplier(sliceAngle) {
+        if (sliceAngle <= 20) return 0.58;
+        if (sliceAngle <= 35) return 0.62;
+        return 0.7;
+    }
+
+    splitLabel(label) {
+        if (!label) {
+            return [''];
+        }
+
+        const trimmed = label.trim();
+        if (trimmed.length <= 16) {
+            return [trimmed];
+        }
+
+        const words = trimmed.split(' ');
+        if (words.length === 1) {
+            return [trimmed];
+        }
+
+        const lines = [];
+        let currentLine = '';
+
+        words.forEach(word => {
+            const candidate = currentLine ? `${currentLine} ${word}` : word;
+            if (candidate.length > 12 && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = candidate;
+            }
+        });
+
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+
+        return (lines.length ? lines : [trimmed]).slice(0, 2);
     }
 
     async spin() {

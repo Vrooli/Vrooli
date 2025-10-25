@@ -127,6 +127,43 @@ func unreachableClose(path string) error {
   <expected-message>File Not Closed</expected-message>
 </test-case>
 
+<test-case id="read-without-close" should-fail="true">
+  <description>Invoking methods like Read does not transfer ownership; the handle must still be closed</description>
+  <input language="go"><![CDATA[
+func readBytes(path string) (int, error) {
+    f, err := os.Open(path)
+    if err != nil {
+        return 0, err
+    }
+    buf := make([]byte, 16)
+    n, err := f.Read(buf)
+    if err != nil {
+        return 0, err
+    }
+    return n, nil
+}
+]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>File Not Closed</expected-message>
+</test-case>
+
+<test-case id="wrapped-reader" should-fail="true">
+  <description>Passing the file into helper constructors still requires closing the original handle</description>
+  <input language="go"><![CDATA[
+func loadWithWrapper(path string) error {
+    f, err := os.Open(path)
+    if err != nil {
+        return err
+    }
+    reader := bufio.NewReader(f)
+    _ = reader
+    return nil
+}
+]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>File Not Closed</expected-message>
+</test-case>
+
 <test-case id="explicit-close" should-fail="false">
   <description>Explicit close on all paths is accepted</description>
   <input language="go"><![CDATA[
@@ -245,11 +282,12 @@ func CheckFileClose(content []byte, filePath string) []Violation {
 }
 
 type fileCloseChecker struct {
-	fset       *token.FileSet
-	lines      []string
-	filePath   string
-	lineOffset int
-	violations []Violation
+	fset        *token.FileSet
+	lines       []string
+	filePath    string
+	lineOffset  int
+	violations  []Violation
+	currentFunc *ast.FuncDecl
 }
 
 type varKey struct {
@@ -259,15 +297,17 @@ type varKey struct {
 }
 
 type openInfo struct {
-	key              varKey
-	line             int
-	snippet          string
-	blank            bool
-	closed           bool
-	closeReachable   bool
-	closeDeferred    bool
-	unreachableClose bool
-	escaped          bool
+	key               varKey
+	line              int
+	snippet           string
+	blank             bool
+	closed            bool
+	closeReachable    bool
+	closeDeferred     bool
+	unreachableClose  bool
+	closePos          token.Pos
+	escaped           bool
+	returnBeforeClose bool
 }
 
 func newFileCloseChecker(fset *token.FileSet, source string, filePath string, lineOffset int) *fileCloseChecker {
@@ -290,6 +330,11 @@ func (c *fileCloseChecker) processFile(file *ast.File) {
 }
 
 func (c *fileCloseChecker) processFunc(fn *ast.FuncDecl) {
+	prev := c.currentFunc
+	c.currentFunc = fn
+	defer func() {
+		c.currentFunc = prev
+	}()
 	openMap := make(map[varKey][]*openInfo)
 	var stack []ast.Node
 
@@ -314,8 +359,13 @@ func (c *fileCloseChecker) processFunc(fn *ast.FuncDecl) {
 		return true
 	})
 
+	processed := make(map[*openInfo]struct{})
 	for _, infos := range openMap {
 		for _, info := range infos {
+			if _, ok := processed[info]; ok {
+				continue
+			}
+			processed[info] = struct{}{}
 			if info.blank {
 				c.addViolation(info, "File handle ignored", "Capture the returned *os.File and close it (for example, assign it to a variable and defer file.Close()).")
 				continue
@@ -329,6 +379,12 @@ func (c *fileCloseChecker) processFunc(fn *ast.FuncDecl) {
 				msg := fmt.Sprintf("File %s is opened but never closed", info.key.name)
 				reco := fmt.Sprintf("Add defer %s.Close() after checking the error.", info.key.name)
 				c.addViolation(info, "File Not Closed", reco, msg)
+				continue
+			}
+
+			if info.returnBeforeClose {
+				reco := fmt.Sprintf("Use defer %s.Close() or ensure the close executes before every return.", info.key.name)
+				c.addViolation(info, "File Not Closed", reco, "Function returns before closing the file; the close is skipped on some paths")
 				continue
 			}
 
@@ -405,6 +461,7 @@ func (c *fileCloseChecker) considerClose(call *ast.CallExpr, stack []ast.Node, o
 			open.closed = true
 			open.closeReachable = true
 			open.closeDeferred = isDeferred
+			open.closePos = pos
 		} else {
 			open.unreachableClose = true
 		}
@@ -417,50 +474,124 @@ func (c *fileCloseChecker) detectEscapes(assign *ast.AssignStmt, openMap map[var
 		return
 	}
 
-	for _, info := range c.findOpenInfosInExprs(assign.Rhs, openMap) {
-		if info.blank {
+	for idx, rhs := range assign.Rhs {
+		infos := c.findOpenInfosInExpr(rhs, openMap)
+		if len(infos) == 0 {
 			continue
 		}
 
-		if assign.Pos() == openPosition(info) {
-			// This assignment created the open handle; do not treat accompanying
-			// result bindings (e.g., error values) as escapes.
-			continue
-		}
-
-		if assign.Tok == token.DEFINE {
-			if len(assign.Lhs) == 1 {
-				if ident, ok := assign.Lhs[0].(*ast.Ident); ok && ident.Name != "" && ident.Name != "_" && !isSameVarExpr(assign.Lhs[0], info.key) {
-					aliasKey := makeVarKey(ident)
-					openMap[aliasKey] = append(openMap[aliasKey], info)
-					continue
-				}
-			}
-		}
-
-		if info.escaped {
-			continue
-		}
-
-		escaped := false
-		for _, lhs := range assign.Lhs {
-			if isSameVarExpr(lhs, info.key) {
+		for _, info := range infos {
+			if info.blank {
 				continue
 			}
-			escaped = true
-			break
-		}
 
-		if escaped {
-			info.escaped = true
+			if assign.Pos() == openPosition(info) {
+				// This assignment created the open handle; ignore co-bound results (e.g., error values).
+				continue
+			}
+
+			if alias := c.aliasForAssignment(assign, idx, rhs, info); alias != nil {
+				if c.isExternalIdent(alias) {
+					info.escaped = true
+					continue
+				}
+				aliasKey := makeVarKey(alias)
+				openMap[aliasKey] = append(openMap[aliasKey], info)
+				continue
+			}
+
+			if info.escaped {
+				continue
+			}
+
+			if c.assignmentTransfersOwnership(assign, idx, rhs, info) {
+				info.escaped = true
+			}
 		}
 	}
+}
+
+func (c *fileCloseChecker) aliasForAssignment(assign *ast.AssignStmt, rhsIndex int, rhs ast.Expr, info *openInfo) *ast.Ident {
+	if !exprIsDirectVar(rhs, info.key) {
+		return nil
+	}
+	targets := c.lhsTargets(assign, rhsIndex)
+	if len(targets) != 1 {
+		return nil
+	}
+	ident, ok := targets[0].(*ast.Ident)
+	if !ok || ident.Name == "" || ident.Name == "_" {
+		return nil
+	}
+	if isSameVarExpr(targets[0], info.key) {
+		return nil
+	}
+	return ident
+}
+
+func (c *fileCloseChecker) assignmentTransfersOwnership(assign *ast.AssignStmt, rhsIndex int, rhs ast.Expr, info *openInfo) bool {
+	if !exprIsDirectVar(rhs, info.key) {
+		return false
+	}
+	targets := c.lhsTargets(assign, rhsIndex)
+	if len(targets) == 0 {
+		return false
+	}
+	for _, lhs := range targets {
+		if isSameVarExpr(lhs, info.key) {
+			continue
+		}
+		if lhsTransfersOwnership(lhs) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *fileCloseChecker) lhsTargets(assign *ast.AssignStmt, rhsIndex int) []ast.Expr {
+	if len(assign.Rhs) == 1 {
+		return assign.Lhs
+	}
+	if rhsIndex < len(assign.Lhs) {
+		return []ast.Expr{assign.Lhs[rhsIndex]}
+	}
+	return nil
+}
+
+func lhsTransfersOwnership(expr ast.Expr) bool {
+	switch node := expr.(type) {
+	case *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr:
+		return true
+	case *ast.ParenExpr:
+		return lhsTransfersOwnership(node.X)
+	case *ast.Ident:
+		return false
+	default:
+		return true
+	}
+}
+
+func exprIsDirectVar(expr ast.Expr, key varKey) bool {
+	switch node := expr.(type) {
+	case *ast.Ident:
+		return identMatchesKey(node, key)
+	case *ast.ParenExpr:
+		return exprIsDirectVar(node.X, key)
+	case *ast.UnaryExpr:
+		if node.Op == token.AND || node.Op == token.MUL {
+			return exprIsDirectVar(node.X, key)
+		}
+	case *ast.TypeAssertExpr:
+		return exprIsDirectVar(node.X, key)
+	}
+	return false
 }
 
 func (c *fileCloseChecker) considerReturn(ret *ast.ReturnStmt, openMap map[varKey][]*openInfo) {
 	for _, result := range ret.Results {
 		c.markReturnEscapes(result, openMap)
 	}
+	c.markReturnBeforeClose(ret, openMap)
 }
 
 func (c *fileCloseChecker) markReturnEscapes(expr ast.Expr, openMap map[varKey][]*openInfo) {
@@ -532,6 +663,22 @@ func (c *fileCloseChecker) lineText(line int) string {
 	return strings.TrimSpace(c.lines[line-1])
 }
 
+func (c *fileCloseChecker) isExternalIdent(ident *ast.Ident) bool {
+	if ident == nil || c.currentFunc == nil || c.currentFunc.Body == nil {
+		return false
+	}
+	body := c.currentFunc.Body
+	if ident.Obj == nil {
+		pos := ident.Pos()
+		return pos < body.Pos() || pos > body.End()
+	}
+	if _, ok := ident.Obj.Decl.(*ast.Field); ok {
+		return false
+	}
+	declPos := ident.Obj.Pos()
+	return declPos < body.Pos() || declPos > body.End()
+}
+
 func makeVarKey(ident *ast.Ident) varKey {
 	key := varKey{name: ident.Name, obj: ident.Obj, pos: ident.Pos()}
 	if ident.Obj != nil {
@@ -551,21 +698,6 @@ func isFileOpenCall(call *ast.CallExpr) bool {
 	}
 	name := selector.Sel.Name
 	return name == "Open" || name == "OpenFile" || name == "Create"
-}
-
-func (c *fileCloseChecker) findOpenInfosInExprs(exprs []ast.Expr, openMap map[varKey][]*openInfo) []*openInfo {
-	var collected []*openInfo
-	seen := make(map[*openInfo]struct{})
-	for _, expr := range exprs {
-		for _, info := range c.findOpenInfosInExpr(expr, openMap) {
-			if _, ok := seen[info]; ok {
-				continue
-			}
-			seen[info] = struct{}{}
-			collected = append(collected, info)
-		}
-	}
-	return collected
 }
 
 func (c *fileCloseChecker) findOpenInfosInExpr(expr ast.Expr, openMap map[varKey][]*openInfo) []*openInfo {
@@ -631,6 +763,33 @@ func isSameVarExpr(expr ast.Expr, key varKey) bool {
 		return false
 	}
 	return identMatchesKey(ident, key)
+}
+
+func (c *fileCloseChecker) markReturnBeforeClose(ret *ast.ReturnStmt, openMap map[varKey][]*openInfo) {
+	if ret == nil || c.currentFunc == nil {
+		return
+	}
+	retPos := ret.Pos()
+	for _, infos := range openMap {
+		for _, info := range infos {
+			if info.blank || info.escaped {
+				continue
+			}
+			if openPosition(info) >= retPos {
+				continue
+			}
+			if info.closeDeferred {
+				continue
+			}
+			if !info.closed {
+				continue
+			}
+			if info.closePos != 0 && info.closePos <= retPos {
+				continue
+			}
+			info.returnBeforeClose = true
+		}
+	}
 }
 
 func isInUnreachableBlock(stack []ast.Node) bool {

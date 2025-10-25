@@ -5,6 +5,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 echo "🔒 Testing Security Sandbox Functionality"
 echo "======================================="
 
@@ -99,8 +102,8 @@ echo "Test 5: N8N Workflow Integration"
 
 # Check that N8N workflows exist
 workflow_files=(
-    "../initialization/n8n/security-sandbox.json"
-    "../initialization/n8n/injection-tester.json"
+    "${SCENARIO_ROOT}/initialization/n8n/security-sandbox.json"
+    "${SCENARIO_ROOT}/initialization/n8n/injection-tester.json"
 )
 
 for workflow in "${workflow_files[@]}"; do
@@ -129,7 +132,7 @@ done
 echo ""
 echo "Test 6: Database Schema Validation"
 
-schema_file="../initialization/postgres/schema.sql"
+schema_file="${SCENARIO_ROOT}/initialization/postgres/schema.sql"
 if [[ -f "$schema_file" ]]; then
     test_passed "Database schema file exists"
     
@@ -162,7 +165,7 @@ fi
 echo ""
 echo "Test 7: API Security Validation"
 
-api_file="../api/main.go"
+api_file="${SCENARIO_ROOT}/api/main.go"
 if [[ -f "$api_file" ]]; then
     test_passed "API implementation file exists"
     
@@ -189,7 +192,7 @@ fi
 echo ""
 echo "Test 8: Service Configuration"
 
-config_file="../.vrooli/service.json"
+config_file="${SCENARIO_ROOT}/.vrooli/service.json"
 if [[ -f "$config_file" ]]; then
     test_passed "Service configuration file exists"
     

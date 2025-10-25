@@ -125,6 +125,20 @@ body {
     transition: transform 0.1s;
 }
 
+.wheel-label {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    paint-order: stroke;
+    stroke: rgba(0, 0, 0, 0.35);
+    stroke-width: 2px;
+    pointer-events: none;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+.wheel-label tspan {
+    font-size: inherit;
+}
+
 .wheel.spinning {
     animation: none;
 }

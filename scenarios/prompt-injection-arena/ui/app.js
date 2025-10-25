@@ -23,11 +23,49 @@ import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/
 
 class PromptInjectionArena {
     constructor() {
-        this.apiBase = window.location.protocol + '//' + window.location.hostname + ':20300';
+        this.apiConfig = window.__PROMPT_INJECTION_CONFIG__ || {};
+        this.apiBase = this.resolveApiBase();
         this.currentTab = 'dashboard';
         this.refreshInterval = null;
-        
+
+        console.info('[PromptInjectionArena] API base:', this.apiBase);
         this.init();
+    }
+    
+    resolveApiBase() {
+        const config = this.apiConfig;
+        const candidates = [config.apiProxyPath, config.apiBase];
+
+        for (const candidate of candidates) {
+            const normalized = this.normalizeBase(candidate);
+            if (normalized) {
+                return normalized;
+            }
+        }
+
+        if (config.apiDirectBase) {
+            return this.normalizeBase(config.apiDirectBase);
+        }
+
+        const currentUrl = new URL(window.location.href);
+        const runtimePort = config.apiPort || window.API_PORT || currentUrl.port;
+
+        if (runtimePort && this.isLoopbackHost(currentUrl.hostname)) {
+            return `${currentUrl.protocol}//${currentUrl.hostname}:${runtimePort}`;
+        }
+
+        return '/_ui/api';
+    }
+
+    normalizeBase(base) {
+        if (!base) {
+            return '';
+        }
+        return base === '/' ? '/' : base.replace(/\/+$/, '');
+    }
+
+    isLoopbackHost(hostname) {
+        return ['localhost', '127.0.0.1'].includes(hostname);
     }
     
     async init() {
@@ -162,7 +200,7 @@ class PromptInjectionArena {
     
     async checkSystemStatus() {
         try {
-            const response = await this.apiCall('/health');
+            const response = await this.apiCall('health');
             const isHealthy = response && response.status === 'healthy';
             
             this.updateStatusIndicator(isHealthy ? 'healthy' : 'error', 
@@ -192,7 +230,7 @@ class PromptInjectionArena {
     
     async loadHeaderStats() {
         try {
-            const stats = await this.apiCall('/api/v1/statistics');
+            const stats = await this.apiCall('api/v1/statistics');
             if (stats && stats.totals) {
                 document.getElementById('total-injections').textContent = stats.totals.injections || '-';
                 document.getElementById('total-agents').textContent = stats.totals.agents || '-';
@@ -206,15 +244,15 @@ class PromptInjectionArena {
     async loadDashboardData() {
         try {
             // Load system status
-            const healthResponse = await this.apiCall('/health');
+            const healthResponse = await this.apiCall('health');
             this.updateSystemStatus(healthResponse);
             
             // Load statistics
-            const stats = await this.apiCall('/api/v1/statistics');
+            const stats = await this.apiCall('api/v1/statistics');
             this.updateDashboardMetrics(stats);
             
             // Load top threats (most effective injections)
-            const injectionLeaderboard = await this.apiCall('/api/v1/leaderboards/injections?limit=5');
+            const injectionLeaderboard = await this.apiCall('api/v1/leaderboards/injections?limit=5');
             this.updateTopThreats(injectionLeaderboard);
             
             // Update recent activity
@@ -304,7 +342,7 @@ class PromptInjectionArena {
             const category = document.getElementById('category-filter').value;
             const search = document.getElementById('search-input').value;
             
-            let url = '/api/v1/injections/library?limit=50';
+            let url = 'api/v1/injections/library?limit=50';
             if (category) url += `&category=${category}`;
             if (search) url += `&search=${search}`;
             
@@ -355,7 +393,7 @@ class PromptInjectionArena {
     
     async loadInjectionCategories() {
         try {
-            const data = await this.apiCall('/api/v1/injections/library?limit=1');
+            const data = await this.apiCall('api/v1/injections/library?limit=1');
             if (data && data.categories) {
                 const categoryFilter = document.getElementById('category-filter');
                 const modalCategory = document.getElementById('injection-category');
@@ -374,8 +412,8 @@ class PromptInjectionArena {
     async loadLeaderboards() {
         try {
             const [agentData, injectionData] = await Promise.all([
-                this.apiCall('/api/v1/leaderboards/agents?limit=20'),
-                this.apiCall('/api/v1/leaderboards/injections?limit=20')
+                this.apiCall('api/v1/leaderboards/agents?limit=20'),
+                this.apiCall('api/v1/leaderboards/injections?limit=20')
             ]);
             
             this.displayLeaderboard('agent-leaderboard', agentData, 'agent');
@@ -477,7 +515,7 @@ class PromptInjectionArena {
         this.showLoadingOverlay();
         
         try {
-            const results = await this.apiCall('/api/v1/security/test-agent', {
+            const results = await this.apiCall('api/v1/security/test-agent', {
                 method: 'POST',
                 body: JSON.stringify(testData)
             });
@@ -614,7 +652,7 @@ class PromptInjectionArena {
         }
         
         try {
-            await this.apiCall('/api/v1/injections', {
+            await this.apiCall('api/v1/injections', {
                 method: 'POST',
                 body: JSON.stringify(injectionData)
             });
@@ -667,7 +705,10 @@ class PromptInjectionArena {
     }
     
     async apiCall(endpoint, options = {}) {
-        const url = this.apiBase + endpoint;
+        const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+        const pathBase = this.apiBase || '/_ui/api';
+        const base = pathBase.endsWith('/') ? pathBase : `${pathBase}/`;
+        const url = `${base}${normalizedEndpoint}`;
         const config = {
             headers: {
                 'Content-Type': 'application/json',
