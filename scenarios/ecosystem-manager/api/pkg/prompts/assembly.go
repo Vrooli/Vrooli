@@ -49,7 +49,7 @@ func NewAssembler(promptsDir string) (*Assembler, error) {
 	// Load prompts configuration
 	configFile := filepath.Join(promptsDir, "sections.yaml")
 	if err := assembler.loadConfig(configFile); err != nil {
-		return nil, fmt.Errorf("failed to load prompts config: %v", err)
+		return nil, fmt.Errorf("failed to load prompts config: %w", err)
 	}
 
 	return assembler, nil
@@ -293,7 +293,7 @@ func (a *Assembler) AssemblePrompt(sections []string) (PromptAssembly, error) {
 		// Read the file content
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			return PromptAssembly{}, fmt.Errorf("failed to read section %s: %v", section, err)
+			return PromptAssembly{}, fmt.Errorf("failed to read section %s: %w", section, err)
 		}
 
 		// Resolve any {{INCLUDE:}} directives in the content
@@ -372,12 +372,12 @@ func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (PromptAssembly, 
 
 	sections, err := a.GeneratePromptSections(task)
 	if err != nil {
-		return PromptAssembly{}, fmt.Errorf("failed to generate sections: %v", err)
+		return PromptAssembly{}, fmt.Errorf("failed to generate sections: %w", err)
 	}
 
 	assembly, err := a.AssemblePrompt(sections)
 	if err != nil {
-		return PromptAssembly{}, fmt.Errorf("failed to assemble prompt: %v", err)
+		return PromptAssembly{}, fmt.Errorf("failed to assemble prompt: %w", err)
 	}
 
 	// Add task-specific context to the prompt

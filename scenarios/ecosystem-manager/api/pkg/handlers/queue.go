@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
@@ -32,8 +33,7 @@ func NewQueueHandlers(processor *queue.Processor, wsManager *websocket.Manager, 
 func (h *QueueHandlers) GetQueueStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := h.processor.GetQueueStatus()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	writeJSON(w, status, http.StatusOK)
 }
 
 // GetResumeDiagnosticsHandler reports blockers that will be cleared when resuming the processor.
@@ -45,23 +45,22 @@ func (h *QueueHandlers) GetResumeDiagnosticsHandler(w http.ResponseWriter, r *ht
 
 	diagnostics := h.processor.GetResumeDiagnostics()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":      true,
-		"diagnostics":  diagnostics,
-		"generated_at": time.Now().Format(time.RFC3339),
-	})
+	response := ResumeDiagnosticsResponse{
+		Success:     true,
+		Diagnostics: diagnostics,
+		GeneratedAt: timeutil.NowRFC3339(),
+	}
+
+	writeJSON(w, response, http.StatusOK)
 }
 
 // TriggerQueueProcessingHandler forces immediate queue processing
 func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *http.Request) {
 	if h.processor == nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
+		writeJSON(w, map[string]string{
 			"error":   "queue processor not available",
 			"message": "Queue processor is not initialized",
-		})
+		}, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -70,14 +69,12 @@ func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *
 	processorActive, ok := status["processor_active"].(bool)
 
 	if !ok || !processorActive {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSON(w, map[string]interface{}{
 			"error":             "processor inactive",
 			"message":           "Queue processor is paused or not active",
 			"maintenance_state": status["maintenance_state"],
 			"processor_active":  processorActive,
-		})
+		}, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -87,13 +84,12 @@ func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *
 	// Also update the status after triggering
 	refreshedStatus := h.processor.GetQueueStatus()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"success":   true,
 		"message":   "Queue processing triggered successfully",
 		"timestamp": time.Now().Unix(),
 		"status":    refreshedStatus,
-	})
+	}, http.StatusOK)
 
 	log.Println("Queue processing manually triggered via API")
 }
@@ -136,8 +132,7 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 		response["resume_reset_summary"] = resumeSummary
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, response, http.StatusOK)
 
 	log.Printf("Queue maintenance state set to: %s", request.State)
 }
@@ -146,12 +141,13 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 func (h *QueueHandlers) GetRunningProcessesHandler(w http.ResponseWriter, r *http.Request) {
 	processes := h.processor.GetRunningProcessesInfo()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"processes": processes,
-		"count":     len(processes),
-		"timestamp": time.Now().Unix(),
-	})
+	response := ProcessesListResponse{
+		Processes: processes,
+		Count:     len(processes),
+		Timestamp: time.Now().Unix(),
+	}
+
+	writeJSON(w, response, http.StatusOK)
 }
 
 // TerminateProcessHandler terminates a specific running process
@@ -214,12 +210,13 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 		"timestamp": time.Now().Unix(),
 	})
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Process terminated successfully",
-		"task_id": request.TaskID,
-	})
+	response := ProcessTerminateResponse{
+		Success: true,
+		Message: "Process terminated successfully",
+		TaskID:  request.TaskID,
+	}
+
+	writeJSON(w, response, http.StatusOK)
 
 	log.Printf("Process terminated for task: %s", request.TaskID)
 }
@@ -228,12 +225,12 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http.Request) {
 	h.processor.Stop()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":   true,
-		"message":   "Queue processor stopped",
-		"timestamp": time.Now().Unix(),
-	})
+	response := SimpleSuccessResponse{
+		Success: true,
+		Message: "Queue processor stopped",
+	}
+
+	writeJSON(w, response, http.StatusOK)
 
 	log.Println("Queue processor stopped via API")
 	systemlog.Info("Queue processor stopped via API request")
@@ -243,12 +240,12 @@ func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http
 func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *http.Request) {
 	h.processor.Start()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":   true,
-		"message":   "Queue processor started",
-		"timestamp": time.Now().Unix(),
-	})
+	response := SimpleSuccessResponse{
+		Success: true,
+		Message: "Queue processor started",
+	}
+
+	writeJSON(w, response, http.StatusOK)
 
 	log.Println("Queue processor started via API")
 	systemlog.Info("Queue processor started via API request")
@@ -274,12 +271,11 @@ func (h *QueueHandlers) ResetRateLimitHandler(w http.ResponseWriter, r *http.Req
 	// Get updated status
 	status := h.processor.GetQueueStatus()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"success": true,
 		"message": "Rate limit pause has been reset",
 		"status":  status,
-	})
+	}, http.StatusOK)
 
 	log.Println("Rate limit pause manually reset via API")
 }

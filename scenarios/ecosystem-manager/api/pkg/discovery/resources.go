@@ -39,7 +39,7 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 		if resourceName != "" {
 			status := getStringField(vr, "Status")
 			isRegistered := status != "[UNREGISTERED]" && status != "[MISSING]"
-			
+
 			resource := tasks.ResourceInfo{
 				Name:        resourceName,
 				Path:        getStringField(vr, "Path"),
@@ -50,12 +50,12 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 				Healthy:     getBoolField(vr, "Running"),
 				Status:      status,
 			}
-			
+
 			// If no version provided and unregistered, mark it
 			if resource.Version == "" && !isRegistered {
 				resource.Version = "unregistered"
 			}
-			
+
 			resources = append(resources, resource)
 		}
 	}
@@ -100,7 +100,6 @@ func getBoolField(m map[string]interface{}, key string) bool {
 	return false
 }
 
-
 // inferResourceCategory attempts to categorize a resource based on its name
 func inferResourceCategory(name string) string {
 	lower := strings.ToLower(name)
@@ -126,4 +125,3 @@ func inferResourceCategory(name string) string {
 
 	return "misc" // default
 }
-

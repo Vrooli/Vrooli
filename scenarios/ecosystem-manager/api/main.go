@@ -21,6 +21,33 @@ import (
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
 
+// LOGGING STRATEGY:
+//
+// This codebase uses TWO intentionally separate logging systems:
+//
+// 1. Standard library log.* (stdout/stderr) - Real-time Operational Logs
+//    - Purpose: Immediate feedback for operators/developers watching the process
+//    - Destination: stdout/stderr (captured by process managers, systemd, Docker, kubectl)
+//    - Use for: Startup messages, progress indicators, debugging info, operational observability
+//    - Volume: Verbose, ephemeral
+//    - Examples: "🚀 Starting API...", "Processing task...", "Warning: retrying..."
+//
+// 2. Custom systemlog.* (file-based) - Historical Audit Trail
+//    - Purpose: Persistent, structured logs for UI consumers and post-mortem analysis
+//    - Destination: Date-stamped files in ../logs/ directory
+//    - Served via: /api/logs HTTP endpoint (see pkg/handlers/logs.go)
+//    - Use for: Significant business events, errors, state changes worth persisting
+//    - Volume: Selective, permanent (only ~28% of log.* call volume)
+//    - Severity levels: Debug, Info, Warn, Error
+//    - Examples: Task state transitions, configuration changes, critical errors
+//
+// GUIDELINES:
+// - Use log.* for operational observability (what's happening right now)
+// - Use systemlog.* for audit trail (what happened that matters historically)
+// - Avoid logging the same message to both systems (choose the right destination)
+// - systemlog.* powers the UI log viewer; log.* powers real-time monitoring
+//
+
 var (
 	// Core components
 	storage      *tasks.Storage

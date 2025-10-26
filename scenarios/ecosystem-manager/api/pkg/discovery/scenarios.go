@@ -27,7 +27,7 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 	var vrooliResponse struct {
 		Scenarios []map[string]interface{} `json:"scenarios"`
 	}
-	
+
 	if err := json.Unmarshal(output, &vrooliResponse); err != nil {
 		log.Printf("Error: Failed to parse vrooli scenario list output: %v", err)
 		return scenarios, err
@@ -37,12 +37,12 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 		scenarioName := getStringField(vs, "name")
 		if scenarioName != "" {
 			scenario := tasks.ScenarioInfo{
-				Name:           scenarioName,
-				Path:           getStringField(vs, "path"),
-				Category:       inferScenarioCategory(scenarioName), // Still infer category from name
-				Description:    getStringField(vs, "description"),
-				Version:        getStringField(vs, "version"),
-				Status:         getStringField(vs, "status"),
+				Name:        scenarioName,
+				Path:        getStringField(vs, "path"),
+				Category:    inferScenarioCategory(scenarioName), // Still infer category from name
+				Description: getStringField(vs, "description"),
+				Version:     getStringField(vs, "version"),
+				Status:      getStringField(vs, "status"),
 				// Note: Scenarios don't have completion/health metrics - these are process-level concerns
 				// PRDComplete, Healthy, P0Requirements, P0Completed are omitted (will default to 0/false)
 			}

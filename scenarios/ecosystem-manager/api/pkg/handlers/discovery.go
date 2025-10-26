@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/ecosystem-manager/api/pkg/discovery"
 	"github.com/ecosystem-manager/api/pkg/prompts"
@@ -12,20 +13,78 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// discoveryCache caches expensive CLI-based discovery results
+type discoveryCache struct {
+	resources     []tasks.ResourceInfo
+	scenarios     []tasks.ScenarioInfo
+	resourcesTime time.Time
+	scenariosTime time.Time
+	cacheDuration time.Duration
+	mu            sync.RWMutex
+}
+
+func newDiscoveryCache(ttl time.Duration) *discoveryCache {
+	return &discoveryCache{
+		cacheDuration: ttl,
+	}
+}
+
+func (c *discoveryCache) getResources() ([]tasks.ResourceInfo, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if time.Since(c.resourcesTime) > c.cacheDuration {
+		return nil, false
+	}
+	return c.resources, true
+}
+
+func (c *discoveryCache) setResources(resources []tasks.ResourceInfo) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.resources = resources
+	c.resourcesTime = time.Now()
+}
+
+func (c *discoveryCache) getScenarios() ([]tasks.ScenarioInfo, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if time.Since(c.scenariosTime) > c.cacheDuration {
+		return nil, false
+	}
+	return c.scenarios, true
+}
+
+func (c *discoveryCache) setScenarios(scenarios []tasks.ScenarioInfo) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.scenarios = scenarios
+	c.scenariosTime = time.Now()
+}
+
 // DiscoveryHandlers contains handlers for discovery-related endpoints
 type DiscoveryHandlers struct {
 	assembler *prompts.Assembler
+	cache     *discoveryCache
 }
 
 // NewDiscoveryHandlers creates a new discovery handlers instance
 func NewDiscoveryHandlers(assembler *prompts.Assembler) *DiscoveryHandlers {
 	return &DiscoveryHandlers{
 		assembler: assembler,
+		cache:     newDiscoveryCache(30 * time.Second), // 30 second cache TTL
 	}
 }
 
 // GetResourcesHandler returns discovered resources
 func (h *DiscoveryHandlers) GetResourcesHandler(w http.ResponseWriter, r *http.Request) {
+	// Check cache first
+	if cached, hit := h.cache.getResources(); hit {
+		w.Header().Set("X-Cache", "HIT")
+		writeJSON(w, cached, http.StatusOK)
+		return
+	}
+
+	// Cache miss - perform expensive discovery
 	resources, err := discovery.DiscoverResources()
 	if err != nil {
 		log.Printf("Failed to discover resources: %v", err)
@@ -33,12 +92,23 @@ func (h *DiscoveryHandlers) GetResourcesHandler(w http.ResponseWriter, r *http.R
 		resources = []tasks.ResourceInfo{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resources)
+	// Update cache
+	h.cache.setResources(resources)
+
+	w.Header().Set("X-Cache", "MISS")
+	writeJSON(w, resources, http.StatusOK)
 }
 
 // GetScenariosHandler returns discovered scenarios
 func (h *DiscoveryHandlers) GetScenariosHandler(w http.ResponseWriter, r *http.Request) {
+	// Check cache first
+	if cached, hit := h.cache.getScenarios(); hit {
+		w.Header().Set("X-Cache", "HIT")
+		writeJSON(w, cached, http.StatusOK)
+		return
+	}
+
+	// Cache miss - perform expensive discovery
 	scenarios, err := discovery.DiscoverScenarios()
 	if err != nil {
 		log.Printf("Failed to discover scenarios: %v", err)
@@ -46,16 +116,17 @@ func (h *DiscoveryHandlers) GetScenariosHandler(w http.ResponseWriter, r *http.R
 		scenarios = []tasks.ScenarioInfo{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(scenarios)
+	// Update cache
+	h.cache.setScenarios(scenarios)
+
+	w.Header().Set("X-Cache", "MISS")
+	writeJSON(w, scenarios, http.StatusOK)
 }
 
 // GetOperationsHandler returns available operations from prompt configuration
 func (h *DiscoveryHandlers) GetOperationsHandler(w http.ResponseWriter, r *http.Request) {
 	config := h.assembler.GetPromptsConfig()
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(config.Operations)
+	writeJSON(w, config.Operations, http.StatusOK)
 }
 
 // GetCategoriesHandler returns available categories for the create task form
@@ -89,14 +160,11 @@ func (h *DiscoveryHandlers) GetCategoriesHandler(w http.ResponseWriter, r *http.
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(categories)
+	writeJSON(w, categories, http.StatusOK)
 }
 
 // GetResourceStatusHandler returns detailed status for a specific resource
 func (h *DiscoveryHandlers) GetResourceStatusHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	vars := mux.Vars(r)
 	resourceName := vars["name"]
 
@@ -114,10 +182,7 @@ func (h *DiscoveryHandlers) GetResourceStatusHandler(w http.ResponseWriter, r *h
 
 	for _, resource := range resources {
 		if resource.Name == resourceName {
-			if err := json.NewEncoder(w).Encode(resource); err != nil {
-				log.Printf("Error encoding resource status response: %v", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-			}
+			writeJSON(w, resource, http.StatusOK)
 			return
 		}
 	}
@@ -127,8 +192,6 @@ func (h *DiscoveryHandlers) GetResourceStatusHandler(w http.ResponseWriter, r *h
 
 // GetScenarioStatusHandler returns detailed status for a specific scenario
 func (h *DiscoveryHandlers) GetScenarioStatusHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	vars := mux.Vars(r)
 	scenarioName := vars["name"]
 
@@ -146,10 +209,7 @@ func (h *DiscoveryHandlers) GetScenarioStatusHandler(w http.ResponseWriter, r *h
 
 	for _, scenario := range scenarios {
 		if scenario.Name == scenarioName {
-			if err := json.NewEncoder(w).Encode(scenario); err != nil {
-				log.Printf("Error encoding scenario status response: %v", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-			}
+			writeJSON(w, scenario, http.StatusOK)
 			return
 		}
 	}

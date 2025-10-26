@@ -37,8 +37,45 @@ func setupTestEnv(t *testing.T) (string, func()) {
 		t.Fatalf("Failed to create prompts dir: %v", err)
 	}
 
-	// Create minimal sections.yaml
-	sectionsYAML := `sections: []`
+	// Create minimal sections.yaml with proper operations configuration
+	sectionsYAML := `name: test-ecosystem
+type: unified
+operations:
+  resource-generator:
+    name: resource-generator
+    type: generator
+    target: resources
+    description: Test resource generator
+    additional_sections: []
+  resource-improver:
+    name: resource-improver
+    type: improver
+    target: resources
+    description: Test resource improver
+    additional_sections: []
+  scenario-generator:
+    name: scenario-generator
+    type: generator
+    target: scenarios
+    description: Test scenario generator
+    additional_sections: []
+  scenario-improver:
+    name: scenario-improver
+    type: improver
+    target: scenarios
+    description: Test scenario improver
+    additional_sections: []
+global_config:
+  time_allocations:
+    generators:
+      research: 30
+      prd_creation: 50
+      scaffolding: 20
+    improvers:
+      assessment: 20
+      prioritization: 10
+      implementation: 60
+      validation: 10`
 	if err := os.WriteFile(filepath.Join(promptsDir, "sections.yaml"), []byte(sectionsYAML), 0o644); err != nil {
 		t.Fatalf("Failed to create sections.yaml: %v", err)
 	}

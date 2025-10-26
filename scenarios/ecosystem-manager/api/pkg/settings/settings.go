@@ -23,7 +23,6 @@ type Settings struct {
 	Slots           int  `json:"slots"`
 	RefreshInterval int  `json:"refresh_interval"`
 	Active          bool `json:"active"`
-	MaxTasks        int  `json:"max_tasks"` // Maximum tasks to process (0 = unlimited)
 
 	// Agent settings
 	MaxTurns        int    `json:"max_turns"`
@@ -35,14 +34,14 @@ type Settings struct {
 	Recycler RecyclerSettings `json:"recycler"`
 }
 
-// Global settings with thread safety
-var (
-	currentSettings = Settings{
+// newDefaultSettings returns a fresh Settings instance with default values.
+// This is the single source of truth for default settings.
+func newDefaultSettings() Settings {
+	return Settings{
 		Theme:           "light",
 		Slots:           1,
 		RefreshInterval: 30,
-		Active:          false, // ALWAYS start inactive for safety
-		MaxTasks:        0,     // 0 = unlimited
+		Active:          false, // ALWAYS start/reset inactive for safety
 		MaxTurns:        60,
 		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
 		SkipPermissions: true,
@@ -56,23 +55,25 @@ var (
 			FailureThreshold:    5,
 		},
 	}
-	settingsMutex sync.RWMutex
+}
+
+// Global settings with thread safety
+var (
+	currentSettings = newDefaultSettings()
+	settingsMutex   sync.RWMutex
 )
 
 // GetSettings returns a copy of the current settings (thread-safe)
 func GetSettings() Settings {
 	settingsMutex.RLock()
 	defer settingsMutex.RUnlock()
-	settingsCopy := currentSettings
-	settingsCopy.MaxTasks = 0 // Max tasks feature disabled globally
-	return settingsCopy
+	return currentSettings
 }
 
 // UpdateSettings updates the current settings (thread-safe)
 func UpdateSettings(newSettings Settings) {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
-	newSettings.MaxTasks = 0 // Enforce disabled state regardless of client input
 	currentSettings = newSettings
 }
 
@@ -81,26 +82,7 @@ func ResetSettings() Settings {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
 
-	currentSettings = Settings{
-		Theme:           "light",
-		Slots:           1,
-		RefreshInterval: 30,
-		Active:          false, // ALWAYS reset to inactive for safety
-		MaxTasks:        0,     // 0 = unlimited
-		MaxTurns:        60,
-		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
-		SkipPermissions: true,
-		TaskTimeout:     30, // 30 minutes default timeout
-		Recycler: RecyclerSettings{
-			EnabledFor:          "off",
-			IntervalSeconds:     60,
-			ModelProvider:       "ollama",
-			ModelName:           "llama3.1:8b",
-			CompletionThreshold: 3,
-			FailureThreshold:    5,
-		},
-	}
-
+	currentSettings = newDefaultSettings()
 	return currentSettings
 }
 
@@ -111,44 +93,9 @@ func IsActive() bool {
 	return currentSettings.Active
 }
 
-// GetMaxTurns returns the current max turns setting
-func GetMaxTurns() int {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.MaxTurns
-}
-
-// GetAllowedTools returns the current allowed tools setting
-func GetAllowedTools() string {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.AllowedTools
-}
-
-// GetSkipPermissions returns the current skip permissions setting
-func GetSkipPermissions() bool {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.SkipPermissions
-}
-
-// GetTaskTimeout returns the current task timeout setting in minutes
-func GetTaskTimeout() int {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.TaskTimeout
-}
-
 // GetRecyclerSettings returns current recycler configuration.
 func GetRecyclerSettings() RecyclerSettings {
 	settingsMutex.RLock()
 	defer settingsMutex.RUnlock()
 	return currentSettings.Recycler
-}
-
-// GetMaxTasks returns the maximum number of tasks to process (0 = unlimited)
-func GetMaxTasks() int {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.MaxTasks
 }

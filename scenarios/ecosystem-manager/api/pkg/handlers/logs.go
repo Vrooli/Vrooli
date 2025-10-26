@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -23,11 +22,10 @@ func LogsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"success": true,
 		"entries": entries,
-	})
+	}, http.StatusOK)
 
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()

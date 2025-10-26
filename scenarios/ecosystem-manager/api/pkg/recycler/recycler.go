@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/summarizer"
 	"github.com/ecosystem-manager/api/pkg/tasks"
@@ -174,7 +175,7 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 		}
 	}
 
-	now := time.Now().Format(time.RFC3339)
+	now := timeutil.NowRFC3339()
 	ensureResultsMap(task)
 	task.Results["recycler_classification"] = result.Classification
 	task.Results["recycler_updated_at"] = now
@@ -223,7 +224,7 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 
 func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
 	output := extractOutput(task.Results)
-	now := time.Now().Format(time.RFC3339)
+	now := timeutil.NowRFC3339()
 
 	ensureResultsMap(task)
 	task.Results["recycler_updated_at"] = now
@@ -283,7 +284,8 @@ func (r *Recycler) persistTask(task *tasks.TaskItem, targetStatus string) error 
 	if _, _, err := r.storage.MoveTaskTo(task.ID, targetStatus); err != nil {
 		return fmt.Errorf("move task %s to %s: %w", task.ID, targetStatus, err)
 	}
-	if err := r.storage.SaveQueueItem(*task, targetStatus); err != nil {
+	// Use SkipCleanup since MoveTaskTo already cleaned up duplicates
+	if err := r.storage.SaveQueueItemSkipCleanup(*task, targetStatus); err != nil {
 		return fmt.Errorf("save task %s in %s: %w", task.ID, targetStatus, err)
 	}
 	return nil

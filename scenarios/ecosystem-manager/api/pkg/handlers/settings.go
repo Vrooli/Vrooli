@@ -43,11 +43,10 @@ func NewSettingsHandlers(processor *queue.Processor, wsManager *websocket.Manage
 func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	currentSettings := settings.GetSettings()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"success":  true,
 		"settings": currentSettings,
-	})
+	}, http.StatusOK)
 }
 
 // UpdateSettingsHandler updates settings and applies them
@@ -58,27 +57,21 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Max tasks caused queue starvation, so the feature is currently disabled regardless of input
-	if newSettings.MaxTasks != 0 {
-		log.Printf("Ignoring requested max_tasks value (%d); feature is disabled", newSettings.MaxTasks)
-		newSettings.MaxTasks = 0
-	}
-
 	// Validate settings
-	if newSettings.Slots < 1 || newSettings.Slots > 5 {
-		http.Error(w, "Slots must be between 1 and 5", http.StatusBadRequest)
+	if newSettings.Slots < settings.MinSlots || newSettings.Slots > settings.MaxSlots {
+		http.Error(w, fmt.Sprintf("Slots must be between %d and %d", settings.MinSlots, settings.MaxSlots), http.StatusBadRequest)
 		return
 	}
-	if newSettings.RefreshInterval < 5 || newSettings.RefreshInterval > 300 {
-		http.Error(w, "Refresh interval must be between 5 and 300 seconds", http.StatusBadRequest)
+	if newSettings.RefreshInterval < settings.MinRefreshInterval || newSettings.RefreshInterval > settings.MaxRefreshInterval {
+		http.Error(w, fmt.Sprintf("Refresh interval must be between %d and %d seconds", settings.MinRefreshInterval, settings.MaxRefreshInterval), http.StatusBadRequest)
 		return
 	}
-	if newSettings.MaxTurns < 5 || newSettings.MaxTurns > 80 {
-		http.Error(w, "Max turns must be between 5 and 80", http.StatusBadRequest)
+	if newSettings.MaxTurns < settings.MinMaxTurns || newSettings.MaxTurns > settings.MaxMaxTurns {
+		http.Error(w, fmt.Sprintf("Max turns must be between %d and %d", settings.MinMaxTurns, settings.MaxMaxTurns), http.StatusBadRequest)
 		return
 	}
-	if newSettings.TaskTimeout < 5 || newSettings.TaskTimeout > 240 {
-		http.Error(w, "Task timeout must be between 5 and 240 minutes", http.StatusBadRequest)
+	if newSettings.TaskTimeout < settings.MinTaskTimeout || newSettings.TaskTimeout > settings.MaxTaskTimeout {
+		http.Error(w, fmt.Sprintf("Task timeout must be between %d and %d minutes", settings.MinTaskTimeout, settings.MaxTaskTimeout), http.StatusBadRequest)
 		return
 	}
 
@@ -101,8 +94,8 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 	if recycler.IntervalSeconds == 0 {
 		recycler.IntervalSeconds = oldSettings.Recycler.IntervalSeconds
 	}
-	if recycler.IntervalSeconds < 30 || recycler.IntervalSeconds > 1800 {
-		http.Error(w, "Recycler interval must be between 30 and 1800 seconds", http.StatusBadRequest)
+	if recycler.IntervalSeconds < settings.MinRecyclerInterval || recycler.IntervalSeconds > settings.MaxRecyclerInterval {
+		http.Error(w, fmt.Sprintf("Recycler interval must be between %d and %d seconds", settings.MinRecyclerInterval, settings.MaxRecyclerInterval), http.StatusBadRequest)
 		return
 	}
 
@@ -171,8 +164,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		response["resume_reset_summary"] = resumeSummary
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, response, http.StatusOK)
 
 	log.Printf("Settings updated: slots=%d, refresh=%ds, active=%v, max_turns=%d, timeout=%dm",
 		newSettings.Slots, newSettings.RefreshInterval, newSettings.Active, newSettings.MaxTurns, newSettings.TaskTimeout)
@@ -213,8 +205,7 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 		response["error"] = err.Error()
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, response, http.StatusOK)
 }
 
 // TestRecyclerHandler generates a recycler summary for a mock task using current settings.
@@ -292,8 +283,7 @@ func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Re
 		response["error"] = err.Error()
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, response, http.StatusOK)
 }
 
 // PreviewRecyclerPromptHandler builds the recycler LLM prompt for mock output without executing the model.
@@ -315,8 +305,7 @@ func (h *SettingsHandlers) PreviewRecyclerPromptHandler(w http.ResponseWriter, r
 
 	prompt := summarizer.BuildPrompt(output)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"prompt": prompt})
+	writeJSON(w, map[string]string{"prompt": prompt}, http.StatusOK)
 }
 
 // ResetSettingsHandler resets settings to defaults
@@ -333,12 +322,11 @@ func (h *SettingsHandlers) ResetSettingsHandler(w http.ResponseWriter, r *http.R
 	// Broadcast settings change via WebSocket
 	h.wsManager.BroadcastUpdate("settings_reset", newSettings)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"success":  true,
 		"settings": newSettings,
 		"message":  "Settings reset to defaults",
-	})
+	}, http.StatusOK)
 
 	log.Println("Settings reset to defaults")
 }

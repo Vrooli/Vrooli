@@ -1,6 +1,8 @@
 package tasks
 
-import "strings"
+import (
+	"strings"
+)
 
 // TaskItem represents a unified task in the ecosystem
 type TaskItem struct {
@@ -157,19 +159,4 @@ func NormalizeTargets(primary string, targets []string) ([]string, string) {
 	}
 
 	return normalized, canonical
-}
-
-// EqualStringSlices returns true when two string slices are identical (order-sensitive).
-func EqualStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
 }

@@ -3,14 +3,16 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/internal/slices"
+	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
@@ -58,7 +60,7 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 		newTask.Title = deriveTaskTitle(baseTitle, baseTask.Operation, baseTask.Type, target)
 		newTask.Status = "pending"
 		newTask.Results = nil
-		timestamp := time.Now().Format(time.RFC3339)
+		timestamp := timeutil.NowRFC3339()
 		newTask.CreatedAt = timestamp
 		newTask.UpdatedAt = timestamp
 
@@ -91,9 +93,7 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 		statusCode = http.StatusInternalServerError
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, response, statusCode)
 }
 
 var targetSlugSanitizer = regexp.MustCompile(`[^a-z0-9]+`)
@@ -172,6 +172,132 @@ func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, proce
 	}
 }
 
+// preserveUnsetFields copies non-zero values from current to updated for fields that are unset.
+// This helper consolidates field preservation logic used when updating tasks.
+func preserveUnsetFields(updated, current *tasks.TaskItem) {
+	if updated.Title == "" {
+		updated.Title = current.Title
+	}
+	if updated.Priority == "" {
+		updated.Priority = current.Priority
+	}
+	if updated.Category == "" {
+		updated.Category = current.Category
+	}
+	if updated.Notes == "" {
+		updated.Notes = current.Notes
+	}
+	if updated.EffortEstimate == "" {
+		updated.EffortEstimate = current.EffortEstimate
+	}
+	if updated.CurrentPhase == "" && current.CurrentPhase != "" {
+		updated.CurrentPhase = current.CurrentPhase
+	}
+	if updated.CompletionCount == 0 && current.CompletionCount > 0 {
+		updated.CompletionCount = current.CompletionCount
+	}
+	if updated.LastCompletedAt == "" {
+		updated.LastCompletedAt = current.LastCompletedAt
+	}
+	if len(updated.Targets) == 0 && len(current.Targets) > 0 {
+		updated.Targets = current.Targets
+		updated.Target = current.Target
+	}
+}
+
+// isBackwardsTransition checks if a status change represents a backwards transition
+// (moving from a terminal state back to an active state for re-execution)
+func isBackwardsTransition(fromStatus, toStatus string) bool {
+	terminalStatuses := map[string]bool{"completed": true, "failed": true}
+	activeStatuses := map[string]bool{"pending": true, "in-progress": true}
+	return terminalStatuses[fromStatus] && activeStatuses[toStatus]
+}
+
+// clearTaskExecutionData resets task fields for fresh execution after a backwards transition
+func clearTaskExecutionData(task *tasks.TaskItem, taskID, fromStatus, toStatus string) {
+	systemlog.Infof("Task %s moved backwards from %s to %s - clearing execution data", taskID, fromStatus, toStatus)
+	task.Results = nil
+	task.StartedAt = ""
+	task.CompletedAt = ""
+	task.CurrentPhase = ""
+}
+
+// applyStatusTransitionLogic handles status change logic including timestamps, completion counts,
+// backwards transitions, and process termination. Returns the updated timestamp string.
+func (h *TaskHandlers) applyStatusTransitionLogic(task *tasks.TaskItem, taskID, currentStatus, newStatus string) (string, error) {
+	now := timeutil.NowRFC3339()
+
+	// Handle backwards status transitions (completed/failed -> pending/in-progress)
+	backwards := isBackwardsTransition(currentStatus, newStatus)
+	if backwards {
+		clearTaskExecutionData(task, taskID, currentStatus, newStatus)
+	} else {
+		// Normal transitions - preserve existing data if not explicitly cleared
+		// (Frontend can clear by sending empty values in the update)
+	}
+
+	// Set status-specific timestamps and state
+	if newStatus == "in-progress" {
+		task.StartedAt = now
+	}
+
+	if newStatus == "completed" {
+		if task.CompletionCount <= 0 || backwards {
+			task.CompletionCount = 1
+		} else {
+			task.CompletionCount++
+		}
+		if task.CompletedAt == "" {
+			task.CompletedAt = now
+		}
+		task.LastCompletedAt = task.CompletedAt
+	}
+
+	if newStatus == "failed" && task.CompletedAt == "" {
+		task.CompletedAt = now
+	}
+
+	if newStatus == "archived" {
+		if strings.TrimSpace(task.CurrentPhase) == "" {
+			task.CurrentPhase = "archived"
+		}
+		task.ProcessorAutoRequeue = false
+	}
+
+	if newStatus == "pending" {
+		task.ConsecutiveCompletionClaims = 0
+		task.ConsecutiveFailures = 0
+		task.ProcessorAutoRequeue = true
+	}
+
+	if newStatus == "completed-finalized" {
+		task.ProcessorAutoRequeue = false
+	}
+
+	if newStatus == "failed-blocked" {
+		task.ProcessorAutoRequeue = false
+	}
+
+	// CRITICAL: If task is moved OUT of in-progress, terminate any running process
+	if currentStatus == "in-progress" && newStatus != "in-progress" {
+		if err := h.processor.TerminateRunningProcess(taskID); err != nil {
+			systemlog.Warnf("Failed to terminate process for task %s: %v", taskID, err)
+		} else {
+			systemlog.Infof("Successfully terminated process for task %s (moved from in-progress to %s)", taskID, newStatus)
+			// Update task to reflect cancellation
+			cancelTime := timeutil.NowRFC3339()
+			task.Results = map[string]interface{}{
+				"success":      false,
+				"error":        fmt.Sprintf("Task execution was cancelled (moved to %s)", newStatus),
+				"cancelled_at": cancelTime,
+			}
+			task.CurrentPhase = "cancelled"
+		}
+	}
+
+	return now, nil
+}
+
 // GetTasksHandler retrieves tasks with optional filtering
 func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
@@ -204,18 +330,15 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 		filteredItems = append(filteredItems, item)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	// Debug: Log what we're about to send
-	log.Printf("About to send %d filtered tasks", len(filteredItems))
 	systemlog.Debugf("Task list requested: status=%s count=%d", status, len(filteredItems))
 
-	// Encode and check for errors
-	if err := json.NewEncoder(w).Encode(filteredItems); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	} else {
-		log.Printf("Successfully sent JSON response with %d tasks", len(filteredItems))
+	// Wrap response in object for consistency with other endpoints
+	response := map[string]interface{}{
+		"tasks": filteredItems,
+		"count": len(filteredItems),
 	}
+
+	writeJSON(w, response, http.StatusOK)
 }
 
 // CreateTaskHandler creates a new task
@@ -233,12 +356,12 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	validTypes := []string{"resource", "scenario"}
 	validOperations := []string{"generator", "improver"}
 
-	if !tasks.Contains(validTypes, task.Type) {
+	if !slices.Contains(validTypes, task.Type) {
 		http.Error(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, validTypes), http.StatusBadRequest)
 		return
 	}
 
-	if !tasks.Contains(validOperations, task.Operation) {
+	if !slices.Contains(validOperations, task.Operation) {
 		http.Error(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, validOperations), http.StatusBadRequest)
 		return
 	}
@@ -282,8 +405,6 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	now := time.Now()
-
 	// Set defaults
 	if task.ID == "" {
 		task.ID = generateTaskID(task.Type, task.Operation, task.Target)
@@ -298,10 +419,10 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if task.CreatedAt == "" {
-		task.CreatedAt = now.Format(time.RFC3339)
+		task.CreatedAt = timeutil.NowRFC3339()
 	}
 
-	task.UpdatedAt = now.Format(time.RFC3339)
+	task.UpdatedAt = timeutil.NowRFC3339()
 
 	// Ensure canonical single-target representation is persisted
 	if len(task.Targets) == 1 {
@@ -314,12 +435,10 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"success": true,
 		"task":    task,
-	})
+	}, http.StatusCreated)
 }
 
 // GetTaskHandler retrieves a specific task by ID
@@ -333,8 +452,7 @@ func (h *TaskHandlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)
+	writeJSON(w, task, http.StatusOK)
 }
 
 // GetTaskLogsHandler streams back collected execution logs for a task
@@ -355,8 +473,7 @@ func (h *TaskHandlers) GetTaskLogsHandler(w http.ResponseWriter, r *http.Request
 
 	entries, nextSeq, running, agentID, completed, processID := h.processor.GetTaskLogs(taskID, afterSeq)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"task_id":       taskID,
 		"agent_id":      agentID,
 		"process_id":    processID,
@@ -365,7 +482,7 @@ func (h *TaskHandlers) GetTaskLogsHandler(w http.ResponseWriter, r *http.Request
 		"next_sequence": nextSeq,
 		"entries":       entries,
 		"timestamp":     time.Now().Unix(),
-	})
+	}, http.StatusOK)
 }
 
 // GetActiveTargetsHandler returns active targets for the specified type and operation across relevant queues.
@@ -423,10 +540,7 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode active targets response: %v", err)
-	}
+	writeJSON(w, response, http.StatusOK)
 }
 
 func (h *TaskHandlers) collectTaskTargets(item *tasks.TaskItem) []string {
@@ -579,7 +693,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	// Validate operation if it was changed
 	validOperations := []string{"generator", "improver"}
-	if !tasks.Contains(validOperations, updatedTask.Operation) {
+	if !slices.Contains(validOperations, updatedTask.Operation) {
 		http.Error(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validOperations), http.StatusBadRequest)
 		return
 	}
@@ -594,57 +708,26 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Preserve all other fields if they weren't provided in the update
-	if updatedTask.Title == "" {
-		updatedTask.Title = currentTask.Title
-	}
-	if len(updatedTask.Targets) == 0 && len(currentTask.Targets) > 0 {
-		updatedTask.Targets = currentTask.Targets
-		updatedTask.Target = currentTask.Target
-	}
-	if updatedTask.Priority == "" {
-		updatedTask.Priority = currentTask.Priority
-	}
-	if updatedTask.Category == "" {
-		updatedTask.Category = currentTask.Category
-	}
-	if updatedTask.Notes == "" {
-		updatedTask.Notes = currentTask.Notes
-	}
-	if updatedTask.EffortEstimate == "" {
-		updatedTask.EffortEstimate = currentTask.EffortEstimate
-	}
-	if updatedTask.CurrentPhase == "" && currentTask.CurrentPhase != "" {
-		updatedTask.CurrentPhase = currentTask.CurrentPhase
-	}
-	if updatedTask.CompletionCount == 0 && currentTask.CompletionCount > 0 {
-		updatedTask.CompletionCount = currentTask.CompletionCount
-	}
-	if updatedTask.LastCompletedAt == "" {
-		updatedTask.LastCompletedAt = currentTask.LastCompletedAt
+	preserveUnsetFields(&updatedTask, currentTask)
+
+	// Validate status if provided
+	newStatus := updatedTask.Status
+	if newStatus != "" && !tasks.IsValidStatus(newStatus) {
+		http.Error(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()), http.StatusBadRequest)
+		return
 	}
 
-	// Handle backwards status transitions (completed/failed -> pending/in-progress)
-	// This happens when users drag tasks back to re-execute them
-	newStatus := updatedTask.Status
-	isBackwardsTransition := (currentStatus == "completed" || currentStatus == "failed") &&
-		(newStatus == "pending" || newStatus == "in-progress")
+	// Handle status transitions using consolidated logic
+	backwards := isBackwardsTransition(currentStatus, newStatus)
 
 	// Debug logging
-	log.Printf("Task %s status transition: '%s' -> '%s' (backwards: %v)",
-		taskID, currentStatus, newStatus, isBackwardsTransition)
-	log.Printf("Task %s incoming data - has results: %v, status: '%s'",
+	systemlog.Debugf("Task %s status transition: '%s' -> '%s' (backwards: %v)",
+		taskID, currentStatus, newStatus, backwards)
+	systemlog.Debugf("Task %s incoming data - has results: %v, status: '%s'",
 		taskID, updatedTask.Results != nil, updatedTask.Status)
 
-	if isBackwardsTransition {
-		// Clear execution results and timestamps for fresh execution
-		log.Printf("Task %s moved backwards from %s to %s - clearing execution data", taskID, currentStatus, newStatus)
-		updatedTask.Results = nil
-		updatedTask.StartedAt = ""
-		updatedTask.CompletedAt = ""
-		updatedTask.CurrentPhase = ""
-	} else {
-		// Normal status transitions - preserve existing data if not provided
-		// Only preserve if the frontend didn't explicitly clear them
+	// Preserve existing data if not explicitly provided by frontend
+	if !backwards {
 		if updatedTask.StartedAt == "" {
 			updatedTask.StartedAt = currentTask.StartedAt
 		}
@@ -654,80 +737,46 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		if updatedTask.LastCompletedAt == "" {
 			updatedTask.LastCompletedAt = currentTask.LastCompletedAt
 		}
-		// IMPORTANT: Don't preserve results if it's a backwards transition that wasn't detected
-		// This can happen if status strings don't match exactly
+		// IMPORTANT: Don't preserve results if moving to active state
 		if updatedTask.Results == nil && currentTask.Results != nil {
-			// Check if this might be an undetected backwards transition
 			if newStatus == "pending" || newStatus == "in-progress" {
-				log.Printf("Task %s: Not preserving results when moving to %s", taskID, newStatus)
-				// Keep results as nil
+				systemlog.Debugf("Task %s: Not preserving results when moving to %s", taskID, newStatus)
 			} else {
 				updatedTask.Results = currentTask.Results
 			}
 		}
 	}
 
-	// Handle status changes - if status changed, may need to move file
-	if newStatus == "archived" && strings.TrimSpace(updatedTask.CurrentPhase) == "" {
-		updatedTask.CurrentPhase = "archived"
-	}
-
+	// Apply status transition logic
 	if newStatus != currentStatus {
-		// Set timestamps for status changes
-		now := time.Now().Format(time.RFC3339)
+		updatedTask.CompletionCount = currentTask.CompletionCount // Preserve for increment logic
+		now, err := h.applyStatusTransitionLogic(&updatedTask, taskID, currentStatus, newStatus)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
+			return
+		}
 		updatedTask.UpdatedAt = now
-
-		if newStatus == "in-progress" {
-			updatedTask.StartedAt = now
-		}
-		if newStatus == "completed" {
-			if updatedTask.CompletionCount <= currentTask.CompletionCount {
-				updatedTask.CompletionCount = currentTask.CompletionCount + 1
-			}
-			if updatedTask.CompletedAt == "" {
-				updatedTask.CompletedAt = now
-			}
-			updatedTask.LastCompletedAt = updatedTask.CompletedAt
-		}
-		if newStatus == "failed" && updatedTask.CompletedAt == "" {
-			updatedTask.CompletedAt = now
-		}
-		if newStatus == "archived" {
-			updatedTask.ProcessorAutoRequeue = false
-		}
-
-		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
-		if currentStatus == "in-progress" && newStatus != "in-progress" {
-			if err := h.processor.TerminateRunningProcess(taskID); err != nil {
-				log.Printf("Warning: Failed to terminate process for task %s: %v", taskID, err)
-			} else {
-				log.Printf("Successfully terminated process for task %s (moved from in-progress to %s)", taskID, newStatus)
-				// Update task to reflect cancellation
-				updatedTask.Results = map[string]interface{}{
-					"success":      false,
-					"error":        fmt.Sprintf("Task execution was cancelled (moved to %s)", newStatus),
-					"cancelled_at": now,
-				}
-				updatedTask.CurrentPhase = "cancelled"
-			}
-		}
 	} else {
 		// Just update timestamp
-		updatedTask.UpdatedAt = time.Now().Format(time.RFC3339)
+		updatedTask.UpdatedAt = timeutil.NowRFC3339()
 	}
 
 	// Save updated task
 	if newStatus != currentStatus {
+		// Move the task file to the new status directory
 		if err := h.storage.MoveTask(taskID, currentStatus, newStatus); err != nil {
-			log.Printf("ERROR: Failed to move task %s from %s to %s via MoveTask: %v", taskID, currentStatus, newStatus, err)
+			systemlog.Errorf("Failed to move task %s from %s to %s via MoveTask: %v", taskID, currentStatus, newStatus, err)
 			http.Error(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
 			return
 		}
-		// Reload updated task after move so we return the latest view
-		if reloaded, status, err := h.storage.GetTaskByID(taskID); err == nil {
-			updatedTask = *reloaded
-			currentStatus = status
+		// CRITICAL: Save the updated task with all field changes to the new location
+		// Do NOT reload from disk as that would discard all the field updates we just applied
+		if err := h.storage.SaveQueueItem(updatedTask, newStatus); err != nil {
+			systemlog.Errorf("Failed to save updated task %s after move to %s: %v", taskID, newStatus, err)
+			http.Error(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
+			return
 		}
+		currentStatus = newStatus
 	} else {
 		if err := h.storage.SaveQueueItem(updatedTask, currentStatus); err != nil {
 			http.Error(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
@@ -738,13 +787,12 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Broadcast the update via WebSocket
 	h.wsManager.BroadcastUpdate("task_updated", updatedTask)
 
-	log.Printf("Task %s updated successfully", taskID)
+	systemlog.Infof("Task %s updated successfully", taskID)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"success": true,
 		"task":    updatedTask,
-	})
+	}, http.StatusOK)
 }
 
 // DeleteTaskHandler deletes a task
@@ -754,7 +802,7 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	// Check if task is running and terminate if necessary
 	if err := h.processor.TerminateRunningProcess(taskID); err == nil {
-		log.Printf("Terminated running process for deleted task %s", taskID)
+		systemlog.Infof("Terminated running process for deleted task %s", taskID)
 	}
 
 	// Delete the task file
@@ -802,8 +850,7 @@ func (h *TaskHandlers) GetTaskPromptHandler(w http.ResponseWriter, r *http.Reque
 		"task_details":     task,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, response, http.StatusOK)
 }
 
 // GetAssembledPromptHandler returns the fully assembled prompt for a task
@@ -827,11 +874,11 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 	prompt := assembly.Prompt
 
 	// Check for cached prompt content (legacy behavior)
-	promptPath := fmt.Sprintf("/tmp/ecosystem-prompt-%s.txt", taskID)
+	promptPath := filepath.Join(os.TempDir(), fmt.Sprintf("ecosystem-prompt-%s.txt", taskID))
 	if cachedPrompt, err := os.ReadFile(promptPath); err == nil {
 		prompt = string(cachedPrompt)
 		fromCache = true
-		log.Printf("Using cached prompt from %s", promptPath)
+		systemlog.Debugf("Using cached prompt from %s", promptPath)
 	}
 
 	assembly.Prompt = prompt
@@ -851,8 +898,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		"task_details":      task,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, response, http.StatusOK)
 }
 
 // UpdateTaskStatusHandler updates just the status/progress of a task (simpler than full update)
@@ -877,72 +923,23 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Validate status if provided
+	if update.Status != "" && !tasks.IsValidStatus(update.Status) {
+		http.Error(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", update.Status, tasks.GetValidStatuses()), http.StatusBadRequest)
+		return
+	}
+
 	// Update task fields
 	if update.Status != "" && update.Status != currentStatus {
-		previousCount := task.CompletionCount
 		task.Status = update.Status
-		now := time.Now().Format(time.RFC3339)
 
-		// Handle backwards status transitions (completed/failed -> pending/in-progress)
-		isBackwardsTransition := (currentStatus == "completed" || currentStatus == "failed") &&
-			(update.Status == "pending" || update.Status == "in-progress")
-
-		if isBackwardsTransition {
-			// Clear execution results and timestamps for fresh execution
-			log.Printf("Task %s moved backwards from %s to %s - clearing execution data", taskID, currentStatus, update.Status)
-			task.Results = nil
-			task.StartedAt = ""
-			task.CompletedAt = ""
-			task.CurrentPhase = ""
+		// Apply consolidated status transition logic
+		now, err := h.applyStatusTransitionLogic(task, taskID, currentStatus, update.Status)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
+			return
 		}
-
-		if update.Status == "in-progress" {
-			task.StartedAt = now
-		}
-		if update.Status == "completed" {
-			if task.CompletionCount <= previousCount {
-				task.CompletionCount = previousCount + 1
-			}
-			task.CompletedAt = now
-			task.LastCompletedAt = task.CompletedAt
-		}
-		if update.Status == "failed" {
-			task.CompletedAt = now
-		}
-		if update.Status == "archived" && strings.TrimSpace(task.CurrentPhase) == "" {
-			task.CurrentPhase = "archived"
-		}
-		if update.Status == "pending" {
-			task.ConsecutiveCompletionClaims = 0
-			task.ConsecutiveFailures = 0
-			task.ProcessorAutoRequeue = true
-		}
-		if update.Status == "completed-finalized" {
-			task.ProcessorAutoRequeue = false
-		}
-		if update.Status == "failed-blocked" {
-			task.ProcessorAutoRequeue = false
-		}
-		if update.Status == "archived" {
-			task.ProcessorAutoRequeue = false
-		}
-
-		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
-		if currentStatus == "in-progress" && update.Status != "in-progress" {
-			if err := h.processor.TerminateRunningProcess(taskID); err != nil {
-				log.Printf("Warning: Failed to terminate process for task %s: %v", taskID, err)
-			} else {
-				log.Printf("Successfully terminated process for task %s (moved from in-progress to %s)", taskID, update.Status)
-				// Update task to reflect cancellation
-				now := time.Now().Format(time.RFC3339)
-				task.Results = map[string]interface{}{
-					"success":      false,
-					"error":        fmt.Sprintf("Task execution was cancelled (moved to %s)", update.Status),
-					"cancelled_at": now,
-				}
-				task.CurrentPhase = "cancelled"
-			}
-		}
+		task.UpdatedAt = now
 
 		// Move task to new status if needed
 		if update.Status != currentStatus {
@@ -957,7 +954,7 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		task.CurrentPhase = update.CurrentPhase
 	}
 
-	task.UpdatedAt = time.Now().Format(time.RFC3339)
+	task.UpdatedAt = timeutil.NowRFC3339()
 
 	// Save updated task
 	if err := h.storage.SaveQueueItem(*task, task.Status); err != nil {
@@ -968,8 +965,7 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 	// Broadcast the update via WebSocket
 	h.wsManager.BroadcastUpdate("task_status_updated", *task)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(*task)
+	writeJSON(w, *task, http.StatusOK)
 }
 
 // promptPreviewRequest captures optional data for assembling a preview task
@@ -1036,7 +1032,7 @@ func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
 		task.Notes = "Temporary task for prompt viewing"
 	}
 	if task.CreatedAt == "" {
-		task.CreatedAt = time.Now().Format(time.RFC3339)
+		task.CreatedAt = timeutil.NowRFC3339()
 	}
 	if task.Status == "" {
 		task.Status = "pending"
@@ -1094,7 +1090,7 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		"prompt_size":       promptSize,
 		"prompt_size_kb":    fmt.Sprintf("%.2f", promptSizeKB),
 		"prompt_size_mb":    fmt.Sprintf("%.3f", promptSizeMB),
-		"timestamp":         time.Now().Format(time.RFC3339),
+		"timestamp":         timeutil.NowRFC3339(),
 		"task":              tempTask,
 	}
 
@@ -1113,6 +1109,5 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		response["available_displays"] = []string{"full", "preview", "size"}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, response, http.StatusOK)
 }

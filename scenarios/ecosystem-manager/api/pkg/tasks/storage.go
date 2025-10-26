@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/internal/slices"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"gopkg.in/yaml.v3"
 )
@@ -19,6 +20,23 @@ var timestampSuffixPattern = regexp.MustCompile(`-(\d{6}|\d{8}|\d{4}-\d{2}-\d{2}
 var activeTaskStatuses = []string{"pending", "in-progress", "review"}
 
 var queueStatuses = []string{"pending", "in-progress", "review", "completed", "failed", "completed-finalized", "failed-blocked", "archived"}
+
+// IsValidStatus checks if a status string is a valid queue status
+func IsValidStatus(status string) bool {
+	for _, valid := range queueStatuses {
+		if valid == status {
+			return true
+		}
+	}
+	return false
+}
+
+// GetValidStatuses returns a copy of all valid queue statuses
+func GetValidStatuses() []string {
+	result := make([]string, len(queueStatuses))
+	copy(result, queueStatuses)
+	return result
+}
 
 var statusOrder = func() map[string]int {
 	order := make(map[string]int, len(queueStatuses))
@@ -91,7 +109,7 @@ func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[strin
 	changed := false
 
 	normalizedTargets, canonicalTarget := NormalizeTargets(item.Target, item.Targets)
-	if !EqualStringSlices(item.Targets, normalizedTargets) {
+	if !slices.EqualStringSlices(item.Targets, normalizedTargets) {
 		item.Targets = normalizedTargets
 		changed = true
 	}
@@ -222,7 +240,10 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 			}
 		}
 
+		// PERFORMANCE OPTIMIZATION: Only rewrite task files if normalization detected changes
+		// This avoids unnecessary disk I/O when reading tasks that are already properly formatted
 		if s.normalizeTaskItem(&item, status, raw) {
+			systemlog.Debugf("Task %s required normalization, rewriting to disk", item.ID)
 			if err := s.SaveQueueItem(item, status); err != nil {
 				log.Printf("Warning: failed to rewrite sanitized task %s: %v", item.ID, err)
 			}
@@ -236,6 +257,16 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 
 // SaveQueueItem saves a task to the specified status directory using atomic write
 func (s *Storage) SaveQueueItem(item TaskItem, status string) error {
+	return s.saveQueueItemWithOptions(item, status, true)
+}
+
+// SaveQueueItemSkipCleanup saves a task without duplicate cleanup (optimization for post-move saves)
+func (s *Storage) SaveQueueItemSkipCleanup(item TaskItem, status string) error {
+	return s.saveQueueItemWithOptions(item, status, false)
+}
+
+// saveQueueItemWithOptions is the internal implementation with cleanup control
+func (s *Storage) saveQueueItemWithOptions(item TaskItem, status string, cleanupDuplicates bool) error {
 	queuePath := filepath.Join(s.QueueDir, status)
 	filename := fmt.Sprintf("%s.yaml", item.ID)
 	filePath := filepath.Join(queuePath, filename)
@@ -250,8 +281,12 @@ func (s *Storage) SaveQueueItem(item TaskItem, status string) error {
 		return err
 	}
 
-	if err := s.cleanupDuplicateTaskFiles(item.ID, status); err != nil {
-		return err
+	// PERFORMANCE OPTIMIZATION: Skip duplicate cleanup if caller knows it's already done
+	// This avoids redundant filesystem scans after MoveTaskTo() which already cleaned up
+	if cleanupDuplicates {
+		if err := s.cleanupDuplicateTaskFiles(item.ID, status); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -259,12 +294,16 @@ func (s *Storage) SaveQueueItem(item TaskItem, status string) error {
 
 func (s *Storage) cleanupDuplicateTaskFiles(taskID, keepStatus string) error {
 	var errs []error
+	duplicatesFound := false
+
 	for _, status := range queueStatuses {
 		if status == keepStatus {
 			continue
 		}
 
 		path := filepath.Join(s.QueueDir, status, fmt.Sprintf("%s.yaml", taskID))
+		// Fast path: check if file exists before attempting removal
+		// This avoids unnecessary error handling for the common case of no duplicates
 		if _, err := os.Stat(path); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
@@ -273,6 +312,8 @@ func (s *Storage) cleanupDuplicateTaskFiles(taskID, keepStatus string) error {
 			continue
 		}
 
+		// File exists - we have a duplicate
+		duplicatesFound = true
 		if err := os.Remove(path); err != nil {
 			errs = append(errs, fmt.Errorf("remove duplicate task %s from %s: %w", taskID, status, err))
 			continue
@@ -280,6 +321,11 @@ func (s *Storage) cleanupDuplicateTaskFiles(taskID, keepStatus string) error {
 
 		log.Printf("Removed duplicate task %s from %s queue", taskID, status)
 		systemlog.Warnf("Removed duplicate task %s from %s queue", taskID, status)
+	}
+
+	// Only log if we actually found and cleaned up duplicates
+	if duplicatesFound && len(errs) == 0 {
+		systemlog.Debugf("Successfully cleaned up duplicate task files for %s", taskID)
 	}
 
 	if len(errs) > 0 {
@@ -435,7 +481,7 @@ func (s *Storage) atomicWriteFile(filePath string, data []byte, perm os.FileMode
 	dir := filepath.Dir(filePath)
 	tempFile, err := os.CreateTemp(dir, ".tmp-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp file: %v", err)
+		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tempPath := tempFile.Name()
 
@@ -448,22 +494,22 @@ func (s *Storage) atomicWriteFile(filePath string, data []byte, perm os.FileMode
 	// Write data to temp file
 	if _, err := tempFile.Write(data); err != nil {
 		tempFile.Close()
-		return fmt.Errorf("failed to write to temp file: %v", err)
+		return fmt.Errorf("failed to write to temp file: %w", err)
 	}
 
 	// Close temp file before rename
 	if err := tempFile.Close(); err != nil {
-		return fmt.Errorf("failed to close temp file: %v", err)
+		return fmt.Errorf("failed to close temp file: %w", err)
 	}
 
 	// Set proper permissions
 	if err := os.Chmod(tempPath, perm); err != nil {
-		return fmt.Errorf("failed to set permissions: %v", err)
+		return fmt.Errorf("failed to set permissions: %w", err)
 	}
 
 	// Atomic rename - this is atomic on same filesystem
 	if err := os.Rename(tempPath, filePath); err != nil {
-		return fmt.Errorf("failed to rename temp file to target: %v", err)
+		return fmt.Errorf("failed to rename temp file to target: %w", err)
 	}
 
 	return nil
@@ -481,12 +527,12 @@ func (s *Storage) MoveQueueItem(itemID, fromStatus, toStatus string) error {
 // It always inspects the filesystem to discover the current location first.
 func (s *Storage) MoveTaskTo(taskID, toStatus string) (*TaskItem, string, error) {
 	if toStatus == "" {
-		return nil, "", fmt.Errorf("destination status required")
+		return nil, "", fmt.Errorf("move task %s: destination status required", taskID)
 	}
 
 	task, currentStatus, err := s.GetTaskByID(taskID)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("move task %s to %s: %w", taskID, toStatus, err)
 	}
 
 	if currentStatus == toStatus {
@@ -500,19 +546,20 @@ func (s *Storage) MoveTaskTo(taskID, toStatus string) (*TaskItem, string, error)
 	systemlog.Debugf("MoveTaskTo start: task=%s from=%s to=%s", taskID, currentStatus, toStatus)
 
 	if err := os.MkdirAll(filepath.Dir(toPath), 0755); err != nil {
-		return nil, "", fmt.Errorf("failed to ensure destination directory: %w", err)
+		return nil, "", fmt.Errorf("move task %s: ensure destination dir %s (path=%s): %w", taskID, toStatus, filepath.Dir(toPath), err)
 	}
 
 	if err := os.Rename(fromPath, toPath); err != nil {
-		systemlog.Errorf("MoveTaskTo rename failed: task=%s from=%s to=%s err=%v", taskID, currentStatus, toStatus, err)
-		return nil, "", fmt.Errorf("failed to move task %s from %s to %s: %w", taskID, currentStatus, toStatus, err)
+		wrappedErr := fmt.Errorf("move task %s: rename %s -> %s failed (from_path=%s, to_path=%s): %w", taskID, currentStatus, toStatus, fromPath, toPath, err)
+		systemlog.Errorf("MoveTaskTo rename failed: task=%s from=%s to=%s from_path=%s to_path=%s err=%v", taskID, currentStatus, toStatus, fromPath, toPath, wrappedErr)
+		return nil, "", wrappedErr
 	}
 
 	log.Printf("Successfully moved task %s from %s to %s", taskID, currentStatus, toStatus)
 	systemlog.Debugf("MoveTaskTo completed: task=%s from=%s to=%s", taskID, currentStatus, toStatus)
 
 	if err := s.cleanupDuplicateTaskFiles(taskID, toStatus); err != nil {
-		return task, currentStatus, err
+		return task, currentStatus, fmt.Errorf("move task %s: cleanup duplicates after move to %s: %w", taskID, toStatus, err)
 	}
 
 	return task, currentStatus, nil
@@ -532,94 +579,47 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 	return nil
 }
 
-// GetTaskByID finds a task by ID across all queue statuses
+// readAndValidateTaskFile reads a task file and validates its ID matches the expected taskID
+func (s *Storage) readAndValidateTaskFile(filePath, taskID string) (*TaskItem, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var task TaskItem
+	if err := yaml.Unmarshal(data, &task); err != nil {
+		return nil, err
+	}
+
+	// Verify the internal ID matches what we're looking for
+	if task.ID != taskID {
+		return nil, fmt.Errorf("task ID mismatch: expected %s, got %s", taskID, task.ID)
+	}
+
+	return &task, nil
+}
+
+// filenameMatchesTaskID checks if a filename (without .yaml) matches the taskID or its prefix
+func filenameMatchesTaskID(filename, taskID, taskIDPrefix string) bool {
+	nameWithoutExt := strings.TrimSuffix(filename, ".yaml")
+	return nameWithoutExt == taskID || nameWithoutExt == taskIDPrefix
+}
+
+// GetTaskByID finds a task by ID across all queue statuses using a progressive search strategy
 func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
-	statuses := queueStatuses
-
-	// Strategy 1: Try exact filename match
-	for _, status := range statuses {
+	// Strategy 1: Try exact filename match (fastest path)
+	for _, status := range queueStatuses {
 		filePath := filepath.Join(s.QueueDir, status, fmt.Sprintf("%s.yaml", taskID))
-		if _, err := os.Stat(filePath); err == nil {
-			data, err := os.ReadFile(filePath)
-			if err != nil {
-				continue
-			}
-
-			var task TaskItem
-			if err := yaml.Unmarshal(data, &task); err != nil {
-				continue
-			}
-
-			if err := s.cleanupDuplicateTaskFiles(taskID, status); err != nil {
-				log.Printf("Warning: failed to cleanup duplicate files for task %s (keeping %s): %v", taskID, status, err)
-				systemlog.Warnf("Failed to cleanup duplicate files for task %s (keeping %s): %v", taskID, status, err)
-			}
-			return &task, status, nil
+		if task, err := s.readAndValidateTaskFile(filePath, taskID); err == nil {
+			// PERFORMANCE: Don't cleanup on read - cleanup is handled during saves/moves
+			// This avoids expensive filesystem scans on every task lookup
+			return task, status, nil
 		}
 	}
 
-	// Strategy 2: Try to find a file where the filename (without .yaml) starts with the taskID
-	// This handles cases where the ID has extra suffix but filename doesn't
-	// Use regex to detect timestamp patterns more robustly
-	taskIDPrefix := taskID
-
-	// Pattern matches common timestamp formats at the end:
-	// - 6 digits (HHMMSS format like 010900)
-	// - 8 digits (YYYYMMDD format like 20250110)
-	// - timestamp with dashes like 2025-01-10
-	if matches := timestampSuffixPattern.FindStringSubmatch(taskID); len(matches) > 0 {
-		// Remove the timestamp suffix to get the base ID
-		taskIDPrefix = taskID[:len(taskID)-len(matches[0])]
-	}
-
-	// Try to find file with the prefix
-	for _, status := range statuses {
-		dirPath := filepath.Join(s.QueueDir, status)
-		entries, err := os.ReadDir(dirPath)
-		if err != nil {
-			continue
-		}
-
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-
-			filename := entry.Name()
-			if !strings.HasSuffix(filename, ".yaml") {
-				continue
-			}
-
-			// Remove .yaml extension
-			nameWithoutExt := strings.TrimSuffix(filename, ".yaml")
-
-			// Check if this file matches our taskID or taskIDPrefix
-			if nameWithoutExt == taskIDPrefix || nameWithoutExt == taskID {
-				filePath := filepath.Join(dirPath, filename)
-				data, err := os.ReadFile(filePath)
-				if err != nil {
-					continue
-				}
-
-				var task TaskItem
-				if err := yaml.Unmarshal(data, &task); err != nil {
-					continue
-				}
-
-				// Verify the ID matches what we're looking for
-				if task.ID == taskID {
-					if err := s.cleanupDuplicateTaskFiles(taskID, status); err != nil {
-						log.Printf("Warning: failed to cleanup duplicate files for task %s (keeping %s): %v", taskID, status, err)
-						systemlog.Warnf("Failed to cleanup duplicate files for task %s (keeping %s): %v", taskID, status, err)
-					}
-					return &task, status, nil
-				}
-			}
-		}
-	}
-
-	// Strategy 3: As a last resort, scan all files and match by internal ID
-	for _, status := range statuses {
+	// Strategy 2 & 3: Scan directories for filename or internal ID match
+	// Optimized to read each file only once by caching the first read attempt
+	for _, status := range queueStatuses {
 		dirPath := filepath.Join(s.QueueDir, status)
 		entries, err := os.ReadDir(dirPath)
 		if err != nil {
@@ -631,9 +631,13 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 				continue
 			}
 
-			filePath := filepath.Join(dirPath, entry.Name())
-			data, err := os.ReadFile(filePath)
-			if err != nil {
+			filename := entry.Name()
+			filePath := filepath.Join(dirPath, filename)
+
+			// Read the file once and check both filename and internal ID
+			// This avoids double-read when filename matches but ID validation fails
+			data, readErr := os.ReadFile(filePath)
+			if readErr != nil {
 				continue
 			}
 
@@ -642,11 +646,9 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 				continue
 			}
 
+			// Check if internal ID matches (works for both strategies)
 			if task.ID == taskID {
-				if err := s.cleanupDuplicateTaskFiles(taskID, status); err != nil {
-					log.Printf("Warning: failed to cleanup duplicate files for task %s (keeping %s): %v", taskID, status, err)
-					systemlog.Warnf("Failed to cleanup duplicate files for task %s (keeping %s): %v", taskID, status, err)
-				}
+				// PERFORMANCE: Don't cleanup on read - cleanup is handled during saves/moves
 				return &task, status, nil
 			}
 		}
@@ -662,7 +664,7 @@ func (s *Storage) DeleteTask(taskID string) (string, error) {
 		if _, err := os.Stat(filePath); err == nil {
 			// Delete the file
 			if err := os.Remove(filePath); err != nil {
-				return status, fmt.Errorf("failed to delete task: %v", err)
+				return status, fmt.Errorf("failed to delete task: %w", err)
 			}
 
 			log.Printf("Deleted task %s from %s", taskID, status)
@@ -671,23 +673,4 @@ func (s *Storage) DeleteTask(taskID string) (string, error) {
 	}
 
 	return "", fmt.Errorf("task not found: %s", taskID)
-}
-
-// Utility functions
-func Contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
-func ContainsTask(slice []TaskItem, item TaskItem) bool {
-	for _, t := range slice {
-		if t.ID == item.ID {
-			return true
-		}
-	}
-	return false
 }
