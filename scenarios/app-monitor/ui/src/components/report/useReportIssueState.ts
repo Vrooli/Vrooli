@@ -35,6 +35,12 @@ import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
 import { useScenarioIssuesStore } from '@/state/scenarioIssuesStore';
 import { useSnackPublisher } from '@/notifications/useSnackPublisher';
 import type { SnackPublishOptions, SnackUpdateOptions } from '@/notifications/snackBus';
+import {
+  estimateReportPayloadSize,
+  validatePayloadSize,
+  compressBase64Image,
+  formatBytes,
+} from '@/utils/payloadSize';
 
 import { toConsoleEntry, toNetworkEntry } from './reportFormatters';
 import type {
@@ -1074,43 +1080,70 @@ const useReportIssueState = ({
         return;
       }
 
-      const capturePayloads: ReportIssueCapturePayload[] = elementCaptures.map((capture, index) => {
-        const normalizedClasses = (capture.metadata.classes ?? []).filter(Boolean);
-        const createdAtIso = Number.isFinite(capture.createdAt)
-          ? new Date(capture.createdAt).toISOString()
-          : null;
+      // Compress element captures if needed to reduce payload size
+      const capturePayloads: ReportIssueCapturePayload[] = await Promise.all(
+        elementCaptures.map(async (capture, index) => {
+          const normalizedClasses = (capture.metadata.classes ?? []).filter(Boolean);
+          const createdAtIso = Number.isFinite(capture.createdAt)
+            ? new Date(capture.createdAt).toISOString()
+            : null;
 
-        return {
-          id: capture.id || `element-${index + 1}`,
-          type: 'element',
-          width: capture.width,
-          height: capture.height,
-          data: capture.data,
-          note: capture.note.trim() || null,
-          selector: capture.metadata.selector ?? null,
-          tagName: capture.metadata.tagName ?? null,
-          elementId: capture.metadata.elementId ?? null,
-          classes: normalizedClasses.length > 0 ? normalizedClasses : null,
-          label: capture.metadata.label ?? null,
-          ariaDescription: capture.metadata.ariaDescription ?? null,
-          title: capture.metadata.title ?? null,
-          role: capture.metadata.role ?? null,
-          text: capture.metadata.text ?? null,
-          boundingBox: capture.metadata.boundingBox ?? null,
-          clip: capture.clip ?? null,
-          mode: capture.mode ?? null,
-          filename: capture.filename ?? null,
-          createdAt: createdAtIso,
-        } satisfies ReportIssueCapturePayload;
-      });
+          // Compress if image is large (>500 KiB estimated)
+          let imageData = capture.data;
+          const estimatedSize = imageData.length * 0.75; // Rough estimate of decoded size
+          if (estimatedSize > 512 * 1024) {
+            try {
+              logger.info(`Compressing large element capture ${index + 1} (estimated ${formatBytes(estimatedSize)})`);
+              imageData = await compressBase64Image(imageData, 1600, 1200, 0.8);
+            } catch (error) {
+              logger.warn(`Failed to compress element capture ${index + 1}, using original`, error);
+            }
+          }
+
+          return {
+            id: capture.id || `element-${index + 1}`,
+            type: 'element',
+            width: capture.width,
+            height: capture.height,
+            data: imageData,
+            note: capture.note.trim() || null,
+            selector: capture.metadata.selector ?? null,
+            tagName: capture.metadata.tagName ?? null,
+            elementId: capture.metadata.elementId ?? null,
+            classes: normalizedClasses.length > 0 ? normalizedClasses : null,
+            label: capture.metadata.label ?? null,
+            ariaDescription: capture.metadata.ariaDescription ?? null,
+            title: capture.metadata.title ?? null,
+            role: capture.metadata.role ?? null,
+            text: capture.metadata.text ?? null,
+            boundingBox: capture.metadata.boundingBox ?? null,
+            clip: capture.clip ?? null,
+            mode: capture.mode ?? null,
+            filename: capture.filename ?? null,
+            createdAt: createdAtIso,
+          } satisfies ReportIssueCapturePayload;
+        }),
+      );
 
       if (includeScreenshot && reportScreenshotData) {
+        // Compress primary screenshot if large
+        let primaryScreenshotData = reportScreenshotData;
+        const estimatedSize = reportScreenshotData.length * 0.75;
+        if (estimatedSize > 512 * 1024) {
+          try {
+            logger.info(`Compressing primary screenshot (estimated ${formatBytes(estimatedSize)})`);
+            primaryScreenshotData = await compressBase64Image(reportScreenshotData, 1920, 1080, 0.85);
+          } catch (error) {
+            logger.warn('Failed to compress primary screenshot, using original', error);
+          }
+        }
+
         capturePayloads.unshift({
           id: 'page-capture',
           type: 'page',
           width: reportScreenshotOriginalDimensions?.width ?? 0,
           height: reportScreenshotOriginalDimensions?.height ?? 0,
-          data: reportScreenshotData,
+          data: primaryScreenshotData,
           note: null,
           selector: null,
           tagName: null,
@@ -1237,6 +1270,29 @@ const useReportIssueState = ({
         if (capturedSource) {
           payload.appStatusCapturedAt = capturedSource;
         }
+      }
+
+      // Validate payload size before submission to prevent 413 errors
+      const sizeEstimate = estimateReportPayloadSize(payload);
+      const sizeValidation = validatePayloadSize(sizeEstimate.total);
+
+      if (!sizeValidation.ok) {
+        setReportError(sizeValidation.message ?? 'Payload too large. Remove some captures or logs.');
+        logger.error('Report payload exceeds size limit', {
+          estimated: sizeValidation.estimatedSize,
+          max: sizeValidation.maxSize,
+          breakdown: sizeEstimate,
+        });
+        return;
+      }
+
+      // Log size warning if approaching limit
+      if (sizeValidation.warning) {
+        logger.warn('Report payload size approaching limit', {
+          estimated: sizeValidation.estimatedSize,
+          percentUsed: `${(sizeValidation.percentUsed * 100).toFixed(1)}%`,
+          breakdown: sizeEstimate,
+        });
       }
 
       progressSnackId = snackPublisher.publish({
