@@ -230,6 +230,23 @@ func (h *SystemHandler) invalidateResourceCache() {
 	h.resourceCache.timestamp = time.Time{}
 }
 
+func (h *SystemHandler) removeFromResourceCache(id string) {
+	h.resourceCache.mu.Lock()
+	defer h.resourceCache.mu.Unlock()
+
+	if len(h.resourceCache.data) == 0 {
+		return
+	}
+
+	filtered := make([]map[string]interface{}, 0, len(h.resourceCache.data))
+	for _, resource := range h.resourceCache.data {
+		if stringValue(resource["id"]) != id {
+			filtered = append(filtered, resource)
+		}
+	}
+	h.resourceCache.data = filtered
+}
+
 func (h *SystemHandler) upsertResourceCache(resource map[string]interface{}) {
 	if resource == nil {
 		return
@@ -438,6 +455,77 @@ func (h *SystemHandler) GetSystemMetrics(c *gin.Context) {
 	})
 }
 
+// GetSystemStatus returns lightweight system status for quick polling
+// This endpoint is optimized to avoid expensive full data fetches
+func (h *SystemHandler) GetSystemStatus(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Get counts from orchestrator cache (fast, uses existing cache)
+	appCount, resourceCount, uptime, status := getQuickSystemStatus(ctx)
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":          status,
+		"app_count":       appCount,
+		"resource_count":  resourceCount,
+		"uptime_seconds":  uptime,
+		"checked_at":      time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// getQuickSystemStatus retrieves system status without expensive operations
+// Uses single unified CLI call for optimal performance
+func getQuickSystemStatus(ctx context.Context) (appCount int, resourceCount int, uptimeSeconds *float64, status string) {
+	status = "degraded" // Default to degraded if command fails
+
+	// Single unified CLI call - much faster than separate scenario/resource list commands
+	// Timeout set to 15s to accommodate resource health checks (with 118 resources, this can take 10-15s)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(timeoutCtx, "vrooli", "status", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		// Log error for debugging but don't expose details to API response
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			fmt.Fprintf(os.Stderr, "vrooli status command failed: %s\n", string(exitErr.Stderr))
+		}
+		// If status command fails, return degraded status with zero counts
+		return 0, 0, nil, "degraded"
+	}
+
+	// Parse unified status response
+	var statusData struct {
+		ScenariosTotal   int    `json:"scenarios_total"`
+		ResourcesEnabled int    `json:"resources_enabled"`
+		HealthStatus     string `json:"health_status"`
+	}
+
+	if err := json.Unmarshal(output, &statusData); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to parse vrooli status response: %v\n", err)
+		return 0, 0, nil, "degraded"
+	}
+
+	appCount = statusData.ScenariosTotal
+	resourceCount = statusData.ResourcesEnabled
+	status = statusData.HealthStatus
+
+	// Normalize status value to expected format
+	if status == "" {
+		status = "healthy"
+	}
+
+	// Get orchestrator uptime separately (quick operation with 500ms timeout)
+	quickCtx, quickCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer quickCancel()
+
+	if uptime, err := getOrchestratorUptime(quickCtx); err == nil {
+		uptimeSeconds = &uptime
+	}
+	// Note: uptime failure doesn't change status - status comes from vrooli status command
+
+	return appCount, resourceCount, uptimeSeconds, status
+}
+
 // GetResources returns the status of all resources with caching
 func (h *SystemHandler) GetResources(c *gin.Context) {
 	// Check cache first (cache valid for 20 seconds)
@@ -552,15 +640,17 @@ func (h *SystemHandler) handleResourceAction(c *gin.Context, action string) {
 		return
 	}
 
-	// Invalidate cache so subsequent requests fetch fresh data
-	h.invalidateResourceCache()
-
+	// Fetch fresh status for this specific resource and update cache
 	statusCtx, statusCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer statusCancel()
 
 	resource, fetchErr := h.fetchResourceStatus(statusCtx, name)
 	if fetchErr == nil {
+		// Update only this resource in cache (preserves other resources)
 		h.upsertResourceCache(resource)
+	} else {
+		// Remove from cache on error so it gets re-fetched next time
+		h.removeFromResourceCache(name)
 	}
 
 	response := gin.H{

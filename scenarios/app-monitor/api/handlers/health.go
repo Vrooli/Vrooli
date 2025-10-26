@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -18,6 +19,17 @@ import (
 )
 
 var startTime = time.Now()
+
+// orchestratorPIDCache caches the orchestrator PID to avoid expensive pgrep calls
+type orchestratorPIDCache struct {
+	pid       string
+	timestamp time.Time
+	mu        sync.RWMutex
+}
+
+var orchPIDCache = &orchestratorPIDCache{}
+
+const orchestratorPIDCacheTTL = 60 * time.Second // Cache PID for 60 seconds
 
 // HealthHandler handles health check endpoints
 type HealthHandler struct {
@@ -55,12 +67,69 @@ func (h *HealthHandler) Check(c *gin.Context) {
 	}
 
 	dependencies := healthResponse["dependencies"].(map[string]interface{})
-
 	metrics := healthResponse["metrics"].(map[string]interface{})
 
-	// 1. Check orchestrator health to capture true Vrooli uptime
-	orchestratorHealth := h.checkOrchestrator(ctx)
-	dependencies["orchestrator"] = orchestratorHealth
+	// Run all dependency checks in parallel for faster response
+	type checkResult struct {
+		name string
+		data map[string]interface{}
+	}
+
+	resultsChan := make(chan checkResult, 5)
+	var wg sync.WaitGroup
+	wg.Add(5)
+
+	// Launch all checks concurrently
+	go func() {
+		defer wg.Done()
+		resultsChan <- checkResult{"orchestrator", h.checkOrchestrator(ctx)}
+	}()
+
+	go func() {
+		defer wg.Done()
+		resultsChan <- checkResult{"docker", h.checkDocker(ctx)}
+	}()
+
+	go func() {
+		defer wg.Done()
+		resultsChan <- checkResult{"database", h.checkDatabase()}
+	}()
+
+	go func() {
+		defer wg.Done()
+		resultsChan <- checkResult{"redis", h.checkRedis(ctx)}
+	}()
+
+	go func() {
+		defer wg.Done()
+		resultsChan <- checkResult{"system_metrics", h.checkSystemMetrics()}
+	}()
+
+	// Close channel when all checks complete
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	// Collect all results
+	var orchestratorHealth, dockerHealth, dbHealth, redisHealth, metricsHealth map[string]interface{}
+	for result := range resultsChan {
+		dependencies[result.name] = result.data
+		switch result.name {
+		case "orchestrator":
+			orchestratorHealth = result.data
+		case "docker":
+			dockerHealth = result.data
+		case "database":
+			dbHealth = result.data
+		case "redis":
+			redisHealth = result.data
+		case "system_metrics":
+			metricsHealth = result.data
+		}
+	}
+
+	// Process orchestrator health to capture true Vrooli uptime
 	if connected, ok := orchestratorHealth["connected"].(bool); ok && connected {
 		if uptimeSeconds, ok := orchestratorHealth["uptime_seconds"].(float64); ok && uptimeSeconds > 0 {
 			metrics["uptime_seconds"] = uptimeSeconds
@@ -75,34 +144,26 @@ func (h *HealthHandler) Check(c *gin.Context) {
 		}
 	}
 
-	// 2. Check Docker connectivity (critical for app monitoring)
-	dockerHealth := h.checkDocker(ctx)
-	dependencies["docker"] = dockerHealth
+	// Check Docker connectivity (critical for app monitoring)
 	if dockerHealth["connected"] == false {
 		overallStatus = "unhealthy" // Docker is critical for app-monitor
 	}
 
-	// 3. Check PostgreSQL database
-	dbHealth := h.checkDatabase()
-	dependencies["database"] = dbHealth
+	// Check PostgreSQL database
 	if dbHealth["connected"] == false {
 		if overallStatus == "healthy" {
 			overallStatus = "degraded"
 		}
 	}
 
-	// 4. Check Redis cache
-	redisHealth := h.checkRedis(ctx)
-	dependencies["redis"] = redisHealth
+	// Check Redis cache
 	if redisHealth["connected"] == false {
 		if overallStatus == "healthy" {
 			overallStatus = "degraded"
 		}
 	}
 
-	// 5. Check system metrics collection capability
-	metricsHealth := h.checkSystemMetrics()
-	dependencies["system_metrics"] = metricsHealth
+	// Check system metrics collection capability
 	if metricsHealth["connected"] == false {
 		if overallStatus == "healthy" {
 			overallStatus = "degraded"
@@ -149,29 +210,50 @@ func getOrchestratorUptime(ctx context.Context) (float64, error) {
 	procCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	patterns := []string{
-		"enhanced_orchestrator.py",
-		"orchestrator.py",
-		"vrooli-orchestrator",
-	}
+	// Try to get PID from cache first
+	orchPIDCache.mu.RLock()
+	cachedPID := orchPIDCache.pid
+	cacheAge := time.Since(orchPIDCache.timestamp)
+	orchPIDCache.mu.RUnlock()
 
 	var pid string
-	for _, pattern := range patterns {
-		pidCmd := exec.CommandContext(procCtx, "bash", "-lc", fmt.Sprintf("pgrep -f '%s' | head -n 1", pattern))
-		pidRaw, err := pidCmd.Output()
-		if err != nil {
-			continue
+	if cachedPID != "" && cacheAge < orchestratorPIDCacheTTL {
+		// Use cached PID if still valid
+		pid = cachedPID
+	} else {
+		// Cache miss or expired - do expensive lookup
+		patterns := []string{
+			"enhanced_orchestrator.py",
+			"orchestrator.py",
+			"vrooli-orchestrator",
 		}
 
-		candidate := strings.TrimSpace(string(pidRaw))
-		if candidate != "" {
-			pid = candidate
-			break
-		}
-	}
+		for _, pattern := range patterns {
+			pidCmd := exec.CommandContext(procCtx, "bash", "-lc", fmt.Sprintf("pgrep -f '%s' | head -n 1", pattern))
+			pidRaw, err := pidCmd.Output()
+			if err != nil {
+				continue
+			}
 
-	if pid == "" {
-		return 0, fmt.Errorf("orchestrator process not found for patterns %v", patterns)
+			candidate := strings.TrimSpace(string(pidRaw))
+			if candidate != "" {
+				pid = candidate
+				// Cache the PID
+				orchPIDCache.mu.Lock()
+				orchPIDCache.pid = pid
+				orchPIDCache.timestamp = time.Now()
+				orchPIDCache.mu.Unlock()
+				break
+			}
+		}
+
+		if pid == "" {
+			// Clear cache on failure
+			orchPIDCache.mu.Lock()
+			orchPIDCache.pid = ""
+			orchPIDCache.mu.Unlock()
+			return 0, fmt.Errorf("orchestrator process not found for patterns %v", patterns)
+		}
 	}
 
 	uptimeCmd := exec.CommandContext(procCtx, "ps", "-p", pid, "-o", "etime=")

@@ -51,6 +51,44 @@
   align-items: center;
 }
 
+.actions-dialog__status-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.actions-dialog__last-checked {
+  font-size: 0.8rem;
+  color: rgba(231, 235, 255, 0.5);
+  letter-spacing: 0.02em;
+}
+
+.actions-dialog__refresh-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(122, 160, 255, 0.9);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 160ms ease;
+  flex-shrink: 0;
+}
+
+.actions-dialog__refresh-btn:hover:not(:disabled) {
+  background: rgba(122, 160, 255, 0.15);
+  color: rgba(122, 160, 255, 1);
+}
+
+.actions-dialog__refresh-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .actions-dialog__spinner {
   color: rgba(122, 160, 255, 0.95);
   animation: actions-dialog-spin 1s linear infinite;

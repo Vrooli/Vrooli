@@ -11,6 +11,13 @@ import type {
   AppProxyMetadata,
   LocalhostUsageReport,
 } from '@/types';
+import type {
+  ApiHealthResponse,
+  UiHealthResponse,
+  SystemStatusResponse,
+  PreviewHealthDiagnosticsResponse,
+  PreviewHealthDiagnosticsResult,
+} from '@/types/health';
 import { logger } from '@/services/logger';
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base';
 
@@ -106,16 +113,6 @@ export interface ReportIssueNetworkEntry {
   requestId?: string;
 }
 
-export interface ReportIssueHealthCheckEntry {
-  id: string;
-  name: string;
-  status: 'pass' | 'warn' | 'fail';
-  endpoint?: string | null;
-  latencyMs?: number | null;
-  message?: string | null;
-  code?: string | null;
-  response?: string | null;
-}
 
 export type ReportIssueAppStatusSeverity = 'ok' | 'warn' | 'error';
 
@@ -130,6 +127,18 @@ export interface ReportIssueAppStatus {
   ports?: Record<string, number> | null;
   recommendations?: string[] | null;
   details: string[];
+}
+
+export interface ReportIssueHealthCheckEntry {
+  id: string;
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  endpoint?: string | null;
+  latency_ms?: number | null;
+  latencyMs?: number | null;
+  message?: string | null;
+  code?: string | null;
+  response?: string | null;
 }
 
 export interface ReportIssueCapturePayload {
@@ -155,25 +164,8 @@ export interface ReportIssueCapturePayload {
   createdAt?: string | null;
 }
 
-export interface PreviewHealthDiagnosticsResponse {
-  app_id: string;
-  app_name?: string | null;
-  scenario?: string | null;
-  captured_at?: string | null;
-  ports?: Record<string, number> | null;
-  checks?: ReportIssueHealthCheckEntry[] | null;
-  errors?: (string | null | undefined)[] | null;
-}
-
-export interface PreviewHealthDiagnosticsResult {
-  appId: string | null;
-  appName: string | null;
-  scenario: string | null;
-  capturedAt: string | null;
-  checks: ReportIssueHealthCheckEntry[];
-  errors: string[];
-  ports: Record<string, number>;
-}
+// Re-export health types for convenience
+export type { PreviewHealthDiagnosticsResponse, PreviewHealthDiagnosticsResult } from '@/types/health';
 
 export interface ReportIssuePayload {
   message: string;
@@ -532,48 +524,22 @@ export const logService = {
   },
 };
 
-// Health Check
-export interface ApiHealthResponse {
-  status?: string;
-  service?: string;
-  metrics?: {
-    uptime_seconds?: number;
-    [key: string]: unknown;
-  };
-  [key: string]: unknown;
-}
-
-export interface UiHealthResponse {
-  status?: string;
-  service?: string;
-  readiness?: boolean;
-  api_connectivity?: {
-    connected?: boolean;
-    api_url?: string;
-    latency_ms?: number | null;
-    error?: {
-      code?: string;
-      message?: string;
-      category?: string;
-    } | null;
-  };
-  websocket?: {
-    connected?: boolean;
-    active_connections?: number;
-    error?: {
-      code?: string;
-      message?: string;
-    } | null;
-  };
-  metrics?: {
-    uptime_seconds?: number;
-    memory_usage_mb?: number;
-    websocket_clients?: number;
-  };
-  [key: string]: unknown;
-}
-
+// Health Check Service
 export const healthService = {
+  /**
+   * Get lightweight system status for quick polling
+   * Optimized to avoid expensive full data fetches
+   */
+  async getSystemStatus(): Promise<SystemStatusResponse | null> {
+    try {
+      const { data } = await api.get<SystemStatusResponse>('/system/status');
+      return data;
+    } catch (error) {
+      logger.error('Failed to fetch system status', error);
+      return null;
+    }
+  },
+
   async checkHealth(): Promise<ApiHealthResponse | null> {
     try {
       const result = await healthService.checkHealthWithMeta();
@@ -581,16 +547,6 @@ export const healthService = {
     } catch (error) {
       logger.error('Health check failed', error);
       return null;
-    }
-  },
-
-  async performHealthCheck(): Promise<ApiResponse> {
-    try {
-      const { data } = await api.post<ApiResponse>('/health/check');
-      return data;
-    } catch (error) {
-      logger.error('Health check action failed', error);
-      return { success: false, error: 'Health check failed' };
     }
   },
 

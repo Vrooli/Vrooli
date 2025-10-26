@@ -14,13 +14,8 @@ export const useScenarioActions = () => {
     }
   }, []);
 
-  const triggerHealthCheck = useCallback(async () => {
-    alert('Health check initiated');
-  }, []);
-
   return {
     restartAll,
     stopAll,
-    triggerHealthCheck,
   };
 };

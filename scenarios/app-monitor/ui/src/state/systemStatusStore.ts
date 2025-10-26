@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { appService, resourceService, healthService } from '@/services/api';
+import { healthService } from '@/services/api';
 
 interface SystemStatusState {
   status: string | null;
@@ -9,6 +9,7 @@ interface SystemStatusState {
   resourceCount: number;
   loading: boolean;
   error: string | null;
+  lastChecked: Date | null;
   refresh: () => Promise<void>;
 }
 
@@ -19,42 +20,41 @@ export const useSystemStatusStore = create<SystemStatusState>((set, get) => ({
   resourceCount: 0,
   loading: false,
   error: null,
+  lastChecked: null,
 
   refresh: async (): Promise<void> => {
     if (get().loading) {
       return;
     }
 
-    set({ loading: true, error: null });
+    // Set loading flag but preserve previous data so UI stays visible
+    set({ loading: true });
 
     try {
-      const [appsResult, resourcesResult, healthResult] = await Promise.allSettled([
-        appService.getApps(),
-        resourceService.getResources(),
-        healthService.checkHealth(),
-      ]);
+      // Use new lightweight endpoint that returns just counts + status
+      const result = await healthService.getSystemStatus();
 
-      if (appsResult.status === 'fulfilled') {
-        set({ appCount: appsResult.value.length });
-      }
-
-      if (resourcesResult.status === 'fulfilled') {
-        set({ resourceCount: resourcesResult.value.length });
-      }
-
-      if (healthResult.status === 'fulfilled' && healthResult.value) {
-        const nextStatus = typeof healthResult.value.status === 'string'
-          ? healthResult.value.status.toLowerCase()
-          : null;
-        const uptime = typeof healthResult.value.metrics?.uptime_seconds === 'number'
-          ? healthResult.value.metrics.uptime_seconds
-          : null;
-        set({ status: nextStatus, uptimeSeconds: nextStatus === 'unhealthy' ? null : uptime });
-      } else if (healthResult.status === 'rejected') {
-        set({ status: 'unhealthy', uptimeSeconds: null });
+      if (result) {
+        set({
+          status: result.status || 'unknown',
+          uptimeSeconds: result.uptime_seconds ?? null,
+          appCount: result.app_count || 0,
+          resourceCount: result.resource_count || 0,
+          lastChecked: new Date(),
+          error: null, // Clear error only on success
+        });
+      } else {
+        set({
+          status: 'unhealthy',
+          uptimeSeconds: null,
+          lastChecked: new Date(),
+        });
       }
     } catch (error) {
-      set({ error: 'Unable to refresh system status.', status: 'unhealthy', uptimeSeconds: null });
+      set({
+        error: 'Unable to refresh system status.',
+        lastChecked: new Date(),
+      });
     } finally {
       set({ loading: false });
     }

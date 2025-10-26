@@ -121,6 +121,7 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 	v1 := r.Group("/api/v1")
 	{
 		// System endpoints
+		v1.GET("/system/status", h.system.GetSystemStatus)
 		v1.GET("/system/metrics", h.system.GetSystemMetrics)
 
 		// App management endpoints

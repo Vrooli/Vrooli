@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import clsx from 'clsx';
-import { Activity, Loader2, Power, RefreshCw } from 'lucide-react';
+import { Loader2, Power, RefreshCw } from 'lucide-react';
 import { useSystemStatus } from '@/state/systemStatusStore';
 import { useScenarioActions } from '@/hooks/useScenarioActions';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
@@ -28,8 +29,8 @@ const formatDuration = (seconds: number): string => {
 
 export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
   const { closeOverlay } = useOverlayRouter();
-  const { status, uptimeSeconds, appCount, resourceCount, loading } = useSystemStatus();
-  const { restartAll, stopAll, triggerHealthCheck } = useScenarioActions();
+  const { status, uptimeSeconds, appCount, resourceCount, loading, lastChecked, refresh } = useSystemStatus();
+  const { restartAll, stopAll } = useScenarioActions();
 
   const isSystemOnline = status ? !OFFLINE_STATES.has(status) : isConnected;
   const uptimeText = uptimeSeconds != null ? formatDuration(uptimeSeconds) : '—';
@@ -39,6 +40,21 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
   const statusDescription = loading
     ? 'Fetching the latest health snapshot.'
     : (isSystemOnline ? 'All systems are reachable.' : 'Connections disrupted.');
+
+  const lastCheckedText = useMemo(() => {
+    if (!lastChecked) return 'Never';
+    const now = Date.now();
+    const then = lastChecked.getTime();
+    const diffMs = now - then;
+    const diffSec = Math.floor(diffMs / 1000);
+
+    if (diffSec < 5) return 'Just now';
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    return `${diffHr}h ago`;
+  }, [lastChecked]);
 
   return (
     <div className="actions-dialog">
@@ -69,6 +85,21 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
             <p>{statusDescription}</p>
           </div>
         </div>
+        <div className="actions-dialog__status-meta">
+          <span className="actions-dialog__last-checked">
+            Checked {lastCheckedText}
+          </span>
+          <button
+            type="button"
+            className="actions-dialog__refresh-btn"
+            onClick={() => void refresh()}
+            disabled={loading}
+            aria-label="Refresh status"
+            title="Refresh status"
+          >
+            <RefreshCw size={14} aria-hidden />
+          </button>
+        </div>
         <dl
           className={clsx('actions-dialog__metrics', loading && 'actions-dialog__metrics--loading')}
           aria-live="polite"
@@ -77,19 +108,19 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
           <div>
             <dt>Scenarios</dt>
             <dd>
-              {loading ? <LoadingSkeleton width="60%" height="16px" /> : appCount}
+              {loading && appCount === 0 ? <LoadingSkeleton width="60%" height="16px" /> : appCount}
             </dd>
           </div>
           <div>
             <dt>Resources</dt>
             <dd>
-              {loading ? <LoadingSkeleton width="60%" height="16px" /> : resourceCount}
+              {loading && resourceCount === 0 ? <LoadingSkeleton width="60%" height="16px" /> : resourceCount}
             </dd>
           </div>
           <div>
             <dt>Uptime</dt>
             <dd>
-              {loading ? <LoadingSkeleton width="80%" height="16px" /> : uptimeText}
+              {loading && !uptimeSeconds ? <LoadingSkeleton width="80%" height="16px" /> : uptimeText}
             </dd>
           </div>
         </dl>
@@ -118,18 +149,6 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
           <div>
             <strong>Stop all apps</strong>
             <span>Shut down active scenarios to free resources.</span>
-          </div>
-        </button>
-        <button
-          type="button"
-          className="actions-dialog__action"
-          onClick={triggerHealthCheck}
-          disabled={loading}
-        >
-          <Activity size={18} aria-hidden />
-          <div>
-            <strong>Run health check</strong>
-            <span>Request a fresh system health snapshot.</span>
           </div>
         </button>
       </section>
