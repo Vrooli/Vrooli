@@ -148,6 +148,23 @@ func exportGin(c *gin.Context) {
   <expected-message>Content-Disposition header detected without corresponding Content-Type</expected-message>
 </test-case>
 
+<test-case id="binary-nosniff-without-content-type" should-fail="true" path="api/download.go">
+  <description>X-Content-Type-Options header alone is insufficient</description>
+  <input language="go">
+package main
+
+import "net/http"
+
+func exportNosniffOnly(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("X-Content-Type-Options", "nosniff")
+    w.Header().Set("Content-Disposition", "attachment; filename=\"report.bin\"")
+    w.Write([]byte("data"))
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Content-Disposition header detected without corresponding Content-Type</expected-message>
+</test-case>
+
 <test-case id="binary-helper-sets-content-type" should-fail="false" path="api/download.go">
   <description>Helper function that sets Content-Type should pass</description>
   <input language="go">
@@ -329,13 +346,15 @@ func CheckBinaryContentTypeHeaders(content []byte, filePath string) []Violation 
 		functionDecls[strings.ToLower(fn.Name.Name)] = fn
 	}
 
+	globalContentAliases, globalDispositionAliases := collectGlobalAliasInfo(file)
+
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok || fn.Body == nil {
 			continue
 		}
 
-		info := analyzeBinaryDownloadFunction(fn, functionDecls)
+		info := analyzeBinaryDownloadFunction(fn, functionDecls, globalContentAliases, globalDispositionAliases)
 		if len(info.missingDispositionPositions) == 0 {
 			continue
 		}
@@ -482,13 +501,13 @@ func (state flowState) flushPending(info *binaryFunctionInfo) flowState {
 	return state
 }
 
-func analyzeBinaryDownloadFunction(fn *ast.FuncDecl, functions map[string]*ast.FuncDecl) binaryFunctionInfo {
+func analyzeBinaryDownloadFunction(fn *ast.FuncDecl, functions map[string]*ast.FuncDecl, globalContentAliases, globalDispositionAliases map[string]struct{}) binaryFunctionInfo {
 	info := binaryFunctionInfo{
 		headerAliases:         make(map[string]struct{}),
 		responseWriterNames:   collectResponseWriterParams(fn),
 		contextNames:          collectContextParams(fn),
-		contentTypeKeyAliases: make(map[string]struct{}),
-		dispositionKeyAliases: make(map[string]struct{}),
+		contentTypeKeyAliases: cloneStringSet(globalContentAliases),
+		dispositionKeyAliases: cloneStringSet(globalDispositionAliases),
 	}
 
 	visited := make(map[string]struct{})
@@ -1125,13 +1144,7 @@ func isHeaderSelector(expr ast.Expr) bool {
 
 func headerKeyMatches(expr ast.Expr, keywords []string, info *binaryFunctionInfo) bool {
 	if str, ok := stringLiteral(expr); ok {
-		lower := strings.ToLower(str)
-		for _, keyword := range keywords {
-			if strings.Contains(lower, keyword) {
-				return true
-			}
-		}
-		return false
+		return keywordMatchesValue(str, keywords)
 	}
 
 	switch node := expr.(type) {
@@ -1143,33 +1156,99 @@ func headerKeyMatches(expr ast.Expr, keywords []string, info *binaryFunctionInfo
 	case *ast.Ident:
 		name := strings.ToLower(node.Name)
 		if info != nil {
-			if containsAnyKeyword(keywords, "content-type", "contenttype") && info.isContentTypeKey(name) {
+			if keywordRepresentsContentType(keywords) && info.isContentTypeKey(name) {
 				return true
 			}
-			if containsAnyKeyword(keywords, "content-disposition", "contentdisposition") && info.isDispositionKey(name) {
+			if keywordRepresentsContentDisposition(keywords) && info.isDispositionKey(name) {
 				return true
 			}
 		}
+		return keywordMatchesValue(name, keywords)
 	}
 
-	name := strings.ToLower(exprToString(expr))
+	name := exprToString(expr)
+	if name == "" {
+		return false
+	}
+	return keywordMatchesValue(name, keywords)
+}
+
+func keywordMatchesValue(value string, keywords []string) bool {
+	normalized := normalizeHeaderKeyword(value)
 	for _, keyword := range keywords {
-		if strings.Contains(name, keyword) {
+		if normalizeHeaderKeyword(keyword) == normalized {
 			return true
 		}
 	}
 	return false
 }
 
-func containsAnyKeyword(keywords []string, options ...string) bool {
+func keywordRepresentsContentType(keywords []string) bool {
 	for _, keyword := range keywords {
-		for _, option := range options {
-			if keyword == option {
-				return true
-			}
+		if normalizeHeaderKeyword(keyword) == "contenttype" {
+			return true
 		}
 	}
 	return false
+}
+
+func keywordRepresentsContentDisposition(keywords []string) bool {
+	for _, keyword := range keywords {
+		if normalizeHeaderKeyword(keyword) == "contentdisposition" {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeHeaderKeyword(s string) string {
+	if s == "" {
+		return ""
+	}
+	lower := strings.ToLower(s)
+	var b strings.Builder
+	b.Grow(len(lower))
+	for _, r := range lower {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func cloneStringSet(src map[string]struct{}) map[string]struct{} {
+	if len(src) == 0 {
+		return make(map[string]struct{})
+	}
+	clone := make(map[string]struct{}, len(src))
+	for k := range src {
+		clone[k] = struct{}{}
+	}
+	return clone
+}
+
+func collectGlobalAliasInfo(file *ast.File) (map[string]struct{}, map[string]struct{}) {
+	info := binaryFunctionInfo{
+		headerAliases:         make(map[string]struct{}),
+		responseWriterNames:   make(map[string]struct{}),
+		contextNames:          make(map[string]struct{}),
+		contentTypeKeyAliases: make(map[string]struct{}),
+		dispositionKeyAliases: make(map[string]struct{}),
+	}
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			valueSpec, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			recordHeaderKeyAliases(&info, exprSliceFromNames(valueSpec.Names), valueSpec.Values)
+		}
+	}
+	return info.contentTypeKeyAliases, info.dispositionKeyAliases
 }
 
 func exprToString(expr ast.Expr) string {

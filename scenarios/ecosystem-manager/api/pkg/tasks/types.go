@@ -6,49 +6,49 @@ import (
 
 // TaskItem represents a unified task in the ecosystem
 type TaskItem struct {
-	ID                          string                 `json:"id" yaml:"id"`
-	Title                       string                 `json:"title" yaml:"title"`
-	Type                        string                 `json:"type" yaml:"type"`           // resource | scenario
-	Operation                   string                 `json:"operation" yaml:"operation"` // generator | improver
-	Target                      string                 `json:"target,omitempty" yaml:"target,omitempty"`
-	Targets                     []string               `json:"targets,omitempty" yaml:"targets,omitempty"`
-	Category                    string                 `json:"category" yaml:"category"`
-	Priority                    string                 `json:"priority" yaml:"priority"`
-	EffortEstimate              string                 `json:"effort_estimate" yaml:"effort_estimate"`
-	Urgency                     string                 `json:"urgency" yaml:"urgency"`
-	Dependencies                []string               `json:"dependencies" yaml:"dependencies"`
-	Blocks                      []string               `json:"blocks" yaml:"blocks"`
-	RelatedScenarios            []string               `json:"related_scenarios" yaml:"related_scenarios"`
-	RelatedResources            []string               `json:"related_resources" yaml:"related_resources"`
-	Status                      string                 `json:"status" yaml:"status"`
-	CurrentPhase                string                 `json:"current_phase" yaml:"current_phase"`
-	StartedAt                   string                 `json:"started_at" yaml:"started_at"`
-	CompletedAt                 string                 `json:"completed_at" yaml:"completed_at"`
-	CompletionCount             int                    `json:"completion_count" yaml:"completion_count"`
-	LastCompletedAt             string                 `json:"last_completed_at" yaml:"last_completed_at"`
-	ValidationCriteria          []string               `json:"validation_criteria" yaml:"validation_criteria"`
-	CreatedBy                   string                 `json:"created_by" yaml:"created_by"`
-	CreatedAt                   string                 `json:"created_at" yaml:"created_at"`
-	UpdatedAt                   string                 `json:"updated_at" yaml:"updated_at"`
-	Tags                        []string               `json:"tags" yaml:"tags"`
-	Notes                       string                 `json:"notes" yaml:"notes"`
-	Results                     map[string]interface{} `json:"results" yaml:"results"`
-	ConsecutiveCompletionClaims int                    `json:"consecutive_completion_claims" yaml:"consecutive_completion_claims"`
-	ConsecutiveFailures         int                    `json:"consecutive_failures" yaml:"consecutive_failures"`
-	ProcessorAutoRequeue        bool                   `json:"processor_auto_requeue" yaml:"processor_auto_requeue"`
+	ID                          string         `json:"id" yaml:"id"`
+	Title                       string         `json:"title" yaml:"title"`
+	Type                        string         `json:"type" yaml:"type"`           // resource | scenario
+	Operation                   string         `json:"operation" yaml:"operation"` // generator | improver
+	Target                      string         `json:"target,omitempty" yaml:"target,omitempty"`
+	Targets                     []string       `json:"targets,omitempty" yaml:"targets,omitempty"`
+	Category                    string         `json:"category" yaml:"category"`
+	Priority                    string         `json:"priority" yaml:"priority"`
+	EffortEstimate              string         `json:"effort_estimate" yaml:"effort_estimate"`
+	Urgency                     string         `json:"urgency" yaml:"urgency"`
+	Dependencies                []string       `json:"dependencies" yaml:"dependencies"`
+	Blocks                      []string       `json:"blocks" yaml:"blocks"`
+	RelatedScenarios            []string       `json:"related_scenarios" yaml:"related_scenarios"`
+	RelatedResources            []string       `json:"related_resources" yaml:"related_resources"`
+	Status                      string         `json:"status" yaml:"status"`
+	CurrentPhase                string         `json:"current_phase" yaml:"current_phase"`
+	StartedAt                   string         `json:"started_at" yaml:"started_at"`
+	CompletedAt                 string         `json:"completed_at" yaml:"completed_at"`
+	CompletionCount             int            `json:"completion_count" yaml:"completion_count"`
+	LastCompletedAt             string         `json:"last_completed_at" yaml:"last_completed_at"`
+	ValidationCriteria          []string       `json:"validation_criteria" yaml:"validation_criteria"`
+	CreatedBy                   string         `json:"created_by" yaml:"created_by"`
+	CreatedAt                   string         `json:"created_at" yaml:"created_at"`
+	UpdatedAt                   string         `json:"updated_at" yaml:"updated_at"`
+	Tags                        []string       `json:"tags" yaml:"tags"`
+	Notes                       string         `json:"notes" yaml:"notes"`
+	Results                     map[string]any `json:"results" yaml:"results"`
+	ConsecutiveCompletionClaims int            `json:"consecutive_completion_claims" yaml:"consecutive_completion_claims"`
+	ConsecutiveFailures         int            `json:"consecutive_failures" yaml:"consecutive_failures"`
+	ProcessorAutoRequeue        bool           `json:"processor_auto_requeue" yaml:"processor_auto_requeue"`
 }
 
 // OperationConfig represents configuration for each operation type
 type OperationConfig struct {
-	Name               string                 `json:"name" yaml:"name"`
-	Type               string                 `json:"type" yaml:"type"`
-	Target             string                 `json:"target" yaml:"target"`
-	Description        string                 `json:"description" yaml:"description"`
-	AdditionalSections []string               `json:"additional_sections" yaml:"additional_sections"`
-	Variables          map[string]interface{} `json:"variables" yaml:"variables"`
-	EffortAllocation   map[string]string      `json:"effort_allocation" yaml:"effort_allocation"`
-	SuccessCriteria    []string               `json:"success_criteria" yaml:"success_criteria"`
-	Principles         []string               `json:"principles" yaml:"principles"`
+	Name               string            `json:"name" yaml:"name"`
+	Type               string            `json:"type" yaml:"type"`
+	Target             string            `json:"target" yaml:"target"`
+	Description        string            `json:"description" yaml:"description"`
+	AdditionalSections []string          `json:"additional_sections" yaml:"additional_sections"`
+	Variables          map[string]any    `json:"variables" yaml:"variables"`
+	EffortAllocation   map[string]string `json:"effort_allocation" yaml:"effort_allocation"`
+	SuccessCriteria    []string          `json:"success_criteria" yaml:"success_criteria"`
+	Principles         []string          `json:"principles" yaml:"principles"`
 }
 
 // PromptsConfig represents the unified prompts configuration
@@ -59,13 +59,13 @@ type PromptsConfig struct {
 	Description  string                     `json:"description" yaml:"description"`
 	BaseSections []string                   `json:"base_sections" yaml:"base_sections"`
 	Operations   map[string]OperationConfig `json:"operations" yaml:"operations"`
-	GlobalConfig map[string]interface{}     `json:"global_config" yaml:"global_config"`
+	GlobalConfig map[string]any             `json:"global_config" yaml:"global_config"`
 }
 
 // ClaudeCodeRequest represents a request to the Claude Code resource
 type ClaudeCodeRequest struct {
-	Prompt  string                 `json:"prompt"`
-	Context map[string]interface{} `json:"context"`
+	Prompt  string         `json:"prompt"`
+	Context map[string]any `json:"context"`
 }
 
 // ClaudeCodeResponse represents a response from Claude Code

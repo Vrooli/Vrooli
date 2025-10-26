@@ -43,7 +43,7 @@ func setupExecutionTestProcessor(t *testing.T) (*Processor, *tasks.Storage, stri
 		t.Fatal(err)
 	}
 
-	broadcast := make(chan interface{}, 100)
+	broadcast := make(chan any, 100)
 	processor := NewProcessor(30*time.Second, storage, assembler, broadcast)
 
 	return processor, storage, tmpDir
@@ -344,5 +344,246 @@ func TestReserveExecutionIdempotency(t *testing.T) {
 
 	if execState2.started != startTime {
 		t.Error("Original start time should be preserved")
+	}
+}
+
+// TestCleanupAfterFinalizationFailure_WithCleanupSuccess tests the critical case:
+// finalization fails but cleanup succeeds - agent should be removed from registry
+func TestCleanupAfterFinalizationFailure_WithCleanupSuccess(t *testing.T) {
+	processor, storage, _ := setupExecutionTestProcessor(t)
+
+	taskID := "test-finalize-fail-cleanup-ok"
+	agentTag := makeAgentTag(taskID)
+
+	// Create task in in-progress
+	task := tasks.TaskItem{
+		ID:     taskID,
+		Title:  "Test Finalization Failure",
+		Type:   "scenario",
+		Status: "in-progress",
+	}
+	if err := storage.SaveQueueItem(task, "in-progress"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Register execution
+	processor.reserveExecution(taskID, agentTag, time.Now())
+
+	// Verify task is running
+	if !processor.IsTaskRunning(taskID) {
+		t.Error("Task should be running before cleanup")
+	}
+
+	// Create a cleanup function that simulates successful cleanup
+	cleanupCalled := false
+	cleanup := func() {
+		cleanupCalled = true
+		// Cleanup succeeds (agent removed from registry)
+	}
+
+	// Simulate finalization failure scenario
+	// In the real code, this happens when finalizeTaskStatus returns error
+	// We should still cleanup and unregister to prevent stuck tasks
+	context := "test finalization failure"
+	processor.cleanupAgentAfterFinalizationFailure(taskID, cleanup, context)
+
+	// Verify cleanup was called
+	if !cleanupCalled {
+		t.Error("Cleanup function should have been called")
+	}
+
+	// CRITICAL: Verify execution was unregistered even though finalization failed
+	if processor.IsTaskRunning(taskID) {
+		t.Error("CRITICAL BUG: Task still running after finalization failure - this causes stuck tasks!")
+	}
+
+	// Verify execution state is cleaned up
+	if _, ok := processor.getExecution(taskID); ok {
+		t.Error("Execution state should be removed after cleanup")
+	}
+}
+
+// TestCleanupAfterFinalizationFailure_MaxTurns tests MAX_TURNS specific scenario
+// MAX_TURNS is particularly prone to zombie agents that stay in registry
+func TestCleanupAfterFinalizationFailure_MaxTurns(t *testing.T) {
+	processor, storage, _ := setupExecutionTestProcessor(t)
+
+	taskID := "test-max-turns-fail"
+	agentTag := makeAgentTag(taskID)
+
+	// Create task in in-progress
+	task := tasks.TaskItem{
+		ID:     taskID,
+		Title:  "Test MAX_TURNS Cleanup",
+		Type:   "scenario",
+		Status: "in-progress",
+	}
+	if err := storage.SaveQueueItem(task, "in-progress"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Register execution
+	processor.reserveExecution(taskID, agentTag, time.Now())
+
+	// Track cleanup calls
+	cleanupCallCount := 0
+	cleanup := func() {
+		cleanupCallCount++
+	}
+
+	// Simulate MAX_TURNS finalization failure
+	// The code adds a 500ms sleep for MAX_TURNS before cleanup
+	start := time.Now()
+	processor.cleanupAgentAfterFinalizationFailure(taskID, cleanup, "MAX_TURNS finalization failure")
+	elapsed := time.Since(start)
+
+	// Verify cleanup was called
+	if cleanupCallCount != 1 {
+		t.Errorf("Expected cleanup to be called exactly once, got %d calls", cleanupCallCount)
+	}
+
+	// Note: The 500ms sleep happens in executeTask, not in cleanupAgentAfterFinalizationFailure
+	// So we just verify cleanup completes reasonably fast
+	if elapsed > 2*time.Second {
+		t.Errorf("Cleanup took too long: %v", elapsed)
+	}
+
+	// CRITICAL: Verify task is unregistered
+	if processor.IsTaskRunning(taskID) {
+		t.Error("CRITICAL: MAX_TURNS task still running after cleanup - stuck task bug!")
+	}
+}
+
+// TestCompleteTaskCleanupExplicit_Success tests successful finalization path
+func TestCompleteTaskCleanupExplicit_Success(t *testing.T) {
+	processor, storage, _ := setupExecutionTestProcessor(t)
+
+	taskID := "test-cleanup-explicit-ok"
+	agentTag := makeAgentTag(taskID)
+
+	// Create completed task
+	task := tasks.TaskItem{
+		ID:     taskID,
+		Title:  "Test Successful Cleanup",
+		Type:   "scenario",
+		Status: "completed",
+	}
+	if err := storage.SaveQueueItem(task, "completed"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Register execution (would happen during task execution)
+	processor.reserveExecution(taskID, agentTag, time.Now())
+
+	// Verify task is running before cleanup
+	if !processor.IsTaskRunning(taskID) {
+		t.Error("Task should be running before cleanup")
+	}
+
+	// Cleanup function
+	cleanupCalled := false
+	cleanup := func() {
+		cleanupCalled = true
+	}
+
+	// Complete the task cleanup (success path)
+	processor.completeTaskCleanupExplicit(taskID, cleanup)
+
+	// Verify cleanup was called
+	if !cleanupCalled {
+		t.Error("Cleanup should be called on success path")
+	}
+
+	// Verify task is unregistered
+	if processor.IsTaskRunning(taskID) {
+		t.Error("Task should not be running after successful cleanup")
+	}
+}
+
+// TestExecutionCleanup_EnsuresAgentRemoval tests that ensureAgentRemoved is called
+// This is the key function that prevents the "stuck active forever" bug
+func TestExecutionCleanup_EnsuresAgentRemoval(t *testing.T) {
+	processor, _, _ := setupExecutionTestProcessor(t)
+
+	taskID := "test-ensure-removal"
+	agentTag := makeAgentTag(taskID)
+
+	// Register execution
+	processor.reserveExecution(taskID, agentTag, time.Now())
+
+	// Cleanup that simulates agent still existing after first cleanup attempt
+	cleanupAttempts := 0
+	cleanup := func() {
+		cleanupAttempts++
+		// First attempt: agent might still be in registry (simulated)
+		// Second attempt: agent removed (ensureAgentRemoved retry)
+	}
+
+	// Run cleanup
+	processor.completeTaskCleanupExplicit(taskID, cleanup)
+
+	// Verify cleanup was attempted
+	if cleanupAttempts < 1 {
+		t.Error("Cleanup should be called at least once")
+	}
+
+	// Verify execution is unregistered (even if agent cleanup had issues)
+	if processor.IsTaskRunning(taskID) {
+		t.Error("Task should be unregistered after cleanup completes")
+	}
+}
+
+// TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup tests that the new
+// cleanup pattern prevents reconciliation from moving tasks incorrectly
+func TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup(t *testing.T) {
+	processor, storage, _ := setupExecutionTestProcessor(t)
+
+	taskID := "test-reconcile-verified"
+
+	// Create task in completed status (finalized successfully)
+	task := tasks.TaskItem{
+		ID:     taskID,
+		Title:  "Test Reconciliation Safety",
+		Type:   "scenario",
+		Status: "completed",
+	}
+	if err := storage.SaveQueueItem(task, "completed"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate the scenario:
+	// 1. Task completed
+	// 2. Finalization succeeded (task moved to completed)
+	// 3. Cleanup called and agent removed
+	// 4. Execution unregistered
+
+	cleanup := func() {
+		// Agent removed successfully
+	}
+
+	processor.completeTaskCleanupExplicit(taskID, cleanup)
+
+	// Now run reconciliation
+	external := processor.getExternalActiveTaskIDs()
+	internal := processor.getInternalRunningTaskIDs()
+	moved := processor.reconcileInProgressTasks(external, internal)
+
+	// Verify: reconciliation should NOT move the task
+	for _, movedID := range moved {
+		if movedID == taskID {
+			t.Error("Reconciliation incorrectly moved a completed task")
+		}
+	}
+
+	// Verify task is still in completed
+	finalTask, status, err := storage.GetTaskByID(taskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != "completed" {
+		t.Errorf("Task should remain in completed, got %s", status)
+	}
+	if finalTask.Status != "completed" {
+		t.Errorf("Task status should be completed, got %s", finalTask.Status)
 	}
 }

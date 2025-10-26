@@ -80,7 +80,7 @@ func (qp *Processor) appendTaskLog(taskID, agentID, stream, message string) LogE
 	}
 	qp.taskLogsMutex.Unlock()
 
-	qp.broadcastUpdate("log_entry", map[string]interface{}{
+	qp.broadcastUpdate("log_entry", map[string]any{
 		"task_id":   taskID,
 		"agent_id":  buffer.AgentID,
 		"stream":    entry.Stream,

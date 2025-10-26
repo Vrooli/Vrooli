@@ -43,13 +43,13 @@ const Dashboard = () => {
   ]
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h2>
-        <p className="text-gray-600">Manage your funnels and track performance</p>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl mb-2">Dashboard</h2>
+        <p className="text-gray-600 text-sm sm:text-base">Manage your funnels and track performance</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6 sm:mb-8">
         {stats.map((stat) => (
           <div key={stat.label} className="card p-6">
             <div className="flex items-center justify-between mb-4">
@@ -61,8 +61,8 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-bold text-gray-900">Your Funnels</h3>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-lg font-bold text-gray-900 sm:text-xl">Your Funnels</h3>
         <button
           onClick={() => navigate('/builder')}
           className="btn btn-primary"
@@ -72,7 +72,7 @@ const Dashboard = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {funnels.map((funnel) => (
           <div key={funnel.id} className="card p-6 hover:shadow-lg transition-shadow cursor-pointer"
                onClick={() => navigate(`/builder/${funnel.id}`)}>

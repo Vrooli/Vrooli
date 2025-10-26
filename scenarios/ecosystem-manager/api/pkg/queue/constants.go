@@ -60,6 +60,12 @@ const (
 
 	// AgentCleanupRetryDelay is how long to wait before retrying agent cleanup
 	AgentCleanupRetryDelay = 500 * time.Millisecond
+
+	// AgentRegistryTimeout is the timeout for agent registry operations (list, stop, cleanup)
+	AgentRegistryTimeout = 10 * time.Second
+
+	// AgentStopTimeout is the timeout for stopping a single agent
+	AgentStopTimeout = 5 * time.Second
 )
 
 // Task reconciliation constants
@@ -111,6 +117,12 @@ const (
 const (
 	// AgentTagPrefix is the prefix used for all Claude Code agent tags
 	AgentTagPrefix = "ecosystem-"
+
+	// PromptFilePrefix is the prefix for temporary prompt files in /tmp
+	PromptFilePrefix = "ecosystem-prompt-"
+
+	// RecyclerPromptPrefix is the prefix for recycler prompt IDs
+	RecyclerPromptPrefix = "ecosystem-recycler-"
 )
 
 // makeAgentTag creates an agent tag from a task ID
@@ -121,4 +133,9 @@ func makeAgentTag(taskID string) string {
 // parseAgentTag extracts the task ID from an agent tag
 func parseAgentTag(agentTag string) string {
 	return strings.TrimPrefix(agentTag, AgentTagPrefix)
+}
+
+// isValidAgentTag checks if a tag has the correct agent prefix
+func isValidAgentTag(tag string) bool {
+	return strings.HasPrefix(tag, AgentTagPrefix)
 }

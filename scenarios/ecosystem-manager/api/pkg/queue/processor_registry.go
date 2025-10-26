@@ -5,6 +5,8 @@ import (
 	"log"
 	"os/exec"
 	"time"
+
+	"github.com/ecosystem-manager/api/pkg/settings"
 )
 
 // ProcessInfo contains runtime information about a running task process
@@ -15,6 +17,9 @@ type ProcessInfo struct {
 	Duration        string `json:"duration"`         // Human-readable (e.g., "5m30s")
 	DurationSeconds int64  `json:"duration_seconds"` // Machine-readable seconds
 	AgentID         string `json:"agent_id,omitempty"`
+	TimeoutAt       string `json:"timeout_at,omitempty"`     // RFC3339 timestamp when timeout occurs
+	TimedOut        bool   `json:"timed_out"`                // Whether task has exceeded timeout
+	TimeRemaining   string `json:"time_remaining,omitempty"` // Human-readable time until timeout
 }
 
 // reserveExecution creates a placeholder execution entry for a task that's about to start
@@ -23,22 +28,30 @@ func (qp *Processor) reserveExecution(taskID, agentID string, startedAt time.Tim
 		startedAt = time.Now()
 	}
 
+	// Get current timeout setting
+	currentSettings := settings.GetSettings()
+	timeoutDuration := time.Duration(currentSettings.TaskTimeout) * time.Minute
+	timeoutAt := startedAt.Add(timeoutDuration)
+
 	qp.executionsMu.Lock()
+	defer qp.executionsMu.Unlock()
+
 	if existing, ok := qp.executions[taskID]; ok {
 		if agentID != "" {
 			existing.agentTag = agentID
 		}
 		if existing.started.IsZero() {
 			existing.started = startedAt
+			existing.timeoutAt = timeoutAt
 		}
 	} else {
 		qp.executions[taskID] = &taskExecution{
-			taskID:   taskID,
-			agentTag: agentID,
-			started:  startedAt,
+			taskID:    taskID,
+			agentTag:  agentID,
+			started:   startedAt,
+			timeoutAt: timeoutAt,
 		}
 	}
-	qp.executionsMu.Unlock()
 }
 
 // registerExecution registers a running process for a task
@@ -47,7 +60,14 @@ func (qp *Processor) registerExecution(taskID, agentID string, cmd *exec.Cmd, st
 		startedAt = time.Now()
 	}
 
+	// Get current timeout setting
+	currentSettings := settings.GetSettings()
+	timeoutDuration := time.Duration(currentSettings.TaskTimeout) * time.Minute
+	timeoutAt := startedAt.Add(timeoutDuration)
+
 	qp.executionsMu.Lock()
+	defer qp.executionsMu.Unlock()
+
 	execState, exists := qp.executions[taskID]
 	if !exists {
 		execState = &taskExecution{taskID: taskID}
@@ -59,24 +79,26 @@ func (qp *Processor) registerExecution(taskID, agentID string, cmd *exec.Cmd, st
 	execState.cmd = cmd
 	if execState.started.IsZero() {
 		execState.started = startedAt
+		execState.timeoutAt = timeoutAt
 	}
-	qp.executionsMu.Unlock()
 
+	// Defensive nil check for logging
 	if cmd != nil && cmd.Process != nil {
-		log.Printf("Registered execution %d for task %s", cmd.Process.Pid, taskID)
+		log.Printf("Registered execution %d for task %s (timeout at %s)", cmd.Process.Pid, taskID, timeoutAt.Format(time.RFC3339))
 	} else {
-		log.Printf("Registered execution record for task %s (pid unknown)", taskID)
+		log.Printf("Registered execution record for task %s (pid unknown, timeout at %s)", taskID, timeoutAt.Format(time.RFC3339))
 	}
 }
 
 // unregisterExecution removes a task from the execution registry
 func (qp *Processor) unregisterExecution(taskID string) {
 	qp.executionsMu.Lock()
+	defer qp.executionsMu.Unlock()
+
 	if exec, exists := qp.executions[taskID]; exists {
 		log.Printf("Unregistered execution %d for task %s", exec.pid(), taskID)
 		delete(qp.executions, taskID)
 	}
-	qp.executionsMu.Unlock()
 }
 
 // getExecution retrieves the execution state for a task
@@ -109,14 +131,28 @@ func (qp *Processor) GetRunningProcessesInfo() []ProcessInfo {
 
 	for taskID, execState := range qp.executions {
 		duration := now.Sub(execState.started)
-		processes = append(processes, ProcessInfo{
+		info := ProcessInfo{
 			TaskID:          taskID,
 			ProcessID:       execState.pid(),
 			StartTime:       execState.started.Format(time.RFC3339),
 			Duration:        duration.Round(time.Second).String(),
 			DurationSeconds: int64(duration.Seconds()),
 			AgentID:         execState.agentTag,
-		})
+			TimedOut:        execState.isTimedOut(),
+		}
+
+		// Add timeout information if available
+		if !execState.timeoutAt.IsZero() {
+			info.TimeoutAt = execState.timeoutAt.Format(time.RFC3339)
+			timeRemaining := execState.timeoutAt.Sub(now)
+			if timeRemaining > 0 {
+				info.TimeRemaining = timeRemaining.Round(time.Second).String()
+			} else {
+				info.TimeRemaining = "exceeded"
+			}
+		}
+
+		processes = append(processes, info)
 	}
 
 	return processes
@@ -154,15 +190,10 @@ func (qp *Processor) TerminateRunningProcess(taskID string) error {
 
 	pid := exec.pid()
 
-	// Terminate the agent and cleanup
-	qp.stopClaudeAgent(agentIdentifier, pid)
-	qp.cleanupClaudeAgentRegistry()
-
-	// Force kill the process group if still alive
-	if qp.isProcessAlive(pid) {
-		if err := KillProcessGroup(pid); err != nil {
-			log.Printf("Warning: failed to kill process group for task %s (pid %d): %v", taskID, pid, err)
-		}
+	// Use canonical termination function for consistency
+	if err := qp.terminateAgent(taskID, agentIdentifier, pid); err != nil {
+		log.Printf("Warning: agent termination reported error for task %s: %v", taskID, err)
+		// Continue with cleanup even if termination had issues
 	}
 
 	qp.ResetTaskLogs(taskID)

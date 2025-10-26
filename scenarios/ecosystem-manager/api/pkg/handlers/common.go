@@ -10,7 +10,7 @@ import (
 // This helper ensures consistent Content-Type headers and proper error handling
 // across all handlers. Note that once encoding begins, the status code and headers
 // are already sent, so encoding errors can only be logged, not changed to error responses.
-func writeJSON(w http.ResponseWriter, data interface{}, statusCode int) {
+func writeJSON(w http.ResponseWriter, data any, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode) // Always set status code explicitly
 	if err := json.NewEncoder(w).Encode(data); err != nil {

@@ -43,7 +43,7 @@ func NewSettingsHandlers(processor *queue.Processor, wsManager *websocket.Manage
 func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	currentSettings := settings.GetSettings()
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"success":  true,
 		"settings": currentSettings,
 	}, http.StatusOK)
@@ -115,16 +115,16 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 	if recycler.CompletionThreshold == 0 {
 		recycler.CompletionThreshold = oldSettings.Recycler.CompletionThreshold
 	}
-	if recycler.CompletionThreshold < 1 || recycler.CompletionThreshold > 10 {
-		http.Error(w, "Recycler completion_threshold must be between 1 and 10", http.StatusBadRequest)
+	if recycler.CompletionThreshold < settings.MinRecyclerCompletionThreshold || recycler.CompletionThreshold > settings.MaxRecyclerCompletionThreshold {
+		http.Error(w, fmt.Sprintf("Recycler completion_threshold must be between %d and %d", settings.MinRecyclerCompletionThreshold, settings.MaxRecyclerCompletionThreshold), http.StatusBadRequest)
 		return
 	}
 
 	if recycler.FailureThreshold == 0 {
 		recycler.FailureThreshold = oldSettings.Recycler.FailureThreshold
 	}
-	if recycler.FailureThreshold < 1 || recycler.FailureThreshold > 10 {
-		http.Error(w, "Recycler failure_threshold must be between 1 and 10", http.StatusBadRequest)
+	if recycler.FailureThreshold < settings.MinRecyclerFailureThreshold || recycler.FailureThreshold > settings.MaxRecyclerFailureThreshold {
+		http.Error(w, fmt.Sprintf("Recycler failure_threshold must be between %d and %d", settings.MinRecyclerFailureThreshold, settings.MaxRecyclerFailureThreshold), http.StatusBadRequest)
 		return
 	}
 
@@ -155,7 +155,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 	// Broadcast settings change via WebSocket
 	h.wsManager.BroadcastUpdate("settings_updated", newSettings)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success":  true,
 		"settings": newSettings,
 		"message":  "Settings updated successfully",
@@ -196,7 +196,7 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 		log.Printf("failed to list %s models: %v", provider, err)
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success":  err == nil,
 		"provider": provider,
 		"models":   models,
@@ -268,7 +268,7 @@ func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Re
 		promptUsed = summarizer.BuildPrompt(output)
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success":  err == nil,
 		"result":   result,
 		"provider": selectedProvider,
@@ -322,7 +322,7 @@ func (h *SettingsHandlers) ResetSettingsHandler(w http.ResponseWriter, r *http.R
 	// Broadcast settings change via WebSocket
 	h.wsManager.BroadcastUpdate("settings_reset", newSettings)
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"success":  true,
 		"settings": newSettings,
 		"message":  "Settings reset to defaults",

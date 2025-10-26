@@ -64,12 +64,12 @@ func NewStorage(queueDir string) *Storage {
 	}
 }
 
-// convertToStringMap converts map[interface{}]interface{} to map[string]interface{}
-// This is needed because YAML unmarshals to interface{} keys but JSON needs string keys
-func convertToStringMap(m interface{}) interface{} {
+// convertToStringMap converts map[any]any to map[string]any
+// This is needed because YAML unmarshals to any keys but JSON needs string keys
+func convertToStringMap(m any) any {
 	switch v := m.(type) {
-	case map[interface{}]interface{}:
-		result := make(map[string]interface{})
+	case map[any]any:
+		result := make(map[string]any)
 		for key, value := range v {
 			keyStr, ok := key.(string)
 			if !ok {
@@ -78,8 +78,8 @@ func convertToStringMap(m interface{}) interface{} {
 			result[keyStr] = convertToStringMap(value)
 		}
 		return result
-	case []interface{}:
-		result := make([]interface{}, len(v))
+	case []any:
+		result := make([]any, len(v))
 		for i, value := range v {
 			result[i] = convertToStringMap(value)
 		}
@@ -89,7 +89,7 @@ func convertToStringMap(m interface{}) interface{} {
 	}
 }
 
-func hasLegacyTaskFields(raw map[string]interface{}) bool {
+func hasLegacyTaskFields(raw map[string]any) bool {
 	legacyKeys := []string{
 		"impact_score",
 		"requirements",
@@ -105,7 +105,7 @@ func hasLegacyTaskFields(raw map[string]interface{}) bool {
 	return false
 }
 
-func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[string]interface{}) bool {
+func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[string]any) bool {
 	changed := false
 
 	normalizedTargets, canonicalTarget := NormalizeTargets(item.Target, item.Targets)
@@ -221,7 +221,7 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 			continue
 		}
 
-		var raw map[string]interface{}
+		var raw map[string]any
 		if err := yaml.Unmarshal(data, &raw); err != nil {
 			// Silent - not critical for operation
 		}
@@ -232,19 +232,20 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 			continue
 		}
 
-		// Convert interface{} maps to string maps for JSON compatibility
+		// Convert any maps to string maps for JSON compatibility
 		if item.Results != nil {
 			converted := convertToStringMap(item.Results)
-			if m, ok := converted.(map[string]interface{}); ok {
+			if m, ok := converted.(map[string]any); ok {
 				item.Results = m
 			}
 		}
 
 		// PERFORMANCE OPTIMIZATION: Only rewrite task files if normalization detected changes
 		// This avoids unnecessary disk I/O when reading tasks that are already properly formatted
+		// Use SkipCleanup since we're just reading, not moving - cleanup only needed during moves
 		if s.normalizeTaskItem(&item, status, raw) {
 			systemlog.Debugf("Task %s required normalization, rewriting to disk", item.ID)
-			if err := s.SaveQueueItem(item, status); err != nil {
+			if err := s.SaveQueueItemSkipCleanup(item, status); err != nil {
 				log.Printf("Warning: failed to rewrite sanitized task %s: %v", item.ID, err)
 			}
 		}

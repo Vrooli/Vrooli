@@ -25,7 +25,7 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 	}
 
 	var vrooliResponse struct {
-		Scenarios []map[string]interface{} `json:"scenarios"`
+		Scenarios []map[string]any `json:"scenarios"`
 	}
 
 	if err := json.Unmarshal(output, &vrooliResponse); err != nil {
@@ -272,7 +272,7 @@ func extractScenarioDescription(scenarioPath string) string {
 	// Try to read service.json for description
 	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
 	if data, err := os.ReadFile(servicePath); err == nil {
-		var serviceConfig map[string]interface{}
+		var serviceConfig map[string]any
 		if json.Unmarshal(data, &serviceConfig) == nil {
 			if desc := getStringField(serviceConfig, "description"); desc != "" {
 				return desc

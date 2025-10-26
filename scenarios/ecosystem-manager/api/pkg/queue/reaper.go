@@ -5,33 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"sync"
 	"syscall"
 )
 
-var (
-	reapedStatusMu sync.Mutex
-	reapedStatuses = make(map[int]syscall.WaitStatus)
-)
-
-func storeReapedStatus(pid int, status syscall.WaitStatus) {
-	reapedStatusMu.Lock()
-	reapedStatuses[pid] = status
-	reapedStatusMu.Unlock()
-}
-
-// ConsumeReapedStatus returns and removes any stored wait status for a PID.
-func ConsumeReapedStatus(pid int) (syscall.WaitStatus, bool) {
-	reapedStatusMu.Lock()
-	status, ok := reapedStatuses[pid]
-	if ok {
-		delete(reapedStatuses, pid)
-	}
-	reapedStatusMu.Unlock()
-	return status, ok
-}
-
 // InitProcessReaper sets up SIGCHLD handler to automatically reap zombie processes
+// This prevents zombie processes from accumulating when child processes exit
 func InitProcessReaper() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGCHLD)
@@ -45,7 +23,6 @@ func InitProcessReaper() {
 				if err != nil || pid <= 0 {
 					break
 				}
-				storeReapedStatus(pid, status)
 				log.Printf("Reaped zombie process: PID %d, exit status: %d", pid, status.ExitStatus())
 			}
 		}

@@ -32,12 +32,12 @@ func (h *HealthHandlers) HealthCheckHandler(w http.ResponseWriter, r *http.Reque
 	// Check queue directory health
 	queuePath := filepath.Join("/home", os.Getenv("USER"), "Vrooli", "scenarios", "ecosystem-manager", "queue")
 	storageHealthy := true
-	var storageError map[string]interface{}
+	var storageError map[string]any
 
 	// Test if we can read the queue directory
 	if _, err := os.Stat(queuePath); err != nil {
 		storageHealthy = false
-		storageError = map[string]interface{}{
+		storageError = map[string]any{
 			"code":      "STORAGE_ACCESS_ERROR",
 			"message":   fmt.Sprintf("Cannot access queue directory: %v", err),
 			"category":  "resource",
@@ -58,25 +58,25 @@ func (h *HealthHandlers) HealthCheckHandler(w http.ResponseWriter, r *http.Reque
 		status = "degraded"
 	}
 
-	healthResponse := map[string]interface{}{
+	healthResponse := map[string]any{
 		"status":    status,
 		"service":   "ecosystem-manager-api",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 		"readiness": true, // Service is ready to accept requests
 		"version":   "2.0.0",
-		"dependencies": map[string]interface{}{
-			"storage": map[string]interface{}{
+		"dependencies": map[string]any{
+			"storage": map[string]any{
 				"connected": storageHealthy,
 				"type":      "yaml-files",
 				"path":      queuePath,
 			},
-			"queue_processor": map[string]interface{}{
+			"queue_processor": map[string]any{
 				"connected": true,
 				"active":    queueStatus["processor_active"],
 				"state":     queueStatus["maintenance_state"],
 			},
 		},
-		"metrics": map[string]interface{}{
+		"metrics": map[string]any{
 			"uptime_seconds":  time.Since(h.startTime).Seconds(),
 			"goroutines":      runtime.NumGoroutine(),
 			"memory_mb":       memStats.Alloc / 1024 / 1024,
@@ -91,9 +91,9 @@ func (h *HealthHandlers) HealthCheckHandler(w http.ResponseWriter, r *http.Reque
 
 	// Add storage error if present
 	if storageError != nil {
-		healthResponse["dependencies"].(map[string]interface{})["storage"].(map[string]interface{})["error"] = storageError
+		healthResponse["dependencies"].(map[string]any)["storage"].(map[string]any)["error"] = storageError
 	} else {
-		healthResponse["dependencies"].(map[string]interface{})["storage"].(map[string]interface{})["error"] = nil
+		healthResponse["dependencies"].(map[string]any)["storage"].(map[string]any)["error"] = nil
 	}
 
 	writeJSON(w, healthResponse, http.StatusOK)

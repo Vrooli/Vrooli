@@ -150,10 +150,17 @@ func (r *Recycler) processOnce() error {
 				continue
 			}
 
+			// Process the task and continue to next one (don't return early)
+			// This allows recycler to process multiple tasks per interval instead of just one
 			if bucket == "completed" {
-				return r.processCompletedTask(task, cfg)
+				if err := r.processCompletedTask(task, cfg); err != nil {
+					log.Printf("Recycler failed to process completed task %s: %v", candidate.ID, err)
+				}
+			} else {
+				if err := r.processFailedTask(task, cfg); err != nil {
+					log.Printf("Recycler failed to process failed task %s: %v", candidate.ID, err)
+				}
 			}
-			return r.processFailedTask(task, cfg)
 		}
 	}
 
@@ -292,13 +299,13 @@ func (r *Recycler) persistTask(task *tasks.TaskItem, targetStatus string) error 
 }
 
 func (r *Recycler) broadcast(task *tasks.TaskItem, event string) {
-	r.wsManager.BroadcastUpdate(event, map[string]interface{}{
+	r.wsManager.BroadcastUpdate(event, map[string]any{
 		"task_id": task.ID,
 		"task":    task,
 		"status":  task.Status,
 	})
 	if event != "task_status_changed" {
-		r.wsManager.BroadcastUpdate("task_status_changed", map[string]interface{}{
+		r.wsManager.BroadcastUpdate("task_status_changed", map[string]any{
 			"task_id":    task.ID,
 			"new_status": task.Status,
 			"task":       task,
@@ -308,11 +315,11 @@ func (r *Recycler) broadcast(task *tasks.TaskItem, event string) {
 
 func ensureResultsMap(task *tasks.TaskItem) {
 	if task.Results == nil {
-		task.Results = make(map[string]interface{})
+		task.Results = make(map[string]any)
 	}
 }
 
-func extractOutput(results map[string]interface{}) string {
+func extractOutput(results map[string]any) string {
 	if results == nil {
 		return ""
 	}

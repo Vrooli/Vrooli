@@ -28,7 +28,7 @@ func (qp *Processor) handleRateLimitPause(retryAfterSeconds int) {
 		pauseDuration, qp.pauseUntil.Format(time.RFC3339))
 
 	// Broadcast the pause event
-	qp.broadcastUpdate("rate_limit_pause_started", map[string]interface{}{
+	qp.broadcastUpdate("rate_limit_pause_started", map[string]any{
 		"pause_duration": retryAfterSeconds,
 		"pause_until":    qp.pauseUntil.Format(time.RFC3339),
 		"reason":         "API rate limit reached",
@@ -59,7 +59,7 @@ func (qp *Processor) ResetRateLimitPause() {
 		log.Printf("✅ Rate limit pause manually reset. Queue processing resumed.")
 
 		// Broadcast the resume event
-		qp.broadcastUpdate("rate_limit_manual_reset", map[string]interface{}{
+		qp.broadcastUpdate("rate_limit_manual_reset", map[string]any{
 			"paused": false,
 			"manual": true,
 		})

@@ -132,7 +132,7 @@ func (h *DiscoveryHandlers) GetOperationsHandler(w http.ResponseWriter, r *http.
 // GetCategoriesHandler returns available categories for the create task form
 func (h *DiscoveryHandlers) GetCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	// Static categories for now - could be made dynamic in the future
-	categories := map[string]interface{}{
+	categories := map[string]any{
 		"resource_categories": map[string]string{
 			"ai-ml":         "AI/ML",
 			"communication": "Communication",

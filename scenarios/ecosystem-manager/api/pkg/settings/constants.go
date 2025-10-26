@@ -33,6 +33,12 @@ const (
 	// Recycler limit constraints
 	MinRecyclerLimit = 1
 	MaxRecyclerLimit = 100
+
+	// Recycler threshold constraints
+	MinRecyclerCompletionThreshold = 1
+	MaxRecyclerCompletionThreshold = 10
+	MinRecyclerFailureThreshold    = 1
+	MaxRecyclerFailureThreshold    = 10
 )
 
 // Default settings values
@@ -41,16 +47,18 @@ const (
 	DefaultRefreshInterval = 30
 	DefaultMaxTurns        = 40
 	DefaultTaskTimeout     = 60
-	DefaultAllowedTools    = "all"
+	DefaultAllowedTools    = "Read,Write,Edit,Bash,LS,Glob,Grep"
 	DefaultSkipPermissions = true
 	DefaultActive          = false
 
 	// Recycler defaults
-	DefaultRecyclerEnabledFor     = "off"
-	DefaultRecyclerInterval       = 300
-	DefaultRecyclerMaxGenerations = 3
-	DefaultRecyclerBatchSize      = 5
-	DefaultRecyclerLimit          = 50
-	DefaultRecyclerModelProvider  = "anthropic"
-	DefaultRecyclerModelID        = "claude-3-5-sonnet-20241022"
+	DefaultRecyclerEnabledFor          = "off"
+	DefaultRecyclerInterval            = 300
+	DefaultRecyclerMaxGenerations      = 3
+	DefaultRecyclerBatchSize           = 5
+	DefaultRecyclerLimit               = 50
+	DefaultRecyclerModelProvider       = "ollama"
+	DefaultRecyclerModelID             = "llama3.1:8b"
+	DefaultRecyclerCompletionThreshold = 3
+	DefaultRecyclerFailureThreshold    = 5
 )

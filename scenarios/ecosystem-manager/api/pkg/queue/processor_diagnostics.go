@@ -120,9 +120,13 @@ func (qp *Processor) ResetForResume() ResumeResetSummary {
 		for _, taskID := range slices.SortedKeys(externalActive) {
 			agentTag := makeAgentTag(taskID)
 			agentTags = append(agentTags, agentTag)
-			qp.stopClaudeAgent(agentTag, 0)
+			if err := qp.stopClaudeAgent(agentTag, 0); err != nil {
+				log.Printf("Warning: failed to stop agent %s during resume: %v", agentTag, err)
+			}
 		}
-		qp.cleanupClaudeAgentRegistry()
+		if err := qp.cleanupClaudeAgentRegistry(); err != nil {
+			log.Printf("Warning: cleanup failed during resume: %v", err)
+		}
 		summary.AgentsStopped = append(summary.AgentsStopped, agentTags...)
 		summary.ActionsTaken++
 	}
@@ -161,7 +165,7 @@ func (qp *Processor) ResumeWithReset() ResumeResetSummary {
 }
 
 // GetQueueStatus returns current queue processor status and metrics
-func (qp *Processor) GetQueueStatus() map[string]interface{} {
+func (qp *Processor) GetQueueStatus() map[string]any {
 	// Get current maintenance state
 	qp.mu.Lock()
 	isPaused := qp.isPaused
@@ -170,16 +174,16 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 
 	// Check rate limit pause status
 	rateLimitPaused, pauseUntil := qp.IsRateLimitPaused()
-	var rateLimitInfo map[string]interface{}
+	var rateLimitInfo map[string]any
 	if rateLimitPaused {
 		remaining := pauseUntil.Sub(time.Now())
-		rateLimitInfo = map[string]interface{}{
+		rateLimitInfo = map[string]any{
 			"paused":         true,
 			"pause_until":    pauseUntil.Format(time.RFC3339),
 			"remaining_secs": int(remaining.Seconds()),
 		}
 	} else {
-		rateLimitInfo = map[string]interface{}{
+		rateLimitInfo = map[string]any{
 			"paused": false,
 		}
 	}
@@ -229,12 +233,12 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	processorActive := !isPaused && isRunning && !rateLimitPaused && settingsActive
 
 	lastProcessed := qp.getLastProcessed()
-	var lastProcessedAt interface{}
+	var lastProcessedAt any
 	if !lastProcessed.IsZero() {
 		lastProcessedAt = lastProcessed.Format(time.RFC3339)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"processor_active":          processorActive,
 		"settings_active":           settingsActive,
 		"maintenance_state":         map[bool]string{true: "inactive", false: "active"}[isPaused],

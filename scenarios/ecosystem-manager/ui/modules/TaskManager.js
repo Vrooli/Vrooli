@@ -15,7 +15,7 @@ export class TaskManager {
             if (!response.ok) {
                 if (response.status === 429) {
                     const retryAfter = response.headers.get('Retry-After') || '60';
-                    throw { 
+                    throw {
                         message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
                         isRateLimit: true,
                         retryAfter: parseInt(retryAfter)
@@ -23,9 +23,12 @@ export class TaskManager {
                 }
                 throw new Error(`Failed to load ${status} tasks: ${response.status} ${response.statusText}`);
             }
-            
-            const tasks = await response.json();
-            return tasks || [];
+
+            const data = await response.json();
+            // API returns wrapped response: {tasks: [...], count: N}
+            // Support both wrapped and legacy raw array formats for backwards compatibility
+            const tasks = data.tasks || data;
+            return Array.isArray(tasks) ? tasks : [];
         } catch (error) {
             if (error.isRateLimit) {
                 throw error;

@@ -22,7 +22,7 @@ func LogsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"success": true,
 		"entries": entries,
 	}, http.StatusOK)

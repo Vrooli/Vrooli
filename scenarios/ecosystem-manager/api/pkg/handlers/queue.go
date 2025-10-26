@@ -69,7 +69,7 @@ func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *
 	processorActive, ok := status["processor_active"].(bool)
 
 	if !ok || !processorActive {
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"error":             "processor inactive",
 			"message":           "Queue processor is paused or not active",
 			"maintenance_state": status["maintenance_state"],
@@ -84,7 +84,7 @@ func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *
 	// Also update the status after triggering
 	refreshedStatus := h.processor.GetQueueStatus()
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"success":   true,
 		"message":   "Queue processing triggered successfully",
 		"timestamp": time.Now().Unix(),
@@ -122,7 +122,7 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 	// Get updated status
 	status := h.processor.GetQueueStatus()
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success": true,
 		"message": "Maintenance state updated",
 		"state":   request.State,
@@ -193,7 +193,7 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 			h.processor.ResetTaskLogs(request.TaskID)
 
 			// Broadcast task status change for UI update
-			h.wsManager.BroadcastUpdate("task_status_changed", map[string]interface{}{
+			h.wsManager.BroadcastUpdate("task_status_changed", map[string]any{
 				"task_id":    request.TaskID,
 				"old_status": "in-progress",
 				"new_status": "pending",
@@ -205,7 +205,7 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 	}
 
 	// Broadcast termination event
-	h.wsManager.BroadcastUpdate("process_terminated", map[string]interface{}{
+	h.wsManager.BroadcastUpdate("process_terminated", map[string]any{
 		"task_id":   request.TaskID,
 		"timestamp": time.Now().Unix(),
 	})
@@ -262,7 +262,7 @@ func (h *QueueHandlers) ResetRateLimitHandler(w http.ResponseWriter, r *http.Req
 	h.processor.ResetRateLimitPause()
 
 	// Broadcast the reset event
-	h.wsManager.BroadcastUpdate("rate_limit_resume", map[string]interface{}{
+	h.wsManager.BroadcastUpdate("rate_limit_resume", map[string]any{
 		"paused":    false,
 		"manual":    true,
 		"timestamp": time.Now().Unix(),
@@ -271,7 +271,7 @@ func (h *QueueHandlers) ResetRateLimitHandler(w http.ResponseWriter, r *http.Req
 	// Get updated status
 	status := h.processor.GetQueueStatus()
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"success": true,
 		"message": "Rate limit pause has been reset",
 		"status":  status,

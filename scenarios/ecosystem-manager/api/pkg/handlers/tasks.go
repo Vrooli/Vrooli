@@ -76,7 +76,7 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 	}
 
 	success := len(errors) == 0 && len(created) > 0
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success": success,
 		"created": created,
 		"skipped": skipped,
@@ -286,7 +286,7 @@ func (h *TaskHandlers) applyStatusTransitionLogic(task *tasks.TaskItem, taskID, 
 			systemlog.Infof("Successfully terminated process for task %s (moved from in-progress to %s)", taskID, newStatus)
 			// Update task to reflect cancellation
 			cancelTime := timeutil.NowRFC3339()
-			task.Results = map[string]interface{}{
+			task.Results = map[string]any{
 				"success":      false,
 				"error":        fmt.Sprintf("Task execution was cancelled (moved to %s)", newStatus),
 				"cancelled_at": cancelTime,
@@ -333,7 +333,7 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	systemlog.Debugf("Task list requested: status=%s count=%d", status, len(filteredItems))
 
 	// Wrap response in object for consistency with other endpoints
-	response := map[string]interface{}{
+	response := map[string]any{
 		"tasks": filteredItems,
 		"count": len(filteredItems),
 	}
@@ -435,7 +435,7 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"success": true,
 		"task":    task,
 	}, http.StatusCreated)
@@ -473,7 +473,7 @@ func (h *TaskHandlers) GetTaskLogsHandler(w http.ResponseWriter, r *http.Request
 
 	entries, nextSeq, running, agentID, completed, processID := h.processor.GetTaskLogs(taskID, afterSeq)
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"task_id":       taskID,
 		"agent_id":      agentID,
 		"process_id":    processID,
@@ -789,7 +789,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	systemlog.Infof("Task %s updated successfully", taskID)
 
-	writeJSON(w, map[string]interface{}{
+	writeJSON(w, map[string]any{
 		"success": true,
 		"task":    updatedTask,
 	}, http.StatusOK)
@@ -813,7 +813,7 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Send WebSocket notification
-	h.wsManager.BroadcastUpdate("task_deleted", map[string]interface{}{
+	h.wsManager.BroadcastUpdate("task_deleted", map[string]any{
 		"id":     taskID,
 		"status": status,
 	})
@@ -842,7 +842,7 @@ func (h *TaskHandlers) GetTaskPromptHandler(w http.ResponseWriter, r *http.Reque
 
 	operationConfig, _ := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"task_id":          task.ID,
 		"operation":        fmt.Sprintf("%s-%s", task.Type, task.Operation),
 		"prompt_sections":  sections,
@@ -874,7 +874,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 	prompt := assembly.Prompt
 
 	// Check for cached prompt content (legacy behavior)
-	promptPath := filepath.Join(os.TempDir(), fmt.Sprintf("ecosystem-prompt-%s.txt", taskID))
+	promptPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s%s.txt", queue.PromptFilePrefix, taskID))
 	if cachedPrompt, err := os.ReadFile(promptPath); err == nil {
 		prompt = string(cachedPrompt)
 		fromCache = true
@@ -886,7 +886,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 	// Get operation config for metadata
 	operationConfig, _ := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"task_id":           task.ID,
 		"operation":         fmt.Sprintf("%s-%s", task.Type, task.Operation),
 		"prompt":            prompt,
@@ -1080,7 +1080,7 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 	promptSizeKB := float64(promptSize) / 1024.0
 	promptSizeMB := promptSizeKB / 1024.0
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"task_type":         tempTask.Type,
 		"operation":         tempTask.Operation,
 		"title":             tempTask.Title,

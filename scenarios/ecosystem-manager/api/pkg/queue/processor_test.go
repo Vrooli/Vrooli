@@ -39,7 +39,7 @@ func setupTestProcessor(t *testing.T) (*Processor, string, func()) {
 		t.Fatalf("Failed to create assembler: %v", err)
 	}
 
-	broadcast := make(chan interface{}, 10)
+	broadcast := make(chan any, 10)
 	processor := NewProcessor(30*time.Second, storage, assembler, broadcast)
 
 	cleanup := func() {

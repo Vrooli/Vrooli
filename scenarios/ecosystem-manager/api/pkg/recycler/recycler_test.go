@@ -54,11 +54,11 @@ func TestExtractOutput(t *testing.T) {
 		t.Fatalf("expected empty string for nil map, got %q", out)
 	}
 
-	if out := extractOutput(map[string]interface{}{"output": 123}); out != "" {
+	if out := extractOutput(map[string]any{"output": 123}); out != "" {
 		t.Fatalf("expected empty string for non-string output, got %q", out)
 	}
 
-	if out := extractOutput(map[string]interface{}{"output": "hello"}); out != "hello" {
+	if out := extractOutput(map[string]any{"output": "hello"}); out != "hello" {
 		t.Fatalf("expected 'hello', got %q", out)
 	}
 }

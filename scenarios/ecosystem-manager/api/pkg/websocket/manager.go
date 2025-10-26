@@ -14,7 +14,7 @@ type Manager struct {
 	upgrader     websocket.Upgrader
 	clients      map[*websocket.Conn]bool
 	clientsMutex sync.RWMutex
-	broadcast    chan interface{}
+	broadcast    chan any
 }
 
 // NewManager creates a new WebSocket manager
@@ -26,7 +26,7 @@ func NewManager() *Manager {
 			},
 		},
 		clients:   make(map[*websocket.Conn]bool),
-		broadcast: make(chan interface{}),
+		broadcast: make(chan any),
 	}
 
 	// Start the broadcaster goroutine
@@ -36,7 +36,7 @@ func NewManager() *Manager {
 }
 
 // GetBroadcastChannel returns the broadcast channel for sending updates
-func (m *Manager) GetBroadcastChannel() chan<- interface{} {
+func (m *Manager) GetBroadcastChannel() chan<- any {
 	return m.broadcast
 }
 
@@ -58,7 +58,7 @@ func (m *Manager) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Printf("WebSocket client connected. Total clients: %d", clientCount)
 
 	// Send initial state
-	conn.WriteJSON(map[string]interface{}{
+	conn.WriteJSON(map[string]any{
 		"type":      "connected",
 		"message":   "Connected to Ecosystem Manager",
 		"timestamp": time.Now().Unix(),
@@ -96,7 +96,7 @@ func (m *Manager) startBroadcaster() {
 }
 
 // broadcastToAll sends an update to all connected clients
-func (m *Manager) broadcastToAll(update interface{}) {
+func (m *Manager) broadcastToAll(update any) {
 	m.clientsMutex.RLock()
 	defer m.clientsMutex.RUnlock()
 
@@ -111,8 +111,8 @@ func (m *Manager) broadcastToAll(update interface{}) {
 }
 
 // BroadcastUpdate sends a typed update to all clients
-func (m *Manager) BroadcastUpdate(updateType string, data interface{}) {
-	update := map[string]interface{}{
+func (m *Manager) BroadcastUpdate(updateType string, data any) {
+	update := map[string]any{
 		"type":      updateType,
 		"data":      data,
 		"timestamp": time.Now().Unix(),

@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -26,19 +27,41 @@ const (
 	DetectBoth
 )
 
-// stopClaudeAgent attempts to stop a Claude Code agent
-func (qp *Processor) stopClaudeAgent(agentIdentifier string, pid int) {
+// stopClaudeAgent attempts to stop a Claude Code agent with timeout
+// Returns error if stop command fails (excluding fallback to PID termination)
+func (qp *Processor) stopClaudeAgent(agentIdentifier string, pid int) error {
 	if agentIdentifier != "" {
-		cmd := exec.Command(ClaudeCodeResourceCommand, "agents", "stop", agentIdentifier)
+		ctx, cancel := context.WithTimeout(context.Background(), AgentStopTimeout)
+		defer cancel()
+
+		cmd := exec.CommandContext(ctx, ClaudeCodeResourceCommand, "agents", "stop", agentIdentifier)
 		if qp.vrooliRoot != "" {
 			cmd.Dir = qp.vrooliRoot
 		}
 		if err := cmd.Run(); err != nil {
-			log.Printf("Failed to stop claude-code agent %s via CLI: %v", agentIdentifier, err)
-		} else {
-			log.Printf("Successfully stopped claude-code agent %s", agentIdentifier)
-			return
+			stopErr := err
+			if ctx.Err() == context.DeadlineExceeded {
+				log.Printf("Timeout stopping claude-code agent %s (exceeded %v)", agentIdentifier, AgentStopTimeout)
+				stopErr = fmt.Errorf("timeout stopping agent %s: %w", agentIdentifier, ctx.Err())
+			} else {
+				log.Printf("Failed to stop claude-code agent %s via CLI: %v", agentIdentifier, err)
+			}
+			// Continue to fallback PID termination, but track the error
+			if pid == 0 && agentIdentifier != "" {
+				if pids := qp.agentProcessPIDs(agentIdentifier); len(pids) > 0 {
+					pid = pids[0]
+					for _, extra := range pids[1:] {
+						qp.terminateProcessByPID(extra)
+					}
+				}
+			}
+			if pid > 0 {
+				qp.terminateProcessByPID(pid)
+			}
+			return stopErr
 		}
+		log.Printf("Successfully stopped claude-code agent %s", agentIdentifier)
+		return nil
 	}
 
 	if pid == 0 && agentIdentifier != "" {
@@ -52,15 +75,68 @@ func (qp *Processor) stopClaudeAgent(agentIdentifier string, pid int) {
 
 	if pid > 0 {
 		qp.terminateProcessByPID(pid)
+		return nil
+	}
+
+	return fmt.Errorf("no agent identifier or PID provided for stop")
+}
+
+// cleanupClaudeAgentRegistryOrWarn runs cleanup and logs critical errors if it fails
+// This is a convenience wrapper around cleanupClaudeAgentRegistry for common use cases
+// where we want consistent error logging without needing to handle the error explicitly
+func (qp *Processor) cleanupClaudeAgentRegistryOrWarn(context string) {
+	if err := qp.cleanupClaudeAgentRegistry(); err != nil {
+		systemlog.Errorf("CRITICAL: Agent registry cleanup failed during %s: %v - tasks may appear stuck", context, err)
+		log.Printf("ERROR: Agent cleanup failed during %s: %v", context, err)
 	}
 }
 
-// cleanupClaudeAgentRegistry runs the agent cleanup command
-func (qp *Processor) cleanupClaudeAgentRegistry() {
-	cleanupCmd := exec.Command(ClaudeCodeResourceCommand, "agents", "cleanup")
-	if err := cleanupCmd.Run(); err != nil {
-		log.Printf("Warning: Failed to cleanup claude-code agents: %v", err)
+// cleanupClaudeAgentRegistry runs the agent cleanup command with timeout
+// CRITICAL: This must succeed to prevent zombie agents appearing "stuck active" in UI
+// Returns error if cleanup fails (even after retry)
+func (qp *Processor) cleanupClaudeAgentRegistry() error {
+	ctx, cancel := context.WithTimeout(context.Background(), AgentRegistryTimeout)
+	defer cancel()
+
+	cleanupCmd := exec.CommandContext(ctx, ClaudeCodeResourceCommand, "agents", "cleanup")
+	if qp.vrooliRoot != "" {
+		cleanupCmd.Dir = qp.vrooliRoot
 	}
+
+	if err := cleanupCmd.Run(); err != nil {
+		firstErr := err
+		if ctx.Err() == context.DeadlineExceeded {
+			log.Printf("ERROR: Agent cleanup timed out after %v", AgentRegistryTimeout)
+			systemlog.Errorf("Agent registry cleanup timed out - may cause tasks to appear stuck active")
+			firstErr = fmt.Errorf("cleanup timeout after %v: %w", AgentRegistryTimeout, ctx.Err())
+		} else {
+			log.Printf("ERROR: Failed to cleanup claude-code agents: %v", err)
+			systemlog.Errorf("Agent registry cleanup failed: %v - may cause tasks to appear stuck active", err)
+		}
+
+		// Retry cleanup once after a delay - critical for preventing stuck tasks
+		time.Sleep(AgentCleanupRetryDelay)
+		retryCtx, retryCancel := context.WithTimeout(context.Background(), AgentRegistryTimeout)
+		defer retryCancel()
+
+		retryCmd := exec.CommandContext(retryCtx, ClaudeCodeResourceCommand, "agents", "cleanup")
+		if qp.vrooliRoot != "" {
+			retryCmd.Dir = qp.vrooliRoot
+		}
+		if retryErr := retryCmd.Run(); retryErr != nil {
+			if retryCtx.Err() == context.DeadlineExceeded {
+				log.Printf("ERROR: Agent cleanup retry also timed out after %v", AgentRegistryTimeout)
+				systemlog.Errorf("Agent cleanup retry timed out - zombie agents may persist")
+				return fmt.Errorf("cleanup retry timeout after %v (first error: %v)", AgentRegistryTimeout, firstErr)
+			}
+			log.Printf("ERROR: Agent cleanup retry also failed: %v", retryErr)
+			systemlog.Errorf("Agent cleanup retry failed: %v - zombie agents may persist", retryErr)
+			return fmt.Errorf("cleanup retry failed: %w (first error: %v)", retryErr, firstErr)
+		}
+		log.Printf("✅ Agent cleanup succeeded on retry")
+		return nil // Retry succeeded
+	}
+	return nil // First attempt succeeded
 }
 
 // agentProcessPIDs finds all process IDs for a given agent tag
@@ -141,6 +217,123 @@ func (qp *Processor) terminateProcessByPID(pid int) {
 	}
 }
 
+// terminateAgent is the canonical agent termination function that all other termination
+// functions should delegate to for consistent behavior across the codebase
+func (qp *Processor) terminateAgent(taskID, agentTag string, pid int) error {
+	// Resolve agent tag if not provided
+	if agentTag == "" {
+		agentTag = makeAgentTag(taskID)
+	}
+
+	log.Printf("Terminating agent %s (pid %d) for task %s", agentTag, pid, taskID)
+
+	// Step 1: Stop via CLI
+	if err := qp.stopClaudeAgent(agentTag, pid); err != nil {
+		log.Printf("Warning: stopClaudeAgent failed for %s: %v", agentTag, err)
+	}
+	qp.cleanupClaudeAgentRegistryOrWarn("terminateAgent")
+
+	// Step 2: Verify agent was removed from registry
+	if qp.agentExists(agentTag) {
+		log.Printf("Warning: Agent %s still active in registry after CLI stop", agentTag)
+		systemlog.Warnf("Agent %s persists in registry after stop attempt", agentTag)
+	}
+
+	// Step 3: Kill process if still alive
+	if pid > 0 && qp.isProcessAlive(pid) {
+		if err := qp.killProcessGracefully(pid); err != nil {
+			log.Printf("Warning: graceful kill failed for pid %d, using force kill", pid)
+			// Fallback to process group kill
+			if err := KillProcessGroup(pid); err != nil {
+				log.Printf("Warning: failed to kill process group for pid %d: %v", pid, err)
+			}
+		}
+	}
+
+	// Step 4: Wait for complete shutdown
+	qp.waitForAgentShutdown(agentTag, pid)
+
+	// Step 5: Final verification
+	if qp.agentExists(agentTag) {
+		err := fmt.Errorf("agent %s still registered after full termination sequence", agentTag)
+		systemlog.Errorf("Failed to remove agent %s from registry: %v", agentTag, err)
+		return err
+	}
+
+	log.Printf("Successfully terminated agent %s for task %s", agentTag, taskID)
+	return nil
+}
+
+// ensureAgentRemoved is the canonical function for verifying and forcing agent removal
+// This consolidates all agent cleanup verification logic into one place
+// Returns error if agent still exists after all cleanup attempts
+func (qp *Processor) ensureAgentRemoved(agentTag string, pid int, context string) error {
+	// Check if agent exists before attempting removal
+	if !qp.agentExists(agentTag) {
+		return nil // Agent already removed, success
+	}
+
+	log.Printf("WARNING: Agent %s still exists after %s, initiating forced removal with retries", agentTag, context)
+	systemlog.Warnf("Zombie agent %s detected after %s, attempting forced removal with retries", agentTag, context)
+
+	// Attempt forced removal with retry loop
+	if err := qp.forceRemoveAgentWithRetry(agentTag, pid); err != nil {
+		systemlog.Errorf("CRITICAL: Failed to remove zombie agent %s after all retry attempts: %v", agentTag, err)
+		log.Printf("ERROR: Agent %s remains stuck in registry after %s - this will cause task to appear active forever", agentTag, context)
+		return fmt.Errorf("agent %s remains in registry after %s: %w", agentTag, context, err)
+	}
+
+	log.Printf("Successfully removed zombie agent %s after %s", agentTag, context)
+	return nil
+}
+
+// forceRemoveAgentWithRetry attempts to remove a zombie agent with exponential backoff retries
+// This is the nuclear option for when cleanupClaudeAgentRegistry fails to remove an agent
+func (qp *Processor) forceRemoveAgentWithRetry(agentTag string, pid int) error {
+	maxAttempts := 3
+	baseDelay := 500 * time.Millisecond
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		// Strategy 1: Try stopClaudeAgent first (uses CLI)
+		if err := qp.stopClaudeAgent(agentTag, pid); err != nil {
+			log.Printf("Attempt %d/%d: stopClaudeAgent failed for %s: %v", attempt, maxAttempts, agentTag, err)
+		}
+
+		// Strategy 2: Run cleanup registry
+		if err := qp.cleanupClaudeAgentRegistry(); err != nil {
+			log.Printf("Attempt %d/%d: cleanupClaudeAgentRegistry failed: %v", attempt, maxAttempts, err)
+		}
+
+		// Verify removal
+		if !qp.agentExists(agentTag) {
+			if attempt > 1 {
+				log.Printf("Agent %s successfully removed on attempt %d/%d", agentTag, attempt, maxAttempts)
+				systemlog.Infof("Zombie agent %s removed after %d retry attempts", agentTag, attempt)
+			}
+			return nil
+		}
+
+		// If still exists and not the last attempt, wait with exponential backoff
+		if attempt < maxAttempts {
+			delay := time.Duration(attempt) * baseDelay
+			log.Printf("Agent %s still exists after attempt %d/%d, retrying in %v", agentTag, attempt, maxAttempts, delay)
+			time.Sleep(delay)
+
+			// Strategy 3: On second attempt, try killing any orphaned processes
+			if attempt == 2 {
+				pids := qp.agentProcessPIDs(agentTag)
+				for _, orphanPID := range pids {
+					log.Printf("Killing orphaned process %d for agent %s", orphanPID, agentTag)
+					qp.terminateProcessByPID(orphanPID)
+				}
+			}
+		}
+	}
+
+	// All attempts failed
+	return fmt.Errorf("agent %s still registered after %d attempts with multiple cleanup strategies", agentTag, maxAttempts)
+}
+
 // getExternalActiveTaskIDs returns task IDs with active Claude agents
 func (qp *Processor) getExternalActiveTaskIDs() map[string]struct{} {
 	// Use both detection methods for comprehensive agent discovery
@@ -190,15 +383,21 @@ func (qp *Processor) detectActiveAgentTags(method AgentDetectionMethod) (map[str
 	return merged, nil
 }
 
-// queryAgentRegistry queries the resource-claude-code agent registry
+// queryAgentRegistry queries the resource-claude-code agent registry with timeout
 func (qp *Processor) queryAgentRegistry() (map[string]struct{}, error) {
-	cmd := exec.Command(ClaudeCodeResourceCommand, "agents", "list", "--format", "json")
+	ctx, cancel := context.WithTimeout(context.Background(), AgentRegistryTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, ClaudeCodeResourceCommand, "agents", "list", "--format", "json")
 	if qp.vrooliRoot != "" {
 		cmd.Dir = qp.vrooliRoot
 	}
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("agent registry query timed out after %v", AgentRegistryTimeout)
+		}
 		return nil, fmt.Errorf("failed to query agent registry: %w (output: %s)", err, string(output))
 	}
 
@@ -214,7 +413,7 @@ func (qp *Processor) queryAgentRegistry() (map[string]struct{}, error) {
 
 	agentTags := make(map[string]struct{}, len(payload.Agents))
 	for _, agent := range payload.Agents {
-		if strings.HasPrefix(agent.Tag, AgentTagPrefix) {
+		if isValidAgentTag(agent.Tag) {
 			agentTags[agent.Tag] = struct{}{}
 		}
 	}
@@ -252,7 +451,7 @@ func (qp *Processor) scanProcessListForAgents() map[string]struct{} {
 		for i, part := range parts {
 			if part == "--tag" && i+1 < len(parts) {
 				agentTag := parts[i+1]
-				if strings.HasPrefix(agentTag, AgentTagPrefix) {
+				if isValidAgentTag(agentTag) {
 					agentTags[agentTag] = struct{}{}
 				}
 				break
@@ -279,7 +478,9 @@ func (qp *Processor) ensureAgentInactive(agentTag string) error {
 		return nil
 	}
 
-	qp.stopClaudeAgent(agentTag, 0)
+	if err := qp.stopClaudeAgent(agentTag, 0); err != nil {
+		log.Printf("Warning: failed to stop agent %s during ensureAgentInactive: %v", agentTag, err)
+	}
 	time.Sleep(AgentCleanupRetryDelay)
 
 	tags, err = qp.detectActiveAgentTags(DetectBoth)
@@ -307,10 +508,12 @@ func (qp *Processor) cleanupOrphanedProcesses() {
 		agentTag := makeAgentTag(taskID)
 		log.Printf("Detected orphaned agent %s, terminating...", agentTag)
 		systemlog.Warnf("Detected orphaned agent %s, terminating", agentTag)
-		qp.stopClaudeAgent(agentTag, 0)
+		if err := qp.stopClaudeAgent(agentTag, 0); err != nil {
+			log.Printf("Warning: failed to stop orphaned agent %s: %v", agentTag, err)
+		}
 	}
 
-	qp.cleanupClaudeAgentRegistry()
+	qp.cleanupClaudeAgentRegistryOrWarn("orphaned process cleanup")
 }
 
 // isProcessAlive checks if a process is running

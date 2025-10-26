@@ -104,11 +104,11 @@ func write(level Level, msg string) {
 	recentMu.Unlock()
 }
 
-func Debugf(format string, args ...interface{}) { write(LevelDebug, fmt.Sprintf(format, args...)) }
-func Info(msg string)                           { write(LevelInfo, msg) }
-func Infof(format string, args ...interface{})  { write(LevelInfo, fmt.Sprintf(format, args...)) }
-func Warnf(format string, args ...interface{})  { write(LevelWarn, fmt.Sprintf(format, args...)) }
-func Errorf(format string, args ...interface{}) { write(LevelError, fmt.Sprintf(format, args...)) }
+func Debugf(format string, args ...any) { write(LevelDebug, fmt.Sprintf(format, args...)) }
+func Info(msg string)                   { write(LevelInfo, msg) }
+func Infof(format string, args ...any)  { write(LevelInfo, fmt.Sprintf(format, args...)) }
+func Warnf(format string, args ...any)  { write(LevelWarn, fmt.Sprintf(format, args...)) }
+func Errorf(format string, args ...any) { write(LevelError, fmt.Sprintf(format, args...)) }
 
 func RecentEntries(limit int) ([]Entry, error) {
 	if logFile == nil {

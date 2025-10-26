@@ -26,21 +26,55 @@ import (
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
-// completeTaskCleanup handles unregistering execution and cleaning up agent after finalization
-// This should be called ONLY after finalizeTaskStatus succeeds.
-//
-// IMPORTANT: When finalization fails, call cleanup() directly instead to terminate the agent,
-// but leave cleanupReserved=true so the defer block handles unregistration.
-// This ensures:
-// 1. Agent is terminated even if we can't move the file (prevents orphaned processes)
-// 2. Execution registry is cleaned up by defer (ensures reconciliation sees consistent state)
-func (qp *Processor) completeTaskCleanup(taskID string, cleanupFunc func(), cleanupReserved *bool) {
-	// Finalization succeeded, safe to unregister and disable defer cleanup
-	*cleanupReserved = false
-	qp.unregisterExecution(taskID)
-
-	// Now safe to cleanup agent - task file has been moved out of in-progress
+// completeTaskCleanupExplicit handles cleanup and unregistration after successful finalization
+// CRITICAL: Cleanup is verified BEFORE unregistering to prevent race conditions
+func (qp *Processor) completeTaskCleanupExplicit(taskID string, cleanupFunc func()) {
+	// Finalization succeeded - task file has been moved out of in-progress
+	// Now call cleanup to terminate agent and remove from registry
 	cleanupFunc()
+
+	// CRITICAL: Verify cleanup succeeded before unregistering execution
+	// This prevents race condition where reconciliation sees:
+	// - Agent still in external registry (cleanup failed)
+	// - No internal execution tracking (already unregistered)
+	// - Task file not in in-progress (finalized to completed/failed)
+	// Result: Reconciliation does nothing, agent appears stuck forever
+	agentTag := makeAgentTag(taskID)
+	if err := qp.ensureAgentRemoved(agentTag, 0, "completeTaskCleanup"); err != nil {
+		// CRITICAL FIX: Don't unregister if agent removal failed
+		// Keep execution tracked so reconciliation can detect and fix the zombie agent
+		systemlog.Errorf("CRITICAL: Failed to remove agent %s after successful task finalization - keeping execution tracked for reconciliation: %v", agentTag, err)
+		log.Printf("WARNING: Agent %s stuck in registry after task %s finalization - execution remains tracked for reconciliation to fix", agentTag, taskID)
+		return
+	}
+
+	// Cleanup verified, safe to unregister
+	qp.unregisterExecution(taskID)
+}
+
+// cleanupAgentAfterFinalizationFailure handles cleanup when finalization fails
+// CRITICAL: This function ensures agent is terminated AND verified removed before unregistering
+// execution to prevent the "stuck active forever" bug when MAX_TURNS or finalization fails
+func (qp *Processor) cleanupAgentAfterFinalizationFailure(taskID string, cleanupFunc func(), context string) {
+	log.Printf("CRITICAL: Finalization failed for task %s (%s), performing verified cleanup", taskID, context)
+
+	// Step 1: Call the cleanup function (terminates agent process)
+	cleanupFunc()
+
+	// Step 2: CRITICAL - Verify agent was actually removed from registry
+	// This is the key fix for the "stuck active forever" bug
+	agentTag := makeAgentTag(taskID)
+	if err := qp.ensureAgentRemoved(agentTag, 0, context); err != nil {
+		// CRITICAL BUG FIX: Don't unregister if agent removal failed
+		// Keep execution tracked so reconciliation or watchdog can detect and fix the zombie agent
+		systemlog.Errorf("CRITICAL: Agent %s stuck after finalization failure (%s): %v - keeping execution tracked for recovery", agentTag, context, err)
+		log.Printf("ERROR: Failed to remove agent %s after finalization failure - execution remains tracked for recovery: %v", agentTag, err)
+		return
+	}
+
+	// Step 3: Only after cleanup is verified, unregister from execution tracking
+	// This ensures reconciliation sees consistent state if it runs before we finish
+	qp.unregisterExecution(taskID)
 }
 
 // executeTask executes a single task
@@ -50,12 +84,6 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 	// Track execution timing
 	executionStartTime := time.Now()
-	cleanupReserved := true
-	defer func() {
-		if cleanupReserved {
-			qp.unregisterExecution(task.ID)
-		}
-	}()
 
 	// Get timeout setting for timing info
 	currentSettings := settings.GetSettings()
@@ -65,24 +93,22 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	assembly, err := qp.assembler.AssemblePromptForTask(task)
 	if err != nil {
 		executionTime := time.Since(executionStartTime)
-		wrappedErr := fmt.Errorf("assemble prompt for task %s: %w", task.ID, err)
-		log.Printf("Failed to assemble prompt for task %s: %v", task.ID, wrappedErr)
-		if finalizeErr := qp.handleTaskFailureWithTiming(&task, fmt.Sprintf("Prompt assembly failed: %v", wrappedErr), "", executionStartTime, executionTime, timeoutDuration, nil); finalizeErr != nil {
+		log.Printf("Failed to assemble prompt for task %s: %v", task.ID, err)
+		if finalizeErr := qp.handleTaskFailureWithTiming(&task, fmt.Sprintf("Prompt assembly failed: %v", err), "", executionStartTime, executionTime, timeoutDuration, nil); finalizeErr != nil {
 			log.Printf("CRITICAL: Failed to finalize task %s after prompt assembly failure: %v", task.ID, finalizeErr)
 			systemlog.Errorf("Failed to finalize task %s after prompt assembly failure: %v - task will remain in executions", task.ID, finalizeErr)
-			// Keep cleanupReserved=true so defer will unregister execution
-			// Note: No agent process exists yet at this point, no cleanup needed
+			// No agent process exists yet at this point, no cleanup needed
+			qp.unregisterExecution(task.ID)
 			return
 		}
-		// Finalization succeeded, safe to unregister and disable defer cleanup
-		cleanupReserved = false
+		// Finalization succeeded - unregister execution
 		qp.unregisterExecution(task.ID)
 		return
 	}
 	prompt := assembly.Prompt
 
 	// Store the assembled prompt in temp directory for debugging
-	promptPath := filepath.Join(os.TempDir(), fmt.Sprintf("ecosystem-prompt-%s.txt", task.ID))
+	promptPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s%s.txt", PromptFilePrefix, task.ID))
 	if err := os.WriteFile(promptPath, []byte(prompt), PromptFilePermissions); err != nil {
 		log.Printf("Warning: Failed to save prompt to %s: %v", promptPath, err)
 		// Don't fail the task, just log the warning
@@ -90,9 +116,9 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		log.Printf("Saved assembled prompt to %s", promptPath)
 	}
 
-	// Update task phase before execution starts
+	// Update task phase before execution starts (use SkipCleanup for performance)
 	task.CurrentPhase = "prompt_assembled"
-	qp.storage.SaveQueueItem(task, "in-progress")
+	qp.storage.SaveQueueItemSkipCleanup(task, "in-progress")
 	qp.broadcastUpdate("task_progress", task)
 
 	// Log prompt size for debugging
@@ -108,16 +134,14 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	if err != nil {
 		log.Printf("Failed to execute task %s with Claude Code: %v", task.ID, err)
 		if finalizeErr := qp.handleTaskFailureWithTiming(&task, fmt.Sprintf("Claude Code execution failed: %v", err), "", executionStartTime, executionTime, timeoutDuration, nil); finalizeErr != nil {
-			wrappedErr := NewFinalizationError(task.ID, "execution_failure", finalizeErr)
 			log.Printf("CRITICAL: Failed to finalize task %s after execution failure: %v", task.ID, finalizeErr)
-			systemlog.Errorf("Failed to finalize task %s after execution failure: %v", task.ID, wrappedErr)
-			// CRITICAL: Must cleanup agent even when finalization fails to prevent orphaned processes
-			// Don't unregister yet - let defer handle that after cleanup
-			cleanup()
-			// Keep cleanupReserved=true so defer will unregister execution
+			systemlog.Errorf("Failed to finalize task %s after execution failure: %v", task.ID, finalizeErr)
+			// CRITICAL: Use verified cleanup to prevent agent remaining in registry
+			qp.cleanupAgentAfterFinalizationFailure(task.ID, cleanup, "execution failure")
 			return
 		}
-		qp.completeTaskCleanup(task.ID, cleanup, &cleanupReserved)
+		// Finalization succeeded - cleanup agent and unregister
+		qp.completeTaskCleanupExplicit(task.ID, cleanup)
 		return
 	}
 
@@ -133,7 +157,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 		// Update task with results including timing and prompt size
 		completedAt := timeutil.NowRFC3339()
-		task.Results = map[string]interface{}{
+		task.Results = map[string]any{
 			"success":         true,
 			"message":         result.Message,
 			"output":          result.Output,
@@ -152,14 +176,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		// CRITICAL: Finalize status to disk BEFORE broadcasting to prevent UI/disk state divergence
 		// This also prevents reconciliation race condition where task appears orphaned
 		if finalizeErr := qp.finalizeTaskStatus(&task, "completed"); finalizeErr != nil {
-			wrappedErr := NewFinalizationError(task.ID, "success", finalizeErr)
-			log.Printf("CRITICAL: Failed to finalize completed task %s: %v", task.ID, wrappedErr)
-			systemlog.Errorf("Failed to finalize completed task %s: %v - task will remain in executions for reconciler", task.ID, wrappedErr)
-			// CRITICAL: Call cleanup for safety - agent should have exited naturally, but
-			// cleanup() safely handles already-terminated processes (checks isProcessAlive first)
-			cleanup()
-			// Keep cleanupReserved=true so defer will unregister execution
-			// Task file is still in-progress, so reconciler will move it back to pending
+			log.Printf("CRITICAL: Failed to finalize completed task %s: %v", task.ID, finalizeErr)
+			systemlog.Errorf("Failed to finalize completed task %s: %v - task will remain in executions for reconciler", task.ID, finalizeErr)
+			// CRITICAL: Use verified cleanup to prevent agent remaining in registry
+			// Agent should have exited naturally, but cleanup() safely handles already-terminated processes
+			qp.cleanupAgentAfterFinalizationFailure(task.ID, cleanup, "completed task finalization failure")
 			return
 		}
 
@@ -168,7 +189,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 		// Finalization succeeded, safe to unregister and cleanup
 		// Agent should have exited naturally, but cleanup() handles already-terminated processes safely
-		qp.completeTaskCleanup(task.ID, cleanup, &cleanupReserved)
+		qp.completeTaskCleanupExplicit(task.ID, cleanup)
 	} else {
 		// Task failed or was rate limited
 		// CRITICAL: Don't call cleanup() yet - wait until after finalization succeeds
@@ -184,9 +205,9 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			// Store rate limit info in results, NOT in notes (preserve user notes)
 			hitAt := timeutil.NowRFC3339()
 			if task.Results == nil {
-				task.Results = make(map[string]interface{})
+				task.Results = make(map[string]any)
 			}
-			task.Results["rate_limit_info"] = map[string]interface{}{
+			task.Results["rate_limit_info"] = map[string]any{
 				"hit_at":      hitAt,
 				"retry_after": result.RetryAfter,
 				"message":     fmt.Sprintf("Rate limited at %s. Will retry after %d seconds.", hitAt, result.RetryAfter),
@@ -194,23 +215,21 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 			// Move back to pending queue for retry
 			if finalizeErr := qp.finalizeTaskStatus(&task, "pending"); finalizeErr != nil {
-				wrappedErr := NewFinalizationError(task.ID, "rate_limit", finalizeErr)
-				log.Printf("CRITICAL: Failed to finalize rate-limited task %s: %v", task.ID, wrappedErr)
-				systemlog.Errorf("Failed to move rate-limited task %s to pending: %v - task will remain in executions", task.ID, wrappedErr)
-				// CRITICAL: Must cleanup agent even when finalization fails to prevent orphaned processes
-				cleanup()
-				// Keep cleanupReserved=true so defer will unregister execution
+				log.Printf("CRITICAL: Failed to finalize rate-limited task %s: %v", task.ID, finalizeErr)
+				systemlog.Errorf("Failed to move rate-limited task %s to pending: %v - task will remain in executions", task.ID, finalizeErr)
+				// CRITICAL: Use verified cleanup to prevent agent remaining in registry
+				qp.cleanupAgentAfterFinalizationFailure(task.ID, cleanup, "rate-limited task finalization failure")
 				return
 			}
 
 			// Finalization succeeded, cleanup agent and unregister
-			qp.completeTaskCleanup(task.ID, cleanup, &cleanupReserved)
+			qp.completeTaskCleanupExplicit(task.ID, cleanup)
 
 			// Trigger a pause of the queue processor
 			qp.handleRateLimitPause(result.RetryAfter)
 
 			// Broadcast rate limit event
-			qp.broadcastUpdate("rate_limit_hit", map[string]interface{}{
+			qp.broadcastUpdate("rate_limit_hit", map[string]any{
 				"task_id":     task.ID,
 				"retry_after": result.RetryAfter,
 				"pause_until": time.Now().Add(time.Duration(result.RetryAfter) * time.Second).Format(time.RFC3339),
@@ -218,28 +237,44 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		} else {
 			log.Printf("Task %s failed after %v: %s", task.ID, executionTime.Round(time.Second), result.Error)
 			systemlog.Warnf("Task %s failed: %s", task.ID, result.Error)
-			var extras map[string]interface{}
+			var extras map[string]any
 			if result.MaxTurnsExceeded {
-				extras = map[string]interface{}{"max_turns_exceeded": true}
+				extras = map[string]any{"max_turns_exceeded": true}
+				// MAX_TURNS is particularly prone to zombie agents because the agent
+				// may not have fully exited yet when we start cleanup
+				log.Printf("⚠️  MAX_TURNS exceeded for task %s - using enhanced cleanup verification", task.ID)
+				systemlog.Warnf("MAX_TURNS exceeded for task %s - enhanced cleanup will be applied", task.ID)
 			}
 			if finalizeErr := qp.handleTaskFailureWithTiming(&task, result.Error, result.Output, executionStartTime, executionTime, timeoutDuration, extras); finalizeErr != nil {
-				wrappedErr := NewFinalizationError(task.ID, "failure", finalizeErr)
-				log.Printf("CRITICAL: Failed to finalize failed task %s: %v", task.ID, wrappedErr)
-				systemlog.Errorf("Failed to finalize failed task %s: %v - task will remain in executions", task.ID, wrappedErr)
-				// CRITICAL: Must cleanup agent even when finalization fails to prevent orphaned processes
+				log.Printf("CRITICAL: Failed to finalize failed task %s: %v", task.ID, finalizeErr)
+				systemlog.Errorf("Failed to finalize failed task %s: %v - task will remain in executions", task.ID, finalizeErr)
+				// CRITICAL: Use verified cleanup to prevent agent remaining in registry
 				// This is especially important for MAX_TURNS cases where agent may still be running
-				cleanup()
-				// Keep cleanupReserved=true so defer will unregister execution
+				context := "failed task finalization failure"
+				if result.MaxTurnsExceeded {
+					context = "MAX_TURNS finalization failure"
+					// Give agent extra time to fully exit after MAX_TURNS before cleanup
+					time.Sleep(500 * time.Millisecond)
+				}
+				qp.cleanupAgentAfterFinalizationFailure(task.ID, cleanup, context)
 				return
 			}
 			// Finalization succeeded (handleTaskFailureWithTiming calls finalizeTaskStatus)
-			qp.completeTaskCleanup(task.ID, cleanup, &cleanupReserved)
+			// For MAX_TURNS, add extra verification to catch zombie agents
+			if result.MaxTurnsExceeded {
+				agentTag := makeAgentTag(task.ID)
+				// Give agent extra time to fully exit after MAX_TURNS
+				time.Sleep(500 * time.Millisecond)
+				// Double-check agent was removed - MAX_TURNS often leaves zombies
+				_ = qp.ensureAgentRemoved(agentTag, 0, "MAX_TURNS success cleanup")
+			}
+			qp.completeTaskCleanupExplicit(task.ID, cleanup)
 		}
 	}
 }
 
 // handleTaskFailureWithTiming handles a failed task with execution timing information
-func (qp *Processor) handleTaskFailureWithTiming(task *tasks.TaskItem, errorMsg string, output string, startTime time.Time, executionTime time.Duration, timeoutAllowed time.Duration, extras map[string]interface{}) error {
+func (qp *Processor) handleTaskFailureWithTiming(task *tasks.TaskItem, errorMsg string, output string, startTime time.Time, executionTime time.Duration, timeoutAllowed time.Duration, extras map[string]any) error {
 	// Determine if this was a timeout failure
 	isTimeout := strings.Contains(errorMsg, "timed out") || strings.Contains(errorMsg, "timeout")
 
@@ -249,7 +284,7 @@ func (qp *Processor) handleTaskFailureWithTiming(task *tasks.TaskItem, errorMsg 
 	promptSizeKB := float64(len(prompt)) / BytesPerKilobyte
 
 	failedAt := timeutil.NowRFC3339()
-	results := map[string]interface{}{
+	results := map[string]any{
 		"success":         false,
 		"error":           errorMsg,
 		"output":          output,
@@ -365,56 +400,51 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	qp.registerExecution(task.ID, agentTag, cmd, startTime)
 
 	// Cleanup function handles agent termination for error/timeout cases
-	// Uses killProcessGracefully as the canonical termination mechanism for consistency
+	// Delegates to terminateAgent which provides comprehensive cleanup including:
+	// - Stop via CLI, registry cleanup, process termination, shutdown wait, verification
 	cleanup = func() {
-		pid := cmd.Process.Pid
-
-		// Check if process is still alive before attempting cleanup
-		if !qp.isProcessAlive(pid) {
-			// Process already exited naturally - just clean up registry
-			qp.cleanupClaudeAgentRegistry()
-			return
+		// Safely extract PID - handle case where cmd.Process might be nil
+		pid := 0
+		if cmd != nil && cmd.Process != nil {
+			pid = cmd.Process.Pid
 		}
 
-		// Process is still running - need to terminate it
-		log.Printf("Terminating active Claude agent %s (pid %d) for task %s", agentTag, pid, task.ID)
-
-		// Try graceful agent stop via CLI first
-		qp.stopClaudeAgent(agentTag, pid)
-		qp.cleanupClaudeAgentRegistry()
-
-		// Use canonical process termination logic for consistency
-		// This handles SIGTERM -> wait -> SIGKILL -> verify sequence
-		if qp.isProcessAlive(pid) {
-			if err := qp.killProcessGracefully(pid); err != nil {
-				log.Printf("Warning: failed to gracefully terminate process %d for task %s: %v", pid, task.ID, err)
-				// Final fallback: force kill process group
-				if err := KillProcessGroup(pid); err != nil {
-					log.Printf("Warning: failed to kill process group for %s (pid %d): %v", task.ID, pid, err)
-				}
-			}
+		// Use canonical termination function for all cleanup
+		// terminateAgent handles both alive and dead processes comprehensively
+		if err := qp.terminateAgent(task.ID, agentTag, pid); err != nil {
+			// terminateAgent already does full cleanup + verification
+			// If it returns an error, the agent is stuck in registry
+			// ensureAgentRemoved provides retry logic with exponential backoff
+			systemlog.Warnf("Agent termination failed for task %s, attempting forced removal: %v", task.ID, err)
+			log.Printf("Warning: terminateAgent failed for task %s, using ensureAgentRemoved for retry: %v", task.ID, err)
+			_ = qp.ensureAgentRemoved(agentTag, pid, "terminateAgent failure - forced retry")
 		}
-
-		qp.waitForAgentShutdown(agentTag, pid)
 	}
 
-	qp.initTaskLogBuffer(task.ID, agentTag, cmd.Process.Pid)
+	// Safe PID access for logging/tracking
+	pid := 0
+	if cmd.Process != nil {
+		pid = cmd.Process.Pid
+	}
+
+	qp.initTaskLogBuffer(task.ID, agentTag, pid)
 	completed := false
 	defer func() {
 		qp.finalizeTaskLogs(task.ID, completed)
 	}()
 
-	qp.appendTaskLog(task.ID, agentTag, "stdout", fmt.Sprintf("▶ Claude Code agent %s started (pid %d)", agentTag, cmd.Process.Pid))
-	qp.broadcastUpdate("task_started", map[string]interface{}{
+	qp.appendTaskLog(task.ID, agentTag, "stdout", fmt.Sprintf("▶ Claude Code agent %s started (pid %d)", agentTag, pid))
+	qp.broadcastUpdate("task_started", map[string]any{
 		"task_id":    task.ID,
 		"agent_id":   agentTag,
-		"process_id": cmd.Process.Pid,
+		"process_id": pid,
 		"start_time": timeutil.NowRFC3339(),
 	})
 
 	task.CurrentPhase = "executing_claude"
 	task.StartedAt = startTime.Format(time.RFC3339)
-	if err := qp.storage.SaveQueueItem(task, "in-progress"); err != nil {
+	// Use SkipCleanup for intermediate phase update (performance optimization)
+	if err := qp.storage.SaveQueueItemSkipCleanup(task, "in-progress"); err != nil {
 		log.Printf("Warning: failed to persist in-progress task %s: %v", task.ID, err)
 	}
 	qp.broadcastUpdate("task_executing", task)
@@ -521,6 +551,13 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 
 	// Timeout takes precedence regardless of wait error
 	if ctxErr == context.DeadlineExceeded {
+		// Mark execution as timed out for observability
+		qp.executionsMu.Lock()
+		if execState, exists := qp.executions[task.ID]; exists {
+			execState.timedOut = true
+		}
+		qp.executionsMu.Unlock()
+
 		actualRuntime := time.Since(startTime).Round(time.Second)
 		msg := fmt.Sprintf("⏰ TIMEOUT: Task execution exceeded %v limit (ran for %v)\n\nThe task was automatically terminated because it exceeded the configured timeout.\nConsider:\n- Increasing timeout in Settings if this is a complex task\n- Breaking the task into smaller parts\n- Checking for blocking steps in the prompt", timeoutDuration, actualRuntime)
 		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
@@ -562,16 +599,18 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	}
 
 	elapsed := time.Since(startTime)
-	if elapsed <= RateLimitDetectionWindow && isRateLimitError(combinedOutput) {
-		retryAfter := qp.extractRetryAfter(combinedOutput)
-		qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit detected. Suggested backoff %d seconds", retryAfter))
-		return &tasks.ClaudeCodeResponse{
-			Success:     false,
-			Error:       "RATE_LIMIT: API rate limit reached",
-			RateLimited: true,
-			RetryAfter:  retryAfter,
-			Output:      combinedOutput,
-		}, cleanup, nil
+	if isRateLimited, retryAfter, checkWindow := qp.detectRateLimitError(waitErr, combinedOutput, elapsed); isRateLimited {
+		// Only trigger rate limit handling if within detection window OR exit code was 429
+		if !checkWindow || elapsed <= RateLimitDetectionWindow {
+			qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit detected. Suggested backoff %d seconds", retryAfter))
+			return &tasks.ClaudeCodeResponse{
+				Success:     false,
+				Error:       "RATE_LIMIT: API rate limit reached",
+				RateLimited: true,
+				RetryAfter:  retryAfter,
+				Output:      combinedOutput,
+			}, cleanup, nil
+		}
 	}
 
 	if detectMaxTurnsExceeded(combinedOutput) {
@@ -595,7 +634,8 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	qp.appendTaskLog(task.ID, agentTag, "stdout", "✅ Claude Code execution finished")
 
 	task.CurrentPhase = "claude_completed"
-	if err := qp.storage.SaveQueueItem(task, "in-progress"); err != nil {
+	// Use SkipCleanup for intermediate phase update (performance optimization)
+	if err := qp.storage.SaveQueueItemSkipCleanup(task, "in-progress"); err != nil {
 		log.Printf("Warning: failed to persist claude completion for task %s: %v", task.ID, err)
 	}
 	qp.broadcastUpdate("claude_execution_complete", task)
@@ -683,20 +723,19 @@ func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, tas
 		}, true
 	}
 
-	// More specific rate limit detection to avoid false positives
-	// Avoid matching benign phrases like "rate limiting headers" or "rate limit middleware"
-	rateLimitDetected := isRateLimitError(combinedOutput) || exitCode == HTTPStatusTooManyRequests
-
-	if rateLimitDetected && elapsed <= RateLimitDetectionWindow {
-		retryAfter := qp.extractRetryAfter(combinedOutput)
-		qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit hit. Pausing for %d seconds", retryAfter))
-		return &tasks.ClaudeCodeResponse{
-			Success:     false,
-			Error:       "RATE_LIMIT: API rate limit reached",
-			RateLimited: true,
-			RetryAfter:  retryAfter,
-			Output:      combinedOutput,
-		}, true
+	// Use consolidated rate limit detection
+	if isRateLimited, retryAfter, checkWindow := qp.detectRateLimitError(waitErr, combinedOutput, elapsed); isRateLimited {
+		// Only trigger rate limit handling if within detection window OR exit code was 429
+		if !checkWindow || elapsed <= RateLimitDetectionWindow {
+			qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit hit. Pausing for %d seconds", retryAfter))
+			return &tasks.ClaudeCodeResponse{
+				Success:     false,
+				Error:       "RATE_LIMIT: API rate limit reached",
+				RateLimited: true,
+				RetryAfter:  retryAfter,
+				Output:      combinedOutput,
+			}, true
+		}
 	}
 
 	log.Printf("Claude Code exited with non-zero status for task %s (code %d)", task.ID, exitCode)
@@ -728,6 +767,32 @@ func exitCodeFromError(err error) (int, bool) {
 func detectMaxTurnsExceeded(output string) bool {
 	lower := strings.ToLower(output)
 	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
+}
+
+// detectRateLimitError consolidates all rate limit detection logic into one place
+// Returns (isRateLimited, retryAfterSeconds, shouldCheckWindow)
+// shouldCheckWindow indicates if this detection should respect the RateLimitDetectionWindow
+func (qp *Processor) detectRateLimitError(waitErr error, output string, elapsed time.Duration) (bool, int, bool) {
+	// Check exit code first - HTTP 429 is a definitive rate limit
+	exitCode, hasExit := exitCodeFromError(waitErr)
+	if hasExit && exitCode == HTTPStatusTooManyRequests {
+		retryAfter := qp.extractRetryAfter(output)
+		return true, retryAfter, true // Exit code 429 should respect detection window
+	}
+
+	// Check for rate limit patterns in output
+	if !isRateLimitError(output) {
+		return false, 0, false
+	}
+
+	// Pattern matched - extract retry duration
+	retryAfter := qp.extractRetryAfter(output)
+
+	// Early failures (< 1 minute) are more likely to be real rate limits
+	// Later failures might just mention rate limits in documentation/logs
+	shouldCheckWindow := elapsed <= RateLimitDetectionWindow
+
+	return true, retryAfter, shouldCheckWindow
 }
 
 // isRateLimitError detects if the output contains rate limit error patterns
@@ -827,7 +892,7 @@ func isValidClaudeConfig(data []byte) bool {
 		return false
 	}
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(trimmed, &parsed); err != nil {
 		return false
 	}
@@ -836,11 +901,11 @@ func isValidClaudeConfig(data []byte) bool {
 }
 
 // broadcastUpdate sends updates to all connected WebSocket clients
-func (qp *Processor) broadcastUpdate(updateType string, data interface{}) {
+func (qp *Processor) broadcastUpdate(updateType string, data any) {
 	// Send the typed update directly, not wrapped in another object
 	// The WebSocket manager will wrap it properly
 	select {
-	case qp.broadcast <- map[string]interface{}{
+	case qp.broadcast <- map[string]any{
 		"type":      updateType,
 		"data":      data,
 		"timestamp": time.Now().Unix(),

@@ -8,7 +8,7 @@ import (
 func TestWriteJSON(t *testing.T) {
 	tests := []struct {
 		name           string
-		data           interface{}
+		data           any
 		statusCode     int
 		wantStatus     int
 		wantBody       string
@@ -33,7 +33,7 @@ func TestWriteJSON(t *testing.T) {
 		},
 		{
 			name:           "CreatedStatus",
-			data:           map[string]interface{}{"id": "123", "created": true},
+			data:           map[string]any{"id": "123", "created": true},
 			statusCode:     201,
 			wantStatus:     201,
 			wantBody:       `{"created":true,"id":"123"}`,

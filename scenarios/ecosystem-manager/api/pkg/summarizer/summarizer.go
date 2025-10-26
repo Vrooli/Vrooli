@@ -142,6 +142,8 @@ func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {
 		return Result{}, fmt.Errorf("failed to ensure OpenRouter prompt directory: %w", err)
 	}
 
+	// Note: RecyclerPromptPrefix is defined in queue package but we don't import it
+	// to avoid circular dependency. Using direct constant here.
 	promptID := fmt.Sprintf("ecosystem-recycler-%d", time.Now().UnixNano())
 	promptFile := filepath.Join(promptDir, promptID+".txt")
 	if err := os.WriteFile(promptFile, []byte(prompt), 0o600); err != nil {

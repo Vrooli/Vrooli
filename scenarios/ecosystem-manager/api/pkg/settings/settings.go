@@ -39,20 +39,20 @@ type Settings struct {
 func newDefaultSettings() Settings {
 	return Settings{
 		Theme:           "light",
-		Slots:           1,
-		RefreshInterval: 30,
-		Active:          false, // ALWAYS start/reset inactive for safety
-		MaxTurns:        60,
-		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
-		SkipPermissions: true,
-		TaskTimeout:     30, // 30 minutes default timeout
+		Slots:           DefaultSlots,
+		RefreshInterval: DefaultRefreshInterval,
+		Active:          DefaultActive, // ALWAYS start/reset inactive for safety
+		MaxTurns:        DefaultMaxTurns,
+		AllowedTools:    DefaultAllowedTools,
+		SkipPermissions: DefaultSkipPermissions,
+		TaskTimeout:     DefaultTaskTimeout,
 		Recycler: RecyclerSettings{
-			EnabledFor:          "off",
-			IntervalSeconds:     60,
-			ModelProvider:       "ollama",
-			ModelName:           "llama3.1:8b",
-			CompletionThreshold: 3,
-			FailureThreshold:    5,
+			EnabledFor:          DefaultRecyclerEnabledFor,
+			IntervalSeconds:     DefaultRecyclerInterval,
+			ModelProvider:       DefaultRecyclerModelProvider,
+			ModelName:           DefaultRecyclerModelID,
+			CompletionThreshold: DefaultRecyclerCompletionThreshold,
+			FailureThreshold:    DefaultRecyclerFailureThreshold,
 		},
 	}
 }

@@ -101,7 +101,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 		t.Fatalf("Failed to create assembler: %v", err)
 	}
 
-	broadcast := make(chan interface{}, 10)
+	broadcast := make(chan any, 10)
 	processor := queue.NewProcessor(30*time.Second, storage, assembler, broadcast)
 	wsManager := websocket.NewManager()
 	testRecycler := &recycler.Recycler{}
@@ -132,7 +132,7 @@ func TestHealthCheckHandler(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var response map[string]interface{}
+		var response map[string]any
 		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -164,12 +164,12 @@ func TestTaskHandlers_GetTasks(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var response map[string]interface{}
+		var response map[string]any
 		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
 
-		tasksField, ok := response["tasks"].([]interface{})
+		tasksField, ok := response["tasks"].([]any)
 		if !ok {
 			t.Fatal("Expected tasks array")
 		}
@@ -224,7 +224,7 @@ func TestTaskHandlers_CreateTask(t *testing.T) {
 	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
 
 	t.Run("ValidSingleTarget", func(t *testing.T) {
-		taskBody := map[string]interface{}{
+		taskBody := map[string]any{
 			"type":      "resource",
 			"operation": "generator",
 			"target":    "test-resource",
@@ -244,7 +244,7 @@ func TestTaskHandlers_CreateTask(t *testing.T) {
 	})
 
 	t.Run("MissingType", func(t *testing.T) {
-		taskBody := map[string]interface{}{
+		taskBody := map[string]any{
 			"operation": "generator",
 			"target":    "test-resource",
 		}
@@ -337,7 +337,7 @@ func TestQueueHandlers_GetQueueStatus(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var response map[string]interface{}
+		var response map[string]any
 		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}

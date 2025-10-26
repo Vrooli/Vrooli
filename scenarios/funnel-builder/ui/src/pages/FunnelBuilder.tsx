@@ -118,26 +118,26 @@ const FunnelBuilder = () => {
   }
 
   return (
-    <div className="flex h-screen">
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4">Funnel Steps</h3>
+    <div className="flex flex-col md:h-screen md:flex-row">
+      <div className="border-b border-gray-200 bg-white md:h-full md:w-80 md:border-b-0 md:border-r">
+        <div className="flex items-center justify-between gap-3 px-4 py-4 md:block md:gap-0 md:p-4">
+          <h3 className="text-base font-semibold text-gray-900 md:mb-4 md:text-lg">Funnel Steps</h3>
           <button
             onClick={() => setShowStepSelector(true)}
-            className="btn btn-primary w-full"
+            className="btn btn-primary shrink-0 md:mt-4 md:w-full"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Add Step
           </button>
         </div>
-        
-        <div className="flex-1 overflow-auto p-4">
+
+        <div className="max-h-[60vh] overflow-y-auto px-4 pb-4 md:flex-1 md:overflow-auto md:p-4">
           <DndContext
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={currentFunnel.steps.map(s => s.id)}
+              items={currentFunnel.steps.map((step) => step.id)}
               strategy={verticalListSortingStrategy}
             >
               <StepList
@@ -150,43 +150,39 @@ const FunnelBuilder = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex justify-between items-center">
+      <div className="flex flex-1 flex-col bg-gray-50">
+        <div className="border-b border-gray-200 bg-white px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{currentFunnel.name}</h2>
+              <h2 className="text-lg font-bold text-gray-900 sm:text-xl">{currentFunnel.name}</h2>
               <p className="text-sm text-gray-600">{currentFunnel.description}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 className="btn btn-outline"
+                aria-label="Funnel settings"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="h-4 w-4" />
+                <span className="ml-2 hidden text-sm sm:inline">Settings</span>
               </button>
-              <button
-                onClick={handlePreview}
-                className="btn btn-secondary"
-              >
-                <Eye className="w-4 h-4 mr-2" />
+              <button onClick={handlePreview} className="btn btn-secondary">
+                <Eye className="mr-2 h-4 w-4" />
                 Preview
               </button>
-              <button
-                onClick={handleSave}
-                className="btn btn-primary"
-              >
-                <Save className="w-4 h-4 mr-2" />
+              <button onClick={handleSave} className="btn btn-primary">
+                <Save className="mr-2 h-4 w-4" />
                 Save
               </button>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="flex-1 overflow-x-hidden md:overflow-auto">
           {selectedStep ? (
             <StepEditor step={selectedStep} />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex h-64 items-center justify-center px-4 text-gray-500 md:h-full">
               <div className="text-center">
                 <p className="mb-2">Select a step to edit</p>
                 <p className="text-sm">or add a new step to get started</p>

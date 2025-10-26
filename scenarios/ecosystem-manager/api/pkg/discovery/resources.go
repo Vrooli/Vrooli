@@ -28,7 +28,7 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 		}
 	}
 
-	var vrooliResources []map[string]interface{}
+	var vrooliResources []map[string]any
 	if err := json.Unmarshal(output, &vrooliResources); err != nil {
 		log.Printf("Error: Failed to parse vrooli resource list output: %v", err)
 		return resources, err
@@ -70,7 +70,7 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 }
 
 // Helper functions for safe field extraction
-func getStringField(m map[string]interface{}, key string) string {
+func getStringField(m map[string]any, key string) string {
 	if val, ok := m[key]; ok {
 		if str, ok := val.(string); ok {
 			return str
@@ -79,7 +79,7 @@ func getStringField(m map[string]interface{}, key string) string {
 	return ""
 }
 
-func getIntField(m map[string]interface{}, key string) int {
+func getIntField(m map[string]any, key string) int {
 	if val, ok := m[key]; ok {
 		switch v := val.(type) {
 		case float64:
@@ -91,7 +91,7 @@ func getIntField(m map[string]interface{}, key string) int {
 	return 0
 }
 
-func getBoolField(m map[string]interface{}, key string) bool {
+func getBoolField(m map[string]any, key string) bool {
 	if val, ok := m[key]; ok {
 		if b, ok := val.(bool); ok {
 			return b
