@@ -1,20 +1,8 @@
+import { logger } from '@/services/logger';
 import { create } from 'zustand';
 import { appService } from '@/services/api';
 import type { App } from '@/types';
-
-const deriveAppKey = (app: App): string => {
-  const candidates: Array<string | undefined> = [app.id, app.scenario_name, app.name];
-  const key = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
-  if (key && key.trim().length > 0) {
-    return key.trim();
-  }
-
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return `app-${Math.random().toString(36).slice(2)}`;
-};
+import { deriveAppKey } from '@/utils/appPreview';
 
 type AppUpdater = App[] | ((current: App[]) => App[]);
 
@@ -24,6 +12,7 @@ interface AppsStoreState {
   loadingDetailed: boolean;
   error: string | null;
   hasInitialized: boolean;
+  lastLoadTimestamp: number | null;
   loadApps: (options?: { force?: boolean }) => Promise<void>;
   setAppsState: (updater: AppUpdater) => void;
   mergeApps: (incoming: App[]) => void;
@@ -31,18 +20,25 @@ interface AppsStoreState {
   clearError: () => void;
 }
 
+const CACHE_TTL_MS = 30_000; // 30 seconds
+
 export const useAppsStore = create<AppsStoreState>((set, get) => ({
   apps: [],
   loadingInitial: false,
   loadingDetailed: false,
   error: null,
   hasInitialized: false,
+  lastLoadTimestamp: null,
 
-  loadApps: async ({ force = false } = {}) => {
-    const { loadingInitial, hasInitialized, apps } = get();
+  loadApps: async ({ force = false } = {}): Promise<void> => {
+    const { loadingInitial, hasInitialized, apps, lastLoadTimestamp } = get();
     if (loadingInitial) {
       return;
     }
+
+    // Check cache validity to prevent stale data issues
+    const now = Date.now();
+    const isCacheValid = lastLoadTimestamp !== null && (now - lastLoadTimestamp) < CACHE_TTL_MS;
 
     const runDetailedFetch = async () => {
       if (get().loadingDetailed) {
@@ -52,23 +48,27 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
       set({ loadingDetailed: true });
       try {
         const detailed = await appService.getApps();
-        if (Array.isArray(detailed)) {
+        if (Array.isArray(detailed) && detailed.length > 0) {
+          set({ apps: detailed, lastLoadTimestamp: Date.now() });
+        } else if (Array.isArray(detailed)) {
+          // Empty array returned - valid but no apps
           set({ apps: detailed });
         }
       } catch (error) {
-        console.warn('[appsStore] Failed to fetch detailed app data', error);
-        // Only set error if we have no apps loaded at all (summaries also failed)
+        logger.warn('[appsStore] Failed to fetch detailed app data', error);
+        // Set error if we have no apps at all, otherwise degrade gracefully to summary data
         const currentState = get();
-        if (!currentState.error && currentState.apps.length === 0) {
-          set({ error: 'Unable to load complete scenario data.' });
+        if (currentState.apps.length === 0) {
+          const errorMessage = error instanceof Error ? error.message : 'Unable to load complete scenario data.';
+          set({ error: errorMessage });
         }
-        // Otherwise, we silently degrade to summary data and will retry on next cache expiry
       } finally {
         set({ loadingDetailed: false });
       }
     };
 
-    if (!force && hasInitialized && apps.length > 0) {
+    // If already initialized with data and cache is valid, just run detailed fetch in background
+    if (!force && hasInitialized && apps.length > 0 && isCacheValid) {
       void runDetailedFetch();
       return;
     }
@@ -79,17 +79,20 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
 
     try {
       const summaries = await appService.getAppSummaries();
-      if (Array.isArray(summaries)) {
+      if (Array.isArray(summaries) && summaries.length > 0) {
+        set({ apps: summaries, lastLoadTimestamp: Date.now() });
+        summariesLoaded = true;
+      } else if (Array.isArray(summaries)) {
+        // Empty array returned - valid but no apps
         set({ apps: summaries });
         summariesLoaded = true;
       } else if (force) {
         set({ apps: [] });
       }
     } catch (error) {
-      console.warn('[appsStore] Failed to fetch app summaries', error);
-      if (!get().hasInitialized) {
-        set({ error: 'Unable to load scenario summaries.' });
-      }
+      logger.warn('[appsStore] Failed to fetch app summaries', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unable to load scenario summaries.';
+      set({ error: errorMessage });
     } finally {
       set((state) => ({
         loadingInitial: false,
@@ -100,7 +103,7 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
     await runDetailedFetch();
   },
 
-  setAppsState: (updater) => {
+  setAppsState: (updater): void => {
     set((state) => {
       const next = typeof updater === 'function'
         ? (updater as (current: App[]) => App[])(state.apps)
@@ -109,7 +112,7 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
     });
   },
 
-  mergeApps: (incoming) => {
+  mergeApps: (incoming): void => {
     if (!Array.isArray(incoming) || incoming.length === 0) {
       return;
     }
@@ -129,7 +132,7 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
     });
   },
 
-  updateApp: (update) => {
+  updateApp: (update): void => {
     const keyCandidates: Array<string | undefined> = [update.id, update.scenario_name, update.name];
     const identifier = keyCandidates.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim();
     if (!identifier) {
@@ -155,6 +158,6 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
     });
   },
 
-  clearError: () => set({ error: null }),
+  clearError: (): void => set({ error: null }),
 
 }));

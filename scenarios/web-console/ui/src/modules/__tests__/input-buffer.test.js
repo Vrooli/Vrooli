@@ -136,6 +136,49 @@ describe("input buffer", () => {
     expect(tab.transcript).toHaveLength(1);
   });
 
+  it("encodes websocket frames with the expected binary layout", () => {
+    const send = vi.fn();
+    tab.socket = /** @type {WebSocket} */ (
+      /** @type {unknown} */ ({
+        readyState: WebSocket.OPEN,
+        send,
+        close: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(() => true),
+        url: "",
+        protocol: "",
+        extensions: "",
+        bufferedAmount: 0,
+        binaryType: "arraybuffer",
+        onclose: null,
+        onerror: null,
+        onmessage: null,
+        onopen: null,
+      })
+    );
+
+    const result = transmitInput(tab, "printf 'ok'", { appendNewline: true });
+    expect(result).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
+
+    const frame = send.mock.calls[0][0];
+    expect(frame).toBeInstanceOf(Uint8Array);
+    expect(frame[0]).toBe(0x01);
+
+    const seqBytes = Array.from(frame.slice(1, 9));
+    const seqValue = seqBytes.reduce((acc, byte) => (acc << 8) | byte, 0);
+    expect(seqValue).toBe(1);
+
+    const sourceLength = (frame[9] << 8) | frame[10];
+    expect(sourceLength).toBe(0);
+
+    const payloadStart = 1 + 8 + 2 + sourceLength;
+    const payloadBytes = frame.slice(payloadStart);
+    const decoded = new TextDecoder().decode(payloadBytes);
+    expect(decoded).toBe("printf 'ok'\n");
+  });
+
   it("refuses to transmit when socket is not open", () => {
     tab.socket = /** @type {WebSocket} */ (
       /** @type {unknown} */ ({

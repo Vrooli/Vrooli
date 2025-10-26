@@ -21,10 +21,10 @@ type SystemMetrics struct {
 
 // MetricsService handles system metrics collection with caching
 type MetricsService struct {
-	cache        *SystemMetrics
-	cacheMutex   sync.RWMutex
-	cacheExpiry  time.Time
-	cacheTTL     time.Duration
+	cache       *SystemMetrics
+	cacheMutex  sync.RWMutex
+	cacheExpiry time.Time
+	cacheTTL    time.Duration
 }
 
 // NewMetricsService creates a new metrics service with caching
@@ -142,7 +142,7 @@ func (s *MetricsService) getCPUUsage(ctx context.Context) (float64, error) {
 	// Add timeout to prevent hanging
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	
+
 	// Try using /proc/stat for more reliable CPU calculation
 	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", `
 		grep 'cpu ' /proc/stat | head -1 | awk '{
@@ -185,7 +185,7 @@ func (s *MetricsService) getMemoryUsage(ctx context.Context) (float64, error) {
 	// Add timeout to prevent hanging
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	
+
 	// Use /proc/meminfo for more accurate memory calculation
 	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", `
 		awk '/MemTotal:/ {total=$2} /MemAvailable:/ {available=$2} END {
@@ -224,7 +224,7 @@ func (s *MetricsService) getDiskUsage(ctx context.Context) (float64, error) {
 	// Add timeout to prevent hanging
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	
+
 	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", "df / | awk 'NR==2 {print $5}' | sed 's/%//'")
 	output, err := cmd.Output()
 	if err != nil {
@@ -252,7 +252,7 @@ func (s *MetricsService) getNetworkUsage(ctx context.Context) (float64, error) {
 	// Add timeout to prevent hanging
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	
+
 	// Try to get network stats from /proc/net/dev
 	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", `
 		awk '/:/ {

@@ -202,13 +202,13 @@ func TestNewAppService(t *testing.T) {
 
 func TestDeriveIssueTitle(t *testing.T) {
 	testCases := []struct {
-		name                    string
-		primary                 string
-		message                 string
-		captures                []IssueCapture
-		includeDiagnostics      bool
-		includeScreenshot       bool
-		expected                string
+		name               string
+		primary            string
+		message            string
+		captures           []IssueCapture
+		includeDiagnostics bool
+		includeScreenshot  bool
+		expected           string
 	}{
 		{
 			name:               "diagnostics only",
@@ -231,7 +231,7 @@ func TestDeriveIssueTitle(t *testing.T) {
 		{
 			name:    "diagnostics with single capture",
 			primary: "",
-			message:  "### Diagnostics Summary\n- bridge failure\n\n### Element Capture Notes\n- Primary CTA: does nothing",
+			message: "### Diagnostics Summary\n- bridge failure\n\n### Element Capture Notes\n- Primary CTA: does nothing",
 			captures: []IssueCapture{
 				{
 					Type:  "element",
@@ -240,13 +240,13 @@ func TestDeriveIssueTitle(t *testing.T) {
 				},
 			},
 			includeDiagnostics: true,
-			includeScreenshot: false,
+			includeScreenshot:  false,
 			expected:           "Diagnostics issues and feedback on Primary CTA",
 		},
 		{
 			name:    "multiple capture feedback",
 			primary: "",
-			message:  "### Element Capture Notes\n- CTA: broken\n- Footer: hidden",
+			message: "### Element Capture Notes\n- CTA: broken\n- Footer: hidden",
 			captures: []IssueCapture{
 				{Type: "element", Note: "broken", Label: "CTA"},
 				{Type: "element", Note: "hidden", Label: "Footer"},
@@ -256,10 +256,10 @@ func TestDeriveIssueTitle(t *testing.T) {
 			expected:           "Feedback on 2 elements",
 		},
 		{
-			name:    "primary description only",
-			primary: "First line summary\nwith details",
-			message: "First line summary\nwith details",
-			captures: nil,
+			name:               "primary description only",
+			primary:            "First line summary\nwith details",
+			message:            "First line summary\nwith details",
+			captures:           nil,
 			includeDiagnostics: false,
 			includeScreenshot:  false,
 			expected:           "First line summary",

@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 
 import {
   INPUT_BATCH_MAX_CHARS,
@@ -11,6 +11,24 @@ import { appendEvent, recordTranscript, showError } from "./event-feed.js";
 import { debugLog } from "./debug.js";
 import { scheduleMicrotask, textEncoder } from "./utils.js";
 
+/** @typedef {import("./types.d.ts").TerminalTab} TerminalTab */
+/** @typedef {import("./types.d.ts").InputMeta} InputMeta */
+/** @typedef {import("./types.d.ts").InputBatch} InputBatch */
+
+/**
+ * @typedef {{ reason?: string }} BatchFlushOptions
+ */
+
+/**
+ * @typedef {(tab: TerminalTab, reason?: string) => void} EnsureSessionForPendingInput
+ */
+
+/**
+ * Ensure the input sequence increments for every queued payload.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {InputMeta} [meta]
+ * @returns {number}
+ */
 export function ensureInputSequence(tab, meta = {}) {
   if (!tab) {
     return 0;
@@ -26,6 +44,13 @@ export function ensureInputSequence(tab, meta = {}) {
   return meta.seq;
 }
 
+/**
+ * Queue input for deferred transmission.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} value
+ * @param {InputMeta} [meta]
+ * @returns {void}
+ */
 export function queueInput(tab, value, meta = {}) {
   if (!tab || typeof value !== "string" || value.length === 0) {
     return;
@@ -51,6 +76,11 @@ export function queueInput(tab, value, meta = {}) {
   });
 }
 
+/**
+ * Flush any pending writes through the active socket.
+ * @param {TerminalTab | null | undefined} tab
+ * @returns {void}
+ */
 export function flushPendingWrites(tab) {
   if (!tab || !tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
     return;
@@ -64,9 +94,8 @@ export function flushPendingWrites(tab) {
     tab.telemetry.lastBatchSize = queue.length;
   }
   queue.forEach((item) => {
-    if (item && item.meta && typeof item.meta.batchSize !== "number") {
-      item.meta.batchSize =
-        typeof item.value === "string" ? item.value.length : 0;
+    if (item && typeof item.meta.batchSize !== "number") {
+      item.meta.batchSize = typeof item.value === "string" ? item.value.length : 0;
     }
     const success = transmitInput(tab, item.value, item.meta);
     if (!success) {
@@ -75,6 +104,13 @@ export function flushPendingWrites(tab) {
   });
 }
 
+/**
+ * Immediately transmit input via WebSocket.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} value
+ * @param {InputMeta} [meta]
+ * @returns {boolean}
+ */
 export function transmitInput(tab, value, meta = {}) {
   if (!tab || !tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
     return false;
@@ -132,13 +168,13 @@ export function transmitInput(tab, value, meta = {}) {
   if (tab.telemetry) {
     tab.telemetry.sent += 1;
     tab.telemetry.lastBatchSize =
-      meta && typeof meta.batchSize === "number" ? meta.batchSize : 1;
+      typeof meta.batchSize === "number" ? meta.batchSize : 1;
   }
   debugLog(tab, "sent-input", {
     length: normalized.length,
     seq,
     appendedNewline: shouldAppendNewline,
-    batchSize: meta && typeof meta.batchSize === "number" ? meta.batchSize : 1,
+    batchSize: typeof meta.batchSize === "number" ? meta.batchSize : 1,
   });
 
   recordTranscript(tab, {
@@ -151,8 +187,8 @@ export function transmitInput(tab, value, meta = {}) {
   if (meta.eventType) {
     appendEvent(tab, meta.eventType, {
       length: normalized.length,
-      source: meta.source || undefined,
-      command: meta.command || undefined,
+      source: typeof meta.source === "string" ? meta.source : undefined,
+      command: typeof meta.command === "string" ? meta.command : undefined,
     });
   }
 
@@ -163,6 +199,13 @@ export function transmitInput(tab, value, meta = {}) {
   return true;
 }
 
+/**
+ * Send a resize event to the backend.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {number} cols
+ * @param {number} rows
+ * @returns {void}
+ */
 export function sendResize(tab, cols, rows) {
   if (!tab || !tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
     return;
@@ -192,6 +235,13 @@ export function sendResize(tab, cols, rows) {
   }
 }
 
+/**
+ * Handle data typed into the terminal UI.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} data
+ * @param {EnsureSessionForPendingInput} [ensureSessionForPendingInput]
+ * @returns {void}
+ */
 export function handleTerminalData(tab, data, ensureSessionForPendingInput) {
   if (!tab || typeof data !== "string" || data.length === 0) {
     return;
@@ -213,6 +263,13 @@ export function handleTerminalData(tab, data, ensureSessionForPendingInput) {
   }
 }
 
+/**
+ * Buffer terminal input into batches.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} data
+ * @param {EnsureSessionForPendingInput} [ensureSessionForPendingInput]
+ * @returns {void}
+ */
 export function enqueueTerminalInput(tab, data, ensureSessionForPendingInput) {
   if (!tab) return;
 
@@ -222,11 +279,12 @@ export function enqueueTerminalInput(tab, data, ensureSessionForPendingInput) {
       : Date.now();
 
   if (!tab.inputBatch) {
-    tab.inputBatch = {
+    /** @type {InputBatch} */
+    (tab.inputBatch = {
       chunks: [data],
       size: data.length,
       createdAt: now,
-    };
+    });
     if (INPUT_CONTROL_FLUSH_PATTERN.test(data)) {
       flushInputBatch(
         tab,
@@ -263,6 +321,12 @@ export function enqueueTerminalInput(tab, data, ensureSessionForPendingInput) {
   scheduleInputBatchFlush(tab);
 }
 
+/**
+ * Schedule a microtask to flush the current input batch.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {EnsureSessionForPendingInput} [ensureSessionForPendingInput]
+ * @returns {void}
+ */
 export function scheduleInputBatchFlush(tab, ensureSessionForPendingInput) {
   if (!tab) return;
   if (tab.inputBatchScheduled) {
@@ -275,6 +339,13 @@ export function scheduleInputBatchFlush(tab, ensureSessionForPendingInput) {
   });
 }
 
+/**
+ * Flush the active input batch to the pending queue or socket.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {BatchFlushOptions} [options]
+ * @param {EnsureSessionForPendingInput} [ensureSessionForPendingInput]
+ * @returns {void}
+ */
 export function flushInputBatch(
   tab,
   options = {},
@@ -316,6 +387,7 @@ export function flushInputBatch(
     return;
   }
 
+  /** @type {InputMeta} */
   const meta = {
     appendNewline: false,
     eventType: "terminal-batch",
@@ -342,6 +414,12 @@ export function flushInputBatch(
   queueInput(tab, payload, meta);
 }
 
+/**
+ * Apply optimistic local echo to reduce perceived latency.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} data
+ * @returns {void}
+ */
 export function applyLocalEcho(tab, data) {
   if (!tab || typeof data !== "string" || data.length === 0) {
     return;
@@ -378,12 +456,22 @@ export function applyLocalEcho(tab, data) {
   }
 }
 
+/**
+ * Determine if a character is safe for local echo.
+ * @param {string} char
+ * @returns {boolean}
+ */
 function isPrintableLocalEchoChar(char) {
   if (typeof char !== "string" || char.length === 0) return false;
   const code = char.codePointAt(0);
   return typeof code === "number" && code >= 0x20 && code <= 0x7e;
 }
 
+/**
+ * Remove stale entries from the local echo buffer.
+ * @param {TerminalTab | null | undefined} tab
+ * @returns {void}
+ */
 export function pruneStaleLocalEcho(tab) {
   if (
     !tab ||
@@ -414,6 +502,12 @@ export function pruneStaleLocalEcho(tab) {
   }
 }
 
+/**
+ * Remove echoed characters that have been received from the server.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} text
+ * @returns {string}
+ */
 export function filterLocalEcho(tab, text) {
   if (!tab || typeof text !== "string" || text.length === 0) {
     return text;

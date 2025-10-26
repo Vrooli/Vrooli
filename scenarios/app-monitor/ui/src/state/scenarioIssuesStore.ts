@@ -1,3 +1,4 @@
+import { logger } from '@/services/logger';
 import { create } from 'zustand';
 import { appService, type ScenarioIssuesSummary } from '@/services/api';
 import { normalizeIdentifier } from '@/utils/appPreview';
@@ -117,7 +118,7 @@ export const useScenarioIssuesStore = create<ScenarioIssuesStoreState>((set, get
 
         return nextEntry;
       } catch (error) {
-        console.warn('[scenarioIssuesStore] Failed to fetch issues', error);
+        logger.warn('[scenarioIssuesStore] Failed to fetch issues', error);
         const nextEntry: ScenarioIssuesEntry = {
           status: 'error',
           fetchedAt: Date.now(),

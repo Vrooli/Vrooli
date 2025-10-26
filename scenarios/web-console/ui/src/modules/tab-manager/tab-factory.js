@@ -1,7 +1,7 @@
 // @ts-check
 
-import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
 
 import {
   elements,
@@ -20,6 +20,7 @@ import {
 import { generateDefaultTabLabel } from "./tab-helpers.js";
 import { resetTabRuntimeState } from "./tab-runtime.js";
 import { renderTabs, setActiveTab } from "./tab-controller.js";
+import { attachViewportInteractionHandlers } from "./viewport-interactions.js";
 
 /** @typedef {import("../types.d.ts").TerminalTab} TerminalTab */
 
@@ -65,6 +66,9 @@ export function createTerminalTab({
       );
       if (Number.isFinite(terminalDefaults.scrollback)) {
         terminalWithOptions.setOption("scrollback", terminalDefaults.scrollback);
+      }
+      if (typeof terminalDefaults.cancelEvents === "boolean") {
+        terminalWithOptions.setOption("cancelEvents", terminalDefaults.cancelEvents);
       }
     } catch (error) {
       console.warn(
@@ -119,15 +123,33 @@ export function createTerminalTab({
       batches: 0,
       lastBatchSize: 0,
     },
+    layoutCache: {
+      width: 0,
+      height: 0,
+    },
     domItem: null,
     domButton: null,
     domClose: null,
     domLabel: null,
     domStatus: null,
     wasDetached: false,
+    userScroll: {
+      active: false,
+      pinnedToBottom: true,
+      touchActive: false,
+      momentumActive: false,
+      releaseTimer: null,
+      lastInteraction: 0,
+      cleanup: null,
+    },
   });
 
   resetTabRuntimeState(tab, { resetTerminal: false });
+
+  const detachViewportHandlers = attachViewportInteractionHandlers(tab);
+  if (typeof detachViewportHandlers === "function") {
+    tab.userScroll.cleanup = detachViewportHandlers;
+  }
 
   const handlers = getTerminalHandlers();
   term.onResize(({ cols, rows }) => {
@@ -186,6 +208,13 @@ export function destroyTerminalTab(tab) {
   }
   if (tab.domItem?.parentElement) {
     tab.domItem.parentElement.removeChild(tab.domItem);
+  }
+  if (tab.userScroll?.cleanup) {
+    try {
+      tab.userScroll.cleanup();
+    } catch (_error) {
+      // ignore cleanup issues during teardown
+    }
   }
   tab.domItem = null;
   tab.domButton = null;

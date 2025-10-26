@@ -67,6 +67,8 @@ import {
 } from "./terminal-layout.js";
 
 export function bootstrapApp() {
+  /** @type {Array<() => void>} */
+  const cleanupTasks = [];
   initializeDomElements();
 
   configureSessionService({
@@ -128,7 +130,7 @@ export function bootstrapApp() {
   initializeDiagnostics();
   initializeResourceTimingGuard();
 
-  initializeTerminalLayoutWatcher({
+  const terminalLayoutTeardown = initializeTerminalLayoutWatcher({
     getActiveTab,
     notifyTabSized(tab) {
       const cols = typeof tab.term?.cols === "number" ? tab.term.cols : 0;
@@ -141,12 +143,15 @@ export function bootstrapApp() {
       closeTabCustomization();
     },
   });
+  if (typeof terminalLayoutTeardown === "function") {
+    cleanupTasks.push(terminalLayoutTeardown);
+  }
 
   if (typeof document !== "undefined" && document.fonts) {
     const fontSet = document.fonts;
     const handleFontMetricsSettled = () => {
       try {
-        requestActiveTerminalFit();
+        requestActiveTerminalFit({ force: true });
       } catch (error) {
         console.warn("Failed to refit terminal after fonts loaded:", error);
       }
@@ -156,9 +161,16 @@ export function bootstrapApp() {
       fontSet.ready.then(handleFontMetricsSettled).catch(() => {});
     }
 
-    if (typeof fontSet.addEventListener === "function") {
+    if (
+      typeof fontSet.addEventListener === "function" &&
+      typeof fontSet.removeEventListener === "function"
+    ) {
       fontSet.addEventListener("loadingdone", handleFontMetricsSettled);
       fontSet.addEventListener("loadingerror", handleFontMetricsSettled);
+      cleanupTasks.push(() => {
+        fontSet.removeEventListener("loadingdone", handleFontMetricsSettled);
+        fontSet.removeEventListener("loadingerror", handleFontMetricsSettled);
+      });
     }
   }
 
@@ -173,4 +185,15 @@ export function bootstrapApp() {
   updateSessionActions();
   renderSessionOverview();
   updateUI();
+
+  return () => {
+    while (cleanupTasks.length > 0) {
+      const task = cleanupTasks.pop();
+      try {
+        task?.();
+      } catch (error) {
+        console.error("Failed to run cleanup task:", error);
+      }
+    }
+  };
 }

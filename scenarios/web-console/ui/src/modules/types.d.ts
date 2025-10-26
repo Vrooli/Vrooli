@@ -1,5 +1,5 @@
-import type { Terminal } from "xterm";
-import type { FitAddon } from "xterm-addon-fit";
+import type { Terminal } from "@xterm/xterm";
+import type { FitAddon } from "@xterm/addon-fit";
 
 declare global {
   interface Window {
@@ -10,6 +10,7 @@ declare global {
     __WEB_CONSOLE_DEBUG__?: Record<string, unknown>;
     __WEB_CONSOLE_DIAGNOSTICS__?: Record<string, unknown>;
     __keyboardToolbarMode?: string;
+    __WEB_CONSOLE_APP_CLEANUP__?: () => void;
   }
 
   interface HTMLElement {
@@ -26,6 +27,8 @@ declare global {
       jsHeapSizeLimit: number;
     };
   }
+
+  var __WEB_CONSOLE_APP_CLEANUP__: (() => void) | undefined;
 }
 
 export type TabPhase = "idle" | "creating" | "running" | "closing" | "closed";
@@ -54,9 +57,32 @@ export interface TranscriptEntry {
   [key: string]: unknown;
 }
 
+export interface InputBatch {
+  chunks: string[];
+  size: number;
+  createdAt: number;
+}
+
+export interface LocalEchoEntry {
+  value: string;
+  timestamp: number;
+}
+
+export type InputMeta = {
+  appendNewline?: boolean;
+  batchSize?: number;
+  seq?: number;
+  eventType?: string;
+  source?: string;
+  command?: string;
+  clearError?: boolean;
+  flushReason?: string;
+  [key: string]: unknown;
+};
+
 export interface PendingWrite {
   value: string;
-  meta: Record<string, unknown>;
+  meta: InputMeta;
 }
 
 export interface TerminalTab {
@@ -76,7 +102,7 @@ export interface TerminalTab {
   hasReceivedLiveOutput: boolean;
   heartbeatInterval: ReturnType<typeof setInterval> | null;
   inputSeq: number;
-  inputBatch: PendingWrite | null;
+  inputBatch: InputBatch | null;
   inputBatchScheduled: boolean;
   replayPending: boolean;
   replayComplete: boolean;
@@ -89,7 +115,7 @@ export interface TerminalTab {
   events: TabEvent[];
   suppressed: Record<string, number>;
   pendingWrites: PendingWrite[];
-  localEchoBuffer: string[];
+  localEchoBuffer: LocalEchoEntry[];
   errorMessage: string;
   lastSentSize: { cols: number; rows: number };
   telemetry: {
@@ -99,12 +125,25 @@ export interface TerminalTab {
     batches: number;
     lastBatchSize: number;
   };
+  layoutCache: {
+    width: number;
+    height: number;
+  };
   domItem: HTMLElement | null;
   domButton: HTMLButtonElement | null;
   domClose: HTMLButtonElement | null;
   domLabel: HTMLSpanElement | null;
   domStatus: HTMLElement | null;
   wasDetached: boolean;
+  userScroll: {
+    active: boolean;
+    pinnedToBottom: boolean;
+    touchActive: boolean;
+    momentumActive: boolean;
+    releaseTimer: ReturnType<typeof setTimeout> | null;
+    lastInteraction: number;
+    cleanup: (() => void) | null;
+  };
 }
 
 export interface WorkspaceTabSnapshot {

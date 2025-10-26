@@ -1,3 +1,4 @@
+import { logger } from '@/services/logger';
 import { FormEvent, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2, Eye, RefreshCw } from 'lucide-react';
@@ -96,6 +97,8 @@ export default function TabSwitcherDialog() {
   const [resourceSortOption, setResourceSortOption] = useState<ResourceSortOption>('status');
   const [newWebTabUrl, setNewWebTabUrl] = useState('');
   const [newWebTabError, setNewWebTabError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const webTabErrorId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -148,7 +151,7 @@ export default function TabSwitcherDialog() {
     try {
       return decodeURIComponent(match[1]);
     } catch (error) {
-      console.warn('[tabSwitcher] Failed to decode current app id', error);
+      logger.warn('[tabSwitcher] Failed to decode current app id', error);
       return match[1];
     }
   }, [location.pathname]);
@@ -173,8 +176,10 @@ export default function TabSwitcherDialog() {
         || tab.url.toLowerCase().includes(normalizedSearch))
   ), [browserHistory, normalizedSearch]);
 
-  const isLoadingApps = appLoadState.loadingInitial
-    || (!appLoadState.hasInitialized && appLoadState.appsLength === 0 && !appLoadState.error);
+  // Consider loading if:
+  // 1. Initial load is in progress AND has not initialized yet
+  // This prevents infinite loading when the store has initialized but returned empty results
+  const isLoadingApps = appLoadState.loadingInitial && !appLoadState.hasInitialized;
 
   const isLoadingResources = (!resourceLoadState.hasInitialized && !resourceLoadState.error)
     && (resourceLoadState.loading || resourceLoadState.resourcesLength === 0);
@@ -346,8 +351,23 @@ export default function TabSwitcherDialog() {
     });
   };
 
-  const handleRetryLoadApps = () => {
-    void loadApps({ force: true });
+  const handleRetryLoadApps = async (): Promise<void> => {
+    setIsRefreshing(true);
+    setRefreshError(null);
+    try {
+      await loadApps({ force: true });
+      // Give the store a moment to update before checking for success
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const currentError = useAppsStore.getState().error;
+      if (currentError) {
+        setRefreshError(currentError);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to refresh scenarios';
+      setRefreshError(message);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -502,6 +522,8 @@ export default function TabSwitcherDialog() {
                 emptyMessage="No scenarios match your search."
                 isLoading={isLoadingApps}
                 onRetry={handleRetryLoadApps}
+                errorMessage={refreshError}
+                isRefreshing={isRefreshing}
               />
             </Section>
           </div>
@@ -620,6 +642,8 @@ function AppGrid({
   isLoading,
   skeletonCount = 8,
   onRetry,
+  errorMessage,
+  isRefreshing,
 }: {
   apps: App[];
   onSelect(app: App): void;
@@ -627,25 +651,52 @@ function AppGrid({
   isLoading?: boolean;
   skeletonCount?: number;
   onRetry?: () => void;
+  errorMessage?: string | null;
+  isRefreshing?: boolean;
 }) {
-  if (isLoading) {
+  if (isLoading || isRefreshing) {
     return <AppsGridSkeleton count={skeletonCount} viewMode="grid" />;
   }
+
+  // Show error banner even if we have cached apps
+  const hasError = Boolean(errorMessage);
+
   if (apps.length === 0) {
+    const displayMessage = errorMessage || emptyMessage || 'No scenarios available.';
     return (
       <EmptyState
-        message={emptyMessage ?? 'No scenarios available.'}
+        message={displayMessage}
         onRetry={onRetry}
         retryLabel="Try loading scenarios again"
+        isError={hasError}
       />
     );
   }
+
   return (
-    <div className="tab-switcher__grid">
-      {apps.map(app => (
-        <AppTabCard key={app.id} app={app} onSelect={onSelect} />
-      ))}
-    </div>
+    <>
+      {hasError && (
+        <div className="tab-switcher__error-banner" role="alert">
+          <p>{errorMessage}</p>
+          {onRetry && (
+            <button
+              type="button"
+              className="tab-switcher__error-retry"
+              onClick={onRetry}
+              aria-label="Retry loading"
+            >
+              <RefreshCw size={16} aria-hidden />
+              <span>Retry</span>
+            </button>
+          )}
+        </div>
+      )}
+      <div className="tab-switcher__grid">
+        {apps.map(app => (
+          <AppTabCard key={app.id} app={app} onSelect={onSelect} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -771,13 +822,15 @@ function EmptyState({
   message,
   onRetry,
   retryLabel = 'Retry loading',
+  isError = false,
 }: {
   message: string;
   onRetry?: () => void;
   retryLabel?: string;
+  isError?: boolean;
 }) {
   return (
-    <div className="tab-switcher__empty">
+    <div className={clsx('tab-switcher__empty', isError && 'tab-switcher__empty--error')}>
       <p>{message}</p>
       {onRetry && (
         <button

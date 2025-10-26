@@ -1,5 +1,9 @@
 import type { App } from '@/types';
 
+/**
+ * Normalizes an identifier string for comparison purposes.
+ * Returns lowercase, trimmed string or null if invalid.
+ */
 export const normalizeIdentifier = (value?: string | null): string | null => {
   if (!value) {
     return null;
@@ -9,16 +13,45 @@ export const normalizeIdentifier = (value?: string | null): string | null => {
   return trimmed.length > 0 ? trimmed.toLowerCase() : null;
 };
 
+/**
+ * Collects all valid app identifiers (id, scenario_name, name) as normalized strings.
+ * Returns array of lowercase, trimmed identifiers.
+ */
 export const collectAppIdentifiers = (app: App): string[] => {
   return [app.id, app.scenario_name, app.name]
     .map(normalizeIdentifier)
     .filter((value): value is string => Boolean(value));
 };
 
+/**
+ * Resolves the primary identifier for an app, preserving original case.
+ * Priority: id > scenario_name > name
+ * Returns trimmed string or null if no valid identifier found.
+ */
 export const resolveAppIdentifier = (app: App): string | null => {
   const candidates: Array<string | undefined> = [app.id, app.scenario_name, app.name];
   const match = candidates.find(value => typeof value === 'string' && value.trim().length > 0);
   return match ? match.trim() : null;
+};
+
+/**
+ * Derives a unique key for an app for use in Map/Set structures.
+ * Unlike resolveAppIdentifier, this ALWAYS returns a non-null string,
+ * falling back to a generated UUID if no identifier is available.
+ * Preserves original case for display purposes.
+ */
+export const deriveAppKey = (app: App): string => {
+  const resolved = resolveAppIdentifier(app);
+  if (resolved) {
+    return resolved;
+  }
+
+  // Fallback to generated identifier
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `app-${Math.random().toString(36).slice(2)}`;
 };
 
 export const parseTimestampValue = (value?: string | null): number | null => {
@@ -48,6 +81,16 @@ export const isRunningStatus = (status?: string | null) => {
 };
 
 export const isStoppedStatus = (status?: string | null) => normalizeStatus(status) === 'stopped';
+
+/**
+ * Checks if a scenario is explicitly stopped (not running, not partial data).
+ * A scenario is explicitly stopped when:
+ * - It has complete data (not is_partial)
+ * - Its status is "stopped"
+ */
+export const isScenarioExplicitlyStopped = (app: App | null): boolean => {
+  return Boolean(app && !app.is_partial && isStoppedStatus(app.status));
+};
 
 const parsePort = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -273,10 +316,37 @@ export const buildPreviewUrl = (app: App): string | null => {
 };
 
 export const locateAppByIdentifier = (apps: App[], identifier: string): App | null => {
+  if (!identifier) {
+    return null;
+  }
+
+  const normalized = identifier.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
   return (
-    apps.find(app => app.id === identifier || app.name === identifier || app.scenario_name === identifier) ??
-    null
+    apps.find(app => {
+      const candidates = [app.id, app.scenario_name, app.name]
+        .map(value => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
+        .filter(value => value.length > 0);
+      return candidates.includes(normalized);
+    }) ?? null
   );
+};
+
+export const matchesAppIdentifier = (app: App, identifier?: string | null): boolean => {
+  if (!identifier) {
+    return false;
+  }
+
+  const normalized = normalizeIdentifier(identifier);
+  if (!normalized) {
+    return false;
+  }
+
+  const candidates = collectAppIdentifiers(app);
+  return candidates.includes(normalized);
 };
 
 export interface PortMetric {

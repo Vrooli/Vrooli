@@ -22,8 +22,10 @@ import {
   buildPreviewUrl,
   buildProxyPreviewUrl,
   isRunningStatus,
+  isScenarioExplicitlyStopped,
   isStoppedStatus,
   locateAppByIdentifier,
+  matchesAppIdentifier,
   normalizeIdentifier,
   resolveAppIdentifier,
 } from '@/utils/appPreview';
@@ -47,6 +49,21 @@ const PREVIEW_MIXED_CONTENT_MESSAGE = 'Preview blocked: browser refused to load 
 const PREVIEW_NO_UI_MESSAGE = 'This application does not expose a UI endpoint to preview.';
 const IOS_AUTOBACK_GUARD_MS = 15000;
 const AUTO_NEXT_PREPARE_DELAY_MS = 4500;
+
+// Helper functions for preview overlay state management
+type PreviewOverlayState = { type: 'restart' | 'waiting' | 'error'; message: string } | null;
+
+const shouldPreserveRestartOverlay = (prev: PreviewOverlayState): boolean => {
+  return Boolean(prev && prev.type === 'restart');
+};
+
+const shouldClearConnectingOverlay = (prev: PreviewOverlayState): boolean => {
+  return Boolean(prev && prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL);
+};
+
+const shouldPreserveErrorOverlay = (prev: PreviewOverlayState, message: string): boolean => {
+  return Boolean(prev && prev.type === 'error' && prev.message === message);
+};
 const AppPreviewView = () => {
   const apps = useAppsStore(state => state.apps);
   const setAppsState = useAppsStore(state => state.setAppsState);
@@ -158,17 +175,35 @@ const AppPreviewView = () => {
     [scenarioDisplayName],
   );
 
-  const isExplicitlyStopped = useMemo(() => {
+  const isExplicitlyStopped = useMemo(
+    () => isScenarioExplicitlyStopped(currentApp),
+    [currentApp],
+  );
+
+  // Memoize currentApp properties to avoid unnecessary effect re-runs
+  const currentAppForPreview = useMemo(() => {
     if (!currentApp) {
-      return false;
+      return null;
     }
-
-    if (currentApp.is_partial) {
-      return false;
-    }
-
-    return isStoppedStatus(currentApp.status);
-  }, [currentApp]);
+    // Only extract properties that affect preview URL generation
+    return {
+      id: currentApp.id,
+      is_partial: currentApp.is_partial,
+      status: currentApp.status,
+      port: currentApp.port,
+      port_mappings: currentApp.port_mappings,
+      config: currentApp.config,
+      environment: currentApp.environment,
+    };
+  }, [
+    currentApp?.id,
+    currentApp?.is_partial,
+    currentApp?.status,
+    currentApp?.port,
+    currentApp?.port_mappings,
+    currentApp?.config,
+    currentApp?.environment,
+  ]);
 
   const previewIdentifier = useMemo(() => {
     if (currentApp) {
@@ -216,7 +251,7 @@ const AppPreviewView = () => {
 
     autoNextPrepareTimerRef.current = window.setTimeout(() => {
       prepareAutoNext({ apps, currentAppId: normalizedKey }).catch((error) => {
-        console.warn('[appPreview] Failed to precompute auto-next scenario', error);
+        logger.warn('[appPreview] Failed to precompute auto-next scenario', error);
       });
     }, AUTO_NEXT_PREPARE_DELAY_MS);
 
@@ -268,9 +303,9 @@ const AppPreviewView = () => {
         return prev;
       }
 
-      const identifiers: Array<string | undefined> = [prev.id, prev.scenario_name, prev.name];
-      const matches = identifiers.some(candidate => typeof candidate === 'string' && candidate.trim() === trimmed);
-      return matches ? prev : null;
+      // Check if current app still matches the appId
+      const stillMatches = locateAppByIdentifier([prev], trimmed) !== null;
+      return stillMatches ? prev : null;
     });
   }, [appId]);
 
@@ -516,22 +551,7 @@ const AppPreviewView = () => {
     updatePreviewGuard,
   });
 
-  const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
-    if (!identifier) {
-      return false;
-    }
-
-    const normalized = identifier.trim().toLowerCase();
-    if (!normalized) {
-      return false;
-    }
-
-    const candidates = [app.id, app.scenario_name]
-      .map(value => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
-      .filter(value => value.length > 0);
-
-    return candidates.includes(normalized);
-  }, []);
+  // matchesAppIdentifier is now imported from utils/appPreview
 
   const handleBridgeLocation = useCallback((message: { href: string; title?: string | null }) => {
     syncFromBridgeRef.current(message.href ?? null);
@@ -653,6 +673,7 @@ const AppPreviewView = () => {
     stopLifecycleMonitor();
 
     let cancelled = false;
+    const monitoredAppId = appIdentifier;
     restartMonitorRef.current = {
       cancel: () => {
         cancelled = true;
@@ -678,21 +699,25 @@ const AppPreviewView = () => {
             if (isRunningStatus(fetched.status) && !isStoppedStatus(fetched.status)) {
               const candidateUrl = buildPreviewUrl(fetched);
               if (candidateUrl) {
-                if (!hasCustomPreviewUrl) {
-                  applyDefaultPreviewUrl(candidateUrl);
-                }
-                setStatusMessage(lifecycle === 'restart'
-                  ? 'Application restarted. Refreshing preview...'
-                  : 'Application started. Refreshing preview...');
-                setPreviewOverlay(null);
-                setLoading(false);
-                reloadPreview();
-                stopLifecycleMonitor();
-                window.setTimeout(() => {
-                  if (!cancelled) {
-                    setStatusMessage(null);
+                // Only update UI state if we're still viewing the same app
+                const stillViewing = currentAppIdentifier === monitoredAppId;
+                if (stillViewing) {
+                  if (!hasCustomPreviewUrl) {
+                    applyDefaultPreviewUrl(candidateUrl);
                   }
-                }, 1500);
+                  setStatusMessage(lifecycle === 'restart'
+                    ? 'Application restarted. Refreshing preview...'
+                    : 'Application started. Refreshing preview...');
+                  setPreviewOverlay(null);
+                  setLoading(false);
+                  reloadPreview();
+                  window.setTimeout(() => {
+                    if (!cancelled && currentAppIdentifier === monitoredAppId) {
+                      setStatusMessage(null);
+                    }
+                  }, 1500);
+                }
+                stopLifecycleMonitor();
                 return;
               }
             }
@@ -705,7 +730,8 @@ const AppPreviewView = () => {
         await new Promise(resolve => window.setTimeout(resolve, delay));
       }
 
-      if (!cancelled) {
+      // Only show error overlay if we're still viewing the same app
+      if (!cancelled && currentAppIdentifier === monitoredAppId) {
         setLoading(false);
         setPreviewOverlay({
           type: 'error',
@@ -717,7 +743,7 @@ const AppPreviewView = () => {
     };
 
     void poll();
-  }, [applyDefaultPreviewUrl, commitAppUpdate, hasCustomPreviewUrl, reloadPreview, setLoading, setPreviewOverlay, setStatusMessage, stopLifecycleMonitor]);
+  }, [applyDefaultPreviewUrl, commitAppUpdate, currentAppIdentifier, hasCustomPreviewUrl, reloadPreview, setLoading, setPreviewOverlay, setStatusMessage, stopLifecycleMonitor]);
 
   const handleRefresh = useCallback(() => {
     if (!appId) {
@@ -918,18 +944,9 @@ const AppPreviewView = () => {
 
     if (!previewUrl) {
       setPreviewOverlay(prev => {
-        if (!prev) {
-          return prev;
-        }
-        if (
-          prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL
-        ) {
-          return null;
-        }
-        if (
-          prev.type === 'error' &&
-          (prev.message === PREVIEW_TIMEOUT_MESSAGE || prev.message === PREVIEW_MIXED_CONTENT_MESSAGE)
-        ) {
+        if (!prev) return prev;
+        if (shouldClearConnectingOverlay(prev)) return null;
+        if (prev.type === 'error' && (prev.message === PREVIEW_TIMEOUT_MESSAGE || prev.message === PREVIEW_MIXED_CONTENT_MESSAGE)) {
           return null;
         }
         return prev;
@@ -938,12 +955,7 @@ const AppPreviewView = () => {
     }
 
     if (bridgeState.isReady || iframeLoadedAt) {
-      setPreviewOverlay(prev => {
-        if (prev && prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL) {
-          return null;
-        }
-        return prev;
-      });
+      setPreviewOverlay(prev => (shouldClearConnectingOverlay(prev) ? null : prev));
       return;
     }
 
@@ -951,10 +963,7 @@ const AppPreviewView = () => {
     let waitingApplied = false;
     const waitingTimeoutId = window.setTimeout(() => {
       setPreviewOverlay(prev => {
-        if (cancelled || bridgeState.isReady || iframeLoadedAt) {
-          return prev;
-        }
-        if (prev && prev.type === 'restart') {
+        if (cancelled || bridgeState.isReady || iframeLoadedAt || shouldPreserveRestartOverlay(prev)) {
           return prev;
         }
         waitingApplied = true;
@@ -1138,7 +1147,7 @@ const AppPreviewView = () => {
   }, [appId, apps, commitAppUpdate, fetchAttempted]);
 
   useEffect(() => {
-    if (!currentApp) {
+    if (!currentAppForPreview) {
       if (!hasCustomPreviewUrl) {
         if (deterministicProxyUrl && previewUrl !== deterministicProxyUrl) {
           resetPreviewState({ force: true });
@@ -1152,7 +1161,7 @@ const AppPreviewView = () => {
       return;
     }
 
-    const nextUrl = buildPreviewUrl(currentApp);
+    const nextUrl = buildPreviewUrl(currentAppForPreview as App);
     const hasPreviewCandidate = Boolean(nextUrl);
     const defaultPreviewUrl = hasPreviewCandidate
       ? (nextUrl as string)
@@ -1174,10 +1183,7 @@ const AppPreviewView = () => {
       setLoading(false);
       setStatusMessage(scenarioStoppedMessage);
       setPreviewOverlay(prev => {
-        if (prev && prev.type === 'restart') {
-          return prev;
-        }
-        if (prev && prev.type === 'error' && prev.message === scenarioStoppedMessage) {
+        if (shouldPreserveRestartOverlay(prev) || shouldPreserveErrorOverlay(prev, scenarioStoppedMessage)) {
           return prev;
         }
         return { type: 'error', message: scenarioStoppedMessage };
@@ -1186,7 +1192,7 @@ const AppPreviewView = () => {
     }
 
     if (!hasPreviewCandidate) {
-      if (currentApp.is_partial) {
+      if (currentAppForPreview.is_partial) {
         setStatusMessage('Loading application details...');
         setLoading(true);
         return;
@@ -1195,10 +1201,7 @@ const AppPreviewView = () => {
       setStatusMessage(PREVIEW_NO_UI_MESSAGE);
       setLoading(false);
       setPreviewOverlay(prev => {
-        if (prev && prev.type === 'restart') {
-          return prev;
-        }
-        if (prev && prev.type === 'error' && prev.message === PREVIEW_NO_UI_MESSAGE) {
+        if (shouldPreserveRestartOverlay(prev) || shouldPreserveErrorOverlay(prev, PREVIEW_NO_UI_MESSAGE)) {
           return prev;
         }
         return { type: 'error', message: PREVIEW_NO_UI_MESSAGE };
@@ -1208,7 +1211,7 @@ const AppPreviewView = () => {
 
     setLoading(false);
 
-    if (currentApp.is_partial && !currentApp.status) {
+    if (currentAppForPreview.is_partial && !currentAppForPreview.status) {
       setStatusMessage('Loading application details...');
     } else {
       setStatusMessage(null);
@@ -1228,7 +1231,7 @@ const AppPreviewView = () => {
     });
   }, [
     applyDefaultPreviewUrl,
-    currentApp,
+    currentAppForPreview,
     deterministicProxyUrl,
     hasCustomPreviewUrl,
     isExplicitlyStopped,
@@ -1501,21 +1504,11 @@ const AppPreviewView = () => {
     setIframeLoadError(null);
     setIframeLoadedAt(Date.now());
     setPreviewOverlay(prev => {
-      if (!prev) {
-        return prev;
-      }
-
-      if (prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL) {
+      if (!prev) return prev;
+      if (shouldClearConnectingOverlay(prev)) return null;
+      if (prev.type === 'error' && (prev.message === PREVIEW_TIMEOUT_MESSAGE || prev.message === PREVIEW_MIXED_CONTENT_MESSAGE)) {
         return null;
       }
-
-      if (
-        prev.type === 'error' &&
-        (prev.message === PREVIEW_TIMEOUT_MESSAGE || prev.message === PREVIEW_MIXED_CONTENT_MESSAGE)
-      ) {
-        return null;
-      }
-
       return prev;
     });
   }, []);
@@ -1720,6 +1713,16 @@ const AppPreviewView = () => {
               onLoad={handleIframeLoad}
               onError={handleIframeError}
             />
+          )}
+          {/* Show immediate loading overlay when iframe hasn't loaded yet */}
+          {previewUrl && !iframeLoadedAt && !iframeLoadError && !previewOverlay && (
+            <div
+              className="preview-iframe-overlay preview-iframe-overlay--waiting"
+              aria-live="polite"
+            >
+              <Loader2 aria-hidden size={26} className="spinning" />
+              <span>Loading preview...</span>
+            </div>
           )}
           {previewOverlay && (
             <div

@@ -81,41 +81,106 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
   // Store toolbar and keyboard detection cleanup function
   let keyboardDetectionCleanup = null;
 
+  const TOUCH_TAP_THRESHOLD_PX = 12;
+
+  /**
+   * Attach touch tap handling that preserves scroll gestures.
+   * @param {HTMLElement} element
+   * @param {(event: Event) => void} handler
+   */
+  const attachTouchTap = (element, handler) => {
+    let touchState = null;
+
+    element.addEventListener(
+      "touchstart",
+      (event) => {
+        if (event.touches.length !== 1) {
+          touchState = null;
+          return;
+        }
+        const touch = event.touches[0];
+        touchState = {
+          moved: false,
+          startX: touch.clientX,
+          startY: touch.clientY,
+        };
+      },
+      { passive: true },
+    );
+
+    element.addEventListener(
+      "touchmove",
+      (event) => {
+        if (!touchState) return;
+        const touch = event.touches[0];
+        if (!touch) return;
+        const dx = Math.abs(touch.clientX - touchState.startX);
+        const dy = Math.abs(touch.clientY - touchState.startY);
+        if (dx > TOUCH_TAP_THRESHOLD_PX || dy > TOUCH_TAP_THRESHOLD_PX) {
+          touchState.moved = true;
+        }
+      },
+      { passive: true },
+    );
+
+    element.addEventListener(
+      "touchend",
+      (event) => {
+        if (!touchState) return;
+        const didTap = touchState.moved !== true;
+        touchState = null;
+        if (!didTap) {
+          return;
+        }
+        event.preventDefault();
+        handler(event);
+      },
+      { passive: false },
+    );
+
+    element.addEventListener("touchcancel", () => {
+      touchState = null;
+    });
+  };
+
+  const focusActiveTerminal = () => {
+    const activeTab = getActiveTabFn();
+    if (!activeTab || !activeTab.term) {
+      return;
+    }
+    const textarea = activeTab.container.querySelector(".xterm-helper-textarea");
+    if (textarea) {
+      textarea.focus();
+    } else {
+      activeTab.term.focus();
+    }
+  };
+
+  const handleQuickKeyPress = (event, btn) => {
+    event.stopPropagation();
+    const key = btn.dataset.key;
+    sendQuickKey(key, sendKeyToTerminalFn);
+    focusActiveTerminal();
+  };
+
   // Handle quick keys
   toolbar.querySelectorAll(".quick-key").forEach((btn) => {
     if (!(btn instanceof HTMLElement)) {
       return;
     }
-    // Use touchstart/mousedown to handle action immediately before focus can change
-    const handlePress = (e) => {
-      e.preventDefault(); // Prevent default behavior that can cause focus loss
-      e.stopPropagation(); // Stop event from bubbling
 
-      const key = btn.dataset.key;
-      sendQuickKey(key, sendKeyToTerminalFn);
+    btn.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      handleQuickKeyPress(event, btn);
+    });
 
-      // Refocus terminal immediately to keep keyboard open
-      const activeTab = getActiveTabFn();
-      if (activeTab && activeTab.term) {
-        // Focus the xterm textarea directly
-        const textarea = activeTab.container.querySelector(
-          ".xterm-helper-textarea",
-        );
-        if (textarea) {
-          textarea.focus();
-        } else {
-          activeTab.term.focus();
-        }
-      }
-    };
+    attachTouchTap(btn, (event) => {
+      handleQuickKeyPress(event, btn);
+    });
 
-    btn.addEventListener("touchstart", handlePress, { passive: false });
-    btn.addEventListener("mousedown", handlePress);
-
-    // Prevent click event from firing (to avoid double-trigger)
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleQuickKeyPress(event, btn);
     });
   });
 
@@ -128,10 +193,28 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
     let longPressTimer = null;
     let isLongPress = false;
 
-    const handleStart = (e) => {
-      e.preventDefault(); // Prevent focus loss
-      e.stopPropagation();
+    let touchState = null;
+
+    const handlePointerToggle = (event) => {
+      event.stopPropagation();
+      const modifier = btn.dataset.modifier;
+      toggleModifier(modifier, btn);
+      focusActiveTerminal();
+    };
+
+    const handleStart = (event) => {
       isLongPress = false;
+      if (event.type === "touchstart") {
+        const touchEvent = /** @type {TouchEvent} */ (event);
+        const touch = touchEvent.touches[0];
+        touchState = touch
+          ? {
+              startX: touch.clientX,
+              startY: touch.clientY,
+              moved: false,
+            }
+          : null;
+      }
 
       longPressTimer = setTimeout(() => {
         isLongPress = true;
@@ -139,62 +222,77 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
       }, 800);
     };
 
-    const handleEnd = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (longPressTimer) clearTimeout(longPressTimer);
-
-      // Only toggle if it wasn't a long press
-      if (!isLongPress) {
-        const modifier = btn.dataset.modifier;
-        toggleModifier(modifier, btn);
-
-        // Refocus terminal to keep keyboard open
-        const activeTab = getActiveTabFn();
-        if (activeTab && activeTab.term) {
-          const textarea = activeTab.container.querySelector(
-            ".xterm-helper-textarea",
-          );
-          if (textarea) {
-            textarea.focus();
-          } else {
-            activeTab.term.focus();
-          }
+    const handleMove = (event) => {
+      if (!touchState || event.type !== "touchmove") {
+        return;
+      }
+      const touchEvent = /** @type {TouchEvent} */ (event);
+      const touch = touchEvent.touches[0];
+      if (!touch) return;
+      const dx = Math.abs(touch.clientX - touchState.startX);
+      const dy = Math.abs(touch.clientY - touchState.startY);
+      if (dx > TOUCH_TAP_THRESHOLD_PX || dy > TOUCH_TAP_THRESHOLD_PX) {
+        touchState.moved = true;
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
         }
+      }
+    };
+
+    const finalizeInteraction = (event) => {
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+
+      const wasTouch = event.type.startsWith("touch");
+      if (wasTouch && touchState?.moved) {
+        touchState = null;
+        return;
+      }
+      touchState = null;
+
+      if (!isLongPress) {
+        event.preventDefault();
+        handlePointerToggle(event);
       }
     };
 
     const handleCancel = () => {
       if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+      touchState = null;
     };
 
-    btn.addEventListener("touchstart", handleStart, { passive: false });
-    btn.addEventListener("mousedown", handleStart);
-    btn.addEventListener("touchend", handleEnd, { passive: false });
-    btn.addEventListener("mouseup", handleEnd);
+    btn.addEventListener("touchstart", handleStart, { passive: true });
+    btn.addEventListener("touchmove", handleMove, { passive: true });
+    btn.addEventListener("touchend", finalizeInteraction, { passive: false });
     btn.addEventListener("touchcancel", handleCancel);
+    btn.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      handleStart(event);
+    });
+    btn.addEventListener("mouseup", (event) => {
+      event.preventDefault();
+      finalizeInteraction(event);
+    });
     btn.addEventListener("mouseleave", handleCancel);
 
-    // Prevent click event from firing
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handlePointerToggle(event);
     });
   });
 
   // Handle paste button
   const pasteBtn = toolbar.querySelector(".paste-key");
   if (pasteBtn) {
-    const handlePaste = async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    const handlePaste = async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
 
       try {
-        // Read from clipboard
         const text = await navigator.clipboard.readText();
         if (text) {
-          // Send to terminal
           sendKeyToTerminalFn(text);
           showSnackbar("Pasted from clipboard", "success", 1500);
         }
@@ -203,25 +301,19 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
         showSnackbar("Clipboard access denied", "error", 2000);
       }
 
-      // Refocus terminal to keep keyboard open
-      const activeTab = getActiveTabFn();
-      if (activeTab && activeTab.term) {
-        const textarea = activeTab.container.querySelector(
-          ".xterm-helper-textarea",
-        );
-        if (textarea) {
-          textarea.focus();
-        } else {
-          activeTab.term.focus();
-        }
-      }
+      focusActiveTerminal();
     };
 
-    pasteBtn.addEventListener("touchstart", handlePaste, { passive: false });
-    pasteBtn.addEventListener("mousedown", handlePaste);
-    pasteBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    pasteBtn.addEventListener("mousedown", (event) => {
+      handlePaste(event);
+    });
+
+    attachTouchTap(pasteBtn, (event) => {
+      handlePaste(/** @type {Event} */ (event));
+    });
+
+    pasteBtn.addEventListener("click", (event) => {
+      handlePaste(event);
     });
   }
 

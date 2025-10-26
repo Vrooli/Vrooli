@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 
 import { state } from "../state.js";
 import { buildWebSocketUrl, textDecoder } from "../utils.js";
@@ -16,6 +16,13 @@ import {
 } from "./tabs.js";
 import { applyIdleTimeoutFromServer } from "./idle-timeout.js";
 
+/** @typedef {import("../types.d.ts").WorkspaceEventEnvelope} WorkspaceEventEnvelope */
+/** @typedef {import("../types.d.ts").WorkspaceTabSnapshot} WorkspaceTabSnapshot */
+
+/**
+ * Establish a workspace WebSocket connection and register lifecycle handlers.
+ * @returns {void}
+ */
 export function connectWorkspaceWebSocket() {
   if (state.workspaceSocket) {
     const { readyState } = state.workspaceSocket;
@@ -46,16 +53,21 @@ export function connectWorkspaceWebSocket() {
     }
   });
 
-  socket.addEventListener("message", async (/** @type {MessageEvent} */ event) => {
-    if (state.workspaceSocket !== socket) {
-      return;
-    }
-    try {
-      let rawData = event.data;
+  socket.addEventListener(
+    "message",
+    /** @param {MessageEvent} event */
+    async (event) => {
+      if (state.workspaceSocket !== socket) {
+        return;
+      }
+      try {
+        let rawData = event.data;
       if (rawData instanceof Blob) {
         rawData = await rawData.text();
       } else if (rawData instanceof ArrayBuffer) {
         rawData = textDecoder.decode(rawData);
+      } else if (typeof rawData !== "string") {
+        rawData = String(rawData);
       }
 
       const data = JSON.parse(rawData);
@@ -77,8 +89,9 @@ export function connectWorkspaceWebSocket() {
       handleWorkspaceEvent(data);
     } catch (error) {
       console.error("Failed to parse workspace event:", error);
-    }
-  });
+      }
+    },
+  );
 
   socket.addEventListener("close", () => {
     if (state.workspaceSocket !== socket) {
@@ -104,7 +117,7 @@ export function connectWorkspaceWebSocket() {
 }
 
 /**
- * @param {import("../types.d.ts").WorkspaceEventEnvelope | { type?: string; [key: string]: unknown }} event
+ * @param {WorkspaceEventEnvelope | { type?: string; [key: string]: unknown }} event
  */
 function handleWorkspaceEvent(event) {
   if (!event || !event.type) return;
@@ -114,12 +127,17 @@ function handleWorkspaceEvent(event) {
       if (debugWorkspace) {
         console.log("Full workspace update:", event.payload);
       }
-      const payload = event && typeof event.payload === "object" ? event.payload : null;
+      const payload =
+        event && typeof event.payload === "object"
+          ? /** @type {Record<string, unknown>} */ (event.payload)
+          : null;
       if (!payload) {
         return;
       }
 
-      const rawTabs = Array.isArray(payload.tabs) ? payload.tabs : [];
+      const rawTabs = Array.isArray(payload.tabs)
+        ? /** @type {unknown[]} */ (payload.tabs)
+        : [];
       const { tabs: sanitizedTabs, duplicateIds, invalidIds } =
         sanitizeWorkspaceTabsFromServer(rawTabs);
       if (duplicateIds.length || invalidIds.length) {
@@ -127,34 +145,45 @@ function handleWorkspaceEvent(event) {
       }
 
       const requestedActiveId =
-        typeof payload.activeTabId === "string" ? payload.activeTabId.trim() : null;
+        typeof payload.activeTabId === "string"
+          ? payload.activeTabId.trim()
+          : null;
       applyWorkspaceSnapshot(sanitizedTabs, { activeTabId: requestedActiveId });
 
       break;
     }
     case "tab-added":
-      handleTabAdded(event.payload);
+      if (isWorkspaceTabSnapshot(event.payload)) {
+        handleTabAdded(event.payload);
+      }
       break;
     case "tab-updated":
-      handleTabUpdated(event.payload);
+      if (isWorkspaceTabSnapshot(event.payload)) {
+        handleTabUpdated(event.payload);
+      }
       break;
     case "tab-removed":
-      handleTabRemoved(event.payload);
+      if (isTabIdentifierPayload(event.payload)) {
+        handleTabRemoved(event.payload);
+      }
       break;
     case "active-tab-changed":
-      handleActiveTabChanged(event.payload);
+      if (isTabIdentifierPayload(event.payload)) {
+        handleActiveTabChanged(event.payload);
+      }
       break;
     case "session-attached":
-      handleSessionAttached(event.payload);
+      if (isSessionAttachmentPayload(event.payload)) {
+        handleSessionAttached(event.payload);
+      }
       break;
     case "session-detached":
-      handleSessionDetached(event.payload);
+      if (isSessionDetachmentPayload(event.payload)) {
+        handleSessionDetached(event.payload);
+      }
       break;
     case "idle-timeout-changed":
-      if (
-        event.payload &&
-        typeof event.payload.idleTimeoutSeconds === "number"
-      ) {
+      if (isIdleTimeoutPayload(event.payload)) {
         applyIdleTimeoutFromServer(event.payload.idleTimeoutSeconds);
       }
       break;
@@ -171,4 +200,71 @@ function handleWorkspaceEvent(event) {
         console.log("Unknown workspace event:", event.type);
       }
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is WorkspaceTabSnapshot}
+ */
+function isWorkspaceTabSnapshot(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = /** @type {Record<string, unknown>} */ (value);
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.label === "string" &&
+    typeof candidate.colorId === "string"
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is { id: string }}
+ */
+function isTabIdentifierPayload(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = /** @type {Record<string, unknown>} */ (value);
+  return typeof candidate.id === "string";
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is { tabId: string; sessionId: string }}
+ */
+function isSessionAttachmentPayload(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = /** @type {Record<string, unknown>} */ (value);
+  return (
+    typeof candidate.tabId === "string" &&
+    typeof candidate.sessionId === "string"
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is { tabId: string }}
+ */
+function isSessionDetachmentPayload(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = /** @type {Record<string, unknown>} */ (value);
+  return typeof candidate.tabId === "string";
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is { idleTimeoutSeconds: number }}
+ */
+function isIdleTimeoutPayload(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = /** @type {Record<string, unknown>} */ (value);
+  return typeof candidate.idleTimeoutSeconds === "number";
 }

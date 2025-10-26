@@ -19,8 +19,8 @@ When these CDN requests failed (due to network restrictions, CDN outages, or Clo
 
 1. **Created vendor directory**: `ui/public/lib/`
 2. **Downloaded dependencies locally** (~1.1MB total):
-   - xterm@5.3.0 (JS + CSS)
-   - xterm-addon-fit@0.7.0
+   - @xterm/xterm@5.5.0 (JS + CSS)
+   - @xterm/addon-fit@0.10.0
    - lucide icons (547KB UMD bundle)
    - html2canvas@1.4.1
 3. **Updated index.html**: Changed all CDN URLs to local paths

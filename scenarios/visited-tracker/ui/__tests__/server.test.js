@@ -3,6 +3,9 @@ const request = require('supertest');
 
 const { startServer, createApp } = require('../server');
 
+const LOOPBACK_HOST = process.env.VROOLI_LOOPBACK_HOST || '127.0.0.1';
+const LOOPBACK_ORIGIN = `http://${LOOPBACK_HOST}`;
+
 describe('Visited Tracker UI Server', () => {
     let server;
     let agent;
@@ -37,8 +40,13 @@ describe('Visited Tracker UI Server', () => {
     test('config endpoint exposes expected metadata', async () => {
         const response = await agent.get('/config');
         expect(response.status).toBe(200);
-        expect(response.body).toEqual({
-            apiUrl: `http://localhost:${testApiPort}`,
+        expect(response.body).toMatchObject({
+            apiUrl: `${LOOPBACK_ORIGIN}:${testApiPort}`,
+            directApiBase: `${LOOPBACK_ORIGIN}:${testApiPort}/api/v1`,
+            proxyApiUrl: '/proxy',
+            proxyApiBase: '/proxy/api/v1',
+            proxyHealthUrl: '/proxy/health',
+            displayApiUrl: `${LOOPBACK_ORIGIN}:${testApiPort}`,
             version: '1.0.0',
             service: 'visited-tracker'
         });
@@ -56,7 +64,7 @@ describe('Visited Tracker UI Server', () => {
         expect(payload).toHaveProperty('api_connectivity');
 
         const apiConnectivity = payload.api_connectivity;
-        expect(apiConnectivity).toHaveProperty('api_url', `http://localhost:${testApiPort}`);
+        expect(apiConnectivity).toHaveProperty('api_url', `${LOOPBACK_ORIGIN}:${testApiPort}`);
         expect(apiConnectivity).toHaveProperty('connected');
         expect(apiConnectivity).toHaveProperty('last_check');
         expect(apiConnectivity).toHaveProperty('latency_ms');
@@ -313,14 +321,79 @@ describe('Visited Tracker UI Server', () => {
         
         const started = startServer({ uiPort: 0, apiPort: testApiPort });
         server = started.server;
-        
+
         // Wait for server to be listening
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/🚀 Visited Tracker Dashboard running on/));
-        expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/📊 API: http:\/\/localhost:\d+/));
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`📊 API: ${LOOPBACK_ORIGIN}:`));
         
         consoleSpy.mockRestore();
+    });
+
+    test('proxy forwards API responses for GET requests', async () => {
+        let receivedHost = '';
+        const mockApi = http.createServer((req, res) => {
+            receivedHost = req.headers.host || '';
+            if (req.url === '/api/v1/status' && req.method === 'GET') {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, path: req.url, host: receivedHost }));
+            } else {
+                res.writeHead(404);
+                res.end();
+            }
+        });
+
+        const mockPort = await new Promise((resolve) => mockApi.listen(0, () => {
+            const address = mockApi.address();
+            resolve(typeof address === 'object' && address ? address.port : testApiPort);
+        }));
+
+        const proxiedApp = createApp({ apiPort: mockPort });
+        const proxyResponse = await request(proxiedApp).get('/proxy/api/v1/status');
+
+        await new Promise((resolve) => mockApi.close(resolve));
+
+        expect(proxyResponse.status).toBe(200);
+        expect(proxyResponse.body).toMatchObject({ ok: true, path: '/api/v1/status' });
+        expect(proxyResponse.body.host).toBe(`localhost:${mockPort}`);
+    });
+
+    test('proxy forwards request bodies for non-GET methods', async () => {
+        const payload = { message: 'hello proxy' };
+        let recordedBody = null;
+        const mockApi = http.createServer((req, res) => {
+            if (req.url === '/api/v1/echo' && req.method === 'POST') {
+                let body = '';
+                req.setEncoding('utf8');
+                req.on('data', chunk => { body += chunk; });
+                req.on('end', () => {
+                    recordedBody = body ? JSON.parse(body) : null;
+                    res.writeHead(201, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: true, body: recordedBody }));
+                });
+            } else {
+                res.writeHead(404);
+                res.end();
+            }
+        });
+
+        const mockPort = await new Promise((resolve) => mockApi.listen(0, () => {
+            const address = mockApi.address();
+            resolve(typeof address === 'object' && address ? address.port : testApiPort);
+        }));
+
+        const proxiedApp = createApp({ apiPort: mockPort });
+        const proxyResponse = await request(proxiedApp)
+            .post('/proxy/api/v1/echo')
+            .send(payload)
+            .set('Content-Type', 'application/json');
+
+        await new Promise((resolve) => mockApi.close(resolve));
+
+        expect(proxyResponse.status).toBe(201);
+        expect(proxyResponse.body).toMatchObject({ ok: true, body: payload });
+        expect(recordedBody).toEqual(payload);
     });
 
     test('health endpoint handles request.destroy() during timeout', async () => {

@@ -101,7 +101,7 @@ body.app-preview-immersive {
   left: 0;
   width: min(420px, calc(100% - 24px));
   max-width: calc(100% - 24px);
-  z-index: 2800;
+  z-index: 5000;
   pointer-events: auto;
   will-change: transform;
 }

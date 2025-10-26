@@ -54,6 +54,7 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 16px;
+            position: relative;
         }
 
         .header-bottom {
@@ -97,6 +98,7 @@
             border: 1px solid var(--border-primary);
             border-radius: 6px;
             font-size: 13px;
+            cursor: pointer;
         }
 
         .connection-dot {
@@ -124,18 +126,109 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
+        .connection-indicator:focus-visible {
+            outline: 2px solid var(--accent-secondary);
+            outline-offset: 2px;
+        }
+
+        .connection-info-icon {
+            width: 14px;
+            height: 14px;
+            color: var(--text-muted);
+        }
+
+        .connection-popover {
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            width: min(320px, 90vw);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+            display: none;
+            z-index: 1100;
+        }
+
+        .connection-popover.active {
+            display: block;
+        }
+
+        .connection-popover::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            right: 16px;
+            width: 16px;
+            height: 16px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-primary);
+            border-top: 1px solid var(--border-primary);
+            transform: rotate(45deg);
+        }
+
+        .connection-popover-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .connection-popover-body {
+            display: grid;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .connection-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .connection-detail strong {
+            color: var(--text-primary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .connection-health-payload {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 8px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 12px;
+            max-height: 160px;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+
+        .connection-popover-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 8px;
+        }
 
         .logs-btn {
-            padding: 6px 12px;
+            padding: 6px;
             border: 1px solid var(--border-primary);
             background: var(--bg-tertiary);
             color: var(--text-primary);
             border-radius: 6px;
             cursor: pointer;
             font-size: 13px;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
         }
         
         .logs-btn svg {
@@ -281,7 +374,7 @@
 
         .campaigns-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
         }
 
@@ -695,7 +788,13 @@
             margin-top: 16px;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
+            .campaigns-grid {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+        }
+
+        @media (max-width: 600px) {
             .campaigns-grid {
                 grid-template-columns: 1fr;
             }
@@ -713,14 +812,37 @@
                 <span>Visited Tracker Campaigns</span>
             </div>
             <div class="header-controls">
-                <div class="connection-indicator" id="connectionIndicator">
+                <div class="connection-indicator" id="connectionIndicator" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" aria-label="View connection details">
                     <div class="connection-dot"></div>
                     <span id="connectionStatus">Connecting...</span>
-                    <span id="apiEndpoint" style="color: var(--text-muted); font-size: 11px;"></span>
+                    <i data-lucide="info" class="connection-info-icon" aria-hidden="true"></i>
                 </div>
-                <button class="logs-btn" onclick="openLogsModal()">
+                <div class="connection-popover" id="connectionPopover" role="dialog" aria-hidden="true">
+                    <div class="connection-popover-header">
+                        <span>Connection Details</span>
+                        <button class="btn btn-small" type="button" onclick="closeConnectionPopover()">Close</button>
+                    </div>
+                    <div class="connection-popover-body">
+                        <div class="connection-detail">
+                            <strong>API Endpoint</strong>
+                            <span id="connectionApiUrl">Detecting...</span>
+                        </div>
+                        <div class="connection-detail">
+                            <strong>Last Health Check</strong>
+                            <span id="connectionLastCheck">No checks yet</span>
+                        </div>
+                        <div class="connection-detail">
+                            <strong>Health Payload</strong>
+                            <pre id="connectionHealthPayload" class="connection-health-payload">No response yet.</pre>
+                        </div>
+                    </div>
+                    <div class="connection-popover-actions">
+                        <button class="btn btn-small" type="button" onclick="testConnection()">Retry</button>
+                        <button class="btn btn-small" type="button" onclick="closeConnectionPopover()">Close</button>
+                    </div>
+                </div>
+                <button class="logs-btn" onclick="openLogsModal()" aria-label="View connection logs" title="View logs">
                     <i data-lucide="clipboard-list"></i>
-                    <span>View Logs</span>
                 </button>
             </div>
         </div>
@@ -844,11 +966,136 @@
     </div>
 
     <script>
-        let apiUrl = '';
+        const DEFAULT_PROXY_BASE = '/proxy/api/v1';
+        const DEFAULT_HEALTH_ENDPOINT = '/proxy/health';
+        let API_BASE = DEFAULT_PROXY_BASE;
+        let HEALTH_ENDPOINT = DEFAULT_HEALTH_ENDPOINT;
+        let displayApiEndpoint = '';
+        let lastHealthResponse = null;
+        let lastHealthError = null;
+        let lastHealthCheckedAt = null;
+        let connectionStatus = 'disconnected';
+        let connectionPopoverOpen = false;
         let allCampaigns = [];
         let agents = new Set(['manual']);
-        let connectionStatus = 'disconnected';
         let logs = [];
+
+        const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
+
+        const normalizeBase = (value) => {
+            if (!value || typeof value !== 'string') return '';
+            return value.endsWith('/') ? value.slice(0, -1) : value;
+        };
+
+        function buildApiUrl(path = '') {
+            const base = normalizeBase(API_BASE) || DEFAULT_PROXY_BASE;
+            if (!path) return base;
+            const suffix = path.startsWith('/') ? path : `/${path}`;
+            return `${base}${suffix}`;
+        }
+
+        function readProxyInfo() {
+            for (const key of PROXY_INFO_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(window, key) && window[key]) {
+                    return window[key];
+                }
+            }
+            return null;
+        }
+
+        function findApiPortEntry(proxyInfo) {
+            if (!proxyInfo) return null;
+            const ports = Array.isArray(proxyInfo.ports) ? proxyInfo.ports : [];
+            return ports.find((entry) => {
+                const aliases = Array.isArray(entry.aliases)
+                    ? entry.aliases.map((alias) => String(alias).toLowerCase())
+                    : [];
+                const label = String(entry.label || entry.slug || '').toLowerCase();
+                return aliases.includes('api_port') ||
+                    aliases.includes('api') ||
+                    aliases.includes('backend') ||
+                    label.includes('api');
+            }) || null;
+        }
+
+        function applyProxyEntry(entry) {
+            if (!entry || (!entry.path && !entry.url)) {
+                return false;
+            }
+            const normalizedPath = entry.path ? normalizeBase(String(entry.path)) : '';
+            const rootUrl = entry.url && typeof entry.url === 'string' && entry.url.length > 0
+                ? normalizeBase(entry.url)
+                : (normalizedPath ? `${window.location.origin}${normalizedPath}` : '');
+            if (!rootUrl) {
+                return false;
+            }
+            API_BASE = `${rootUrl}/api/v1`.replace('//api', '/api');
+            HEALTH_ENDPOINT = `${rootUrl}/health`;
+            displayApiEndpoint = rootUrl;
+            addLog(`Using App Monitor proxy API at ${displayApiEndpoint}`, 'info');
+            return true;
+        }
+
+        function updateConnectionDetailsUI() {
+            const apiEl = document.getElementById('connectionApiUrl');
+            const lastCheckEl = document.getElementById('connectionLastCheck');
+            const payloadEl = document.getElementById('connectionHealthPayload');
+            if (!apiEl || !lastCheckEl || !payloadEl) {
+                return;
+            }
+            apiEl.textContent = displayApiEndpoint || 'Using in-app proxy';
+            if (lastHealthCheckedAt) {
+                const statusLabel = connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1);
+                lastCheckEl.textContent = `${lastHealthCheckedAt.toLocaleString()} (${statusLabel})`;
+            } else {
+                lastCheckEl.textContent = 'No checks yet';
+            }
+            if (lastHealthResponse) {
+                payloadEl.textContent = typeof lastHealthResponse === 'string'
+                    ? lastHealthResponse
+                    : JSON.stringify(lastHealthResponse, null, 2);
+            } else if (lastHealthError) {
+                payloadEl.textContent = lastHealthError;
+            } else {
+                payloadEl.textContent = 'No response yet.';
+            }
+        }
+
+        function syncConnectionPopoverState() {
+            const indicator = document.getElementById('connectionIndicator');
+            const popover = document.getElementById('connectionPopover');
+            if (!indicator || !popover) {
+                return;
+            }
+            if (connectionPopoverOpen) {
+                popover.classList.add('active');
+                popover.setAttribute('aria-hidden', 'false');
+                indicator.setAttribute('aria-expanded', 'true');
+            } else {
+                popover.classList.remove('active');
+                popover.setAttribute('aria-hidden', 'true');
+                indicator.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        function openConnectionPopover() {
+            connectionPopoverOpen = true;
+            syncConnectionPopoverState();
+            updateConnectionDetailsUI();
+        }
+
+        function closeConnectionPopover() {
+            connectionPopoverOpen = false;
+            syncConnectionPopoverState();
+        }
+
+        function toggleConnectionPopover() {
+            connectionPopoverOpen = !connectionPopoverOpen;
+            syncConnectionPopoverState();
+            if (connectionPopoverOpen) {
+                updateConnectionDetailsUI();
+            }
+        }
 
         // Add log entry
         function addLog(message, level = 'info') {
@@ -904,6 +1151,8 @@
                     statusText.textContent = 'Connecting...';
                     break;
             }
+
+            updateConnectionDetailsUI();
         }
 
         // Get API configuration
@@ -912,56 +1161,138 @@
             addLog('Attempting to get API configuration...', 'info');
             
             try {
-                const response = await fetch('/config');
-                if (response.ok) {
-                    const config = await response.json();
-                    apiUrl = config.apiUrl;
-                    addLog(`Config loaded: API URL = ${apiUrl}`, 'success');
-                    document.getElementById('apiEndpoint').textContent = apiUrl;
-                    return config;
-                } else {
+                const response = await fetch('/config', { cache: 'no-store' });
+                if (!response.ok) {
                     throw new Error(`Config endpoint returned ${response.status}`);
                 }
+
+                const config = await response.json();
+                const proxiedBase = normalizeBase(config.proxyApiBase);
+                const proxiedHealth = normalizeBase(config.proxyHealthUrl);
+                const directBase = normalizeBase(config.directApiBase);
+                const directUrl = normalizeBase(config.apiUrl);
+                const displayUrl = config.displayApiUrl ? normalizeBase(config.displayApiUrl) : directUrl;
+
+                if (proxiedBase) {
+                    API_BASE = proxiedBase;
+                } else if (directBase) {
+                    API_BASE = directBase;
+                } else if (directUrl) {
+                    API_BASE = `${directUrl}/api/v1`;
+                } else {
+                    API_BASE = DEFAULT_PROXY_BASE;
+                }
+
+                if (proxiedHealth) {
+                    HEALTH_ENDPOINT = proxiedHealth;
+                } else if (displayUrl) {
+                    HEALTH_ENDPOINT = `${displayUrl}/health`;
+                } else if (API_BASE.includes('/api/')) {
+                    HEALTH_ENDPOINT = `${API_BASE.replace(/\/api\/v\d+$/, '')}/health`;
+                } else {
+                    HEALTH_ENDPOINT = DEFAULT_HEALTH_ENDPOINT;
+                }
+
+                if (displayUrl) {
+                    displayApiEndpoint = displayUrl;
+                } else if (proxiedBase) {
+                    const root = proxiedBase.replace(/\/api\/v\d+$/, '');
+                    displayApiEndpoint = root.startsWith('http') ? root : `${window.location.origin}${root}`;
+                } else if (directUrl) {
+                    displayApiEndpoint = directUrl;
+                } else {
+                    displayApiEndpoint = '';
+                }
+
+                updateConnectionDetailsUI();
+                addLog(`Config loaded: API base ${API_BASE}`, 'success');
+                addLog(`Health endpoint: ${HEALTH_ENDPOINT}`, 'info');
+                return config;
             } catch (error) {
                 addLog(`Failed to get config: ${error.message}`, 'warn');
-                
-                // Fallback to guessing the port
-                const uiPort = window.location.port;
-                const apiPort = uiPort.replace('3', '1');
-                apiUrl = `http://localhost:${apiPort}`;
-                
-                addLog(`Using fallback API URL: ${apiUrl}`, 'warn');
-                document.getElementById('apiEndpoint').textContent = apiUrl;
+
+                const proxyInfo = readProxyInfo();
+                const entry = findApiPortEntry(proxyInfo);
+                if (applyProxyEntry(entry)) {
+                    HEALTH_ENDPOINT = `${displayApiEndpoint}/health`;
+                    updateConnectionDetailsUI();
+                    return;
+                }
+
+                const uiPort = window.location.port || '';
+                let fallbackUrl = '';
+                if (uiPort) {
+                    if (uiPort.length === 5 && uiPort.startsWith('3')) {
+                        fallbackUrl = `${window.location.protocol}//${window.location.hostname}:${'1' + uiPort.slice(1)}`;
+                    } else {
+                        fallbackUrl = `${window.location.protocol}//${window.location.hostname}:${uiPort}`;
+                    }
+                }
+
+                if (fallbackUrl) {
+                    API_BASE = `${fallbackUrl}/api/v1`;
+                    HEALTH_ENDPOINT = `${fallbackUrl}/health`;
+                    displayApiEndpoint = fallbackUrl;
+                    addLog(`Using fallback API URL: ${displayApiEndpoint}`, 'warn');
+                } else {
+                    API_BASE = DEFAULT_PROXY_BASE;
+                    HEALTH_ENDPOINT = DEFAULT_HEALTH_ENDPOINT;
+                    displayApiEndpoint = '';
+                    addLog('Falling back to default proxy endpoints', 'warn');
+                }
+
+                updateConnectionDetailsUI();
             }
         }
 
         // Test API connection
         async function testConnection() {
-            addLog(`Testing connection to ${apiUrl}/health...`, 'info');
+            const healthUrl = HEALTH_ENDPOINT || DEFAULT_HEALTH_ENDPOINT;
+            addLog(`Testing connection via ${healthUrl}...`, 'info');
             updateConnectionStatus('connecting');
             
             try {
-                const response = await fetch(`${apiUrl}/health`, {
+                const response = await fetch(healthUrl, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
                     }
                 });
-                
+
+                const contentType = response.headers.get('content-type') || '';
+                let payload = null;
+                if (contentType.includes('application/json')) {
+                    payload = await response.json();
+                } else {
+                    const text = await response.text();
+                    payload = text || null;
+                }
+
+                lastHealthCheckedAt = new Date();
+                lastHealthResponse = payload;
+                lastHealthError = response.ok ? null : `HTTP ${response.status}`;
+
                 if (response.ok) {
-                    const data = await response.json();
-                    addLog(`API Health Check Success: ${JSON.stringify(data)}`, 'success');
+                    addLog('API Health Check Success', 'success');
+                    if (payload && typeof payload === 'object') {
+                        addLog(`Health payload: ${JSON.stringify(payload)}`, 'info');
+                    }
                     updateConnectionStatus('connected');
                     return true;
-                } else {
-                    addLog(`API Health Check Failed: HTTP ${response.status}`, 'error');
-                    updateConnectionStatus('disconnected', `HTTP ${response.status}`);
-                    return false;
                 }
+
+                addLog(`API Health Check Failed: HTTP ${response.status}`, 'error');
+                updateConnectionStatus('disconnected', `HTTP ${response.status}`);
+                return false;
             } catch (error) {
+                lastHealthCheckedAt = new Date();
+                lastHealthResponse = null;
+                lastHealthError = error.message;
                 addLog(`Connection failed: ${error.message}`, 'error');
                 updateConnectionStatus('disconnected', 'Cannot reach API');
                 return false;
+            } finally {
+                updateConnectionDetailsUI();
             }
         }
 
@@ -1005,7 +1336,7 @@
             addLog('Loading campaigns...', 'info');
             
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns`, {
+                const response = await fetch(buildApiUrl('/campaigns'), {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
@@ -1204,7 +1535,7 @@
             }
             
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}`, {
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}`), {
                     method: 'DELETE'
                 });
                 
@@ -1303,7 +1634,7 @@
             }
             
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns`, {
+                const response = await fetch(buildApiUrl('/campaigns'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1338,6 +1669,7 @@
 
         // Modal functions for logs
         function openLogsModal() {
+            closeConnectionPopover();
             document.getElementById('logsModal').classList.add('active');
             updateLogsDisplay();
         }
@@ -1372,6 +1704,8 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeCreateModal();
+                closeLogsModal();
+                closeConnectionPopover();
             }
         });
 
@@ -1385,6 +1719,30 @@
         document.getElementById('logsModal').addEventListener('click', (e) => {
             if (e.target.id === 'logsModal') {
                 closeLogsModal();
+            }
+        });
+
+        const connectionIndicatorEl = document.getElementById('connectionIndicator');
+        if (connectionIndicatorEl) {
+            connectionIndicatorEl.addEventListener('click', (event) => {
+                event.preventDefault();
+                toggleConnectionPopover();
+            });
+
+            connectionIndicatorEl.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleConnectionPopover();
+                }
+            });
+        }
+
+        document.addEventListener('click', (event) => {
+            const indicator = document.getElementById('connectionIndicator');
+            const popover = document.getElementById('connectionPopover');
+            if (!indicator || !popover) return;
+            if (connectionPopoverOpen && !indicator.contains(event.target) && !popover.contains(event.target)) {
+                closeConnectionPopover();
             }
         });
 

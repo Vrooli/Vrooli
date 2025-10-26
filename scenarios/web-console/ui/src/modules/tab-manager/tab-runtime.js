@@ -64,6 +64,10 @@ export function resetTabRuntimeState(tab, options = {}) {
     batches: 0,
     lastBatchSize: 0,
   };
+  tab.layoutCache = {
+    width: 0,
+    height: 0,
+  };
   tab.lastSentSize = { cols: 0, rows: 0 };
   tab.errorMessage = "";
 
@@ -75,6 +79,17 @@ export function resetTabRuntimeState(tab, options = {}) {
   tab.hasEverConnected = false;
   tab.reconnecting = false;
   tab.wasDetached = Boolean(markDetached);
+  if (tab.userScroll) {
+    tab.userScroll.active = false;
+    tab.userScroll.pinnedToBottom = true;
+    tab.userScroll.touchActive = false;
+    tab.userScroll.momentumActive = false;
+    tab.userScroll.lastInteraction = 0;
+    if (tab.userScroll.releaseTimer) {
+      clearTimeout(tab.userScroll.releaseTimer);
+      tab.userScroll.releaseTimer = null;
+    }
+  }
 
   if (tab.heartbeatInterval) {
     clearInterval(tab.heartbeatInterval);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { appService } from '@/services/api';
 import type { App, AppLogStream } from '@/types';
 import { resolveAppIdentifier } from '@/utils/appPreview';
+import { logger } from '@/services/logger';
 
 interface UseAppLogsOptions {
   app?: App | null;
@@ -90,7 +91,7 @@ export const useAppLogs = ({ app, appId, active = true }: UseAppLogsOptions): Us
         if (!isMountedRef.current) {
           return;
         }
-        console.warn('[useAppLogs] Failed to load logs', error_);
+        logger.warn('[useAppLogs] Failed to load logs', error_);
         setError('Unable to load logs for this scenario.');
         setLogs([]);
         setStreams([]);

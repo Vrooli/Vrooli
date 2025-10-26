@@ -277,35 +277,55 @@ export const useIosAutobackGuard = ({
       return;
     }
 
-    recordNavigateEvent({
-      reason: 'ios-guard-reset-state',
-      targetPath: location.pathname,
-      targetSearch: location.search,
-      replace: true,
-    });
+    // Defer the state reset to avoid race condition with the popstate handler's restore navigation.
+    // The popstate handler sets suppressedAutoBack=true, then navigates to restore the preview.
+    // We need to wait for that navigation to complete before resetting the state flags.
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      return;
+    }
 
-    navigate(
-      {
-        pathname: location.pathname,
-        search: location.search || undefined,
-      },
-      {
+    const resetStateAfterRestore = () => {
+      recordNavigateEvent({
+        reason: 'ios-guard-reset-state',
+        targetPath: location.pathname,
+        targetSearch: location.search,
         replace: true,
-        state: {
-          ...(locationState ?? {}),
-          fromAppsList: false,
-          suppressedAutoBack: false,
-        },
-      },
-    );
+      });
 
-    recordDebugEvent('ios-guard-reset-state', {
-      pathname: location.pathname,
-      search: location.search,
-      appId,
+      navigate(
+        {
+          pathname: location.pathname,
+          search: location.search || undefined,
+        },
+        {
+          replace: true,
+          state: {
+            ...(locationState ?? {}),
+            fromAppsList: false,
+            suppressedAutoBack: false,
+          },
+        },
+      );
+
+      recordDebugEvent('ios-guard-reset-state', {
+        pathname: location.pathname,
+        search: location.search,
+        appId,
+      });
+
+      updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
+    };
+
+    // Use double rAF to ensure the restore navigation has been processed
+    const frame1 = window.requestAnimationFrame(() => {
+      const frame2 = window.requestAnimationFrame(resetStateAfterRestore);
+      // Store frame2 for cleanup if needed
+      return () => window.cancelAnimationFrame(frame2);
     });
 
-    updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
+    return () => {
+      window.cancelAnimationFrame(frame1);
+    };
   }, [
     appId,
     isIosSafari,

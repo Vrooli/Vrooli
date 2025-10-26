@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 
 /**
  * Event feed management – logging, transcript tracking, and rendering helpers.
@@ -12,10 +12,18 @@ import {
 } from "./state.js";
 import { formatEventPayload } from "./utils.js";
 
+/** @typedef {import("./types.d.ts").TerminalTab} TerminalTab */
+/** @typedef {import("./types.d.ts").TranscriptEntry} TranscriptEntry */
+
+/** @type {((reason: string) => void) | null} */
 let activeTabMutationHandler = null;
 
 const MAX_TRANSCRIPT_BYTES = 1024 * 1024; // cap transcript cache to roughly 1 MiB per tab
 
+/**
+ * @param {TranscriptEntry | null | undefined} entry
+ * @returns {number}
+ */
 function estimateTranscriptEntryBytes(entry) {
   if (!entry || typeof entry !== "object") {
     return 0;
@@ -33,6 +41,10 @@ function estimateTranscriptEntryBytes(entry) {
   return size;
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @returns {void}
+ */
 function trimTranscript(tab) {
   if (!tab || !Array.isArray(tab.transcript)) {
     return;
@@ -64,6 +76,12 @@ export function configureEventFeed({ onActiveTabMutation } = {}) {
     typeof onActiveTabMutation === "function" ? onActiveTabMutation : null;
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} type
+ * @param {unknown} payload
+ * @returns {void}
+ */
 export function appendEvent(tab, type, payload) {
   if (!tab) return;
   const normalized =
@@ -87,6 +105,11 @@ export function appendEvent(tab, type, payload) {
   }
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} type
+ * @returns {void}
+ */
 export function recordSuppressedEvent(tab, type) {
   if (!tab) return;
   const current = (tab.suppressed[type] || 0) + 1;
@@ -99,6 +122,11 @@ export function recordSuppressedEvent(tab, type) {
   }
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @param {TranscriptEntry} entry
+ * @returns {void}
+ */
 export function recordTranscript(tab, entry) {
   if (!tab) return;
   const size = estimateTranscriptEntryBytes(entry);
@@ -113,6 +141,11 @@ export function recordTranscript(tab, entry) {
   }
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @param {string} message
+ * @returns {void}
+ */
 export function showError(tab, message) {
   if (!tab) return;
   tab.errorMessage = message || "";
@@ -121,21 +154,27 @@ export function showError(tab, message) {
   }
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @returns {void}
+ */
 export function renderEvents(tab) {
-  if (!elements.eventFeed) return;
-  elements.eventFeed.innerHTML = "";
+  const eventFeed = elements.eventFeed;
+  if (!eventFeed) return;
+  eventFeed.innerHTML = "";
   const events = tab && Array.isArray(tab.events) ? tab.events : [];
   const totalEvents = events.length;
-  if (elements.eventFeedCount) {
+  const eventFeedCount = elements.eventFeedCount;
+  if (eventFeedCount) {
     const countLabel =
       totalEvents === 0
         ? "No events recorded"
         : totalEvents === 1
           ? "1 event recorded (latest 50 shown)"
           : `${totalEvents} events recorded (latest 50 shown)`;
-    elements.eventFeedCount.textContent = String(totalEvents);
-    elements.eventFeedCount.setAttribute("aria-label", countLabel);
-    elements.eventFeedCount.title = countLabel;
+    eventFeedCount.textContent = String(totalEvents);
+    eventFeedCount.setAttribute("aria-label", countLabel);
+    eventFeedCount.title = countLabel;
   }
   if (!tab) return;
   const recent = events.slice(-50).reverse();
@@ -154,40 +193,53 @@ export function renderEvents(tab) {
       detail.textContent = formatEventPayload(event.payload);
       li.appendChild(detail);
     }
-    elements.eventFeed.appendChild(li);
+    eventFeed.appendChild(li);
   });
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @returns {void}
+ */
 export function renderEventMeta(tab) {
-  if (!elements.eventMeta) return;
+  const eventMeta = elements.eventMeta;
+  if (!eventMeta) return;
   if (!tab) {
-    elements.eventMeta.textContent = "";
-    elements.eventMeta.classList.add("hidden");
+    eventMeta.textContent = "";
+    eventMeta.classList.add("hidden");
     return;
   }
+  const suppressedLabels = /** @type {Record<string, string>} */ (
+    SUPPRESSED_EVENT_LABELS
+  );
   const summaries = Object.entries(tab.suppressed)
     .filter(([, count]) => count > 0)
     .map(
-      ([type, count]) => `${SUPPRESSED_EVENT_LABELS[type] || type}: ${count}`,
+      ([type, count]) => `${suppressedLabels[type] || type}: ${count}`,
     );
 
   if (summaries.length === 0) {
-    elements.eventMeta.textContent = "";
-    elements.eventMeta.classList.add("hidden");
+    eventMeta.textContent = "";
+    eventMeta.classList.add("hidden");
   } else {
-    elements.eventMeta.textContent = summaries.join(" • ");
-    elements.eventMeta.classList.remove("hidden");
+    eventMeta.textContent = summaries.join(" • ");
+    eventMeta.classList.remove("hidden");
   }
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @returns {void}
+ */
 export function renderError(tab) {
-  if (!elements.errorBanner) return;
+  const errorBanner = elements.errorBanner;
+  if (!errorBanner) return;
   const message = tab ? tab.errorMessage : "";
   if (message) {
-    elements.errorBanner.textContent = message;
-    elements.errorBanner.classList.remove("hidden");
+    errorBanner.textContent = message;
+    errorBanner.classList.remove("hidden");
   } else {
-    elements.errorBanner.textContent = "";
-    elements.errorBanner.classList.add("hidden");
+    errorBanner.textContent = "";
+    errorBanner.classList.add("hidden");
   }
 }

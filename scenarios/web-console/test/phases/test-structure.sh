@@ -80,9 +80,6 @@ fi
 # Check vendor libraries are local (offline-first requirement)
 echo "🔍 Checking offline-first vendor libraries..."
 vendor_libs=(
-    "ui/public/lib/xterm.min.js"
-    "ui/public/lib/xterm.min.css"
-    "ui/public/lib/xterm-addon-fit.min.js"
     "ui/public/lib/lucide.min.js"
     "ui/public/lib/html2canvas.min.js"
 )
@@ -94,6 +91,13 @@ for lib in "${vendor_libs[@]}"; do
         testing::phase::add_error "❌ Missing vendor library: $lib"
     fi
 done
+
+# Ensure modern xterm packages are bundled locally
+if grep -q '@xterm/xterm' ui/package.json; then
+    log::success "✅ @xterm/xterm dependency declared"
+else
+    testing::phase::add_error "❌ @xterm/xterm dependency missing from ui/package.json"
+fi
 
 # Check modern test structure
 echo "🔍 Validating test infrastructure..."

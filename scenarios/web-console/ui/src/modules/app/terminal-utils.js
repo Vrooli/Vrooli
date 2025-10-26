@@ -10,6 +10,12 @@ export const TerminalFocusMode = Object.freeze({
 
 /** @typedef {typeof TerminalFocusMode[keyof typeof TerminalFocusMode]} TerminalFocusModeValue */
 
+/**
+ * Decide whether focus should return to the terminal instance.
+ * @param {TerminalTab | null | undefined} tab
+ * @param {TerminalFocusModeValue} focusMode
+ * @returns {boolean}
+ */
 function shouldRefocusTerminal(tab, focusMode) {
   if (focusMode === TerminalFocusMode.FORCE) {
     return true;
@@ -38,39 +44,98 @@ function shouldRefocusTerminal(tab, focusMode) {
  * @param {TerminalTab} tab
  * @param {{ focusMode?: TerminalFocusModeValue; scroll?: boolean }} [options]
  */
-export function refreshTerminalViewport(tab, { focusMode = TerminalFocusMode.AUTO, scroll = true } = {}) {
+export function refreshTerminalViewport(
+  tab,
+  { focusMode = TerminalFocusMode.AUTO, scroll = true, respectUserScroll = true } = {},
+) {
   if (!tab?.term) {
     return;
   }
 
-  try {
-    if (shouldRefocusTerminal(tab, focusMode)) {
-      tab.term.focus();
+  const userScrollState = tab.userScroll || {
+    active: false,
+    pinnedToBottom: true,
+    touchActive: false,
+    momentumActive: false,
+    lastInteraction: 0,
+  };
+
+  const userActivelyScrolling =
+    respectUserScroll !== false &&
+    (userScrollState.touchActive === true ||
+      userScrollState.momentumActive === true ||
+      (typeof userScrollState.lastInteraction === "number" &&
+        Date.now() - userScrollState.lastInteraction < 1200) ||
+      (userScrollState.active === true &&
+        userScrollState.pinnedToBottom === false));
+
+  let focusApplied = false;
+  const allowFocus =
+    focusMode === TerminalFocusMode.FORCE || !userActivelyScrolling;
+
+  if (allowFocus) {
+    try {
+      if (shouldRefocusTerminal(tab, focusMode)) {
+        tab.term.focus();
+        focusApplied = true;
+      }
+    } catch (error) {
+      console.warn("Failed to focus terminal:", error);
     }
-  } catch (error) {
-    console.warn("Failed to focus terminal:", error);
   }
 
-  if (scroll && typeof tab.term.scrollToBottom === "function") {
+  const shouldScroll = (() => {
+    if (!scroll || typeof tab.term.scrollToBottom !== "function") {
+      return false;
+    }
+    if (respectUserScroll === false) {
+      return true;
+    }
+    if (userActivelyScrolling) {
+      return false;
+    }
+    return isTerminalViewportPinnedToBottom(tab.term);
+  })();
+
+  let scrolled = false;
+  if (shouldScroll) {
     try {
       tab.term.scrollToBottom();
+      scrolled = true;
+      if (tab.userScroll) {
+        tab.userScroll.pinnedToBottom = true;
+        tab.userScroll.active = false;
+        tab.userScroll.momentumActive = false;
+        tab.userScroll.lastInteraction = 0;
+        if (tab.userScroll.releaseTimer) {
+          clearTimeout(tab.userScroll.releaseTimer);
+          tab.userScroll.releaseTimer = null;
+        }
+      }
     } catch (error) {
       console.warn("Failed to scroll terminal:", error);
     }
   }
 
-  try {
-    if (typeof tab.term.write === "function") {
-      tab.term.write("");
-    }
-    if (typeof tab.term.refresh === "function" && typeof tab.term.rows === "number") {
+  const needsRefresh = scrolled || focusApplied || focusMode === TerminalFocusMode.FORCE;
+
+  if (
+    needsRefresh &&
+    typeof tab.term.refresh === "function" &&
+    typeof tab.term.rows === "number"
+  ) {
+    try {
       tab.term.refresh(0, Math.max(0, tab.term.rows - 1));
+    } catch (error) {
+      console.warn("Failed to refresh terminal viewport:", error);
     }
-  } catch (error) {
-    console.warn("Failed to refresh terminal viewport:", error);
   }
 }
 
+/**
+ * @param {TerminalTab | null | undefined} tab
+ * @returns {boolean}
+ */
 function clampTerminalColumns(tab) {
   if (!tab?.term || !tab.container) {
     return false;
@@ -122,13 +187,44 @@ function clampTerminalColumns(tab) {
 }
 
 /**
+ * Determine whether the visible viewport is already pinned to the buffer bottom.
+ * @param {import("../types.d.ts").TerminalTab['term']} term
+ */
+function isTerminalViewportPinnedToBottom(term) {
+  const buffer = term?.buffer?.active;
+  if (!buffer || typeof buffer.baseY !== "number") {
+    return true;
+  }
+  const viewportY = typeof buffer.viewportY === "number" ? buffer.viewportY : buffer.ydisp;
+  if (typeof viewportY === "number") {
+    if (viewportY >= buffer.baseY) {
+      return true;
+    }
+  }
+
+  if (typeof buffer.length === "number" && typeof term?.rows === "number") {
+    const viewportBottom = (typeof viewportY === "number" ? viewportY : buffer.baseY) + term.rows;
+    return viewportBottom >= buffer.length - 1;
+  }
+
+  return false;
+}
+
+/**
  * Fit the terminal to its container, clamp overflow, and refresh the viewport.
  * Returns whether the geometry changed as a result of the operation.
  * @param {TerminalTab} tab
- * @param {{ focusMode?: TerminalFocusModeValue }} [options]
+ * @param {{ focusMode?: TerminalFocusModeValue; respectUserScroll?: boolean }} [options]
  * @returns {{ colsChanged: boolean; rowsChanged: boolean }}
  */
-export function fitTerminal(tab, { focusMode = TerminalFocusMode.AUTO } = {}) {
+export function fitTerminal(
+  tab,
+  {
+    focusMode = TerminalFocusMode.AUTO,
+    respectUserScroll = true,
+    forceFit = false,
+  } = {},
+) {
   if (!tab?.term) {
     return { colsChanged: false, rowsChanged: false };
   }
@@ -136,13 +232,56 @@ export function fitTerminal(tab, { focusMode = TerminalFocusMode.AUTO } = {}) {
   const previousCols = typeof tab.term.cols === "number" ? tab.term.cols : 0;
   const previousRows = typeof tab.term.rows === "number" ? tab.term.rows : 0;
 
-  if (typeof tab.fitAddon?.fit === "function") {
-    tab.fitAddon.fit();
+  let containerWidth = 0;
+  let containerHeight = 0;
+  if (tab.container && typeof tab.container.getBoundingClientRect === "function") {
+    const rect = tab.container.getBoundingClientRect();
+    containerWidth = Number.isFinite(rect.width) ? Math.round(rect.width) : 0;
+    containerHeight = Number.isFinite(rect.height)
+      ? Math.round(rect.height)
+      : 0;
+  }
+
+  const lastWidth = tab.layoutCache?.width ?? 0;
+  const lastHeight = tab.layoutCache?.height ?? 0;
+  const geometryChanged =
+    containerWidth !== lastWidth || containerHeight !== lastHeight;
+
+  const shouldApplyFit =
+    (forceFit || geometryChanged) && typeof tab.fitAddon?.fit === "function";
+
+  const userScroll = tab.userScroll;
+  const userRecentlyActive =
+    userScroll &&
+    (userScroll.touchActive === true ||
+      userScroll.momentumActive === true ||
+      (typeof userScroll.lastInteraction === "number" &&
+        Date.now() - userScroll.lastInteraction < 600));
+
+  if (shouldApplyFit) {
+    if (userRecentlyActive && forceFit !== true) {
+      if (tab.userScroll) {
+        tab.userScroll.lastInteraction = Date.now();
+      }
+    } else {
+      try {
+        tab.fitAddon.fit();
+      } catch (error) {
+        console.warn("Failed to run fit addon:", error);
+      }
+    }
+  }
+
+  if (!tab.layoutCache) {
+    tab.layoutCache = { width: containerWidth, height: containerHeight };
+  } else {
+    tab.layoutCache.width = containerWidth;
+    tab.layoutCache.height = containerHeight;
   }
 
   const clamped = clampTerminalColumns(tab);
 
-  refreshTerminalViewport(tab, { focusMode });
+  refreshTerminalViewport(tab, { focusMode, respectUserScroll });
 
   const currentCols = typeof tab.term.cols === "number" ? tab.term.cols : previousCols;
   const currentRows = typeof tab.term.rows === "number" ? tab.term.rows : previousRows;

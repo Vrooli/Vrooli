@@ -594,9 +594,66 @@
     </div>
 
     <script>
-        let apiUrl = '';
+        const DEFAULT_PROXY_BASE = '/proxy/api/v1';
+        let API_BASE = DEFAULT_PROXY_BASE;
+        let displayApiEndpoint = '';
         let campaignId = '';
         let campaignData = null;
+
+        const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
+
+        const normalizeBase = (value) => {
+            if (!value || typeof value !== 'string') return '';
+            return value.endsWith('/') ? value.slice(0, -1) : value;
+        };
+
+        function buildApiUrl(path = '') {
+            const base = normalizeBase(API_BASE) || DEFAULT_PROXY_BASE;
+            if (!path) return base;
+            const suffix = path.startsWith('/') ? path : `/${path}`;
+            return `${base}${suffix}`;
+        }
+
+        function readProxyInfo() {
+            for (const key of PROXY_INFO_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(window, key) && window[key]) {
+                    return window[key];
+                }
+            }
+            return null;
+        }
+
+        function findApiPortEntry(proxyInfo) {
+            if (!proxyInfo) return null;
+            const ports = Array.isArray(proxyInfo.ports) ? proxyInfo.ports : [];
+            return ports.find((entry) => {
+                const aliases = Array.isArray(entry.aliases)
+                    ? entry.aliases.map((alias) => String(alias).toLowerCase())
+                    : [];
+                const label = String(entry.label || entry.slug || '').toLowerCase();
+                return aliases.includes('api_port') ||
+                    aliases.includes('api') ||
+                    aliases.includes('backend') ||
+                    label.includes('api');
+            }) || null;
+        }
+
+        function applyProxyEntry(entry) {
+            if (!entry || (!entry.path && !entry.url)) {
+                return false;
+            }
+            const normalizedPath = entry.path ? normalizeBase(String(entry.path)) : '';
+            const rootUrl = entry.url && typeof entry.url === 'string' && entry.url.length > 0
+                ? normalizeBase(entry.url)
+                : (normalizedPath ? `${window.location.origin}${normalizedPath}` : '');
+            if (!rootUrl) {
+                return false;
+            }
+            API_BASE = `${rootUrl}/api/v1`.replace('//api', '/api');
+            displayApiEndpoint = rootUrl;
+            console.info('[Campaign] Using proxy API at', displayApiEndpoint);
+            return true;
+        }
 
         // Get campaign ID from URL
         function getCampaignId() {
@@ -607,16 +664,66 @@
         // Get API configuration
         async function getConfig() {
             try {
-                const response = await fetch('/config');
+                const response = await fetch('/config', { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error(`Config endpoint returned ${response.status}`);
+                }
+
                 const config = await response.json();
-                apiUrl = config.apiUrl;
+                const proxiedBase = normalizeBase(config.proxyApiBase);
+                const directBase = normalizeBase(config.directApiBase);
+                const directUrl = normalizeBase(config.apiUrl);
+                const displayUrl = config.displayApiUrl ? normalizeBase(config.displayApiUrl) : directUrl;
+
+                if (proxiedBase) {
+                    API_BASE = proxiedBase;
+                } else if (directBase) {
+                    API_BASE = directBase;
+                } else if (directUrl) {
+                    API_BASE = `${directUrl}/api/v1`;
+                } else {
+                    API_BASE = DEFAULT_PROXY_BASE;
+                }
+
+                if (displayUrl) {
+                    displayApiEndpoint = displayUrl;
+                } else if (proxiedBase) {
+                    const root = proxiedBase.replace(/\/api\/v\d+$/, '');
+                    displayApiEndpoint = root.startsWith('http') ? root : `${window.location.origin}${root}`;
+                } else if (directUrl) {
+                    displayApiEndpoint = directUrl;
+                } else {
+                    displayApiEndpoint = '';
+                }
+
+                console.info('[Campaign] API base resolved to', API_BASE);
                 return config;
             } catch (error) {
-                console.error('Failed to get config:', error);
-                // Fallback to guessing the port
-                const uiPort = window.location.port;
-                const apiPort = uiPort.replace('3', '1');
-                apiUrl = `http://localhost:${apiPort}`;
+                console.warn('[Campaign] Failed to load config:', error);
+                const entry = findApiPortEntry(readProxyInfo());
+                if (applyProxyEntry(entry)) {
+                    return;
+                }
+
+                const uiPort = window.location.port || '';
+                let fallbackUrl = '';
+                if (uiPort) {
+                    if (uiPort.length === 5 && uiPort.startsWith('3')) {
+                        fallbackUrl = `${window.location.protocol}//${window.location.hostname}:${'1' + uiPort.slice(1)}`;
+                    } else {
+                        fallbackUrl = `${window.location.protocol}//${window.location.hostname}:${uiPort}`;
+                    }
+                }
+
+                if (fallbackUrl) {
+                    API_BASE = `${fallbackUrl}/api/v1`;
+                    displayApiEndpoint = fallbackUrl;
+                    console.warn('[Campaign] Using fallback API URL', displayApiEndpoint);
+                } else {
+                    API_BASE = DEFAULT_PROXY_BASE;
+                    displayApiEndpoint = '';
+                    console.warn('[Campaign] Defaulting to proxy base', API_BASE);
+                }
             }
         }
 
@@ -646,7 +753,7 @@
         // Load campaign details
         async function loadCampaignDetails() {
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}`);
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}`));
                 if (!response.ok) {
                     if (response.status === 404) {
                         showError('Campaign not found');
@@ -699,7 +806,7 @@
         // Load coverage statistics
         async function loadCoverage() {
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/coverage`);
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}/coverage`));
                 if (!response.ok) throw new Error('Failed to load coverage');
                 
                 const data = await response.json();
@@ -727,7 +834,7 @@
         // Load least visited files
         async function loadLeastVisited() {
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/prioritize/least-visited?limit=20`);
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}/prioritize/least-visited?limit=20`));
                 if (!response.ok) throw new Error('Failed to load least visited');
                 
                 const data = await response.json();
@@ -764,7 +871,7 @@
         // Load most stale files
         async function loadMostStale() {
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/prioritize/most-stale?limit=20`);
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}/prioritize/most-stale?limit=20`));
                 if (!response.ok) throw new Error('Failed to load most stale');
                 
                 const data = await response.json();
@@ -810,7 +917,7 @@
             }
             
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/structure/sync`, {
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}/structure/sync`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -842,7 +949,7 @@
             }
             
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/visit`, {
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}/visit`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -868,7 +975,7 @@
         // Export data
         async function exportData() {
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/export?format=json`);
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}/export?format=json`));
                 if (!response.ok) throw new Error('Export failed');
                 
                 const data = await response.json();
@@ -904,7 +1011,7 @@
             if (!confirmed) return;
             
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}`, {
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}`), {
                     method: 'DELETE'
                 });
                 
@@ -928,7 +1035,7 @@
             }
             
             try {
-                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/adjust-visit`, {
+                const response = await fetch(buildApiUrl(`/campaigns/${campaignId}/adjust-visit`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

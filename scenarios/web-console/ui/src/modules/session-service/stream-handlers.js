@@ -2,9 +2,10 @@ import { state } from "../state.js";
 import { appendEvent, recordTranscript, showError } from "../event-feed.js";
 import { filterLocalEcho } from "../input-buffer.js";
 import { debugLog } from "../debug.js";
-import { textDecoder } from "../utils.js";
+import { textDecoder, scheduleMicrotask } from "../utils.js";
 import { showToast } from "../notifications.js";
 import { fitTerminal } from "../app/terminal-utils.js";
+import { requestActiveTerminalFit } from "../app/terminal-layout.js";
 import { notifyActiveTabUpdate } from "./callbacks.js";
 import { setTabPhase, setTabSocketState } from "./tab-state.js";
 import { fetchSessionTranscriptRequest } from "./transport.js";
@@ -60,16 +61,7 @@ function handleOutputPayload(tab, payload, options = {}) {
 
   if (options.replay !== true && !tab.hasReceivedLiveOutput) {
     tab.hasReceivedLiveOutput = true;
-    const forceRender = () => {
-      try {
-        fitTerminal(tab);
-      } catch (error) {
-        console.warn("Failed to refresh terminal on first output:", error);
-      }
-    };
-    forceRender();
-    requestAnimationFrame(forceRender);
-    setTimeout(forceRender, 50);
+    scheduleTerminalFit(tab, "first-output", { includeInactive: true });
   }
 
   if (options.record !== false) {
@@ -145,17 +137,7 @@ function handleReplayPayload(tab, payload) {
     }
     appendEvent(tab, "output-replay-complete", eventPayload);
 
-    if (tab.id === state.activeTabId) {
-      const forceRender = () => {
-        try {
-          fitTerminal(tab);
-        } catch (error) {
-          console.warn("Failed to refresh terminal after replay:", error);
-        }
-      };
-      requestAnimationFrame(forceRender);
-      setTimeout(forceRender, 50);
-    }
+    scheduleTerminalFit(tab, "replay-complete", { includeInactive: false });
 
     void hydrateTranscriptForTab(tab, {
       generatedAt: payload.generated,
@@ -277,11 +259,11 @@ export async function hydrateTranscriptForTab(tab, options = {}) {
     }
 
     const entries = parseTranscriptNdjson(tab, raw);
-    renderHydratedTranscript(tab, entries);
+    const { entryCount } = await renderHydratedTranscript(tab, entries);
     tab.transcriptHydrated = true;
     appendEvent(tab, "transcript-hydration-complete", {
       sessionId: tab.session.id,
-      entryCount: entries.length,
+      entryCount: entryCount,
       generatedAt: options.generatedAt || null,
     });
   } catch (error) {
@@ -330,7 +312,7 @@ function parseTranscriptNdjson(tab, raw) {
 
 function renderHydratedTranscript(tab, entries) {
   if (!tab || !tab.term || typeof tab.term.write !== "function") {
-    return entries;
+    return Promise.resolve({ entryCount: 0, outputChunks: 0 });
   }
 
   try {
@@ -345,32 +327,82 @@ function renderHydratedTranscript(tab, entries) {
   tab.transcriptByteSize = 0;
 
   let outputChunks = 0;
+  let processed = 0;
+  const list = Array.isArray(entries) ? entries : [];
+  const total = list.length;
+  let index = 0;
 
-  entries.forEach((entry) => {
-    const normalized = normalizeTranscriptEntry(entry);
-    if (!normalized) return;
+  const getNow =
+    typeof performance !== "undefined" &&
+    performance &&
+    typeof performance.now === "function"
+      ? () => performance.now()
+      : () => Date.now();
 
-    recordTranscript(tab, normalized);
-
-    if (
-      normalized.direction === "stdout" ||
-      normalized.direction === "stderr"
-    ) {
-      const text = decodeTranscriptChunk(normalized);
-      if (text) {
-        tab.term.write(text);
-        outputChunks += 1;
+  return new Promise((resolve) => {
+    const scheduleNext = () => {
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(processBatch);
+      } else {
+        setTimeout(processBatch, 0);
       }
-    }
+    };
+
+    const processBatch = () => {
+      if (!tab.term || typeof tab.term.write !== "function") {
+        resolve({ entryCount: processed, outputChunks });
+        return;
+      }
+
+      const startTime = getNow();
+      let iterations = 0;
+
+      while (index < total) {
+        const entry = list[index];
+        index += 1;
+        const normalized = normalizeTranscriptEntry(entry);
+        if (!normalized) {
+          continue;
+        }
+
+        processed += 1;
+        recordTranscript(tab, normalized);
+
+        if (
+          normalized.direction === "stdout" ||
+          normalized.direction === "stderr"
+        ) {
+          const text = decodeTranscriptChunk(normalized);
+          if (text) {
+            try {
+              tab.term.write(text);
+              outputChunks += 1;
+            } catch (error) {
+              console.warn("Failed to write transcript chunk:", error);
+            }
+          }
+        }
+
+        iterations += 1;
+        if (iterations >= 200 || getNow() - startTime > 12) {
+          break;
+        }
+      }
+
+      if (index < total) {
+        scheduleMicrotask(scheduleNext);
+        return;
+      }
+
+      if (!tab.hasReceivedLiveOutput && outputChunks > 0) {
+        tab.hasReceivedLiveOutput = true;
+      }
+      forceTerminalRender(tab);
+      resolve({ entryCount: processed, outputChunks });
+    };
+
+    scheduleMicrotask(processBatch);
   });
-
-  if (!tab.hasReceivedLiveOutput && outputChunks > 0) {
-    tab.hasReceivedLiveOutput = true;
-  }
-
-  forceTerminalRender(tab);
-
-  return entries;
 }
 
 function normalizeTranscriptEntry(entry) {
@@ -428,22 +460,34 @@ function decodeTranscriptChunk(entry) {
 }
 
 function forceTerminalRender(tab) {
-  if (!tab || !tab.term || typeof tab.term.refresh !== "function") {
+  scheduleTerminalFit(tab, "transcript-hydration", { includeInactive: true });
+}
+
+/**
+ * Request a terminal fit for the provided tab, preferring the global layout watcher.
+ * @param {import("../types.d.ts").TerminalTab} tab
+ * @param {string} [reason]
+ * @param {{ includeInactive?: boolean }} [options]
+ */
+function scheduleTerminalFit(tab, reason = "", options = {}) {
+  if (!tab) return;
+
+  if (tab.id === state.activeTabId) {
+    try {
+      requestActiveTerminalFit({ force: true });
+    } catch (error) {
+      console.warn(`Failed to schedule active terminal fit${reason ? ` (${reason})` : ""}:`, error);
+    }
     return;
   }
 
-  const render = () => {
-    try {
-      fitTerminal(tab);
-    } catch (error) {
-      console.warn("Failed to refresh terminal after hydration:", error);
-    }
-  };
-
-  render();
-
-  if (typeof requestAnimationFrame === "function") {
-    requestAnimationFrame(render);
+  if (options.includeInactive === false) {
+    return;
   }
-  setTimeout(render, 50);
+
+  try {
+    fitTerminal(tab, { forceFit: true });
+  } catch (error) {
+    console.warn(`Failed to fit inactive terminal${reason ? ` (${reason})` : ""}:`, error);
+  }
 }

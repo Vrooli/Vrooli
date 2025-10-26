@@ -220,6 +220,7 @@ export const terminalDefaults = {
   fontFamily: "JetBrains Mono, SFMono-Regular, Menlo, monospace",
   fontSize: 14,
   scrollback: 400,
+  cancelEvents: false,
   theme: {
     background: "#0f172a",
     foreground: "#e2e8f0",

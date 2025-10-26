@@ -135,7 +135,7 @@ export const useBrowserTabsStore = create<BrowserTabsState>()(persist(
     tabs: [],
     history: [],
 
-    openTab: ({ url, title }) => {
+    openTab: ({ url, title }): BrowserTabRecord => {
       const record = createRecord({ url, title });
       set((state) => ({
         activeTabId: record.id,
@@ -144,7 +144,7 @@ export const useBrowserTabsStore = create<BrowserTabsState>()(persist(
       return record;
     },
 
-    closeTab: (id) => {
+    closeTab: (id): void => {
       const setSurfaceScreenshot = useSurfaceMediaStore.getState().setScreenshot;
       set((state) => {
         const target = state.tabs.find(tab => tab.id === id);
@@ -162,14 +162,14 @@ export const useBrowserTabsStore = create<BrowserTabsState>()(persist(
       setSurfaceScreenshot('web', id, null);
     },
 
-    activateTab: (id) => {
+    activateTab: (id): void => {
       set((state) => ({
         activeTabId: id,
         tabs: state.tabs.map(tab => tab.id === id ? { ...tab, lastActiveAt: Date.now() } : tab),
       }));
     },
 
-    updateTab: (id, data) => {
+    updateTab: (id, data): void => {
       const hasScreenshotUpdate = Object.prototype.hasOwnProperty.call(data, 'screenshotData');
       const normalizedScreenshotData = hasScreenshotUpdate
         ? ensureDataUrl(data.screenshotData ?? null)
@@ -205,7 +205,7 @@ export const useBrowserTabsStore = create<BrowserTabsState>()(persist(
       }
     },
 
-    clear: () => {
+    clear: (): void => {
       useSurfaceMediaStore.getState().clear('web');
       set({ tabs: [], history: [], activeTabId: null });
     },

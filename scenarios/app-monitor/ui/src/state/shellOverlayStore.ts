@@ -13,9 +13,9 @@ interface ShellOverlayState {
 export const useShellOverlayStore = create<ShellOverlayState>((set) => ({
   activeView: null,
   overlayHost: null,
-  openView: (view) => set({ activeView: view }),
-  closeView: () => set({ activeView: null }),
-  registerHost: (host) => set((state) => (
+  openView: (view): void => set({ activeView: view }),
+  closeView: (): void => set({ activeView: null }),
+  registerHost: (host): void => set((state) => (
     state.overlayHost === host
       ? state
       : { overlayHost: host }

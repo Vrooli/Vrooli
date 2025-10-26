@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import type { WSMessage, App, SystemMetrics, LogEntry } from '@/types';
+import { logger } from '@/services/logger';
 
 interface WebSocketHookOptions {
   onAppUpdate?: (app: Partial<App>) => void;
@@ -51,27 +52,27 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
     getWebSocket,
   } = useWebSocket(getSocketUrl(), {
     onOpen: () => {
-      console.log('[WebSocket] Connected');
+      logger.info('[WebSocket] Connected');
       reconnectCount.current = 0;
       onConnection?.(true);
     },
     onClose: () => {
-      console.log('[WebSocket] Disconnected');
+      logger.info('[WebSocket] Disconnected');
       onConnection?.(false);
     },
     onError: (error) => {
-      console.error('[WebSocket] Error:', error);
+      logger.error('[WebSocket] Error', error);
       onError?.('WebSocket connection error');
     },
     shouldReconnect: () => {
       // Reconnect unless we've exceeded max attempts
       if (reconnectCount.current >= reconnectAttempts) {
-        console.error('[WebSocket] Max reconnection attempts reached');
+        logger.error('[WebSocket] Max reconnection attempts reached');
         onError?.('Failed to reconnect to server');
         return false;
       }
       reconnectCount.current++;
-      console.log(`[WebSocket] Reconnecting... (attempt ${reconnectCount.current}/${reconnectAttempts})`);
+      logger.info(`[WebSocket] Reconnecting... (attempt ${reconnectCount.current}/${reconnectAttempts})`);
       return true;
     },
     reconnectInterval,
@@ -85,10 +86,10 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
       
       // Store message in history
       messageHistory.current = [...messageHistory.current.slice(-99), message];
-      
+
       // Debug log
-      console.debug('[WebSocket] Message received:', message.type, message.payload);
-      
+      logger.debug('[WebSocket] Message received', { type: message.type, payload: message.payload });
+
       // Route message to appropriate handler
       switch (message.type) {
         case 'app_update': {
@@ -113,13 +114,13 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
         }
 
         case 'connection': {
-          console.log('[WebSocket] Connection status:', message.payload);
+          logger.info('[WebSocket] Connection status', message.payload);
           break;
         }
 
         case 'error': {
           const payload = message.payload;
-          console.error('[WebSocket] Server error:', payload);
+          logger.error('[WebSocket] Server error', payload);
           const messageText = (typeof payload === 'object' && payload && 'message' in payload && typeof (payload as { message: unknown }).message === 'string')
             ? (payload as { message: string }).message
             : 'Server error';
@@ -128,7 +129,7 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
         }
 
         default:
-          console.warn('[WebSocket] Unknown message type:', message.type);
+          logger.warn('[WebSocket] Unknown message type', { type: message.type });
       }
     }
   }, [lastJsonMessage, onAppUpdate, onMetricUpdate, onLogEntry, onError]);
@@ -140,7 +141,7 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
         type: 'subscribe',
         appId,
       });
-      console.log(`[WebSocket] Subscribed to app: ${appId}`);
+      logger.debug(`[WebSocket] Subscribed to app: ${appId}`);
     }
   }, [readyState, sendJsonMessage]);
 
@@ -151,7 +152,7 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
         type: 'unsubscribe',
         appId,
       });
-      console.log(`[WebSocket] Unsubscribed from app: ${appId}`);
+      logger.debug(`[WebSocket] Unsubscribed from app: ${appId}`);
     }
   }, [readyState, sendJsonMessage]);
 
@@ -162,9 +163,9 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
         type: 'command',
         command,
       });
-      console.log(`[WebSocket] Sent command: ${command}`);
+      logger.debug(`[WebSocket] Sent command: ${command}`);
     } else {
-      console.warn('[WebSocket] Cannot send command - not connected');
+      logger.warn('[WebSocket] Cannot send command - not connected');
       onError?.('WebSocket not connected');
     }
   }, [readyState, sendJsonMessage, onError]);

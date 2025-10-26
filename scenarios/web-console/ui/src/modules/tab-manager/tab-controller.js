@@ -25,13 +25,54 @@ const COLOR_MAP = /** @type {Record<string, (typeof TAB_COLOR_OPTIONS)[number]>}
  */
 function focusTerminal(tab) {
   if (!tab) return;
+
+  const userScroll = tab.userScroll || null;
+  const touchScrollActive = userScroll?.touchActive === true;
+  const momentumScrollActive =
+    userScroll?.momentumActive === true && userScroll?.active === true;
+  const recentInteraction =
+    typeof userScroll?.lastInteraction === "number" &&
+    Date.now() - userScroll.lastInteraction < 450;
+  const suppressFocus = touchScrollActive || momentumScrollActive || recentInteraction;
+
+  const focusMode = suppressFocus
+    ? TerminalFocusMode.SKIP
+    : TerminalFocusMode.FORCE;
+  const forceFit = suppressFocus ? false : true;
+
   requestAnimationFrame(() => {
     try {
-      fitTerminal(tab, { focusMode: TerminalFocusMode.FORCE });
+      fitTerminal(tab, {
+        focusMode,
+        forceFit,
+        respectUserScroll: true,
+      });
     } catch (error) {
       console.warn("Failed to refresh terminal on focus:", error);
     }
   });
+
+  if (suppressFocus && typeof window !== "undefined") {
+    window.setTimeout(() => {
+      const stillScrolling =
+        userScroll?.touchActive ||
+        userScroll?.momentumActive ||
+        (typeof userScroll?.lastInteraction === "number" &&
+          Date.now() - userScroll.lastInteraction < 300);
+      if (stillScrolling) {
+        return;
+      }
+      try {
+        fitTerminal(tab, {
+          focusMode: TerminalFocusMode.AUTO,
+          forceFit: true,
+          respectUserScroll: true,
+        });
+      } catch (error) {
+        console.warn("Failed to refit terminal after touch interaction:", error);
+      }
+    }, 260);
+  }
 }
 
 /**

@@ -1125,6 +1125,7 @@ body {
   background: #0b1120;
   max-width: 100%;
   overflow-x: hidden;
+  overscroll-behavior-y: contain;
 }
 
 .terminal-screen {
@@ -1143,15 +1144,25 @@ body {
 .xterm {
   max-width: 100% !important;
   overflow-x: hidden !important;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
 }
 
 .xterm .xterm-viewport {
   overflow-x: hidden !important;
+  overflow-y: auto;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  height: 100%;
+  min-height: 100%;
 }
 
 .xterm .xterm-screen {
   max-width: 100% !important;
+  touch-action: pan-y;
 }
+
 
 .error-banner {
   background: rgba(239, 68, 68, 0.12);

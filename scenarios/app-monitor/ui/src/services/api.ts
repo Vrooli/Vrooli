@@ -16,8 +16,28 @@ import { resolveApiBase, buildApiUrl } from '@vrooli/api-base';
 
 const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '15100';
 
+// CRITICAL: App-monitor must ALWAYS use an absolute API URL, never derive it from proxy paths
+// When viewing app-monitor itself through a scenario preview, the api-base package would incorrectly
+// derive the API URL as /apps/<scenario>/api/v1, breaking all API calls
+const getExplicitApiUrl = (): string | undefined => {
+  const envUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+  if (envUrl) return envUrl;
+
+  // Use the current page's origin (protocol + hostname + port from tunnel/proxy)
+  // This works for:
+  // - Local dev: http://localhost:15101
+  // - Secure tunnel: https://app-monitor.itsagitime.com
+  // - Production: https://yourdomain.com
+  if (typeof window !== 'undefined' && window.location) {
+    return window.location.origin;
+  }
+
+  // Fallback for SSR or edge cases
+  return `http://127.0.0.1:${DEFAULT_API_PORT}`;
+};
+
 const API_BASE_URL = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
+  explicitUrl: getExplicitApiUrl(),
   defaultPort: DEFAULT_API_PORT,
   appendSuffix: true,
 });
@@ -212,35 +232,26 @@ export interface ScenarioIssuesSummary {
 export const appService = {
   // Get fast-loading summaries
   async getAppSummaries(): Promise<App[]> {
-    try {
-      const { data } = await api.get<App[]>('/apps/summary');
-      return data || [];
-    } catch (error) {
-      logger.error('Failed to fetch app summaries', error);
-      return [];
-    }
+    return fetchArrayWithFallback(
+      () => api.get<App[]>('/apps/summary'),
+      'Failed to fetch app summaries',
+    );
   },
 
   // Get all apps
   async getApps(): Promise<App[]> {
-    try {
-      const { data } = await api.get<App[]>('/apps');
-      return data || [];
-    } catch (error) {
-      logger.error('Failed to fetch apps', error);
-      return [];
-    }
+    return fetchArrayWithFallback(
+      () => api.get<App[]>('/apps'),
+      'Failed to fetch apps',
+    );
   },
 
   // Get single app
   async getApp(id: string): Promise<App | null> {
-    try {
-      const { data } = await api.get<ApiResponse<App>>(`/apps/${id}`);
-      return data?.data ?? null;
-    } catch (error) {
-      logger.error(`Failed to fetch app ${id}`, error);
-      return null;
-    }
+    return fetchWrappedWithFallback(
+      () => api.get<ApiResponse<App>>(`/apps/${id}`),
+      `Failed to fetch app ${id}`,
+    );
   },
 
   async getScenarioIssues(appId: string): Promise<ScenarioIssuesSummary | null> {
@@ -405,34 +416,25 @@ export const appService = {
 export const resourceService = {
   // Get all resources
   async getResources(): Promise<Resource[]> {
-    try {
-      const { data } = await api.get<Resource[]>('/resources');
-      return data || [];
-    } catch (error) {
-      logger.error('Failed to fetch resources', error);
-      return [];
-    }
+    return fetchArrayWithFallback(
+      () => api.get<Resource[]>('/resources'),
+      'Failed to fetch resources',
+    );
   },
 
   // Get resource status
   async getResourceStatus(id: string): Promise<Resource | null> {
-    try {
-      const { data } = await api.get<ApiResponse<Resource>>(`/resources/${id}/status`);
-      return data.data || null;
-    } catch (error) {
-      logger.error(`Failed to fetch resource ${id}`, error);
-      return null;
-    }
+    return fetchWrappedWithFallback(
+      () => api.get<ApiResponse<Resource>>(`/resources/${id}/status`),
+      `Failed to fetch resource ${id}`,
+    );
   },
 
   async getResourceDetails(id: string): Promise<ResourceDetail | null> {
-    try {
-      const { data } = await api.get<ApiResponse<ResourceDetail>>(`/resources/${encodeURIComponent(id)}`);
-      return data?.data ?? null;
-    } catch (error) {
-      logger.error(`Failed to fetch resource ${id} details`, error);
-      return null;
-    }
+    return fetchWrappedWithFallback(
+      () => api.get<ApiResponse<ResourceDetail>>(`/resources/${encodeURIComponent(id)}`),
+      `Failed to fetch resource ${id} details`,
+    );
   },
 
   // Start a resource
@@ -460,20 +462,53 @@ export const resourceService = {
   },
 };
 
+/**
+ * Generic error-handling wrapper for API fetches that return arrays
+ * Consolidates the try-catch-log-return pattern used throughout the service
+ */
+async function fetchArrayWithFallback<T>(
+  fetcher: () => Promise<{ data: T[] }>,
+  errorMsg: string,
+): Promise<T[]> {
+  try {
+    const { data } = await fetcher();
+    return data || [];
+  } catch (error) {
+    logger.error(errorMsg, error);
+    return [];
+  }
+}
+
+/**
+ * Generic error-handling wrapper for API fetches that return wrapped responses
+ * Consolidates the try-catch-log-return pattern used throughout the service
+ */
+async function fetchWrappedWithFallback<T>(
+  fetcher: () => Promise<{ data: ApiResponse<T> }>,
+  errorMsg: string,
+): Promise<T | null> {
+  try {
+    const { data } = await fetcher();
+    return data?.data ?? null;
+  } catch (error) {
+    logger.error(errorMsg, error);
+    return null;
+  }
+}
+
 // Metrics are now handled by system-monitor iframe
 
 // System Logs
 export const logService = {
   // Get system logs
   async getSystemLogs(level?: string): Promise<LogEntry[]> {
-    try {
-      const params = level ? `?level=${level}` : '';
-      const { data } = await api.get<ApiResponse<LogEntry[]>>(`/logs${params}`);
-      return data.data || [];
-    } catch (error) {
-      logger.error('Failed to fetch system logs', error);
-      return [];
-    }
+    return fetchWrappedWithFallback(
+      () => {
+        const params = level ? `?level=${level}` : '';
+        return api.get<ApiResponse<LogEntry[]>>(`/logs${params}`);
+      },
+      'Failed to fetch system logs',
+    ).then(result => result ?? []);
   },
 
   // Stream logs (returns EventSource)

@@ -284,157 +284,157 @@ const PreviewInspectorPanel = ({
             <button
               type="button"
               className={clsx(
-              'preview-inspector__section-toggle',
-              inspectorScreenshotExpanded && 'preview-inspector__section-toggle--expanded',
-            )}
-            onClick={toggleInspectorScreenshotExpanded}
-            aria-expanded={inspectorScreenshotExpanded}
-            aria-controls={inspectorScreenshotContentId}
-            id={inspectorScreenshotSectionId}
-          >
-            <span className="preview-inspector__section-label">
-              <Image aria-hidden size={16} className="preview-inspector__section-symbol" />
-              Screenshot
-            </span>
-            <ChevronDown aria-hidden size={16} className="preview-inspector__section-icon" />
-          </button>
-          <div
-            id={inspectorScreenshotContentId}
-            className="preview-inspector__section-content"
-            hidden={!inspectorScreenshotExpanded}
-            role="region"
-            aria-labelledby={inspectorScreenshotSectionId}
-          >
-            <figure className="preview-inspector__screenshot">
-              <div
-                className={clsx(
-                  'preview-inspector__screenshot-frame',
-                  !inspectorScreenshot && 'preview-inspector__screenshot-frame--empty',
-                )}
-              >
+                'preview-inspector__section-toggle',
+                inspectorScreenshotExpanded && 'preview-inspector__section-toggle--expanded',
+              )}
+              onClick={toggleInspectorScreenshotExpanded}
+              aria-expanded={inspectorScreenshotExpanded}
+              aria-controls={inspectorScreenshotContentId}
+              id={inspectorScreenshotSectionId}
+            >
+              <span className="preview-inspector__section-label">
+                <Image aria-hidden size={16} className="preview-inspector__section-symbol" />
+                Screenshot
+              </span>
+              <ChevronDown aria-hidden size={16} className="preview-inspector__section-icon" />
+            </button>
+            <div
+              id={inspectorScreenshotContentId}
+              className="preview-inspector__section-content"
+              hidden={!inspectorScreenshotExpanded}
+              role="region"
+              aria-labelledby={inspectorScreenshotSectionId}
+            >
+              <figure className="preview-inspector__screenshot">
                 <div
                   className={clsx(
-                    'preview-inspector__screenshot-content',
-                    !inspectorScreenshot && 'preview-inspector__screenshot-content--empty',
+                    'preview-inspector__screenshot-frame',
+                    !inspectorScreenshot && 'preview-inspector__screenshot-frame--empty',
                   )}
                 >
-                  {inspectorScreenshot ? (
-                    <img
-                      src={inspectorScreenshot.dataUrl}
-                      alt={`Captured element screenshot (${inspectorScreenshot.width} × ${inspectorScreenshot.height} pixels)`}
-                    />
-                  ) : (
-                    <div className="preview-inspector__screenshot-placeholder" role="presentation">
-                      <Image aria-hidden size={36} className="preview-inspector__screenshot-placeholder-icon" />
-                      <span>No screenshot captured yet</span>
+                  <div
+                    className={clsx(
+                      'preview-inspector__screenshot-content',
+                      !inspectorScreenshot && 'preview-inspector__screenshot-content--empty',
+                    )}
+                  >
+                    {inspectorScreenshot ? (
+                      <img
+                        src={inspectorScreenshot.dataUrl}
+                        alt={`Captured element screenshot (${inspectorScreenshot.width} × ${inspectorScreenshot.height} pixels)`}
+                      />
+                    ) : (
+                      <div className="preview-inspector__screenshot-placeholder" role="presentation">
+                        <Image aria-hidden size={36} className="preview-inspector__screenshot-placeholder-icon" />
+                        <span>No screenshot captured yet</span>
+                      </div>
+                    )}
+                  </div>
+                  {isInspectorScreenshotCapturing && (
+                    <div className="preview-inspector__screenshot-overlay" role="status" aria-live="polite">
+                      <Loader2 aria-hidden size={28} className="spinning preview-inspector__screenshot-spinner" />
+                      <span className="preview-inspector__screenshot-spinner-label">Capturing screenshot...</span>
                     </div>
                   )}
+                  {inspectorScreenshot && (
+                    <button
+                      type="button"
+                      className="preview-inspector__screenshot-download"
+                      onClick={handleDownloadInspectorScreenshot}
+                      aria-label="Download element screenshot"
+                      title="Download element screenshot"
+                      disabled={isInspectorScreenshotCapturing}
+                    >
+                      <Download aria-hidden size={16} />
+                    </button>
+                  )}
                 </div>
-                {isInspectorScreenshotCapturing && (
-                  <div className="preview-inspector__screenshot-overlay" role="status" aria-live="polite">
-                    <Loader2 aria-hidden size={28} className="spinning preview-inspector__screenshot-spinner" />
-                    <span className="preview-inspector__screenshot-spinner-label">Capturing screenshot...</span>
+                <figcaption className="preview-inspector__screenshot-meta">
+                  {inspectorScreenshot ? (
+                    <>
+                      <span className="preview-inspector__screenshot-dimensions">
+                        {inspectorScreenshot.width} × {inspectorScreenshot.height} px
+                      </span>
+                      {inspectorScreenshot.note && (
+                        <span className="preview-inspector__screenshot-note">{inspectorScreenshot.note}</span>
+                      )}
+                      <span
+                        className="preview-inspector__screenshot-filename"
+                        title={inspectorScreenshot.filename}
+                      >
+                        {inspectorScreenshot.filename}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="preview-inspector__screenshot-placeholder-text">
+                      Capture an element to generate a screenshot.
+                    </span>
+                  )}
+                </figcaption>
+              </figure>
+            </div>
+            {inspectorScreenshot && (
+              <div className="preview-inspector__report">
+                {inspectorReportStatus ? (
+                  <div className="preview-inspector__report-feedback" role="status">
+                    <p className="preview-inspector__report-feedback-message">
+                      {inspectorReportStatus.message}
+                    </p>
+                    <p
+                      className={clsx(
+                        'preview-inspector__report-feedback-note',
+                        !inspectorReportStatus.note && 'preview-inspector__report-feedback-note--empty',
+                      )}
+                    >
+                      {inspectorReportStatus.note && inspectorReportStatus.note.length > 0
+                        ? inspectorReportStatus.note
+                        : 'No note added.'}
+                    </p>
+                    <div className="preview-inspector__report-feedback-actions">
+                      <button
+                        type="button"
+                        className="preview-inspector__report-button"
+                        onClick={handleInspectorViewReport}
+                      >
+                        View Report
+                      </button>
+                      <button
+                        type="button"
+                        className="preview-inspector__report-button preview-inspector__report-button--secondary"
+                        onClick={handleInspectorInspectAnother}
+                      >
+                        Inspect Another
+                      </button>
+                    </div>
                   </div>
-                )}
-                {inspectorScreenshot && (
-                  <button
-                    type="button"
-                    className="preview-inspector__screenshot-download"
-                    onClick={handleDownloadInspectorScreenshot}
-                    aria-label="Download element screenshot"
-                    title="Download element screenshot"
-                    disabled={isInspectorScreenshotCapturing}
-                  >
-                    <Download aria-hidden size={16} />
-                  </button>
+                ) : (
+                  <>
+                    <label className="preview-inspector__report-label" htmlFor={inspectorReportNoteId}>
+                      Report note
+                    </label>
+                    <div className="preview-inspector__report-input">
+                      <input
+                        id={inspectorReportNoteId}
+                        type="text"
+                        className="preview-inspector__report-field"
+                        value={inspectorCaptureNote}
+                        onChange={handleInspectorCaptureNoteChange}
+                        placeholder="Add note for issue report"
+                      />
+                      <button
+                        type="button"
+                        className="preview-inspector__report-action"
+                        onClick={handleAddInspectorCaptureToReport}
+                        title="Add capture to issue report"
+                        aria-label="Add capture to issue report"
+                      >
+                        <PlusCircle aria-hidden size={16} />
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
-              <figcaption className="preview-inspector__screenshot-meta">
-                {inspectorScreenshot ? (
-                  <>
-                    <span className="preview-inspector__screenshot-dimensions">
-                      {inspectorScreenshot.width} × {inspectorScreenshot.height} px
-                    </span>
-                    {inspectorScreenshot.note && (
-                      <span className="preview-inspector__screenshot-note">{inspectorScreenshot.note}</span>
-                    )}
-                    <span
-                      className="preview-inspector__screenshot-filename"
-                      title={inspectorScreenshot.filename}
-                    >
-                      {inspectorScreenshot.filename}
-                    </span>
-                  </>
-                ) : (
-                  <span className="preview-inspector__screenshot-placeholder-text">
-                    Capture an element to generate a screenshot.
-                  </span>
-                )}
-              </figcaption>
-              {inspectorScreenshot && (
-                <div className="preview-inspector__report">
-                  {inspectorReportStatus ? (
-                    <div className="preview-inspector__report-feedback" role="status">
-                      <p className="preview-inspector__report-feedback-message">
-                        {inspectorReportStatus.message}
-                      </p>
-                      <p
-                        className={clsx(
-                          'preview-inspector__report-feedback-note',
-                          !inspectorReportStatus.note && 'preview-inspector__report-feedback-note--empty',
-                        )}
-                      >
-                        {inspectorReportStatus.note && inspectorReportStatus.note.length > 0
-                          ? inspectorReportStatus.note
-                          : 'No note added.'}
-                      </p>
-                      <div className="preview-inspector__report-feedback-actions">
-                        <button
-                          type="button"
-                          className="preview-inspector__report-button"
-                          onClick={handleInspectorViewReport}
-                        >
-                          View Report
-                        </button>
-                        <button
-                          type="button"
-                          className="preview-inspector__report-button preview-inspector__report-button--secondary"
-                          onClick={handleInspectorInspectAnother}
-                        >
-                          Inspect Another
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <label className="preview-inspector__report-label" htmlFor={inspectorReportNoteId}>
-                        Report note
-                      </label>
-                      <div className="preview-inspector__report-input">
-                        <input
-                          id={inspectorReportNoteId}
-                          type="text"
-                          className="preview-inspector__report-field"
-                          value={inspectorCaptureNote}
-                          onChange={handleInspectorCaptureNoteChange}
-                          placeholder="Add note for issue report"
-                        />
-                        <button
-                          type="button"
-                          className="preview-inspector__report-action"
-                          onClick={handleAddInspectorCaptureToReport}
-                          title="Add capture to issue report"
-                          aria-label="Add capture to issue report"
-                        >
-                          <PlusCircle aria-hidden size={16} />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </figure>
-          </div>
+            )}
           </div>
         )}
       </section>

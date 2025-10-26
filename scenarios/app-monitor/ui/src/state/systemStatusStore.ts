@@ -20,7 +20,7 @@ export const useSystemStatusStore = create<SystemStatusState>((set, get) => ({
   loading: false,
   error: null,
 
-  refresh: async () => {
+  refresh: async (): Promise<void> => {
     if (get().loading) {
       return;
     }

@@ -1335,6 +1335,7 @@ const useReportIssueState = ({
     } finally {
       setReportSubmitting(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- diagnosticsDescription and diagnosticsSummaryIncluded are computed memoized values defined later in the file
   }, [
     app?.id,
     app?.name,

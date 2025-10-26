@@ -11,6 +11,7 @@ import type {
   BridgeInspectHoverPayload,
   BridgeInspectResultPayload,
 } from '@vrooli/iframe-bridge';
+import { logger } from '@/services/logger';
 
 type BridgeHelloMessage = {
   v: 1;
@@ -269,7 +270,7 @@ const deriveOrigin = (url: string | null): string | null => {
     const resolved = new URL(url, window.location.href);
     return resolved.origin;
   } catch (error) {
-    console.warn('[Bridge] Failed to derive origin from URL', url, error);
+    logger.warn('[Bridge] Failed to derive origin from URL', { url, error });
     return null;
   }
 };
@@ -373,7 +374,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       }
 
       if (childOrigin && event.origin !== childOrigin) {
-        console.warn('[Bridge] Message origin differs from expected', { expected: childOrigin, received: event.origin });
+        logger.warn('[Bridge] Message origin differs from expected', { expected: childOrigin, received: event.origin });
       }
 
       const message = event.data as BridgeChildToParentMessage | null | undefined;
@@ -491,7 +492,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
             try {
               listener(message.event);
             } catch (error) {
-              console.warn('[Bridge] Log listener failed', error);
+              logger.warn('[Bridge] Log listener failed', error);
             }
           });
           break;
@@ -525,7 +526,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
             try {
               listener(message.event);
             } catch (error) {
-              console.warn('[Bridge] Network listener failed', error);
+              logger.warn('[Bridge] Network listener failed', error);
             }
           });
           break;
@@ -625,14 +626,14 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       }
       const targetOrigin = effectiveOriginRef.current ?? childOrigin;
       if (!targetOrigin) {
-        console.warn('[Bridge] Unable to determine target origin for message', payload.t);
+        logger.warn('[Bridge] Unable to determine target origin for message', { type: payload.t });
         return false;
       }
       try {
         iframeWindow.postMessage(payload, targetOrigin);
         return true;
       } catch (error) {
-        console.warn('[Bridge] postMessage failed', error);
+        logger.warn('[Bridge] postMessage failed', error);
         return false;
       }
     },

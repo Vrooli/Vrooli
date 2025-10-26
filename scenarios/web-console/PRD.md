@@ -162,8 +162,8 @@ Every remote session becomes a reusable capability. Maintenance orchestrators, e
 **Issue**: UI was loading vendor libraries (xterm.js, lucide icons, html2canvas) from external CDNs (jsdelivr, unpkg), causing Cloudflare 502 errors when CDN access failed or was blocked. This broke the entire UI with cryptic error messages.
 
 **Solution**: Downloaded all vendor dependencies locally to `ui/public/lib/` directory:
-- xterm@5.3.0 (JS + CSS)
-- xterm-addon-fit@0.7.0
+- @xterm/xterm@5.5.0 (JS + CSS)
+- @xterm/addon-fit@0.10.0
 - lucide icons (547KB UMD bundle)
 - html2canvas@1.4.1
 

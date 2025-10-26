@@ -1,3 +1,4 @@
+import { logger } from '@/services/logger';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -253,7 +254,7 @@ export default function ResourceDetailView(): JSX.Element {
         setDetail(data);
       }
     } catch (fetchError) {
-      console.error('Failed to load resource detail', fetchError);
+      logger.error('Failed to load resource detail', fetchError);
       setError('Failed to load resource details.');
       setDetail(null);
     } finally {
@@ -335,7 +336,7 @@ export default function ResourceDetailView(): JSX.Element {
         setActionFeedback({ type: 'error', message: 'Failed to start resource.' });
       }
     } catch (actionError) {
-      console.error('Failed to start resource', actionError);
+      logger.error('Failed to start resource', actionError);
       setActionFeedback({ type: 'error', message: 'Unexpected failure while starting resource.' });
     } finally {
       setAction(null);
@@ -364,7 +365,7 @@ export default function ResourceDetailView(): JSX.Element {
         setActionFeedback({ type: 'error', message: 'Failed to stop resource.' });
       }
     } catch (actionError) {
-      console.error('Failed to stop resource', actionError);
+      logger.error('Failed to stop resource', actionError);
       setActionFeedback({ type: 'error', message: 'Unexpected failure while stopping resource.' });
     } finally {
       setAction(null);
@@ -383,7 +384,7 @@ export default function ResourceDetailView(): JSX.Element {
       await fetchDetail({ silent: true });
       setActionFeedback({ type: 'success', message: 'Status refreshed.' });
     } catch (refreshError) {
-      console.error('Failed to refresh resource', refreshError);
+      logger.error('Failed to refresh resource', refreshError);
       setActionFeedback({ type: 'error', message: 'Failed to refresh status.' });
     } finally {
       setAction(null);

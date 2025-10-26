@@ -1,3 +1,4 @@
+import { logger } from '@/services/logger';
 import { useCallback, useState } from 'react';
 import type { App } from '@/types';
 import {
@@ -321,7 +322,7 @@ export const useAutoNextScenario = () => {
       setState({ status: 'error', message: result.message, lastSelectedKey: null });
       return null;
     } catch (error) {
-      console.warn('[autoNextScenario] Failed to select scenario', error);
+      logger.warn('[autoNextScenario] Failed to select scenario', error);
       setPreparedSnapshot(null);
       setState({ status: 'error', message: 'Something went wrong while finding the next scenario.', lastSelectedKey: null });
       return null;
@@ -370,7 +371,7 @@ export const useAutoNextScenario = () => {
         setPreparedSnapshot(null);
       }
     } catch (error) {
-      console.warn('[autoNextScenario] Failed to prepare scenario selection', error);
+      logger.warn('[autoNextScenario] Failed to prepare scenario selection', error);
     }
   }, [evaluateAutoNext]);
 

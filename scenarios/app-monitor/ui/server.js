@@ -55,6 +55,23 @@ const APP_PROXY_PREFIX = '/apps';
 const APP_PROXY_SEGMENT = 'proxy';
 const APP_PORTS_SEGMENT = 'ports';
 const APP_ASSET_SEGMENT = 'assets';
+
+// App-monitor's own API routes (never proxy these to scenarios)
+const APP_MONITOR_API_PREFIXES = [
+    '/api/v1',      // Versioned API routes
+    '/api/health',  // Health check endpoint
+    '/api',         // Legacy/fallback API routes
+];
+
+// Helper to check if a path is an app-monitor API route
+const isAppMonitorApiRoute = (path) => {
+    if (!path || typeof path !== 'string') {
+        return false;
+    }
+    return APP_MONITOR_API_PREFIXES.some(prefix =>
+        path === prefix || path.startsWith(`${prefix}/`)
+    );
+};
 const LOOPBACK_HOSTS = new Set([LOOPBACK_HOST, 'localhost', '::1', '[::1]', '0.0.0.0']);
 const LOOPBACK_HOST_ARRAY = Array.from(LOOPBACK_HOSTS);
 const PORT_LABEL_SANITIZE_REGEX = /[^a-z0-9]+/g;
@@ -75,7 +92,7 @@ const HOP_BY_HOP_HEADERS = new Set([
     'sec-websocket-extensions'
 ]);
 
-const APP_CACHE_TTL_MS = 15_000;
+const APP_CACHE_TTL_MS = 120_000; // 2 minutes - app metadata rarely changes during a session
 const APP_PROXY_CACHE = new Map();
 const APP_PROXY_INFLIGHT = new Map();
 
@@ -191,7 +208,8 @@ const isProxiableRootAssetRequest = (path) => {
         const assetPattern = new RegExp(`^${APP_PROXY_PREFIX}/[^/]+/(?:${APP_PORTS_SEGMENT}/[^/]+/)?${APP_PROXY_SEGMENT}/${APP_ASSET_SEGMENT}/`);
         return assetPattern.test(path);
     }
-    if (path.startsWith('/api/') || path.startsWith('/ws') || path === '/api' || path === '/ws') {
+    // Exclude app-monitor's own API routes and WebSocket endpoint
+    if (isAppMonitorApiRoute(path) || path.startsWith('/ws') || path === '/ws') {
         return false;
     }
     return startsWithAssetPrefix(path) || hasAssetExtension(path);
@@ -2083,6 +2101,14 @@ app.use(async (req, res, next) => {
     }
 
     const path = req.path || req.originalUrl || '';
+
+    // CRITICAL: Skip app-monitor's own API routes to prevent them from being proxied to scenarios
+    // This fixes the bug where /api/v1/apps/summary gets routed to /apps/<scenario>/api/v1/apps/summary
+    // Uses explicit registry (APP_MONITOR_API_PREFIXES) to avoid blocking scenario APIs
+    if (isAppMonitorApiRoute(path)) {
+        return next();
+    }
+
     if (!isProxiableRootAssetRequest(path)) {
         return next();
     }
@@ -2170,7 +2196,8 @@ app.use(`${APP_PROXY_PREFIX}/:appId/${APP_PROXY_SEGMENT}`, async (req, res, next
 
 app.use(async (req, res, next) => {
     const originalUrl = req.originalUrl || req.url || '';
-    if (originalUrl === '/api' || originalUrl.startsWith('/api/')) {
+    // Skip app-monitor's own API routes
+    if (isAppMonitorApiRoute(originalUrl)) {
         return next();
     }
 
@@ -2722,8 +2749,8 @@ if (process.env.NODE_ENV === 'production') {
 
     // Catch all routes for client-side routing in production
     app.get('*', (req, res) => {
-        // Skip API routes
-        if (req.path.startsWith('/api')) {
+        // Skip API routes - return 404 for unknown API endpoints
+        if (isAppMonitorApiRoute(req.path)) {
             return res.status(404).json({ error: 'Not found' });
         }
         res.sendFile(path.join(staticPath, 'index.html'));

@@ -157,22 +157,6 @@ func (h *WebSocketHandler) handleClientMessages(conn *websocket.Conn, done chan 
 				// In the future, implement app-specific unsubscriptions
 			}
 
-		case "command":
-			// Handle command execution requests
-			if cmd, ok := msg.Payload.(map[string]interface{})["command"].(string); ok {
-				log.Printf("Command received: %s", cmd)
-				// Send response
-				if err := conn.WriteJSON(WebSocketMessage{
-					Type: "command_response",
-					Payload: map[string]string{
-						"command": cmd,
-						"result":  "Command execution not implemented",
-					},
-				}); err != nil {
-					log.Printf("Failed to send command response: %v", err)
-				}
-			}
-
 		default:
 			log.Printf("Unknown message type: %s", msg.Type)
 		}
