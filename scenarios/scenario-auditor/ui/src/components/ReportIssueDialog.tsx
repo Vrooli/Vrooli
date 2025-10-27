@@ -10,6 +10,7 @@ interface ReportIssueDialogProps {
   ruleId: string | null
   ruleName: string | null
   scenarioTestResults: RuleScenarioTestResult[]
+  protectedScenarios: string[]
   onSubmitReport: (payload: ReportPayload) => Promise<{ issueId: string; issueUrl?: string; message: string }>
 }
 
@@ -56,7 +57,6 @@ const REPORT_TYPE_OPTIONS: Array<{
   },
 ]
 
-const MAX_SCENARIOS_WARNING_THRESHOLD = 20
 const MAX_SCENARIOS_PER_ISSUE = 20
 const DEFAULT_BATCH_SIZE = 10
 
@@ -66,6 +66,7 @@ export default function ReportIssueDialog({
   ruleId,
   ruleName,
   scenarioTestResults,
+  protectedScenarios,
   onSubmitReport,
 }: ReportIssueDialogProps) {
   const [reportType, setReportType] = useState<ReportType>('fix_violations')
@@ -87,17 +88,18 @@ export default function ReportIssueDialog({
       setBatchResults([])
       setCurrentBatch(0)
 
-      // Pre-select all scenarios with violations for fix_violations
+      // Pre-select all scenarios with violations for fix_violations, excluding protected scenarios
       if (scenarioTestResults.length > 0) {
         const scenariosWithViolations = scenarioTestResults
           .filter(result => result.violations && result.violations.length > 0)
           .map(result => result.scenario)
+          .filter(scenario => !protectedScenarios.includes(scenario))
         setSelectedScenarios(new Set(scenariosWithViolations))
       } else {
         setSelectedScenarios(new Set())
       }
     }
-  }, [isOpen, scenarioTestResults])
+  }, [isOpen, scenarioTestResults, protectedScenarios])
 
   // Get scenarios with violations for the checklist
   const scenariosWithViolations = useMemo(() => {
@@ -193,10 +195,19 @@ export default function ReportIssueDialog({
   }
 
   const handleSelectAll = () => {
-    if (selectedScenarios.size === scenariosWithViolations.length) {
+    // Count non-protected scenarios for comparison
+    const nonProtectedScenarios = scenariosWithViolations.filter(s => !protectedScenarios.includes(s.name))
+    const nonProtectedCount = nonProtectedScenarios.length
+
+    // Check if all non-protected scenarios are selected
+    const allNonProtectedSelected = nonProtectedScenarios.every(s => selectedScenarios.has(s.name))
+
+    if (allNonProtectedSelected && selectedScenarios.size === nonProtectedCount) {
+      // Deselect all non-protected scenarios
       setSelectedScenarios(new Set())
     } else {
-      setSelectedScenarios(new Set(scenariosWithViolations.map(s => s.name)))
+      // Select all non-protected scenarios only
+      setSelectedScenarios(new Set(nonProtectedScenarios.map(s => s.name)))
     }
   }
 
@@ -421,25 +432,34 @@ export default function ReportIssueDialog({
                   </button>
                 </div>
                 <div className="max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white">
-                  {scenariosWithViolations.map(scenario => (
-                    <label
-                      key={scenario.name}
-                      className="flex items-center gap-3 py-2.5 px-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedScenarios.has(scenario.name)}
-                        onChange={() => handleToggleScenario(scenario.name)}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-gray-900 block truncate">{scenario.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {scenario.violationCount} violation{scenario.violationCount !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </label>
-                  ))}
+                  {scenariosWithViolations.map(scenario => {
+                    const isProtected = protectedScenarios.includes(scenario.name)
+                    return (
+                      <label
+                        key={scenario.name}
+                        className={`flex items-center gap-3 py-2.5 px-3 border-b border-gray-100 last:border-b-0 ${
+                          isProtected ? 'bg-gray-50 opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedScenarios.has(scenario.name)}
+                          onChange={() => !isProtected && handleToggleScenario(scenario.name)}
+                          disabled={isProtected}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-sm font-medium block truncate ${isProtected ? 'text-gray-500' : 'text-gray-900'}`}>
+                            {scenario.name}
+                            {isProtected && <span className="ml-2 text-xs text-gray-400">(Protected)</span>}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {scenario.violationCount} violation{scenario.violationCount !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </label>
+                    )
+                  })}
                 </div>
                 <p className="mt-2 text-xs text-gray-600 font-medium">
                   {selectedScenarios.size} of {scenariosWithViolations.length} scenario{scenariosWithViolations.length !== 1 ? 's' : ''} selected

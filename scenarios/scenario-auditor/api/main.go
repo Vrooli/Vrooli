@@ -388,6 +388,10 @@ func main() {
 	api.HandleFunc("/rules/{ruleId}/validate", validateRuleHandler).Methods("POST")
 	api.HandleFunc("/rules/{ruleId}/test-cache", clearTestCacheHandler).Methods("DELETE")
 
+	// Protected scenarios management
+	api.HandleFunc("/protected-scenarios", getProtectedScenariosHandler).Methods("GET")
+	api.HandleFunc("/protected-scenarios", updateProtectedScenariosHandler).Methods("POST")
+
 	// System operations
 	api.HandleFunc("/system/discover", discoverScenariosHandler).Methods("POST")
 	api.HandleFunc("/system/status", getSystemStatusHandler).Methods("GET")

@@ -18,6 +18,8 @@ import {
   AutomatedFixJobSnapshot,
   RuleScenarioTestResult,
   RuleScenarioBatchTestResult,
+  ProtectedScenariosResponse,
+  UpdateProtectedScenariosResponse,
 } from '@/types/api'
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
@@ -443,6 +445,18 @@ class ApiService {
     return this.fetch('/preferences', {
       method: 'PUT',
       body: JSON.stringify(preferences)
+    })
+  }
+
+  // Protected scenarios management
+  async getProtectedScenarios(): Promise<ProtectedScenariosResponse> {
+    return this.fetch('/protected-scenarios')
+  }
+
+  async updateProtectedScenarios(scenarios: string[]): Promise<UpdateProtectedScenariosResponse> {
+    return this.fetch('/protected-scenarios', {
+      method: 'POST',
+      body: JSON.stringify({ scenarios })
     })
   }
 }

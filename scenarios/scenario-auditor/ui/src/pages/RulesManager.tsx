@@ -4,36 +4,12 @@ import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code
 import { Highlight, themes } from 'prism-react-renderer'
 import React, { useEffect, useMemo, useState } from 'react'
 import { CodeEditor } from '../components/CodeEditor'
+import ManageProtectedScenariosDialog from '../components/ManageProtectedScenariosDialog'
 import ReportIssueDialog from '../components/ReportIssueDialog'
 import type { ReportPayload } from '../components/ReportIssueDialog'
 import ScenarioTestResults from '../components/ScenarioTestResults'
 import { apiService } from '../services/api'
-
-const TARGET_CATEGORY_CONFIG: Array<{ id: string; label: string; description: string }> = [
-  { id: 'api', label: 'API Files', description: 'Rules applied to files within the scenario\'s api/ directory.' },
-  { id: 'main_go', label: 'main.go', description: 'Rules evaluated specifically against api/main.go or other lifecycle entrypoints.' },
-  { id: 'ui', label: 'UI Files', description: 'Rules focused on assets within ui/ such as React components or static markup.' },
-  { id: 'cli', label: 'CLI Files', description: 'Rules covering the CLI implementation under cli/.' },
-  { id: 'test', label: 'Test Files', description: 'Rules that target files under test/ and other testing utilities.' },
-  { id: 'service_json', label: 'service.json', description: 'Rules that run against .vrooli/service.json lifecycle configuration.' },
-  { id: 'makefile', label: 'Makefile', description: 'Rules focused on the scenario Makefile lifecycle wrapper.' },
-  { id: 'structure', label: 'Scenario Structure', description: 'Rules that validate high-level scenario layout and required assets.' },
-  { id: 'documentation', label: 'Documentation', description: 'Rules that enforce PRDs, READMEs, and docs/ content quality.' },
-  { id: 'misc', label: 'Miscellaneous', description: 'Rules missing targets; update the rule metadata so it runs during scans.' },
-]
-
-const TARGET_BADGE_CLASSES: Record<string, string> = {
-  api: 'bg-blue-100 text-blue-800',
-  main_go: 'bg-indigo-100 text-indigo-800',
-  ui: 'bg-pink-100 text-pink-800',
-  cli: 'bg-green-100 text-green-800',
-  test: 'bg-yellow-100 text-yellow-800',
-  service_json: 'bg-purple-100 text-purple-800',
-  makefile: 'bg-orange-100 text-orange-800',
-  structure: 'bg-slate-100 text-slate-800',
-  documentation: 'bg-amber-100 text-amber-800',
-  misc: 'bg-gray-100 text-gray-700 border border-gray-300',
-}
+import { TARGET_BADGE_CLASSES, TARGET_CATEGORY_CONFIG } from '../constants/ruleCategories'
 
 // Code Block Component with syntax highlighting and line numbers
 function CodeBlock({ code }: { code: string }) {
@@ -271,6 +247,7 @@ export default function RulesManager() {
   const [scenarioSearchTerm, setScenarioSearchTerm] = useState('')
   const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set())
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
+  const [isProtectedScenariosDialogOpen, setIsProtectedScenariosDialogOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: activeAgentsData } = useQuery({
@@ -327,8 +304,15 @@ export default function RulesManager() {
   const { data: scenarioOptions, isFetching: isFetchingScenarios } = useQuery<Scenario[]>({
     queryKey: ['scenarios', 'rule-tests'],
     queryFn: () => apiService.getScenarios(),
-    enabled: isScenarioTestModalOpen,
+    enabled: isScenarioTestModalOpen || isProtectedScenariosDialogOpen,
   })
+
+  const { data: protectedScenariosData, refetch: refetchProtectedScenarios } = useQuery({
+    queryKey: ['protected-scenarios'],
+    queryFn: () => apiService.getProtectedScenarios(),
+  })
+
+  const protectedScenarios = protectedScenariosData?.protected_scenarios || []
 
   const apiCategories = (rulesData?.categories || {}) as Record<string, { name?: string }>
   const executionInfo = ruleDetail?.execution_info
@@ -511,6 +495,11 @@ export default function RulesManager() {
     }
   }
 
+  const handleSaveProtectedScenarios = async (scenarios: string[]) => {
+    await apiService.updateProtectedScenarios(scenarios)
+    await refetchProtectedScenarios()
+  }
+
   // Reset tab and test data when rule changes
   React.useEffect(() => {
     setAgentError(null)
@@ -664,6 +653,15 @@ export default function RulesManager() {
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            onClick={() => setIsProtectedScenariosDialogOpen(true)}
+            title="Manage scenarios that are protected from bulk operations"
+          >
+            <Shield className="mr-2 h-4 w-4" />
+            Protected Scenarios
           </button>
           <button
             type="button"
@@ -839,17 +837,22 @@ export default function RulesManager() {
                           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={selectedScenarios.size === filteredScenarioOptions.length && filteredScenarioOptions.length > 0}
+                              checked={(() => {
+                                const nonProtectedFiltered = filteredScenarioOptions.filter(s => !protectedScenarios.includes(s.name))
+                                return nonProtectedFiltered.length > 0 && nonProtectedFiltered.every(s => selectedScenarios.has(s.name))
+                              })()}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedScenarios(new Set(filteredScenarioOptions.map(s => s.name)))
+                                  // Only select non-protected scenarios
+                                  const nonProtectedScenarios = filteredScenarioOptions.filter(s => !protectedScenarios.includes(s.name))
+                                  setSelectedScenarios(new Set(nonProtectedScenarios.map(s => s.name)))
                                 } else {
                                   setSelectedScenarios(new Set())
                                 }
                               }}
                               className="h-4 w-4 rounded border-gray-300 text-slate-700 focus:ring-slate-500"
                             />
-                            <span>Select All ({filteredScenarioOptions.length})</span>
+                            <span>Select All ({filteredScenarioOptions.filter(s => !protectedScenarios.includes(s.name)).length})</span>
                           </label>
                         </div>
                       )}
@@ -859,32 +862,40 @@ export default function RulesManager() {
                             No scenarios match your search.
                           </li>
                         ) : (
-                          filteredScenarioOptions.map(option => (
-                            <li key={option.name} className="px-3 py-3 hover:bg-gray-50">
-                              <label className="flex items-center gap-3 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedScenarios.has(option.name)}
-                                  onChange={(e) => {
-                                    const newSelection = new Set(selectedScenarios)
-                                    if (e.target.checked) {
-                                      newSelection.add(option.name)
-                                    } else {
-                                      newSelection.delete(option.name)
-                                    }
-                                    setSelectedScenarios(newSelection)
-                                  }}
-                                  className="h-4 w-4 rounded border-gray-300 text-slate-700 focus:ring-slate-500"
-                                />
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-900">{option.name}</p>
-                                  {option.description && (
-                                    <p className="text-xs text-gray-500">{option.description}</p>
-                                  )}
-                                </div>
-                              </label>
-                            </li>
-                          ))
+                          filteredScenarioOptions.map(option => {
+                            const isProtected = protectedScenarios.includes(option.name)
+                            return (
+                              <li key={option.name} className={`px-3 py-3 ${isProtected ? 'bg-gray-50 opacity-60' : 'hover:bg-gray-50'}`}>
+                                <label className={`flex items-center gap-3 ${isProtected ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedScenarios.has(option.name)}
+                                    onChange={(e) => {
+                                      if (isProtected) return
+                                      const newSelection = new Set(selectedScenarios)
+                                      if (e.target.checked) {
+                                        newSelection.add(option.name)
+                                      } else {
+                                        newSelection.delete(option.name)
+                                      }
+                                      setSelectedScenarios(newSelection)
+                                    }}
+                                    disabled={isProtected}
+                                    className="h-4 w-4 rounded border-gray-300 text-slate-700 focus:ring-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                  />
+                                  <div className="flex-1">
+                                    <p className={`text-sm font-medium ${isProtected ? 'text-gray-500' : 'text-gray-900'}`}>
+                                      {option.name}
+                                      {isProtected && <span className="ml-2 text-xs text-gray-400">(Protected)</span>}
+                                    </p>
+                                    {option.description && (
+                                      <p className="text-xs text-gray-500">{option.description}</p>
+                                    )}
+                                  </div>
+                                </label>
+                              </li>
+                            )
+                          })
                         )}
                       </ul>
                     </>
@@ -1050,6 +1061,7 @@ export default function RulesManager() {
         ruleId={selectedRule}
         ruleName={ruleDetail?.rule?.name || null}
         scenarioTestResults={scenarioTestResults}
+        protectedScenarios={protectedScenarios}
         onSubmitReport={handleSubmitReport}
       />
 
@@ -1700,6 +1712,15 @@ export default function RulesManager() {
           </div>
         </div>
       )}
+
+      {/* Manage Protected Scenarios Dialog */}
+      <ManageProtectedScenariosDialog
+        isOpen={isProtectedScenariosDialogOpen}
+        onClose={() => setIsProtectedScenariosDialogOpen(false)}
+        scenarios={scenarioOptions || []}
+        protectedScenarios={protectedScenarios}
+        onSave={handleSaveProtectedScenarios}
+      />
     </div>
   )
 }

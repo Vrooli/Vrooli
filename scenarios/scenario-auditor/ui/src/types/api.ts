@@ -377,3 +377,15 @@ export interface FixPromptPreviewResponse {
   error?: string
   fix_type?: string
 }
+
+export interface ProtectedScenariosResponse {
+  success: boolean
+  protected_scenarios: string[]
+  count: number
+}
+
+export interface UpdateProtectedScenariosResponse {
+  success: boolean
+  message: string
+  count: number
+}
