@@ -212,7 +212,7 @@ func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 		return nil
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(content, &payload); err != nil {
 		msg := fmt.Sprintf("service.json must be valid JSON to validate lifecycle test steps: %v", err)
 		return []Violation{newTestStepsViolation(filePath, 1, msg)}
@@ -224,7 +224,7 @@ func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 		return []Violation{newTestStepsViolation(filePath, line, "service.json must define a \"lifecycle\" object with test steps")}
 	}
 
-	lifecycle, ok := lifecycleRaw.(map[string]interface{})
+	lifecycle, ok := lifecycleRaw.(map[string]any)
 	if !ok {
 		line := findJSONLine(string(content), "\"lifecycle\"")
 		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle must be an object")}
@@ -236,7 +236,7 @@ func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 		return []Violation{newTestStepsViolation(filePath, line, "service.json must define \"lifecycle.test\" with steps")}
 	}
 
-	testSection, ok := testRaw.(map[string]interface{})
+	testSection, ok := testRaw.(map[string]any)
 	if !ok {
 		line := findJSONLine(string(content), "\"test\"")
 		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test must be an object")}
@@ -248,7 +248,7 @@ func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test must define a \"steps\" array")}
 	}
 
-	steps, ok := stepsRaw.([]interface{})
+	steps, ok := stepsRaw.([]any)
 	if !ok {
 		line := findJSONLine(string(content), "\"steps\"")
 		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps must be an array")}
@@ -261,7 +261,7 @@ func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 
 	hasSharedRunner := false
 	for _, entry := range steps {
-		stepMap, ok := entry.(map[string]interface{})
+		stepMap, ok := entry.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -310,7 +310,7 @@ func newTestStepsViolation(filePath string, line int, message string) Violation 
 	}
 }
 
-func usesSharedTestRunner(step map[string]interface{}) bool {
+func usesSharedTestRunner(step map[string]any) bool {
 	runValue, ok := step["run"].(string)
 	if !ok {
 		return false

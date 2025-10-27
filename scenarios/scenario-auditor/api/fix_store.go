@@ -109,14 +109,12 @@ func (s *AutomatedFixStore) enablePersistence() {
 
 	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "scenario-auditor")
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		logger := NewLogger()
 		logger.Error(fmt.Sprintf("Failed to ensure data directory %s", dataDir), err)
 		return
 	}
 
 	s.dataPath = filepath.Join(dataDir, "automated-fixes.json")
 	if err := s.loadFromDisk(); err != nil {
-		logger := NewLogger()
 		logger.Error("Failed to load automated fix store", err)
 		// Continue with defaults
 	}
@@ -157,12 +155,10 @@ func (s *AutomatedFixStore) persistLocked() {
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
-		logger := NewLogger()
 		logger.Error("Failed to serialise automated fix store", err)
 		return
 	}
 	if err := os.WriteFile(s.dataPath, data, 0o644); err != nil {
-		logger := NewLogger()
 		logger.Error("Failed to persist automated fix store", err)
 	}
 }

@@ -13,7 +13,6 @@ import (
 func getHealthMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
-	logger := NewLogger()
 
 	w.Header().Set("Content-Type", "application/json")
 	logger.Info(fmt.Sprintf("Getting health metrics for scenario: %s", scenarioName))
@@ -50,24 +49,23 @@ func getHealthMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	`, scenarioID).Scan(&avgResponseTime, &errorRate)
 
 	// Build metrics response
-	metrics := map[string]interface{}{
+	metrics := map[string]any{
 		"scenario":     scenarioName,
 		"timestamp":    time.Now().UTC(),
 		"health_score": calculateHealthScore(criticalCount, highCount, mediumCount, lowCount),
-		"vulnerabilities": map[string]interface{}{
+		"vulnerabilities": map[string]any{
 			"critical": criticalCount,
 			"high":     highCount,
 			"medium":   mediumCount,
 			"low":      lowCount,
 			"total":    criticalCount + highCount + mediumCount + lowCount,
 		},
-		"performance": map[string]interface{}{
+		"performance": map[string]any{
 			"avg_response_time_ms": avgResponseTime,
 			"error_rate":           errorRate,
 		},
 		"last_scanned": lastScanned,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(metrics)
 }

@@ -312,7 +312,7 @@ func useMethodHelper(db *sql.DB, c *closer) error {
 <test-case id="rows-queryx-context" should-fail="true">
   <description>sqlx-style QueryxContext without close should fail</description>
   <input language="go"><![CDATA[
-func leakQueryx(db interface{ QueryxContext(interface{}, string, ...interface{}) (*sql.Rows, error) }) error {
+func leakQueryx(db interface{ QueryxContext(any, string, ...any) (*sql.Rows, error) }) error {
     rows, err := db.QueryxContext(nil, "SELECT 1")
     if err != nil {
         return err

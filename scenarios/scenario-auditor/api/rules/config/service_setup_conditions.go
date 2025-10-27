@@ -176,7 +176,7 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 		return nil
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(content, &payload); err != nil {
 		return []Violation{newSetupViolation(filePath, 1, fmt.Sprintf("service.json must be valid JSON: %v", err))}
 	}
@@ -206,7 +206,7 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 		return []Violation{newSetupViolation(filePath, findJSONLineSetup(string(content), "\"checks\""), "lifecycle.setup.condition.checks must be an array")}
 	}
 
-	checks, ok := checksVal.([]interface{})
+	checks, ok := checksVal.([]any)
 	if !ok || len(checks) == 0 {
 		return []Violation{newSetupViolation(filePath, findJSONLineSetup(string(content), "\"checks\""), "lifecycle.setup.condition.checks must be an array")}
 	}
@@ -214,7 +214,7 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 	var violations []Violation
 
 	// Validate first check: binaries with scenario-api target
-	firstCheck, firstOK := checks[0].(map[string]interface{})
+	firstCheck, firstOK := checks[0].(map[string]any)
 	firstValid := false
 	if !firstOK {
 		line := findJSONLineSetup(string(content), "\"checks\"")
@@ -237,7 +237,7 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 	if len(checks) < 2 {
 		line := findJSONLineSetup(string(content), "\"checks\"")
 		violations = append(violations, newSetupViolation(filePath, line, "Second lifecycle.setup.condition check must be type 'cli'"))
-	} else if secondCheck, ok := checks[1].(map[string]interface{}); !ok {
+	} else if secondCheck, ok := checks[1].(map[string]any); !ok {
 		line := findJSONLineSetup(string(content), "\"checks\"")
 		violations = append(violations, newSetupViolation(filePath, line, "Second lifecycle.setup.condition check must be object with type 'cli'"))
 	} else {
@@ -257,7 +257,7 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 	return dedupeSetupConditionViolations(violations)
 }
 
-func extractServiceName(payload map[string]interface{}) (string, error) {
+func extractServiceName(payload map[string]any) (string, error) {
 	service, ok := getObject(payload, "service")
 	if !ok {
 		return "", fmt.Errorf("service.name must be defined to validate setup conditions")
@@ -269,16 +269,16 @@ func extractServiceName(payload map[string]interface{}) (string, error) {
 	return nameVal, nil
 }
 
-func getObject(parent map[string]interface{}, key string) (map[string]interface{}, bool) {
+func getObject(parent map[string]any, key string) (map[string]any, bool) {
 	raw, ok := parent[key]
 	if !ok {
 		return nil, false
 	}
-	obj, ok := raw.(map[string]interface{})
+	obj, ok := raw.(map[string]any)
 	return obj, ok
 }
 
-func valueEquals(obj map[string]interface{}, key, expected string) bool {
+func valueEquals(obj map[string]any, key, expected string) bool {
 	value, ok := obj[key].(string)
 	if !ok {
 		return false
@@ -286,12 +286,12 @@ func valueEquals(obj map[string]interface{}, key, expected string) bool {
 	return strings.EqualFold(strings.TrimSpace(value), expected)
 }
 
-func containsTarget(check map[string]interface{}, target string) bool {
+func containsTarget(check map[string]any, target string) bool {
 	raw, ok := check["targets"]
 	if !ok {
 		return false
 	}
-	list, ok := raw.([]interface{})
+	list, ok := raw.([]any)
 	if !ok {
 		return false
 	}

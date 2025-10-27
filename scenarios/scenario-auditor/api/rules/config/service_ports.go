@@ -285,7 +285,7 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 		return []Violation{newPortsViolation(filePath, 1, "service.json is empty; expected a ports configuration block")}
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(content, &payload); err != nil {
 		msg := fmt.Sprintf("service.json must be valid JSON to validate ports: %v", err)
 		return []Violation{newPortsViolation(filePath, 1, msg)}
@@ -297,7 +297,7 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 		return []Violation{newPortsViolation(filePath, line, "service.json must define a top-level \"ports\" object")}
 	}
 
-	portsMap, ok := portsRaw.(map[string]interface{})
+	portsMap, ok := portsRaw.(map[string]any)
 	if !ok {
 		line := findPortsJSONLine(source, "\"ports\"")
 		return []Violation{newPortsViolation(filePath, line, "service.json ports must be an object of named port configurations")}
@@ -309,7 +309,7 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 	if !hasAPI {
 		line := findPortsJSONLine(source, "\"api\"", "\"ports\"")
 		violations = append(violations, newPortsViolation(filePath, line, "ports configuration must define an \"api\" entry"))
-	} else if apiMap, ok := apiRaw.(map[string]interface{}); ok {
+	} else if apiMap, ok := apiRaw.(map[string]any); ok {
 		validateAPIPort(apiMap, source, filePath, &violations)
 	} else {
 		line := findPortsJSONLine(source, "\"api\"")
@@ -317,7 +317,7 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 	}
 
 	if uiRaw, hasUI := portsMap["ui"]; hasUI {
-		if uiMap, ok := uiRaw.(map[string]interface{}); ok {
+		if uiMap, ok := uiRaw.(map[string]any); ok {
 			validateUIPort(uiMap, source, filePath, &violations)
 		} else {
 			line := findPortsJSONLine(source, "\"ui\"")
@@ -328,7 +328,7 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 	return dedupePortViolations(violations)
 }
 
-func validateAPIPort(entry map[string]interface{}, source, filePath string, violations *[]Violation) {
+func validateAPIPort(entry map[string]any, source, filePath string, violations *[]Violation) {
 	envVar, ok := entry["env_var"].(string)
 	lineEnv := findPortsJSONLine(source, "\"api\"", "\"env_var\"")
 	if !ok || strings.TrimSpace(envVar) == "" {
@@ -369,7 +369,7 @@ func validateAPIPort(entry map[string]interface{}, source, filePath string, viol
 	}
 }
 
-func validateUIPort(entry map[string]interface{}, source, filePath string, violations *[]Violation) {
+func validateUIPort(entry map[string]any, source, filePath string, violations *[]Violation) {
 	envVarLine := findPortsJSONLine(source, "\"ui\"", "\"env_var\"")
 	envVar, ok := entry["env_var"].(string)
 	if !ok || strings.TrimSpace(envVar) == "" || envVar != "UI_PORT" {

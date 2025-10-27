@@ -174,7 +174,7 @@ import (
     "net/http"
 )
 
-func WriteJSON(w http.ResponseWriter, status int, payload interface{}) error {
+func WriteJSON(w http.ResponseWriter, status int, payload any) error {
     w.Header().Set("Content-Type", "application/json")
     if status > 0 {
         w.WriteHeader(status)

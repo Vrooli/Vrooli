@@ -27,15 +27,15 @@ func NewRealScanLogger(logger *Logger) *RealScanLogger {
 	return &RealScanLogger{logger: logger}
 }
 
-func (l *RealScanLogger) Info(msg string, args ...interface{}) {
+func (l *RealScanLogger) Info(msg string, args ...any) {
 	l.logger.Info(fmt.Sprintf(msg, args...))
 }
 
-func (l *RealScanLogger) Warn(msg string, args ...interface{}) {
+func (l *RealScanLogger) Warn(msg string, args ...any) {
 	l.logger.Info(fmt.Sprintf("WARN: "+msg, args...))
 }
 
-func (l *RealScanLogger) Error(msg string, args ...interface{}) {
+func (l *RealScanLogger) Error(msg string, args ...any) {
 	if len(args) > 0 {
 		if err, ok := args[len(args)-1].(error); ok {
 			l.logger.Error(fmt.Sprintf(msg, args[:len(args)-1]...), err)
@@ -45,7 +45,7 @@ func (l *RealScanLogger) Error(msg string, args ...interface{}) {
 	l.logger.Info(fmt.Sprintf("ERROR: "+msg, args...))
 }
 
-func (l *RealScanLogger) Debug(msg string, args ...interface{}) {
+func (l *RealScanLogger) Debug(msg string, args ...any) {
 	l.logger.Info(fmt.Sprintf("DEBUG: "+msg, args...))
 }
 
@@ -79,13 +79,13 @@ type SecurityScanResult struct {
 	VulnerabilitiesFound int                      `json:"vulnerabilities_found"`
 	Vulnerabilities      map[string]int           `json:"vulnerabilities"`
 	Statistics           scanners.ScanStatistics  `json:"statistics"`
-	Findings             []map[string]interface{} `json:"findings"`
+	Findings             []map[string]any `json:"findings"`
 	ScenarioName         string                   `json:"scenario_name,omitempty"`
 	ScenariosScanned     int                      `json:"scenarios_scanned,omitempty"`
 	Message              string                   `json:"message"`
-	RuleValidation       map[string]interface{}   `json:"rule_validation,omitempty"`
+	RuleValidation       map[string]any   `json:"rule_validation,omitempty"`
 	Warnings             []string                 `json:"warnings,omitempty"`
-	ScannersUsed         []map[string]interface{} `json:"scanners_used"`
+	ScannersUsed         []map[string]any `json:"scanners_used"`
 	ScanNotes            string                   `json:"scan_notes,omitempty"`
 }
 
@@ -271,7 +271,6 @@ func (job *SecurityScanJob) handleScannerProgress(scenarioName string, scannerTy
 }
 
 func (job *SecurityScanJob) run(ctx context.Context, targets []securityScanTarget, scenarioName string, req securityScanRequest) {
-	logger := NewLogger()
 	scanLogger := NewRealScanLogger(logger)
 	orchestrator := scanners.NewScanOrchestrator(scanLogger)
 
@@ -316,7 +315,7 @@ func (job *SecurityScanJob) run(ctx context.Context, targets []securityScanTarge
 	categoryTotals := make(map[string]int)
 	scannerTotals := make(map[string]int)
 	fileStatsMap := make(map[string]scanners.FileStats)
-	var scannersUsed []map[string]interface{}
+	var scannersUsed []map[string]any
 	var allFindings []scanners.Finding
 	var warnings []string
 
@@ -395,7 +394,7 @@ func (job *SecurityScanJob) run(ctx context.Context, targets []securityScanTarge
 			fileStatsMap[fs.FilePath] = existing
 		}
 		for _, scanResult := range aggregatedResult.ScannerResults {
-			scannersUsed = append(scannersUsed, map[string]interface{}{
+			scannersUsed = append(scannersUsed, map[string]any{
 				"scanner":  string(scanResult.ScannerType),
 				"findings": len(scanResult.Findings),
 				"duration": scanResult.Duration.Seconds(),
@@ -458,7 +457,7 @@ func (job *SecurityScanJob) run(ctx context.Context, targets []securityScanTarge
 		"info":     severityTotals["info"],
 	}
 
-	ruleValidation := map[string]interface{}{
+	ruleValidation := map[string]any{
 		"enabled": !req.SkipTestValidation,
 	}
 	if !req.SkipTestValidation {
@@ -506,7 +505,6 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 		scenarioName = "all"
 	}
 
-	logger := NewLogger()
 
 	requestBody := struct {
 		Type               string   `json:"type"`
@@ -550,7 +548,7 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"job_id": status.ID,
 		"status": status,
 	})
@@ -575,10 +573,10 @@ func buildSecurityScanCompletionMessage(scenarioName string, scenarioCount, find
 	return fmt.Sprintf("Security scan completed for %s. Found %d potential vulnerabilities.", scenarioName, findings)
 }
 
-func convertScanFindingsToResponse(findings []scanners.Finding) []map[string]interface{} {
-	vulnerabilities := make([]map[string]interface{}, 0, len(findings))
+func convertScanFindingsToResponse(findings []scanners.Finding) []map[string]any {
+	vulnerabilities := make([]map[string]any, 0, len(findings))
 	for _, finding := range findings {
-		vuln := map[string]interface{}{
+		vuln := map[string]any{
 			"id":            finding.ID,
 			"type":          finding.Category,
 			"severity":      strings.ToLower(string(finding.Severity)),
@@ -641,6 +639,8 @@ func cancelSecurityScanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	status, err := securityScanManager.Cancel(jobID)
 	if err != nil {
 		if errors.Is(err, errSecurityScanNotFound) {
@@ -648,9 +648,8 @@ func cancelSecurityScanHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, errSecurityScanFinished) {
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			json.NewEncoder(w).Encode(map[string]any{
 				"success": false,
 				"status":  status,
 				"message": fmt.Sprintf("Scan already %s", status.Status),
@@ -661,8 +660,7 @@ func cancelSecurityScanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"status":  status,
 	})
@@ -670,7 +668,6 @@ func cancelSecurityScanHandler(w http.ResponseWriter, r *http.Request) {
 
 // storeScanResults saves scan results to database
 func storeScanResults(result *scanners.AggregatedScanResult, scenarioName string) {
-	logger := NewLogger()
 
 	if db == nil {
 		return
@@ -711,7 +708,7 @@ func storeScanResults(result *scanners.AggregatedScanResult, scenarioName string
 	}
 
 	// Record scan in history
-	resultsSummary, _ := json.Marshal(map[string]interface{}{
+	resultsSummary, _ := json.Marshal(map[string]any{
 		"total_findings": result.Statistics.TotalFindings,
 		"by_severity":    result.Statistics.BySeverity,
 		"scanners_used":  len(result.ScannerResults),
@@ -737,7 +734,7 @@ func enhancedGetVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	vulnerabilities := []map[string]interface{}{}
+	vulnerabilities := []map[string]any{}
 
 	// If we have a database, try to get real vulnerabilities
 	if db != nil {
@@ -750,7 +747,7 @@ func enhancedGetVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 			JOIN scenarios s ON vs.scenario_id = s.id
 			WHERE vs.status = 'open'
 		`
-		args := []interface{}{}
+		args := []any{}
 
 		if scenario != "" && scenario != "all" {
 			query += " AND s.name = $1"
@@ -786,7 +783,7 @@ func enhancedGetVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 
-				v := map[string]interface{}{
+				v := map[string]any{
 					"id":             vuln.ID,
 					"scenario_name":  vuln.ScenarioName,
 					"type":           vuln.Category,
@@ -810,7 +807,7 @@ func enhancedGetVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"vulnerabilities": vulnerabilities,
 		"count":           len(vulnerabilities),
 		"timestamp":       time.Now().Format(time.RFC3339),
@@ -821,7 +818,6 @@ func enhancedGetVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 		response["note"] = "No vulnerabilities found. Run a security scan to detect real vulnerabilities."
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 

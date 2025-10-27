@@ -322,7 +322,7 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		return []Violation{newSetupStepsViolation(filePath, 1, "service.json is empty; expected lifecycle.setup.steps")}
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(content, &payload); err != nil {
 		msg := fmt.Sprintf("service.json must be valid JSON to validate setup steps: %v", err)
 		return []Violation{newSetupStepsViolation(filePath, 1, msg)}
@@ -340,7 +340,7 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		return []Violation{newSetupStepsViolation(filePath, line, "service.json must define lifecycle.setup.steps")}
 	}
 
-	lifecycleMap, ok := lifecycleRaw.(map[string]interface{})
+	lifecycleMap, ok := lifecycleRaw.(map[string]any)
 	if !ok {
 		line := findSetupJSONLine(source, "\"lifecycle\"")
 		return []Violation{newSetupStepsViolation(filePath, line, "service.json lifecycle must be an object")}
@@ -352,7 +352,7 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		return []Violation{newSetupStepsViolation(filePath, line, "service.json must define lifecycle.setup.steps")}
 	}
 
-	setupMap, ok := setupRaw.(map[string]interface{})
+	setupMap, ok := setupRaw.(map[string]any)
 	if !ok {
 		line := findSetupJSONLine(source, "\"setup\"")
 		return []Violation{newSetupStepsViolation(filePath, line, "lifecycle.setup must be an object")}
@@ -364,25 +364,25 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		return []Violation{newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must be defined")}
 	}
 
-	stepsSlice, ok := stepsRaw.([]interface{})
+	stepsSlice, ok := stepsRaw.([]any)
 	if !ok || len(stepsSlice) == 0 {
 		line := findSetupJSONLine(source, "\"steps\"")
 		return []Violation{newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must be a non-empty array")}
 	}
 
 	var (
-		installStep   map[string]interface{}
-		buildStep     map[string]interface{}
-		lastStep      map[string]interface{}
+		installStep   map[string]any
+		buildStep     map[string]any
+		lastStep      map[string]any
 		showStepIndex = -1
 		showStepLine  = findSetupJSONLine(source, "\"show-urls\"")
 	)
 
 	lastStepRaw := stepsSlice[len(stepsSlice)-1]
-	lastStep, _ = lastStepRaw.(map[string]interface{})
+	lastStep, _ = lastStepRaw.(map[string]any)
 
 	for idx, step := range stepsSlice {
-		stepMap, ok := step.(map[string]interface{})
+		stepMap, ok := step.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -432,7 +432,7 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 	return dedupeSetupStepsViolations(violations)
 }
 
-func validateInstallCLI(filePath, source string, step map[string]interface{}) []Violation {
+func validateInstallCLI(filePath, source string, step map[string]any) []Violation {
 	var violations []Violation
 
 	line := findSetupJSONLine(source, "\"install-cli\"")
@@ -467,7 +467,7 @@ func validateInstallCLI(filePath, source string, step map[string]interface{}) []
 	return violations
 }
 
-func validateBuildAPI(filePath, source string, step map[string]interface{}, serviceName string) []Violation {
+func validateBuildAPI(filePath, source string, step map[string]any, serviceName string) []Violation {
 	var violations []Violation
 
 	line := findSetupJSONLine(source, "\"build-api\"")
@@ -499,7 +499,7 @@ func validateBuildAPI(filePath, source string, step map[string]interface{}, serv
 		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api description must describe building the Go API"))
 	}
 
-	if cond, ok := step["condition"].(map[string]interface{}); ok {
+	if cond, ok := step["condition"].(map[string]any); ok {
 		fileExists := strings.TrimSpace(toStringOrDefault(cond["file_exists"]))
 		if fileExists != "" && fileExists != "api/go.mod" {
 			violations = append(violations, newSetupStepsViolation(filePath, line, "build-api condition.file_exists should reference 'api/go.mod'"))
@@ -535,8 +535,8 @@ func newSetupStepsViolation(filePath string, line int, message string) Violation
 	}
 }
 
-func extractSetupStepServiceName(payload map[string]interface{}) string {
-	serviceRaw, ok := payload["service"].(map[string]interface{})
+func extractSetupStepServiceName(payload map[string]any) string {
+	serviceRaw, ok := payload["service"].(map[string]any)
 	if !ok {
 		return ""
 	}
@@ -544,7 +544,7 @@ func extractSetupStepServiceName(payload map[string]interface{}) string {
 	return name
 }
 
-func toStringOrDefault(val interface{}) string {
+func toStringOrDefault(val any) string {
 	if val == nil {
 		return ""
 	}

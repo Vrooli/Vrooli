@@ -264,7 +264,6 @@ func (job *StandardsScanJob) markCompleted(result StandardsCheckResult, processe
 }
 
 func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTarget, scenarioName, scanType string, specificStandards []string) {
-	logger := NewLogger()
 	jobSnapshot := job.snapshot()
 	start := jobSnapshot.StartedAt
 	if start.IsZero() {
@@ -449,7 +448,6 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		scenarioName = "all"
 	}
 
-	logger := NewLogger()
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -479,14 +477,13 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Info(fmt.Sprintf("Started %s standards compliance scan %s for %s", checkRequest.Type, status.ID, scenarioName))
 
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"job_id": status.ID,
 		"status": status,
 	})
 }
 
 func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStandards []string, onFile func(string, string)) ([]StandardsViolation, int, error) {
-	logger := NewLogger()
 
 	ruleInfos, err := LoadRulesFromFiles()
 	if err != nil {
@@ -556,7 +553,7 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		}
 
 		if info.Size() > maxStandardsFileSizeBytes {
-			logger.Warn("Skipping large file during standards scan", map[string]interface{}{
+			logger.Warn("Skipping large file during standards scan", map[string]any{
 				"path": path,
 				"size": info.Size(),
 			})
@@ -581,7 +578,7 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		}
 
 		if isBinaryContent(content) {
-			logger.Warn("Skipping binary file during standards scan", map[string]interface{}{"path": path})
+			logger.Warn("Skipping binary file during standards scan", map[string]any{"path": path})
 			return nil
 		}
 
@@ -670,7 +667,6 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 }
 
 func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViolation, int, []string, error) {
-	logger := NewLogger()
 
 	if strings.TrimSpace(scenarioName) == "" {
 		return nil, 0, nil, fmt.Errorf("scenario name is required")
@@ -734,7 +730,7 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		}
 
 		if entry.Size() > maxStandardsFileSizeBytes {
-			logger.Warn("Skipping large file during standards scan", map[string]interface{}{
+			logger.Warn("Skipping large file during standards scan", map[string]any{
 				"path": path,
 				"size": entry.Size(),
 			})
@@ -779,7 +775,7 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		}
 
 		if isBinaryContent(content) {
-			logger.Warn("Skipping binary file during standards scan", map[string]interface{}{"path": path})
+			logger.Warn("Skipping binary file during standards scan", map[string]any{"path": path})
 			return nil
 		}
 
@@ -1123,6 +1119,8 @@ func cancelStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	status, err := standardsScanManager.Cancel(jobID)
 	if err != nil {
 		if errors.Is(err, errStandardsScanNotFound) {
@@ -1130,9 +1128,8 @@ func cancelStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, errStandardsScanFinished) {
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			json.NewEncoder(w).Encode(map[string]any{
 				"success": false,
 				"status":  status,
 				"message": fmt.Sprintf("Scan already %s", status.Status),
@@ -1143,8 +1140,7 @@ func cancelStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"status":  status,
 	})
@@ -1158,7 +1154,7 @@ func getStandardsViolationsHandler(w http.ResponseWriter, r *http.Request) {
 
 	violations := standardsStore.GetViolations(scenario)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"violations": violations,
 		"count":      len(violations),
 		"timestamp":  time.Now().Format(time.RFC3339),

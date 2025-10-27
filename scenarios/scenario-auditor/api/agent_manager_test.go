@@ -211,7 +211,7 @@ func TestAgentManager_ExecuteTask(t *testing.T) {
 				ID:      "test-task-1",
 				AgentID: agent.ID,
 				Type:    "analyze",
-				Input: map[string]interface{}{
+				Input: map[string]any{
 					"code": "func main() {}",
 				},
 			},
@@ -239,7 +239,7 @@ func TestAgentManager_ExecuteTask(t *testing.T) {
 				ID:      "test-task-2",
 				AgentID: agent.ID,
 				Type:    "analyze",
-				Input:   map[string]interface{}{},
+				Input:   map[string]any{},
 			},
 			mockResponse:   `{"error": {"message": "Invalid request"}}`,
 			mockStatusCode: 400,
@@ -441,7 +441,7 @@ func TestAgentManager_generatePrompt(t *testing.T) {
 			name: "scanner agent prompt",
 			task: AgentTask{
 				Type: "scan",
-				Input: map[string]interface{}{
+				Input: map[string]any{
 					"target": "test-file.go",
 				},
 			},
@@ -455,7 +455,7 @@ func TestAgentManager_generatePrompt(t *testing.T) {
 			name: "fix agent prompt",
 			task: AgentTask{
 				Type: "fix",
-				Input: map[string]interface{}{
+				Input: map[string]any{
 					"issue": "SQL injection vulnerability",
 				},
 			},
@@ -609,7 +609,7 @@ func TestAgentHTTPHandlers(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
 
-		var result map[string]interface{}
+		var result map[string]any
 		json.NewDecoder(resp.Body).Decode(&result)
 
 		if result["id"] == nil {
@@ -631,7 +631,7 @@ func TestAgentHTTPHandlers(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
 
-		var result []map[string]interface{}
+		var result []map[string]any
 		json.NewDecoder(resp.Body).Decode(&result)
 
 		if len(result) < 2 {
@@ -680,7 +680,7 @@ func BenchmarkConcurrentTaskExecution(b *testing.B) {
 				ID:      fmt.Sprintf("task-%d", time.Now().UnixNano()),
 				AgentID: agent.ID,
 				Type:    "analyze",
-				Input:   map[string]interface{}{"test": "data"},
+				Input:   map[string]any{"test": "data"},
 			}
 			manager.ExecuteTask(ctx, task)
 		}

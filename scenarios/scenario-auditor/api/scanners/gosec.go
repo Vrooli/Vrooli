@@ -56,7 +56,7 @@ type GosecIssue struct {
 // GosecReport represents the JSON output from gosec
 type GosecReport struct {
 	Issues []GosecIssue           `json:"Issues"`
-	Stats  map[string]interface{} `json:"Stats"`
+	Stats  map[string]any `json:"Stats"`
 }
 
 // IsAvailable checks if gosec is installed

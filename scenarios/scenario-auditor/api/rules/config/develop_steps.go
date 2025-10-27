@@ -275,7 +275,7 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 		return []Violation{newDevelopViolation(filePath, 1, "service.json is empty; expected lifecycle configuration")}
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(content, &payload); err != nil {
 		msg := fmt.Sprintf("service.json must be valid JSON to validate develop steps: %v", err)
 		return []Violation{newDevelopViolation(filePath, 1, msg)}
@@ -295,7 +295,7 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 		return []Violation{newDevelopViolation(filePath, line, "lifecycle.develop.steps must be defined as an array")}
 	}
 
-	stepsSlice, ok := stepsRaw.([]interface{})
+	stepsSlice, ok := stepsRaw.([]any)
 	if !ok || len(stepsSlice) == 0 {
 		line := findJSONLineDevelop(source, "\"develop\"", "\"steps\"")
 		return []Violation{newDevelopViolation(filePath, line, "lifecycle.develop.steps must include at least the start and show-urls commands")}
@@ -338,7 +338,7 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 				violations = append(violations, newDevelopViolation(filePath, line, "start-api must run in the background"))
 			}
 
-			if cond, ok := startAPIStep["condition"].(map[string]interface{}); ok {
+			if cond, ok := startAPIStep["condition"].(map[string]any); ok {
 				line := findJSONLineDevelop(source, "\"start-api\"", "\"file_exists\"")
 				fileExists := strings.TrimSpace(getString(cond, "file_exists"))
 				if fileExists == "" {
@@ -365,7 +365,7 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 		}
 	}
 
-	lastStepMap, ok := stepsSlice[len(stepsSlice)-1].(map[string]interface{})
+	lastStepMap, ok := stepsSlice[len(stepsSlice)-1].(map[string]any)
 	if ok {
 		lastStepName := strings.TrimSpace(getString(lastStepMap, "name"))
 		if lastStepName != "show-urls" {
@@ -405,7 +405,7 @@ func newDevelopViolation(filePath string, line int, message string) Violation {
 	}
 }
 
-func getMap(root map[string]interface{}, key string) (map[string]interface{}, bool) {
+func getMap(root map[string]any, key string) (map[string]any, bool) {
 	if root == nil {
 		return nil, false
 	}
@@ -413,14 +413,14 @@ func getMap(root map[string]interface{}, key string) (map[string]interface{}, bo
 	if !ok {
 		return nil, false
 	}
-	m, ok := raw.(map[string]interface{})
+	m, ok := raw.(map[string]any)
 	if !ok {
 		return nil, false
 	}
 	return m, true
 }
 
-func getString(root map[string]interface{}, key string) string {
+func getString(root map[string]any, key string) string {
 	if root == nil {
 		return ""
 	}
@@ -432,7 +432,7 @@ func getString(root map[string]interface{}, key string) string {
 	return ""
 }
 
-func getScenarioName(payload map[string]interface{}) string {
+func getScenarioName(payload map[string]any) string {
 	serviceMap, _ := getMap(payload, "service")
 	if serviceMap == nil {
 		return ""
@@ -440,9 +440,9 @@ func getScenarioName(payload map[string]interface{}) string {
 	return getString(serviceMap, "name")
 }
 
-func findStepByName(steps []interface{}, name string) (map[string]interface{}, int) {
+func findStepByName(steps []any, name string) (map[string]any, int) {
 	for idx, stepRaw := range steps {
-		if stepMap, ok := stepRaw.(map[string]interface{}); ok {
+		if stepMap, ok := stepRaw.(map[string]any); ok {
 			if strings.TrimSpace(getString(stepMap, "name")) == name {
 				return stepMap, idx
 			}
@@ -451,7 +451,7 @@ func findStepByName(steps []interface{}, name string) (map[string]interface{}, i
 	return nil, -1
 }
 
-func requireAPIStart(payload map[string]interface{}) bool {
+func requireAPIStart(payload map[string]any) bool {
 	enabled, present := componentEnabled(payload, "api")
 	if present {
 		return enabled
@@ -459,7 +459,7 @@ func requireAPIStart(payload map[string]interface{}) bool {
 	return hasPort(payload, "api")
 }
 
-func requireUIStart(payload map[string]interface{}) bool {
+func requireUIStart(payload map[string]any) bool {
 	enabled, present := componentEnabled(payload, "ui")
 	if present {
 		return enabled
@@ -467,7 +467,7 @@ func requireUIStart(payload map[string]interface{}) bool {
 	return hasPort(payload, "ui")
 }
 
-func componentEnabled(payload map[string]interface{}, name string) (bool, bool) {
+func componentEnabled(payload map[string]any, name string) (bool, bool) {
 	components, _ := getMap(payload, "components")
 	component, present := getMap(components, name)
 	if !present || component == nil {
@@ -481,13 +481,13 @@ func componentEnabled(payload map[string]interface{}, name string) (bool, bool) 
 	return true, true
 }
 
-func hasPort(payload map[string]interface{}, name string) bool {
+func hasPort(payload map[string]any, name string) bool {
 	ports, _ := getMap(payload, "ports")
 	if ports == nil {
 		return false
 	}
 	if entry, ok := ports[name]; ok {
-		_, ok := entry.(map[string]interface{})
+		_, ok := entry.(map[string]any)
 		return ok
 	}
 	return false

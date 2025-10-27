@@ -39,12 +39,11 @@ type issueTrackerResponse struct {
 	Success bool                   `json:"success"`
 	Message string                 `json:"message"`
 	Error   string                 `json:"error"`
-	Data    map[string]interface{} `json:"data"`
+	Data    map[string]any `json:"data"`
 }
 
 // reportIssueHandler creates an issue in app-issue-tracker for rule fixes/tests
 func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	var req reportIssueRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -132,11 +131,11 @@ func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
 			u.RawQuery = query.Encode()
 			issueURL = u.String()
 		} else {
-			logger.Warn("Failed to resolve app-issue-tracker UI port", map[string]interface{}{"error": err.Error()})
+			logger.Warn("Failed to resolve app-issue-tracker UI port", map[string]any{"error": err.Error()})
 		}
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"issueId":  result.IssueID,
 		"issueUrl": issueURL,
 		"message":  result.Message,
@@ -148,10 +147,10 @@ func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (map[string]interface{}, error) {
+func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (map[string]any, error) {
 	var title, description, issueType, priority string
 	var tags []string
-	var artifacts []map[string]interface{}
+	var artifacts []map[string]any
 
 	metadata := map[string]string{
 		"reported_by": "scenario-auditor",
@@ -193,7 +192,7 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 
 		// Create artifact with violation details
 		artifactContent := buildViolationArtifact(rule, req.SelectedScenarios, ruleInfo)
-		artifacts = append(artifacts, map[string]interface{}{
+		artifacts = append(artifacts, map[string]any{
 			"name":         fmt.Sprintf("%s-violations.md", sanitizeForFilename(rule.ID)),
 			"category":     "rule_violations",
 			"content":      artifactContent,
@@ -202,7 +201,7 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 		})
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"title":          title,
 		"description":    description,
 		"type":           issueType,
@@ -839,7 +838,6 @@ func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) st
 
 // scanScenarioForRule runs a specific rule against a scenario and returns violations
 func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rulespkg.Violation {
-	logger := NewLogger()
 
 	if !ruleInfo.Implementation.Valid {
 		logger.Warn(fmt.Sprintf("Rule %s implementation not valid, skipping scan", ruleID), nil)
@@ -856,7 +854,7 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 
 	statInfo, statErr := os.Stat(scenarioPath)
 	if statErr != nil {
-		logger.Warn(fmt.Sprintf("Scenario path does not exist: %s", scenarioPath), map[string]interface{}{"error": statErr.Error()})
+		logger.Warn(fmt.Sprintf("Scenario path does not exist: %s", scenarioPath), map[string]any{"error": statErr.Error()})
 		return nil
 	}
 
@@ -945,7 +943,7 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 }
 
 // convertRuleViolationToOurType converts from rules package Violation to our Violation type
-func convertRuleViolationToOurType(rv interface{}) rulespkg.Violation {
+func convertRuleViolationToOurType(rv any) rulespkg.Violation {
 	v := rulespkg.Violation{}
 
 	// The Check method returns []rulespkg.Violation, which has the same structure
@@ -1107,7 +1105,7 @@ type issueTrackerResult struct {
 	Message string
 }
 
-func submitIssueToTracker(ctx context.Context, port int, payload map[string]interface{}) (*issueTrackerResult, error) {
+func submitIssueToTracker(ctx context.Context, port int, payload map[string]any) (*issueTrackerResult, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)
@@ -1155,7 +1153,7 @@ func submitIssueToTracker(ctx context.Context, port int, payload map[string]inte
 		} else if value, ok := trackerResp.Data["issueId"].(string); ok {
 			issueID = value
 		} else if rawIssue, ok := trackerResp.Data["issue"]; ok {
-			if issueMap, ok := rawIssue.(map[string]interface{}); ok {
+			if issueMap, ok := rawIssue.(map[string]any); ok {
 				if id, ok := issueMap["id"].(string); ok {
 					issueID = id
 				}
@@ -1218,7 +1216,7 @@ func parsePortValue(value string) (int, error) {
 }
 
 // buildCreateRuleIssuePayload builds the payload for creating a rule creation issue
-func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]interface{}, error) {
+func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]any, error) {
 
 	title := fmt.Sprintf("[scenario-auditor] Create new rule: %s", req.Name)
 	description := buildCreateRuleDescription(req)
@@ -1244,7 +1242,7 @@ func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]interface{},
 		return nil, fmt.Errorf("failed to read rule creation prompt: %w", err)
 	}
 
-	artifacts := []map[string]interface{}{
+	artifacts := []map[string]any{
 		{
 			"name":         "rule-creation-guidelines.txt",
 			"category":     "rule_creation",
@@ -1254,7 +1252,7 @@ func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]interface{},
 		},
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"title":          title,
 		"description":    description,
 		"type":           "task",

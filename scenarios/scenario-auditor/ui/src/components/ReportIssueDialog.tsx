@@ -113,7 +113,7 @@ export default function ReportIssueDialog({
 
   const showScenarioSelection = reportType === 'fix_violations' && hasViolations
 
-  const showBatchSizeSlider = selectedScenarios.size > MAX_SCENARIOS_WARNING_THRESHOLD
+  const showBatchSizeSlider = selectedScenarios.size > 1
 
   const batchCount = useMemo(() => {
     if (!showBatchSizeSlider) return 1

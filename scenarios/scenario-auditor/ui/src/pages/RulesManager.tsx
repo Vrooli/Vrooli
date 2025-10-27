@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { CodeEditor } from '../components/CodeEditor'
 import ReportIssueDialog from '../components/ReportIssueDialog'
 import type { ReportPayload } from '../components/ReportIssueDialog'
+import ScenarioTestResults from '../components/ScenarioTestResults'
 import { apiService } from '../services/api'
 
 const TARGET_CATEGORY_CONFIG: Array<{ id: string; label: string; description: string }> = [
@@ -293,33 +294,6 @@ export default function RulesManager() {
       return `${mins}m ${secs}s`
     }
     return `${secs}s`
-  }
-
-  const formatDurationMs = (milliseconds: number) => {
-    if (!milliseconds || milliseconds < 1) {
-      return '<1ms'
-    }
-    if (milliseconds < 1000) {
-      return `${Math.round(milliseconds)}ms`
-    }
-
-    const totalSeconds = milliseconds / 1000
-    if (totalSeconds < 60) {
-      if (totalSeconds >= 10) {
-        return `${totalSeconds.toFixed(1)}s`
-      }
-      return `${totalSeconds.toFixed(2)}s`
-    }
-
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = Math.round(totalSeconds - minutes*60)
-    if (minutes < 60) {
-      return `${minutes}m ${seconds}s`
-    }
-
-    const hours = Math.floor(minutes / 60)
-    const remainingMinutes = minutes % 60
-    return `${hours}h ${remainingMinutes}m`
   }
 
   const describeAgentAction = (action: string) => {
@@ -1350,119 +1324,10 @@ export default function RulesManager() {
                     )}
 
                     {scenarioTestResults.length > 0 && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-sm font-semibold text-gray-900">
-                            Scenario Test Results ({scenarioTestResults.length})
-                          </h5>
-                          {scenarioTestCompletedAt && (
-                            <span className="text-xs text-slate-500">
-                              Last run {scenarioTestCompletedAt.toLocaleTimeString()}
-                            </span>
-                          )}
-                        </div>
-                        {scenarioTestResults.map((result, resultIndex) => (
-                          <div key={`scenario-result-${result.scenario}-${resultIndex}`} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                              <div>
-                                <h6 className="text-sm font-semibold text-slate-900">
-                                  {result.scenario}
-                                </h6>
-                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                                  <span>{result.files_scanned} file{result.files_scanned === 1 ? '' : 's'} scanned</span>
-                                  <span>•</span>
-                                  <span>{result.violations.length} violation{result.violations.length === 1 ? '' : 's'}</span>
-                                  <span>•</span>
-                                  <span>{formatDurationMs(result.duration_ms)}</span>
-                                </div>
-                                {result.warning && (
-                                  <p className="mt-2 inline-flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                                    <span>{result.warning}</span>
-                                  </p>
-                                )}
-                                {result.error && (
-                                  <p className="mt-2 inline-flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
-                                    <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                                    <span>{result.error}</span>
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {result.targets.map((target, index) => {
-                                const badgeClass = TARGET_BADGE_CLASSES[target] || 'bg-gray-100 text-gray-700'
-                                const category = TARGET_CATEGORY_CONFIG.find(cfg => cfg.id === target)
-                                return (
-                                  <span
-                                    key={`scenario-target-${result.scenario}-${target}-${index}`}
-                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
-                                  >
-                                    {category?.label || target}
-                                  </span>
-                                )
-                              })}
-                            </div>
-                            <div className="mt-4">
-                              {result.violations.length === 0 ? (
-                                <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-                                  No violations detected for this scenario.
-                                </div>
-                              ) : (
-                                <div className="space-y-3">
-                                  {result.violations.map((violation, index) => (
-                                    <div key={violation.id || `${violation.file_path || 'violation'}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="space-y-1">
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${violation.severity === 'critical'
-                                              ? 'bg-red-100 text-red-800'
-                                              : violation.severity === 'high'
-                                                ? 'bg-orange-100 text-orange-800'
-                                                : violation.severity === 'medium'
-                                                  ? 'bg-yellow-100 text-yellow-800'
-                                                  : 'bg-green-100 text-green-800'
-                                              }`}>
-                                              {violation.severity}
-                                            </span>
-                                            {violation.file_path && (
-                                              <span className="font-mono text-xs text-slate-600">{violation.file_path}</span>
-                                            )}
-                                            {violation.line_number ? (
-                                              <span className="text-xs text-slate-500">Line {violation.line_number}</span>
-                                            ) : null}
-                                          </div>
-                                          <p className="text-sm font-medium text-slate-900">
-                                            {violation.title || violation.description || 'Rule violation detected'}
-                                          </p>
-                                          {violation.description && (
-                                            <p className="text-sm text-slate-700">{violation.description}</p>
-                                          )}
-                                        </div>
-                                        {violation.standard && (
-                                          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                            {violation.standard}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {violation.recommendation && (
-                                        <p className="mt-2 text-xs text-slate-600">
-                                          <span className="font-semibold text-slate-700">Recommended fix:</span> {violation.recommendation}
-                                        </p>
-                                      )}
-                                      {violation.code_snippet && (
-                                        <pre className="mt-2 max-h-40 overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100 whitespace-pre-wrap">
-                                          {violation.code_snippet}
-                                        </pre>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <ScenarioTestResults
+                        results={scenarioTestResults}
+                        completedAt={scenarioTestCompletedAt}
+                      />
                     )}
 
                     {agentError && (

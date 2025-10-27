@@ -463,8 +463,8 @@ func likelyStaticBootstrapSource(source string) bool {
 
 func extractBridgeDependencyVersion(content []byte) string {
 	var manifest struct {
-		Dependencies    map[string]interface{} `json:"dependencies"`
-		DevDependencies map[string]interface{} `json:"devDependencies"`
+		Dependencies    map[string]any `json:"dependencies"`
+		DevDependencies map[string]any `json:"devDependencies"`
 	}
 	if err := json.Unmarshal(content, &manifest); err != nil {
 		return ""
@@ -475,7 +475,7 @@ func extractBridgeDependencyVersion(content []byte) string {
 	return dependencyVersionFromMap(manifest.DevDependencies, sharedBridgePackageName)
 }
 
-func dependencyVersionFromMap(deps map[string]interface{}, name string) string {
+func dependencyVersionFromMap(deps map[string]any, name string) string {
 	if deps == nil {
 		return ""
 	}

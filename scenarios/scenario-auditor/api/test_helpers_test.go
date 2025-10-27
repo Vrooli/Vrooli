@@ -127,10 +127,10 @@ func (f *TestFixture) handleScan(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"scan_id": "test-scan-123",
 		"status":  "completed",
-		"results": []interface{}{},
+		"results": []any{},
 	}
 
 	json.NewEncoder(w).Encode(result)
@@ -143,9 +143,9 @@ func (f *TestFixture) handleStandardsCheck(w http.ResponseWriter, r *http.Reques
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"violations": f.StdStore.GetViolations(req.Scenario),
-		"summary": map[string]interface{}{
+		"summary": map[string]any{
 			"total":  0,
 			"passed": 0,
 			"failed": 0,
@@ -244,7 +244,7 @@ func CreateMockStandardViolations(count int) []StandardViolation {
 	return violations
 }
 
-func AssertJSONResponse(t *testing.T, resp *http.Response, expected interface{}) {
+func AssertJSONResponse(t *testing.T, resp *http.Response, expected any) {
 	t.Helper()
 
 	body, err := io.ReadAll(resp.Body)
@@ -252,7 +252,7 @@ func AssertJSONResponse(t *testing.T, resp *http.Response, expected interface{})
 		t.Fatalf("Failed to read response body: %v", err)
 	}
 
-	var actual interface{}
+	var actual any
 	if err := json.Unmarshal(body, &actual); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
@@ -292,7 +292,7 @@ func AssertNotContains(t *testing.T, actual, substring string) {
 	}
 }
 
-func AssertEqual(t *testing.T, actual, expected interface{}) {
+func AssertEqual(t *testing.T, actual, expected any) {
 	t.Helper()
 
 	if actual != expected {
@@ -300,7 +300,7 @@ func AssertEqual(t *testing.T, actual, expected interface{}) {
 	}
 }
 
-func AssertNotEqual(t *testing.T, actual, expected interface{}) {
+func AssertNotEqual(t *testing.T, actual, expected any) {
 	t.Helper()
 
 	if actual == expected {
@@ -308,7 +308,7 @@ func AssertNotEqual(t *testing.T, actual, expected interface{}) {
 	}
 }
 
-func AssertNil(t *testing.T, value interface{}) {
+func AssertNil(t *testing.T, value any) {
 	t.Helper()
 
 	if value != nil {
@@ -316,7 +316,7 @@ func AssertNil(t *testing.T, value interface{}) {
 	}
 }
 
-func AssertNotNil(t *testing.T, value interface{}) {
+func AssertNotNil(t *testing.T, value any) {
 	t.Helper()
 
 	if value == nil {
