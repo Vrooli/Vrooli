@@ -51,27 +51,27 @@ func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Req
 
 // UpdateSettingsHandler updates settings and applies them
 func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.Request) {
-	var newSettings settings.Settings
-	if err := json.NewDecoder(r.Body).Decode(&newSettings); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+	newSettingsPtr, ok := decodeJSONBody[settings.Settings](w, r)
+	if !ok {
 		return
 	}
+	newSettings := *newSettingsPtr
 
 	// Validate settings
 	if newSettings.Slots < settings.MinSlots || newSettings.Slots > settings.MaxSlots {
-		http.Error(w, fmt.Sprintf("Slots must be between %d and %d", settings.MinSlots, settings.MaxSlots), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Slots must be between %d and %d", settings.MinSlots, settings.MaxSlots), http.StatusBadRequest)
 		return
 	}
 	if newSettings.RefreshInterval < settings.MinRefreshInterval || newSettings.RefreshInterval > settings.MaxRefreshInterval {
-		http.Error(w, fmt.Sprintf("Refresh interval must be between %d and %d seconds", settings.MinRefreshInterval, settings.MaxRefreshInterval), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Refresh interval must be between %d and %d seconds", settings.MinRefreshInterval, settings.MaxRefreshInterval), http.StatusBadRequest)
 		return
 	}
 	if newSettings.MaxTurns < settings.MinMaxTurns || newSettings.MaxTurns > settings.MaxMaxTurns {
-		http.Error(w, fmt.Sprintf("Max turns must be between %d and %d", settings.MinMaxTurns, settings.MaxMaxTurns), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Max turns must be between %d and %d", settings.MinMaxTurns, settings.MaxMaxTurns), http.StatusBadRequest)
 		return
 	}
 	if newSettings.TaskTimeout < settings.MinTaskTimeout || newSettings.TaskTimeout > settings.MaxTaskTimeout {
-		http.Error(w, fmt.Sprintf("Task timeout must be between %d and %d minutes", settings.MinTaskTimeout, settings.MaxTaskTimeout), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Task timeout must be between %d and %d minutes", settings.MinTaskTimeout, settings.MaxTaskTimeout), http.StatusBadRequest)
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 			recycler.EnabledFor = "off"
 		}
 	default:
-		http.Error(w, "Recycler enabled_for must be one of off, resources, scenarios, both", http.StatusBadRequest)
+		writeError(w, "Recycler enabled_for must be one of off, resources, scenarios, both", http.StatusBadRequest)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		recycler.IntervalSeconds = oldSettings.Recycler.IntervalSeconds
 	}
 	if recycler.IntervalSeconds < settings.MinRecyclerInterval || recycler.IntervalSeconds > settings.MaxRecyclerInterval {
-		http.Error(w, fmt.Sprintf("Recycler interval must be between %d and %d seconds", settings.MinRecyclerInterval, settings.MaxRecyclerInterval), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Recycler interval must be between %d and %d seconds", settings.MinRecyclerInterval, settings.MaxRecyclerInterval), http.StatusBadRequest)
 		return
 	}
 
@@ -104,7 +104,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 	}
 	recycler.ModelProvider = strings.ToLower(strings.TrimSpace(recycler.ModelProvider))
 	if recycler.ModelProvider != "ollama" && recycler.ModelProvider != "openrouter" {
-		http.Error(w, "Recycler model_provider must be 'ollama' or 'openrouter'", http.StatusBadRequest)
+		writeError(w, "Recycler model_provider must be 'ollama' or 'openrouter'", http.StatusBadRequest)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		recycler.CompletionThreshold = oldSettings.Recycler.CompletionThreshold
 	}
 	if recycler.CompletionThreshold < settings.MinRecyclerCompletionThreshold || recycler.CompletionThreshold > settings.MaxRecyclerCompletionThreshold {
-		http.Error(w, fmt.Sprintf("Recycler completion_threshold must be between %d and %d", settings.MinRecyclerCompletionThreshold, settings.MaxRecyclerCompletionThreshold), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Recycler completion_threshold must be between %d and %d", settings.MinRecyclerCompletionThreshold, settings.MaxRecyclerCompletionThreshold), http.StatusBadRequest)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		recycler.FailureThreshold = oldSettings.Recycler.FailureThreshold
 	}
 	if recycler.FailureThreshold < settings.MinRecyclerFailureThreshold || recycler.FailureThreshold > settings.MaxRecyclerFailureThreshold {
-		http.Error(w, fmt.Sprintf("Recycler failure_threshold must be between %d and %d", settings.MinRecyclerFailureThreshold, settings.MaxRecyclerFailureThreshold), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Recycler failure_threshold must be between %d and %d", settings.MinRecyclerFailureThreshold, settings.MaxRecyclerFailureThreshold), http.StatusBadRequest)
 		return
 	}
 
@@ -188,7 +188,7 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 	case "openrouter":
 		models, err = listOpenRouterModels()
 	default:
-		http.Error(w, "unsupported provider", http.StatusBadRequest)
+		writeError(w, "unsupported provider", http.StatusBadRequest)
 		return
 	}
 
@@ -210,21 +210,21 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 
 // TestRecyclerHandler generates a recycler summary for a mock task using current settings.
 func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
+	type testRequest struct {
 		OutputText     string `json:"output_text"`
 		ModelProvider  string `json:"model_provider"`
 		ModelName      string `json:"model_name"`
 		PromptOverride string `json:"prompt_override"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+	req, ok := decodeJSONBody[testRequest](w, r)
+	if !ok {
 		return
 	}
 
 	output := strings.TrimSpace(req.OutputText)
 	if output == "" {
-		http.Error(w, "output_text is required", http.StatusBadRequest)
+		writeError(w, "output_text is required", http.StatusBadRequest)
 		return
 	}
 
@@ -242,11 +242,11 @@ func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Re
 		case "ollama", "openrouter":
 			selectedProvider = overrideProvider
 		default:
-			http.Error(w, "model_provider must be 'ollama' or 'openrouter'", http.StatusBadRequest)
+			writeError(w, "model_provider must be 'ollama' or 'openrouter'", http.StatusBadRequest)
 			return
 		}
 		if overrideModel == "" {
-			http.Error(w, "model_name is required when overriding model_provider", http.StatusBadRequest)
+			writeError(w, "model_name is required when overriding model_provider", http.StatusBadRequest)
 			return
 		}
 	}
@@ -288,18 +288,18 @@ func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Re
 
 // PreviewRecyclerPromptHandler builds the recycler LLM prompt for mock output without executing the model.
 func (h *SettingsHandlers) PreviewRecyclerPromptHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
+	type previewRequest struct {
 		OutputText string `json:"output_text"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+	req, ok := decodeJSONBody[previewRequest](w, r)
+	if !ok {
 		return
 	}
 
 	output := strings.TrimSpace(req.OutputText)
 	if output == "" {
-		http.Error(w, "output_text is required", http.StatusBadRequest)
+		writeError(w, "output_text is required", http.StatusBadRequest)
 		return
 	}
 

@@ -4741,6 +4741,346 @@ class EcosystemManager {
         }
     }
 
+    // ==================== Execution History Methods ====================
+
+    // Switch tabs in the system logs modal
+    switchSystemTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('#system-logs-modal .log-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Update tab content
+        document.querySelectorAll('#system-logs-modal .tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `${tabName}-content`);
+        });
+
+        // Load execution history if switching to that tab
+        if (tabName === 'execution-history') {
+            this.loadAllExecutionHistory();
+        }
+    }
+
+    async loadAllExecutionHistory() {
+        const listContainer = document.getElementById('execution-history-list');
+        if (!listContainer) return;
+
+        // Show loading state
+        listContainer.innerHTML = `
+            <div class="execution-history-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading execution history...</p>
+            </div>
+        `;
+
+        try {
+            const data = await this.api.getAllExecutionHistory();
+
+            // Store all executions for filtering
+            this.allExecutions = data.executions || [];
+
+            // Show empty state if no executions exist at all
+            if (this.allExecutions.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="execution-history-empty">
+                        <i class="fas fa-clock"></i>
+                        <p>No execution history yet</p>
+                        <p class="log-hint">Task execution history will appear here once tasks start running</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Populate task filter dropdown
+            this.populateTaskFilter();
+
+            // Apply initial filters
+            this.filterExecutionHistory();
+        } catch (error) {
+            logger.error('Failed to load execution history:', error);
+            listContainer.innerHTML = `
+                <div class="execution-history-empty">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Failed to load execution history</p>
+                    <p class="log-hint">${this.escapeHtml(error.message)}</p>
+                </div>
+            `;
+        }
+    }
+
+    refreshExecutionHistory() {
+        this.loadAllExecutionHistory();
+    }
+
+    populateTaskFilter() {
+        const taskFilter = document.getElementById('execution-task-filter');
+        if (!taskFilter || !this.allExecutions) return;
+
+        // Get unique task IDs
+        const taskIds = [...new Set(this.allExecutions.map(e => e.task_id))].sort();
+
+        // Keep "All Tasks" and add task IDs
+        const currentValue = taskFilter.value;
+        taskFilter.innerHTML = '<option value="all">All Tasks</option>' +
+            taskIds.map(id => `<option value="${this.escapeHtml(id)}">${this.escapeHtml(id)}</option>`).join('');
+        taskFilter.value = currentValue;
+    }
+
+    filterExecutionHistory() {
+        const listContainer = document.getElementById('execution-history-list');
+        if (!listContainer || !this.allExecutions) return;
+
+        const searchTerm = document.getElementById('execution-search')?.value.toLowerCase() || '';
+        const statusFilter = document.getElementById('execution-status-filter')?.value || 'all';
+        const taskFilter = document.getElementById('execution-task-filter')?.value || 'all';
+
+        const filtered = this.allExecutions.filter(execution => {
+            // Search filter
+            if (searchTerm && !execution.task_id.toLowerCase().includes(searchTerm) &&
+                !execution.execution_id.toLowerCase().includes(searchTerm)) {
+                return false;
+            }
+
+            // Status filter
+            if (statusFilter !== 'all') {
+                if (statusFilter === 'success' && !execution.success) return false;
+                if (statusFilter === 'failure' && (execution.success || execution.timeout)) return false;
+                if (statusFilter === 'timeout' && !execution.timeout) return false;
+            }
+
+            // Task filter
+            if (taskFilter !== 'all' && execution.task_id !== taskFilter) {
+                return false;
+            }
+
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            listContainer.innerHTML = `
+                <div class="execution-history-empty">
+                    <i class="fas fa-search"></i>
+                    <p>No executions match your filters</p>
+                    <p class="log-hint">Try adjusting your search or filter criteria</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Render filtered executions
+        listContainer.innerHTML = filtered.map(execution =>
+            this.renderExecutionHistoryItem(execution, execution.task_id)
+        ).join('');
+    }
+
+    async loadExecutionHistory(taskId) {
+        const listContainer = document.getElementById('execution-history-list');
+        if (!listContainer) return;
+
+        // Show loading state
+        listContainer.innerHTML = `
+            <div class="execution-history-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading execution history...</p>
+            </div>
+        `;
+
+        try {
+            const data = await this.api.getExecutionHistory(taskId);
+
+            if (!data.executions || data.executions.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="execution-history-empty">
+                        <i class="fas fa-history"></i>
+                        <p>No execution history found</p>
+                        <p class="log-hint">Execution history will appear here after the task runs</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Render execution history items
+            listContainer.innerHTML = data.executions.map(execution => this.renderExecutionHistoryItem(execution, taskId)).join('');
+        } catch (error) {
+            logger.error('Failed to load execution history:', error);
+            listContainer.innerHTML = `
+                <div class="execution-history-empty">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Failed to load execution history</p>
+                    <p class="log-hint">${this.escapeHtml(error.message)}</p>
+                </div>
+            `;
+        }
+    }
+
+    renderExecutionHistoryItem(execution, taskId) {
+        const timestamp = new Date(execution.started_at || execution.created_at);
+        const duration = execution.duration ? `${execution.duration}s` : 'N/A';
+        const statusBadge = this.getExecutionStatusBadge(execution);
+
+        return `
+            <div class="execution-history-item" onclick="ecosystemManager.viewExecutionDetail('${taskId}', '${execution.execution_id}')">
+                <div class="execution-history-header">
+                    <span class="execution-id">${this.escapeHtml(execution.execution_id)}</span>
+                    <span class="execution-timestamp">${timestamp.toLocaleString()}</span>
+                </div>
+                <div class="execution-info">
+                    <span><i class="fas fa-clock"></i> ${duration}</span>
+                    ${statusBadge}
+                    ${execution.exit_reason ? `<span><i class="fas fa-info-circle"></i> ${this.escapeHtml(execution.exit_reason)}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    getExecutionStatusBadge(execution) {
+        if (execution.success) {
+            return '<span class="execution-status-badge success">Success</span>';
+        } else if (execution.timeout) {
+            return '<span class="execution-status-badge timeout">Timeout</span>';
+        } else {
+            return '<span class="execution-status-badge failure">Failed</span>';
+        }
+    }
+
+    async viewExecutionDetail(taskId, executionId) {
+        // Hide list, show detail view
+        document.getElementById('execution-history-list').style.display = 'none';
+        document.getElementById('execution-detail-view').style.display = 'block';
+        document.getElementById('execution-detail-title').textContent = `Execution: ${executionId}`;
+
+        // Load the prompt by default
+        this.switchDetailTab('prompt');
+        await this.loadExecutionPrompt(taskId, executionId);
+    }
+
+    showExecutionList() {
+        document.getElementById('execution-history-list').style.display = 'block';
+        document.getElementById('execution-detail-view').style.display = 'none';
+    }
+
+    switchDetailTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.detail-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.detailTab === tabName);
+        });
+
+        // Update tab content
+        document.querySelectorAll('.detail-tab-content').forEach(content => {
+            const contentId = content.id.replace('-view', '').replace('execution-', '');
+            content.classList.toggle('active', contentId === tabName);
+        });
+
+        // Load content if not already loaded
+        const taskId = this.processMonitor?.activeLogTaskId;
+        const executionId = document.getElementById('execution-detail-title')?.textContent.replace('Execution: ', '');
+
+        if (!taskId || !executionId) return;
+
+        if (tabName === 'prompt') {
+            this.loadExecutionPrompt(taskId, executionId);
+        } else if (tabName === 'output') {
+            this.loadExecutionOutput(taskId, executionId);
+        } else if (tabName === 'metadata') {
+            this.loadExecutionMetadata(taskId, executionId);
+        }
+    }
+
+    async loadExecutionPrompt(taskId, executionId) {
+        const textElement = document.getElementById('execution-prompt-text');
+        if (!textElement) return;
+
+        textElement.textContent = 'Loading prompt...';
+
+        try {
+            const data = await this.api.getExecutionPrompt(taskId, executionId);
+            textElement.textContent = data.prompt || 'No prompt available';
+        } catch (error) {
+            logger.error('Failed to load execution prompt:', error);
+            textElement.textContent = `Error loading prompt: ${error.message}`;
+        }
+    }
+
+    async loadExecutionOutput(taskId, executionId) {
+        const textElement = document.getElementById('execution-output-text');
+        if (!textElement) return;
+
+        textElement.textContent = 'Loading output...';
+
+        try {
+            const data = await this.api.getExecutionOutput(taskId, executionId);
+            textElement.textContent = data.output || 'No output available';
+        } catch (error) {
+            logger.error('Failed to load execution output:', error);
+            textElement.textContent = `Error loading output: ${error.message}`;
+        }
+    }
+
+    async loadExecutionMetadata(taskId, executionId) {
+        const container = document.getElementById('execution-metadata-content');
+        if (!container) return;
+
+        container.innerHTML = '<p>Loading metadata...</p>';
+
+        try {
+            const data = await this.api.getExecutionHistory(taskId);
+            const execution = data.executions?.find(ex => ex.execution_id === executionId);
+
+            if (!execution) {
+                container.innerHTML = '<p>Metadata not found</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Execution ID:</span>
+                    <span class="execution-metadata-value">${this.escapeHtml(execution.execution_id)}</span>
+                </div>
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Task ID:</span>
+                    <span class="execution-metadata-value">${this.escapeHtml(execution.task_id)}</span>
+                </div>
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Started At:</span>
+                    <span class="execution-metadata-value">${new Date(execution.started_at || execution.created_at).toLocaleString()}</span>
+                </div>
+                ${execution.completed_at ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Completed At:</span>
+                    <span class="execution-metadata-value">${new Date(execution.completed_at).toLocaleString()}</span>
+                </div>
+                ` : ''}
+                ${execution.duration ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Duration:</span>
+                    <span class="execution-metadata-value">${execution.duration}s</span>
+                </div>
+                ` : ''}
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Success:</span>
+                    <span class="execution-metadata-value">${execution.success ? 'Yes' : 'No'}</span>
+                </div>
+                ${execution.exit_reason ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Exit Reason:</span>
+                    <span class="execution-metadata-value">${this.escapeHtml(execution.exit_reason)}</span>
+                </div>
+                ` : ''}
+                ${execution.error ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Error:</span>
+                    <span class="execution-metadata-value">${this.escapeHtml(execution.error)}</span>
+                </div>
+                ` : ''}
+            `;
+        } catch (error) {
+            logger.error('Failed to load execution metadata:', error);
+            container.innerHTML = `<p>Error loading metadata: ${this.escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    // ==================== End Execution History Methods ====================
+
     setColumnVisibility(status, isVisible, options = {}) {
         const column = document.querySelector(`[data-status="${status}"]`);
         if (!column) {

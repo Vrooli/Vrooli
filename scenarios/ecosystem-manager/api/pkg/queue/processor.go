@@ -211,7 +211,7 @@ func (qp *Processor) ProcessQueue() {
 	qp.pauseMutex.Lock()
 	if qp.rateLimitPaused {
 		if time.Now().Before(qp.pauseUntil) {
-			remaining := qp.pauseUntil.Sub(time.Now())
+			remaining := time.Until(qp.pauseUntil)
 			log.Printf("⏸️ Queue paused due to rate limit. Resuming in %v", remaining.Round(time.Second))
 			qp.pauseMutex.Unlock()
 

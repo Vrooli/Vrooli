@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -39,7 +38,7 @@ func (h *QueueHandlers) GetQueueStatusHandler(w http.ResponseWriter, r *http.Req
 // GetResumeDiagnosticsHandler reports blockers that will be cleared when resuming the processor.
 func (h *QueueHandlers) GetResumeDiagnosticsHandler(w http.ResponseWriter, r *http.Request) {
 	if h.processor == nil {
-		http.Error(w, "queue processor not available", http.StatusServiceUnavailable)
+		writeError(w, "queue processor not available", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -96,17 +95,17 @@ func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *
 
 // SetMaintenanceStateHandler sets the queue processor maintenance state
 func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *http.Request) {
-	var request struct {
+	type maintenanceRequest struct {
 		State string `json:"state"` // "active" or "inactive"
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	request, ok := decodeJSONBody[maintenanceRequest](w, r)
+	if !ok {
 		return
 	}
 
 	if request.State != "active" && request.State != "inactive" {
-		http.Error(w, "State must be 'active' or 'inactive'", http.StatusBadRequest)
+		writeError(w, "State must be 'active' or 'inactive'", http.StatusBadRequest)
 		return
 	}
 
@@ -152,23 +151,23 @@ func (h *QueueHandlers) GetRunningProcessesHandler(w http.ResponseWriter, r *htt
 
 // TerminateProcessHandler terminates a specific running process
 func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.Request) {
-	var request struct {
+	type terminateRequest struct {
 		TaskID string `json:"task_id"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	request, ok := decodeJSONBody[terminateRequest](w, r)
+	if !ok {
 		return
 	}
 
 	if request.TaskID == "" {
-		http.Error(w, "task_id is required", http.StatusBadRequest)
+		writeError(w, "task_id is required", http.StatusBadRequest)
 		return
 	}
 
 	err := h.processor.TerminateRunningProcess(request.TaskID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		writeError(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -254,7 +253,7 @@ func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *htt
 // ResetRateLimitHandler resets the rate limit pause manually
 func (h *QueueHandlers) ResetRateLimitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 

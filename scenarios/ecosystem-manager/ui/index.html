@@ -965,7 +965,7 @@ The calendar scenario is now production-ready with all P0 requirements verified.
                 </div>
                 <button class="modal-close" onclick="ecosystemManager.closeLogViewer()">&times;</button>
             </div>
-            
+
             <div class="log-viewer-content">
                 <div id="log-output" class="log-output">
                     <div class="log-placeholder">
@@ -982,35 +982,120 @@ The calendar scenario is now production-ready with all P0 requirements verified.
     <div id="system-logs-modal" class="modal">
         <div class="modal-content modal-large">
             <div class="modal-header">
-                <h3>API Logs</h3>
+                <h3>System Logs & History</h3>
                 <button class="modal-close" onclick="ecosystemManager.closeModal('system-logs-modal')">&times;</button>
             </div>
-            <div class="system-logs-toolbar">
-                <div class="logs-left-controls">
-                    <label for="system-log-level" class="log-filter-label">
-                        Level:
-                        <select id="system-log-level" class="log-filter-select" onchange="ecosystemManager.filterSystemLogs()">
-                            <option value="all">All</option>
-                            <option value="error">Error</option>
-                            <option value="warn">Warn</option>
-                            <option value="info">Info</option>
-                            <option value="debug">Debug</option>
-                        </select>
-                    </label>
+
+            <!-- Tab Navigation -->
+            <div class="log-tabs">
+                <button class="log-tab active" data-tab="api-logs" onclick="ecosystemManager.switchSystemTab('api-logs')">
+                    <i class="fas fa-file-alt"></i>
+                    API Logs
+                </button>
+                <button class="log-tab" data-tab="execution-history" onclick="ecosystemManager.switchSystemTab('execution-history')">
+                    <i class="fas fa-history"></i>
+                    Execution History
+                </button>
+            </div>
+
+            <!-- API Logs Tab Content -->
+            <div class="tab-content active" id="api-logs-content">
+                <div class="system-logs-toolbar">
+                    <div class="logs-left-controls">
+                        <label for="system-log-level" class="log-filter-label">
+                            Level:
+                            <select id="system-log-level" class="log-filter-select" onchange="ecosystemManager.filterSystemLogs()">
+                                <option value="all">All</option>
+                                <option value="error">Error</option>
+                                <option value="warn">Warn</option>
+                                <option value="info">Info</option>
+                                <option value="debug">Debug</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="logs-right-controls">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.copySystemLogs()">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                        <button class="btn btn-secondary" onclick="ecosystemManager.refreshSystemLogs()">
+                            <i class="fas fa-sync"></i>
+                            Refresh
+                        </button>
+                    </div>
                 </div>
-                <div class="logs-right-controls">
-                    <button class="btn btn-secondary" onclick="ecosystemManager.copySystemLogs()">
-                        <i class="fas fa-copy"></i>
-                        Copy
-                    </button>
-                    <button class="btn btn-secondary" onclick="ecosystemManager.refreshSystemLogs()">
-                        <i class="fas fa-sync"></i>
-                        Refresh
-                    </button>
+                <div class="system-logs-content" id="system-logs-container">
+                    <div class="logs-empty">Loading logs...</div>
                 </div>
             </div>
-            <div class="system-logs-content" id="system-logs-container">
-                <div class="logs-empty">Loading logs...</div>
+
+            <!-- Execution History Tab Content -->
+            <div class="tab-content" id="execution-history-content">
+                <!-- Filter/Search Toolbar -->
+                <div class="execution-history-toolbar">
+                    <div class="execution-filters">
+                        <input type="text" id="execution-search" class="execution-search-input" placeholder="Search by task ID..." onkeyup="ecosystemManager.filterExecutionHistory()">
+                        <select id="execution-status-filter" class="execution-filter-select" onchange="ecosystemManager.filterExecutionHistory()">
+                            <option value="all">All Statuses</option>
+                            <option value="success">Success</option>
+                            <option value="failure">Failure</option>
+                            <option value="timeout">Timeout</option>
+                        </select>
+                        <select id="execution-task-filter" class="execution-filter-select" onchange="ecosystemManager.filterExecutionHistory()">
+                            <option value="all">All Tasks</option>
+                        </select>
+                    </div>
+                    <div class="execution-actions">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.refreshExecutionHistory()">
+                            <i class="fas fa-sync"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- List View -->
+                <div id="execution-history-list" class="execution-history-list">
+                    <div class="log-placeholder">
+                        <i class="fas fa-history"></i>
+                        <p>Loading execution history...</p>
+                    </div>
+                </div>
+
+                <!-- Detail View -->
+                <div id="execution-detail-view" class="execution-detail-view" style="display: none;">
+                    <div class="execution-detail-header">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.showExecutionList()">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to List
+                        </button>
+                        <h4 id="execution-detail-title">Execution Details</h4>
+                    </div>
+                    <div class="execution-detail-tabs">
+                        <button class="detail-tab active" data-detail-tab="prompt" onclick="ecosystemManager.switchDetailTab('prompt')">
+                            <i class="fas fa-file-code"></i>
+                            Prompt
+                        </button>
+                        <button class="detail-tab" data-detail-tab="output" onclick="ecosystemManager.switchDetailTab('output')">
+                            <i class="fas fa-terminal"></i>
+                            Output
+                        </button>
+                        <button class="detail-tab" data-detail-tab="metadata" onclick="ecosystemManager.switchDetailTab('metadata')">
+                            <i class="fas fa-info-circle"></i>
+                            Metadata
+                        </button>
+                    </div>
+                    <div class="execution-detail-content">
+                        <div id="execution-prompt-view" class="detail-tab-content active">
+                            <pre id="execution-prompt-text" class="execution-detail-text"></pre>
+                        </div>
+                        <div id="execution-output-view" class="detail-tab-content">
+                            <pre id="execution-output-text" class="execution-detail-text"></pre>
+                        </div>
+                        <div id="execution-metadata-view" class="detail-tab-content">
+                            <div id="execution-metadata-content" class="execution-metadata"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -245,10 +245,9 @@ func TestProcessor_GetResumeDiagnostics(t *testing.T) {
 	diagnostics := processor.GetResumeDiagnostics()
 
 	// ResumeDiagnostics is a struct, not a pointer
-	// Check a field to verify it was populated
-	if len(diagnostics.Notes) < 0 { // Will always be >= 0, just checking it exists
-		t.Fatal("Expected diagnostics to be populated")
-	}
+	// Verify it was returned (slices are initialized as empty, not nil)
+	// Just check that the function executed without panic
+	_ = diagnostics
 }
 
 func TestProcessor_RateLimitPause(t *testing.T) {

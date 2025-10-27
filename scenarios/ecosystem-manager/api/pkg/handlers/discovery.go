@@ -169,14 +169,14 @@ func (h *DiscoveryHandlers) GetResourceStatusHandler(w http.ResponseWriter, r *h
 	resourceName := vars["name"]
 
 	if resourceName == "" {
-		http.Error(w, "Resource name is required", http.StatusBadRequest)
+		writeError(w, "Resource name is required", http.StatusBadRequest)
 		return
 	}
 
 	// Find the resource
 	resources, err := discovery.DiscoverResources()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to discover resources: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to discover resources: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -187,7 +187,7 @@ func (h *DiscoveryHandlers) GetResourceStatusHandler(w http.ResponseWriter, r *h
 		}
 	}
 
-	http.Error(w, "Resource not found", http.StatusNotFound)
+	writeError(w, "Resource not found", http.StatusNotFound)
 }
 
 // GetScenarioStatusHandler returns detailed status for a specific scenario
@@ -196,14 +196,14 @@ func (h *DiscoveryHandlers) GetScenarioStatusHandler(w http.ResponseWriter, r *h
 	scenarioName := vars["name"]
 
 	if scenarioName == "" {
-		http.Error(w, "Scenario name is required", http.StatusBadRequest)
+		writeError(w, "Scenario name is required", http.StatusBadRequest)
 		return
 	}
 
 	// Find the scenario
 	scenarios, err := discovery.DiscoverScenarios()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to discover scenarios: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to discover scenarios: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -214,5 +214,5 @@ func (h *DiscoveryHandlers) GetScenarioStatusHandler(w http.ResponseWriter, r *h
 		}
 	}
 
-	http.Error(w, "Scenario not found", http.StatusNotFound)
+	writeError(w, "Scenario not found", http.StatusNotFound)
 }

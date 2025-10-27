@@ -289,6 +289,36 @@ export class ApiClient {
         return this.fetchJSON(`${this.apiBase}/logs?limit=${limit}`);
     }
 
+    // ==================== Execution History ====================
+
+    /**
+     * Get execution history for ALL tasks
+     */
+    async getAllExecutionHistory() {
+        return this.fetchJSON(`${this.apiBase}/executions`);
+    }
+
+    /**
+     * Get execution history for a specific task
+     */
+    async getExecutionHistory(taskId) {
+        return this.fetchJSON(`${this.apiBase}/tasks/${taskId}/executions`);
+    }
+
+    /**
+     * Get execution prompt file
+     */
+    async getExecutionPrompt(taskId, executionId) {
+        return this.fetchJSON(`${this.apiBase}/tasks/${taskId}/executions/${executionId}/prompt`);
+    }
+
+    /**
+     * Get execution output file
+     */
+    async getExecutionOutput(taskId, executionId) {
+        return this.fetchJSON(`${this.apiBase}/tasks/${taskId}/executions/${executionId}/output`);
+    }
+
     // ==================== Recycler & Testing ====================
 
     /**

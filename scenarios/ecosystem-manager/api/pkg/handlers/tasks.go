@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -172,6 +171,19 @@ func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, proce
 	}
 }
 
+// getTaskFromRequest extracts task ID from URL path and retrieves the task.
+// Returns (task, status, true) on success or (nil, "", false) on error (response already written).
+func (h *TaskHandlers) getTaskFromRequest(r *http.Request, w http.ResponseWriter) (*tasks.TaskItem, string, bool) {
+	vars := mux.Vars(r)
+	taskID := vars["id"]
+	task, status, err := h.storage.GetTaskByID(taskID)
+	if err != nil {
+		writeError(w, "Task not found", http.StatusNotFound)
+		return nil, "", false
+	}
+	return task, status, true
+}
+
 // preserveUnsetFields copies non-zero values from current to updated for fields that are unset.
 // This helper consolidates field preservation logic used when updating tasks.
 func preserveUnsetFields(updated, current *tasks.TaskItem) {
@@ -311,7 +323,7 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 
 	items, err := h.storage.GetQueueItems(status)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get tasks: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to get tasks: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -343,11 +355,11 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 
 // CreateTaskHandler creates a new task
 func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var task tasks.TaskItem
-	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+	taskPtr, ok := decodeJSONBody[tasks.TaskItem](w, r)
+	if !ok {
 		return
 	}
+	task := *taskPtr
 
 	// Normalize target inputs before validation
 	task.Targets, task.Target = tasks.NormalizeTargets(task.Target, task.Targets)
@@ -357,25 +369,25 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	validOperations := []string{"generator", "improver"}
 
 	if !slices.Contains(validTypes, task.Type) {
-		http.Error(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, validTypes), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, validTypes), http.StatusBadRequest)
 		return
 	}
 
 	if !slices.Contains(validOperations, task.Operation) {
-		http.Error(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, validOperations), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, validOperations), http.StatusBadRequest)
 		return
 	}
 
 	// Validate that we have configuration for this operation
 	_, err := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Unsupported operation combination: %v", err), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Unsupported operation combination: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	// Target validation for improver operations
 	if task.Operation == "improver" && len(task.Targets) == 0 {
-		http.Error(w, "Improver tasks require at least one target", http.StatusBadRequest)
+		writeError(w, "Improver tasks require at least one target", http.StatusBadRequest)
 		return
 	}
 
@@ -395,12 +407,12 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if len(task.Targets) == 1 {
 		existing, status, lookupErr := h.storage.FindActiveTargetTask(task.Type, task.Operation, task.Targets[0])
 		if lookupErr != nil {
-			http.Error(w, fmt.Sprintf("Failed to verify existing tasks: %v", lookupErr), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Failed to verify existing tasks: %v", lookupErr), http.StatusInternalServerError)
 			return
 		}
 
 		if existing != nil {
-			http.Error(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status), http.StatusConflict)
+			writeError(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status), http.StatusConflict)
 			return
 		}
 	}
@@ -431,7 +443,7 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	// Save to pending queue
 	if err := h.storage.SaveQueueItem(task, "pending"); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -443,12 +455,8 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 // GetTaskHandler retrieves a specific task by ID
 func (h *TaskHandlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	task, _, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
 		return
 	}
 
@@ -465,7 +473,7 @@ func (h *TaskHandlers) GetTaskLogsHandler(w http.ResponseWriter, r *http.Request
 	if afterParam != "" {
 		seq, err := strconv.ParseInt(afterParam, 10, 64)
 		if err != nil {
-			http.Error(w, "after must be an integer", http.StatusBadRequest)
+			writeError(w, "after must be an integer", http.StatusBadRequest)
 			return
 		}
 		afterSeq = seq
@@ -491,7 +499,7 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 	operation := strings.TrimSpace(r.URL.Query().Get("operation"))
 
 	if taskType == "" || operation == "" {
-		http.Error(w, "type and operation query parameters are required", http.StatusBadRequest)
+		writeError(w, "type and operation query parameters are required", http.StatusBadRequest)
 		return
 	}
 
@@ -505,7 +513,7 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 	for _, status := range statuses {
 		items, err := h.storage.GetQueueItems(status)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to load %s tasks: %v", status, err), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Failed to load %s tasks: %v", status, err), http.StatusInternalServerError)
 			return
 		}
 
@@ -657,26 +665,22 @@ func inferTargetFromID(id, taskType, operation string) string {
 
 // UpdateTaskHandler updates an existing task
 func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	var updatedTask tasks.TaskItem
-	if err := json.NewDecoder(r.Body).Decode(&updatedTask); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+	currentTask, currentStatus, ok := h.getTaskFromRequest(r, w)
+	if !ok {
 		return
 	}
+
+	updatedTaskPtr, ok := decodeJSONBody[tasks.TaskItem](w, r)
+	if !ok {
+		return
+	}
+	updatedTask := *updatedTaskPtr
+	taskID := currentTask.ID
 
 	updatedTask.Targets, updatedTask.Target = tasks.NormalizeTargets(updatedTask.Target, updatedTask.Targets)
 
-	// Find current task location
-	currentTask, currentStatus, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
-		return
-	}
-
 	// Preserve certain fields that shouldn't be changed via general update
-	updatedTask.ID = currentTask.ID
+	updatedTask.ID = taskID
 	updatedTask.Type = currentTask.Type
 	updatedTask.CreatedBy = currentTask.CreatedBy
 	updatedTask.CreatedAt = currentTask.CreatedAt
@@ -694,7 +698,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Validate operation if it was changed
 	validOperations := []string{"generator", "improver"}
 	if !slices.Contains(validOperations, updatedTask.Operation) {
-		http.Error(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validOperations), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validOperations), http.StatusBadRequest)
 		return
 	}
 
@@ -702,7 +706,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if updatedTask.Operation != currentTask.Operation {
 		_, err := h.assembler.SelectPromptAssembly(updatedTask.Type, updatedTask.Operation)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Unsupported operation combination after update: %v", err), http.StatusBadRequest)
+			writeError(w, fmt.Sprintf("Unsupported operation combination after update: %v", err), http.StatusBadRequest)
 			return
 		}
 	}
@@ -713,7 +717,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Validate status if provided
 	newStatus := updatedTask.Status
 	if newStatus != "" && !tasks.IsValidStatus(newStatus) {
-		http.Error(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()), http.StatusBadRequest)
 		return
 	}
 
@@ -752,7 +756,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		updatedTask.CompletionCount = currentTask.CompletionCount // Preserve for increment logic
 		now, err := h.applyStatusTransitionLogic(&updatedTask, taskID, currentStatus, newStatus)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
 			return
 		}
 		updatedTask.UpdatedAt = now
@@ -766,20 +770,19 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		// Move the task file to the new status directory
 		if err := h.storage.MoveTask(taskID, currentStatus, newStatus); err != nil {
 			systemlog.Errorf("Failed to move task %s from %s to %s via MoveTask: %v", taskID, currentStatus, newStatus, err)
-			http.Error(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
 			return
 		}
 		// CRITICAL: Save the updated task with all field changes to the new location
 		// Do NOT reload from disk as that would discard all the field updates we just applied
 		if err := h.storage.SaveQueueItem(updatedTask, newStatus); err != nil {
 			systemlog.Errorf("Failed to save updated task %s after move to %s: %v", taskID, newStatus, err)
-			http.Error(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
 			return
 		}
-		currentStatus = newStatus
 	} else {
 		if err := h.storage.SaveQueueItem(updatedTask, currentStatus); err != nil {
-			http.Error(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -808,7 +811,7 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Delete the task file
 	status, err := h.storage.DeleteTask(taskID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to delete task: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to delete task: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -823,20 +826,15 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 
 // GetTaskPromptHandler retrieves prompt details for a task
 func (h *TaskHandlers) GetTaskPromptHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	// Find task
-	task, _, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
 		return
 	}
 
 	// Generate prompt sections
 	sections, err := h.assembler.GeneratePromptSections(*task)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate prompt: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to generate prompt: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -855,20 +853,16 @@ func (h *TaskHandlers) GetTaskPromptHandler(w http.ResponseWriter, r *http.Reque
 
 // GetAssembledPromptHandler returns the fully assembled prompt for a task
 func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	// Find task
-	task, status, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
+	task, status, ok := h.getTaskFromRequest(r, w)
+	if !ok {
 		return
 	}
+	taskID := task.ID
 
 	fromCache := false
 	assembly, err := h.assembler.AssemblePromptForTask(*task)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
 		return
 	}
 	prompt := assembly.Prompt
@@ -903,29 +897,25 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 
 // UpdateTaskStatusHandler updates just the status/progress of a task (simpler than full update)
 func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
+	task, currentStatus, ok := h.getTaskFromRequest(r, w)
+	if !ok {
+		return
+	}
+	taskID := task.ID
 
-	var update struct {
+	type updateRequest struct {
 		Status       string `json:"status"`
 		CurrentPhase string `json:"current_phase"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	// Find current task location
-	task, currentStatus, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
+	update, ok := decodeJSONBody[updateRequest](w, r)
+	if !ok {
 		return
 	}
 
 	// Validate status if provided
 	if update.Status != "" && !tasks.IsValidStatus(update.Status) {
-		http.Error(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", update.Status, tasks.GetValidStatuses()), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", update.Status, tasks.GetValidStatuses()), http.StatusBadRequest)
 		return
 	}
 
@@ -934,9 +924,9 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		task.Status = update.Status
 
 		// Apply consolidated status transition logic
-		now, err := h.applyStatusTransitionLogic(task, taskID, currentStatus, update.Status)
+		now, err := h.applyStatusTransitionLogic(task, task.ID, currentStatus, update.Status)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
 			return
 		}
 		task.UpdatedAt = now
@@ -944,7 +934,7 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		// Move task to new status if needed
 		if update.Status != currentStatus {
 			if err := h.storage.MoveTask(taskID, currentStatus, update.Status); err != nil {
-				http.Error(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
+				writeError(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
 				return
 			}
 		}
@@ -958,7 +948,7 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 
 	// Save updated task
 	if err := h.storage.SaveQueueItem(*task, task.Status); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -1045,9 +1035,8 @@ func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
 func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Request) {
 	defaultID := fmt.Sprintf("temp-prompt-viewer-%d", time.Now().UnixNano())
 
-	var req promptPreviewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+	req, ok := decodeJSONBody[promptPreviewRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -1059,19 +1048,19 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 	tempTask := req.buildTask(defaultID)
 
 	if _, err := h.assembler.SelectPromptAssembly(tempTask.Type, tempTask.Operation); err != nil {
-		http.Error(w, fmt.Sprintf("Unsupported operation combination %s/%s: %v", tempTask.Type, tempTask.Operation, err), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Unsupported operation combination %s/%s: %v", tempTask.Type, tempTask.Operation, err), http.StatusBadRequest)
 		return
 	}
 
 	sections, err := h.assembler.GeneratePromptSections(tempTask)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get prompt sections: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to get prompt sections: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	assembly, err := h.assembler.AssemblePromptForTask(tempTask)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
 		return
 	}
 	prompt := assembly.Prompt
@@ -1110,4 +1099,103 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, response, http.StatusOK)
+}
+
+// GetExecutionHistoryHandler retrieves execution history for a task
+func (h *TaskHandlers) GetExecutionHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
+		return
+	}
+	taskID := task.ID
+
+	// Load execution history
+	history, err := h.processor.LoadExecutionHistory(taskID)
+	if err != nil {
+		writeError(w, fmt.Sprintf("Failed to load execution history: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"task_id":    taskID,
+		"executions": history,
+		"count":      len(history),
+	}, http.StatusOK)
+}
+
+// GetAllExecutionHistoryHandler retrieves execution history for all tasks
+func (h *TaskHandlers) GetAllExecutionHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	// Load all execution history
+	history, err := h.processor.LoadAllExecutionHistory()
+	if err != nil {
+		writeError(w, fmt.Sprintf("Failed to load execution history: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"executions": history,
+		"count":      len(history),
+	}, http.StatusOK)
+}
+
+// GetExecutionPromptHandler retrieves the prompt file for a specific execution
+func (h *TaskHandlers) GetExecutionPromptHandler(w http.ResponseWriter, r *http.Request) {
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
+		return
+	}
+
+	vars := mux.Vars(r)
+	executionID := vars["execution_id"]
+	taskID := task.ID
+
+	// Load the prompt file from execution history
+	promptPath := h.processor.GetExecutionFilePath(taskID, executionID, "prompt.txt")
+	content, err := os.ReadFile(promptPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeError(w, "Execution prompt not found", http.StatusNotFound)
+			return
+		}
+		writeError(w, fmt.Sprintf("Failed to read prompt file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"task_id":      taskID,
+		"execution_id": executionID,
+		"prompt":       string(content),
+		"size":         len(content),
+	}, http.StatusOK)
+}
+
+// GetExecutionOutputHandler retrieves the output log for a specific execution
+func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.Request) {
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
+		return
+	}
+
+	vars := mux.Vars(r)
+	executionID := vars["execution_id"]
+	taskID := task.ID
+
+	// Load the output log from execution history
+	outputPath := h.processor.GetExecutionFilePath(taskID, executionID, "output.log")
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeError(w, "Execution output not found", http.StatusNotFound)
+			return
+		}
+		writeError(w, fmt.Sprintf("Failed to read output file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"task_id":      taskID,
+		"execution_id": executionID,
+		"output":       string(content),
+		"size":         len(content),
+	}, http.StatusOK)
 }

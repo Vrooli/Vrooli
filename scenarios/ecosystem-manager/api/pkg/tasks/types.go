@@ -99,11 +99,6 @@ type ScenarioInfo struct {
 	Description string `json:"description"`
 	Version     string `json:"version,omitempty"`
 	Status      string `json:"status,omitempty"` // e.g., "available", "running"
-	// Legacy fields - kept for compatibility but not populated
-	PRDComplete    int  `json:"prd_completion_percentage,omitempty"`
-	Healthy        bool `json:"healthy,omitempty"`
-	P0Requirements int  `json:"p0_requirements,omitempty"`
-	P0Completed    int  `json:"p0_completed,omitempty"`
 }
 
 // PRDStatus represents the status of a scenario's PRD

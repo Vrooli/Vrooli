@@ -18,7 +18,7 @@ func LogsHandler(w http.ResponseWriter, r *http.Request) {
 
 	entries, err := systemlog.RecentEntries(limit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

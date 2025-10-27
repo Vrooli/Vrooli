@@ -176,7 +176,7 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 	rateLimitPaused, pauseUntil := qp.IsRateLimitPaused()
 	var rateLimitInfo map[string]any
 	if rateLimitPaused {
-		remaining := pauseUntil.Sub(time.Now())
+		remaining := time.Until(pauseUntil)
 		rateLimitInfo = map[string]any{
 			"paused":         true,
 			"pause_until":    pauseUntil.Format(time.RFC3339),

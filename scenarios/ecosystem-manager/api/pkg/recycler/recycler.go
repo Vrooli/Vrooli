@@ -11,6 +11,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/summarizer"
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
@@ -183,9 +184,11 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 	}
 
 	now := timeutil.NowRFC3339()
-	ensureResultsMap(task)
-	task.Results["recycler_classification"] = result.Classification
-	task.Results["recycler_updated_at"] = now
+
+	// Use structured results for recycler info
+	taskResults := tasks.FromMap(task.Results)
+	taskResults.SetRecyclerInfo(result.Classification, now)
+	task.Results = taskResults.ToMap()
 
 	classification := strings.ToLower(result.Classification)
 	switch classification {
@@ -221,6 +224,15 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 	task.CompletedAt = ""
 	task.ProcessorAutoRequeue = true
 
+	// CRITICAL: Convert Generator tasks to Improver after first completion
+	// Generator creates NEW resources/scenarios, Improver enhances EXISTING ones
+	// Once a task completes successfully once, the target exists and should be improved, not regenerated
+	if task.Operation == "generator" {
+		task.Operation = "improver"
+		log.Printf("Recycler converted task %s from generator to improver (completion count: %d)", task.ID, task.CompletionCount)
+		systemlog.Infof("Task %s converted from generator to improver after completion", task.ID)
+	}
+
 	if err := r.persistTask(task, "pending"); err != nil {
 		return err
 	}
@@ -233,12 +245,13 @@ func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.Recycler
 	output := extractOutput(task.Results)
 	now := timeutil.NowRFC3339()
 
-	ensureResultsMap(task)
-	task.Results["recycler_updated_at"] = now
-
 	// Failure streak increments regardless of summarizer outcome.
 	task.ConsecutiveFailures++
 	task.ConsecutiveCompletionClaims = 0
+
+	// Use structured results for recycler info
+	taskResults := tasks.FromMap(task.Results)
+	var classification string
 
 	if strings.TrimSpace(output) != "" {
 		result, err := summarizer.GenerateNote(context.Background(), summarizer.Config{
@@ -248,15 +261,18 @@ func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.Recycler
 		if err != nil {
 			log.Printf("Recycler summarizer error for failed task %s: %v", task.ID, err)
 			task.Notes = "Not sure current status"
-			task.Results["recycler_classification"] = "uncertain"
+			classification = "uncertain"
 		} else {
 			task.Notes = result.Note
-			task.Results["recycler_classification"] = result.Classification
+			classification = result.Classification
 		}
 	} else {
 		task.Notes = "Not sure current status"
-		task.Results["recycler_classification"] = "uncertain"
+		classification = "uncertain"
 	}
+
+	taskResults.SetRecyclerInfo(classification, now)
+	task.Results = taskResults.ToMap()
 
 	task.UpdatedAt = now
 

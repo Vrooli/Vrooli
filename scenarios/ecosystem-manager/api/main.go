@@ -213,8 +213,14 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/tasks/{id}", taskHandlers.GetTaskHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}", taskHandlers.UpdateTaskHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}", taskHandlers.DeleteTaskHandler).Methods("DELETE")
-	api.HandleFunc("/tasks/{id}/status", taskHandlers.UpdateTaskStatusHandler).Methods("PUT") // Missing route
+	api.HandleFunc("/tasks/{id}/status", taskHandlers.UpdateTaskStatusHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}/logs", taskHandlers.GetTaskLogsHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions", taskHandlers.GetExecutionHistoryHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions/{execution_id}/prompt", taskHandlers.GetExecutionPromptHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions/{execution_id}/output", taskHandlers.GetExecutionOutputHandler).Methods("GET")
+
+	// Global execution history (all tasks)
+	api.HandleFunc("/executions", taskHandlers.GetAllExecutionHistoryHandler).Methods("GET")
 
 	// Task prompt operations
 	api.HandleFunc("/tasks/{id}/prompt", taskHandlers.GetTaskPromptHandler).Methods("GET")
@@ -254,8 +260,8 @@ func setupRoutes() http.Handler {
 	// Discovery routes
 	api.HandleFunc("/resources", discoveryHandlers.GetResourcesHandler).Methods("GET")
 	api.HandleFunc("/scenarios", discoveryHandlers.GetScenariosHandler).Methods("GET")
-	api.HandleFunc("/resources/{name}/status", discoveryHandlers.GetResourceStatusHandler).Methods("GET") // Missing route
-	api.HandleFunc("/scenarios/{name}/status", discoveryHandlers.GetScenarioStatusHandler).Methods("GET") // Missing route
+	api.HandleFunc("/resources/{name}/status", discoveryHandlers.GetResourceStatusHandler).Methods("GET")
+	api.HandleFunc("/scenarios/{name}/status", discoveryHandlers.GetScenarioStatusHandler).Methods("GET")
 	api.HandleFunc("/operations", discoveryHandlers.GetOperationsHandler).Methods("GET")
 	api.HandleFunc("/categories", discoveryHandlers.GetCategoriesHandler).Methods("GET")
 

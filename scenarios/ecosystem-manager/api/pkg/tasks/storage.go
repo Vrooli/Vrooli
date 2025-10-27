@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -14,8 +13,6 @@ import (
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"gopkg.in/yaml.v3"
 )
-
-var timestampSuffixPattern = regexp.MustCompile(`-(\d{6}|\d{8}|\d{4}-\d{2}-\d{2})$`)
 
 var activeTaskStatuses = []string{"pending", "in-progress", "review"}
 
@@ -416,57 +413,6 @@ func (s *Storage) CleanupDuplicates() error {
 	return nil
 }
 
-// findTaskFile returns the path and contents for a task file within a specific status directory.
-func (s *Storage) findTaskFile(status, taskID string) (string, []byte, error) {
-	queuePath := filepath.Join(s.QueueDir, status)
-
-	candidate := filepath.Join(queuePath, fmt.Sprintf("%s.yaml", taskID))
-	if data, err := os.ReadFile(candidate); err == nil {
-		return candidate, data, nil
-	}
-
-	// Handle cases where filename omits timestamp suffixes
-	taskIDPrefix := taskID
-	if matches := timestampSuffixPattern.FindStringSubmatch(taskID); len(matches) > 0 {
-		taskIDPrefix = taskID[:len(taskID)-len(matches[0])]
-	}
-
-	entries, err := os.ReadDir(queuePath)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to read %s queue: %w", status, err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if !strings.HasSuffix(name, ".yaml") {
-			continue
-		}
-		nameWithoutExt := strings.TrimSuffix(name, ".yaml")
-		if nameWithoutExt != taskID && nameWithoutExt != taskIDPrefix {
-			continue
-		}
-
-		path := filepath.Join(queuePath, name)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to read task file %s: %w", path, err)
-		}
-
-		var task TaskItem
-		if err := yaml.Unmarshal(data, &task); err != nil {
-			continue
-		}
-		if task.ID == taskID {
-			return path, data, nil
-		}
-	}
-
-	return "", nil, fmt.Errorf("failed to find task file for ID %s in status %s", taskID, status)
-}
-
 // CurrentStatus returns the queue directory that currently holds the task, if any.
 func (s *Storage) CurrentStatus(taskID string) (string, error) {
 	_, status, err := s.GetTaskByID(taskID)
@@ -598,12 +544,6 @@ func (s *Storage) readAndValidateTaskFile(filePath, taskID string) (*TaskItem, e
 	}
 
 	return &task, nil
-}
-
-// filenameMatchesTaskID checks if a filename (without .yaml) matches the taskID or its prefix
-func filenameMatchesTaskID(filename, taskID, taskIDPrefix string) bool {
-	nameWithoutExt := strings.TrimSuffix(filename, ".yaml")
-	return nameWithoutExt == taskID || nameWithoutExt == taskIDPrefix
 }
 
 // GetTaskByID finds a task by ID across all queue statuses using a progressive search strategy
