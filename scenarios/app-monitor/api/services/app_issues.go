@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"app-monitor-api/logger"
 )
 
 // =============================================================================
@@ -244,7 +246,7 @@ func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error)
 	if port, err := resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "API_PORT"); err == nil && port > 0 {
 		return port, nil
 	} else if err != nil {
-		fmt.Printf("Warning: failed to resolve app-issue-tracker port via CLI: %v\n", err)
+		logger.Warn("failed to resolve app-issue-tracker port via CLI", err)
 	}
 
 	apps, err := s.GetAppsFromOrchestrator(ctx)
@@ -274,7 +276,7 @@ func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, err
 	if port, err := resolveScenarioPortViaCLI(ctx, "scenario-auditor", "API_PORT"); err == nil && port > 0 {
 		return port, nil
 	} else if err != nil {
-		fmt.Printf("Warning: failed to resolve scenario-auditor port via CLI: %v\n", err)
+		logger.Warn("failed to resolve scenario-auditor port via CLI", err)
 	}
 
 	apps, err := s.GetAppsFromOrchestrator(ctx)

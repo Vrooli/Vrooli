@@ -89,8 +89,17 @@ func formatMillisTimestamp(value int64) string {
 // String Utilities
 // =============================================================================
 
+// normalizeIdentifier converts a string to lowercase and trims whitespace for comparison.
+// Returns empty string if the input is empty or contains only whitespace.
+// This is functionally equivalent to the TypeScript normalizeIdentifier which returns null
+// for empty inputs - both empty string (Go) and null (TS) are falsy and must be checked
+// before use (e.g., `if value != ""` or `if (!value)`).
 func normalizeIdentifier(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.ToLower(trimmed)
 }
 
 func stringValue(value *string) string {

@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"app-monitor-api/logger"
 )
 
 // =============================================================================
@@ -74,7 +76,7 @@ func (s *AppService) GetAppLogs(ctx context.Context, appName string, logType str
 	for _, candidate := range backgroundCandidates {
 		stepOutput, stepErr := s.runScenarioLogsCommand(ctx, appName, "--step", candidate.Step)
 		if stepErr != nil {
-			fmt.Printf("Warning: failed to fetch background logs for %s/%s: %v\n", appName, candidate.Step, stepErr)
+			logger.Warn(fmt.Sprintf("failed to fetch background logs for %s/%s", appName, candidate.Step), stepErr)
 			continue
 		}
 

@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"app-monitor-api/logger"
 )
 
 // =============================================================================
@@ -72,7 +74,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	screenshotData := strings.TrimSpace(stringValue(req.ScreenshotData))
 	if screenshotData != "" {
 		if _, err := base64.StdEncoding.DecodeString(screenshotData); err != nil {
-			fmt.Printf("Warning: invalid screenshot data provided, ignoring: %v\n", err)
+			logger.Warn("invalid screenshot data provided, ignoring", err)
 			screenshotData = ""
 		}
 	}
@@ -437,7 +439,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 			u.RawQuery = query.Encode()
 			result.IssueURL = u.String()
 		} else if err != nil {
-			fmt.Printf("Warning: failed to resolve app-issue-tracker UI port: %v\n", err)
+			logger.Warn("failed to resolve app-issue-tracker UI port", err)
 		}
 	}
 
@@ -743,12 +745,12 @@ func sanitizeIssueCaptures(entries []IssueCapture, maxEntries, maxNoteLength, ma
 
 		// Reject oversized captures (>3 MiB base64 = ~2.25 MiB decoded)
 		if len(base64Payload) > 3*1024*1024 {
-			fmt.Printf("Warning: capture too large (%d bytes base64), skipping\n", len(base64Payload))
+			logger.Warn(fmt.Sprintf("capture too large (%d bytes base64), skipping", len(base64Payload)))
 			continue
 		}
 
 		if _, err := base64.StdEncoding.DecodeString(base64Payload); err != nil {
-			fmt.Printf("Warning: invalid capture data provided, ignoring element capture: %v\n", err)
+			logger.Warn("invalid capture data provided, ignoring element capture", err)
 			continue
 		}
 

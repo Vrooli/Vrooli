@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,11 +16,16 @@ import (
 )
 
 type InvestigationService struct {
-	server      *Server
-	now         func() time.Time
-	prompts     *PromptBuilder
-	rateLimiter *RateLimitManager
+	server          *Server
+	now             func() time.Time
+	prompts         *PromptBuilder
+	rateLimiter     *RateLimitManager
+	restartScenario scenarioRestarter
 }
+
+type scenarioRestarter func(ctx context.Context, scenario string) (string, error)
+
+const scenarioRestartTimeout = 2 * time.Minute
 
 func NewInvestigationService(server *Server) *InvestigationService {
 	svc := &InvestigationService{
@@ -26,7 +34,33 @@ func NewInvestigationService(server *Server) *InvestigationService {
 	}
 	svc.prompts = NewPromptBuilder(server.config.ScenarioRoot)
 	svc.rateLimiter = NewRateLimitManager(server, func() time.Time { return svc.now() })
+	svc.restartScenario = svc.defaultScenarioRestarter
 	return svc
+}
+
+func (svc *InvestigationService) defaultScenarioRestarter(ctx context.Context, scenario string) (string, error) {
+	workingDir := svc.scenarioRestartWorkingDir()
+	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "restart", scenario)
+	cmd.Dir = workingDir
+	cmd.Env = os.Environ()
+	output, err := cmd.CombinedOutput()
+	return string(output), err
+}
+
+func (svc *InvestigationService) scenarioRestartWorkingDir() string {
+	scenarioRoot := strings.TrimSpace(svc.server.config.ScenarioRoot)
+	if scenarioRoot == "" {
+		return "."
+	}
+	cleanRoot := filepath.Clean(scenarioRoot)
+	parent := filepath.Dir(cleanRoot)
+	if filepath.Base(parent) == "scenarios" {
+		repoRoot := filepath.Dir(parent)
+		if repoRoot != "" && repoRoot != "." {
+			return repoRoot
+		}
+	}
+	return parent
 }
 
 func (s *Server) loadPromptTemplate() string {
@@ -308,8 +342,52 @@ func (svc *InvestigationService) handleInvestigationSuccess(issueID, agentID str
 
 	reportContent := strings.TrimSpace(result.LastMessage)
 	if reportContent == "" {
-		reportContent = result.Output
+		reportContent = strings.TrimSpace(result.Output)
 	}
+
+	scenarioName := strings.TrimSpace(issue.AppID)
+	if scenarioName != "" {
+		restartCtx, cancel := context.WithTimeout(context.Background(), scenarioRestartTimeout)
+		output, restartErr := svc.restartScenario(restartCtx, scenarioName)
+		cancel()
+
+		trimmedOutput := strings.TrimSpace(stripANSI(output))
+		if restartErr != nil {
+			failureMessage := fmt.Sprintf("Failed to restart scenario '%s': %v", scenarioName, restartErr)
+			if trimmedOutput != "" {
+				failureMessage = fmt.Sprintf("%s\nCommand output:\n%s", failureMessage, trimmedOutput)
+			}
+
+			services.MarkInvestigationFailure(issue, failureMessage, reportContent, nowUTC)
+			services.RecordAgentExecutionFailure(issue, failureMessage, nowUTC, result.TranscriptPath, result.LastMessagePath, result.MaxTurnsExceeded)
+
+			if saveErr := svc.server.writeIssueMetadata(issueDir, issue); saveErr != nil {
+				logging.LogErrorErr("Failed to persist investigation metadata after restart error", saveErr, "issue_id", issueID)
+			}
+
+			newStatus := "failed"
+			if moveErr := svc.server.moveIssue(issueID, "failed"); moveErr != nil {
+				logging.LogErrorErr("Failed to move issue to failed after restart error", moveErr, "issue_id", issueID)
+				newStatus = ""
+			}
+
+			svc.server.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
+				IssueID:   issueID,
+				AgentID:   agentID,
+				Success:   false,
+				EndTime:   nowUTC,
+				NewStatus: newStatus,
+			}))
+			return
+		}
+
+		if trimmedOutput != "" {
+			logging.LogInfo("Scenario restart completed", "issue_id", issueID, "scenario", scenarioName, "output", trimmedOutput)
+		} else {
+			logging.LogInfo("Scenario restart completed", "issue_id", issueID, "scenario", scenarioName)
+		}
+	}
+
 	services.MarkInvestigationSuccess(issue, reportContent, nowUTC, result.TranscriptPath, result.LastMessagePath)
 
 	if saveErr := svc.server.writeIssueMetadata(issueDir, issue); saveErr != nil {

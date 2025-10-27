@@ -3,6 +3,9 @@ import type { App } from '@/types';
 /**
  * Normalizes an identifier string for comparison purposes.
  * Returns lowercase, trimmed string or null if invalid.
+ *
+ * Note: The Go implementation in app_utils.go returns empty string instead of null,
+ * but both are functionally equivalent (falsy values that must be checked before use).
  */
 export const normalizeIdentifier = (value?: string | null): string | null => {
   if (!value) {

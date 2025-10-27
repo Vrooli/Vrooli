@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"app-monitor-api/logger"
 )
 
 // SystemMetrics represents system-wide metrics
@@ -131,7 +133,7 @@ func (s *MetricsService) collectSystemMetrics(ctx context.Context) (*SystemMetri
 
 	// Return partial results even if some metrics failed
 	if len(collectionErrors) > 0 {
-		fmt.Printf("Warning: Some metrics collection failed: %v\n", collectionErrors)
+		logger.Warn(fmt.Sprintf("some metrics collection failed: %v", collectionErrors))
 	}
 
 	return metrics, nil

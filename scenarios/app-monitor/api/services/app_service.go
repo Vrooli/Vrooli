@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"app-monitor-api/logger"
 	"app-monitor-api/repository"
 )
 
@@ -66,7 +67,7 @@ func (s *AppService) GetAppsSummary(ctx context.Context) ([]repository.App, erro
 	if shouldHydrate {
 		go func() {
 			if _, err := s.GetAppsFromOrchestrator(context.Background()); err != nil {
-				fmt.Printf("Warning: background hydration failed: %v\n", err)
+				logger.Warn("background hydration failed", err)
 			}
 
 			s.cache.mu.Lock()
@@ -87,7 +88,7 @@ func (s *AppService) GetApps(ctx context.Context) ([]repository.App, error) {
 	}
 
 	// Log orchestrator error but continue with database fallback
-	fmt.Printf("Warning: Failed to get apps from orchestrator: %v\n", err)
+	logger.Warn("failed to get apps from orchestrator", err)
 
 	// Fall back to database if orchestrator fails
 	if s.repo != nil {
@@ -304,7 +305,7 @@ func (s *AppService) RecordAppView(ctx context.Context, identifier string) (*rep
 	if s.repo != nil {
 		persisted, err := s.repo.RecordAppView(ctx, scenarioName)
 		if err != nil {
-			fmt.Printf("Warning: failed to persist view stats for %s: %v\n", scenarioName, err)
+			logger.Warn(fmt.Sprintf("failed to persist view stats for %s", scenarioName), err)
 			persisted = nil
 		}
 		stats = persisted
