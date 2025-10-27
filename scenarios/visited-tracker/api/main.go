@@ -1085,6 +1085,58 @@ func structureSyncHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(syncResult)
 }
 
+// Helper: Load campaign and prepare it for prioritization queries
+func loadAndPrepareCampaign(campaignID uuid.UUID, w http.ResponseWriter) (*Campaign, bool) {
+	campaign, err := loadCampaign(campaignID)
+	if err != nil {
+		if err.Error() == "campaign not found" {
+			http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+		} else {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+		}
+		return nil, false
+	}
+
+	// Update staleness scores before returning
+	updateStalenessScores(campaign)
+	return campaign, true
+}
+
+// Helper: Parse limit query parameter with default value
+func parseLimit(r *http.Request, defaultLimit int) int {
+	limitStr := r.URL.Query().Get("limit")
+	if limitStr == "" {
+		return defaultLimit
+	}
+	if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+		return parsed
+	}
+	return defaultLimit
+}
+
+// Helper: Parse threshold query parameter with default value
+func parseThreshold(r *http.Request, defaultThreshold float64) float64 {
+	thresholdStr := r.URL.Query().Get("threshold")
+	if thresholdStr == "" {
+		return defaultThreshold
+	}
+	if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+		return parsed
+	}
+	return defaultThreshold
+}
+
+// Helper: Filter out deleted files from a campaign
+func getNonDeletedFiles(campaign *Campaign) []TrackedFile {
+	var files []TrackedFile
+	for _, file := range campaign.TrackedFiles {
+		if !file.Deleted {
+			files = append(files, file)
+		}
+	}
+	return files
+}
+
 func leastVisitedHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -1092,38 +1144,19 @@ func leastVisitedHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
-	// Parse query parameters
-	limitStr := r.URL.Query().Get("limit")
-	limit := 10
-	if limitStr != "" {
-		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
-	
-	// Load campaign
-	campaign, err := loadCampaign(campaignID)
-	if err != nil {
-		if err.Error() == "campaign not found" {
-			http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
-			return
-		}
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+
+	// Parse limit with default of 10
+	limit := parseLimit(r, 10)
+
+	// Load and prepare campaign
+	campaign, ok := loadAndPrepareCampaign(campaignID, w)
+	if !ok {
 		return
 	}
-	
-	// Update staleness scores
-	updateStalenessScores(campaign)
-	
-	// Filter and sort files
-	var files []TrackedFile
-	for _, file := range campaign.TrackedFiles {
-		if !file.Deleted {
-			files = append(files, file)
-		}
-	}
-	
+
+	// Filter deleted files
+	files := getNonDeletedFiles(campaign)
+
 	// Sort by visit count (ascending), then staleness (descending)
 	sort.Slice(files, func(i, j int) bool {
 		if files[i].VisitCount == files[j].VisitCount {
@@ -1131,12 +1164,12 @@ func leastVisitedHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return files[i].VisitCount < files[j].VisitCount
 	})
-	
+
 	// Limit results
 	if len(files) > limit {
 		files = files[:limit]
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"files": files,
@@ -1150,39 +1183,18 @@ func mostStaleHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
-	// Parse query parameters
-	limitStr := r.URL.Query().Get("limit")
-	limit := 10
-	if limitStr != "" {
-		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
-	
-	thresholdStr := r.URL.Query().Get("threshold")
-	threshold := 0.0
-	if thresholdStr != "" {
-		if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
-			threshold = parsed
-		}
-	}
-	
-	// Load campaign
-	campaign, err := loadCampaign(campaignID)
-	if err != nil {
-		if err.Error() == "campaign not found" {
-			http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
-			return
-		}
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+
+	// Parse query parameters with defaults
+	limit := parseLimit(r, 10)
+	threshold := parseThreshold(r, 0.0)
+
+	// Load and prepare campaign
+	campaign, ok := loadAndPrepareCampaign(campaignID, w)
+	if !ok {
 		return
 	}
-	
-	// Update staleness scores
-	updateStalenessScores(campaign)
-	
-	// Filter and sort files
+
+	// Filter files by staleness threshold and deletion status
 	var files []TrackedFile
 	for _, file := range campaign.TrackedFiles {
 		if !file.Deleted && file.StalenessScore >= threshold {

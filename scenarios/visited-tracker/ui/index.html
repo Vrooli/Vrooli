@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visited Tracker - Campaign Management</title>
+    <link rel="stylesheet" href="common.css">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script type="importmap">
       {
@@ -271,7 +272,7 @@
             gap: 16px;
             margin-bottom: 24px;
             flex-wrap: wrap;
-            align-items: flex-end;
+            align-items: center;
         }
 
         .btn {
@@ -316,8 +317,9 @@
         }
 
         .search-box {
-            flex: 1;
-            max-width: 400px;
+            flex: 1 1 280px;
+            max-width: 420px;
+            min-width: 220px;
             position: relative;
         }
 
@@ -355,6 +357,12 @@
             display: flex;
             gap: 8px;
             align-items: center;
+            flex: 0 1 220px;
+            min-width: 180px;
+        }
+
+        .filter-group .select {
+            flex: 1 1 auto;
         }
 
         .filter-label {
@@ -376,6 +384,36 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
+        }
+        
+        @media (max-width: 900px) {
+            .controls {
+                align-items: stretch;
+            }
+
+            .search-box {
+                flex-basis: 100%;
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .controls > * {
+                width: 100%;
+            }
+
+            .filter-group {
+                justify-content: space-between;
+            }
+
+            .filter-group .select {
+                width: auto;
+            }
         }
 
         .campaign-card {
@@ -812,6 +850,10 @@
                 <span>Visited Tracker Campaigns</span>
             </div>
             <div class="header-controls">
+                <a href="/docs" class="btn" title="API Usage Guide">
+                    <i data-lucide="book-open"></i>
+                    <span>API Guide</span>
+                </a>
                 <div class="connection-indicator" id="connectionIndicator" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" aria-label="View connection details">
                     <div class="connection-dot"></div>
                     <span id="connectionStatus">Connecting...</span>
@@ -987,6 +1029,25 @@
             return value.endsWith('/') ? value.slice(0, -1) : value;
         };
 
+        const pickFirstString = (...values) => {
+            for (const value of values) {
+                if (Array.isArray(value)) {
+                    const nested = pickFirstString(...value);
+                    if (nested) {
+                        return nested;
+                    }
+                    continue;
+                }
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed.length > 0) {
+                        return trimmed;
+                    }
+                }
+            }
+            return '';
+        };
+
         function buildApiUrl(path = '') {
             const base = normalizeBase(API_BASE) || DEFAULT_PROXY_BASE;
             if (!path) return base;
@@ -1019,20 +1080,62 @@
         }
 
         function applyProxyEntry(entry) {
-            if (!entry || (!entry.path && !entry.url)) {
+            if (!entry || typeof entry !== 'object') {
                 return false;
             }
-            const normalizedPath = entry.path ? normalizeBase(String(entry.path)) : '';
-            const rootUrl = entry.url && typeof entry.url === 'string' && entry.url.length > 0
-                ? normalizeBase(entry.url)
-                : (normalizedPath ? `${window.location.origin}${normalizedPath}` : '');
-            if (!rootUrl) {
+
+            const versionPattern = /\/api\/v\d+$/i;
+            const rawBaseCandidate = pickFirstString(
+                entry.apiBase,
+                entry.api_base,
+                entry.apiUrl,
+                entry.api_url,
+                entry.url,
+                entry.urls && entry.urls.api,
+                entry.proxyUrl,
+                entry.proxy_url,
+                entry.publicUrl,
+                entry.public_url
+            );
+            const normalizedPath = pickFirstString(entry.path, entry.proxyPath, entry.proxy_path);
+            let baseSource = normalizeBase(rawBaseCandidate);
+            if (baseSource && !baseSource.startsWith('http') && !baseSource.startsWith('/')) {
+                baseSource = `/${baseSource}`;
+            }
+            if (!baseSource && normalizedPath) {
+                const ensuredPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+                baseSource = normalizeBase(`${window.location.origin}${ensuredPath}`);
+            }
+
+            if (!baseSource) {
                 return false;
             }
-            API_BASE = `${rootUrl}/api/v1`.replace('//api', '/api');
-            HEALTH_ENDPOINT = `${rootUrl}/health`;
-            displayApiEndpoint = rootUrl;
-            addLog(`Using App Monitor proxy API at ${displayApiEndpoint}`, 'info');
+
+            const normalizedBase = normalizeBase(baseSource);
+            const hasVersion = versionPattern.test(normalizedBase);
+            const apiBase = hasVersion ? normalizedBase : `${normalizedBase}/api/v1`;
+            const displayBase = hasVersion
+                ? normalizeBase(apiBase.replace(versionPattern, ''))
+                : normalizedBase;
+
+            const healthCandidate = pickFirstString(
+                entry.healthUrl,
+                entry.health_url,
+                entry.urls && entry.urls.health
+            );
+            let normalizedHealth = normalizeBase(healthCandidate);
+            if (normalizedHealth && !normalizedHealth.startsWith('http') && !normalizedHealth.startsWith('/')) {
+                normalizedHealth = `/${normalizedHealth}`;
+            }
+            const healthBase = normalizedHealth
+                ? normalizedHealth
+                : (displayBase ? `${displayBase}/health` : '');
+
+            API_BASE = apiBase;
+            displayApiEndpoint = displayBase;
+            HEALTH_ENDPOINT = healthBase || DEFAULT_HEALTH_ENDPOINT;
+
+            addLog(`Using App Monitor proxy API at ${displayApiEndpoint || API_BASE}`, 'info');
             return true;
         }
 
@@ -1173,35 +1276,43 @@
                 const directUrl = normalizeBase(config.apiUrl);
                 const displayUrl = config.displayApiUrl ? normalizeBase(config.displayApiUrl) : directUrl;
 
-                if (proxiedBase) {
-                    API_BASE = proxiedBase;
-                } else if (directBase) {
-                    API_BASE = directBase;
-                } else if (directUrl) {
-                    API_BASE = `${directUrl}/api/v1`;
-                } else {
-                    API_BASE = DEFAULT_PROXY_BASE;
-                }
+                const proxyInfo = readProxyInfo();
+                const proxyEntry = findApiPortEntry(proxyInfo);
+                const bridgeApplied = applyProxyEntry(proxyEntry);
 
-                if (proxiedHealth) {
+                if (!bridgeApplied) {
+                    if (proxiedBase) {
+                        API_BASE = proxiedBase;
+                    } else if (directBase) {
+                        API_BASE = directBase;
+                    } else if (directUrl) {
+                        API_BASE = `${directUrl}/api/v1`;
+                    } else {
+                        API_BASE = DEFAULT_PROXY_BASE;
+                    }
+
+                    if (proxiedHealth) {
+                        HEALTH_ENDPOINT = proxiedHealth;
+                    } else if (displayUrl) {
+                        HEALTH_ENDPOINT = `${displayUrl}/health`;
+                    } else if (API_BASE.includes('/api/')) {
+                        HEALTH_ENDPOINT = `${API_BASE.replace(/\/api\/v\d+$/, '')}/health`;
+                    } else {
+                        HEALTH_ENDPOINT = DEFAULT_HEALTH_ENDPOINT;
+                    }
+
+                    if (displayUrl) {
+                        displayApiEndpoint = displayUrl;
+                    } else if (proxiedBase) {
+                        const root = proxiedBase.replace(/\/api\/v\d+$/, '');
+                        displayApiEndpoint = root.startsWith('http') ? root : `${window.location.origin}${root}`;
+                    } else if (directUrl) {
+                        displayApiEndpoint = directUrl;
+                    } else {
+                        displayApiEndpoint = '';
+                    }
+                } else if ((!HEALTH_ENDPOINT || HEALTH_ENDPOINT === DEFAULT_HEALTH_ENDPOINT) && proxiedHealth) {
                     HEALTH_ENDPOINT = proxiedHealth;
-                } else if (displayUrl) {
-                    HEALTH_ENDPOINT = `${displayUrl}/health`;
-                } else if (API_BASE.includes('/api/')) {
-                    HEALTH_ENDPOINT = `${API_BASE.replace(/\/api\/v\d+$/, '')}/health`;
-                } else {
-                    HEALTH_ENDPOINT = DEFAULT_HEALTH_ENDPOINT;
-                }
-
-                if (displayUrl) {
-                    displayApiEndpoint = displayUrl;
-                } else if (proxiedBase) {
-                    const root = proxiedBase.replace(/\/api\/v\d+$/, '');
-                    displayApiEndpoint = root.startsWith('http') ? root : `${window.location.origin}${root}`;
-                } else if (directUrl) {
-                    displayApiEndpoint = directUrl;
-                } else {
-                    displayApiEndpoint = '';
                 }
 
                 updateConnectionDetailsUI();
@@ -1214,7 +1325,6 @@
                 const proxyInfo = readProxyInfo();
                 const entry = findApiPortEntry(proxyInfo);
                 if (applyProxyEntry(entry)) {
-                    HEALTH_ENDPOINT = `${displayApiEndpoint}/health`;
                     updateConnectionDetailsUI();
                     return;
                 }

@@ -53,13 +53,14 @@ vrooli-assistant/
 
 ```bash
 # Ensure PostgreSQL is running and accessible
-export TEST_POSTGRES_URL="postgres://user:pass@localhost:5432/vrooli_assistant_test"
+# IMPORTANT: Replace PLACEHOLDER values with actual credentials from secure storage
+export TEST_POSTGRES_URL="postgres://user:PLACEHOLDER@localhost:5432/vrooli_assistant_test"
 
-# Or use individual components
-export TEST_POSTGRES_HOST="localhost"
-export TEST_POSTGRES_PORT="5432"
-export TEST_POSTGRES_USER="postgres"
-export TEST_POSTGRES_PASSWORD="postgres"
+# Or use individual components with actual credentials from environment:
+export TEST_POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+export TEST_POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+export TEST_POSTGRES_USER="${POSTGRES_USER}"
+export TEST_POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-PLACEHOLDER}"
 export TEST_POSTGRES_DB="vrooli_assistant_test"
 
 # Run tests

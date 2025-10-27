@@ -29,7 +29,6 @@
     "jest": "^29.7.0"
   },
   "dependencies": {
-    "@vrooli/iframe-bridge": "file:../../../../packages/iframe-bridge",
     "axios": "^1.6.2",
     "electron-store": "^8.1.0",
     "screenshot-desktop": "^1.12.7"

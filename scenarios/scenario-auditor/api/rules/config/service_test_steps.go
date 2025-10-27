@@ -57,6 +57,21 @@ Targets: service_json
   <expected-message>steps</expected-message>
 </test-case>
 
+<test-case id="empty-steps-array" should-fail="true">
+  <description>lifecycle.test.steps defined but empty</description>
+  <input language="json"><![CDATA[
+{
+  "lifecycle": {
+    "test": {
+      "steps": []
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>cannot be empty</expected-message>
+</test-case>
+
 <test-case id="steps-not-array" should-fail="true">
   <description>lifecycle.test.steps is not an array</description>
   <input language="json"><![CDATA[
@@ -89,7 +104,7 @@ Targets: service_json
 }
   ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>run-tests</expected-message>
+  <expected-message>test/run-tests.sh</expected-message>
 </test-case>
 
 <test-case id="valid-test-steps" should-fail="false">
@@ -128,9 +143,70 @@ Targets: service_json
 }
   ]]></input>
 </test-case>
+
+<test-case id="valid-run-tests-variant" should-fail="false">
+  <description>Accepts commands that prepare the environment before invoking the shared runner</description>
+  <input language="json"><![CDATA[
+{
+  "lifecycle": {
+    "test": {
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd test && export API_PORT=${API_PORT:-18000} && ./run-tests.sh --all",
+          "description": "Delegate testing to shared runner with environment bootstrap"
+        }
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
+<test-case id="incorrect-runner-path" should-fail="true">
+  <description>Reject runner invocations that do not target the shared orchestrator</description>
+  <input language="json"><![CDATA[
+{
+  "lifecycle": {
+    "test": {
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "scripts/run-tests.sh",
+          "description": "Incorrect runner location"
+        }
+      ]
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>test/run-tests.sh</expected-message>
+</test-case>
+
+<test-case id="non-executing-reference" should-fail="true">
+  <description>Reject commands that only mention the runner without executing it</description>
+  <input language="json"><![CDATA[
+{
+  "lifecycle": {
+    "test": {
+      "steps": [
+        {
+          "name": "noop",
+          "run": "echo 'test/run-tests.sh would run'",
+          "description": "Mentions runner without executing it"
+        }
+      ]
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>test/run-tests.sh</expected-message>
+</test-case>
 */
 
-// CheckLifecycleTestSteps validates that lifecycle.test.steps includes the standard run-tests entry.
+// CheckLifecycleTestSteps validates that lifecycle.test.steps includes a step invoking the shared test/run-tests.sh runner.
 func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 	if !shouldCheckLifecycleServiceJSON(filePath) {
 		return nil
@@ -180,39 +256,25 @@ func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 
 	if len(steps) == 0 {
 		line := findJSONLine(string(content), "\"steps\"")
-		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps must include the run-tests entry")}
+		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps cannot be empty; add a step that invokes test/run-tests.sh")}
 	}
 
-	requiredStep := map[string]string{
-		"name":        "run-tests",
-		"run":         "test/run-tests.sh",
-		"description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)",
-	}
-
-	hasRequired := false
+	hasSharedRunner := false
 	for _, entry := range steps {
 		stepMap, ok := entry.(map[string]interface{})
 		if !ok {
 			continue
 		}
 
-		match := true
-		for key, expected := range requiredStep {
-			value, ok := stepMap[key].(string)
-			if !ok || value != expected {
-				match = false
-				break
-			}
-		}
-		if match {
-			hasRequired = true
+		if usesSharedTestRunner(stepMap) {
+			hasSharedRunner = true
 			break
 		}
 	}
 
-	if !hasRequired {
+	if !hasSharedRunner {
 		line := findJSONLine(string(content), "\"steps\"")
-		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps must include the standard run-tests step")}
+		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps must include a step that invokes test/run-tests.sh")}
 	}
 
 	return nil
@@ -243,9 +305,27 @@ func newTestStepsViolation(filePath string, line int, message string) Violation 
 		Description:    message,
 		FilePath:       filePath,
 		LineNumber:     line,
-		Recommendation: "Ensure lifecycle.test.steps includes the shared run-tests step (test/run-tests.sh)",
+		Recommendation: "Ensure lifecycle.test.steps invokes the shared test/run-tests.sh runner",
 		Standard:       "configuration-v1",
 	}
+}
+
+func usesSharedTestRunner(step map[string]interface{}) bool {
+	runValue, ok := step["run"].(string)
+	if !ok {
+		return false
+	}
+	return referencesSharedTestRunner(runValue)
+}
+
+func referencesSharedTestRunner(command string) bool {
+	segments := splitCommandSegments(command)
+	for _, segment := range segments {
+		if executesSharedTestRunner(segment) {
+			return true
+		}
+	}
+	return false
 }
 
 func findJSONLine(content string, tokens ...string) int {
@@ -261,4 +341,94 @@ func findJSONLine(content string, tokens ...string) int {
 		}
 	}
 	return 1
+}
+
+func splitCommandSegments(command string) []string {
+	normalized := strings.ReplaceAll(command, "\r", "\n")
+	replacer := strings.NewReplacer("&&", "\n", "||", "\n", ";", "\n", "|", "\n")
+	normalized = replacer.Replace(normalized)
+	return strings.Split(normalized, "\n")
+}
+
+func executesSharedTestRunner(segment string) bool {
+	segment = strings.TrimSpace(segment)
+	if segment == "" {
+		return false
+	}
+
+	tokens := strings.Fields(segment)
+	if len(tokens) == 0 {
+		return false
+	}
+
+	idx := 0
+	for idx < len(tokens) && isEnvAssignment(tokens[idx]) {
+		idx++
+	}
+	if idx >= len(tokens) {
+		return false
+	}
+
+	token := tokens[idx]
+
+	wrappers := map[string]struct{}{
+		"bash": {},
+		"sh":   {},
+		"sudo": {},
+	}
+
+	if _, ok := wrappers[strings.ToLower(token)]; ok {
+		idx++
+		if idx >= len(tokens) {
+			return false
+		}
+		token = tokens[idx]
+	}
+
+	if strings.EqualFold(token, "env") {
+		idx++
+		for idx < len(tokens) && isEnvAssignment(tokens[idx]) {
+			idx++
+		}
+		if idx >= len(tokens) {
+			return false
+		}
+		token = tokens[idx]
+	}
+
+	normalized := strings.ToLower(strings.ReplaceAll(token, "\\", "/"))
+	if normalized == "test/run-tests.sh" || normalized == "./test/run-tests.sh" || normalized == "./run-tests.sh" || normalized == "run-tests.sh" {
+		return true
+	}
+
+	if strings.HasSuffix(normalized, "/test/run-tests.sh") {
+		return true
+	}
+
+	return false
+}
+
+func isEnvAssignment(token string) bool {
+	if !strings.Contains(token, "=") {
+		return false
+	}
+	parts := strings.SplitN(token, "=", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	name := parts[0]
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		switch {
+		case r == '_':
+		case r >= 'A' && r <= 'Z':
+		case r >= 'a' && r <= 'z':
+		case r >= '0' && r <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
 }

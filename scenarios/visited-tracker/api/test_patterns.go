@@ -3,12 +3,16 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 )
 
 // ErrorTestPattern defines a systematic approach to testing error conditions
@@ -18,7 +22,7 @@ type ErrorTestPattern struct {
 	ExpectedStatus int
 	Setup          func(t *testing.T) interface{}
 	Execute        func(t *testing.T, setupData interface{}) *HTTPTestRequest
-	Validate       func(t *testing.T, req *HTTPTestRequest, setupData interface{})
+	Validate       func(t *testing.T, req *HTTPTestRequest, w *httptest.ResponseRecorder, setupData interface{})
 	Cleanup        func(setupData interface{})
 }
 
@@ -45,22 +49,92 @@ func (suite *HandlerTestSuite) RunErrorTests(t *testing.T, patterns []ErrorTestP
 				defer pattern.Cleanup(setupData)
 			}
 
-			// Execute
+			// Execute: Create HTTP request and response recorder
 			req := pattern.Execute(t, setupData)
 			w, err := makeHTTPRequest(*req)
 			if err != nil {
 				t.Fatalf("Failed to create HTTP request: %v", err)
 			}
 
-			// TODO: Actually execute the handler here
-			// This would require refactoring to make handlers more testable
+			// Get the actual HTTP request from the test request
+			httpReq, err := createHTTPRequestFromTest(*req)
+			if err != nil {
+				t.Fatalf("Failed to create HTTP request: %v", err)
+			}
 
-			// Validate
+			// Execute the handler
+			suite.Handler(w, httpReq)
+
+			// Validate expected status code
+			if w.Code != pattern.ExpectedStatus {
+				t.Errorf("Expected status %d, got %d. Response body: %s",
+					pattern.ExpectedStatus, w.Code, w.Body.String())
+			}
+
+			// Additional validation
 			if pattern.Validate != nil {
-				pattern.Validate(t, req, setupData)
+				pattern.Validate(t, req, w, setupData)
 			}
 		})
 	}
+}
+
+// createHTTPRequestFromTest converts an HTTPTestRequest to an *http.Request
+func createHTTPRequestFromTest(req HTTPTestRequest) (*http.Request, error) {
+	w, err := makeHTTPRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	// Extract the http.Request that was created by makeHTTPRequest
+	// Since makeHTTPRequest uses httptest.NewRequest internally, we need to recreate it
+	var bodyBytes []byte
+	if req.Body != nil {
+		switch v := req.Body.(type) {
+		case string:
+			bodyBytes = []byte(v)
+		case []byte:
+			bodyBytes = v
+		default:
+			// For other types, it would have been marshaled in makeHTTPRequest
+			bodyBytes, err = json.Marshal(v)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal request body: %v", err)
+			}
+		}
+	}
+
+	httpReq := httptest.NewRequest(req.Method, req.Path, bytes.NewReader(bodyBytes))
+
+	// Set headers
+	if req.Headers != nil {
+		for key, value := range req.Headers {
+			httpReq.Header.Set(key, value)
+		}
+	}
+
+	// Set default content type
+	if req.Body != nil && httpReq.Header.Get("Content-Type") == "" {
+		httpReq.Header.Set("Content-Type", "application/json")
+	}
+
+	// Set URL variables (for mux)
+	if req.URLVars != nil {
+		httpReq = mux.SetURLVars(httpReq, req.URLVars)
+	}
+
+	// Set query parameters
+	if req.QueryParams != nil {
+		q := httpReq.URL.Query()
+		for key, value := range req.QueryParams {
+			q.Set(key, value)
+		}
+		httpReq.URL.RawQuery = q.Encode()
+	}
+
+	// Discard the response recorder from makeHTTPRequest as we create our own
+	_ = w
+
+	return httpReq, nil
 }
 
 // Common error patterns that can be reused across handlers
@@ -79,7 +153,7 @@ func invalidUUIDPattern(urlPath string) ErrorTestPattern {
 				URLVars: map[string]string{"id": "invalid-uuid"},
 			}
 		},
-		Validate: func(t *testing.T, req *HTTPTestRequest, setupData interface{}) {
+		Validate: func(t *testing.T, req *HTTPTestRequest, w *httptest.ResponseRecorder, setupData interface{}) {
 			// Additional validation can be added here
 		},
 	}

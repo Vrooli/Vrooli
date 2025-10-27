@@ -37,7 +37,7 @@ const buildOrigin = (req, fallbackPort) => {
     }
 
     const resolvedPort = fallbackPort ? Number(fallbackPort) : undefined;
-    return resolvedPort ? `${protocol}://localhost:${resolvedPort}` : null;
+    return resolvedPort ? `${protocol}://${LOOPBACK_HOST}:${resolvedPort}` : null;
 };
 
 function createApp({ apiPort } = {}) {
@@ -67,7 +67,7 @@ function createApp({ apiPort } = {}) {
             method: req.method,
             headers: {
                 ...req.headers,
-                host: `localhost:${numericApiPort}`
+                host: `${LOOPBACK_HOST}:${numericApiPort}`
             }
         };
 
@@ -124,8 +124,23 @@ function createApp({ apiPort } = {}) {
         });
     });
 
-    app.get('/', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'index.html'));
+    app.get('/docs', (_req, res) => {
+        res.sendFile(path.join(__dirname, 'docs.html'));
+    });
+
+    app.get('/docs-content', (_req, res) => {
+        const fs = require('fs');
+        const docsPath = path.join(__dirname, '../docs/PROMPT_USAGE.md');
+
+        fs.readFile(docsPath, 'utf8', (err, data) => {
+            if (err) {
+                console.error('[visited-tracker-ui] Failed to read documentation:', err);
+                res.status(404).send('Documentation not found');
+                return;
+            }
+            res.type('text/markdown');
+            res.send(data);
+        });
     });
 
     app.get('/health', async (_req, res) => {

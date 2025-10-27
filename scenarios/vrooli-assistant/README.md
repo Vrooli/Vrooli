@@ -41,8 +41,11 @@ This scenario adds a **permanent meta-capability** to Vrooli:
 ## 📦 Installation
 
 ```bash
-# From scenario directory
-./scripts/manage.sh setup
+# Using Makefile (recommended)
+make setup
+
+# Or using Vrooli CLI
+vrooli scenario setup vrooli-assistant
 
 # Or manually
 cd cli && ./install.sh
@@ -54,12 +57,29 @@ cd ../ui/electron && npm install
 
 ### Start the Assistant
 ```bash
-# Start in daemon mode (background)
-vrooli-assistant start --daemon
+# Using Makefile (recommended)
+make start
 
-# Start in foreground
-vrooli-assistant start
+# Or using Vrooli CLI
+vrooli scenario start vrooli-assistant
+
+# Or using vrooli-assistant CLI
+vrooli-assistant start --daemon  # Start in background
+vrooli-assistant start            # Start in foreground
 ```
+
+### Preview in the Browser (App Monitor friendly)
+
+The Go API now serves a browser-based dashboard alongside the API itself. After
+starting the scenario you can open the assistant UI directly:
+
+```
+http://localhost:${API_PORT}
+```
+
+This UI mirrors the core overlay capabilities (capture, history, agent
+handoff) and is wired for the App Monitor via the iframe bridge. No additional
+processes are required—the assets are embedded in the API binary.
 
 ### Capture an Issue
 1. Press `Cmd+Shift+Space` (or configured hotkey)
@@ -81,6 +101,27 @@ vrooli-assistant history
 
 # Stop daemon
 vrooli-assistant stop
+```
+
+## 🧪 Testing
+
+```bash
+# Run all tests (recommended)
+make test
+
+# Run specific test phases
+test/phases/test-structure.sh    # Verify file structure
+test/phases/test-dependencies.sh # Check dependencies
+test/phases/test-unit.sh         # Unit tests
+test/phases/test-integration.sh  # Integration tests (includes CLI BATS)
+test/phases/test-business.sh     # Business logic tests
+test/phases/test-performance.sh  # Performance benchmarks
+
+# Run CLI BATS tests only
+bats cli/vrooli-assistant.bats
+
+# Run all phased tests
+test/run-tests.sh
 ```
 
 ## 🔌 API Endpoints

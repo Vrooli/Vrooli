@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Campaign Dashboard - Visited Tracker</title>
+    <link rel="stylesheet" href="common.css">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script type="importmap">
       {
@@ -489,7 +490,11 @@
                 <span class="stat-value" id="avgStaleness">-</span>
                 <span>Avg Staleness</span>
             </div>
-            <button class="btn btn-danger" onclick="deleteCampaign()" style="margin-left: 16px;">
+            <a href="/docs" class="btn" title="API Usage Guide" style="margin-left: 16px;">
+                <i data-lucide="book-open"></i>
+                <span>API Guide</span>
+            </a>
+            <button class="btn btn-danger" onclick="deleteCampaign()" style="margin-left: 8px;">
                 <i data-lucide="trash-2"></i>
                 <span>Delete Campaign</span>
             </button>

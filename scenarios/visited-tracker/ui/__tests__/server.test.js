@@ -356,7 +356,7 @@ describe('Visited Tracker UI Server', () => {
 
         expect(proxyResponse.status).toBe(200);
         expect(proxyResponse.body).toMatchObject({ ok: true, path: '/api/v1/status' });
-        expect(proxyResponse.body.host).toBe(`localhost:${mockPort}`);
+        expect(proxyResponse.body.host).toBe(`${LOOPBACK_HOST}:${mockPort}`);
     });
 
     test('proxy forwards request bodies for non-GET methods', async () => {

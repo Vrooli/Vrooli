@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Usage Guide - Visited Tracker</title>
+    <link rel="stylesheet" href="common.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module" src="bridge-init.js"></script>
+    <style>
+        /* Page-specific styles for docs page */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-title svg {
+            width: 24px;
+            height: 24px;
+            color: var(--accent-secondary);
+        }
+
+        .container {
+            max-width: 900px;
+            padding: 32px 24px;
+        }
+
+        .error-message {
+            background: var(--accent-danger);
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 24px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .error-message svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        /* Markdown Content Styling */
+        .markdown-content {
+            color: var(--text-primary);
+        }
+
+        .markdown-content h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin: 32px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--text-primary);
+        }
+
+        .markdown-content h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 32px 0 16px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--text-primary);
+        }
+
+        .markdown-content h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            color: var(--text-primary);
+        }
+
+        .markdown-content h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 20px 0 10px;
+            color: var(--text-secondary);
+        }
+
+        .markdown-content p {
+            margin: 12px 0;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        .markdown-content a {
+            color: var(--accent-secondary);
+            text-decoration: none;
+        }
+
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown-content code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .markdown-content pre {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+            border-radius: 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .markdown-content ul, .markdown-content ol {
+            margin: 12px 0;
+            padding-left: 32px;
+        }
+
+        .markdown-content li {
+            margin: 6px 0;
+            color: var(--text-primary);
+        }
+
+        .markdown-content blockquote {
+            border-left: 4px solid var(--accent-secondary);
+            padding-left: 16px;
+            margin: 16px 0;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .markdown-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }
+
+        .markdown-content table th,
+        .markdown-content table td {
+            border: 1px solid var(--border-primary);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .markdown-content table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+        }
+
+        .markdown-content hr {
+            border: none;
+            border-top: 1px solid var(--border-primary);
+            margin: 32px 0;
+        }
+
+        .markdown-content strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .markdown-content em {
+            color: var(--text-secondary);
+        }
+
+        /* Custom styling for checkmarks */
+        .markdown-content ul li:has(input[type="checkbox"]) {
+            list-style: none;
+            margin-left: -20px;
+        }
+
+        .markdown-content input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        /* Table of Contents */
+        .toc {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 24px 0;
+        }
+
+        .toc-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 6px 0;
+        }
+
+        .toc a {
+            color: var(--accent-secondary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 24px 16px;
+            }
+
+            .markdown-content h1 {
+                font-size: 28px;
+            }
+
+            .markdown-content h2 {
+                font-size: 22px;
+            }
+
+            .markdown-content pre {
+                padding: 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="/" class="back-btn">
+                <i data-lucide="arrow-left"></i>
+                <span>Back to Dashboard</span>
+            </a>
+            <div class="page-title">
+                <i data-lucide="book-open"></i>
+                <span>API Usage Guide</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="loadingIndicator" class="loading">
+            <div class="spinner"></div>
+            Loading documentation...
+        </div>
+
+        <div id="errorContainer" style="display: none;">
+            <div class="error-message">
+                <i data-lucide="alert-circle"></i>
+                <div>
+                    <strong>Failed to load documentation</strong>
+                    <p id="errorText"></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="docsContent" class="markdown-content" style="display: none;"></div>
+    </div>
+
+    <script>
+        const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
+
+        function buildDocsCandidates() {
+            const candidates = [];
+
+            const append = (value) => {
+                if (typeof value === 'string' && value.trim().length > 0) {
+                    candidates.push(value.trim());
+                }
+            };
+
+            try {
+                append(new URL('./docs-content', window.location.href).toString());
+            } catch (error) {
+                console.warn('[VisitedTracker] Failed to resolve relative docs endpoint', error);
+            }
+
+            try {
+                append(new URL('/docs-content', window.location.origin).toString());
+            } catch (error) {
+                console.warn('[VisitedTracker] Failed to resolve absolute docs endpoint', error);
+            }
+
+            for (const key of PROXY_INFO_KEYS) {
+                try {
+                    const info = window[key];
+                    if (!info || typeof info !== 'object') {
+                        continue;
+                    }
+
+                    const basePath = info.basePath || info.base_path || info.proxyPath || info.proxy_path;
+                    if (typeof basePath === 'string' && basePath.trim().length > 0) {
+                        const sanitized = basePath.startsWith('/') ? basePath : `/${basePath}`;
+                        append(`${sanitized.replace(/\/$/, '')}/docs-content`);
+                    }
+                } catch (error) {
+                    console.warn('[VisitedTracker] Unable to use proxy info for docs endpoint', error);
+                }
+            }
+
+            return Array.from(new Set(candidates));
+        }
+
+        async function loadDocumentation() {
+            const attempts = [];
+            let lastError = null;
+
+            for (const candidate of buildDocsCandidates()) {
+                attempts.push(candidate);
+                try {
+                    const response = await fetch(candidate, { cache: 'no-store' });
+                    if (!response.ok) {
+                        lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        continue;
+                    }
+
+                    const markdown = await response.text();
+
+                    marked.setOptions({
+                        breaks: true,
+                        gfm: true,
+                        headerIds: true,
+                        mangle: false
+                    });
+
+                    const html = marked.parse(markdown);
+
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    const contentDiv = document.getElementById('docsContent');
+                    contentDiv.innerHTML = html;
+                    contentDiv.style.display = 'block';
+
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+
+                    if (window.location.hash) {
+                        const element = document.querySelector(window.location.hash);
+                        if (element) {
+                            setTimeout(() => element.scrollIntoView({ behavior: 'smooth' }), 100);
+                        }
+                    }
+
+                    return;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            const errorMessage = lastError
+                ? `${lastError.message}${attempts.length ? ` (attempted: ${attempts.join(', ')})` : ''}`
+                : 'Unknown error loading documentation';
+
+            console.error('Failed to load documentation:', errorMessage);
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('errorContainer').style.display = 'block';
+            document.getElementById('errorText').textContent = errorMessage;
+
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+
+        loadDocumentation();
+    </script>
+</body>
+</html>

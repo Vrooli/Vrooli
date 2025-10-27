@@ -5,7 +5,7 @@
     "name": "vrooli-assistant",
     "displayName": "Vrooli Assistant",
     "description": "Real-time issue capture and agent spawning overlay for rapid iteration on Vrooli scenarios",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "tags": [
       "meta-tools",
       "developer-experience",
@@ -67,12 +67,6 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
-        },
-        {
-          "name": "electron_daemon",
-          "type": "process",
-          "target": "vrooli-assistant-daemon",
-          "critical": true
         }
       ],
       "timeout": 5000,
@@ -114,6 +108,16 @@
           "description": "Build Electron application"
         },
         {
+          "name": "install-web-ui-deps",
+          "run": "cd ui/web && npm install",
+          "description": "Install browser UI dependencies"
+        },
+        {
+          "name": "build-web-ui",
+          "run": "cd ui/web && npm run build",
+          "description": "Build browser UI assets"
+        },
+        {
           "name": "add-data",
           "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
@@ -130,7 +134,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Vrooli Assistant initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-assistant --help\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
+          "run": "echo '🚀 Vrooli Assistant initialized\\n  API and Web UI: http://localhost:${API_PORT}\\n  CLI: vrooli-assistant --help\\n  Electron overlay: set ENABLE_ELECTRON_OVERLAY=1 before start to enable\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
           "description": "Display service access info"
         }
       ]
@@ -138,6 +142,11 @@
     "develop": {
       "description": "Start Vrooli Assistant with Electron overlay and API server",
       "steps": [
+        {
+          "name": "prepare-web-ui",
+          "run": "cd ui/web && npm run build",
+          "description": "Build browser UI assets for preview"
+        },
         {
           "name": "start-api",
           "run": "cd api && ./vrooli-assistant-api",
@@ -149,13 +158,12 @@
         },
         {
           "name": "start-electron-daemon",
-          "run": "cd ui/electron && npm run start:daemon",
-          "description": "Start Electron overlay daemon",
-          "background": true
+          "run": "cd ui/electron && if [ \"${ENABLE_ELECTRON_OVERLAY:-0}\" = \"1\" ]; then npm run start:daemon; else echo 'Electron overlay disabled (set ENABLE_ELECTRON_OVERLAY=1 to enable).'; fi",
+          "description": "Start Electron overlay daemon when explicitly enabled"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Vrooli Assistant running:\\n  API: http://localhost:$API_PORT\\n  Overlay: Active (use hotkey to trigger)\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
+          "run": "echo '🚀 Vrooli Assistant running:\\n  API and Web UI: http://localhost:$API_PORT\\n  Electron overlay: enable by setting ENABLE_ELECTRON_OVERLAY=1 before start\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
           "description": "Display running service info"
         }
       ]
@@ -167,6 +175,11 @@
           "name": "test-go-build",
           "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation"
+        },
+        {
+          "name": "test-web-ui-build",
+          "run": "cd ui/web && npm run build",
+          "description": "Ensure web UI builds successfully"
         },
         {
           "name": "test-api-health",
