@@ -73,6 +73,7 @@ export default function StandardsCompliance() {
   const [selectedScenario, setSelectedScenario] = useState<string>('')
   const [checkType, setCheckType] = useState<'quick' | 'full' | 'targeted'>('full')
   const [selectedViolation, setSelectedViolation] = useState<StandardsViolation | null>(null)
+  const [showViolationDialog, setShowViolationDialog] = useState(false)
   const [showCheckTypeInfo, setShowCheckTypeInfo] = useState(false)
   const [showDisabledTooltip, setShowDisabledTooltip] = useState(false)
   const [activeScan, setActiveScan] = useState<{ id: string; scenario: string } | null>(null)
@@ -1157,7 +1158,13 @@ export default function StandardsCompliance() {
                         {scenarioViolations.map((violation, idx) => (
                           <button
                             key={`${violation.id}-${violation.scenario_name}-${violation.line_number}-${idx}`}
-                            onClick={() => setSelectedViolation(violation)}
+                            onClick={() => {
+                              setSelectedViolation(violation)
+                              // Open dialog on mobile/tablet (< lg breakpoint)
+                              if (window.innerWidth < 1024) {
+                                setShowViolationDialog(true)
+                              }
+                            }}
                             className="w-full px-4 py-3 hover:bg-dark-50 transition-colors text-left"
                           >
                             <div className="flex items-start gap-3">
@@ -1228,8 +1235,8 @@ export default function StandardsCompliance() {
           )}
         </Card>
 
-        {/* Violation Details */}
-        <Card>
+        {/* Violation Details - Hidden on mobile, shown as sidebar on desktop */}
+        <Card className="hidden lg:block">
           <h2 className="text-lg font-semibold text-dark-900 mb-4">Violation Details</h2>
 
           {selectedViolation ? (
@@ -1302,6 +1309,78 @@ export default function StandardsCompliance() {
           )}
         </Card>
       </div>
+
+      {/* Violation Details Dialog - Mobile only */}
+      <Dialog
+        open={showViolationDialog}
+        onClose={() => setShowViolationDialog(false)}
+        title="Violation Details"
+        size="lg"
+      >
+        {selectedViolation && (
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                {getSeverityIcon(selectedViolation.severity)}
+                <Badge
+                  variant={
+                    selectedViolation.severity === 'critical' ? 'danger' :
+                      selectedViolation.severity === 'high' ? 'warning' :
+                        'default'
+                  }
+                >
+                  {selectedViolation.severity}
+                </Badge>
+              </div>
+              <h3 className="font-medium text-dark-900">{selectedViolation.title}</h3>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-dark-700 mb-1">Description</p>
+              <p className="text-sm text-dark-600">{selectedViolation.description}</p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-dark-700 mb-1">Standard</p>
+              <div className="flex items-center gap-2 text-sm text-dark-600">
+                {getStandardIcon(selectedViolation.standard)}
+                {selectedViolation.standard}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-dark-700 mb-1">Location</p>
+              <div className="bg-dark-50 rounded-lg p-2">
+                <p className="text-xs font-mono text-dark-600 break-all">
+                  {selectedViolation.file_path}:{selectedViolation.line_number}
+                </p>
+              </div>
+            </div>
+
+            {selectedViolation.code_snippet && (
+              <div>
+                <p className="text-sm font-medium text-dark-700 mb-1">Code</p>
+                <pre className="bg-dark-900 text-dark-100 rounded-lg p-3 text-xs overflow-x-auto">
+                  <code>{selectedViolation.code_snippet}</code>
+                </pre>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm font-medium text-dark-700 mb-1">Recommendation</p>
+              <p className="text-sm text-dark-600">{selectedViolation.recommendation}</p>
+            </div>
+
+            {selectedViolation.discovered_at && !isNaN(new Date(selectedViolation.discovered_at).getTime()) && (
+              <div className="pt-4 border-t border-dark-200">
+                <p className="text-xs text-dark-500">
+                  Discovered: {format(new Date(selectedViolation.discovered_at), 'PPp')}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </Dialog>
 
       <Dialog
         open={bulkFixOpen}

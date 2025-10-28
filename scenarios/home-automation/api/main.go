@@ -9,8 +9,10 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -19,10 +21,40 @@ import (
 )
 
 type App struct {
-	DB                *sql.DB
-	DeviceController  *DeviceController
-	SafetyValidator   *SafetyValidator
-	CalendarScheduler *CalendarScheduler
+	DB                                *sql.DB
+	DeviceController                  *DeviceController
+	SafetyValidator                   *SafetyValidator
+	CalendarScheduler                 *CalendarScheduler
+	haConfigLock                      sync.RWMutex
+	haConfig                          HomeAssistantConfig
+	homeAssistantProvisionLock        sync.Mutex
+	lastHomeAssistantProvisionAttempt time.Time
+}
+
+type HomeAssistantConfig struct {
+	BaseURL              string
+	Token                string
+	TokenConfigured      bool
+	TokenType            string
+	RefreshToken         string
+	AccessTokenExpiresAt *time.Time
+	MockMode             bool
+	LastStatus           string
+	LastMessage          string
+	LastError            string
+	LastCheckedAt        *time.Time
+	UpdatedAt            *time.Time
+	UpdatedBy            string
+}
+
+type HomeAssistantDiagnostics struct {
+	Status    string
+	Message   string
+	Error     string
+	Action    string
+	Target    string
+	MockMode  bool
+	CheckedAt *time.Time
 }
 
 var startTime time.Time
@@ -130,21 +162,43 @@ func main() {
 
 	log.Println("🎉 Database connection pool established successfully!")
 
-	// Initialize external Home Assistant client
-	haBaseURL := os.Getenv("HOME_ASSISTANT_BASE_URL")
-	if strings.TrimSpace(haBaseURL) == "" {
-		haBaseURL = "http://localhost:8123"
+	ctx := context.Background()
+	haConfig, err := loadHomeAssistantConfig(ctx, app.DB)
+	if err != nil {
+		log.Printf("⚠️  Failed to load Home Assistant config: %v", err)
 	}
-	haToken := os.Getenv("HOME_ASSISTANT_TOKEN")
-	haClient := NewHomeAssistantClient(haBaseURL, haToken)
-	if haClient == nil {
+
+	haConfig = applyEnvironmentOverrides(haConfig)
+	app.setHomeAssistantConfig(haConfig)
+
+	if should, reason := app.shouldAutoProvisionHomeAssistant(haConfig, nil); should {
+		attemptReason := "startup"
+		trimmedReason := strings.TrimSpace(reason)
+		if trimmedReason != "" {
+			attemptReason = "startup-" + trimmedReason
+		}
+		if diag, updated := app.attemptHomeAssistantAutoProvision(ctx, haConfig, attemptReason); updated {
+			haConfig = app.getHomeAssistantConfig()
+			if strings.EqualFold(diag.Status, "healthy") {
+				log.Printf("🔌 Home Assistant auto-provisioned during startup for %s", strings.TrimSpace(haConfig.BaseURL))
+			} else {
+				log.Printf("⚠️  Home Assistant auto-provision during startup returned status=%s error=%s", diag.Status, strings.TrimSpace(diag.Error))
+			}
+		}
+	}
+
+	haConfig = app.getHomeAssistantConfig()
+	client := buildHomeAssistantClient(haConfig)
+	if haConfig.MockMode {
+		log.Println("⚠️  Home Assistant mock mode enabled - using fallback data")
+	} else if client == nil {
 		log.Println("⚠️  Home Assistant client not configured - using fallback data")
 	} else {
-		log.Printf("🔌 Home Assistant client configured for %s", haBaseURL)
+		log.Printf("🔌 Home Assistant client configured for %s", strings.TrimSpace(haConfig.BaseURL))
 	}
 
 	// Initialize components
-	app.DeviceController = NewDeviceController(app.DB, haClient)
+	app.DeviceController = NewDeviceController(app.DB, client)
 	app.SafetyValidator = NewSafetyValidator(app.DB)
 	app.CalendarScheduler = NewCalendarScheduler(app.DB)
 	app.CalendarScheduler.SetDeviceController(app.DeviceController)
@@ -184,6 +238,11 @@ func main() {
 	// Home Profiles routes
 	api.HandleFunc("/profiles", app.GetProfiles).Methods("GET")
 	api.HandleFunc("/profiles/{id}/permissions", app.GetProfilePermissions).Methods("GET")
+
+	// Home Assistant integration configuration
+	api.HandleFunc("/integrations/home-assistant/config", app.handleGetHomeAssistantConfig).Methods("GET")
+	api.HandleFunc("/integrations/home-assistant/config", app.handleUpdateHomeAssistantConfig).Methods("POST")
+	api.HandleFunc("/integrations/home-assistant/provision", app.handleProvisionHomeAssistant).Methods("POST")
 
 	// CORS
 	c := cors.New(cors.Options{
@@ -231,29 +290,36 @@ func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check Home Assistant dependency
+	haDiag := app.homeAssistantDiagnostics(r.Context(), true)
 	haHealth := map[string]interface{}{
-		"status":  "unknown",
-		"message": "Home Assistant client not configured",
+		"status": haDiag.Status,
+	}
+	if haDiag.Message != "" {
+		haHealth["message"] = haDiag.Message
+	}
+	if haDiag.Error != "" {
+		haHealth["error"] = haDiag.Error
+	}
+	if haDiag.Action != "" {
+		haHealth["action_required"] = haDiag.Action
+	}
+	if haDiag.Target != "" {
+		haHealth["target"] = haDiag.Target
+	}
+	if haDiag.MockMode {
+		haHealth["mock_mode"] = true
+	}
+	if haDiag.CheckedAt != nil {
+		haHealth["last_checked_at"] = haDiag.CheckedAt.Format(time.RFC3339)
 	}
 
-	if app.DeviceController != nil && app.DeviceController.haClient != nil {
-		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
-		resp, err := app.DeviceController.haClient.doRequest(ctx, http.MethodGet, "/api/", nil)
-		cancel()
-
-		if err != nil {
-			haHealth["status"] = "degraded"
-			haHealth["error"] = err.Error()
-			if overallStatus == "healthy" {
-				overallStatus = "degraded"
-			}
-		} else {
-			haHealth["status"] = "healthy"
-			haHealth["message"] = "Home Assistant reachable"
-			if resp != nil && resp.Body != nil {
-				resp.Body.Close()
-			}
+	if haDiag.Status == "unhealthy" {
+		readiness = false
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
 		}
+	} else if haDiag.Status != "healthy" && overallStatus == "healthy" {
+		overallStatus = "degraded"
 	}
 
 	healthResponse["dependencies"].(map[string]interface{})["home_assistant"] = haHealth
@@ -458,6 +524,7 @@ func (app *App) checkDeviceController() map[string]interface{} {
 			}
 		}
 		health["checks"].(map[string]interface{})["online_devices"] = onlineCount
+		health["checks"].(map[string]interface{})["device_data_source"] = app.DeviceController.LastDeviceDataSource()
 	}
 
 	return health
@@ -631,10 +698,14 @@ func (app *App) ListDevices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"devices": devices,
-		"count":   len(devices),
-	})
+	dataSource := app.DeviceController.LastDeviceDataSource()
+	response := map[string]interface{}{
+		"devices":     devices,
+		"count":       len(devices),
+		"data_source": dataSource,
+		"mock_data":   strings.EqualFold(dataSource, "mock"),
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 // Safety Validation handlers
@@ -1018,4 +1089,539 @@ func (app *App) checkAutomationConflicts(devices []string, context string) []str
 	}
 
 	return conflicts
+}
+
+func (app *App) setHomeAssistantConfig(cfg HomeAssistantConfig) {
+	app.haConfigLock.Lock()
+	defer app.haConfigLock.Unlock()
+	app.haConfig = cfg
+}
+
+func (app *App) getHomeAssistantConfig() HomeAssistantConfig {
+	app.haConfigLock.RLock()
+	defer app.haConfigLock.RUnlock()
+	return app.haConfig
+}
+
+func (app *App) homeAssistantDiagnostics(ctx context.Context, allowProbe bool) HomeAssistantDiagnostics {
+	cfg := app.getHomeAssistantConfig()
+	var client *HomeAssistantClient
+	if app.DeviceController != nil {
+		client = app.DeviceController.getHomeAssistantClient()
+	}
+	diag := evaluateHomeAssistant(ctx, cfg, client, allowProbe)
+
+	if allowProbe {
+		if should, reason := app.shouldAutoProvisionHomeAssistant(cfg, &diag); should {
+			if newDiag, updated := app.attemptHomeAssistantAutoProvision(ctx, cfg, reason); updated {
+				cfg = app.getHomeAssistantConfig()
+				diag = newDiag
+			}
+		}
+	}
+
+	diag.Target = strings.TrimSpace(cfg.BaseURL)
+	diag.MockMode = cfg.MockMode
+	return diag
+}
+
+func applyEnvironmentOverrides(cfg HomeAssistantConfig) HomeAssistantConfig {
+	base := strings.TrimSpace(os.Getenv("HOME_ASSISTANT_BASE_URL"))
+	alternative := strings.TrimSpace(os.Getenv("HOME_ASSISTANT_URL"))
+	if base == "" && alternative != "" {
+		base = alternative
+	}
+	if base != "" {
+		if normalized, err := normalizeBaseURL(base); err == nil {
+			cfg.BaseURL = normalized
+		} else {
+			cfg.BaseURL = base
+		}
+	}
+
+	if token := strings.TrimSpace(os.Getenv("HOME_ASSISTANT_TOKEN")); token != "" {
+		cfg.Token = token
+		cfg.TokenType = "long_lived"
+	}
+
+	if mock := strings.TrimSpace(os.Getenv("HOME_ASSISTANT_MOCK")); mock != "" {
+		cfg.MockMode = parseBoolish(mock)
+	}
+
+	if strings.TrimSpace(cfg.BaseURL) == "" {
+		cfg.BaseURL = "http://localhost:8123"
+	}
+	cfg.TokenConfigured = strings.TrimSpace(cfg.Token) != "" || strings.TrimSpace(cfg.RefreshToken) != ""
+	return cfg
+}
+
+func parseBoolish(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func buildHomeAssistantClient(cfg HomeAssistantConfig) *HomeAssistantClient {
+	if cfg.MockMode {
+		return nil
+	}
+
+	base := strings.TrimSpace(cfg.BaseURL)
+	if base == "" {
+		return nil
+	}
+
+	token := strings.TrimSpace(cfg.Token)
+	refresh := strings.TrimSpace(cfg.RefreshToken)
+	tokenType := strings.TrimSpace(cfg.TokenType)
+
+	if tokenType == "" {
+		if token != "" {
+			tokenType = "long_lived"
+		} else if refresh != "" {
+			tokenType = "refresh"
+		}
+	}
+
+	if strings.EqualFold(tokenType, "refresh") {
+		if refresh == "" {
+			return nil
+		}
+		return NewHomeAssistantClient(base, token, tokenType, refresh, cfg.AccessTokenExpiresAt)
+	}
+
+	if token == "" {
+		return nil
+	}
+
+	return NewHomeAssistantClient(base, token, tokenType, "", cfg.AccessTokenExpiresAt)
+}
+
+func loadHomeAssistantConfig(ctx context.Context, db *sql.DB) (HomeAssistantConfig, error) {
+	cfg := HomeAssistantConfig{
+		BaseURL: "http://localhost:8123",
+	}
+	if db == nil {
+		return cfg, nil
+	}
+
+	const query = `SELECT value, updated_at, updated_by::text FROM system_config WHERE key = $1`
+	row := db.QueryRowContext(ctx, query, "home_assistant_connection")
+
+	var raw json.RawMessage
+	var updatedAt sql.NullTime
+	var updatedBy sql.NullString
+	if err := row.Scan(&raw, &updatedAt, &updatedBy); err != nil {
+		if err == sql.ErrNoRows {
+			return cfg, nil
+		}
+		return cfg, err
+	}
+
+	if len(raw) > 0 {
+		var stored struct {
+			BaseURL              string `json:"base_url"`
+			Token                string `json:"token"`
+			TokenType            string `json:"token_type"`
+			RefreshToken         string `json:"refresh_token"`
+			AccessTokenExpiresAt string `json:"access_token_expires_at"`
+			MockMode             bool   `json:"mock_mode"`
+			LastStatus           string `json:"last_status"`
+			LastMessage          string `json:"last_message"`
+			LastError            string `json:"last_error"`
+			LastCheckedAt        string `json:"last_checked_at"`
+		}
+
+		if err := json.Unmarshal(raw, &stored); err == nil {
+			if strings.TrimSpace(stored.BaseURL) != "" {
+				cfg.BaseURL = stored.BaseURL
+			}
+			cfg.Token = stored.Token
+			cfg.TokenType = stored.TokenType
+			cfg.RefreshToken = stored.RefreshToken
+			cfg.AccessTokenExpiresAt = parseOptionalTime(stored.AccessTokenExpiresAt)
+			cfg.MockMode = stored.MockMode
+			cfg.LastStatus = stored.LastStatus
+			cfg.LastMessage = stored.LastMessage
+			cfg.LastError = stored.LastError
+			cfg.LastCheckedAt = parseOptionalTime(stored.LastCheckedAt)
+		}
+	}
+
+	if updatedAt.Valid {
+		t := updatedAt.Time.UTC()
+		cfg.UpdatedAt = &t
+	}
+	if updatedBy.Valid {
+		cfg.UpdatedBy = updatedBy.String
+	}
+
+	cfg.TokenConfigured = strings.TrimSpace(cfg.Token) != "" || strings.TrimSpace(cfg.RefreshToken) != ""
+	return cfg, nil
+}
+
+func saveHomeAssistantConfig(ctx context.Context, db *sql.DB, cfg HomeAssistantConfig) error {
+	if db == nil {
+		return nil
+	}
+
+	payload := map[string]interface{}{
+		"base_url":  cfg.BaseURL,
+		"token":     cfg.Token,
+		"mock_mode": cfg.MockMode,
+	}
+
+	if strings.TrimSpace(cfg.TokenType) != "" {
+		payload["token_type"] = cfg.TokenType
+	}
+	if strings.TrimSpace(cfg.RefreshToken) != "" {
+		payload["refresh_token"] = cfg.RefreshToken
+	}
+	if cfg.AccessTokenExpiresAt != nil && !cfg.AccessTokenExpiresAt.IsZero() {
+		payload["access_token_expires_at"] = cfg.AccessTokenExpiresAt.UTC().Format(time.RFC3339)
+	}
+
+	if cfg.LastStatus != "" {
+		payload["last_status"] = cfg.LastStatus
+	}
+	if cfg.LastMessage != "" {
+		payload["last_message"] = cfg.LastMessage
+	}
+	if cfg.LastError != "" {
+		payload["last_error"] = cfg.LastError
+	}
+	if cfg.LastCheckedAt != nil && !cfg.LastCheckedAt.IsZero() {
+		payload["last_checked_at"] = cfg.LastCheckedAt.UTC().Format(time.RFC3339)
+	}
+
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO system_config (key, value, description, updated_at)
+		VALUES ($1, $2::jsonb, $3, NOW())
+		ON CONFLICT (key) DO UPDATE
+			SET value = EXCLUDED.value,
+			    description = EXCLUDED.description,
+			    updated_at = NOW()
+	`, "home_assistant_connection", string(encoded), "Home Assistant integration settings")
+	return err
+}
+
+func parseOptionalTime(value string) *time.Time {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		t := parsed.UTC()
+		return &t
+	}
+	return nil
+}
+
+func formatTimePtr(t *time.Time) string {
+	if t == nil || t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
+}
+
+func evaluateHomeAssistant(ctx context.Context, cfg HomeAssistantConfig, client *HomeAssistantClient, allowProbe bool) HomeAssistantDiagnostics {
+	diag := HomeAssistantDiagnostics{
+		Status:   "unknown",
+		Message:  "Home Assistant status unknown",
+		Target:   strings.TrimSpace(cfg.BaseURL),
+		MockMode: cfg.MockMode,
+	}
+
+	baseConfigured := strings.TrimSpace(cfg.BaseURL) != ""
+	if !baseConfigured {
+		diag.Status = "unconfigured"
+		diag.Message = "Home Assistant base URL not configured"
+		diag.Action = "Provide the Home Assistant base URL in Settings"
+		diag.Error = ""
+		return diag
+	}
+
+	if cfg.MockMode {
+		diag.Status = "degraded"
+		diag.Message = "Mock mode enabled; using cached or demo devices"
+		diag.Action = "Disable mock mode to connect to Home Assistant"
+		diag.Error = ""
+		return diag
+	}
+
+	if !cfg.TokenConfigured {
+		diag.Status = "degraded"
+		diag.Message = "Home Assistant token not configured"
+		diag.Action = "Add a Home Assistant long-lived access token"
+		diag.Error = ""
+		return diag
+	}
+
+	if client == nil {
+		diag.Status = "degraded"
+		diag.Message = "Home Assistant client inactive"
+		diag.Action = "Save configuration and restart the scenario"
+		diag.Error = ""
+		return diag
+	}
+
+	if !allowProbe {
+		if cfg.LastStatus != "" {
+			diag.Status = cfg.LastStatus
+		}
+		diag.Message = cfg.LastMessage
+		diag.Error = cfg.LastError
+		diag.CheckedAt = cfg.LastCheckedAt
+		return diag
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	resp, err := client.doRequest(ctx, http.MethodGet, "/api/", nil)
+	if err != nil {
+		diag.Status = "degraded"
+		diag.Message = "Unable to reach Home Assistant"
+		diag.Error = err.Error()
+		diag.Action = actionForHomeAssistantError(diag.Error)
+		now := time.Now().UTC()
+		diag.CheckedAt = &now
+		return diag
+	}
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
+
+	diag.Status = "healthy"
+	diag.Message = "Home Assistant reachable"
+	diag.Error = ""
+	now := time.Now().UTC()
+	diag.CheckedAt = &now
+	return diag
+}
+
+func actionForHomeAssistantError(errMsg string) string {
+	lower := strings.ToLower(errMsg)
+	switch {
+	case strings.Contains(lower, "401"), strings.Contains(lower, "unauthorized"), strings.Contains(lower, "forbidden"), strings.Contains(lower, "403"):
+		return "Update the Home Assistant token in Settings"
+	case strings.Contains(lower, "connect"), strings.Contains(lower, "refused"), strings.Contains(lower, "timeout"), strings.Contains(lower, "no such host"):
+		return "Verify the Home Assistant URL and that the server is reachable"
+	default:
+		return "Review Home Assistant logs and configuration"
+	}
+}
+
+func normalizeBaseURL(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+	value := trimmed
+	if !strings.Contains(value, "://") {
+		value = "http://" + value
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return "", err
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("unsupported scheme: %s", parsed.Scheme)
+	}
+	if parsed.Host == "" {
+		return "", fmt.Errorf("missing host in Home Assistant URL")
+	}
+	parsed.Fragment = ""
+	parsed.RawFragment = ""
+	normalizedPath := strings.TrimRight(parsed.Path, "/")
+	parsed.Path = normalizedPath
+	parsed.RawPath = ""
+
+	result := fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host)
+	if normalizedPath != "" {
+		result += normalizedPath
+	}
+	if parsed.RawQuery != "" {
+		result += "?" + parsed.RawQuery
+	}
+
+	return result, nil
+}
+
+func (cfg HomeAssistantConfig) sanitized() HomeAssistantConfig {
+	cfg.Token = ""
+	cfg.RefreshToken = ""
+	return cfg
+}
+
+func buildHomeAssistantResponse(cfg HomeAssistantConfig, diag HomeAssistantDiagnostics) map[string]interface{} {
+	sanitized := cfg.sanitized()
+	response := map[string]interface{}{
+		"base_url":         sanitized.BaseURL,
+		"token_configured": sanitized.TokenConfigured,
+		"mock_mode":        sanitized.MockMode,
+		"status":           diag.Status,
+	}
+
+	if strings.TrimSpace(sanitized.TokenType) != "" {
+		response["token_type"] = sanitized.TokenType
+	}
+	if sanitized.AccessTokenExpiresAt != nil && !sanitized.AccessTokenExpiresAt.IsZero() {
+		response["access_token_expires_at"] = formatTimePtr(sanitized.AccessTokenExpiresAt)
+	}
+
+	if diag.Message != "" {
+		response["message"] = diag.Message
+	}
+	if diag.Error != "" {
+		response["error"] = diag.Error
+	}
+	if diag.Action != "" {
+		response["action_required"] = diag.Action
+	}
+	if diag.Target != "" {
+		response["target"] = diag.Target
+	}
+	if diag.CheckedAt != nil {
+		response["status_checked_at"] = formatTimePtr(diag.CheckedAt)
+	}
+	if sanitized.LastCheckedAt != nil {
+		response["last_checked_at"] = formatTimePtr(sanitized.LastCheckedAt)
+	}
+	if sanitized.UpdatedAt != nil {
+		response["updated_at"] = formatTimePtr(sanitized.UpdatedAt)
+	}
+	if strings.TrimSpace(sanitized.UpdatedBy) != "" {
+		response["updated_by"] = sanitized.UpdatedBy
+	}
+	return response
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if payload == nil {
+		return
+	}
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		log.Printf("Failed to write JSON response: %v", err)
+	}
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, map[string]string{
+		"error": message,
+	})
+}
+
+type homeAssistantConfigRequest struct {
+	BaseURL    string  `json:"base_url"`
+	Token      *string `json:"token"`
+	MockMode   *bool   `json:"mock_mode"`
+	ClearToken bool    `json:"clear_token"`
+	TestOnly   bool    `json:"test_only"`
+}
+
+func applyRequestToConfig(cfg *HomeAssistantConfig, req homeAssistantConfigRequest) error {
+	if cfg == nil {
+		return fmt.Errorf("invalid configuration target")
+	}
+	if strings.TrimSpace(req.BaseURL) != "" {
+		normalized, err := normalizeBaseURL(req.BaseURL)
+		if err != nil {
+			return fmt.Errorf("invalid base_url: %w", err)
+		}
+		cfg.BaseURL = normalized
+	}
+	if req.MockMode != nil {
+		cfg.MockMode = *req.MockMode
+	}
+	if req.ClearToken {
+		cfg.Token = ""
+		cfg.RefreshToken = ""
+		cfg.TokenType = ""
+		cfg.AccessTokenExpiresAt = nil
+	}
+	if req.Token != nil {
+		cfg.Token = strings.TrimSpace(*req.Token)
+		if cfg.Token != "" {
+			cfg.TokenType = "long_lived"
+			cfg.RefreshToken = ""
+			cfg.AccessTokenExpiresAt = nil
+		}
+	}
+	cfg.TokenConfigured = strings.TrimSpace(cfg.Token) != "" || strings.TrimSpace(cfg.RefreshToken) != ""
+	return nil
+}
+
+func (app *App) handleGetHomeAssistantConfig(w http.ResponseWriter, r *http.Request) {
+	diag := app.homeAssistantDiagnostics(r.Context(), true)
+	cfg := app.getHomeAssistantConfig()
+	writeJSON(w, http.StatusOK, buildHomeAssistantResponse(cfg, diag))
+}
+
+func (app *App) handleUpdateHomeAssistantConfig(w http.ResponseWriter, r *http.Request) {
+	var req homeAssistantConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON payload")
+		return
+	}
+
+	current := app.getHomeAssistantConfig()
+	working := current
+	if err := applyRequestToConfig(&working, req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if strings.TrimSpace(working.BaseURL) == "" {
+		writeError(w, http.StatusBadRequest, "base_url is required")
+		return
+	}
+
+	client := buildHomeAssistantClient(working)
+	diag := evaluateHomeAssistant(r.Context(), working, client, true)
+
+	if req.TestOnly {
+		response := buildHomeAssistantResponse(working, diag)
+		response["saved"] = false
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+
+	now := time.Now().UTC()
+	checkedAt := now
+	if diag.CheckedAt != nil {
+		checkedAt = diag.CheckedAt.UTC()
+	}
+	working.LastCheckedAt = &checkedAt
+	working.LastStatus = diag.Status
+	working.LastMessage = diag.Message
+	working.LastError = diag.Error
+	updatedAt := now
+	working.UpdatedAt = &updatedAt
+	working.TokenConfigured = strings.TrimSpace(working.Token) != ""
+
+	if err := saveHomeAssistantConfig(r.Context(), app.DB, working); err != nil {
+		log.Printf("Failed to persist Home Assistant config: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to persist configuration")
+		return
+	}
+
+	app.setHomeAssistantConfig(working)
+	if app.DeviceController != nil {
+		app.DeviceController.SetHomeAssistantClient(client)
+	}
+
+	log.Printf("🔧 Home Assistant configuration updated: status=%s target=%s", diag.Status, working.BaseURL)
+
+	response := buildHomeAssistantResponse(working, diag)
+	response["saved"] = true
+	writeJSON(w, http.StatusOK, response)
 }

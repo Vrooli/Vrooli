@@ -8,14 +8,17 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type DeviceController struct {
-	db       *sql.DB
-	haClient *HomeAssistantClient
+	db               *sql.DB
+	haClient         *HomeAssistantClient
+	mu               sync.RWMutex
+	lastDeviceSource string
 }
 
 type DeviceControlRequest struct {
@@ -57,9 +60,31 @@ type Profile struct {
 
 func NewDeviceController(db *sql.DB, haClient *HomeAssistantClient) *DeviceController {
 	return &DeviceController{
-		db:       db,
-		haClient: haClient,
+		db:               db,
+		haClient:         haClient,
+		lastDeviceSource: "unknown",
 	}
+}
+
+func (dc *DeviceController) SetHomeAssistantClient(client *HomeAssistantClient) {
+	if dc == nil {
+		return
+	}
+
+	dc.mu.Lock()
+	defer dc.mu.Unlock()
+	dc.haClient = client
+}
+
+func (dc *DeviceController) getHomeAssistantClient() *HomeAssistantClient {
+	if dc == nil {
+		return nil
+	}
+
+	dc.mu.RLock()
+	client := dc.haClient
+	dc.mu.RUnlock()
+	return client
 }
 
 func (dc *DeviceController) ControlDevice(ctx context.Context, req DeviceControlRequest) (*DeviceControlResponse, error) {
@@ -210,8 +235,8 @@ type HACommandResult struct {
 }
 
 func (dc *DeviceController) controlDevice(ctx context.Context, req DeviceControlRequest) (*HACommandResult, error) {
-	if dc.haClient != nil {
-		result, err := dc.haClient.ControlDevice(ctx, req)
+	if client := dc.getHomeAssistantClient(); client != nil {
+		result, err := client.ControlDevice(ctx, req)
 		if err == nil {
 			return result, nil
 		}
@@ -296,8 +321,8 @@ func (dc *DeviceController) logExecution(ctx context.Context, req DeviceControlR
 }
 
 func (dc *DeviceController) GetDeviceStatus(ctx context.Context, deviceID string) (*DeviceStatus, error) {
-	if dc.haClient != nil {
-		status, err := dc.haClient.GetDevice(ctx, deviceID)
+	if client := dc.getHomeAssistantClient(); client != nil {
+		status, err := client.GetDevice(ctx, deviceID)
 		if err == nil {
 			return status, nil
 		}
@@ -435,19 +460,49 @@ func (dc *DeviceController) listDevicesFromDatabase(ctx context.Context) ([]Devi
 }
 
 func (dc *DeviceController) ListDevices(ctx context.Context) ([]DeviceStatus, error) {
-	if dc.haClient != nil {
-		if devices, err := dc.haClient.ListDevices(ctx); err == nil && len(devices) > 0 {
+	if client := dc.getHomeAssistantClient(); client != nil {
+		if devices, err := client.ListDevices(ctx); err == nil && len(devices) > 0 {
+			dc.setLastDeviceSource("home_assistant")
 			return devices, nil
 		}
 	}
 
 	if dc.db != nil {
 		if devices, err := dc.listDevicesFromDatabase(ctx); err == nil && len(devices) > 0 {
+			dc.setLastDeviceSource("database")
 			return devices, nil
 		}
 	}
 
+	dc.setLastDeviceSource("mock")
 	return dc.getMockDevices(), nil
+}
+
+func (dc *DeviceController) setLastDeviceSource(source string) {
+	if dc == nil {
+		return
+	}
+
+	if strings.TrimSpace(source) == "" {
+		source = "unknown"
+	}
+
+	dc.mu.Lock()
+	defer dc.mu.Unlock()
+	dc.lastDeviceSource = source
+}
+
+func (dc *DeviceController) LastDeviceDataSource() string {
+	if dc == nil {
+		return "unknown"
+	}
+
+	dc.mu.RLock()
+	defer dc.mu.RUnlock()
+	if dc.lastDeviceSource == "" {
+		return "unknown"
+	}
+	return dc.lastDeviceSource
 }
 
 func (dc *DeviceController) getMockDevices() []DeviceStatus {

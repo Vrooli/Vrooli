@@ -94,6 +94,13 @@ body {
     align-items: center;
 }
 
+.logo {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
 .logo h1 {
     font-size: 1.5rem;
     font-weight: 700;
@@ -107,12 +114,50 @@ body {
     font-size: 0.875rem;
     color: var(--text-secondary);
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
 }
 
 .header-controls {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+}
+
+.data-source-banner {
+    display: none;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--bg-tertiary);
+    border-left: 4px solid var(--accent-warning);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.data-source-banner.is-visible {
+    display: flex;
+}
+
+.data-source-banner .banner-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.data-source-banner .banner-copy strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.data-source-banner.is-warning {
+    border-left-color: var(--accent-warning);
+}
+
+.data-source-banner.is-warning .icon {
+    color: var(--accent-warning);
 }
 
 .connection-status {
@@ -543,6 +588,115 @@ textarea {
     margin-bottom: 1rem;
 }
 
+.integration-form {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ha-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-bottom: 0.25rem;
+}
+
+.integration-form .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.integration-form input[type="url"],
+.integration-form input[type="text"],
+.integration-form input[type="password"] {
+    background: var(--bg-secondary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    padding: 0.6rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.integration-form input:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(69, 105, 255, 0.15);
+}
+
+.form-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.form-feedback {
+    min-height: 1.2rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.form-feedback.is-success {
+    color: var(--accent-success);
+}
+
+.form-feedback.is-error {
+    color: var(--accent-error);
+}
+
+.form-feedback.is-warning {
+    color: var(--accent-warning);
+}
+
+.ha-setup-details {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.ha-setup-details summary {
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.ha-setup-details ol {
+    margin-top: 0.5rem;
+    padding-left: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.ha-setup-details li strong {
+    color: var(--text-primary);
+}
+
+.ha-setup-hint {
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
 .status-badge {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -552,6 +706,11 @@ textarea {
     text-transform: uppercase;
 }
 
+.status-badge.degraded {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--accent-warning);
+}
+
 .status-badge.online {
     background: rgba(16, 185, 129, 0.2);
     color: var(--accent-success);
@@ -559,6 +718,26 @@ textarea {
 
 .status-badge.offline {
     background: rgba(239, 68, 68, 0.2);
+    color: var(--accent-error);
+}
+
+.status-detail {
+    display: none;
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.status-detail.is-visible {
+    display: block;
+}
+
+.status-detail.status-detail--warning {
+    color: var(--accent-warning);
+}
+
+.status-detail.status-detail--error {
     color: var(--accent-error);
 }
 
@@ -679,6 +858,14 @@ textarea {
 @media (max-width: 768px) {
     .header-content {
         padding: 0 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .logo-title,
+    .tagline {
+        display: none;
     }
     
     .header-controls {
@@ -720,7 +907,7 @@ textarea {
     .nav-tabs {
         padding: 0 0.5rem;
     }
-    
+
     .tab-button {
         padding: 0.75rem;
         font-size: 0.8rem;
@@ -732,5 +919,10 @@ textarea {
     
     .section-header h2 {
         font-size: 1.2rem;
+    }
+
+    .data-source-banner {
+        flex-direction: column;
+        gap: 0.5rem;
     }
 }

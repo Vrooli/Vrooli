@@ -83,6 +83,8 @@ resource-home-assistant device control light.living_room turn_on
 resource-home-assistant scene activate "Good Night"
 ```
 
+> 💡 Use the **Auto-connect** button in the dashboard (Settings → Home Assistant) to automatically provision a long-lived token from the running resource when you don't want to create one manually.
+
 **Scenario Authenticator** (`scenario-authenticator`)
 ```bash
 # User validation and profile management

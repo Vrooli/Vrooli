@@ -7,21 +7,11 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%230f172a%27%20stroke-width%3D%271.5%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27m3%209%209-7%209%207v11a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2z%27/%3E%3Cpolyline%20points%3D%279%2022%209%2012%2015%2012%2015%2022%27/%3E%3C/svg%3E">
     <script src="https://unpkg.com/lucide@latest" defer></script>
-    <script type="module">
-        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
-
-        if (typeof window !== 'undefined' && window.parent !== window && !window.__homeAutomationBridgeInitialized) {
-            let parentOrigin;
-            try {
-                if (document.referrer) {
-                    parentOrigin = new URL(document.referrer).origin;
-                }
-            } catch (error) {
-                console.warn('[HomeAutomation] Unable to parse parent origin for iframe bridge', error);
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
             }
-
-            initIframeBridgeChild({ parentOrigin, appId: 'home-automation' });
-            window.__homeAutomationBridgeInitialized = true;
         }
     </script>
 </head>
@@ -33,7 +23,7 @@
                 <div class="logo">
                     <h1>
                         <span class="icon icon-lg" data-lucide="home"></span>
-                        <span>Home Intelligence</span>
+                        <span class="logo-title">Home Intelligence</span>
                     </h1>
                     <span class="tagline">Self-Evolving Automation</span>
                 </div>
@@ -102,6 +92,8 @@
                     </div>
                 </div>
                 
+                <div class="data-source-banner" id="devicesDataSourceBanner" role="status" aria-live="polite"></div>
+
                 <div class="devices-grid" id="devicesGrid">
                     <!-- Device tiles will be dynamically populated -->
                     <div class="device-placeholder">
@@ -250,13 +242,56 @@
                         <button class="btn btn-secondary" id="calendarSettings">Setup</button>
                     </div>
                     
-                    <div class="settings-card">
+                    <div class="settings-card" id="homeAssistantCard">
                         <h3>
                             <span class="icon" data-lucide="house"></span>
                             <span>Home Assistant</span>
                         </h3>
                         <p>Device discovery and control</p>
                         <div class="status-badge" id="haStatus">Unknown</div>
+                        <p class="status-detail" id="haStatusDetail" aria-live="polite"></p>
+                        <form class="integration-form" id="homeAssistantConfigForm">
+                            <div class="ha-action-bar" role="group" aria-label="Home Assistant helpers">
+                                <button type="button" class="btn btn-secondary" id="haOpenDashboard">Open Home Assistant</button>
+                                <button type="button" class="btn btn-secondary" id="haShowGuide">Setup guide</button>
+                                <button type="button" class="btn btn-primary" id="haAutoProvision">Auto-connect</button>
+                            </div>
+
+                            <label class="form-label" for="haBaseUrl">Home Assistant URL</label>
+                            <input type="url" id="haBaseUrl" name="base_url" placeholder="http://localhost:8123" autocomplete="url" required>
+
+                            <label class="form-label" for="haToken">Long-lived access token</label>
+                            <input type="password" id="haToken" name="token" placeholder="Enter token to update" autocomplete="off">
+
+                            <div class="form-checkboxes">
+                                <label class="checkbox-inline">
+                                    <input type="checkbox" id="haClearToken">
+                                    <span>Clear stored token</span>
+                                </label>
+                                <label class="checkbox-inline">
+                                    <input type="checkbox" id="haMockMode">
+                                    <span>Enable mock mode fallback</span>
+                                </label>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="haTestConnection">Test connection</button>
+                                <button type="submit" class="btn btn-primary" id="haSaveConfig">Save configuration</button>
+                            </div>
+
+                            <p class="form-feedback" id="haConfigFeedback" role="status" aria-live="polite"></p>
+                        </form>
+
+                        <details class="ha-setup-details" id="haSetupDetails">
+                            <summary>Need help connecting?</summary>
+                            <ol>
+                                <li>Open the Home Assistant dashboard and sign in as an administrator.</li>
+                                <li>Go to <strong>Profile → Security → Long-Lived Access Tokens</strong>.</li>
+                                <li>Create a token named <em>Home Automation Intelligence</em> and paste it above.</li>
+                                <li>Alternatively, use <em>Auto-connect</em> to let this scenario generate a service token automatically.</li>
+                            </ol>
+                            <p class="ha-setup-hint">The automatic flow safely provisions a dedicated token via the running Home Assistant resource.</p>
+                        </details>
                     </div>
                 </div>
             </div>
@@ -274,6 +309,6 @@
         <div class="toast-container" id="toastContainer"></div>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

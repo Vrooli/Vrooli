@@ -3,6 +3,47 @@
  * Self-evolving home automation with AI-generated automations
  */
 
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__homeAutomationBridgeInitialized';
+
+function initializeIframeBridge() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    if (window.parent === window) {
+        return;
+    }
+
+    if (window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[HomeAutomation] Unable to parse parent origin for iframe bridge', error);
+    }
+
+    try {
+        initIframeBridgeChild({
+            appId: 'home-automation',
+            parentOrigin,
+            captureLogs: { enabled: true },
+            captureNetwork: { enabled: true }
+        });
+        window[BRIDGE_FLAG] = true;
+    } catch (error) {
+        console.warn('[HomeAutomation] Failed to initialize iframe bridge', error);
+    }
+}
+
+initializeIframeBridge();
+
 class HomeAutomationApp {
     constructor() {
         this.apiBaseUrl = this.resolveApiBaseUrl();
@@ -14,10 +55,18 @@ class HomeAutomationApp {
         this.scenes = new Map();
         this.iconRetryAttempts = 0;
         this.pendingIconRefresh = null;
-        
+        this.deviceDataSource = 'unknown';
+        this.usingMockDevices = false;
+        this.homeAssistantConfig = {
+            baseUrl: '',
+            tokenConfigured: false,
+            mockMode: false,
+            status: 'unknown'
+        };
+
         this.init();
     }
-    
+
     init() {
         console.log('Initializing Home Automation Intelligence...');
         
@@ -25,13 +74,15 @@ class HomeAutomationApp {
         this.initializeTabNavigation();
         this.initializeWebSocket();
         this.initializeEventListeners();
-        
+        this.initializeHomeAssistantConfigForm();
+
         // Load initial data
         this.loadUserProfile();
         this.loadDevices();
         this.loadScenes();
         this.loadAutomations();
-        
+        this.loadHomeAssistantConfig();
+
         this.refreshIcons();
 
         console.log('✅ Home Automation App initialized');
@@ -242,7 +293,15 @@ class HomeAutomationApp {
             });
 
             if (!response.ok) {
-                throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const errorPayload = await response.json().catch(() => null);
+                    const message = errorPayload?.error || errorPayload?.message;
+                    throw new Error(message || `API call failed: ${response.status} ${response.statusText}`);
+                }
+
+                const errorText = (await response.text()).trim();
+                throw new Error(errorText || `API call failed: ${response.status} ${response.statusText}`);
             }
 
             if (response.status === 204) {
@@ -293,6 +352,8 @@ class HomeAutomationApp {
 
             const payload = await this.apiCall('/devices');
             const apiDevices = Array.isArray(payload.devices) ? payload.devices : [];
+            const dataSource = typeof payload?.data_source === 'string' ? payload.data_source : 'unknown';
+            const usingMockData = payload?.mock_data === true || dataSource === 'mock';
 
             this.devices.clear();
             apiDevices.forEach(rawDevice => {
@@ -302,6 +363,10 @@ class HomeAutomationApp {
                 }
             });
 
+            this.deviceDataSource = dataSource;
+            this.usingMockDevices = usingMockData;
+            this.updateDeviceDataSourceBanner();
+
             this.renderDevices();
             this.hideLoading();
 
@@ -310,13 +375,16 @@ class HomeAutomationApp {
             console.error('Failed to load devices:', error);
             this.showToast(`Failed to load devices: ${error.message}`, 'error');
             this.hideLoading();
+            this.usingMockDevices = false;
+            this.deviceDataSource = 'unknown';
+            this.updateDeviceDataSourceBanner();
         }
     }
     
     renderDevices() {
         const devicesGrid = document.getElementById('devicesGrid');
         if (!devicesGrid) return;
-        
+
         devicesGrid.innerHTML = '';
         
         if (this.devices.size === 0) {
@@ -330,13 +398,35 @@ class HomeAutomationApp {
             this.refreshIcons();
             return;
         }
-        
+
         this.devices.forEach(device => {
             const deviceCard = this.createDeviceCard(device);
             devicesGrid.appendChild(deviceCard);
         });
 
         this.refreshIcons();
+    }
+
+    updateDeviceDataSourceBanner() {
+        const banner = document.getElementById('devicesDataSourceBanner');
+        if (!banner) {
+            return;
+        }
+
+        if (this.usingMockDevices) {
+            banner.innerHTML = `
+                <span class="icon" data-lucide="beaker"></span>
+                <div class="banner-copy">
+                    <strong>Demo devices in use</strong>
+                    <p>Connect your Home Assistant hub to see live device data.</p>
+                </div>
+            `;
+            banner.classList.add('is-visible', 'is-warning');
+            console.warn('Home Automation UI is showing mock device data. Connect Home Assistant to view live devices.');
+        } else {
+            banner.innerHTML = '';
+            banner.classList.remove('is-visible', 'is-warning');
+        }
     }
 
     buildApiHeaders() {
@@ -870,6 +960,7 @@ class HomeAutomationApp {
             case 'settings':
                 // Check system status
                 this.checkSystemStatus();
+                this.loadHomeAssistantConfig();
                 break;
         }
     }
@@ -889,27 +980,452 @@ class HomeAutomationApp {
         document.getElementById('todayUsage').textContent = stats.today;
         document.getElementById('monthlyUsage').textContent = stats.monthly;
     }
-    
+
     async checkSystemStatus() {
         const haStatus = document.getElementById('haStatus');
+        const haStatusDetail = document.getElementById('haStatusDetail');
         if (!haStatus) return;
+
+        const setBadgeTitle = (message) => {
+            if (!message) {
+                haStatus.removeAttribute('title');
+                haStatus.removeAttribute('aria-label');
+                return;
+            }
+
+            haStatus.setAttribute('title', message);
+            haStatus.setAttribute('aria-label', `Home Assistant status ${haStatus.textContent || ''}. ${message}`.trim());
+        };
+
+        const hideDetail = () => {
+            if (haStatusDetail) {
+                haStatusDetail.textContent = '';
+                haStatusDetail.className = 'status-detail';
+            }
+            setBadgeTitle('');
+        };
+
+        const showDetail = (message, variant = 'warning') => {
+            if (haStatusDetail) {
+                haStatusDetail.textContent = message;
+                haStatusDetail.className = `status-detail is-visible status-detail--${variant}`;
+            }
+            setBadgeTitle(message);
+        };
 
         try {
             const health = await this.apiCall('/health');
             const dependency = health?.dependencies?.home_assistant || {};
-            const status = dependency.status || 'unknown';
+            const status = (dependency.status || 'unknown').toLowerCase();
+
+            const detailParts = [];
+            if (dependency.message) {
+                detailParts.push(dependency.message);
+            }
+            if (dependency.error && dependency.error !== dependency.message) {
+                detailParts.push(dependency.error);
+            }
+            if (dependency.action_required) {
+                detailParts.push(dependency.action_required);
+            }
+
+            const defaultDetail = 'No diagnostic details provided. Review Home Assistant credentials and API logs.';
+            const detailText = (detailParts.length ? detailParts : [defaultDetail])
+                .filter(Boolean)
+                .join(' • ');
 
             if (status === 'healthy') {
                 haStatus.textContent = 'Online';
                 haStatus.className = 'status-badge online';
-            } else {
+                hideDetail();
+            } else if (status === 'degraded' || status === 'warn' || status === 'warning') {
                 haStatus.textContent = 'Degraded';
+                haStatus.className = 'status-badge degraded';
+                showDetail(detailText, 'warning');
+            } else {
+                haStatus.textContent = 'Offline';
                 haStatus.className = 'status-badge offline';
+                showDetail(detailText, 'error');
             }
         } catch (error) {
             console.error('Health check failed:', error);
             haStatus.textContent = 'Offline';
             haStatus.className = 'status-badge offline';
+            const fallbackDetail = 'Unable to reach Home Automation API health endpoint. Verify the scenario is running and reachable.';
+            showDetail(fallbackDetail, 'error');
+        }
+    }
+
+    initializeHomeAssistantConfigForm() {
+        const form = document.getElementById('homeAssistantConfigForm');
+        if (form) {
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                this.saveHomeAssistantConfig();
+            });
+        }
+
+        const testButton = document.getElementById('haTestConnection');
+        if (testButton) {
+            testButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.testHomeAssistantConfig();
+            });
+        }
+
+        const clearToken = document.getElementById('haClearToken');
+        const tokenInput = document.getElementById('haToken');
+        if (clearToken) {
+            clearToken.addEventListener('change', () => {
+                if (clearToken.checked && tokenInput) {
+                    tokenInput.value = '';
+                }
+            });
+        }
+
+        if (tokenInput && clearToken) {
+            tokenInput.addEventListener('input', () => {
+                if (tokenInput.value.trim().length > 0) {
+                    clearToken.checked = false;
+                }
+            });
+        }
+
+        const autoProvisionButton = document.getElementById('haAutoProvision');
+        if (autoProvisionButton) {
+            autoProvisionButton.addEventListener('click', () => {
+                this.autoProvisionHomeAssistant();
+            });
+        }
+
+        const openDashboardButton = document.getElementById('haOpenDashboard');
+        if (openDashboardButton) {
+            openDashboardButton.addEventListener('click', () => {
+                this.openHomeAssistantDashboard();
+            });
+        }
+
+        const showGuideButton = document.getElementById('haShowGuide');
+        if (showGuideButton) {
+            showGuideButton.addEventListener('click', () => {
+                const details = document.getElementById('haSetupDetails');
+                if (details) {
+                    details.open = true;
+                    details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        }
+    }
+
+    async loadHomeAssistantConfig() {
+        try {
+            const config = await this.apiCall('/integrations/home-assistant/config');
+            if (!config || typeof config !== 'object') {
+                throw new Error('Invalid configuration response');
+            }
+
+            this.homeAssistantConfig = {
+                baseUrl: typeof config.base_url === 'string' ? config.base_url : '',
+                tokenConfigured: config.token_configured === true,
+                mockMode: config.mock_mode === true,
+                status: typeof config.status === 'string' ? config.status : 'unknown',
+                message: typeof config.message === 'string' ? config.message : '',
+                actionRequired: typeof config.action_required === 'string' ? config.action_required : '',
+                error: typeof config.error === 'string' ? config.error : ''
+            };
+
+            this.populateHomeAssistantConfigForm(config);
+            this.updateHomeAssistantStatus(config);
+        } catch (error) {
+            console.error('Failed to load Home Assistant configuration:', error);
+            this.showHomeAssistantFeedback('Failed to load configuration. Check API connectivity.', 'error');
+        }
+    }
+
+    populateHomeAssistantConfigForm(config = {}) {
+        const baseInput = document.getElementById('haBaseUrl');
+        if (baseInput) {
+            baseInput.value = typeof config.base_url === 'string'
+                ? config.base_url
+                : (this.homeAssistantConfig.baseUrl || '');
+        }
+
+        const tokenInput = document.getElementById('haToken');
+        if (tokenInput) {
+            tokenInput.value = '';
+            const hasToken = config.token_configured === true || this.homeAssistantConfig.tokenConfigured;
+            tokenInput.placeholder = hasToken
+                ? 'Token configured (leave blank to keep existing)'
+                : 'Enter Home Assistant long-lived token';
+        }
+
+        const mockCheckbox = document.getElementById('haMockMode');
+        if (mockCheckbox) {
+            mockCheckbox.checked = config.mock_mode === true || this.homeAssistantConfig.mockMode === true;
+        }
+
+        const clearToken = document.getElementById('haClearToken');
+        if (clearToken) {
+            clearToken.checked = false;
+        }
+
+        this.showHomeAssistantFeedback('', 'info');
+    }
+
+    updateHomeAssistantStatus(config = {}) {
+        const haStatus = document.getElementById('haStatus');
+        const haStatusDetail = document.getElementById('haStatusDetail');
+        if (!haStatus) {
+            return;
+        }
+
+        const status = String(config.status || 'unknown').toLowerCase();
+        let badgeText = 'Unknown';
+        let badgeClass = 'status-badge';
+
+        if (status === 'healthy') {
+            badgeText = 'Online';
+            badgeClass += ' online';
+        } else if (status === 'degraded' || status === 'unconfigured') {
+            badgeText = status === 'unconfigured' ? 'Needs Setup' : 'Degraded';
+            badgeClass += ' degraded';
+        } else {
+            badgeText = 'Offline';
+            badgeClass += ' offline';
+        }
+
+        haStatus.textContent = badgeText;
+        haStatus.className = badgeClass;
+
+        let detailText = '';
+        if (haStatusDetail) {
+            const detailParts = [];
+            if (config.message) {
+                detailParts.push(config.message);
+            }
+            if (config.action_required && detailParts.indexOf(config.action_required) === -1) {
+                detailParts.push(config.action_required);
+            }
+            if (config.error) {
+                detailParts.push(config.error);
+            }
+
+            if (detailParts.length > 0) {
+                detailText = detailParts.join(' • ');
+                const variant = status === 'healthy'
+                    ? ''
+                    : (status === 'degraded' || status === 'unconfigured')
+                        ? 'status-detail--warning'
+                        : 'status-detail--error';
+                haStatusDetail.textContent = detailText;
+                haStatusDetail.className = ['status-detail', 'is-visible', variant].filter(Boolean).join(' ');
+            } else {
+                haStatusDetail.textContent = '';
+                haStatusDetail.className = 'status-detail';
+            }
+        }
+
+        const ariaParts = [
+            `Home Assistant status ${badgeText}`,
+            detailText
+        ].filter(Boolean);
+        haStatus.setAttribute('title', detailText || badgeText);
+        haStatus.setAttribute('aria-label', ariaParts.join('. '));
+
+        const statusCard = document.getElementById('homeAssistantCard');
+        if (statusCard) {
+            statusCard.dataset.status = status;
+        }
+    }
+
+    showHomeAssistantFeedback(message, variant = 'info') {
+        const feedback = document.getElementById('haConfigFeedback');
+        if (!feedback) {
+            return;
+        }
+
+        const classes = {
+            success: 'form-feedback is-success',
+            error: 'form-feedback is-error',
+            warning: 'form-feedback is-warning',
+            info: 'form-feedback'
+        };
+
+        feedback.className = classes[variant] || classes.info;
+        feedback.textContent = message || '';
+    }
+
+    collectHomeAssistantPayload({ requireToken = false, testOnly = false } = {}) {
+        const baseInput = document.getElementById('haBaseUrl');
+        const tokenInput = document.getElementById('haToken');
+        const mockCheckbox = document.getElementById('haMockMode');
+        const clearToken = document.getElementById('haClearToken');
+
+        const payload = {
+            base_url: baseInput?.value?.trim() || '',
+            mock_mode: !!(mockCheckbox && mockCheckbox.checked)
+        };
+
+        const tokenValue = tokenInput?.value?.trim() || '';
+        const clearTokenChecked = !!(clearToken && clearToken.checked);
+        if (clearTokenChecked) {
+            payload.clear_token = true;
+        }
+        if (tokenValue) {
+            payload.token = tokenValue;
+        }
+        if (testOnly) {
+            payload.test_only = true;
+        }
+
+        const errors = [];
+        if (!payload.base_url) {
+            errors.push('Home Assistant URL is required.');
+        }
+        const tokenMissing = !clearTokenChecked && !tokenValue && !this.homeAssistantConfig.tokenConfigured;
+        if (requireToken && tokenMissing) {
+            errors.push('Provide a Home Assistant token or clear the stored token.');
+        }
+
+        return { payload, errors };
+    }
+
+    async saveHomeAssistantConfig() {
+        const { payload, errors } = this.collectHomeAssistantPayload({ requireToken: true, testOnly: false });
+        if (errors.length) {
+            this.showHomeAssistantFeedback(errors.join(' '), 'error');
+            return;
+        }
+
+        this.showHomeAssistantFeedback('Saving configuration...', 'info');
+
+        try {
+            const response = await this.apiCall('/integrations/home-assistant/config', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            this.homeAssistantConfig = {
+                baseUrl: response?.base_url || payload.base_url,
+                tokenConfigured: response?.token_configured === true,
+                mockMode: response?.mock_mode === true,
+                status: response?.status || 'unknown',
+                message: response?.message || '',
+                actionRequired: response?.action_required || '',
+                error: response?.error || ''
+            };
+
+            this.populateHomeAssistantConfigForm(response);
+            this.updateHomeAssistantStatus(response);
+
+            const feedbackMessage = response?.message
+                || (response?.status === 'healthy'
+                    ? 'Configuration saved and Home Assistant is reachable.'
+                    : 'Configuration saved. Review the status message for next steps.');
+            const feedbackVariant = response?.status === 'healthy' ? 'success' : 'warning';
+            this.showHomeAssistantFeedback(feedbackMessage, feedbackVariant);
+        } catch (error) {
+            console.error('Failed to save Home Assistant configuration:', error);
+            this.showHomeAssistantFeedback(`Failed to save configuration: ${error.message}`, 'error');
+        }
+    }
+
+    async testHomeAssistantConfig() {
+        const { payload, errors } = this.collectHomeAssistantPayload({ requireToken: false, testOnly: true });
+        if (errors.length) {
+            this.showHomeAssistantFeedback(errors.join(' '), 'error');
+            return;
+        }
+
+        this.showHomeAssistantFeedback('Testing connection...', 'info');
+
+        try {
+            const response = await this.apiCall('/integrations/home-assistant/config', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            this.updateHomeAssistantStatus(response);
+
+            const variant = response?.status === 'healthy' ? 'success' : 'warning';
+            const summary = response?.message
+                || (response?.status === 'healthy' ? 'Home Assistant connection verified.' : 'Connection test completed. Review status details.');
+            this.showHomeAssistantFeedback(summary, variant);
+        } catch (error) {
+            console.error('Home Assistant connection test failed:', error);
+            this.showHomeAssistantFeedback(`Connection test failed: ${error.message}`, 'error');
+        }
+    }
+
+    openHomeAssistantDashboard() {
+        let target = this.homeAssistantConfig?.baseUrl || '';
+        const baseInput = document.getElementById('haBaseUrl');
+        if (!target && baseInput) {
+            target = baseInput.value.trim();
+        }
+
+        if (!target) {
+            target = 'http://localhost:8123';
+        }
+
+        try {
+            const parsed = new URL(target, window.location.href);
+            window.open(parsed.toString(), '_blank', 'noopener');
+        } catch (error) {
+            const fallback = target.startsWith('http') ? target : `http://${target}`;
+            window.open(fallback, '_blank', 'noopener');
+        }
+    }
+
+    async autoProvisionHomeAssistant() {
+        const button = document.getElementById('haAutoProvision');
+        if (button) {
+            button.disabled = true;
+        }
+
+        const baseInput = document.getElementById('haBaseUrl');
+        const baseUrl = baseInput?.value?.trim() || this.homeAssistantConfig.baseUrl || '';
+
+        this.showHomeAssistantFeedback('Attempting automatic Home Assistant provisioning...', 'info');
+
+        try {
+            const response = await this.apiCall('/integrations/home-assistant/provision', {
+                method: 'POST',
+                body: JSON.stringify({
+                    base_url: baseUrl,
+                    client_name: 'Home Automation Intelligence',
+                    lifespan_days: 3650
+                })
+            });
+
+            this.homeAssistantConfig = {
+                baseUrl: response?.base_url || baseUrl,
+                tokenConfigured: response?.token_configured === true,
+                mockMode: response?.mock_mode === true,
+                status: response?.status || 'unknown',
+                message: response?.message || '',
+                actionRequired: response?.action_required || '',
+                error: response?.error || ''
+            };
+
+            this.populateHomeAssistantConfigForm(response);
+            this.updateHomeAssistantStatus(response);
+
+            const variant = response?.status === 'healthy' ? 'success' : 'warning';
+            const summary = response?.message || 'Home Assistant connection established.';
+            this.showHomeAssistantFeedback(summary, variant);
+
+            const details = document.getElementById('haSetupDetails');
+            if (details) {
+                details.open = false;
+            }
+        } catch (error) {
+            console.error('Home Assistant auto-provision failed:', error);
+            this.showHomeAssistantFeedback(`Automatic provisioning failed: ${error.message}`, 'error');
+        } finally {
+            if (button) {
+                button.disabled = false;
+            }
         }
     }
 

@@ -179,10 +179,10 @@ export default function ManageProtectedScenariosDialog({
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium text-gray-900">{scenario.name}</span>
                               {isProtected && (
-                                <Lock className="h-3.5 w-3.5 text-blue-600" title="Protected" />
+                                <Lock className="h-3.5 w-3.5 text-blue-600" aria-label="Protected" />
                               )}
                               {!isProtected && (
-                                <Unlock className="h-3.5 w-3.5 text-gray-400" title="Not protected" />
+                                <Unlock className="h-3.5 w-3.5 text-gray-400" aria-label="Not protected" />
                               )}
                             </div>
                             {scenario.description && (

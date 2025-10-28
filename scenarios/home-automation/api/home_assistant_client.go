@@ -10,16 +10,21 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type HomeAssistantClient struct {
-	baseURL    string
-	token      string
-	httpClient *http.Client
+	baseURL      string
+	token        string
+	tokenType    string
+	refreshToken string
+	tokenExpiry  time.Time
+	httpClient   *http.Client
+	mu           sync.Mutex
 }
 
-func NewHomeAssistantClient(baseURL, token string) *HomeAssistantClient {
+func NewHomeAssistantClient(baseURL, token, tokenType, refreshToken string, expiresAt *time.Time) *HomeAssistantClient {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {
 		return nil
@@ -28,15 +33,26 @@ func NewHomeAssistantClient(baseURL, token string) *HomeAssistantClient {
 	client := &http.Client{Timeout: 10 * time.Second}
 
 	return &HomeAssistantClient{
-		baseURL:    strings.TrimRight(trimmed, "/"),
-		token:      strings.TrimSpace(token),
-		httpClient: client,
+		baseURL:      strings.TrimRight(trimmed, "/"),
+		token:        strings.TrimSpace(token),
+		tokenType:    strings.TrimSpace(tokenType),
+		refreshToken: strings.TrimSpace(refreshToken),
+		httpClient:   client,
+		tokenExpiry: func() time.Time {
+			if expiresAt == nil {
+				return time.Time{}
+			}
+			return expiresAt.UTC()
+		}(),
 	}
 }
 
 func (c *HomeAssistantClient) doRequest(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
 	if c == nil {
 		return nil, fmt.Errorf("home assistant client not configured")
+	}
+	if err := c.ensureAccessToken(ctx); err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
@@ -65,6 +81,46 @@ func (c *HomeAssistantClient) doRequest(ctx context.Context, method, path string
 	}
 
 	return resp, nil
+}
+
+func (c *HomeAssistantClient) ensureAccessToken(ctx context.Context) error {
+	if c == nil {
+		return fmt.Errorf("home assistant client not configured")
+	}
+
+	if !strings.EqualFold(strings.TrimSpace(c.tokenType), "refresh") {
+		if strings.TrimSpace(c.token) == "" {
+			return fmt.Errorf("home assistant client not configured")
+		}
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.refreshToken == "" {
+		return fmt.Errorf("home assistant refresh token not configured")
+	}
+
+	if strings.TrimSpace(c.token) != "" {
+		if c.tokenExpiry.IsZero() || time.Now().Add(30*time.Second).Before(c.tokenExpiry) {
+			return nil
+		}
+	}
+
+	accessToken, expiresIn, err := requestHomeAssistantAccessToken(ctx, c.baseURL, c.refreshToken)
+	if err != nil {
+		return err
+	}
+
+	c.token = accessToken
+	if expiresIn > 0 {
+		c.tokenExpiry = time.Now().Add(time.Duration(expiresIn) * time.Second)
+	} else {
+		c.tokenExpiry = time.Time{}
+	}
+
+	return nil
 }
 
 type haState struct {

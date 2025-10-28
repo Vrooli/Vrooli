@@ -189,7 +189,8 @@ INSERT INTO system_config (key, value, description) VALUES
     ('device_command_timeout_ms', '5000', 'Timeout for device control commands'),
     ('energy_monitoring_enabled', 'true', 'Enable energy usage tracking'),
     ('calendar_integration_enabled', 'true', 'Enable calendar-based context switching'),
-    ('permission_audit_enabled', 'true', 'Enable permission and access auditing');
+    ('permission_audit_enabled', 'true', 'Enable permission and access auditing'),
+    ('home_assistant_connection', '{"base_url":"http://localhost:8123","token":"","mock_mode":true,"last_status":"unconfigured","last_message":"Home Assistant base URL not configured"}', 'Home Assistant integration settings');
 
 -- Functions for common operations
 
