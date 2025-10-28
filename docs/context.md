@@ -1,27 +1,36 @@
-# Vrooli: Democratizing Business Application Development
+# Vrooli: Democratizing Application Development
 
 ## Introduction
 
-Imagine a world where building a $50K SaaS business takes hours instead of months—where customer requirements transform instantly into deployed, revenue-generating applications. **Vrooli** is a revolutionary resource orchestration platform that breaks free from API limitations, enabling agents to build complete business applications by orchestrating local resources. Whether you're a consultant, entrepreneur, or service provider, Vrooli gives you the power to deploy professional applications that compete with established SaaS solutions.
+Imagine a world where local software evolves with you, and building a revenue-generating SaaS business takes hours instead of months. **Vrooli** is a revolutionary software development platform that breaks free from traditional software limitations, enabling agents to build complete personal and business apps by orchestrating local resources, and leveraging these custom solutions to build even more powerful apps. Whether you're a consultant, entrepreneur, or manager, or a general consumer, Vrooli gives you the power to automate anything.
 
-## The Core Innovation: Resource Orchestration Platform
+## From Platform to Self-Improving System
 
-At the heart of Vrooli lies a breakthrough architecture that orchestrates 30+ local resources to create emergent business capabilities. The platform works through:
-- **Scenario-Based Application Generation:** Dual-purpose business templates that serve as both integration tests AND $10K-50K revenue applications, ensuring every scenario is deployment-ready.
-- **Local Resource Ecosystem:** Direct access to databases (PostgreSQL), AI models (Ollama), automation platforms (n8n), user interfaces (Windmill), image generation (ComfyUI), and specialized services, enabling complete application building.
-- **Meta-Scenario Intelligence:** Self-improving scenarios that enhance Vrooli itself—Scenario Generator creates new templates, System Monitor manages deployments, Issue Tracker debugs problems, Resource Experimenter expands capabilities.
+Vrooli coordinates 100+ local resources into a living intelligence engine. Instead of treating databases, AI models, and automation servers as isolated services, the platform composes them into reusable capabilities that persist. Each scenario captures how a problem was solved, stores the resource wiring, and becomes a building block for the next application.
 
-This foundational design transforms agents from API-limited task executors into complete business application builders, creating permanent intelligence that compounds over time.
+Inputs -> Orchestration -> Outcomes becomes a flywheel: human or agent intent feeds scenarios, scenarios orchestrate resources, and the resulting applications expand the platform's permanent capabilities. Meta-scenarios like ecosystem-manager, app-issue-tracker, scenario-auditor, and system-monitor keep extending, validating, and enhancing this library, resulting in recursive self-improvement.
 
-## A Vision for Instant Business Deployment
+The result is more than automation. Agents graduate from simple tasks to crafting complete businesses on local infrastructure, and Vrooli can only accelerate as its toolset grows.
 
-Vrooli is more than a development platform—it is the foundation for instant business creation. In a world where technical complexity limits entrepreneurial vision, Vrooli empowers you to:
-- **Deploy Revenue Applications Instantly:** Transform customer requirements into complete SaaS businesses in hours. Each scenario includes database schemas, workflows, user interfaces, and business logic for immediate monetization.
-- **Break Free from API Limitations:** Local resource orchestration enables building complete applications with sophisticated capabilities, not just simple automations limited by external API constraints.
-- **Access Compound Intelligence:** Every deployed scenario becomes permanent platform intelligence. The system literally cannot forget how to solve problems—it only gets better at solving them.
+## How Scenarios Become Businesses
 
-Imagine a future where every business idea can be validated and deployed as a working application instantly, where technical barriers no longer limit entrepreneurial creativity. With Vrooli, that future is here.
+Every scenario doubles as an integration test and a monetizable product. The lifecycle looks like this:
+1. **Capture requirements:** Plain-language goals define the target capability and surface the resources it will demand.
+2. **Assemble scenarios:** Core templates compose UI, API, database, and CLI foundations, while enhancement scenarios add focused features such as `scenario-authenticator` (multi-tenancy authentication) and `brand-manager` (customization to meet client's needs).
+3. **Orchestrate resources:** Vrooli provisions local services including PostgreSQL, Ollama, and Qdrant, with enough resources available to reflect every business's needs.
+4. **Deploy and evolve:** The generated app ships as a $10K-$50K-grade deliverable. Custom edits are detected, preserved, and inform future generations, while meta-scenarios like `system-monitor` and `app-issue-tracker` keep the deployment healthy.
+
+Because every step commits understanding back into the platform, the next project begins with more context, better defaults, and richer tooling than the last.
+
+## What You Can Launch Today
+
+Vrooli already powers tangible outcomes across personas:
+- **Consultants and agencies:** Deliver client-grade SaaS in hours, then reuse the scenario to service the next engagement with higher margins.
+- **Internal platform teams:** Spin up secure departmental tools on sovereign infrastructure, preserving compliance while compounding institutional knowledge.
+- **Solo founders and operators:** Validate ideas with fully functional products that keep evolving as scenarios learn from each iteration.
+
+Local sovereignty, rapid deployment, and permanent intelligence combine so that every shipped scenario widens the opportunity surface for the next.
 
 ## Conclusion
 
-Vrooli envisions a world where business application development isn't limited by technical complexity or resource constraints. Our mission is to unlock instant application deployment through resource orchestration—transforming how businesses are built, validated, and scaled. By combining scenario-based templates with local resource ecosystems, Vrooli creates a self-improving platform where every deployed application makes the system smarter at building the next one.
+Vrooli enables a world where software development isn't limited by technical complexity or resource constraints. Our mission is to unlock nearly instant app deployment through composable scenarios and orchestrated resources, transforming how businesses are built, validated, and scaled. By combining microservice-like scenarios to build apps, and using its own scenarios for testing, standards enforcing, code cleanup, and more, Vrooli creates a self-improving platform that iterates on its own capabilities and keeps getting smarter. The roadmap only broadens from here as new resource domains and meta-scenarios arrive, pushing instant business creation closer to reality.

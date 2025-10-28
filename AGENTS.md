@@ -11,7 +11,7 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
    - Run `vrooli test help` to see available test commands.
 2. **Files**: Always prefer editing existing files over creating new ones
 4. **Dependencies**: Never install packages without explicit permission
-5. **Documentation**: Read `docs/` files at session start for context
+5. **Documentation**: Run `vrooli info` at session start for the canonical project briefing
 6. **Managing Scenarios**:
    - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make start`, `make test`, `make logs`, `make stop`
    - **Alternative**: `vrooli scenario start <name>` for direct CLI management
@@ -113,7 +113,7 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 - **golangci-lint**: Comprehensive Go linting - use `golangci-lint run` to check Go code quality and catch issues
 
 ## 📚 Session Start Checklist
-1. [ ] Read `/docs/context.md` for project overview
+1. [ ] Run `vrooli info` for the consolidated project overview
 
 ## 🔧 Local Resources Setup
 **Default Behavior**: Setup now automatically installs resources marked as `"enabled": true` in `.vrooli/service.json`

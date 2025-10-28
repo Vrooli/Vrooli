@@ -47,6 +47,11 @@ source "${var_LOG_FILE}"
 VROOLI_VERSION="2.0.0"
 CLI_VERSION="1.0.0"
 
+# Default documentation bundle for `vrooli info`
+readonly INFO_DEFAULT_FILES=(
+	"docs/context.md"
+)
+
 # Show version
 show_version() {
 	echo "Vrooli CLI v${CLI_VERSION}"
@@ -76,6 +81,9 @@ show_main_help() {
     clean               Clean build artifacts
     status              Show system health and status overview
     stop                Stop all or specific components (scenarios, resources, containers)
+
+🧭 CONTEXT COMMANDS:
+    info                Show consolidated project briefing
 
 🧪 TESTING COMMANDS:
     test                Run comprehensive scenario-first test suite
@@ -110,6 +118,101 @@ show_main_help() {
 
 📚 Documentation: docs/
 EOF
+}
+
+# Collects the ordered list of info sources for `vrooli info`
+collect_info_sources() {
+	local -n _dest="$1"
+	_dest=()
+	local manifest="${VROOLI_ROOT}/.vrooli/info-manifest.json"
+
+	if [[ -n "${VROOLI_INFO_FILES:-}" ]]; then
+		IFS=':' read -r -a _dest <<< "${VROOLI_INFO_FILES}"
+		return
+	fi
+
+	if [[ -f "$manifest" ]]; then
+		if command -v jq >/dev/null 2>&1; then
+			if ! mapfile -t _dest < <(jq -r '.files?[]?' "$manifest"); then
+				log::warning "Failed to parse ${manifest}; falling back to defaults"
+				_dest=()
+			fi
+			if [[ ${#_dest[@]} -gt 0 ]]; then
+				return
+			fi
+			log::warning "${manifest} does not specify any files; falling back to defaults"
+		else
+			log::warning "jq not available to parse ${manifest}; falling back to defaults"
+		fi
+	fi
+
+	_dest=("${INFO_DEFAULT_FILES[@]}")
+}
+
+# Renders the consolidated project context for agents and humans alike
+run_info_command() {
+	local show_paths_only="false"
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--list)
+				show_paths_only="true"
+				;;
+			--help|-h)
+				cat <<'HELP'
+Usage: vrooli info [--list]
+
+Display consolidated Vrooli project context in a single stream.
+
+    --list     Print the resolved file paths without emitting file contents.
+HELP
+				return 0
+				;;
+			*)
+				log::error "Unknown option for info: $1"
+				return 1
+				;;
+		esac
+		shift
+	done
+
+	local -a info_files=()
+	collect_info_sources info_files
+
+	if [[ ${#info_files[@]} -eq 0 ]]; then
+		log::error "No context sources defined for vrooli info"
+		return 1
+	fi
+
+	if [[ "$show_paths_only" == "true" ]]; then
+		for file in "${info_files[@]}"; do
+			if [[ "$file" == /* ]]; then
+				printf '%s\n' "$file"
+			else
+				printf '%s/%s\n' "$VROOLI_ROOT" "$file"
+			fi
+		done
+		return 0
+	fi
+
+	log::header "Vrooli Context Briefing"
+	log::info "Project root: ${VROOLI_ROOT}"
+
+	for source in "${info_files[@]}"; do
+		local resolved="$source"
+		if [[ "$resolved" != /* ]]; then
+			resolved="${VROOLI_ROOT}/${resolved}"
+		fi
+
+		if [[ ! -f "$resolved" ]]; then
+			log::warning "Skipping missing context file: ${source}"
+			continue
+		fi
+
+			printf '\n===== %s =====\n' "$resolved"
+			cat "$resolved"
+			printf '\n'
+		done
 }
 
 # Main command router
@@ -150,6 +253,11 @@ main() {
 			# Clear source guards to allow status-command.sh to load functions properly
 			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
 			exec "${VROOLI_ROOT}/cli/commands/status-command.sh" "$@"
+			;;
+		
+		# Context command
+		info)
+			run_info_command "$@"
 			;;
 		
 		# Test commands (delegate to test-commands.sh)
@@ -203,7 +311,7 @@ main() {
 			log::error "Unknown command: $command"
 			
 					# Try to provide fuzzy suggestions
-		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "stop" "test" "scenario" "resource" "doctor" "version" "help")
+		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "stop" "test" "scenario" "resource" "doctor" "info" "version" "help")
 		local suggestions=()
 		
 		# Simple fuzzy matching
