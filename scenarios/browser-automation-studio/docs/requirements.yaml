@@ -1,0 +1,116 @@
+# Browser Automation Studio requirement registry (draft)
+# Status values: pending | in_progress | complete | not_applicable
+# Validation status: not_implemented | planned | implemented | failing
+
+meta:
+  scenario: browser-automation-studio
+  version: 0.1.0
+  generated: 2025-10-19
+  owners:
+    - platform: browser-automation-studio
+      contact: execution-team@vrooli.dev
+  notes: |
+    This initial skeleton captures the top-level PRD requirements that must
+    be linked to automated validation. Update `status` and `validation.status`
+    as implementation progresses.
+
+requirements:
+  - id: BAS-FUNC-001
+    category: foundation
+    prd_ref: "Functional Requirements > Must Have > Visual workflow builder"
+    title: Persist visual workflows with nodes/edges and folder hierarchy
+    description: |
+      Users can create, update, and load React Flow-based workflows with
+      organized folders. Graph definitions must include nodes, edges, and
+      metadata required for execution planning.
+    status: pending
+    criticality: P0
+    validation:
+      - type: test
+        ref: test/phases/test-unit.sh
+        status: not_implemented
+        notes: Add unit coverage for `database.Workflow` persistence & compiler validation.
+      - type: automation
+        ref: workflows/ui-validation/structure-check.json
+        status: not_implemented
+        notes: Planned Browserless automation to verify workflow CRUD via API.
+
+  - id: BAS-FUNC-002
+    category: execution
+    prd_ref: "Functional Requirements > Must Have > Real-time screenshot display"
+    title: Stream execution telemetry (screenshots, progress, logs) while runs are active
+    description: |
+      The executor must deliver per-step telemetry (progress, console, network,
+      screenshots) to all subscribed clients via WebSocket within 500 ms of capture.
+    status: pending
+    criticality: P0
+    validation:
+      - type: test
+        ref: api/websocket/hub_test.go
+        status: not_implemented
+        notes: Add WebSocket contract tests once event types land.
+      - type: test
+        ref: api/browserless/runtime/session_test.go
+        status: not_implemented
+        notes: Session manager unit tests emitting mock telemetry.
+      - type: automation
+        ref: automation/executions/telemetry-smoke.yaml
+        status: planned
+        notes: Browserless workflow verifying streaming payloads + screenshot availability.
+
+  - id: BAS-FUNC-003
+    category: replay
+    prd_ref: "Functional Requirements > Should Have > Replay & marketing renderer"
+    title: Persist normalized execution artifacts for replay & video rendering
+    description: |
+      Execution runs produce a timeline of artifacts (screenshots, cursor trails,
+      DOM snippets) stored in Postgres + MinIO with deterministic keys. The UI and
+      CLI can reconstruct replays from these artifacts.
+    status: pending
+    criticality: P1
+    validation:
+      - type: test
+        ref: api/storage/artifacts_test.go
+        status: not_implemented
+        notes: Unit tests validating artifact write/read + schema conformance.
+      - type: automation
+        ref: automation/replay/render-check.ts
+        status: planned
+        notes: Node-based renderer smoke test generating short animations.
+
+  - id: BAS-FUNC-004
+    category: ai-integration
+    prd_ref: "Functional Requirements > Must Have > AI workflow generation"
+    title: AI-generated workflows validated against the execution plan
+    description: |
+      Prompts handled by the AI generator must round-trip through the compiler
+      and execute at least one smoke test workflow without manual edits.
+    status: pending
+    criticality: P0
+    validation:
+      - type: test
+        ref: api/services/workflow_service_ai_test.go
+        status: not_implemented
+        notes: Add deterministic tests for AI prompt normalization + compiler validation.
+      - type: automation
+        ref: automation/ai/generated-smoke.yaml
+        status: planned
+        notes: Browserless automation executing AI-generated workflow end-to-end.
+
+reporting:
+  script: scripts/requirements/report.js
+  entrypoint: node scripts/requirements/report.js
+  outputs:
+    - format: json
+      description: Machine-readable coverage report for CI dashboards
+    - format: markdown
+      description: README badge/table generation
+  cli_options:
+    --scenario: browser-automation-studio
+    --format: json|markdown
+    --include-pending: boolean
+  aggregates:
+    - metric: coverage_ratio
+      formula: implemented validations / required validations
+    - metric: criticality_gap
+      formula: count of requirements with status != complete and criticality in [P0, P1]

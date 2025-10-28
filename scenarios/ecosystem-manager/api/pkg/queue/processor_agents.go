@@ -27,6 +27,37 @@ const (
 	DetectBoth
 )
 
+// TerminationOptions controls agent termination behavior
+type TerminationOptions struct {
+	// ForceRemove enables aggressive retry with exponential backoff
+	ForceRemove bool
+	// VerifyRemoval ensures agent is fully removed before returning
+	VerifyRemoval bool
+	// Context provides context for logging (e.g., "timeout", "user request")
+	Context string
+}
+
+// AGENT TERMINATION ARCHITECTURE:
+//
+// This module provides a layered approach to agent cleanup:
+//
+// 1. terminateAgent() - Core termination logic (CLI stop + process kill + verification)
+//    Use this for standard termination cases
+//
+// 2. terminateAgentWithOptions() - Configurable termination with retry options
+//    Use this when you need fine-grained control (e.g., force removal, extra verification)
+//
+// 3. forceRemoveAgentWithRetry() - Aggressive cleanup with exponential backoff
+//    Use this only when standard termination has failed
+//
+// 4. ensureAgentRemoved() - Verification helper that triggers forced removal if needed
+//    Use this after termination to guarantee cleanup
+//
+// Best practices:
+// - For normal cleanup: Use terminateAgent()
+// - For critical cleanup (e.g., after finalization failure): Use terminateAgentWithOptions() with ForceRemove
+// - For verification after cleanup: Use ensureAgentRemoved()
+
 // stopClaudeAgent attempts to stop a Claude Code agent with timeout
 // Returns error if stop command fails (excluding fallback to PID termination)
 func (qp *Processor) stopClaudeAgent(agentIdentifier string, pid int) error {
@@ -217,6 +248,43 @@ func (qp *Processor) terminateProcessByPID(pid int) {
 	}
 }
 
+// terminateAgentWithOptions terminates an agent with configurable behavior
+// This is the most flexible termination function - use this when you need control over behavior
+func (qp *Processor) terminateAgentWithOptions(taskID, agentTag string, pid int, opts TerminationOptions) error {
+	// Resolve agent tag if not provided
+	if agentTag == "" {
+		agentTag = makeAgentTag(taskID)
+	}
+
+	context := opts.Context
+	if context == "" {
+		context = "standard termination"
+	}
+
+	log.Printf("Terminating agent %s (pid %d) for task %s [%s]", agentTag, pid, taskID, context)
+
+	// Use standard termination sequence
+	err := qp.terminateAgent(taskID, agentTag, pid)
+
+	// If termination failed and force removal is requested, retry aggressively
+	if err != nil && opts.ForceRemove {
+		log.Printf("Standard termination failed for %s, attempting forced removal", agentTag)
+		if retryErr := qp.forceRemoveAgentWithRetry(agentTag, pid); retryErr != nil {
+			return fmt.Errorf("forced removal failed after standard termination: %w", retryErr)
+		}
+		return nil // Forced removal succeeded
+	}
+
+	// If verification is requested and standard termination reports success, double-check
+	if err == nil && opts.VerifyRemoval {
+		if qp.agentExists(agentTag) {
+			return fmt.Errorf("verification failed: agent %s still exists after successful termination", agentTag)
+		}
+	}
+
+	return err
+}
+
 // terminateAgent is the canonical agent termination function that all other termination
 // functions should delegate to for consistent behavior across the codebase
 func (qp *Processor) terminateAgent(taskID, agentTag string, pid int) error {
@@ -290,33 +358,30 @@ func (qp *Processor) ensureAgentRemoved(agentTag string, pid int, context string
 // forceRemoveAgentWithRetry attempts to remove a zombie agent with exponential backoff retries
 // This is the nuclear option for when cleanupClaudeAgentRegistry fails to remove an agent
 func (qp *Processor) forceRemoveAgentWithRetry(agentTag string, pid int) error {
-	maxAttempts := 3
-	baseDelay := 500 * time.Millisecond
-
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+	for attempt := 1; attempt <= MaxAgentCleanupRetries; attempt++ {
 		// Strategy 1: Try stopClaudeAgent first (uses CLI)
 		if err := qp.stopClaudeAgent(agentTag, pid); err != nil {
-			log.Printf("Attempt %d/%d: stopClaudeAgent failed for %s: %v", attempt, maxAttempts, agentTag, err)
+			log.Printf("Attempt %d/%d: stopClaudeAgent failed for %s: %v", attempt, MaxAgentCleanupRetries, agentTag, err)
 		}
 
 		// Strategy 2: Run cleanup registry
 		if err := qp.cleanupClaudeAgentRegistry(); err != nil {
-			log.Printf("Attempt %d/%d: cleanupClaudeAgentRegistry failed: %v", attempt, maxAttempts, err)
+			log.Printf("Attempt %d/%d: cleanupClaudeAgentRegistry failed: %v", attempt, MaxAgentCleanupRetries, err)
 		}
 
 		// Verify removal
 		if !qp.agentExists(agentTag) {
 			if attempt > 1 {
-				log.Printf("Agent %s successfully removed on attempt %d/%d", agentTag, attempt, maxAttempts)
+				log.Printf("Agent %s successfully removed on attempt %d/%d", agentTag, attempt, MaxAgentCleanupRetries)
 				systemlog.Infof("Zombie agent %s removed after %d retry attempts", agentTag, attempt)
 			}
 			return nil
 		}
 
 		// If still exists and not the last attempt, wait with exponential backoff
-		if attempt < maxAttempts {
-			delay := time.Duration(attempt) * baseDelay
-			log.Printf("Agent %s still exists after attempt %d/%d, retrying in %v", agentTag, attempt, maxAttempts, delay)
+		if attempt < MaxAgentCleanupRetries {
+			delay := time.Duration(attempt) * AgentCleanupBackoffBase
+			log.Printf("Agent %s still exists after attempt %d/%d, retrying in %v", agentTag, attempt, MaxAgentCleanupRetries, delay)
 			time.Sleep(delay)
 
 			// Strategy 3: On second attempt, try killing any orphaned processes
@@ -331,7 +396,7 @@ func (qp *Processor) forceRemoveAgentWithRetry(agentTag string, pid int) error {
 	}
 
 	// All attempts failed
-	return fmt.Errorf("agent %s still registered after %d attempts with multiple cleanup strategies", agentTag, maxAttempts)
+	return fmt.Errorf("agent %s still registered after %d attempts with multiple cleanup strategies", agentTag, MaxAgentCleanupRetries)
 }
 
 // getExternalActiveTaskIDs returns task IDs with active Claude agents

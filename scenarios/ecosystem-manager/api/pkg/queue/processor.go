@@ -82,6 +82,11 @@ type Processor struct {
 	// Bookkeeping for queue activity
 	lastProcessedMu sync.RWMutex
 	lastProcessedAt time.Time
+
+	// Execution history cache (simple time-based invalidation)
+	executionHistoryCache     []ExecutionHistory
+	executionHistoryCacheTime time.Time
+	executionHistoryCacheMu   sync.RWMutex
 }
 
 // NewProcessor creates a new queue processor

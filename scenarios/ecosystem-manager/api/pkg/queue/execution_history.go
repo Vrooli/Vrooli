@@ -15,6 +15,9 @@ import (
 // ExecutionHistory tracks metadata about a single task execution
 type ExecutionHistory struct {
 	TaskID         string    `json:"task_id"`
+	TaskTitle      string    `json:"task_title"`      // Human-readable task title
+	TaskType       string    `json:"task_type"`       // resource or scenario
+	TaskOperation  string    `json:"task_operation"`  // generator or improver
 	ExecutionID    string    `json:"execution_id"`    // Timestamp-based ID
 	AgentTag       string    `json:"agent_tag"`       // Claude Code agent identifier
 	ProcessID      int       `json:"process_id"`      // OS process ID
@@ -86,6 +89,12 @@ func (qp *Processor) saveExecutionMetadata(history ExecutionHistory) error {
 		return fmt.Errorf("write metadata file: %w", err)
 	}
 
+	// Invalidate execution history cache since we just added a new execution
+	qp.executionHistoryCacheMu.Lock()
+	qp.executionHistoryCache = nil
+	qp.executionHistoryCacheTime = time.Time{}
+	qp.executionHistoryCacheMu.Unlock()
+
 	return nil
 }
 
@@ -156,7 +165,20 @@ func (qp *Processor) LoadExecutionHistory(taskID string) ([]ExecutionHistory, er
 }
 
 // LoadAllExecutionHistory loads execution history for all tasks
+// Uses a simple time-based cache (10 seconds) to avoid expensive filesystem operations
+// on repeated calls (e.g., when user refreshes the execution history tab)
 func (qp *Processor) LoadAllExecutionHistory() ([]ExecutionHistory, error) {
+	// Check cache first
+	qp.executionHistoryCacheMu.RLock()
+	if time.Since(qp.executionHistoryCacheTime) < ExecutionHistoryCacheTTL && qp.executionHistoryCache != nil {
+		cached := qp.executionHistoryCache
+		qp.executionHistoryCacheMu.RUnlock()
+		log.Printf("Returning cached execution history (%d entries, age: %v)", len(cached), time.Since(qp.executionHistoryCacheTime))
+		return cached, nil
+	}
+	qp.executionHistoryCacheMu.RUnlock()
+
+	// Cache miss - load from disk
 	taskDirs, err := os.ReadDir(qp.taskLogsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -186,6 +208,13 @@ func (qp *Processor) LoadAllExecutionHistory() ([]ExecutionHistory, error) {
 		return allHistory[i].StartTime.After(allHistory[j].StartTime)
 	})
 
+	// Update cache
+	qp.executionHistoryCacheMu.Lock()
+	qp.executionHistoryCache = allHistory
+	qp.executionHistoryCacheTime = time.Now()
+	qp.executionHistoryCacheMu.Unlock()
+
+	log.Printf("Loaded execution history from disk (%d entries)", len(allHistory))
 	return allHistory, nil
 }
 

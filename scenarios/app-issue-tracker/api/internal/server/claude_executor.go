@@ -482,11 +482,11 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		}
 
 		// Real failure - no valid output
-		logging.LogError(
+		logging.LogErrorErr(
 			"Claude Code execution failed",
+			waitErr,
 			"issue_id", issueID,
 			"exit_code", exitCode,
-			"error", waitErr,
 		)
 		result := &ClaudeExecutionResult{
 			Success:         false,

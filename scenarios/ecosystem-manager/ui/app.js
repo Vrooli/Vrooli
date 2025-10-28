@@ -4914,21 +4914,33 @@ class EcosystemManager {
     }
 
     renderExecutionHistoryItem(execution, taskId) {
-        const timestamp = new Date(execution.started_at || execution.created_at);
-        const duration = execution.duration ? `${execution.duration}s` : 'N/A';
+        const timestamp = new Date(execution.start_time);
+        const duration = execution.duration || 'N/A';
         const statusBadge = this.getExecutionStatusBadge(execution);
+
+        // Display task title if available, otherwise fall back to task ID
+        const taskDisplayName = execution.task_title || taskId;
+        const taskTypeOperation = execution.task_type && execution.task_operation
+            ? `${execution.task_type} / ${execution.task_operation}`
+            : '';
 
         return `
             <div class="execution-history-item" onclick="ecosystemManager.viewExecutionDetail('${taskId}', '${execution.execution_id}')">
                 <div class="execution-history-header">
-                    <span class="execution-id">${this.escapeHtml(execution.execution_id)}</span>
+                    <span class="execution-task-name">${this.escapeHtml(taskDisplayName)}</span>
                     <span class="execution-timestamp">${timestamp.toLocaleString()}</span>
                 </div>
+                ${taskTypeOperation ? `
+                <div class="execution-task-meta">
+                    <span class="execution-task-type">${this.escapeHtml(taskTypeOperation)}</span>
+                </div>
+                ` : ''}
                 <div class="execution-info">
                     <span><i class="fas fa-clock"></i> ${duration}</span>
                     ${statusBadge}
                     ${execution.exit_reason ? `<span><i class="fas fa-info-circle"></i> ${this.escapeHtml(execution.exit_reason)}</span>` : ''}
                 </div>
+                <div class="execution-id-small">${this.escapeHtml(execution.execution_id)}</div>
             </div>
         `;
     }
@@ -4944,6 +4956,10 @@ class EcosystemManager {
     }
 
     async viewExecutionDetail(taskId, executionId) {
+        // Store current execution context for tab switching
+        this.currentExecutionTaskId = taskId;
+        this.currentExecutionId = executionId;
+
         // Hide list, show detail view
         document.getElementById('execution-history-list').style.display = 'none';
         document.getElementById('execution-detail-view').style.display = 'block';
@@ -4971,9 +4987,9 @@ class EcosystemManager {
             content.classList.toggle('active', contentId === tabName);
         });
 
-        // Load content if not already loaded
-        const taskId = this.processMonitor?.activeLogTaskId;
-        const executionId = document.getElementById('execution-detail-title')?.textContent.replace('Execution: ', '');
+        // Load content using stored execution context
+        const taskId = this.currentExecutionTaskId;
+        const executionId = this.currentExecutionId;
 
         if (!taskId || !executionId) return;
 
@@ -5023,13 +5039,7 @@ class EcosystemManager {
         container.innerHTML = '<p>Loading metadata...</p>';
 
         try {
-            const data = await this.api.getExecutionHistory(taskId);
-            const execution = data.executions?.find(ex => ex.execution_id === executionId);
-
-            if (!execution) {
-                container.innerHTML = '<p>Metadata not found</p>';
-                return;
-            }
+            const execution = await this.api.getExecutionMetadata(taskId, executionId);
 
             container.innerHTML = `
                 <div class="execution-metadata-row">
@@ -5040,20 +5050,62 @@ class EcosystemManager {
                     <span class="execution-metadata-label">Task ID:</span>
                     <span class="execution-metadata-value">${this.escapeHtml(execution.task_id)}</span>
                 </div>
+                ${execution.task_title ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Task Title:</span>
+                    <span class="execution-metadata-value">${this.escapeHtml(execution.task_title)}</span>
+                </div>
+                ` : ''}
+                ${execution.task_type ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Task Type:</span>
+                    <span class="execution-metadata-value">${this.escapeHtml(execution.task_type)}</span>
+                </div>
+                ` : ''}
+                ${execution.task_operation ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Task Operation:</span>
+                    <span class="execution-metadata-value">${this.escapeHtml(execution.task_operation)}</span>
+                </div>
+                ` : ''}
+                ${execution.agent_tag ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Agent Tag:</span>
+                    <span class="execution-metadata-value">${this.escapeHtml(execution.agent_tag)}</span>
+                </div>
+                ` : ''}
+                ${execution.process_id ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Process ID:</span>
+                    <span class="execution-metadata-value">${execution.process_id}</span>
+                </div>
+                ` : ''}
                 <div class="execution-metadata-row">
                     <span class="execution-metadata-label">Started At:</span>
-                    <span class="execution-metadata-value">${new Date(execution.started_at || execution.created_at).toLocaleString()}</span>
+                    <span class="execution-metadata-value">${new Date(execution.start_time).toLocaleString()}</span>
                 </div>
-                ${execution.completed_at ? `
+                ${execution.end_time ? `
                 <div class="execution-metadata-row">
                     <span class="execution-metadata-label">Completed At:</span>
-                    <span class="execution-metadata-value">${new Date(execution.completed_at).toLocaleString()}</span>
+                    <span class="execution-metadata-value">${new Date(execution.end_time).toLocaleString()}</span>
                 </div>
                 ` : ''}
                 ${execution.duration ? `
                 <div class="execution-metadata-row">
                     <span class="execution-metadata-label">Duration:</span>
-                    <span class="execution-metadata-value">${execution.duration}s</span>
+                    <span class="execution-metadata-value">${execution.duration}</span>
+                </div>
+                ` : ''}
+                ${execution.timeout_allowed ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Timeout Allowed:</span>
+                    <span class="execution-metadata-value">${execution.timeout_allowed}</span>
+                </div>
+                ` : ''}
+                ${execution.prompt_size ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Prompt Size:</span>
+                    <span class="execution-metadata-value">${(execution.prompt_size / 1024).toFixed(2)} KB</span>
                 </div>
                 ` : ''}
                 <div class="execution-metadata-row">
@@ -5064,6 +5116,12 @@ class EcosystemManager {
                 <div class="execution-metadata-row">
                     <span class="execution-metadata-label">Exit Reason:</span>
                     <span class="execution-metadata-value">${this.escapeHtml(execution.exit_reason)}</span>
+                </div>
+                ` : ''}
+                ${execution.rate_limited ? `
+                <div class="execution-metadata-row">
+                    <span class="execution-metadata-label">Rate Limited:</span>
+                    <span class="execution-metadata-value">Yes${execution.retry_after ? ` (retry after ${execution.retry_after}s)` : ''}</span>
                 </div>
                 ` : ''}
                 ${execution.error ? `

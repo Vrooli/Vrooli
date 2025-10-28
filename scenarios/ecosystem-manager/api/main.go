@@ -218,6 +218,7 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/tasks/{id}/executions", taskHandlers.GetExecutionHistoryHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions/{execution_id}/prompt", taskHandlers.GetExecutionPromptHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions/{execution_id}/output", taskHandlers.GetExecutionOutputHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions/{execution_id}/metadata", taskHandlers.GetExecutionMetadataHandler).Methods("GET")
 
 	// Global execution history (all tasks)
 	api.HandleFunc("/executions", taskHandlers.GetAllExecutionHistoryHandler).Methods("GET")

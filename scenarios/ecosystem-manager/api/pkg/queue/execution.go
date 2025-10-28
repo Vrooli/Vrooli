@@ -82,9 +82,12 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 	// Initialize execution history metadata
 	history := ExecutionHistory{
-		TaskID:      task.ID,
-		ExecutionID: executionID,
-		StartTime:   executionStartTime,
+		TaskID:        task.ID,
+		TaskTitle:     task.Title,
+		TaskType:      task.Type,
+		TaskOperation: task.Operation,
+		ExecutionID:   executionID,
+		StartTime:     executionStartTime,
 	}
 
 	// Get timeout setting for timing info
@@ -196,10 +199,15 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		}
 
 		// Save execution history and output
-		outputRelPath, _ := qp.saveOutputToHistory(task.ID, executionID)
+		outputRelPath, err := qp.saveOutputToHistory(task.ID, executionID)
+		if err != nil {
+			log.Printf("Warning: Failed to save output to history for task %s execution %s: %v", task.ID, executionID, err)
+			systemlog.Warnf("Output save failed for execution %s/%s: %v", task.ID, executionID, err)
+		}
 		history.OutputPath = outputRelPath
 		if err := qp.saveExecutionMetadata(history); err != nil {
-			log.Printf("Warning: Failed to save execution history for %s: %v", task.ID, err)
+			log.Printf("Warning: Failed to save execution metadata for task %s execution %s: %v", task.ID, executionID, err)
+			systemlog.Warnf("Metadata save failed for execution %s/%s: %v", task.ID, executionID, err)
 		}
 
 		// Only broadcast after successful finalization
@@ -244,10 +252,15 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			}
 
 			// Save execution history
-			outputRelPath, _ := qp.saveOutputToHistory(task.ID, executionID)
+			outputRelPath, err := qp.saveOutputToHistory(task.ID, executionID)
+			if err != nil {
+				log.Printf("Warning: Failed to save output to history for task %s execution %s: %v", task.ID, executionID, err)
+				systemlog.Warnf("Output save failed for execution %s/%s: %v", task.ID, executionID, err)
+			}
 			history.OutputPath = outputRelPath
 			if err := qp.saveExecutionMetadata(history); err != nil {
-				log.Printf("Warning: Failed to save execution history for %s: %v", task.ID, err)
+				log.Printf("Warning: Failed to save execution metadata for task %s execution %s: %v", task.ID, executionID, err)
+				systemlog.Warnf("Metadata save failed for execution %s/%s: %v", task.ID, executionID, err)
 			}
 
 			// Finalization succeeded, cleanup agent and unregister
@@ -288,6 +301,27 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 				return
 			}
 			// Finalization succeeded (handleTaskFailureWithTiming calls finalizeTaskStatus)
+
+			// Save execution history for failed tasks
+			outputRelPath, err := qp.saveOutputToHistory(task.ID, executionID)
+			if err != nil {
+				log.Printf("Warning: Failed to save output to history for task %s execution %s: %v", task.ID, executionID, err)
+				systemlog.Warnf("Output save failed for execution %s/%s: %v", task.ID, executionID, err)
+			}
+			history.OutputPath = outputRelPath
+			history.EndTime = time.Now()
+			history.Duration = executionTime.Round(time.Second).String()
+			history.Success = false
+			if result.MaxTurnsExceeded {
+				history.ExitReason = "max_turns_exceeded"
+			} else {
+				history.ExitReason = "failed"
+			}
+			if err := qp.saveExecutionMetadata(history); err != nil {
+				log.Printf("Warning: Failed to save execution metadata for task %s execution %s: %v", task.ID, executionID, err)
+				systemlog.Warnf("Metadata save failed for execution %s/%s: %v", task.ID, executionID, err)
+			}
+
 			// For MAX_TURNS, add extra verification to catch zombie agents
 			if result.MaxTurnsExceeded {
 				agentTag := makeAgentTag(task.ID)
@@ -443,7 +477,11 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 			// ensureAgentRemoved provides retry logic with exponential backoff
 			systemlog.Warnf("Agent termination failed for task %s, attempting forced removal: %v", task.ID, err)
 			log.Printf("Warning: terminateAgent failed for task %s, using ensureAgentRemoved for retry: %v", task.ID, err)
-			_ = qp.ensureAgentRemoved(agentTag, pid, "terminateAgent failure - forced retry")
+			if retryErr := qp.ensureAgentRemoved(agentTag, pid, "terminateAgent failure - forced retry"); retryErr != nil {
+				// Final failure - log critically as this means agent is stuck
+				systemlog.Errorf("CRITICAL: Failed to remove agent %s after all cleanup attempts: %v", agentTag, retryErr)
+				log.Printf("ERROR: Agent %s remains stuck after all cleanup attempts - manual intervention may be required", agentTag)
+			}
 		}
 	}
 
@@ -559,15 +597,43 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 
 	// Wait for pipes to finish reading before calling Wait()
 	// This prevents "file already closed" races
+	// CRITICAL FIX: Add timeout protection to prevent hanging when pipes don't close cleanly
 	waitErrChan := make(chan error, 1)
+	pipesDoneChan := make(chan struct{})
+
 	go func() {
 		<-readsDone
 		waitErrChan <- cmd.Wait()
 		close(waitErrChan)
 	}()
 
-	waitErr := <-waitErrChan
-	wg.Wait()
+	go func() {
+		wg.Wait() // Wait for pipes to finish reading
+		close(pipesDoneChan)
+	}()
+
+	// Wait for cmd.Wait() to complete first
+	var waitErr error
+	select {
+	case waitErr = <-waitErrChan:
+		// Process exited, now wait for pipes with safety timeout
+		select {
+		case <-pipesDoneChan:
+			// Pipes finished cleanly
+		case <-time.After(PipeClosureTimeout):
+			// Pipes hung - force continue to prevent indefinite hang
+			log.Printf("⚠️  Pipe readers hung for task %s after %v, forcing continue", task.ID, PipeClosureTimeout)
+			systemlog.Warnf("Pipe readers hung for task %s - forcing execution completion", task.ID)
+		}
+	case <-ctx.Done():
+		// Timeout or cancellation occurred before process exit
+		waitErr = ctx.Err()
+		// Still wait briefly for pipes to drain
+		select {
+		case <-pipesDoneChan:
+		case <-time.After(time.Second):
+		}
+	}
 
 	stdoutOutput := stdoutBuilder.String()
 	stderrOutput := stderrBuilder.String()

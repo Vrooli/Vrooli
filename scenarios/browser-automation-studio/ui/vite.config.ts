@@ -26,6 +26,7 @@ export default defineConfig({
   server: {
     port: parseInt(UI_PORT),
     host: true,
+    cors: true,
     proxy: {
       '/api': {
         target: `http://${API_HOST}:${API_PORT}`,
@@ -54,6 +55,6 @@ export default defineConfig({
     target: 'esnext',
   },
   optimizeDeps: {
-    exclude: ['lucide-react'],
+    include: ['lucide-react'],
   },
 });

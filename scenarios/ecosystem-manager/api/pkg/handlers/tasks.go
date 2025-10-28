@@ -3,10 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +15,12 @@ import (
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 	"github.com/gorilla/mux"
+)
+
+// Validation constants for task types and operations
+var (
+	validTaskTypes      = []string{"resource", "scenario"}
+	validTaskOperations = []string{"generator", "improver"}
 )
 
 // TaskHandlers contains handlers for task-related endpoints
@@ -182,6 +185,20 @@ func (h *TaskHandlers) getTaskFromRequest(r *http.Request, w http.ResponseWriter
 		return nil, "", false
 	}
 	return task, status, true
+}
+
+// validateTaskTypeAndOperation validates task type and operation fields.
+// Returns true if valid, writes error response and returns false if invalid.
+func (h *TaskHandlers) validateTaskTypeAndOperation(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	if !slices.Contains(validTaskTypes, task.Type) {
+		writeError(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, validTaskTypes), http.StatusBadRequest)
+		return false
+	}
+	if !slices.Contains(validTaskOperations, task.Operation) {
+		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, validTaskOperations), http.StatusBadRequest)
+		return false
+	}
+	return true
 }
 
 // preserveUnsetFields copies non-zero values from current to updated for fields that are unset.
@@ -365,16 +382,7 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	task.Targets, task.Target = tasks.NormalizeTargets(task.Target, task.Targets)
 
 	// Validate task type and operation
-	validTypes := []string{"resource", "scenario"}
-	validOperations := []string{"generator", "improver"}
-
-	if !slices.Contains(validTypes, task.Type) {
-		writeError(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, validTypes), http.StatusBadRequest)
-		return
-	}
-
-	if !slices.Contains(validOperations, task.Operation) {
-		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, validOperations), http.StatusBadRequest)
+	if !h.validateTaskTypeAndOperation(&task, w) {
 		return
 	}
 
@@ -461,36 +469,6 @@ func (h *TaskHandlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, task, http.StatusOK)
-}
-
-// GetTaskLogsHandler streams back collected execution logs for a task
-func (h *TaskHandlers) GetTaskLogsHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	afterParam := r.URL.Query().Get("after")
-	var afterSeq int64
-	if afterParam != "" {
-		seq, err := strconv.ParseInt(afterParam, 10, 64)
-		if err != nil {
-			writeError(w, "after must be an integer", http.StatusBadRequest)
-			return
-		}
-		afterSeq = seq
-	}
-
-	entries, nextSeq, running, agentID, completed, processID := h.processor.GetTaskLogs(taskID, afterSeq)
-
-	writeJSON(w, map[string]any{
-		"task_id":       taskID,
-		"agent_id":      agentID,
-		"process_id":    processID,
-		"running":       running,
-		"completed":     completed,
-		"next_sequence": nextSeq,
-		"entries":       entries,
-		"timestamp":     time.Now().Unix(),
-	}, http.StatusOK)
 }
 
 // GetActiveTargetsHandler returns active targets for the specified type and operation across relevant queues.
@@ -696,9 +674,8 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate operation if it was changed
-	validOperations := []string{"generator", "improver"}
-	if !slices.Contains(validOperations, updatedTask.Operation) {
-		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validOperations), http.StatusBadRequest)
+	if !slices.Contains(validTaskOperations, updatedTask.Operation) {
+		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validTaskOperations), http.StatusBadRequest)
 		return
 	}
 
@@ -824,77 +801,6 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent) // 204 No Content for successful deletion
 }
 
-// GetTaskPromptHandler retrieves prompt details for a task
-func (h *TaskHandlers) GetTaskPromptHandler(w http.ResponseWriter, r *http.Request) {
-	task, _, ok := h.getTaskFromRequest(r, w)
-	if !ok {
-		return
-	}
-
-	// Generate prompt sections
-	sections, err := h.assembler.GeneratePromptSections(*task)
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to generate prompt: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	operationConfig, _ := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
-
-	response := map[string]any{
-		"task_id":          task.ID,
-		"operation":        fmt.Sprintf("%s-%s", task.Type, task.Operation),
-		"prompt_sections":  sections,
-		"operation_config": operationConfig,
-		"task_details":     task,
-	}
-
-	writeJSON(w, response, http.StatusOK)
-}
-
-// GetAssembledPromptHandler returns the fully assembled prompt for a task
-func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.Request) {
-	task, status, ok := h.getTaskFromRequest(r, w)
-	if !ok {
-		return
-	}
-	taskID := task.ID
-
-	fromCache := false
-	assembly, err := h.assembler.AssemblePromptForTask(*task)
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
-		return
-	}
-	prompt := assembly.Prompt
-
-	// Check for cached prompt content (legacy behavior)
-	promptPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s%s.txt", queue.PromptFilePrefix, taskID))
-	if cachedPrompt, err := os.ReadFile(promptPath); err == nil {
-		prompt = string(cachedPrompt)
-		fromCache = true
-		systemlog.Debugf("Using cached prompt from %s", promptPath)
-	}
-
-	assembly.Prompt = prompt
-
-	// Get operation config for metadata
-	operationConfig, _ := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
-
-	response := map[string]any{
-		"task_id":           task.ID,
-		"operation":         fmt.Sprintf("%s-%s", task.Type, task.Operation),
-		"prompt":            prompt,
-		"prompt_length":     len(prompt),
-		"prompt_cached":     fromCache,
-		"sections_detailed": assembly.Sections,
-		"operation_config":  operationConfig,
-		"task_status":       status,
-		"task_details":      task,
-	}
-
-	writeJSON(w, response, http.StatusOK)
-}
-
 // UpdateTaskStatusHandler updates just the status/progress of a task (simpler than full update)
 func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Request) {
 	task, currentStatus, ok := h.getTaskFromRequest(r, w)
@@ -958,244 +864,3 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 	writeJSON(w, *task, http.StatusOK)
 }
 
-// promptPreviewRequest captures optional data for assembling a preview task
-type promptPreviewRequest struct {
-	Task      *tasks.TaskItem `json:"task,omitempty"`
-	Display   string          `json:"display,omitempty"`
-	Type      string          `json:"type,omitempty"`
-	Operation string          `json:"operation,omitempty"`
-	Title     string          `json:"title,omitempty"`
-	Category  string          `json:"category,omitempty"`
-	Priority  string          `json:"priority,omitempty"`
-	Notes     string          `json:"notes,omitempty"`
-	Tags      []string        `json:"tags,omitempty"`
-}
-
-func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
-	var task tasks.TaskItem
-
-	if r.Task != nil {
-		task = *r.Task
-	}
-
-	if r.Type != "" {
-		task.Type = r.Type
-	}
-	if r.Operation != "" {
-		task.Operation = r.Operation
-	}
-	if r.Title != "" {
-		task.Title = r.Title
-	}
-	if r.Category != "" {
-		task.Category = r.Category
-	}
-	if r.Priority != "" {
-		task.Priority = r.Priority
-	}
-	if r.Notes != "" {
-		task.Notes = r.Notes
-	}
-	if len(r.Tags) > 0 {
-		task.Tags = r.Tags
-	}
-
-	if task.ID == "" {
-		task.ID = defaultID
-	}
-	if task.Type == "" {
-		task.Type = "resource"
-	}
-	if task.Operation == "" {
-		task.Operation = "generator"
-	}
-	if task.Title == "" {
-		task.Title = "Prompt Viewer Test"
-	}
-	if task.Category == "" {
-		task.Category = "test"
-	}
-	if task.Priority == "" {
-		task.Priority = "medium"
-	}
-	if task.Notes == "" {
-		task.Notes = "Temporary task for prompt viewing"
-	}
-	if task.CreatedAt == "" {
-		task.CreatedAt = timeutil.NowRFC3339()
-	}
-	if task.Status == "" {
-		task.Status = "pending"
-	}
-
-	return task
-}
-
-// PromptViewerHandler creates a temporary task to view assembled prompts
-func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Request) {
-	defaultID := fmt.Sprintf("temp-prompt-viewer-%d", time.Now().UnixNano())
-
-	req, ok := decodeJSONBody[promptPreviewRequest](w, r)
-	if !ok {
-		return
-	}
-
-	display := strings.ToLower(strings.TrimSpace(req.Display))
-	if display == "" {
-		display = "preview"
-	}
-
-	tempTask := req.buildTask(defaultID)
-
-	if _, err := h.assembler.SelectPromptAssembly(tempTask.Type, tempTask.Operation); err != nil {
-		writeError(w, fmt.Sprintf("Unsupported operation combination %s/%s: %v", tempTask.Type, tempTask.Operation, err), http.StatusBadRequest)
-		return
-	}
-
-	sections, err := h.assembler.GeneratePromptSections(tempTask)
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to get prompt sections: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	assembly, err := h.assembler.AssemblePromptForTask(tempTask)
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
-		return
-	}
-	prompt := assembly.Prompt
-
-	promptSize := len(prompt)
-	promptSizeKB := float64(promptSize) / 1024.0
-	promptSizeMB := promptSizeKB / 1024.0
-
-	response := map[string]any{
-		"task_type":         tempTask.Type,
-		"operation":         tempTask.Operation,
-		"title":             tempTask.Title,
-		"sections":          sections,
-		"section_count":     len(sections),
-		"sections_detailed": assembly.Sections,
-		"prompt_size":       promptSize,
-		"prompt_size_kb":    fmt.Sprintf("%.2f", promptSizeKB),
-		"prompt_size_mb":    fmt.Sprintf("%.3f", promptSizeMB),
-		"timestamp":         timeutil.NowRFC3339(),
-		"task":              tempTask,
-	}
-
-	switch display {
-	case "full", "all":
-		response["prompt"] = prompt
-		response["display"] = "full"
-	case "first", "preview":
-		response["prompt"] = prompt
-		response["display"] = "preview"
-		response["truncated"] = false
-	case "size", "stats":
-		response["display"] = "size"
-	default:
-		response["display"] = "summary"
-		response["available_displays"] = []string{"full", "preview", "size"}
-	}
-
-	writeJSON(w, response, http.StatusOK)
-}
-
-// GetExecutionHistoryHandler retrieves execution history for a task
-func (h *TaskHandlers) GetExecutionHistoryHandler(w http.ResponseWriter, r *http.Request) {
-	task, _, ok := h.getTaskFromRequest(r, w)
-	if !ok {
-		return
-	}
-	taskID := task.ID
-
-	// Load execution history
-	history, err := h.processor.LoadExecutionHistory(taskID)
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to load execution history: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, map[string]any{
-		"task_id":    taskID,
-		"executions": history,
-		"count":      len(history),
-	}, http.StatusOK)
-}
-
-// GetAllExecutionHistoryHandler retrieves execution history for all tasks
-func (h *TaskHandlers) GetAllExecutionHistoryHandler(w http.ResponseWriter, r *http.Request) {
-	// Load all execution history
-	history, err := h.processor.LoadAllExecutionHistory()
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to load execution history: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, map[string]any{
-		"executions": history,
-		"count":      len(history),
-	}, http.StatusOK)
-}
-
-// GetExecutionPromptHandler retrieves the prompt file for a specific execution
-func (h *TaskHandlers) GetExecutionPromptHandler(w http.ResponseWriter, r *http.Request) {
-	task, _, ok := h.getTaskFromRequest(r, w)
-	if !ok {
-		return
-	}
-
-	vars := mux.Vars(r)
-	executionID := vars["execution_id"]
-	taskID := task.ID
-
-	// Load the prompt file from execution history
-	promptPath := h.processor.GetExecutionFilePath(taskID, executionID, "prompt.txt")
-	content, err := os.ReadFile(promptPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			writeError(w, "Execution prompt not found", http.StatusNotFound)
-			return
-		}
-		writeError(w, fmt.Sprintf("Failed to read prompt file: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, map[string]any{
-		"task_id":      taskID,
-		"execution_id": executionID,
-		"prompt":       string(content),
-		"size":         len(content),
-	}, http.StatusOK)
-}
-
-// GetExecutionOutputHandler retrieves the output log for a specific execution
-func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.Request) {
-	task, _, ok := h.getTaskFromRequest(r, w)
-	if !ok {
-		return
-	}
-
-	vars := mux.Vars(r)
-	executionID := vars["execution_id"]
-	taskID := task.ID
-
-	// Load the output log from execution history
-	outputPath := h.processor.GetExecutionFilePath(taskID, executionID, "output.log")
-	content, err := os.ReadFile(outputPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			writeError(w, "Execution output not found", http.StatusNotFound)
-			return
-		}
-		writeError(w, fmt.Sprintf("Failed to read output file: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, map[string]any{
-		"task_id":      taskID,
-		"execution_id": executionID,
-		"output":       string(content),
-		"size":         len(content),
-	}, http.StatusOK)
-}

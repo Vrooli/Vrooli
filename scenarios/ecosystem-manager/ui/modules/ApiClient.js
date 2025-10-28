@@ -319,6 +319,13 @@ export class ApiClient {
         return this.fetchJSON(`${this.apiBase}/tasks/${taskId}/executions/${executionId}/output`);
     }
 
+    /**
+     * Get execution metadata
+     */
+    async getExecutionMetadata(taskId, executionId) {
+        return this.fetchJSON(`${this.apiBase}/tasks/${taskId}/executions/${executionId}/metadata`);
+    }
+
     // ==================== Recycler & Testing ====================
 
     /**

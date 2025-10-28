@@ -12,7 +12,7 @@ const (
 
 	// Max turns constraints
 	MinMaxTurns = 5
-	MaxMaxTurns = 80
+	MaxMaxTurns = 100
 
 	// Task timeout constraints (minutes)
 	MinTaskTimeout = 5
@@ -45,8 +45,8 @@ const (
 const (
 	DefaultSlots           = 1
 	DefaultRefreshInterval = 30
-	DefaultMaxTurns        = 40
-	DefaultTaskTimeout     = 60
+	DefaultMaxTurns        = 80
+	DefaultTaskTimeout     = 30
 	DefaultAllowedTools    = "Read,Write,Edit,Bash,LS,Glob,Grep"
 	DefaultSkipPermissions = true
 	DefaultActive          = false

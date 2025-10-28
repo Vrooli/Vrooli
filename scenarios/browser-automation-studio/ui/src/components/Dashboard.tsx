@@ -73,56 +73,60 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
     if (!error) return null;
     
     return (
-      <div className="bg-red-900/20 border-l-4 border-red-500 p-4 mx-6 mb-4 rounded-r-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <WifiOff size={20} className="text-red-400" />
-            <div>
-              <div className="text-red-400 font-medium">API Connection Failed</div>
-              <div className="text-red-300/80 text-sm">{error}</div>
+      <div className="px-4 sm:px-6 mt-4">
+        <div className="bg-red-900/20 border-l-4 border-red-500 p-4 rounded-lg">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <WifiOff size={20} className="text-red-400" />
+              <div>
+                <div className="text-red-400 font-medium">API Connection Failed</div>
+                <div className="text-red-300/80 text-sm">{error}</div>
+              </div>
             </div>
+            <button
+              onClick={() => {
+                clearError();
+                fetchProjects();
+              }}
+              className="inline-flex items-center justify-center px-3 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Retry
+            </button>
           </div>
-          <button
-            onClick={() => {
-              clearError();
-              fetchProjects();
-            }}
-            className="px-3 py-1 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Retry
-          </button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-[100svh] overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-gray-800">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white mb-2">Browser Automation Studio</h1>
-            <p className="text-gray-400">Manage your automation projects and workflows</p>
+      <div className="sticky top-0 z-30 border-b border-gray-800 bg-flow-bg/95 backdrop-blur supports-[backdrop-filter]:bg-flow-bg/90">
+        <div className="px-4 py-4 sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold text-white">Browser Automation Studio</h1>
+              <p className="text-gray-400 text-sm sm:text-base">Manage your automation projects and workflows</p>
+            </div>
+            <button
+              onClick={onCreateProject}
+              className="inline-flex w-full justify-center items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors sm:w-auto"
+            >
+              <Plus size={16} />
+              New Project
+            </button>
           </div>
-          <button
-            onClick={onCreateProject}
-            className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            <Plus size={16} />
-            New Project
-          </button>
-        </div>
 
-        {/* Search */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search projects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
-          />
+          {/* Search */}
+          <div className="relative mt-4 sm:mt-6">
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+            />
+          </div>
         </div>
       </div>
 
@@ -130,7 +134,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
       <StatusBar />
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 min-h-0 overflow-auto px-4 py-6 sm:px-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-gray-400">Loading projects...</div>
@@ -172,28 +176,28 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProjects.map((project) => (
               <div
                 key={project.id}
                 onClick={() => onProjectSelect(project)}
-                className="bg-flow-node border border-gray-700 rounded-lg p-6 cursor-pointer hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20 transition-all"
+                className="bg-flow-node border border-gray-700 rounded-lg p-5 sm:p-6 cursor-pointer hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20 transition-all"
               >
                 {/* Project Header */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-flow-accent/20 rounded-lg flex items-center justify-center">
+                    <div className="w-10 h-10 sm:w-8 sm:h-8 bg-flow-accent/20 rounded-lg flex items-center justify-center">
                       <FolderOpen size={16} className="text-flow-accent" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-white truncate max-w-32" title={project.name}>
+                      <h3 className="font-semibold text-white truncate max-w-[12rem] sm:max-w-32" title={project.name}>
                         {project.name}
                       </h3>
                     </div>
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-1">
+                  <div className="hidden sm:flex items-center gap-1">
                     {/* Schedule Button */}
                     <button
                       onClick={(e) => handleScheduleClick(e)}
@@ -219,15 +223,38 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                   </div>
                 </div>
 
+                {/* Mobile Actions */}
+                <div className="flex flex-col gap-2 sm:hidden">
+                  <button
+                    onClick={(e) => handleRunAllWorkflows(e, project.id)}
+                    disabled={bulkExecutionInProgress[project.id]}
+                    className="flex items-center justify-center gap-2 rounded-md bg-flow-accent/80 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-flow-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkExecutionInProgress[project.id] ? (
+                      <Loader size={14} className="animate-spin" />
+                    ) : (
+                      <PlayCircle size={14} />
+                    )}
+                    Run Workflows
+                  </button>
+                  <button
+                    onClick={(e) => handleScheduleClick(e)}
+                    className="flex items-center justify-center gap-2 rounded-md border border-gray-700 px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-700/70"
+                  >
+                    <Calendar size={14} />
+                    Open Calendar
+                  </button>
+                </div>
+
                 {/* Project Description */}
                 {project.description && (
-                  <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                  <p className="text-gray-400 text-sm mb-4 line-clamp-3">
                     {project.description}
                   </p>
                 )}
 
                 {/* Project Stats */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-4">
                   <div className="text-center">
                     <div className="text-lg font-semibold text-white">
                       {project.stats?.workflow_count || 0}

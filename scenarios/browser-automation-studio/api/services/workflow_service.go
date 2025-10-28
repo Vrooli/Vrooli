@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/browserless"
+	"github.com/vrooli/browser-automation-studio/browserless/events"
 	"github.com/vrooli/browser-automation-studio/database"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -606,6 +607,7 @@ User requested modifications:
 // executeWorkflowAsync executes a workflow asynchronously
 func (s *WorkflowService) executeWorkflowAsync(execution *database.Execution, workflow *database.Workflow) {
 	ctx := context.Background()
+	emitter := events.NewEmitter(s.wsHub, s.log)
 	s.log.WithFields(logrus.Fields{
 		"execution_id": execution.ID,
 		"workflow_id":  execution.WorkflowID,
@@ -628,8 +630,19 @@ func (s *WorkflowService) executeWorkflowAsync(execution *database.Execution, wo
 		Message:     "Workflow execution started",
 	})
 
+	if emitter != nil {
+		emitter.Emit(events.NewEvent(
+			events.EventExecutionStarted,
+			execution.ID,
+			execution.WorkflowID,
+			events.WithStatus("running"),
+			events.WithMessage("Workflow execution started"),
+			events.WithProgress(0),
+		))
+	}
+
 	// Use browserless client to execute the workflow
-	if err := s.browserless.ExecuteWorkflow(ctx, execution, workflow); err != nil {
+	if err := s.browserless.ExecuteWorkflow(ctx, execution, workflow, emitter); err != nil {
 		s.log.WithError(err).Error("Workflow execution failed")
 
 		// Mark execution as failed
@@ -656,6 +669,21 @@ func (s *WorkflowService) executeWorkflowAsync(execution *database.Execution, wo
 			CurrentStep: execution.CurrentStep,
 			Message:     "Workflow execution failed: " + err.Error(),
 		})
+
+		if emitter != nil {
+			emitter.Emit(events.NewEvent(
+				events.EventExecutionFailed,
+				execution.ID,
+				execution.WorkflowID,
+				events.WithStatus("failed"),
+				events.WithMessage(err.Error()),
+				events.WithProgress(execution.Progress),
+				events.WithPayload(map[string]any{
+					"current_step": execution.CurrentStep,
+					"error":        err.Error(),
+				}),
+			))
+		}
 	} else {
 		// Mark execution as completed
 		execution.Status = "completed"
@@ -683,6 +711,20 @@ func (s *WorkflowService) executeWorkflowAsync(execution *database.Execution, wo
 				"result":  execution.Result,
 			},
 		})
+
+		if emitter != nil {
+			emitter.Emit(events.NewEvent(
+				events.EventExecutionCompleted,
+				execution.ID,
+				execution.WorkflowID,
+				events.WithStatus("completed"),
+				events.WithProgress(100),
+				events.WithMessage("Workflow completed successfully"),
+				events.WithPayload(map[string]any{
+					"result": execution.Result,
+				}),
+			))
+		}
 	}
 
 	// Final update

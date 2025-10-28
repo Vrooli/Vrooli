@@ -76,7 +76,7 @@
       "description": "Browser Automation Studio health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/"
+        "ui": "/health"
       },
       "checks": [
         {
@@ -89,8 +89,8 @@
         },
         {
           "name": "ui_endpoint",
-          "type": "http", 
-          "target": "http://localhost:${UI_PORT}/",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -150,7 +150,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Browser Automation Studio initialized\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
+          "run": "printf '🚀 Browser Automation Studio initialized\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
           "description": "Display service access URLs"
         }
       ]
@@ -178,7 +178,7 @@
         },
          {
            "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
+           "run": "printf '🚀 Services running:\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
            "description": "Display all running service URLs"
          }
       ]
@@ -249,7 +249,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running (PRODUCTION):\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
+          "run": "printf '🚀 Services running (PRODUCTION):\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
           "description": "Display all running service URLs"
         }
       ]

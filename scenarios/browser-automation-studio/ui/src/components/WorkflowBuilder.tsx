@@ -489,7 +489,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                 Reset
               </button>
               <button
-                onClick={applyCodeChanges}
+                onClick={() => applyCodeChanges()}
                 className="px-3 py-1.5 rounded-md text-xs bg-purple-600 text-white hover:bg-purple-500 transition-all disabled:opacity-50"
                 disabled={!codeDirty}
               >

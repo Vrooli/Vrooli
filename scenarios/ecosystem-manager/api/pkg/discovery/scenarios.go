@@ -243,4 +243,3 @@ func inferScenarioCategory(name string) string {
 // Legacy filesystem functions kept for backward compatibility
 // Note: CLI-based discovery is now the primary method (see DiscoverScenarios)
 // These functions remain as fallbacks for scenarios not registered with vrooli CLI
-

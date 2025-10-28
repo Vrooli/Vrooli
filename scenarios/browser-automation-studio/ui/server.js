@@ -146,6 +146,18 @@ function createApp({ apiPort } = {}) {
 
     const app = express();
 
+    // Allow the UI to load inside sandboxed iframes where the origin becomes "null".
+    app.use((req, res, next) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type, Authorization, X-Requested-With');
+        if (req.method === 'OPTIONS') {
+            res.status(204).end();
+            return;
+        }
+        next();
+    });
+
     app.use('/api', (req, res) => {
         const fullApiPath = req.url.startsWith('/api') ? req.url : `/api${req.url}`;
         proxyToApi(req, res, fullApiPath);

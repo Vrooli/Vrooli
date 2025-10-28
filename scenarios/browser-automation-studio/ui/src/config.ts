@@ -28,13 +28,31 @@ async function getConfig(): Promise<Config> {
   }
 
   // Fallback to runtime config endpoint (production mode)
+  const basePath = import.meta.env.BASE_URL || '/';
+  const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
+  const configPath = `${normalizedBase}config`;
+
   try {
-    const response = await fetch('/config');
+    const response = await fetch(configPath, {
+      headers: { accept: 'application/json' },
+    });
     if (!response.ok) {
       throw new Error(`Config fetch failed: ${response.status}`);
     }
-    const data = await response.json();
-    
+
+    const raw = await response.text();
+    let data: Record<string, any>;
+
+    try {
+      data = JSON.parse(raw);
+    } catch (parseError) {
+      const isHtml = raw.trim().startsWith('<');
+      const hint = isHtml
+        ? 'Received HTML instead of JSON. Run the scenario via "make start" or ensure the production server (node server.js) is serving /config.'
+        : `Response body: ${raw.slice(0, 120)}`;
+      throw new Error(`Config endpoint did not return JSON. ${hint}`);
+    }
+
     if (!data.apiUrl) {
       throw new Error('API URL not configured');
     }
@@ -48,7 +66,8 @@ async function getConfig(): Promise<Config> {
     };
     return cachedConfig;
   } catch (error) {
-    throw new Error(`Failed to load configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to load configuration: ${message}`);
   }
 }
 

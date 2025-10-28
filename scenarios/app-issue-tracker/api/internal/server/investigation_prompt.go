@@ -48,22 +48,22 @@ func (pb *PromptBuilder) BuildPrompt(issue *Issue, issueDir, agentID, projectPat
 	}
 
 	replacements := map[string]string{
-		"{{issue_id}}":          fallbackValue,
-		"{{issue_title}}":       fallbackValue,
-		"{{issue_description}}": fallbackValue,
-		"{{issue_type}}":        fallbackValue,
-		"{{issue_priority}}":    fallbackValue,
-		"{{app_name}}":          fallbackValue,
-		"{{error_message}}":     fallbackValue,
-		"{{stack_trace}}":       fallbackValue,
-		"{{affected_files}}":    fallbackValue,
-		"{{issue_metadata}}":    fallbackValue,
-		"{{issue_artifacts}}":   fallbackValue,
-		"{{issue_dir}}":         fallbackValue,
+		"{{issue_id}}":           fallbackValue,
+		"{{issue_title}}":        fallbackValue,
+		"{{issue_description}}":  fallbackValue,
+		"{{issue_type}}":         fallbackValue,
+		"{{issue_priority}}":     fallbackValue,
+		"{{app_name}}":           fallbackValue,
+		"{{error_message}}":      fallbackValue,
+		"{{stack_trace}}":        fallbackValue,
+		"{{affected_files}}":     fallbackValue,
+		"{{issue_metadata}}":     fallbackValue,
+		"{{issue_artifacts}}":    fallbackValue,
+		"{{issue_dir}}":          fallbackValue,
 		"{{issue_dir_absolute}}": fallbackValue,
-		"{{agent_id}}":          fallbackValue,
-		"{{project_path}}":      fallbackValue,
-		"{{timestamp}}":         fallbackValue,
+		"{{agent_id}}":           fallbackValue,
+		"{{project_path}}":       fallbackValue,
+		"{{timestamp}}":          fallbackValue,
 	}
 
 	if issue != nil {
@@ -86,12 +86,14 @@ func (pb *PromptBuilder) BuildPrompt(issue *Issue, issueDir, agentID, projectPat
 	replacements["{{project_path}}"] = sanitizeValue(projectPath)
 	replacements["{{timestamp}}"] = sanitizeValue(timestamp)
 
-	result := tmpl
+	// Build replacement pairs for strings.NewReplacer (more efficient for multiple replacements)
+	pairs := make([]string, 0, len(replacements)*2)
 	for placeholder, value := range replacements {
-		result = strings.ReplaceAll(result, placeholder, value)
+		pairs = append(pairs, placeholder, value)
 	}
+	replacer := strings.NewReplacer(pairs...)
 
-	return result
+	return replacer.Replace(tmpl)
 }
 
 func (pb *PromptBuilder) readIssueMetadataRaw(issueDir string, issue *Issue) string {

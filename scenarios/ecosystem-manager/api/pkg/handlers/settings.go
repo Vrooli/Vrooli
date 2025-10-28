@@ -39,13 +39,45 @@ func NewSettingsHandlers(processor *queue.Processor, wsManager *websocket.Manage
 	}
 }
 
-// GetSettingsHandler returns current settings
+// GetSettingsHandler returns current settings with validation constraints
 func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	currentSettings := settings.GetSettings()
 
 	writeJSON(w, map[string]any{
 		"success":  true,
 		"settings": currentSettings,
+		"constraints": map[string]any{
+			"slots": map[string]int{
+				"min": settings.MinSlots,
+				"max": settings.MaxSlots,
+			},
+			"refresh_interval": map[string]int{
+				"min": settings.MinRefreshInterval,
+				"max": settings.MaxRefreshInterval,
+			},
+			"max_turns": map[string]int{
+				"min": settings.MinMaxTurns,
+				"max": settings.MaxMaxTurns,
+			},
+			"task_timeout": map[string]int{
+				"min": settings.MinTaskTimeout,
+				"max": settings.MaxTaskTimeout,
+			},
+			"recycler": map[string]any{
+				"interval_seconds": map[string]int{
+					"min": settings.MinRecyclerInterval,
+					"max": settings.MaxRecyclerInterval,
+				},
+				"completion_threshold": map[string]int{
+					"min": settings.MinRecyclerCompletionThreshold,
+					"max": settings.MaxRecyclerCompletionThreshold,
+				},
+				"failure_threshold": map[string]int{
+					"min": settings.MinRecyclerFailureThreshold,
+					"max": settings.MaxRecyclerFailureThreshold,
+				},
+			},
+		},
 	}, http.StatusOK)
 }
 

@@ -74,6 +74,21 @@ const (
 	InitialReconcileDelay = 2 * time.Second
 )
 
+// Retry and backoff constants
+const (
+	// MaxAgentCleanupRetries is the maximum number of retry attempts for agent cleanup
+	MaxAgentCleanupRetries = 3
+
+	// AgentCleanupBackoffBase is the base delay for exponential backoff in agent cleanup retries
+	AgentCleanupBackoffBase = 500 * time.Millisecond
+)
+
+// Cache and history constants
+const (
+	// ExecutionHistoryCacheTTL is how long to cache execution history before reloading from disk
+	ExecutionHistoryCacheTTL = 10 * time.Second
+)
+
 // Task log buffer constants
 const (
 	// MaxTaskLogEntries is the maximum number of log entries to keep per task
@@ -87,6 +102,10 @@ const (
 
 	// ScannerMaxTokenSize is the maximum token size for log scanners
 	ScannerMaxTokenSize = 1024 * 1024
+
+	// PipeClosureTimeout is the maximum time to wait for pipe readers to finish after process exit
+	// This prevents indefinite hangs when pipes don't close cleanly
+	PipeClosureTimeout = 5 * time.Second
 )
 
 // File and size calculation constants

@@ -38,21 +38,30 @@ function App() {
     };
   }, []);
 
+  const safeNavigate = useCallback((state: Record<string, unknown>, url: string, replace = false) => {
+    try {
+      if (replace) {
+        window.history.replaceState(state, '', url);
+      } else {
+        window.history.pushState(state, '', url);
+      }
+    } catch (error) {
+      // Some embedded hosts sandbox history APIs; log but continue rendering.
+      console.warn('[BrowserAutomationStudio] Failed to update history state', error);
+    }
+  }, []);
+
   const navigateToDashboard = useCallback((replace = false) => {
     const url = '/';
     const state = { view: 'dashboard' };
-    if (replace) {
-      window.history.replaceState(state, '', url);
-    } else {
-      window.history.pushState(state, '', url);
-    }
+    safeNavigate(state, url, replace);
     setShowAIModal(false);
     setShowProjectModal(false);
     setSelectedWorkflow(null);
     setSelectedFolder('/');
     setCurrentProject(null);
     setCurrentView('dashboard');
-  }, [setCurrentProject]);
+  }, [safeNavigate, setCurrentProject]);
 
   const openProject = useCallback((project: Project, options?: { replace?: boolean }) => {
     if (!project) {
@@ -62,11 +71,7 @@ function App() {
 
     const url = `/projects/${project.id}`;
     const state = { view: 'project-detail', projectId: project.id };
-    if (options?.replace) {
-      window.history.replaceState(state, '', url);
-    } else {
-      window.history.pushState(state, '', url);
-    }
+    safeNavigate(state, url, options?.replace ?? false);
 
     setShowAIModal(false);
     setShowProjectModal(false);
@@ -74,7 +79,7 @@ function App() {
     setSelectedFolder(project.folder_path ?? '/');
     setSelectedWorkflow(null);
     setCurrentView('project-detail');
-  }, [navigateToDashboard, setCurrentProject]);
+  }, [navigateToDashboard, safeNavigate, setCurrentProject]);
 
   const openWorkflow = useCallback(async (
     project: Project,
@@ -88,11 +93,7 @@ function App() {
 
     const url = `/projects/${project.id}/workflows/${workflowId}`;
     const state = { view: 'project-workflow', projectId: project.id, workflowId };
-    if (options?.replace) {
-      window.history.replaceState(state, '', url);
-    } else {
-      window.history.pushState(state, '', url);
-    }
+    safeNavigate(state, url, options?.replace ?? false);
 
     setShowAIModal(false);
     setShowProjectModal(false);
@@ -227,10 +228,14 @@ function App() {
       openProject(project, { replace });
     };
 
-    resolvePath(window.location.pathname, true);
+    resolvePath(window.location.pathname, true).catch((error) => {
+      console.warn('[BrowserAutomationStudio] Failed to resolve initial route', error);
+    });
 
     const popHandler = () => {
-      resolvePath(window.location.pathname, true);
+      resolvePath(window.location.pathname, true).catch((error) => {
+        console.warn('[BrowserAutomationStudio] Failed to resolve popstate route', error);
+      });
     };
 
     window.addEventListener('popstate', popHandler);

@@ -1,45 +1,43 @@
 package browserless
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"image"
+	_ "image/png"
+	"io"
+	"math"
+	"net/http"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/browserless/compiler"
+	"github.com/vrooli/browser-automation-studio/browserless/events"
+	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
-// Client wraps resource-browserless CLI for browser automation
+// Client orchestrates Browserless-backed executions
+// and persists resulting artifacts into the scenario stores.
 type Client struct {
 	log         *logrus.Logger
 	repo        database.Repository
 	storage     *storage.MinIOClient
-	browserless string // browserless service URL
+	browserless string
+	httpClient  *http.Client
 }
 
-// NodeProcessor defines how to execute different workflow node types
-type NodeProcessor interface {
-	ProcessNode(ctx context.Context, node map[string]interface{}, session *BrowserSession) error
-}
-
-// BrowserSession represents an active browser session
-type BrowserSession struct {
-	ID          string
-	ExecutionID uuid.UUID
-	URL         string
-	Created     time.Time
-}
-
-// NewClient creates a new browserless client
+// NewClient creates a browserless client.
 func NewClient(log *logrus.Logger, repo database.Repository) *Client {
 	browserlessURL := os.Getenv("BROWSERLESS_URL")
 	if browserlessURL == "" {
-		// Try to get from resource env vars
 		if port := os.Getenv("BROWSERLESS_PORT"); port != "" {
 			host := os.Getenv("BROWSERLESS_HOST")
 			if host == "" {
@@ -51,317 +49,348 @@ func NewClient(log *logrus.Logger, repo database.Repository) *Client {
 		}
 	}
 
-	// Initialize MinIO client - log error but don't fail if MinIO is not available
 	storageClient, err := storage.NewMinIOClient(log)
 	if err != nil {
-		log.WithError(err).Warn("Failed to initialize MinIO client - screenshot storage will be disabled")
+		log.WithError(err).Warn("Failed to initialize MinIO client - screenshot storage will fall back to local filesystem")
 	}
 
 	return &Client{
 		log:         log,
 		repo:        repo,
 		storage:     storageClient,
-		browserless: browserlessURL,
+		browserless: strings.TrimRight(browserlessURL, "/"),
+		httpClient: &http.Client{
+			Timeout: 90 * time.Second,
+		},
 	}
 }
 
-// ExecuteWorkflow executes a complete workflow using browserless
-func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execution, workflow *database.Workflow) error {
-	c.log.WithFields(logrus.Fields{
-		"execution_id": execution.ID,
-		"workflow_id":  workflow.ID,
-	}).Info("Starting browserless workflow execution")
-
-	// Parse flow definition
-	nodes, ok := workflow.FlowDefinition["nodes"].([]interface{})
-	if !ok {
-		return fmt.Errorf("invalid workflow nodes")
+// ExecuteWorkflow executes the supplied workflow via Browserless, capturing artifacts per step.
+func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execution, workflow *database.Workflow, emitter *events.Emitter) error {
+	instructions, err := c.buildInstructions(workflow)
+	if err != nil {
+		return err
 	}
 
-	// Parse edges for future use (e.g., following proper execution order)
-	_, ok = workflow.FlowDefinition["edges"].([]interface{})
-	if !ok {
-		return fmt.Errorf("invalid workflow edges")
+	if len(instructions) == 0 {
+		c.log.WithField("workflow_id", workflow.ID).Info("Workflow has no executable nodes; skipping Browserless execution")
+		execution.Progress = 100
+		execution.CurrentStep = "No-op"
+		return nil
 	}
 
-	// Create browser session
-	session := &BrowserSession{
-		ID:          uuid.New().String(),
-		ExecutionID: execution.ID,
-		Created:     time.Now(),
-	}
+	session := runtime.NewSession(c.browserless, c.httpClient, c.log)
+	totalSteps := len(instructions)
+	executedSteps := 0
+	overallSuccess := true
+	var lastErr error
 
-	// Process nodes in order (simplified - real implementation would follow edges)
-	for i, nodeData := range nodes {
-		node, ok := nodeData.(map[string]interface{})
-		if !ok {
-			continue
+	for idx, instruction := range instructions {
+		stepStartProgress := int(math.Round(float64(idx) / float64(totalSteps) * 100))
+
+		if emitter != nil {
+			emitter.Emit(events.NewEvent(
+				events.EventStepStarted,
+				execution.ID,
+				workflow.ID,
+				events.WithStep(instruction.Index, instruction.NodeID, instruction.Type),
+				events.WithStatus("running"),
+				events.WithProgress(stepStartProgress),
+				events.WithMessage(fmt.Sprintf("%s started", strings.ToLower(instruction.Type))),
+			))
 		}
 
-		nodeType, _ := node["type"].(string)
-		c.log.WithFields(logrus.Fields{
-			"node_type": nodeType,
-			"node_id":   node["id"],
-			"step":      i + 1,
-		}).Info("Processing workflow node")
+		response, callErr := session.Execute(ctx, []runtime.Instruction{instruction})
+		var step runtime.StepResult
 
-		// Update execution progress
-		execution.CurrentStep = fmt.Sprintf("Processing %s node", nodeType)
-		execution.Progress = (i + 1) * 100 / len(nodes)
+		if callErr != nil || response == nil || len(response.Steps) == 0 {
+			step = runtime.StepResult{
+				Index:   instruction.Index,
+				NodeID:  instruction.NodeID,
+				Type:    instruction.Type,
+				Success: false,
+			}
+			if callErr != nil {
+				step.Error = callErr.Error()
+				lastErr = callErr
+			} else {
+				step.Error = "browserless returned no step result"
+				lastErr = fmt.Errorf("browserless returned no step result for node %s", instruction.NodeID)
+			}
+		} else {
+			step = response.Steps[0]
+			step.Index = instruction.Index
+			if !step.Success {
+				if step.Error != "" {
+					lastErr = fmt.Errorf(step.Error)
+				} else if response.Error != "" {
+					lastErr = fmt.Errorf(response.Error)
+				}
+			} else if !response.Success {
+				step.Success = false
+				step.Error = response.Error
+				if response.Error != "" {
+					lastErr = fmt.Errorf(response.Error)
+				}
+			}
+		}
+
+		executedSteps++
+
+		progress := int(math.Round(float64(idx+1) / float64(totalSteps) * 100))
+		if progress > 100 {
+			progress = 100
+		}
+
+		execution.Progress = progress
+		execution.CurrentStep = fmt.Sprintf("%s (%s)", step.Type, step.NodeID)
 
 		if err := c.repo.UpdateExecution(ctx, execution); err != nil {
-			c.log.WithError(err).Error("Failed to update execution progress")
+			c.log.WithError(err).Warn("Failed to persist execution progress")
 		}
 
-		// Process node based on type
-		if err := c.processNode(ctx, node, session); err != nil {
-			c.log.WithError(err).WithField("node_type", nodeType).Error("Failed to process node")
-			
-			// Log error
-			logEntry := &database.ExecutionLog{
-				ExecutionID: execution.ID,
-				Level:       "error",
-				StepName:    nodeType,
-				Message:     fmt.Sprintf("Failed to execute %s: %s", nodeType, err.Error()),
-			}
-			c.repo.CreateExecutionLog(ctx, logEntry)
-			
-			return fmt.Errorf("node execution failed: %w", err)
-		}
-
-		// Log success
 		logEntry := &database.ExecutionLog{
 			ExecutionID: execution.ID,
-			Level:       "info",
-			StepName:    nodeType,
-			Message:     fmt.Sprintf("Successfully executed %s node", nodeType),
+			Timestamp:   time.Now(),
+			StepName:    deriveStepName(step),
+			Metadata: database.JSONMap{
+				"nodeId":     step.NodeID,
+				"durationMs": step.DurationMs,
+			},
 		}
-		c.repo.CreateExecutionLog(ctx, logEntry)
-	}
 
-	c.log.WithField("execution_id", execution.ID).Info("Browserless workflow execution completed")
-	return nil
-}
-
-// processNode processes a single workflow node
-func (c *Client) processNode(ctx context.Context, node map[string]interface{}, session *BrowserSession) error {
-	nodeType, _ := node["type"].(string)
-	data, _ := node["data"].(map[string]interface{})
-
-	switch nodeType {
-	case "navigate":
-		return c.processNavigateNode(ctx, data, session)
-	case "click":
-		return c.processClickNode(ctx, data, session)
-	case "type":
-		return c.processTypeNode(ctx, data, session)
-	case "screenshot":
-		return c.processScreenshotNode(ctx, data, session)
-	case "wait":
-		return c.processWaitNode(ctx, data, session)
-	case "extract":
-		return c.processExtractNode(ctx, data, session)
-	default:
-		return fmt.Errorf("unknown node type: %s", nodeType)
-	}
-}
-
-// processNavigateNode handles navigation
-func (c *Client) processNavigateNode(ctx context.Context, data map[string]interface{}, session *BrowserSession) error {
-	url, ok := data["url"].(string)
-	if !ok {
-		return fmt.Errorf("navigate node missing url")
-	}
-
-	session.URL = url
-	c.log.WithField("url", url).Info("Navigating to URL")
-
-	// TODO: Use resource-browserless CLI to navigate
-	// For now, simulate with a basic check
-	cmd := exec.CommandContext(ctx, "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", url)
-	output, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("failed to navigate to %s: %w", url, err)
-	}
-
-	statusCode := strings.TrimSpace(string(output))
-	if !strings.HasPrefix(statusCode, "2") && !strings.HasPrefix(statusCode, "3") {
-		return fmt.Errorf("navigation failed with status code: %s", statusCode)
-	}
-
-	return nil
-}
-
-// processClickNode handles clicking elements
-func (c *Client) processClickNode(ctx context.Context, data map[string]interface{}, session *BrowserSession) error {
-	selector, ok := data["selector"].(string)
-	if !ok {
-		return fmt.Errorf("click node missing selector")
-	}
-
-	c.log.WithField("selector", selector).Info("Clicking element")
-
-	// TODO: Implement with resource-browserless CLI
-	// This would execute a command like: resource-browserless click <selector>
-	c.log.WithField("selector", selector).Info("Simulated click action")
-
-	return nil
-}
-
-// processTypeNode handles typing text into inputs
-func (c *Client) processTypeNode(ctx context.Context, data map[string]interface{}, session *BrowserSession) error {
-	selector, ok := data["selector"].(string)
-	if !ok {
-		return fmt.Errorf("type node missing selector")
-	}
-
-	text, ok := data["text"].(string)
-	if !ok {
-		return fmt.Errorf("type node missing text")
-	}
-
-	c.log.WithFields(logrus.Fields{
-		"selector": selector,
-		"text":     text,
-	}).Info("Typing text into element")
-
-	// TODO: Implement with resource-browserless CLI
-	// This would execute: resource-browserless type <selector> <text>
-	c.log.WithFields(logrus.Fields{
-		"selector": selector,
-		"text":     text,
-	}).Info("Simulated type action")
-
-	return nil
-}
-
-// processScreenshotNode captures screenshots
-func (c *Client) processScreenshotNode(ctx context.Context, data map[string]interface{}, session *BrowserSession) error {
-	name, _ := data["name"].(string)
-	if name == "" {
-		name = fmt.Sprintf("screenshot_%d", time.Now().Unix())
-	}
-
-	c.log.WithField("name", name).Info("Capturing screenshot")
-
-	// TODO: Implement actual screenshot capture with resource-browserless CLI
-	// For now, simulate screenshot capture and create mock image data
-	mockImageData := []byte("mock screenshot data") // This would be actual PNG data
-
-	var screenshotInfo *storage.ScreenshotInfo
-	var err error
-
-	// Store in MinIO if available
-	if c.storage != nil {
-		screenshotInfo, err = c.storage.StoreScreenshot(ctx, session.ExecutionID, name, mockImageData, "image/png")
-		if err != nil {
-			c.log.WithError(err).Error("Failed to store screenshot in MinIO")
-			// Fall back to mock URLs
-			screenshotInfo = &storage.ScreenshotInfo{
-				URL:          fmt.Sprintf("/screenshots/%s/%s.png", session.ExecutionID, name),
-				ThumbnailURL: fmt.Sprintf("/screenshots/%s/%s_thumb.png", session.ExecutionID, name),
-				SizeBytes:    int64(len(mockImageData)),
-				Width:        1920,
-				Height:       1080,
+		if step.Success {
+			logEntry.Level = "info"
+			logEntry.Message = fmt.Sprintf("%s completed in %dms", step.Type, step.DurationMs)
+		} else {
+			logEntry.Level = "error"
+			if step.Error != "" {
+				logEntry.Message = fmt.Sprintf("%s failed: %s", step.Type, step.Error)
+			} else {
+				logEntry.Message = fmt.Sprintf("%s failed", step.Type)
+			}
+			if step.Stack != "" {
+				logEntry.Metadata["stack"] = step.Stack
 			}
 		}
-	} else {
-		// MinIO not available, use mock URLs
-		screenshotInfo = &storage.ScreenshotInfo{
-			URL:          fmt.Sprintf("/screenshots/%s/%s.png", session.ExecutionID, name),
-			ThumbnailURL: fmt.Sprintf("/screenshots/%s/%s_thumb.png", session.ExecutionID, name),
-			SizeBytes:    int64(len(mockImageData)),
-			Width:        1920,
-			Height:       1080,
+
+		if err := c.repo.CreateExecutionLog(ctx, logEntry); err != nil {
+			c.log.WithError(err).Warn("Failed to persist execution log entry")
+		}
+
+		var screenshotRecord *database.Screenshot
+		if step.ScreenshotBase64 != "" {
+			record, persistErr := c.persistScreenshot(ctx, execution, step)
+			if persistErr != nil {
+				c.log.WithError(persistErr).Warn("Failed to persist screenshot artifact")
+			} else {
+				screenshotRecord = record
+			}
+		}
+
+		if emitter != nil {
+			payload := map[string]any{
+				"duration_ms": step.DurationMs,
+				"success":     step.Success,
+			}
+			if step.Error != "" {
+				payload["error"] = step.Error
+			}
+			if step.Stack != "" {
+				payload["stack"] = step.Stack
+			}
+
+			eventType := events.EventStepCompleted
+			status := "succeeded"
+			message := fmt.Sprintf("%s completed", strings.ToLower(step.Type))
+			if !step.Success {
+				eventType = events.EventStepFailed
+				status = "failed"
+				if strings.TrimSpace(step.Error) != "" {
+					message = fmt.Sprintf("%s failed: %s", strings.ToLower(step.Type), step.Error)
+				} else {
+					message = fmt.Sprintf("%s failed", strings.ToLower(step.Type))
+				}
+			}
+
+			emitter.Emit(events.NewEvent(
+				eventType,
+				execution.ID,
+				workflow.ID,
+				events.WithStep(step.Index, step.NodeID, step.Type),
+				events.WithStatus(status),
+				events.WithProgress(progress),
+				events.WithMessage(message),
+				events.WithPayload(payload),
+			))
+
+			if step.ScreenshotBase64 != "" {
+				screenshotPayload := map[string]any{}
+				if screenshotRecord != nil {
+					screenshotPayload["screenshot_id"] = screenshotRecord.ID.String()
+					screenshotPayload["url"] = screenshotRecord.StorageURL
+					screenshotPayload["thumbnail_url"] = screenshotRecord.ThumbnailURL
+					screenshotPayload["width"] = screenshotRecord.Width
+					screenshotPayload["height"] = screenshotRecord.Height
+					screenshotPayload["size_bytes"] = screenshotRecord.SizeBytes
+				} else {
+					screenshotPayload["base64"] = step.ScreenshotBase64
+				}
+
+				emitter.Emit(events.NewEvent(
+					events.EventStepScreenshot,
+					execution.ID,
+					workflow.ID,
+					events.WithStep(step.Index, step.NodeID, step.Type),
+					events.WithStatus(status),
+					events.WithProgress(progress),
+					events.WithPayload(screenshotPayload),
+				))
+			}
+		}
+
+		if !step.Success {
+			overallSuccess = false
+			break
 		}
 	}
 
-	// Create database record
-	screenshot := &database.Screenshot{
-		ID:           uuid.New(),
-		ExecutionID:  session.ExecutionID,
-		StepName:     name,
-		Timestamp:    time.Now(),
-		StorageURL:   screenshotInfo.URL,
-		ThumbnailURL: screenshotInfo.ThumbnailURL,
-		Width:        screenshotInfo.Width,
-		Height:       screenshotInfo.Height,
-		SizeBytes:    screenshotInfo.SizeBytes,
+	execution.Result = database.JSONMap{
+		"success": overallSuccess,
+		"steps":   executedSteps,
 	}
 
-	return c.repo.CreateScreenshot(ctx, screenshot)
-}
+	if err := c.repo.UpdateExecution(ctx, execution); err != nil {
+		c.log.WithError(err).Warn("Failed to persist final execution state")
+	}
 
-// processWaitNode handles waiting for conditions
-func (c *Client) processWaitNode(ctx context.Context, data map[string]interface{}, session *BrowserSession) error {
-	waitType, _ := data["type"].(string)
-	
-	switch waitType {
-	case "time":
-		duration, ok := data["duration"].(float64)
-		if !ok {
-			duration = 1000 // Default 1 second
+	if !overallSuccess {
+		if lastErr != nil {
+			return lastErr
 		}
-		time.Sleep(time.Duration(duration) * time.Millisecond)
-		c.log.WithField("duration", duration).Info("Waited for specified time")
-		
-	case "element":
-		selector, _ := data["selector"].(string)
-		c.log.WithField("selector", selector).Info("Simulated wait for element")
-		// TODO: Implement with resource-browserless CLI
-		
-	default:
-		time.Sleep(1 * time.Second)
-		c.log.Info("Default wait executed")
+		return fmt.Errorf("browserless execution failed")
 	}
 
 	return nil
 }
 
-// processExtractNode extracts data from pages
-func (c *Client) processExtractNode(ctx context.Context, data map[string]interface{}, session *BrowserSession) error {
-	selector, ok := data["selector"].(string)
-	if !ok {
-		return fmt.Errorf("extract node missing selector")
+func (c *Client) buildInstructions(workflow *database.Workflow) ([]runtime.Instruction, error) {
+	plan, err := compiler.CompileWorkflow(workflow)
+	if err != nil {
+		return nil, err
 	}
 
-	attribute, _ := data["attribute"].(string)
-	if attribute == "" {
-		attribute = "text" // Default to text content
-	}
-
-	c.log.WithFields(logrus.Fields{
-		"selector":  selector,
-		"attribute": attribute,
-	}).Info("Extracting data from element")
-
-	// TODO: Implement with resource-browserless CLI
-	// This would execute: resource-browserless extract <selector> <attribute>
-	
-	// For now, create a mock extracted data record
-	extractedData := &database.ExtractedData{
-		ID:          uuid.New(),
-		ExecutionID: session.ExecutionID,
-		StepName:    "extract",
-		Timestamp:   time.Now(),
-		DataKey:     fmt.Sprintf("extracted_%s", attribute),
-		DataValue: database.JSONMap{
-			"selector":  selector,
-			"attribute": attribute,
-			"value":     "mock_extracted_value",
-		},
-		DataType: "text",
-	}
-
-	return c.repo.CreateExtractedData(ctx, extractedData)
+	return runtime.InstructionsFromPlan(plan)
 }
 
-// CheckBrowserlessHealth checks if resource-browserless is available
-func (c *Client) CheckBrowserlessHealth() error {
-	// Try to run resource-browserless status
-	cmd := exec.Command("resource-browserless", "status")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("resource-browserless not available: %w", err)
+func (c *Client) persistScreenshot(ctx context.Context, execution *database.Execution, step runtime.StepResult) (*database.Screenshot, error) {
+	data, err := base64.StdEncoding.DecodeString(step.ScreenshotBase64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid screenshot payload: %w", err)
 	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("screenshot payload is empty")
+	}
+
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		c.log.WithError(err).Debug("Failed to read screenshot dimensions; using defaults")
+	}
+
+	info, err := c.storeScreenshot(ctx, execution.ID, deriveStepName(step), data)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Width > 0 {
+		info.Width = cfg.Width
+	}
+	if cfg.Height > 0 {
+		info.Height = cfg.Height
+	}
+
+	record := &database.Screenshot{
+		ID:           uuid.New(),
+		ExecutionID:  execution.ID,
+		StepName:     deriveStepName(step),
+		Timestamp:    time.Now(),
+		StorageURL:   info.URL,
+		ThumbnailURL: info.ThumbnailURL,
+		Width:        info.Width,
+		Height:       info.Height,
+		SizeBytes:    info.SizeBytes,
+		Metadata: database.JSONMap{
+			"nodeId":    step.NodeID,
+			"stepIndex": step.Index,
+		},
+	}
+
+	if err := c.repo.CreateScreenshot(ctx, record); err != nil {
+		return nil, err
+	}
+
+	return record, nil
+}
+
+func (c *Client) storeScreenshot(ctx context.Context, executionID uuid.UUID, stepName string, data []byte) (*storage.ScreenshotInfo, error) {
+	if c.storage != nil {
+		info, err := c.storage.StoreScreenshot(ctx, executionID, stepName, data, "image/png")
+		if err == nil {
+			return info, nil
+		}
+		c.log.WithError(err).Warn("MinIO upload failed; falling back to local filesystem")
+	}
+
+	dir := filepath.Join(os.TempDir(), "browser-automation-studio", executionID.String())
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create local screenshot directory: %w", err)
+	}
+
+	filename := strings.TrimSpace(stepName)
+	if filename == "" {
+		filename = fmt.Sprintf("step-%d", time.Now().UnixNano())
+	}
+	filePath := filepath.Join(dir, filename+".png")
+
+	if err := os.WriteFile(filePath, data, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to write fallback screenshot: %w", err)
+	}
+
+	return &storage.ScreenshotInfo{
+		URL:          filePath,
+		ThumbnailURL: filePath,
+		SizeBytes:    int64(len(data)),
+	}, nil
+}
+
+func deriveStepName(step runtime.StepResult) string {
+	if strings.TrimSpace(step.StepName) != "" {
+		return step.StepName
+	}
+	return fmt.Sprintf("%s-%d", step.Type, step.Index+1)
+}
+
+// CheckBrowserlessHealth verifies the Browserless /pressure endpoint responds.
+func (c *Client) CheckBrowserlessHealth() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.browserless+"/pressure", nil)
+	if err != nil {
+		return fmt.Errorf("failed to build browserless health request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("browserless health check failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("browserless health check returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
 	return nil
 }

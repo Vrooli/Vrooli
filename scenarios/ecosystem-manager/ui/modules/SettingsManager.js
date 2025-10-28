@@ -6,6 +6,7 @@ export class SettingsManager {
         this.apiBase = apiBase;
         this.showToast = showToast;
         this.settings = null;
+        this.constraints = null; // Dynamic constraints from API
         this.originalTheme = null; // Track original theme for preview cancellation
         this.recyclerModelCache = {};
         this.recyclerModelRequests = {};
@@ -37,7 +38,7 @@ export class SettingsManager {
             if (!response.ok) {
                 throw new Error(`Failed to load settings: ${response.statusText}`);
             }
-            
+
             const data = await response.json();
             const defaults = JSON.parse(JSON.stringify(this.defaultSettings));
             const incoming = data.settings || {};
@@ -49,6 +50,15 @@ export class SettingsManager {
                     ...(incoming.recycler || {})
                 }
             };
+
+            // Store constraints from API for dynamic UI updates
+            this.constraints = data.constraints || null;
+            if (this.constraints) {
+                logger.debug('Loaded dynamic constraints from API:', this.constraints);
+                // Update slider ranges if constraints are available
+                this.updateSliderConstraints();
+            }
+
             return this.settings;
         } catch (error) {
             logger.error('Failed to load settings:', error);
@@ -57,10 +67,57 @@ export class SettingsManager {
         }
     }
 
+    updateSliderConstraints() {
+        if (!this.constraints) return;
+
+        const sliderConfigs = [
+            { id: 'settings-max-turns', constraint: this.constraints.max_turns },
+            { id: 'settings-task-timeout', constraint: this.constraints.task_timeout },
+            { id: 'settings-slots', constraint: this.constraints.slots },
+            { id: 'settings-refresh', constraint: this.constraints.refresh_interval }
+        ];
+
+        sliderConfigs.forEach(({ id, constraint }) => {
+            if (!constraint) return;
+
+            const slider = document.getElementById(id);
+            if (slider) {
+                if (constraint.min !== undefined) {
+                    slider.min = constraint.min;
+                }
+                if (constraint.max !== undefined) {
+                    slider.max = constraint.max;
+                }
+                logger.debug(`Updated ${id} range: ${slider.min}-${slider.max}`);
+            }
+        });
+
+        // Update recycler sliders if available
+        if (this.constraints.recycler) {
+            const recyclerSlider = document.getElementById('settings-recycler-interval');
+            if (recyclerSlider && this.constraints.recycler.interval_seconds) {
+                recyclerSlider.min = this.constraints.recycler.interval_seconds.min || 30;
+                recyclerSlider.max = this.constraints.recycler.interval_seconds.max || 1800;
+            }
+
+            const completionInput = document.getElementById('settings-recycler-completion-threshold');
+            if (completionInput && this.constraints.recycler.completion_threshold) {
+                completionInput.min = this.constraints.recycler.completion_threshold.min || 1;
+                completionInput.max = this.constraints.recycler.completion_threshold.max || 10;
+            }
+
+            const failureInput = document.getElementById('settings-recycler-failure-threshold');
+            if (failureInput && this.constraints.recycler.failure_threshold) {
+                failureInput.min = this.constraints.recycler.failure_threshold.min || 1;
+                failureInput.max = this.constraints.recycler.failure_threshold.max || 10;
+            }
+        }
+    }
+
     async saveSettings(settings) {
         try {
             logger.debug('Saving settings:', settings);
-            
+
             const response = await fetch(`${this.apiBase}/settings`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },

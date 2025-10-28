@@ -517,11 +517,11 @@
                             <div class="form-group">
                                 <label for="settings-max-turns">Maximum Turns</label>
                                 <div class="slider-container">
-                                    <input type="range" id="settings-max-turns" name="max_turns" min="5" max="80" value="60" 
+                                    <input type="range" id="settings-max-turns" name="max_turns" min="5" max="100" value="80"
                                            oninput="ecosystemManager.updateSliderValue('settings-max-turns', 'max-turns-value')">
-                                    <span id="max-turns-value" class="slider-value">60</span>
+                                    <span id="max-turns-value" class="slider-value">80</span>
                                 </div>
-                                <small class="form-help">Maximum conversation turns Claude can use per task</small>
+                                <small class="form-help">Maximum conversation turns Claude can use per task (dynamically set by backend)</small>
                             </div>
                             
                             <div class="form-group">
@@ -542,11 +542,11 @@
                             <div class="form-group">
                                 <label for="settings-task-timeout">Task Timeout (minutes)</label>
                                 <div class="slider-container">
-                                    <input type="range" id="settings-task-timeout" name="task_timeout" min="5" max="240" value="30" 
+                                    <input type="range" id="settings-task-timeout" name="task_timeout" min="5" max="240" value="30"
                                            oninput="ecosystemManager.updateSliderValue('settings-task-timeout', 'task-timeout-value')">
                                     <span id="task-timeout-value" class="slider-value">30</span>
                                 </div>
-                                <small class="form-help">Maximum time for task execution (5-240 minutes)</small>
+                                <small class="form-help">Maximum time for task execution (range dynamically set by backend)</small>
                             </div>
                         </div>
                     </div>

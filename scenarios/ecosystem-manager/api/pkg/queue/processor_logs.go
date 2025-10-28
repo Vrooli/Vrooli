@@ -49,11 +49,16 @@ func (qp *Processor) appendTaskLog(taskID, agentID, stream, message string) LogE
 	entry := LogEntry{
 		Timestamp: time.Now(),
 		Stream:    stream,
-		Level:     map[string]string{"stderr": "error"}[stream],
 		Message:   message,
 	}
 
-	if entry.Level == "" {
+	// Map stream to log level
+	switch stream {
+	case "stderr":
+		entry.Level = "error"
+	case "stdout":
+		entry.Level = "info"
+	default:
 		entry.Level = "info"
 	}
 
@@ -63,7 +68,7 @@ func (qp *Processor) appendTaskLog(taskID, agentID, stream, message string) LogE
 		buffer = &TaskLogBuffer{
 			AgentID:   agentID,
 			ProcessID: 0,
-			Entries:   make([]LogEntry, 0, 64),
+			Entries:   make([]LogEntry, 0, TaskLogBufferInitialCapacity),
 			CreatedAt: time.Now(),
 		}
 		qp.taskLogs[taskID] = buffer

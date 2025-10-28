@@ -18,51 +18,63 @@ This capability transforms browser automation from code-based scripts to visual,
 - **Web Content Aggregator**: Collect and synthesize information from multiple sources
 - **Accessibility Auditor**: Automatically test scenarios for WCAG compliance with visual proof
 
+## ⚠️ Implementation Status (2025-10-18)
+- **Executor**: `api/browserless/client.go` now generates scripts for Browserless' `/chrome/function`, persists execution progress, and stores real screenshots, but it only walks the saved `nodes` sequentially (`navigate`/`wait`/`screenshot`). React Flow edges are ignored, interaction nodes (`click`, `type`, `extract`) throw unsupported errors, and there is no console/network/cursor telemetry.
+- **Telemetry**: The UI now consumes the native gorilla `ExecutionUpdate` event stream; the CLI still polls HTTP endpoints and the executor hasn't shipped console/network telemetry yet.
+- **Replay & Annotation**: No artifact schema or renderer exists; preview endpoints simply shell out to `resource-browserless` for single screenshots.
+- **Requirements Tracking**: `docs/requirements.yaml` (v0.1) + `scripts/requirements/report.js` generate baseline coverage summaries; automated ingestion of test/automation outputs remains to be built.
+- **Testing**: Phase scripts cover structure/linting only; executor/storage/websocket code paths have zero automated tests.
+- **Docs & Positioning**: README marketing copy now flags these gaps; the roadmap lives in `docs/action-plan.md`.
+
+> Treat this PRD as the target state. See `docs/action-plan.md` for the execution backlog and sequencing.
+
 ## 📊 Success Metrics
 
 ### Functional Requirements
 - **Must Have (P0)**
-  - [ ] Visual workflow builder using React Flow with drag-and-drop nodes
-  - [ ] Real-time screenshot display during workflow execution
-  - [ ] Integration with resource-browserless CLI for browser control
-  - [ ] Save/load workflows in organized folder structure
-  - [ ] Execute workflows via API and CLI
-  - [ ] AI workflow generation from natural language descriptions
+  - [ ] Visual workflow builder using React Flow with drag-and-drop nodes _(UI scaffold exists; keeping unchecked until executor + persistence flows are validated end-to-end)_
+  - [ ] Real-time screenshot display during workflow execution _(executor persists real screenshots; UI still lacks streaming because WebSocket bridge + richer telemetry are missing)_
+  - [ ] Integration with resource-browserless CLI for browser control _(main executor calls Browserless `/chrome/function`; CLI wrappers remain only in preview handlers and lack session orchestration)_
+  - [ ] Save/load workflows in organized folder structure _(persistence works; needs migration/tests to mark complete)_
+  - [ ] Execute workflows via API and CLI _(API runs sequential navigate/wait/screenshot steps; CLI still polls static endpoints and surfaces limited results)_
+  - [ ] AI workflow generation from natural language descriptions _(prompt pipeline returns JSON but lacks runnable validation)_
   
 - **Should Have (P1)**
-  - [ ] Live log streaming alongside screenshots
-  - [ ] Claude Code agent integration for debugging failed workflows
-  - [ ] Calendar scheduling for recurring workflows
-  - [ ] Export workflows as n8n compatible JSON
-  - [ ] Workflow templates library
-  - [ ] WebSocket-based real-time updates
+  - [ ] Live log streaming alongside screenshots _(websocket contract not implemented)_
+  - [ ] Claude Code agent integration for debugging failed workflows _(AI endpoint stubs require telemetry + replay context)_
+  - [ ] Calendar scheduling for recurring workflows _(no scheduler implementation yet)_
+  - [ ] Export workflows as n8n compatible JSON _(not started)_
+  - [ ] Workflow templates library _(seed data pending)_
+  - [ ] WebSocket-based real-time updates _(gorilla hub exists, but clients cannot consume events)_
   
 - **Nice to Have (P2)**
-  - [ ] Workflow versioning and rollback
-  - [ ] Visual diff comparison between executions
-  - [ ] Performance metrics dashboard
-  - [ ] Collaborative workflow editing
-  - [ ] Mobile-responsive workflow viewer
+  - [ ] Workflow versioning and rollback _(tables exist without supporting services)_
+  - [ ] Visual diff comparison between executions _(artifact schema not defined yet)_
+  - [ ] Performance metrics dashboard _(metrics not emitted yet)_
+  - [ ] Collaborative workflow editing _(not started)_
+  - [ ] Mobile-responsive workflow viewer _(UI layout not optimized for mobile)_
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
 |--------|--------|-------------------|
-| Response Time | < 200ms for UI interactions | Frontend monitoring |
-| Workflow Start Time | < 2s from trigger to first action | API monitoring |
-| Screenshot Latency | < 500ms from capture to display | WebSocket timing |
-| Concurrent Workflows | 10+ simultaneous executions | Load testing |
-| Resource Usage | < 2GB memory for UI, < 500MB per workflow | System monitoring |
+| Response Time | < 200ms for UI interactions | Frontend monitoring _(not instrumented yet)_ |
+| Workflow Start Time | < 2s from trigger to first action | API monitoring _(pending executor integration)_ |
+| Screenshot Latency | < 500ms from capture to display | WebSocket timing _(pending real-time pipeline)_ |
+| Concurrent Workflows | 10+ simultaneous executions | Load testing _(blocked until executor exists)_ |
+| Resource Usage | < 2GB memory for UI, < 500MB per workflow | System monitoring _(not instrumented)_ |
 
 ### Quality Gates
-- [ ] All P0 requirements implemented and tested
-- [ ] Integration tests pass with browserless resource
-- [ ] Performance targets met under load
-- [ ] Documentation complete (README, API docs, CLI help)
-- [ ] Scenario can be invoked by other agents via API/CLI
+- [ ] All P0 requirements implemented and tested _(currently **not met**; executor + telemetry incomplete)_
+- [ ] Integration tests pass with browserless resource _(no integration tests yet)_
+- [ ] Performance targets met under load _(blocked until executor exists)_
+- [ ] Documentation complete (README, API docs, CLI help) _(README updated with limitations; API docs pending)_
+- [ ] Scenario can be invoked by other agents via API/CLI _(mocked responses only)_
 
 ## 🏗️ Technical Architecture
 
 ### Resource Dependencies
+> Current implementation only uses Browserless via ad-hoc preview endpoints; the main executor still needs to call the resource per the plan.
+
 ```yaml
 required:
   - resource_name: browserless
@@ -170,6 +182,8 @@ primary_entities:
 ```
 
 ### API Contract
+> REST routes exist, but many responses contain placeholder execution data until Browserless integration lands.
+
 ```yaml
 # Defines how other scenarios/agents can use this capability
 endpoints:
@@ -508,57 +522,21 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# REQUIRED: scenario-test.yaml in scenario root
-version: 1.0
-scenario: browser-automation-studio
+- **Phased testing:** `test/phases/*.sh` owns the scenario-quality entry point. Structure + unit phases run today; integration/business phases will add Browserless end-to-end coverage once the executor matures.
+- **Lifecycle health:** `.vrooli/service.json` supersedes the legacy `scenario-test.yaml`, wiring health probes, CLI smoke tests, and API curls into the lifecycle `make test` path.
+- **Requirements linkage:** `scripts/requirements/report.js --scenario browser-automation-studio` emits JSON/Markdown coverage that backs the README dashboard. The reporter currently tallies requirement status only; upcoming work will feed in automation results.
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/browser-automation-studio
-    - cli/install.sh
-    - ui/package.json
-    - ui/vite.config.ts
-    - initialization/storage/postgres/schema.sql
-    - scenario-test.yaml
-    
-resources:
-  required: [browserless, postgres, minio]
-  optional: [redis, ollama]
-  health_timeout: 60
+```bash
+# Example local run
+cd scenarios/browser-automation-studio
 
-tests:
-  - name: "API health check"
-    type: http
-    service: api
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Create workflow via API"
-    type: http
-    service: api
-    endpoint: /api/v1/workflows/create
-    method: POST
-    body:
-      name: "test-workflow"
-      folder_path: "/tests"
-    expect:
-      status: 201
-      body:
-        workflow_id: "*"
-        
-  - name: "CLI workflow list command"
-    type: exec
-    command: ./cli/browser-automation-studio workflow list --json
-    expect:
-      exit_code: 0
-      output_contains: ["workflows"]
+# Structure + unit phases
+test/phases/test-structure.sh
+test/phases/test-unit.sh
+
+# Requirements snapshot (Markdown output)
+node ../../scripts/requirements/report.js \
+  --scenario browser-automation-studio --format markdown
 ```
 
 ## 📝 Implementation Notes

@@ -4,6 +4,13 @@
   "description": "Visual browser automation workflow builder",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./dist/bootstrap.js",
+    "./bootstrap": "./dist/bootstrap.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npx vite'",
     "build": "tsc && npx vite build",
@@ -29,7 +36,6 @@
     "react-split": "^2.0.14",
     "react-syntax-highlighter": "^15.5.0",
     "reactflow": "^11.10.1",
-    "socket.io-client": "^4.6.0",
     "tailwind-merge": "^2.2.0",
     "zustand": "^4.4.7"
   },
