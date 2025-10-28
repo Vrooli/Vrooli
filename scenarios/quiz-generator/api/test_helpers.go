@@ -1,4 +1,3 @@
-// +build testing
 
 package main
 
@@ -20,13 +19,13 @@ import (
 
 // TestEnvironment manages isolated test environment
 type TestEnvironment struct {
-	DB            *pgxpool.Pool
-	Redis         *redis.Client
-	Router        *gin.Engine
-	Processor     *QuizProcessor
-	Cleanup       func()
-	OriginalDB    *pgxpool.Pool
-	OriginalRedis *redis.Client
+	DB             *pgxpool.Pool
+	Redis          *redis.Client
+	Router         *gin.Engine
+	Processor      *QuizProcessor
+	Cleanup        func()
+	OriginalDB     *pgxpool.Pool
+	OriginalRedis  *redis.Client
 	OriginalLogger *logrus.Logger
 }
 
@@ -54,16 +53,22 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	ctx := context.Background()
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
-		// Use default test database
+		// Build test database URL from environment
 		dbHost := os.Getenv("POSTGRES_HOST")
 		if dbHost == "" {
 			dbHost = "localhost"
 		}
 		dbPort := os.Getenv("POSTGRES_PORT")
 		if dbPort == "" {
-			dbPort = "5433"
+			t.Skip("POSTGRES_PORT environment variable required for tests")
+			return nil
 		}
-		dbURL = "postgres://vrooli:vrooli@" + dbHost + ":" + dbPort + "/vrooli?sslmode=disable"
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		if dbPassword == "" {
+			t.Skip("POSTGRES_PASSWORD environment variable required for tests")
+			return nil
+		}
+		dbURL = "postgres://vrooli:" + dbPassword + "@" + dbHost + ":" + dbPort + "/vrooli?sslmode=disable"
 	}
 
 	config, err := pgxpool.ParseConfig(dbURL)
@@ -132,25 +137,24 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 		t.Fatalf("Failed to create test schema: %v", err)
 	}
 
-	// Setup Redis (optional - can be nil)
+	// Setup Redis (optional - can be nil for tests)
 	var testRedis *redis.Client
 	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "localhost:6379"
-	}
+	if redisURL != "" {
+		// Only attempt Redis connection if URL is configured
+		testRedis = redis.NewClient(&redis.Options{
+			Addr:        redisURL,
+			Password:    os.Getenv("REDIS_PASSWORD"),
+			DB:          1, // Use DB 1 for tests
+			MaxRetries:  1,
+			DialTimeout: 2 * time.Second,
+		})
 
-	testRedis = redis.NewClient(&redis.Options{
-		Addr:         redisURL,
-		Password:     os.Getenv("REDIS_PASSWORD"),
-		DB:           1, // Use DB 1 for tests
-		MaxRetries:   1,
-		DialTimeout:  2 * time.Second,
-	})
-
-	// Test Redis connection (but don't fail if unavailable)
-	if err := testRedis.Ping(ctx).Err(); err != nil {
-		testRedis.Close()
-		testRedis = nil
+		// Test Redis connection (but don't fail if unavailable)
+		if err := testRedis.Ping(ctx).Err(); err != nil {
+			testRedis.Close()
+			testRedis = nil
+		}
 	}
 
 	// Set global variables for handlers
@@ -171,12 +175,12 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	router := setupRouter()
 
 	env := &TestEnvironment{
-		DB:            testDB,
-		Redis:         testRedis,
-		Router:        router,
-		Processor:     testProcessor,
-		OriginalDB:    originalDB,
-		OriginalRedis: originalRedis,
+		DB:             testDB,
+		Redis:          testRedis,
+		Router:         router,
+		Processor:      testProcessor,
+		OriginalDB:     originalDB,
+		OriginalRedis:  originalRedis,
 		OriginalLogger: logger,
 		Cleanup: func() {
 			// Clean up test data
@@ -286,7 +290,7 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 // createTestQuiz creates a quiz in the database for testing
 func createTestQuiz(t *testing.T, env *TestEnvironment) *Quiz {
 	quiz := &Quiz{
-		ID:           "test-quiz-" + time.Now().Format("20060102150405"),
+		ID:           uuid.New().String(), // Use UUID to avoid collisions in parallel tests
 		Title:        "Test Quiz",
 		Description:  "A test quiz for unit testing",
 		TimeLimit:    600,

@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	issuespkg "app-issue-tracker-api/internal/issues"
 	"app-issue-tracker-api/internal/logging"
 	"app-issue-tracker-api/internal/server/handlers"
@@ -119,6 +122,7 @@ func (s *Server) exportMarkdown(w http.ResponseWriter, issues []Issue) {
 	}
 
 	// Write each status section
+	caser := cases.Title(language.English)
 	statuses := issuespkg.ValidStatuses()
 	for _, status := range statuses {
 		statusIssues := byStatus[status]
@@ -126,7 +130,7 @@ func (s *Server) exportMarkdown(w http.ResponseWriter, issues []Issue) {
 			continue
 		}
 
-		fmt.Fprintf(w, "## %s (%d)\n\n", strings.Title(status), len(statusIssues))
+		fmt.Fprintf(w, "## %s (%d)\n\n", caser.String(status), len(statusIssues))
 
 		for _, issue := range statusIssues {
 			priorityEmoji := map[string]string{

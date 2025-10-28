@@ -265,7 +265,7 @@
            {
              "type": "binaries",
              "targets": [
-               "quiz-generator-api"
+               "api/quiz-generator-api"
              ]
            },
             {
@@ -324,6 +324,16 @@
          }
        ]
      },
+    "test": {
+      "description": "Run quiz-generator tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test/run-tests.sh",
+          "description": "Execute test suite via shared test runner"
+        }
+      ]
+    },
     "stop": {
       "description": "Stop quiz-generator services",
       "steps": [

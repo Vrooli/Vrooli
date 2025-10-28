@@ -252,10 +252,10 @@
         },
         {
           "name": "run-integration-tests",
-          "run": "./test.sh",
+          "run": "./test/run-tests.sh",
           "description": "Execute integration test suite",
           "condition": {
-            "file_exists": "test.sh"
+            "file_exists": "test/run-tests.sh"
           }
         }
       ]

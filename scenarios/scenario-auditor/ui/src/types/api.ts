@@ -22,7 +22,7 @@ interface SummaryMetric {
 }
 
 export interface HealthSummary {
-  status: string
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown' | 'critical'
   system_health_score: number | null  // null when no scans have been performed
   health_trend?: 'up' | 'down' | 'stable'
   scenarios: number | SummaryMetric
@@ -52,6 +52,11 @@ export interface HealthSummary {
     last_scan: string | null
     message: string
   }
+  timestamp: string
+}
+
+export interface PreferencesResponse {
+  preferences: Record<string, boolean>
   timestamp: string
 }
 

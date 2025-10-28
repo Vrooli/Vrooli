@@ -107,6 +107,7 @@ function AppContent() {
     rateLimitStatus,
     agentSettings,
     updateAgentSettings,
+    agentConstraints,
     fetchAllData,
     toggleProcessorActive,
     createIssue: createIssueAction,
@@ -691,6 +692,7 @@ function AppContent() {
           onDisplayChange={setDisplaySettings}
           onClose={handleCloseSettings}
           issuesProcessed={issuesProcessed}
+          constraints={agentConstraints}
           issuesRemaining={issuesRemaining}
         />
       )}

@@ -60,11 +60,12 @@ type AgentStartedData struct {
 
 // AgentCompletedData contains data for agent completion events
 type AgentCompletedData struct {
-	IssueID   string    `json:"issue_id"`
-	AgentID   string    `json:"agent_id"`
-	Success   bool      `json:"success"`
-	EndTime   time.Time `json:"end_time"`
-	NewStatus string    `json:"new_status,omitempty"`
+	IssueID         string    `json:"issue_id"`
+	AgentID         string    `json:"agent_id"`
+	Success         bool      `json:"success"`
+	EndTime         time.Time `json:"end_time"`
+	NewStatus       string    `json:"new_status,omitempty"`
+	ScenarioRestart *string   `json:"scenario_restart,omitempty"` // "success", "failed:<reason>", or nil if not attempted
 }
 
 // ProcessorStateData contains processor state information

@@ -6,14 +6,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
-	"unicode"
 
 	issuespkg "app-issue-tracker-api/internal/issues"
+	"app-issue-tracker-api/internal/utils"
 )
-
-var whitespaceSequence = regexp.MustCompile("-+")
 
 type ArtifactManager struct{}
 
@@ -62,29 +59,7 @@ func looksLikeJSON(payload string) bool {
 }
 
 func sanitizeFileComponent(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return ""
-	}
-	replaced := strings.ReplaceAll(trimmed, "\\", "-")
-	replaced = strings.ReplaceAll(replaced, "/", "-")
-	replaced = strings.ReplaceAll(replaced, " ", "-")
-	var builder strings.Builder
-	for _, r := range replaced {
-		switch {
-		case unicode.IsLetter(r) || unicode.IsDigit(r):
-			builder.WriteRune(unicode.ToLower(r))
-		case r == '-' || r == '_' || r == '.':
-			builder.WriteRune(r)
-		default:
-			builder.WriteRune('-')
-		}
-	}
-	sanitized := builder.String()
-	sanitized = whitespaceSequence.ReplaceAllString(sanitized, "-")
-	sanitized = strings.Trim(sanitized, "-_")
-	sanitized = strings.TrimLeft(sanitized, ".")
-	return sanitized
+	return utils.ForArtifact(value)
 }
 
 func ensureUniqueFilename(filename string, used map[string]int) string {

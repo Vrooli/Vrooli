@@ -38,3 +38,7 @@ func (h *processorHost) ClearRateLimitMetadata(issueID string) {
 func (h *processorHost) TriggerInvestigation(issueID, agentID string, autoResolve bool) error {
 	return h.server.investigations.TriggerInvestigation(issueID, agentID, autoResolve)
 }
+
+func (h *processorHost) CleanupOldTranscripts() {
+	h.server.investigations.CleanupOldTranscripts()
+}

@@ -52,13 +52,13 @@
           "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
           "command": "run --tag {{TAG}} -",
           "max_turns": 80,
-          "timeout_seconds": 4800
+          "timeout_seconds": 2700
         },
         "investigate": {
           "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
           "command": "run --tag {{TAG}} -",
           "max_turns": 80,
-          "timeout_seconds": 4800
+          "timeout_seconds": 2700
         }
       }
     }

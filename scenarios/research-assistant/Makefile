@@ -41,7 +41,7 @@ help: ## Show this help message
 
 start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
 
 run: start ## Alias for 'make start' (uses Vrooli lifecycle)
 
@@ -51,7 +51,7 @@ stop: ## Stop this scenario
 
 dev: ## Start in development mode
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME) --dev
+	@vrooli scenario start $(SCENARIO_NAME) --dev
 
 test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
@@ -125,7 +125,7 @@ lint-ui: ## Lint UI code (TypeScript/JavaScript)
 		echo "$(YELLOW)No UI code to lint$(RESET)"; \
 	fi
 
-check: lint test ## Run linters and tests
+check: fmt lint test ## Run formatters, linters and tests
 	@echo "$(GREEN)✓ All quality checks passed!$(RESET)"
 
 # ============================================================================

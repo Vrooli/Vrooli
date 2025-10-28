@@ -51,7 +51,7 @@
       "description": "Go-based API server with REST endpoints"
     },
     "ui": {
-      "enabled": false,
+      "enabled": true,
       "framework": "react",
       "path": "ui",
       "main": "index.html",

@@ -20,6 +20,9 @@ source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 # Change to scenario directory
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
+# Skip Ollama-dependent tests in unit tests for speed (they're tested in integration/business phases)
+export SKIP_OLLAMA_TESTS=1
+
 # Run all unit tests with coverage requirements
 testing::unit::run_all_tests \
     --go-dir "api" \

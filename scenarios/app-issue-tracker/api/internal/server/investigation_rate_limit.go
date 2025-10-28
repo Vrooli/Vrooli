@@ -31,8 +31,6 @@ type RateLimitManager struct {
 	cacheFetchedAt time.Time
 }
 
-const rateLimitSnapshotTTL = time.Second
-
 var isoTimestampPattern = regexp.MustCompile(`20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})?`)
 
 func NewRateLimitManager(server *Server, now func() time.Time) *RateLimitManager {
@@ -64,7 +62,7 @@ func (rm *RateLimitManager) Handle(issueID, agentID string, result *ClaudeExecut
 		}
 	}
 
-	if err := rm.server.moveIssue(issueID, "failed"); err != nil {
+	if err := rm.server.moveIssue(issueID, StatusFailed); err != nil {
 		logging.LogWarn("Failed to move rate-limited issue to failed status", "issue_id", issueID, "error", err)
 	} else {
 		rm.server.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
@@ -72,7 +70,7 @@ func (rm *RateLimitManager) Handle(issueID, agentID string, result *ClaudeExecut
 			AgentID:   agentID,
 			Success:   false,
 			EndTime:   rm.now(),
-			NewStatus: "failed",
+			NewStatus: StatusFailed,
 		}))
 		rm.invalidateCache()
 	}
@@ -238,11 +236,11 @@ func (rm *RateLimitManager) listOpenIssues() ([]Issue, error) {
 	rm.snapshotMu.Lock()
 	defer rm.snapshotMu.Unlock()
 
-	if rm.cachedIssues != nil && rm.now().Sub(rm.cacheFetchedAt) < rateLimitSnapshotTTL {
+	if rm.cachedIssues != nil && rm.now().Sub(rm.cacheFetchedAt) < RateLimitCacheTTL {
 		return cloneIssuesSlice(rm.cachedIssues), nil
 	}
 
-	issues, err := rm.server.loadIssuesFromFolder("open")
+	issues, err := rm.server.loadIssuesFromFolder(StatusOpen)
 	if err != nil {
 		return nil, err
 	}

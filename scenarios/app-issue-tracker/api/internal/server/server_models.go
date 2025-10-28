@@ -8,6 +8,13 @@ import (
 const (
 	metadataFilename = issuespkg.MetadataFilename
 	artifactsDirName = issuespkg.ArtifactsDirName
+
+	// Issue status constants
+	StatusOpen      = issuespkg.StatusOpen
+	StatusActive    = issuespkg.StatusActive
+	StatusCompleted = issuespkg.StatusCompleted
+	StatusFailed    = issuespkg.StatusFailed
+	StatusArchived  = issuespkg.StatusArchived
 )
 
 func ValidIssueStatuses() []string {

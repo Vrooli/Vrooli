@@ -58,6 +58,7 @@ func setupTestServer(t *testing.T) *TestServer {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		logger: NewStructuredLogger(), // Initialize logger for test server
 	}
 
 	router := mux.NewRouter()
@@ -218,6 +219,7 @@ func mockN8NServer(t *testing.T) *httptest.Server {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Mock n8n webhook response
 		if r.URL.Path == "/webhook/research-request" {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(map[string]string{
 				"status": "received",

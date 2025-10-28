@@ -3,15 +3,199 @@
 const API_BASE = '/api/v1';
 let currentUser = 'user-' + Math.random().toString(36).substr(2, 9);
 let currentView = 'browse';
-let recipes = [];
-let favorites = [];
+let recipes: any[] = [];
+let favorites: any[] = [];
 
-// Initialize the app
-document.addEventListener('DOMContentLoaded', () => {
+const APP_TEMPLATE = `    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🍳</span>
+                    <h1 class="logo-text">Recipe Book</h1>
+                </div>
+                <nav class="nav-menu">
+                    <button class="nav-btn active" data-view="browse">Browse</button>
+                    <button class="nav-btn" data-view="search">Search</button>
+                    <button class="nav-btn" data-view="create">Create</button>
+                    <button class="nav-btn" data-view="favorites">Favorites</button>
+                    <button class="nav-btn" data-view="meal-plan">Meal Plan</button>
+                </nav>
+                <div class="user-menu">
+                    <button class="user-avatar">👤</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Browse View -->
+            <div id="browse-view" class="view active">
+                <div class="view-header">
+                    <h2 class="view-title">Family Cookbook</h2>
+                    <div class="filter-bar">
+                        <select class="filter-select">
+                            <option>All Recipes</option>
+                            <option>Quick & Easy</option>
+                            <option>Vegetarian</option>
+                            <option>Desserts</option>
+                            <option>Comfort Food</option>
+                        </select>
+                        <button class="filter-btn">🎯 Filters</button>
+                    </div>
+                </div>
+                
+                <div class="recipe-grid" id="recipe-grid">
+                    <!-- Recipe cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Search View -->
+            <div id="search-view" class="view">
+                <div class="search-container">
+                    <h2 class="view-title">Find Your Next Meal</h2>
+                    <div class="search-box">
+                        <input type="text" class="search-input" placeholder="Search by ingredients, cuisine, or mood..." id="search-input">
+                        <button class="search-btn" id="search-btn">🔍 Search</button>
+                    </div>
+                    <div class="search-suggestions">
+                        <span class="suggestion-chip">🥗 Healthy</span>
+                        <span class="suggestion-chip">🍝 Pasta</span>
+                        <span class="suggestion-chip">🌮 Mexican</span>
+                        <span class="suggestion-chip">🍰 Dessert</span>
+                        <span class="suggestion-chip">⏱️ 30 min or less</span>
+                    </div>
+                </div>
+                <div class="search-results" id="search-results">
+                    <!-- Search results will appear here -->
+                </div>
+            </div>
+
+            <!-- Create View -->
+            <div id="create-view" class="view">
+                <div class="create-container">
+                    <h2 class="view-title">Add New Recipe</h2>
+                    <div class="create-options">
+                        <button class="create-option-btn" id="manual-create">
+                            <span class="option-icon">✍️</span>
+                            <span class="option-text">Manual Entry</span>
+                        </button>
+                        <button class="create-option-btn" id="ai-create">
+                            <span class="option-icon">✨</span>
+                            <span class="option-text">AI Generate</span>
+                        </button>
+                    </div>
+                    
+                    <div id="recipe-form" class="recipe-form hidden">
+                        <input type="text" class="form-input" placeholder="Recipe Title" id="recipe-title">
+                        <textarea class="form-textarea" placeholder="Description" id="recipe-description"></textarea>
+                        
+                        <div class="form-section">
+                            <h3 class="section-title">Ingredients</h3>
+                            <div id="ingredients-list" class="ingredients-list">
+                                <div class="ingredient-row">
+                                    <input type="text" class="ingredient-amount" placeholder="Amount">
+                                    <input type="text" class="ingredient-unit" placeholder="Unit">
+                                    <input type="text" class="ingredient-name" placeholder="Ingredient">
+                                    <button class="remove-btn">×</button>
+                                </div>
+                            </div>
+                            <button class="add-ingredient-btn">+ Add Ingredient</button>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h3 class="section-title">Instructions</h3>
+                            <div id="instructions-list" class="instructions-list">
+                                <div class="instruction-row">
+                                    <span class="step-number">1.</span>
+                                    <textarea class="instruction-text" placeholder="Enter step..."></textarea>
+                                </div>
+                            </div>
+                            <button class="add-instruction-btn">+ Add Step</button>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Prep Time (min)</label>
+                                <input type="number" class="form-input-small" id="prep-time">
+                            </div>
+                            <div class="form-group">
+                                <label>Cook Time (min)</label>
+                                <input type="number" class="form-input-small" id="cook-time">
+                            </div>
+                            <div class="form-group">
+                                <label>Servings</label>
+                                <input type="number" class="form-input-small" id="servings">
+                            </div>
+                        </div>
+                        
+                        <button class="save-recipe-btn">Save Recipe</button>
+                    </div>
+                    
+                    <div id="ai-generate-form" class="ai-form hidden">
+                        <textarea class="ai-prompt" placeholder="Describe the recipe you want... e.g., 'A hearty vegetarian chili perfect for cold nights'" id="ai-prompt"></textarea>
+                        <div class="ai-options">
+                            <label class="ai-option">
+                                <input type="checkbox" id="use-ingredients">
+                                <span>Use specific ingredients</span>
+                            </label>
+                            <input type="text" class="form-input hidden" placeholder="List ingredients separated by commas" id="specific-ingredients">
+                        </div>
+                        <button class="generate-btn" id="generate-recipe">✨ Generate Recipe</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Favorites View -->
+            <div id="favorites-view" class="view">
+                <div class="view-header">
+                    <h2 class="view-title">Your Favorites</h2>
+                </div>
+                <div class="recipe-grid" id="favorites-grid">
+                    <!-- Favorite recipes will appear here -->
+                </div>
+            </div>
+
+            <!-- Meal Plan View -->
+            <div id="meal-plan-view" class="view">
+                <div class="view-header">
+                    <h2 class="view-title">Weekly Meal Plan</h2>
+                    <button class="generate-plan-btn">✨ Auto-Generate Plan</button>
+                </div>
+                <div class="meal-calendar">
+                    <!-- Meal calendar will be inserted here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Recipe Modal -->
+        <div id="recipe-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close">×</button>
+                <div id="modal-recipe-content">
+                    <!-- Recipe details will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Cooking up something special...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden">
+            <span id="toast-message"></span>
+        </div>
+    </div>`;
+
+export function bootstrap(container: HTMLElement): void {
+    container.innerHTML = APP_TEMPLATE;
     initializeApp();
     setupEventListeners();
     loadRecipes();
-});
+}
 
 function initializeApp() {
     // Set initial view
@@ -604,213 +788,3 @@ function showToast(message) {
 }
 
 // Add recipe detail styles
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-    .recipe-detail {
-        padding: 2rem;
-    }
-    
-    .recipe-detail-header {
-        display: flex;
-        gap: 2rem;
-        margin-bottom: 2rem;
-        padding-bottom: 2rem;
-        border-bottom: 2px solid var(--sage-green);
-    }
-    
-    .recipe-detail-image {
-        width: 150px;
-        height: 150px;
-        background: linear-gradient(135deg, var(--sage-green) 0%, var(--olive) 100%);
-        border-radius: 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 5rem;
-    }
-    
-    .recipe-detail-info {
-        flex: 1;
-    }
-    
-    .recipe-detail-title {
-        font-family: var(--font-handwritten);
-        font-size: 2.5rem;
-        color: var(--warm-terracotta);
-        margin-bottom: 0.5rem;
-    }
-    
-    .recipe-detail-description {
-        font-size: 1.1rem;
-        color: var(--soft-gray);
-        margin-bottom: 1rem;
-    }
-    
-    .recipe-detail-meta {
-        display: flex;
-        gap: 2rem;
-        font-family: var(--font-sans);
-        color: var(--olive);
-        margin-bottom: 1rem;
-    }
-    
-    .dietary-badges {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .dietary-badge {
-        padding: 0.25rem 0.75rem;
-        background: var(--sage-green);
-        color: white;
-        border-radius: 2rem;
-        font-family: var(--font-sans);
-        font-size: 0.85rem;
-    }
-    
-    .recipe-detail-content {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-        margin-bottom: 2rem;
-    }
-    
-    .ingredients-section h3,
-    .instructions-section h3,
-    .nutrition-section h3 {
-        font-family: var(--font-handwritten);
-        font-size: 1.75rem;
-        color: var(--warm-terracotta);
-        margin-bottom: 1rem;
-    }
-    
-    .ingredients-list {
-        list-style: none;
-        padding: 0;
-    }
-    
-    .ingredients-list li {
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .instructions-list {
-        padding-left: 1.5rem;
-    }
-    
-    .instructions-list li {
-        margin-bottom: 1rem;
-        line-height: 1.6;
-    }
-    
-    .nutrition-section {
-        grid-column: 1 / -1;
-    }
-    
-    .nutrition-grid {
-        display: flex;
-        gap: 2rem;
-        justify-content: center;
-    }
-    
-    .nutrition-item {
-        text-align: center;
-    }
-    
-    .nutrition-value {
-        display: block;
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: var(--warm-terracotta);
-    }
-    
-    .nutrition-label {
-        font-family: var(--font-sans);
-        font-size: 0.9rem;
-        color: var(--soft-gray);
-    }
-    
-    .recipe-detail-actions {
-        display: flex;
-        gap: 1rem;
-        padding-top: 2rem;
-        border-top: 2px solid var(--sage-green);
-    }
-    
-    .action-btn {
-        padding: 0.75rem 1.5rem;
-        background: white;
-        border: 2px solid var(--sage-green);
-        border-radius: 2rem;
-        font-family: var(--font-sans);
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    
-    .action-btn:hover {
-        background: var(--sage-green);
-        color: white;
-        transform: translateY(-2px);
-    }
-    
-    .favorite-btn {
-        background: var(--warm-terracotta);
-        color: white;
-        border-color: var(--warm-terracotta);
-    }
-    
-    .favorite-btn:hover {
-        background: var(--deep-burgundy);
-        border-color: var(--deep-burgundy);
-    }
-    
-    .meal-calendar {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-    
-    .meal-day {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        box-shadow: var(--card-shadow);
-    }
-    
-    .meal-day h3 {
-        font-family: var(--font-handwritten);
-        font-size: 1.5rem;
-        color: var(--warm-terracotta);
-        margin-bottom: 1rem;
-    }
-    
-    .meal-slot {
-        min-height: 100px;
-        border: 2px dashed var(--sage-green);
-        border-radius: 0.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .add-meal-btn {
-        padding: 0.5rem 1rem;
-        background: transparent;
-        border: none;
-        color: var(--sage-green);
-        font-family: var(--font-sans);
-        font-weight: 600;
-        cursor: pointer;
-    }
-    
-    .no-recipes {
-        text-align: center;
-        padding: 3rem;
-        font-family: var(--font-handwritten);
-        font-size: 1.5rem;
-        color: var(--soft-gray);
-    }
-`;
-document.head.appendChild(styleSheet);

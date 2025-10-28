@@ -18,6 +18,7 @@ type Host interface {
 	LoadIssuesFromFolder(folder string) ([]issuespkg.Issue, error)
 	ClearRateLimitMetadata(issueID string)
 	TriggerInvestigation(issueID, agentID string, autoResolve bool) error
+	CleanupOldTranscripts()
 }
 
 // Processor manages automated issue investigations.
@@ -265,6 +266,7 @@ func (p *Processor) tick() {
 	}
 
 	p.host.ClearExpiredRateLimitMetadata()
+	p.host.CleanupOldTranscripts()
 
 	openIssues, err := p.host.LoadIssuesFromFolder("open")
 	if err != nil {

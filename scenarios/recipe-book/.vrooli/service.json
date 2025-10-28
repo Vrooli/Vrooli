@@ -27,6 +27,12 @@
       "env_var": "API_PORT",
       "description": "Recipe Book API port",
       "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Recipe Book UI dev server port",
+      "range": "20000-24999",
+      "proxy_path": "/"
     }
   },
   "resources": {
@@ -117,7 +123,8 @@
     "health": {
       "description": "Recipe Book health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -139,6 +146,14 @@
           "type": "resource",
           "target": "qdrant",
           "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         }
       ],
       "timeout": 5000,
@@ -147,20 +162,20 @@
     },
     "setup": {
       "description": "Initialize Recipe Book scenario",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "recipe-book-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "recipe-book"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "recipe-book-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "recipe-book"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -170,8 +185,18 @@
       "steps": [
         {
           "name": "install-dependencies",
-          "run": "cd api && go mod init recipe-book && go get github.com/lib/pq github.com/gorilla/mux github.com/google/uuid",
-          "description": "Install Go dependencies"
+          "run": "cd api && go mod tidy",
+          "description": "Install Go module dependencies"
+        },
+        {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI package dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI assets"
         },
         {
           "name": "build-api",
@@ -195,7 +220,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🍳 Recipe Book initialized\\n  UI: http://localhost:${API_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
+          "run": "echo '\ud83c\udf73 Recipe Book initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -214,9 +239,13 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && python3 -m http.server ${API_PORT} --bind 0.0.0.0",
-          "description": "Serve UI on API port",
-          "background": true
+          "run": "cd ui && UI_PORT=${UI_PORT} VROOLI_LIFECYCLE_MANAGED=true npm run dev -- --host 0.0.0.0 --port ${UI_PORT}",
+          "description": "Start Vite UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json",
+            "json_path_exists": "ui/package.json:scripts.dev"
+          }
         },
         {
           "name": "show-urls",
@@ -270,8 +299,8 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f 'python3 -m http.server ${API_PORT}' || true",
-          "description": "Stop UI server"
+          "run": "pkill -f 'scenarios/recipe-book/ui.*vite' || pkill -f 'scenarios/recipe-book/ui.*npm run dev' || true",
+          "description": "Stop Vite UI dev server"
         }
       ]
     }

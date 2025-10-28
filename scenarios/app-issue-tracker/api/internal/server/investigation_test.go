@@ -61,8 +61,9 @@ func TestExecuteInvestigationUpdatesProcessedCount(t *testing.T) {
 		t.Fatalf("expected processed count 2 after failure, got %d", got)
 	}
 
-	if len(restarted) != 1 {
-		t.Fatalf("expected no additional restarts on failure, got %v", restarted)
+	// NEW BEHAVIOR: Scenario restart now happens on failure too (to recover from broken state)
+	if len(restarted) != 2 || restarted[1] != "test-app" {
+		t.Fatalf("expected restart on failure too (to recover), got %v", restarted)
 	}
 }
 
@@ -103,11 +104,14 @@ func TestHandleInvestigationSuccessRestartFailure(t *testing.T) {
 		t.Fatalf("expected restart attempt once, got %d", restarts)
 	}
 
-	failedIssue := assertIssueExists(t, env.Server, issue.ID, "failed")
-	if status := strings.TrimSpace(failedIssue.Status); status != "failed" {
-		t.Fatalf("expected failed status, got %s", status)
+	// NEW BEHAVIOR: Investigation success is not invalidated by restart failure
+	// The issue should be completed, but restart failure should be logged in the event
+	completedIssue := assertIssueExists(t, env.Server, issue.ID, "completed")
+	if status := strings.TrimSpace(completedIssue.Status); status != "completed" {
+		t.Fatalf("expected completed status (restart failure doesn't invalidate investigation), got %s", status)
 	}
-	if !strings.Contains(failedIssue.Investigation.Report, "Failed to restart scenario 'scenario-x'") {
-		t.Fatalf("expected failure report to mention restart error, got: %s", failedIssue.Investigation.Report)
+	// Investigation report should contain the agent's successful output, not restart error
+	if !strings.Contains(completedIssue.Investigation.Report, "All good") {
+		t.Fatalf("expected investigation report to contain agent output, got: %s", completedIssue.Investigation.Report)
 	}
 }

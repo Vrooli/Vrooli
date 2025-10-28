@@ -314,7 +314,8 @@
         "options": {
           "timeout": 5000,
           "retry": {
-            "enabled": false\n          }
+            "enabled": false
+          }
         }
       },
       "id": "trigger-research-async",

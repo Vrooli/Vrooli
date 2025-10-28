@@ -38,7 +38,7 @@ import {
 import type { SnackVariant } from '../notifications/snackBus';
 import type { CreateIssueInput, UpdateIssueInput } from '../types/issueCreation';
 import { useProcessorSettingsManager } from './useProcessorSettingsManager';
-import { useAgentSettingsManager } from './useAgentSettingsManager';
+import { useAgentSettingsManager, type SettingsConstraints } from './useAgentSettingsManager';
 import {
   useIssueRealtimeSync,
   type RunningProcessMap,
@@ -87,6 +87,7 @@ interface IssueTrackerDataContextValue {
   rateLimitStatus: RateLimitStatusPayload | null;
   agentSettings: AgentSettings;
   updateAgentSettings: (updater: React.SetStateAction<AgentSettings>) => void;
+  agentConstraints: SettingsConstraints | null;
   fetchAllData: () => Promise<void>;
   toggleProcessorActive: () => void;
   createIssue: (input: CreateIssueInput) => Promise<string | null>;
@@ -141,7 +142,7 @@ export function IssueTrackerDataProvider({
     onError: (message) => showSnackbar(message, 'error'),
   });
 
-  const { agentSettings, updateAgentSettings } = useAgentSettingsManager({
+  const { agentSettings, updateAgentSettings, constraints: agentConstraints } = useAgentSettingsManager({
     apiBaseUrl,
     onSaveError: (message) => showSnackbar(message, 'error'),
   });
@@ -322,6 +323,7 @@ export function IssueTrackerDataProvider({
       rateLimitStatus,
       agentSettings,
       updateAgentSettings,
+      agentConstraints,
       fetchAllData,
       toggleProcessorActive,
       createIssue: async (input: CreateIssueInput) => {

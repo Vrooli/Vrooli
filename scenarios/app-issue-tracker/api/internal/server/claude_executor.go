@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"app-issue-tracker-api/internal/logging"
+	"app-issue-tracker-api/internal/utils"
 )
 
 type commandOptions struct {
@@ -130,7 +130,7 @@ func createTranscriptPaths(root, agentTag string, now func() time.Time) (string,
 		return "", "", err
 	}
 
-	fileSafeTag := sanitizeForFilename(agentTag)
+	fileSafeTag := utils.ForFilename(agentTag)
 	timestamp := now().UnixNano()
 	baseName := fmt.Sprintf("%s-%d", fileSafeTag, timestamp)
 	transcriptFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-conversation.jsonl", baseName))
@@ -151,14 +151,14 @@ type ClaudeExecutionResult struct {
 	LastMessagePath  string
 }
 
-// executeClaudeCode executes Claude Code directly (aligned with ecosystem-manager pattern)
+// executeClaudeCode executes AI agent directly (aligned with ecosystem-manager pattern)
 // This replaces the bash wrapper approach with direct Go execution
 func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID string, startTime time.Time, timeoutDuration time.Duration) (*ClaudeExecutionResult, error) {
 	settings := GetAgentSettings()
-	const idleTimeout = 10 * time.Minute
 
 	logging.LogInfo(
-		"Executing Claude Code",
+		"Executing AI agent",
+		"provider", settings.Provider,
 		"issue_id", issueID,
 		"prompt_length", len(prompt),
 		"timeout", timeoutDuration,
@@ -174,7 +174,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 
 	transcriptFile, lastMessageFile, pathErr := createTranscriptPaths(s.config.ScenarioRoot, agentTag, time.Now)
 	if pathErr != nil {
-		err := fmt.Errorf("failed to create Codex transcript directory: %w", pathErr)
+		err := fmt.Errorf("failed to create agent transcript directory: %w", pathErr)
 		return &ClaudeExecutionResult{Success: false, Error: err.Error()}, err
 	}
 
@@ -187,7 +187,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		Stdin: strings.NewReader(prompt),
 	})
 	if cmdErr != nil {
-		err := fmt.Errorf("failed to construct Claude command: %w", cmdErr)
+		err := fmt.Errorf("failed to construct agent command: %w", cmdErr)
 		return &ClaudeExecutionResult{
 			Success:         false,
 			Error:           err.Error(),
@@ -197,7 +197,8 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	}
 
 	logging.LogInfo(
-		"Claude execution settings applied",
+		"Agent execution settings applied",
+		"provider", settings.Provider,
 		"max_turns", settings.MaxTurns,
 		"allowed_tools", settings.AllowedTools,
 		"skip_permissions", settings.SkipPermissions,
@@ -229,64 +230,23 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	if err := cmd.Start(); err != nil {
 		return &ClaudeExecutionResult{
 			Success:         false,
-			Error:           fmt.Sprintf("Failed to start Claude Code: %v", err),
+			Error:           fmt.Sprintf("Failed to start agent: %v", err),
 			TranscriptPath:  transcriptFile,
 			LastMessagePath: lastMessageFile,
 		}, err
 	}
 
 	if proc := cmd.Process(); proc != nil {
-		logging.LogInfo("Claude Code agent started", "agent_tag", agentTag, "pid", proc.Pid)
+		logging.LogInfo("Agent started", "provider", settings.Provider, "agent_tag", agentTag, "pid", proc.Pid)
 	} else {
-		logging.LogInfo("Claude Code agent started", "agent_tag", agentTag, "pid", 0)
+		logging.LogInfo("Agent started", "provider", settings.Provider, "agent_tag", agentTag, "pid", 0)
 	}
 
 	// Stream output (like ecosystem-manager)
 	var stdoutBuilder, stderrBuilder, combinedBuilder strings.Builder
 	var combinedMu sync.Mutex
-	var lastActivity int64
-	atomic.StoreInt64(&lastActivity, time.Now().UnixNano())
-	idleTriggered := atomic.Bool{}
 
 	readsDone := make(chan struct{})
-	idleMonitorStop := make(chan struct{})
-
-	startIdleMonitor := func() {
-		if idleTimeout <= 0 {
-			return
-		}
-
-		go func() {
-			ticker := time.NewTicker(1 * time.Minute)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					last := time.Unix(0, atomic.LoadInt64(&lastActivity))
-					if time.Since(last) >= idleTimeout {
-						idleTriggered.Store(true)
-						logging.LogWarn(
-							"Idle timeout detected for Claude agent",
-							"issue_id", issueID,
-							"idle_timeout", idleTimeout,
-						)
-						if err := cmd.Kill(); err != nil {
-							logging.LogWarn(
-								"Failed to terminate idle Claude agent",
-								"issue_id", issueID,
-								"error", err,
-							)
-						}
-						return
-					}
-				case <-idleMonitorStop:
-					return
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-	}
 
 	streamPipe := func(stream string, reader io.ReadCloser) {
 		defer reader.Close()
@@ -295,7 +255,6 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		scanner.Buffer(buf, 1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
-			atomic.StoreInt64(&lastActivity, time.Now().UnixNano())
 
 			combinedMu.Lock()
 			if stream == "stderr" {
@@ -320,15 +279,11 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	go func() { defer wg.Done(); streamPipe("stdout", stdoutPipe) }()
 	go func() { defer wg.Done(); streamPipe("stderr", stderrPipe) }()
 
-	startIdleMonitor()
-
 	// Wait for command to complete
 	go func() {
 		wg.Wait()
 		close(readsDone)
 	}()
-
-	defer close(idleMonitorStop)
 
 	// Wait for either command completion or context timeout
 	waitErrChan := make(chan error, 1)
@@ -373,7 +328,8 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	// Timeout takes precedence regardless of wait error
 	if ctxErr == context.DeadlineExceeded {
 		logging.LogWarn(
-			"Claude Code execution timed out",
+			"Agent execution timed out",
+			"provider", settings.Provider,
 			"issue_id", issueID,
 			"timeout", timeoutDuration,
 			"execution_time", executionTime.Round(time.Second),
@@ -394,7 +350,8 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	// Check for max turns exceeded
 	if detectMaxTurnsExceeded(combinedOutput) {
 		logging.LogWarn(
-			"Claude max turns limit reached",
+			"Agent max turns limit reached",
+			"provider", settings.Provider,
 			"issue_id", issueID,
 			"max_turns", settings.MaxTurns,
 		)
@@ -402,7 +359,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			Success:          false,
 			Output:           combinedOutput,
 			LastMessage:      finalMessage,
-			Error:            fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", settings.MaxTurns),
+			Error:            fmt.Sprintf("Agent reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", settings.MaxTurns),
 			MaxTurnsExceeded: true,
 			ExitCode:         exitCode,
 			ExecutionTime:    executionTime,
@@ -421,7 +378,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		strings.Contains(lowerOutput, "429") ||
 		strings.Contains(lowerOutput, "too many requests") ||
 		strings.Contains(lowerOutput, "quota exceeded") {
-		logging.LogWarn("Rate limit detected during Claude execution", "issue_id", issueID)
+		logging.LogWarn("Rate limit detected during agent execution", "provider", settings.Provider, "issue_id", issueID)
 		// Note: Rate limit handling will be done by caller
 		result := &ClaudeExecutionResult{
 			Success:         false,
@@ -439,19 +396,6 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	// Check for non-zero exit (ecosystem-manager pattern)
 	// CRITICAL: Check output quality, not just exit codes
 	if waitErr != nil && exitCode != 0 {
-		if idleTriggered.Load() {
-			result := &ClaudeExecutionResult{
-				Success:         false,
-				Output:          combinedOutput,
-				LastMessage:     finalMessage,
-				Error:           fmt.Sprintf("Claude Code execution ended due to inactivity (no output for %v)", idleTimeout),
-				ExitCode:        exitCode,
-				ExecutionTime:   executionTime,
-				TranscriptPath:  transcriptFile,
-				LastMessagePath: lastMessageFile,
-			}
-			return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
-		}
 		// Check if we have substantial, structured output despite error
 		hasValidReport := false
 		if len(combinedOutput) > 500 {
@@ -483,8 +427,9 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 
 		// Real failure - no valid output
 		logging.LogErrorErr(
-			"Claude Code execution failed",
+			"Agent execution failed",
 			waitErr,
+			"provider", settings.Provider,
 			"issue_id", issueID,
 			"exit_code", exitCode,
 		)
@@ -492,7 +437,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			Success:         false,
 			Output:          combinedOutput,
 			LastMessage:     finalMessage,
-			Error:           fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitCode, waitErr),
+			Error:           fmt.Sprintf("Agent execution failed (exit code %d): %s", exitCode, waitErr),
 			ExitCode:        exitCode,
 			ExecutionTime:   executionTime,
 			TranscriptPath:  transcriptFile,
@@ -503,7 +448,8 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 
 	// Success case
 	logging.LogInfo(
-		"Claude Code execution completed",
+		"Agent execution completed",
+		"provider", settings.Provider,
 		"issue_id", issueID,
 		"output_length", len(combinedOutput),
 		"execution_time", executionTime.Round(time.Second),
@@ -654,7 +600,7 @@ func fileExistsAndNotEmpty(path string) bool {
 }
 
 func extractFinalAgentMessage(output string) string {
-	cleaned := strings.TrimSpace(stripANSI(output))
+	cleaned := strings.TrimSpace(utils.StripANSI(output))
 	if cleaned == "" {
 		return ""
 	}
@@ -681,24 +627,4 @@ func extractFinalAgentMessage(output string) string {
 	}
 
 	return cleaned
-}
-
-func sanitizeForFilename(input string) string {
-	var builder strings.Builder
-	for _, r := range input {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-			builder.WriteRune(r)
-		case r == '-', r == '_':
-			builder.WriteRune(r)
-		default:
-			builder.WriteRune('_')
-		}
-	}
-
-	if builder.Len() == 0 {
-		return "codex"
-	}
-
-	return builder.String()
 }

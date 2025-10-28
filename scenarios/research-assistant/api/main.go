@@ -218,7 +218,8 @@ type APIServer struct {
 	minioURL       string
 	ollamaURL      string
 	browserlessURL string
-	httpClient     *http.Client // Shared HTTP client with timeout for health checks
+	httpClient     *http.Client       // Shared HTTP client with timeout for health checks
+	logger         *StructuredLogger  // Structured logger for observability
 }
 
 func nullStringPtr(ns sql.NullString) *string {
@@ -691,9 +692,7 @@ func (s *APIServer) triggerResearchWorkflow(reportID string, req ReportRequest) 
 }
 
 func main() {
-	// Initialize structured logger
-	logger := NewStructuredLogger()
-
+	// Lifecycle protection check MUST be first - before any business logic
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
@@ -705,6 +704,9 @@ func main() {
 `)
 		os.Exit(1)
 	}
+
+	// Initialize structured logger
+	logger := NewStructuredLogger()
 
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
@@ -927,6 +929,7 @@ func main() {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second, // Timeout for health checks and short operations
 		},
+		logger: logger,
 	}
 
 	router := mux.NewRouter()
@@ -1059,20 +1062,36 @@ func main() {
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	status := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"services": map[string]interface{}{
-			"database":    s.checkDatabase(),
-			"n8n":         s.checkN8N(),
-			"windmill":    s.checkWindmill(),
-			"searxng":     s.checkSearXNG(),
-			"qdrant":      s.checkQdrant(),
-			"ollama":      s.checkOllama(),
-			"browserless": s.checkBrowserless(),
-		},
+	// Check all services
+	services := map[string]string{
+		"database":    s.checkDatabase(),
+		"n8n":         s.checkN8N(),
+		"windmill":    s.checkWindmill(),
+		"searxng":     s.checkSearXNG(),
+		"qdrant":      s.checkQdrant(),
+		"ollama":      s.checkOllama(),
+		"browserless": s.checkBrowserless(),
 	}
 
+	// Determine overall status based on critical dependencies
+	overallStatus := "healthy"
+	criticalServices := []string{"database", "n8n", "ollama", "qdrant", "searxng"}
+	for _, svc := range criticalServices {
+		if services[svc] != "healthy" {
+			overallStatus = "degraded"
+			break
+		}
+	}
+
+	status := map[string]interface{}{
+		"status":    overallStatus,
+		"service":   "research-assistant-api",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"readiness": true,
+		"services":  services,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
 }
 
@@ -1128,7 +1147,8 @@ func (s *APIServer) checkSearXNG() string {
 		return "not_configured"
 	}
 
-	resp, err := s.httpClient.Get(s.searxngURL + "/search?q=test&format=json")
+	// Use root endpoint instead of performing an actual search for faster health checks
+	resp, err := s.httpClient.Get(s.searxngURL + "/")
 	if err != nil {
 		return "unavailable"
 	}
@@ -1375,7 +1395,10 @@ func (s *APIServer) createReport(w http.ResponseWriter, r *http.Request) {
 	// Trigger n8n workflow for report generation
 	err = s.triggerResearchWorkflow(reportID, req)
 	if err != nil {
-		log.Printf("Warning: Failed to trigger n8n workflow for report %s: %v", reportID, err)
+		s.logger.Warn("Failed to trigger n8n workflow for report", map[string]interface{}{
+			"report_id": reportID,
+			"error":     err.Error(),
+		})
 		// Continue execution even if workflow trigger fails
 	}
 
@@ -1529,16 +1552,19 @@ func (s *APIServer) createConversation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) getConversation(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
 
 func (s *APIServer) getMessages(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
 
 func (s *APIServer) sendMessage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
@@ -2378,7 +2404,10 @@ func (s *APIServer) detectContradictions(w http.ResponseWriter, r *http.Request)
 		// Extract claims using Ollama
 		extractedClaims, err := s.extractClaims(title, content, req.Topic)
 		if err != nil {
-			log.Printf("Error extracting claims from result %d: %v", i, err)
+			s.logger.Error("Error extracting claims from search result", map[string]interface{}{
+				"result_index": i,
+				"error":        err.Error(),
+			})
 			continue
 		}
 
@@ -2409,7 +2438,9 @@ func (s *APIServer) detectContradictions(w http.ResponseWriter, r *http.Request)
 				for _, c2 := range claim2List {
 					isContradiction, confidence, context, err := s.checkContradiction(c1, c2, req.Topic)
 					if err != nil {
-						log.Printf("Error checking contradiction: %v", err)
+						s.logger.Error("Error checking contradiction", map[string]interface{}{
+							"error": err.Error(),
+						})
 						continue
 					}
 
@@ -2611,7 +2642,10 @@ Return format: ["claim 1", "claim 2", "claim 3"]`, topic, title, content)
 	}
 
 	if err := json.Unmarshal([]byte(responseText), &claims); err != nil {
-		log.Printf("Failed to parse claims: %v, raw response: %s", err, responseText)
+		s.logger.Warn("Failed to parse claims from Ollama response", map[string]interface{}{
+			"error":        err.Error(),
+			"response_len": len(responseText),
+		})
 		// If JSON parsing fails, return the response as a single claim
 		return []string{responseText}, nil
 	}
@@ -2711,7 +2745,10 @@ Return format:
 	}
 
 	if err := json.Unmarshal([]byte(responseText), &analysis); err != nil {
-		log.Printf("Failed to parse contradiction analysis: %v, raw response: %s", err, responseText)
+		s.logger.Warn("Failed to parse contradiction analysis from Ollama response", map[string]interface{}{
+			"error":        err.Error(),
+			"response_len": len(responseText),
+		})
 		// If parsing fails, return no contradiction
 		return false, 0, "", err
 	}
@@ -2720,26 +2757,31 @@ Return format:
 }
 
 func (s *APIServer) analyzeContent(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
 
 func (s *APIServer) extractInsights(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
 
 func (s *APIServer) analyzeTrends(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
 
 func (s *APIServer) analyzeCompetitive(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
 
 func (s *APIServer) searchKnowledge(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }

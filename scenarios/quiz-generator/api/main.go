@@ -97,26 +97,30 @@ func initLogger() {
 func initDB() error {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		// Build from individual components with sensible defaults for Vrooli
+		// Build from individual components - fail fast on missing critical values
 		dbHost := os.Getenv("POSTGRES_HOST")
 		if dbHost == "" {
-			dbHost = "localhost"
+			dbHost = "localhost" // Non-critical, can default
 		}
+
 		dbPort := os.Getenv("POSTGRES_PORT")
 		if dbPort == "" {
-			dbPort = "5433" // Vrooli postgres runs on 5433
+			return fmt.Errorf("POSTGRES_PORT environment variable is required")
 		}
+
 		dbUser := os.Getenv("POSTGRES_USER")
 		if dbUser == "" {
-			dbUser = "vrooli"
+			dbUser = "vrooli" // Non-critical, can default to standard user
 		}
+
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		if dbPassword == "" {
-			dbPassword = "vrooli"
+			return fmt.Errorf("POSTGRES_PASSWORD environment variable is required - never use hardcoded passwords")
 		}
+
 		dbName := os.Getenv("POSTGRES_DB")
 		if dbName == "" {
-			dbName = "vrooli"
+			dbName = "vrooli" // Non-critical, can default
 		}
 
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -182,12 +186,19 @@ func initDB() error {
 func initRedis() {
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		redisURL = "localhost:6379"
+		logger.Warn("⚠️  REDIS_URL not configured, Redis features will be disabled")
+		return
+	}
+
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	// Redis password is optional for local dev, but log warning if missing
+	if redisPassword == "" {
+		logger.Warn("⚠️  REDIS_PASSWORD not set - ensure Redis is not requiring authentication")
 	}
 
 	redisClient = redis.NewClient(&redis.Options{
 		Addr:         redisURL,
-		Password:     os.Getenv("REDIS_PASSWORD"),
+		Password:     redisPassword,
 		DB:           0,
 		MaxRetries:   3,
 		DialTimeout:  5 * time.Second,
@@ -312,6 +323,7 @@ func listQuizzes(c *gin.Context) {
 		var id, title, difficulty string
 		var createdAt time.Time
 		if err := rows.Scan(&id, &title, &difficulty, &createdAt); err != nil {
+			logger.WithError(err).Warn("Failed to scan quiz row, skipping")
 			continue
 		}
 		quizzes = append(quizzes, map[string]interface{}{
@@ -377,6 +389,12 @@ func createQuiz(c *gin.Context) {
 	var quiz Quiz
 	if err := c.ShouldBindJSON(&quiz); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate required fields
+	if quiz.Title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
 		return
 	}
 
@@ -698,7 +716,22 @@ func generateMockQuestions(count int) []Question {
 // CORS middleware
 func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		// Use explicit allowed origins from environment, default to localhost for development
+		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+		if allowedOrigins == "" {
+			// Default to local development origins only - never use wildcard in production
+			allowedOrigins = "http://localhost:3251,http://localhost:3000"
+		}
+
+		origin := c.Request.Header.Get("Origin")
+		// Check if the origin is in the allowed list
+		for _, allowed := range strings.Split(allowedOrigins, ",") {
+			if strings.TrimSpace(allowed) == origin {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
@@ -749,11 +782,13 @@ func main() {
 	// Initialize quiz processor
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
+		logger.Warn("⚠️  OLLAMA_URL not configured, AI quiz generation will be limited")
+		ollamaURL = "http://localhost:11434" // Reasonable default for optional feature
 	}
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
-		qdrantURL = "http://localhost:6333"
+		logger.Warn("⚠️  QDRANT_URL not configured, semantic search will be disabled")
+		qdrantURL = "http://localhost:6333" // Reasonable default for optional feature
 	}
 	quizProcessor = NewQuizProcessor(db, redisClient, ollamaURL, qdrantURL)
 
@@ -786,13 +821,11 @@ func main() {
 		v1.POST("/quiz/:id/answer/:questionId", submitSingleAnswer)
 	}
 
-	// Start server
+	// Start server - API_PORT must be provided by lifecycle system
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("PORT")
-		if port == "" {
-			port = "3250"
-		}
+		logger.Fatal("❌ API_PORT environment variable is required (set by Vrooli lifecycle)")
+		return
 	}
 
 	srv := &http.Server{

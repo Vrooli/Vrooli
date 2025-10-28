@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -89,6 +90,32 @@ func (s *Server) updateProcessorHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Validate concurrent_slots
+	if req.ConcurrentSlots != nil {
+		if *req.ConcurrentSlots < MinConcurrentSlots || *req.ConcurrentSlots > MaxConcurrentSlots {
+			handlers.WriteError(w, http.StatusBadRequest,
+				fmt.Sprintf("concurrent_slots must be between %d and %d", MinConcurrentSlots, MaxConcurrentSlots))
+			return
+		}
+	}
+
+	// Validate refresh_interval
+	if req.RefreshInterval != nil {
+		if *req.RefreshInterval < MinRefreshInterval || *req.RefreshInterval > MaxRefreshInterval {
+			handlers.WriteError(w, http.StatusBadRequest,
+				fmt.Sprintf("refresh_interval must be between %d and %d seconds", MinRefreshInterval, MaxRefreshInterval))
+			return
+		}
+	}
+
+	// Validate max_issues (allow 0 for unlimited, but no negative)
+	if req.MaxIssues != nil {
+		if *req.MaxIssues < 0 {
+			handlers.WriteError(w, http.StatusBadRequest, "max_issues must be 0 or greater")
+			return
+		}
+	}
+
 	s.updateProcessorState(req.Active, req.ConcurrentSlots, req.RefreshInterval, req.MaxIssues, req.MaxIssuesDisabled)
 	state := s.currentProcessorState()
 
@@ -152,9 +179,9 @@ func (s *Server) stopRunningProcessHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) registerRunningProcess(issueID, agentID, startTime string, cancel context.CancelFunc) {
-	if _, currentFolder, err := s.findIssueDirectory(issueID); err == nil && currentFolder != "active" {
-		if err := s.moveIssue(issueID, "active"); err != nil {
-			logging.LogErrorErr("Failed to mark running issue as active", err, "issue_id", issueID)
+	if _, currentFolder, findErr := s.findIssueDirectory(issueID); findErr == nil && currentFolder != StatusActive {
+		if moveErr := s.moveIssue(issueID, StatusActive); moveErr != nil {
+			logging.LogErrorErr("Failed to mark running issue as active", moveErr, "issue_id", issueID)
 		} else {
 			logging.LogInfo("Normalized issue status for running process", "issue_id", issueID, "previous_status", currentFolder)
 		}

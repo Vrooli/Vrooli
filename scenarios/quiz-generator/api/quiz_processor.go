@@ -16,10 +16,10 @@ import (
 )
 
 type QuizProcessor struct {
-	db          *pgxpool.Pool
-	redis       *redis.Client
-	ollamaURL   string
-	qdrantURL   string
+	db        *pgxpool.Pool
+	redis     *redis.Client
+	ollamaURL string
+	qdrantURL string
 }
 
 type GeneratedQuestion struct {
@@ -223,10 +223,10 @@ Return the response as a valid JSON array with this structure:
 func (qp *QuizProcessor) generateFallbackQuestions(req QuizGenerateRequest) []GeneratedQuestion {
 	// Generate simple fallback questions if AI fails
 	questions := []GeneratedQuestion{}
-	
+
 	for i := 0; i < req.QuestionCount; i++ {
 		qType := req.QuestionTypes[i%len(req.QuestionTypes)]
-		
+
 		switch qType {
 		case "mcq":
 			questions = append(questions, GeneratedQuestion{
@@ -255,13 +255,13 @@ func (qp *QuizProcessor) generateFallbackQuestions(req QuizGenerateRequest) []Ge
 			})
 		}
 	}
-	
+
 	return questions
 }
 
 func (qp *QuizProcessor) structureQuestions(generated []GeneratedQuestion) []Question {
 	questions := make([]Question, len(generated))
-	
+
 	for i, gq := range generated {
 		points := 1
 		switch gq.Difficulty {
@@ -270,7 +270,7 @@ func (qp *QuizProcessor) structureQuestions(generated []GeneratedQuestion) []Que
 		case "medium":
 			points = 2
 		}
-		
+
 		questions[i] = Question{
 			ID:            uuid.New().String(),
 			Type:          gq.Type,
@@ -283,7 +283,7 @@ func (qp *QuizProcessor) structureQuestions(generated []GeneratedQuestion) []Que
 			OrderIndex:    i + 1,
 		}
 	}
-	
+
 	return questions
 }
 
@@ -292,7 +292,7 @@ func (qp *QuizProcessor) saveQuizToDB(ctx context.Context, quiz *Quiz) error {
 	query := `
 		INSERT INTO quiz_generator.quizzes (id, title, description, time_limit, passing_score, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	
+
 	_, err := qp.db.Exec(ctx, query,
 		quiz.ID, quiz.Title, quiz.Description,
 		quiz.TimeLimit, quiz.PassingScore,
@@ -305,12 +305,12 @@ func (qp *QuizProcessor) saveQuizToDB(ctx context.Context, quiz *Quiz) error {
 	for _, q := range quiz.Questions {
 		optionsJSON, _ := json.Marshal(q.Options)
 		answerJSON, _ := json.Marshal(q.CorrectAnswer)
-		
+
 		questionQuery := `
 			INSERT INTO quiz_generator.questions (id, quiz_id, type, question_text, options, correct_answer, 
 				explanation, difficulty, points, order_index)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-		
+
 		_, err = qp.db.Exec(ctx, questionQuery,
 			q.ID, quiz.ID, q.Type, q.QuestionText,
 			optionsJSON, answerJSON,
@@ -328,7 +328,7 @@ func (qp *QuizProcessor) cacheQuiz(ctx context.Context, quiz *Quiz) error {
 	if qp.redis == nil {
 		return nil
 	}
-	
+
 	quizJSON, err := json.Marshal(quiz)
 	if err != nil {
 		return fmt.Errorf("failed to marshal quiz: %w", err)
@@ -405,7 +405,7 @@ func (qp *QuizProcessor) storeVectorPoint(ctx context.Context, collection string
 
 func (qp *QuizProcessor) getAverageDifficulty(questions []Question) string {
 	difficultyMap := map[string]int{"easy": 0, "medium": 0, "hard": 0}
-	
+
 	for _, q := range questions {
 		if _, exists := difficultyMap[q.Difficulty]; exists {
 			difficultyMap[q.Difficulty]++
@@ -447,7 +447,7 @@ func (qp *QuizProcessor) GradeQuiz(ctx context.Context, quizID string, submissio
 		for _, question := range quiz.Questions {
 			if question.ID == resp.QuestionID {
 				totalPoints += question.Points
-				
+
 				// Check if answer is correct
 				if qp.checkAnswer(question, resp.Answer) {
 					earnedPoints += question.Points
@@ -455,7 +455,7 @@ func (qp *QuizProcessor) GradeQuiz(ctx context.Context, quizID string, submissio
 				} else {
 					result.CorrectAnswers[question.ID] = question.CorrectAnswer
 				}
-				
+
 				result.Explanations[question.ID] = question.Explanation
 				break
 			}
@@ -486,7 +486,7 @@ func (qp *QuizProcessor) getQuiz(ctx context.Context, quizID string) (*Quiz, err
 
 	// Load from database
 	quiz := &Quiz{ID: quizID}
-	
+
 	query := `SELECT title, description, time_limit, passing_score, created_at, updated_at 
 			  FROM quiz_generator.quizzes WHERE id = $1`
 	err := qp.db.QueryRow(ctx, query, quizID).Scan(
@@ -509,16 +509,16 @@ func (qp *QuizProcessor) getQuiz(ctx context.Context, quizID string) (*Quiz, err
 	for rows.Next() {
 		var q Question
 		var optionsJSON, answerJSON []byte
-		
+
 		err := rows.Scan(&q.ID, &q.Type, &q.QuestionText, &optionsJSON, &answerJSON,
 			&q.Explanation, &q.Difficulty, &q.Points, &q.OrderIndex)
 		if err != nil {
 			continue
 		}
-		
+
 		json.Unmarshal(optionsJSON, &q.Options)
 		json.Unmarshal(answerJSON, &q.CorrectAnswer)
-		
+
 		quiz.Questions = append(quiz.Questions, q)
 	}
 
@@ -532,21 +532,21 @@ func (qp *QuizProcessor) checkAnswer(question Question, answer interface{}) bool
 	// Convert both to strings for comparison
 	correctStr := fmt.Sprintf("%v", question.CorrectAnswer)
 	answerStr := fmt.Sprintf("%v", answer)
-	
+
 	// Case-insensitive comparison for text answers
 	return strings.EqualFold(correctStr, answerStr)
 }
 
-func (qp *QuizProcessor) storeQuizResult(ctx context.Context, quizID string, 
+func (qp *QuizProcessor) storeQuizResult(ctx context.Context, quizID string,
 	submission QuizSubmitRequest, result *QuizResult) {
-	
+
 	resultID := uuid.New().String()
 	responsesJSON, _ := json.Marshal(submission.Responses)
-	
+
 	query := `INSERT INTO quiz_generator.quiz_results (id, quiz_id, score, percentage, passed, 
 			  responses, time_taken, submitted_at)
 			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	
+
 	qp.db.Exec(ctx, query, resultID, quizID, result.Score, result.Percentage,
 		result.Passed, responsesJSON, submission.TimeTaken, time.Now())
 }

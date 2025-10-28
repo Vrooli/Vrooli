@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"app-issue-tracker-api/internal/utils"
 )
 
 const (
@@ -67,24 +69,24 @@ func (pb *PromptBuilder) BuildPrompt(issue *Issue, issueDir, agentID, projectPat
 	}
 
 	if issue != nil {
-		replacements["{{issue_id}}"] = sanitizeValue(issue.ID)
-		replacements["{{issue_title}}"] = sanitizeValue(issue.Title)
-		replacements["{{issue_description}}"] = sanitizeValue(issue.Description)
-		replacements["{{issue_type}}"] = sanitizeValue(issue.Type)
-		replacements["{{issue_priority}}"] = sanitizeValue(issue.Priority)
-		replacements["{{app_name}}"] = sanitizeValue(issue.AppID)
-		replacements["{{error_message}}"] = sanitizeValue(issue.ErrorContext.ErrorMessage)
-		replacements["{{stack_trace}}"] = sanitizeValue(issue.ErrorContext.StackTrace)
-		replacements["{{affected_files}}"] = sanitizeValue(joinList(issue.ErrorContext.AffectedFiles))
+		replacements["{{issue_id}}"] = utils.ValueOrFallback(issue.ID, fallbackValue)
+		replacements["{{issue_title}}"] = utils.ValueOrFallback(issue.Title, fallbackValue)
+		replacements["{{issue_description}}"] = utils.ValueOrFallback(issue.Description, fallbackValue)
+		replacements["{{issue_type}}"] = utils.ValueOrFallback(issue.Type, fallbackValue)
+		replacements["{{issue_priority}}"] = utils.ValueOrFallback(issue.Priority, fallbackValue)
+		replacements["{{app_name}}"] = utils.ValueOrFallback(issue.AppID, fallbackValue)
+		replacements["{{error_message}}"] = utils.ValueOrFallback(issue.ErrorContext.ErrorMessage, fallbackValue)
+		replacements["{{stack_trace}}"] = utils.ValueOrFallback(issue.ErrorContext.StackTrace, fallbackValue)
+		replacements["{{affected_files}}"] = utils.ValueOrFallback(joinList(issue.ErrorContext.AffectedFiles), fallbackValue)
 	}
 
-	replacements["{{issue_metadata}}"] = sanitizeValue(pb.readIssueMetadataRaw(issueDir, issue))
-	replacements["{{issue_artifacts}}"] = sanitizeValue(pb.listArtifactPaths(issueDir, issue))
-	replacements["{{issue_dir}}"] = sanitizeValue(pb.computeIssueDirRelativePath(issueDir))
-	replacements["{{issue_dir_absolute}}"] = sanitizeValue(issueDir)
-	replacements["{{agent_id}}"] = sanitizeValue(agentID)
-	replacements["{{project_path}}"] = sanitizeValue(projectPath)
-	replacements["{{timestamp}}"] = sanitizeValue(timestamp)
+	replacements["{{issue_metadata}}"] = utils.ValueOrFallback(pb.readIssueMetadataRaw(issueDir, issue), fallbackValue)
+	replacements["{{issue_artifacts}}"] = utils.ValueOrFallback(pb.listArtifactPaths(issueDir, issue), fallbackValue)
+	replacements["{{issue_dir}}"] = utils.ValueOrFallback(pb.computeIssueDirRelativePath(issueDir), fallbackValue)
+	replacements["{{issue_dir_absolute}}"] = utils.ValueOrFallback(issueDir, fallbackValue)
+	replacements["{{agent_id}}"] = utils.ValueOrFallback(agentID, fallbackValue)
+	replacements["{{project_path}}"] = utils.ValueOrFallback(projectPath, fallbackValue)
+	replacements["{{timestamp}}"] = utils.ValueOrFallback(timestamp, fallbackValue)
 
 	// Build replacement pairs for strings.NewReplacer (more efficient for multiple replacements)
 	pairs := make([]string, 0, len(replacements)*2)
@@ -186,14 +188,6 @@ func (pb *PromptBuilder) computeIssueDirRelativePath(issueDir string) string {
 
 	// Normalize to forward slashes for cross-platform consistency
 	return filepath.ToSlash(rel)
-}
-
-func sanitizeValue(str string) string {
-	trimmed := strings.TrimSpace(str)
-	if trimmed == "" {
-		return fallbackValue
-	}
-	return trimmed
 }
 
 func joinList(items []string) string {

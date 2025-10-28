@@ -6,9 +6,9 @@ set -euo pipefail
 
 echo "🔥 Running smoke tests for quiz-generator..."
 
-# Use fixed ports for now (dynamic discovery to be implemented)
-API_PORT=16470
-UI_PORT=3251
+# Use ports from environment (set by lifecycle) with fallbacks for standalone testing
+API_PORT="${API_PORT:-16470}"
+UI_PORT="${UI_PORT:-3251}"
 
 API_URL="http://localhost:${API_PORT}"
 UI_URL="http://localhost:${UI_PORT}"
@@ -24,9 +24,9 @@ else
     exit 1
 fi
 
-# Test 2: Generate quiz endpoint
+# Test 2: Generate quiz endpoint (with longer timeout for Ollama LLM)
 echo -n "Testing quiz generation... "
-QUIZ_RESPONSE=$(curl -sf -X POST "${API_URL}/api/v1/quiz/generate" \
+QUIZ_RESPONSE=$(curl -sf --max-time 60 -X POST "${API_URL}/api/v1/quiz/generate" \
     -H "Content-Type: application/json" \
     -d '{"content": "The sun is a star.", "question_count": 2}' || echo "FAILED")
 

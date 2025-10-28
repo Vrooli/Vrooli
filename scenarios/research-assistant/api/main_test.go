@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 )
@@ -291,6 +292,59 @@ func TestCalculateContentDepth(t *testing.T) {
 	}
 }
 
+// Test helper functions
+func TestNullStringPtr(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    sql.NullString
+		expected bool // true if should be non-nil
+	}{
+		{"Valid string", sql.NullString{String: "test", Valid: true}, true},
+		{"Invalid string", sql.NullString{String: "", Valid: false}, false},
+		{"Valid empty string", sql.NullString{String: "", Valid: true}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := nullStringPtr(tt.input)
+			if tt.expected && result == nil {
+				t.Errorf("nullStringPtr(%v) returned nil, expected non-nil", tt.input)
+			}
+			if !tt.expected && result != nil {
+				t.Errorf("nullStringPtr(%v) returned non-nil, expected nil", tt.input)
+			}
+			if result != nil && *result != tt.input.String {
+				t.Errorf("nullStringPtr(%v) = %q, want %q", tt.input, *result, tt.input.String)
+			}
+		})
+	}
+}
+
+func TestNullTimePtr(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name     string
+		input    sql.NullTime
+		expected bool // true if should be non-nil
+	}{
+		{"Valid time", sql.NullTime{Time: now, Valid: true}, true},
+		{"Invalid time", sql.NullTime{Time: time.Time{}, Valid: false}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := nullTimePtr(tt.input)
+			if tt.expected && result == nil {
+				t.Errorf("nullTimePtr(%v) returned nil, expected non-nil", tt.input)
+			}
+			if !tt.expected && result != nil {
+				t.Errorf("nullTimePtr(%v) returned non-nil, expected nil", tt.input)
+			}
+		})
+	}
+}
+
 // Test source quality calculation (integration test)
 func TestCalculateSourceQuality(t *testing.T) {
 	now := time.Now()
@@ -473,3 +527,8 @@ func TestSortResultsByQuality(t *testing.T) {
 		t.Errorf("First result should have quality 0.9, got %f", firstQuality)
 	}
 }
+
+// Note: Endpoint tests moved to handlers_test.go to avoid duplication
+// This file focuses on pure function tests
+
+// Endpoint tests are in handlers_test.go - this avoids test duplication

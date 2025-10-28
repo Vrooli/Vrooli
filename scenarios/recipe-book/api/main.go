@@ -15,43 +15,43 @@ import (
 )
 
 type Recipe struct {
-	ID           string         `json:"id"`
-	Title        string         `json:"title"`
-	Description  string         `json:"description"`
-	Ingredients  []Ingredient   `json:"ingredients"`
-	Instructions []string       `json:"instructions"`
-	PrepTime     int            `json:"prep_time"`
-	CookTime     int            `json:"cook_time"`
-	Servings     int            `json:"servings"`
-	Tags         []string       `json:"tags"`
-	Cuisine      string         `json:"cuisine"`
-	DietaryInfo  []string       `json:"dietary_info"`
-	Nutrition    NutritionInfo  `json:"nutrition"`
-	PhotoURL     string         `json:"photo_url"`
-	CreatedBy    string         `json:"created_by"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	Visibility   string         `json:"visibility"`
-	SharedWith   []string       `json:"shared_with"`
-	Source       string         `json:"source"`
-	ParentID     string         `json:"parent_recipe_id,omitempty"`
+	ID           string        `json:"id"`
+	Title        string        `json:"title"`
+	Description  string        `json:"description"`
+	Ingredients  []Ingredient  `json:"ingredients"`
+	Instructions []string      `json:"instructions"`
+	PrepTime     int           `json:"prep_time"`
+	CookTime     int           `json:"cook_time"`
+	Servings     int           `json:"servings"`
+	Tags         []string      `json:"tags"`
+	Cuisine      string        `json:"cuisine"`
+	DietaryInfo  []string      `json:"dietary_info"`
+	Nutrition    NutritionInfo `json:"nutrition"`
+	PhotoURL     string        `json:"photo_url"`
+	CreatedBy    string        `json:"created_by"`
+	CreatedAt    time.Time     `json:"created_at"`
+	UpdatedAt    time.Time     `json:"updated_at"`
+	Visibility   string        `json:"visibility"`
+	SharedWith   []string      `json:"shared_with"`
+	Source       string        `json:"source"`
+	ParentID     string        `json:"parent_recipe_id,omitempty"`
 }
 
 type Ingredient struct {
-	Name     string  `json:"name"`
-	Amount   float64 `json:"amount"`
-	Unit     string  `json:"unit"`
-	Notes    string  `json:"notes,omitempty"`
+	Name   string  `json:"name"`
+	Amount float64 `json:"amount"`
+	Unit   string  `json:"unit"`
+	Notes  string  `json:"notes,omitempty"`
 }
 
 type NutritionInfo struct {
-	Calories     int `json:"calories"`
-	Protein      int `json:"protein"`
-	Carbs        int `json:"carbs"`
-	Fat          int `json:"fat"`
-	Fiber        int `json:"fiber"`
-	Sugar        int `json:"sugar"`
-	Sodium       int `json:"sodium"`
+	Calories int `json:"calories"`
+	Protein  int `json:"protein"`
+	Carbs    int `json:"carbs"`
+	Fat      int `json:"fat"`
+	Fiber    int `json:"fiber"`
+	Sugar    int `json:"sugar"`
+	Sodium   int `json:"sodium"`
 }
 
 type RecipeRating struct {
@@ -65,9 +65,9 @@ type RecipeRating struct {
 }
 
 type SearchRequest struct {
-	Query   string   `json:"query"`
-	UserID  string   `json:"user_id"`
-	Limit   int      `json:"limit,omitempty"`
+	Query   string `json:"query"`
+	UserID  string `json:"user_id"`
+	Limit   int    `json:"limit,omitempty"`
 	Filters struct {
 		Dietary     []string `json:"dietary,omitempty"`
 		MaxTime     int      `json:"max_time,omitempty"`
@@ -76,17 +76,17 @@ type SearchRequest struct {
 }
 
 type SearchResult struct {
-	Recipe     Recipe  `json:"recipe"`
-	Relevance  float64 `json:"relevance"`
+	Recipe     Recipe   `json:"recipe"`
+	Relevance  float64  `json:"relevance"`
 	Highlights []string `json:"highlights"`
 }
 
 type GenerateRequest struct {
-	Prompt              string   `json:"prompt"`
-	UserID              string   `json:"user_id"`
-	DietaryRestrictions []string `json:"dietary_restrictions,omitempty"`
+	Prompt               string   `json:"prompt"`
+	UserID               string   `json:"user_id"`
+	DietaryRestrictions  []string `json:"dietary_restrictions,omitempty"`
 	AvailableIngredients []string `json:"available_ingredients,omitempty"`
-	Style               string   `json:"style,omitempty"`
+	Style                string   `json:"style,omitempty"`
 }
 
 type ModifyRequest struct {
@@ -118,17 +118,17 @@ func main() {
 	defer db.Close()
 
 	router := mux.NewRouter()
-	
+
 	// Health check
 	router.HandleFunc("/health", healthHandler).Methods("GET")
-	
+
 	// Recipe CRUD
 	router.HandleFunc("/api/v1/recipes", listRecipesHandler).Methods("GET")
 	router.HandleFunc("/api/v1/recipes", createRecipeHandler).Methods("POST")
 	router.HandleFunc("/api/v1/recipes/{id}", getRecipeHandler).Methods("GET")
 	router.HandleFunc("/api/v1/recipes/{id}", updateRecipeHandler).Methods("PUT")
 	router.HandleFunc("/api/v1/recipes/{id}", deleteRecipeHandler).Methods("DELETE")
-	
+
 	// Recipe operations
 	router.HandleFunc("/api/v1/recipes/search", searchRecipesHandler).Methods("POST")
 	router.HandleFunc("/api/v1/recipes/generate", generateRecipeHandler).Methods("POST")
@@ -136,16 +136,21 @@ func main() {
 	router.HandleFunc("/api/v1/recipes/{id}/cook", markCookedHandler).Methods("POST")
 	router.HandleFunc("/api/v1/recipes/{id}/rate", rateRecipeHandler).Methods("POST")
 	router.HandleFunc("/api/v1/recipes/{id}/share", shareRecipeHandler).Methods("POST")
-	
+
 	// Shopping list
 	router.HandleFunc("/api/v1/shopping-list", generateShoppingListHandler).Methods("POST")
-	
+
 	// User preferences
 	router.HandleFunc("/api/v1/users/{id}/preferences", getUserPreferencesHandler).Methods("GET")
 	router.HandleFunc("/api/v1/users/{id}/preferences", updateUserPreferencesHandler).Methods("PUT")
-	
+
 	// Serve UI
-	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./ui")))
+	staticDir := "./ui/dist"
+	if _, err := os.Stat(staticDir); err != nil {
+		log.Printf("[Recipe Book] UI build assets missing at %s: %v", staticDir, err)
+	} else {
+		router.PathPrefix("/").Handler(http.FileServer(http.Dir(staticDir)))
+	}
 
 	log.Printf("🍳 Recipe Book API starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))
@@ -156,22 +161,22 @@ func initDB() {
 	if dbHost == "" {
 		dbHost = "localhost"
 	}
-	
+
 	dbPort := os.Getenv("POSTGRES_PORT")
 	if dbPort == "" {
 		dbPort = "5432"
 	}
-	
+
 	dbUser := os.Getenv("POSTGRES_USER")
 	if dbUser == "" {
 		dbUser = "postgres"
 	}
-	
+
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
 		dbPassword = "postgres"
 	}
-	
+
 	dbName := os.Getenv("POSTGRES_DB")
 	if dbName == "" {
 		dbName = "recipe_book"
@@ -179,25 +184,25 @@ func initDB() {
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
-	
+
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	
+
 	if err = db.Ping(); err != nil {
 		log.Fatal("Failed to ping database:", err)
 	}
-	
+
 	log.Println("Connected to PostgreSQL database")
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{
-		"status": "healthy",
+		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
-		"service": "recipe-book",
+		"service":   "recipe-book",
 	}
 
 	// Check database connection
@@ -242,56 +247,56 @@ func listRecipesHandler(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, title, description, cuisine, prep_time, cook_time, servings,
 	          visibility, created_by, created_at, updated_at
 	          FROM recipes WHERE 1=1`
-	
+
 	var args []interface{}
 	argCount := 1
-	
+
 	if userID != "" {
 		query += fmt.Sprintf(" AND (created_by = $%d OR visibility = 'public' OR $%d = ANY(shared_with))", argCount, argCount)
 		args = append(args, userID)
 		argCount++
 	}
-	
+
 	if visibility != "" {
 		query += fmt.Sprintf(" AND visibility = $%d", argCount)
 		args = append(args, visibility)
 		argCount++
 	}
-	
+
 	if cuisine != "" {
 		query += fmt.Sprintf(" AND cuisine = $%d", argCount)
 		args = append(args, cuisine)
 		argCount++
 	}
-	
+
 	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argCount, argCount+1)
 	args = append(args, limit, offset)
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		http.Error(w, "Failed to query recipes", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var recipes []Recipe
 	for rows.Next() {
 		var r Recipe
-		err := rows.Scan(&r.ID, &r.Title, &r.Description, &r.Cuisine, 
-			&r.PrepTime, &r.CookTime, &r.Servings, &r.Visibility, 
+		err := rows.Scan(&r.ID, &r.Title, &r.Description, &r.Cuisine,
+			&r.PrepTime, &r.CookTime, &r.Servings, &r.Visibility,
 			&r.CreatedBy, &r.CreatedAt, &r.UpdatedAt)
 		if err != nil {
 			continue
 		}
 		recipes = append(recipes, r)
 	}
-	
+
 	response := map[string]interface{}{
-		"recipes": recipes,
-		"total": len(recipes),
+		"recipes":  recipes,
+		"total":    len(recipes),
 		"has_more": len(recipes) == 20,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -327,7 +332,7 @@ func createRecipeHandler(w http.ResponseWriter, r *http.Request) {
 	dietaryJSON, _ := json.Marshal(recipe.DietaryInfo)
 	nutritionJSON, _ := json.Marshal(recipe.Nutrition)
 	sharedWithJSON, _ := json.Marshal(recipe.SharedWith)
-	
+
 	_, err := db.Exec(`
 		INSERT INTO recipes (id, title, description, ingredients, instructions, 
 		                    prep_time, cook_time, servings, tags, cuisine, 
@@ -340,16 +345,16 @@ func createRecipeHandler(w http.ResponseWriter, r *http.Request) {
 		dietaryJSON, nutritionJSON, recipe.PhotoURL, recipe.CreatedBy,
 		recipe.CreatedAt, recipe.UpdatedAt, recipe.Visibility, sharedWithJSON,
 		recipe.Source, recipe.ParentID)
-	
+
 	if err != nil {
 		log.Printf("Failed to insert recipe: %v", err)
 		http.Error(w, "Failed to create recipe", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Generate embedding for semantic search
 	go generateRecipeEmbedding(recipe)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(recipe)
@@ -380,7 +385,7 @@ func getRecipeHandler(w http.ResponseWriter, r *http.Request) {
 		&dietaryJSON, &nutritionJSON, &recipe.PhotoURL, &recipe.CreatedBy,
 		&recipe.CreatedAt, &recipe.UpdatedAt, &recipe.Visibility, &sharedWithJSON,
 		&recipe.Source, &recipe.ParentID)
-	
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
@@ -388,7 +393,7 @@ func getRecipeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to fetch recipe", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Check permissions
 	if recipe.Visibility == "private" && recipe.CreatedBy != userID {
 		hasAccess := false
@@ -403,7 +408,7 @@ func getRecipeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	// Unmarshal JSON fields
 	json.Unmarshal(ingredientsJSON, &recipe.Ingredients)
 	json.Unmarshal(instructionsJSON, &recipe.Instructions)
@@ -411,7 +416,7 @@ func getRecipeHandler(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(dietaryJSON, &recipe.DietaryInfo)
 	json.Unmarshal(nutritionJSON, &recipe.Nutrition)
 	json.Unmarshal(sharedWithJSON, &recipe.SharedWith)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(recipe)
 }
@@ -441,7 +446,7 @@ func updateRecipeHandler(w http.ResponseWriter, r *http.Request) {
 	dietaryJSON, _ := json.Marshal(recipe.DietaryInfo)
 	nutritionJSON, _ := json.Marshal(recipe.Nutrition)
 	sharedWithJSON, _ := json.Marshal(recipe.SharedWith)
-	
+
 	_, err := db.Exec(`
 		UPDATE recipes SET title = $2, description = $3, ingredients = $4, 
 		                  instructions = $5, prep_time = $6, cook_time = $7, 
@@ -453,15 +458,15 @@ func updateRecipeHandler(w http.ResponseWriter, r *http.Request) {
 		recipe.PrepTime, recipe.CookTime, recipe.Servings, tagsJSON, recipe.Cuisine,
 		dietaryJSON, nutritionJSON, recipe.PhotoURL, recipe.UpdatedAt,
 		recipe.Visibility, sharedWithJSON)
-	
+
 	if err != nil {
 		http.Error(w, "Failed to update recipe", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Update embedding
 	go generateRecipeEmbedding(recipe)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(recipe)
 }
@@ -483,22 +488,22 @@ func deleteRecipeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
 	}
-	
+
 	if createdBy != userID {
 		http.Error(w, "Access denied", http.StatusForbidden)
 		return
 	}
-	
+
 	// Delete recipe
 	_, err = db.Exec("DELETE FROM recipes WHERE id = $1", recipeID)
 	if err != nil {
 		http.Error(w, "Failed to delete recipe", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Delete from Qdrant
 	go deleteRecipeEmbedding(recipeID)
-	
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -508,19 +513,19 @@ func searchRecipesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.Limit == 0 {
 		req.Limit = 10
 	}
-	
+
 	// Call Qdrant for semantic search
 	results := performSemanticSearch(req)
-	
+
 	response := map[string]interface{}{
-		"results": results,
+		"results":              results,
 		"query_interpretation": interpretQuery(req.Query),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -531,16 +536,16 @@ func generateRecipeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Call n8n workflow for AI generation
 	recipe := generateRecipeWithAI(req)
-	
+
 	response := map[string]interface{}{
-		"recipe": recipe,
-		"confidence": 0.85,
+		"recipe":       recipe,
+		"confidence":   0.85,
 		"alternatives": []string{},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -548,24 +553,24 @@ func generateRecipeHandler(w http.ResponseWriter, r *http.Request) {
 func modifyRecipeHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	recipeID := vars["id"]
-	
+
 	var req ModifyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Fetch original recipe
 	originalRecipe := fetchRecipe(recipeID)
-	
+
 	// Call n8n workflow for modification
 	modifiedRecipe := modifyRecipeWithAI(originalRecipe, req)
-	
+
 	response := map[string]interface{}{
 		"modified_recipe": modifiedRecipe,
-		"changes_made": describeChanges(originalRecipe, modifiedRecipe),
+		"changes_made":    describeChanges(originalRecipe, modifiedRecipe),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -593,14 +598,14 @@ func markCookedHandler(w http.ResponseWriter, r *http.Request) {
 	_, err := db.Exec(`
 		INSERT INTO recipe_ratings (id, recipe_id, user_id, rating, notes, cooked_date, anonymous)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		rating.ID, rating.RecipeID, rating.UserID, rating.Rating, 
+		rating.ID, rating.RecipeID, rating.UserID, rating.Rating,
 		rating.Notes, rating.CookedDate, rating.Anonymous)
-	
+
 	if err != nil {
 		http.Error(w, "Failed to record cooking", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "recorded"})
 }
@@ -629,14 +634,14 @@ func shareRecipeHandler(w http.ResponseWriter, r *http.Request) {
 
 	sharedWithJSON, _ := json.Marshal(shareReq.UserIDs)
 
-	_, err := db.Exec("UPDATE recipes SET shared_with = $2 WHERE id = $1", 
+	_, err := db.Exec("UPDATE recipes SET shared_with = $2 WHERE id = $1",
 		recipeID, sharedWithJSON)
-	
+
 	if err != nil {
 		http.Error(w, "Failed to share recipe", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "shared"})
 }
@@ -646,18 +651,18 @@ func generateShoppingListHandler(w http.ResponseWriter, r *http.Request) {
 		RecipeIDs []string `json:"recipe_ids"`
 		UserID    string   `json:"user_id"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Aggregate ingredients from recipes
 	shoppingList := aggregateIngredients(req.RecipeIDs)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"shopping_list": shoppingList,
+		"shopping_list":         shoppingList,
 		"organized_by_category": organizeByCategory(shoppingList),
 	})
 }
@@ -665,9 +670,9 @@ func generateShoppingListHandler(w http.ResponseWriter, r *http.Request) {
 func getUserPreferencesHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID := vars["id"]
-	
+
 	preferences := fetchUserPreferences(userID)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(preferences)
 }
@@ -675,15 +680,15 @@ func getUserPreferencesHandler(w http.ResponseWriter, r *http.Request) {
 func updateUserPreferencesHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID := vars["id"]
-	
+
 	var preferences map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&preferences); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	updateUserPreferences(userID, preferences)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(preferences)
 }
@@ -752,7 +757,7 @@ func fetchUserPreferences(userID string) map[string]interface{} {
 	// TODO: Fetch from database or contact-book
 	return map[string]interface{}{
 		"dietary_restrictions": []string{},
-		"favorite_cuisines": []string{},
+		"favorite_cuisines":    []string{},
 	}
 }
 

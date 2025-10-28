@@ -1,4 +1,3 @@
-// +build testing
 
 package main
 
@@ -44,6 +43,11 @@ func TestNewQuizProcessor(t *testing.T) {
 }
 
 func TestGenerateQuizFromContent(t *testing.T) {
+	// Skip if running in short mode (requires Ollama)
+	if testing.Short() {
+		t.Skip("Skipping quiz generation tests in short mode (require Ollama)")
+	}
+
 	env := setupTestEnvironment(t)
 	defer env.Cleanup()
 
@@ -467,8 +471,8 @@ func TestGradeQuiz(t *testing.T) {
 
 		submission := QuizSubmitRequest{
 			Responses: []QuestionResponse{
-				{QuestionID: "q1", Answer: "B"},      // Correct
-				{QuestionID: "q2", Answer: "false"},  // Incorrect
+				{QuestionID: "q1", Answer: "B"},     // Correct
+				{QuestionID: "q2", Answer: "false"}, // Incorrect
 			},
 			TimeTaken: 120,
 		}
@@ -492,8 +496,8 @@ func TestGradeQuiz(t *testing.T) {
 
 		submission := QuizSubmitRequest{
 			Responses: []QuestionResponse{
-				{QuestionID: "q1", Answer: "A"},      // Incorrect
-				{QuestionID: "q2", Answer: "false"},  // Incorrect
+				{QuestionID: "q1", Answer: "A"},     // Incorrect
+				{QuestionID: "q2", Answer: "false"}, // Incorrect
 			},
 		}
 

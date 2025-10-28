@@ -6,9 +6,8 @@ set -euo pipefail
 
 echo "🔗 Running integration tests for quiz-generator..."
 
-# Get API port dynamically
-API_PORT=$(vrooli scenario info quiz-generator --json 2>/dev/null | jq -r '.api_port // 16470')
-API_PORT=${API_PORT:-16470}
+# Use ports from environment (set by lifecycle) with fallbacks for standalone testing
+API_PORT="${API_PORT:-16470}"
 API_URL="http://localhost:${API_PORT}"
 
 echo "Testing against API: ${API_URL}"
@@ -83,7 +82,7 @@ fi
 # List quizzes
 echo -n "  Listing quizzes... "
 LIST_RESPONSE=$(curl -sf "${API_URL}/api/v1/quizzes")
-QUIZ_COUNT=$(echo "$LIST_RESPONSE" | jq '.quizzes | length // 0')
+QUIZ_COUNT=$(echo "$LIST_RESPONSE" | jq 'length // 0')
 
 if [[ "$QUIZ_COUNT" -gt 0 ]]; then
     echo "✅ PASS (Found ${QUIZ_COUNT} quizzes)"

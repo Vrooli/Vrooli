@@ -13,6 +13,7 @@ import (
 	"app-issue-tracker-api/internal/agents"
 	"app-issue-tracker-api/internal/logging"
 	services "app-issue-tracker-api/internal/server/services"
+	"app-issue-tracker-api/internal/utils"
 )
 
 type InvestigationService struct {
@@ -24,8 +25,6 @@ type InvestigationService struct {
 }
 
 type scenarioRestarter func(ctx context.Context, scenario string) (string, error)
-
-const scenarioRestartTimeout = 2 * time.Minute
 
 func NewInvestigationService(server *Server) *InvestigationService {
 	svc := &InvestigationService{
@@ -61,6 +60,67 @@ func (svc *InvestigationService) scenarioRestartWorkingDir() string {
 		}
 	}
 	return parent
+}
+
+// transitionIssueAndPublish moves an issue to a new status and publishes the corresponding event
+// Returns the actual status the issue was moved to (empty string if move failed)
+func (svc *InvestigationService) transitionIssueAndPublish(
+	issueID, targetStatus string,
+	eventType EventType,
+	agentID string,
+	success bool,
+	endTime time.Time,
+	scenarioRestart *string,
+) string {
+	actualStatus := targetStatus
+	if moveErr := svc.server.moveIssue(issueID, targetStatus); moveErr != nil {
+		logging.LogErrorErr("Failed to move issue to status", moveErr, "issue_id", issueID, "target_status", targetStatus)
+		actualStatus = ""
+	}
+
+	svc.server.hub.Publish(NewEvent(eventType, AgentCompletedData{
+		IssueID:         issueID,
+		AgentID:         agentID,
+		Success:         success,
+		EndTime:         endTime,
+		NewStatus:       actualStatus,
+		ScenarioRestart: scenarioRestart,
+	}))
+
+	return actualStatus
+}
+
+// attemptScenarioRestart tries to restart the scenario and returns a status string for the event
+// Returns: nil if no scenario to restart, "success" if restart succeeded, "failed:<reason>" if restart failed
+func (svc *InvestigationService) attemptScenarioRestart(issue *Issue, issueID string) *string {
+	scenarioName := strings.TrimSpace(issue.AppID)
+	if scenarioName == "" {
+		return nil // No scenario to restart
+	}
+
+	restartCtx, cancel := context.WithTimeout(context.Background(), ScenarioRestartTimeout)
+	defer cancel()
+
+	output, restartErr := svc.restartScenario(restartCtx, scenarioName)
+	trimmedOutput := strings.TrimSpace(utils.StripANSI(output))
+
+	if restartErr != nil {
+		failureReason := fmt.Sprintf("Failed to restart scenario '%s': %v", scenarioName, restartErr)
+		if trimmedOutput != "" {
+			failureReason = fmt.Sprintf("%s\nOutput: %s", failureReason, trimmedOutput)
+		}
+		logging.LogWarn("Scenario restart failed", "issue_id", issueID, "scenario", scenarioName, "error", restartErr)
+		result := fmt.Sprintf("failed:%s", failureReason)
+		return &result
+	}
+
+	if trimmedOutput != "" {
+		logging.LogInfo("Scenario restart completed", "issue_id", issueID, "scenario", scenarioName, "output", trimmedOutput)
+	} else {
+		logging.LogInfo("Scenario restart completed", "issue_id", issueID, "scenario", scenarioName)
+	}
+	result := "success"
+	return &result
 }
 
 func (s *Server) loadPromptTemplate() string {
@@ -106,23 +166,11 @@ func (svc *InvestigationService) failInvestigation(issueID, errorMsg, output str
 
 	services.MarkInvestigationFailure(issue, errorMsg, output, nowUTC)
 
-	if err := svc.server.writeIssueMetadata(issueDir, issue); err != nil {
-		logging.LogErrorErr("Failed to persist investigation failure state", err, "issue_id", issueID)
+	if persistErr := svc.server.writeIssueMetadata(issueDir, issue); persistErr != nil {
+		logging.LogErrorErr("Failed to persist investigation failure state", persistErr, "issue_id", issueID)
 	}
 
-	newStatus := "failed"
-	if moveErr := svc.server.moveIssue(issueID, "failed"); moveErr != nil {
-		logging.LogErrorErr("Failed to move issue to failed status", moveErr, "issue_id", issueID)
-		newStatus = ""
-	}
-
-	svc.server.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
-		IssueID:   issueID,
-		AgentID:   issue.Investigation.AgentID,
-		Success:   false,
-		EndTime:   nowUTC,
-		NewStatus: newStatus,
-	}))
+	svc.transitionIssueAndPublish(issueID, StatusFailed, EventAgentFailed, issue.Investigation.AgentID, false, nowUTC, nil)
 }
 
 func (svc *InvestigationService) TriggerInvestigation(issueID, agentID string, autoResolve bool) error {
@@ -173,11 +221,11 @@ func (svc *InvestigationService) persistInvestigationStart(issue *Issue, issueDi
 }
 
 func (svc *InvestigationService) ensureIssueActive(issueID, currentFolder string) error {
-	if currentFolder == "active" {
+	if currentFolder == StatusActive {
 		return nil
 	}
 
-	if err := svc.server.moveIssue(issueID, "active"); err != nil {
+	if err := svc.server.moveIssue(issueID, StatusActive); err != nil {
 		return fmt.Errorf("failed to move issue to active: %w", err)
 	}
 
@@ -278,26 +326,21 @@ func (svc *InvestigationService) handleInvestigationCancellation(issueID, agentI
 
 	issue, issueDir, _, loadErr := svc.server.loadIssueWithStatus(issueID)
 	nowUTC := svc.utcNow()
+
+	var scenarioRestart *string
 	if loadErr == nil {
 		services.MarkInvestigationCancelled(issue, reason, nowUTC)
-		if err := svc.server.writeIssueMetadata(issueDir, issue); err != nil {
-			logging.LogWarn("Failed to persist cancellation metadata", "issue_id", issueID, "error", err)
+		if persistErr := svc.server.writeIssueMetadata(issueDir, issue); persistErr != nil {
+			logging.LogWarn("Failed to persist cancellation metadata", "issue_id", issueID, "error", persistErr)
 		}
+
+		// Restart scenario after cancellation to recover from potentially broken state
+		scenarioRestart = svc.attemptScenarioRestart(issue, issueID)
 	} else {
 		logging.LogWarn("Failed to reload issue during cancellation", "issue_id", issueID, "error", loadErr)
 	}
 
-	if err := svc.server.moveIssue(issueID, "open"); err != nil {
-		logging.LogWarn("Failed to move cancelled issue to open", "issue_id", issueID, "error", err)
-	}
-
-	svc.server.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
-		IssueID:   issueID,
-		AgentID:   agentID,
-		Success:   false,
-		EndTime:   nowUTC,
-		NewStatus: "open",
-	}))
+	svc.transitionIssueAndPublish(issueID, StatusOpen, EventAgentFailed, agentID, false, nowUTC, scenarioRestart)
 }
 
 func (svc *InvestigationService) handleInvestigationRateLimit(issueID, agentID string, result *ClaudeExecutionResult) bool {
@@ -307,26 +350,20 @@ func (svc *InvestigationService) handleInvestigationRateLimit(issueID, agentID s
 func (svc *InvestigationService) handleInvestigationFailure(issueID, agentID string, result *ClaudeExecutionResult) {
 	logging.LogWarn("Investigation failed", "issue_id", issueID, "error", result.Error)
 
+	nowUTC := svc.utcNow()
+	var scenarioRestart *string
+
 	issue, issueDir, _, loadErr := svc.server.loadIssueWithStatus(issueID)
 	if loadErr == nil {
-		timestamp := svc.utcNow()
-		services.RecordAgentExecutionFailure(issue, result.Error, timestamp, result.TranscriptPath, result.LastMessagePath, result.MaxTurnsExceeded)
-		issue.Metadata.UpdatedAt = timestamp.Format(time.RFC3339)
+		services.RecordAgentExecutionFailure(issue, result.Error, nowUTC, result.TranscriptPath, result.LastMessagePath, result.MaxTurnsExceeded)
+		issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
 		svc.server.writeIssueMetadata(issueDir, issue)
+
+		// Restart scenario after failure to recover from potentially broken state
+		scenarioRestart = svc.attemptScenarioRestart(issue, issueID)
 	}
 
-	newStatus := "failed"
-	if moveErr := svc.server.moveIssue(issueID, "failed"); moveErr != nil {
-		logging.LogErrorErr("Failed to move issue to failed status after investigation error", moveErr, "issue_id", issueID)
-		newStatus = ""
-	}
-	svc.server.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
-		IssueID:   issueID,
-		AgentID:   agentID,
-		Success:   false,
-		EndTime:   svc.now(),
-		NewStatus: newStatus,
-	}))
+	svc.transitionIssueAndPublish(issueID, StatusFailed, EventAgentFailed, agentID, false, nowUTC, scenarioRestart)
 }
 
 func (svc *InvestigationService) handleInvestigationSuccess(issueID, agentID string, result *ClaudeExecutionResult) {
@@ -345,66 +382,16 @@ func (svc *InvestigationService) handleInvestigationSuccess(issueID, agentID str
 		reportContent = strings.TrimSpace(result.Output)
 	}
 
-	scenarioName := strings.TrimSpace(issue.AppID)
-	if scenarioName != "" {
-		restartCtx, cancel := context.WithTimeout(context.Background(), scenarioRestartTimeout)
-		output, restartErr := svc.restartScenario(restartCtx, scenarioName)
-		cancel()
-
-		trimmedOutput := strings.TrimSpace(stripANSI(output))
-		if restartErr != nil {
-			failureMessage := fmt.Sprintf("Failed to restart scenario '%s': %v", scenarioName, restartErr)
-			if trimmedOutput != "" {
-				failureMessage = fmt.Sprintf("%s\nCommand output:\n%s", failureMessage, trimmedOutput)
-			}
-
-			services.MarkInvestigationFailure(issue, failureMessage, reportContent, nowUTC)
-			services.RecordAgentExecutionFailure(issue, failureMessage, nowUTC, result.TranscriptPath, result.LastMessagePath, result.MaxTurnsExceeded)
-
-			if saveErr := svc.server.writeIssueMetadata(issueDir, issue); saveErr != nil {
-				logging.LogErrorErr("Failed to persist investigation metadata after restart error", saveErr, "issue_id", issueID)
-			}
-
-			newStatus := "failed"
-			if moveErr := svc.server.moveIssue(issueID, "failed"); moveErr != nil {
-				logging.LogErrorErr("Failed to move issue to failed after restart error", moveErr, "issue_id", issueID)
-				newStatus = ""
-			}
-
-			svc.server.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
-				IssueID:   issueID,
-				AgentID:   agentID,
-				Success:   false,
-				EndTime:   nowUTC,
-				NewStatus: newStatus,
-			}))
-			return
-		}
-
-		if trimmedOutput != "" {
-			logging.LogInfo("Scenario restart completed", "issue_id", issueID, "scenario", scenarioName, "output", trimmedOutput)
-		} else {
-			logging.LogInfo("Scenario restart completed", "issue_id", issueID, "scenario", scenarioName)
-		}
-	}
+	// Restart scenario after successful investigation
+	scenarioRestart := svc.attemptScenarioRestart(issue, issueID)
 
 	services.MarkInvestigationSuccess(issue, reportContent, nowUTC, result.TranscriptPath, result.LastMessagePath)
 
-	if saveErr := svc.server.writeIssueMetadata(issueDir, issue); saveErr != nil {
-		logging.LogErrorErr("Failed to persist investigation results", saveErr, "issue_id", issueID)
+	if persistErr := svc.server.writeIssueMetadata(issueDir, issue); persistErr != nil {
+		logging.LogErrorErr("Failed to persist investigation results", persistErr, "issue_id", issueID)
 	}
 
-	if moveErr := svc.server.moveIssue(issueID, "completed"); moveErr != nil {
-		logging.LogErrorErr("Failed to move issue to completed", moveErr, "issue_id", issueID)
-	}
-
-	svc.server.hub.Publish(NewEvent(EventAgentCompleted, AgentCompletedData{
-		IssueID:   issueID,
-		AgentID:   agentID,
-		Success:   true,
-		EndTime:   nowUTC,
-		NewStatus: "completed",
-	}))
+	svc.transitionIssueAndPublish(issueID, StatusCompleted, EventAgentCompleted, agentID, true, nowUTC, scenarioRestart)
 }
 
 func (svc *InvestigationService) RateLimitStatus() RateLimitStatus {
@@ -417,4 +404,17 @@ func (svc *InvestigationService) ClearExpiredRateLimitMetadata() {
 
 func (svc *InvestigationService) ClearRateLimitMetadata(issueID string) {
 	svc.rateLimiter.Clear(issueID)
+}
+
+// CleanupOldTranscripts removes old transcript files based on retention policy
+func (svc *InvestigationService) CleanupOldTranscripts() {
+	config := DefaultTranscriptCleanupConfig()
+	if err := CleanupOldTranscripts(svc.server.config.ScenarioRoot, config); err != nil {
+		logging.LogErrorErr("Failed to cleanup old transcripts", err)
+	}
+
+	// Also cleanup marker and prompt files from scenario root
+	if err := CleanupCodexMarkerFiles(svc.server.config.ScenarioRoot); err != nil {
+		logging.LogErrorErr("Failed to cleanup Codex marker files", err)
+	}
 }

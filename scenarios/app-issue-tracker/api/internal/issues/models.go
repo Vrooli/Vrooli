@@ -8,10 +8,17 @@ import (
 const (
 	MetadataFilename = "metadata.yaml"
 	ArtifactsDirName = "artifacts"
+
+	// Issue status constants
+	StatusOpen      = "open"
+	StatusActive    = "active"
+	StatusCompleted = "completed"
+	StatusFailed    = "failed"
+	StatusArchived  = "archived"
 )
 
 var (
-	statusList = []string{"open", "active", "completed", "failed", "archived"}
+	statusList = []string{StatusOpen, StatusActive, StatusCompleted, StatusFailed, StatusArchived}
 	statusSet  = func() map[string]struct{} {
 		set := make(map[string]struct{}, len(statusList))
 		for _, status := range statusList {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -9,6 +10,9 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"app-issue-tracker-api/internal/agents"
 	"app-issue-tracker-api/internal/logging"
@@ -96,9 +100,10 @@ func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
 	analytics := newIssueAnalytics(issues, time.Now())
 	summaries := analytics.appSummaries()
 
+	caser := cases.Title(language.English)
 	apps := make([]App, 0, len(summaries))
 	for appID, stats := range summaries {
-		displayName := strings.Title(strings.ReplaceAll(appID, "-", " "))
+		displayName := caser.String(strings.ReplaceAll(appID, "-", " "))
 		apps = append(apps, App{
 			ID:          appID,
 			Name:        appID,
@@ -130,7 +135,7 @@ func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getAgentSettingsHandler returns the current agent backend settings
+// getAgentSettingsHandler returns the current agent backend settings with constraints
 func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	settingsPath := filepath.Join(s.config.ScenarioRoot, "initialization/configuration/agent-settings.json")
 
@@ -149,9 +154,15 @@ func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Include constraints for UI components (sliders, etc.)
+	constraints := GetSettingsConstraints()
+
 	response := ApiResponse{
 		Success: true,
-		Data:    settings,
+		Data: map[string]interface{}{
+			"settings":    settings,
+			"constraints": constraints,
+		},
 	}
 
 	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
@@ -207,6 +218,24 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 
 		if !validProviders[req.Provider] {
 			handlers.WriteError(w, http.StatusBadRequest, "Invalid provider. Must be 'codex' or 'claude-code'")
+			return
+		}
+	}
+
+	// Validate timeout_seconds
+	if req.TimeoutSeconds != nil {
+		if *req.TimeoutSeconds < MinTimeoutSeconds || *req.TimeoutSeconds > MaxTimeoutSeconds {
+			handlers.WriteError(w, http.StatusBadRequest,
+				fmt.Sprintf("timeout_seconds must be between %d and %d", MinTimeoutSeconds, MaxTimeoutSeconds))
+			return
+		}
+	}
+
+	// Validate max_turns
+	if req.MaxTurns != nil {
+		if *req.MaxTurns < MinMaxTurns || *req.MaxTurns > MaxMaxTurns {
+			handlers.WriteError(w, http.StatusBadRequest,
+				fmt.Sprintf("max_turns must be between %d and %d", MinMaxTurns, MaxMaxTurns))
 			return
 		}
 	}
