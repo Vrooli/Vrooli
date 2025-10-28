@@ -140,9 +140,13 @@ func (s *IssueService) transitionIssueStatus(issueID string, issue *issuespkg.Is
 
 	if targetStatus == "active" && strings.TrimSpace(issue.Investigation.StartedAt) == "" {
 		issue.Investigation.StartedAt = now
+		logging.LogDebug("Auto-populated investigation start time during status update",
+			"issue_id", issueID, "started_at", now)
 	}
 	if targetStatus == "completed" && strings.TrimSpace(issue.Metadata.ResolvedAt) == "" {
 		issue.Metadata.ResolvedAt = now
+		logging.LogDebug("Auto-populated resolved_at during status update",
+			"issue_id", issueID, "resolved_at", now)
 	}
 
 	if issue.Metadata.Extra != nil {

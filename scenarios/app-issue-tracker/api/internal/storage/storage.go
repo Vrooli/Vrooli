@@ -12,6 +12,7 @@ import (
 	"time"
 
 	issuespkg "app-issue-tracker-api/internal/issues"
+	"app-issue-tracker-api/internal/logging"
 
 	"gopkg.in/yaml.v3"
 )
@@ -372,10 +373,14 @@ func (fs *FileIssueStore) MoveIssue(issueID, toFolder string) (*issuespkg.Issue,
 	case "active":
 		if issue.Investigation.StartedAt == "" {
 			issue.Investigation.StartedAt = now
+			logging.LogDebug("Auto-populated investigation start time during move to active",
+				"issue_id", issue.ID, "started_at", now)
 		}
 	case "completed":
 		if issue.Metadata.ResolvedAt == "" {
 			issue.Metadata.ResolvedAt = now
+			logging.LogDebug("Auto-populated resolved_at during move to completed",
+				"issue_id", issue.ID, "resolved_at", now)
 		}
 	}
 

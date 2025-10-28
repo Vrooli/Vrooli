@@ -98,12 +98,11 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	s.hub.Publish(NewEvent(EventIssueCreated, IssueEventData{Issue: issue}))
 
-	issueResponse := *issue
 	response := ApiResponse{
 		Success: true,
 		Message: "Issue created successfully",
 		Data: IssueCreateData{
-			Issue:       issueResponse,
+			Issue:       issue,
 			IssueID:     issue.ID,
 			StoragePath: storagePath,
 		},

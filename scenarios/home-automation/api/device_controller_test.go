@@ -145,6 +145,16 @@ func TestValidateControlRequest(t *testing.T) {
 			},
 			shouldError: false,
 		},
+		{
+			name: "Valid action set_mode",
+			req: DeviceControlRequest{
+				DeviceID:  "climate.living_room",
+				Action:    "set_mode",
+				UserID:    "test-user",
+				ProfileID: "test-profile",
+			},
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {

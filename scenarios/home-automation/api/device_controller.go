@@ -48,6 +48,7 @@ type DeviceStatus struct {
 	State       map[string]interface{} `json:"state"`
 	Available   bool                   `json:"available"`
 	LastUpdated string                 `json:"last_updated"`
+	Attributes  map[string]interface{} `json:"attributes,omitempty"`
 }
 
 type Profile struct {
@@ -179,7 +180,7 @@ func (dc *DeviceController) validateControlRequest(req DeviceControlRequest) err
 	// Validate action against allowed actions
 	allowedActions := []string{
 		"turn_on", "turn_off", "toggle", "set_brightness",
-		"set_temperature", "set_color", "activate", "refresh",
+		"set_temperature", "set_mode", "set_color", "activate", "refresh",
 	}
 
 	actionAllowed := false
@@ -207,6 +208,7 @@ func (dc *DeviceController) checkPermissions(ctx context.Context, userID, profil
 		"550e8400-e29b-41d4-a716-446655440001": {"*"},                                                         // Admin user
 		"550e8400-e29b-41d4-a716-446655440002": {"light.living_room", "light.bedroom", "switch.coffee_maker"}, // Family member
 		"550e8400-e29b-41d4-a716-446655440003": {"light.bedroom_kid"},                                         // Kid user
+		"mock-user-id":                         {"*"},                                                         // Demo user profile
 	}
 
 	userID = strings.TrimSpace(userID)

@@ -344,7 +344,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			TranscriptPath:  transcriptFile,
 			LastMessagePath: lastMessageFile,
 		}
-		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
+		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, issueID, settings), nil
 	}
 
 	// Check for max turns exceeded
@@ -366,7 +366,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			TranscriptPath:   transcriptFile,
 			LastMessagePath:  lastMessageFile,
 		}
-		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
+		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, issueID, settings), nil
 	}
 
 	// Check for rate limits
@@ -390,7 +390,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			TranscriptPath:  transcriptFile,
 			LastMessagePath: lastMessageFile,
 		}
-		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
+		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, issueID, settings), nil
 	}
 
 	// Check for non-zero exit (ecosystem-manager pattern)
@@ -422,7 +422,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 				TranscriptPath:  transcriptFile,
 				LastMessagePath: lastMessageFile,
 			}
-			return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
+			return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, issueID, settings), nil
 		}
 
 		// Real failure - no valid output
@@ -443,7 +443,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			TranscriptPath:  transcriptFile,
 			LastMessagePath: lastMessageFile,
 		}
-		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
+		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, issueID, settings), nil
 	}
 
 	// Success case
@@ -464,7 +464,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		TranscriptPath:  transcriptFile,
 		LastMessagePath: lastMessageFile,
 	}
-	return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
+	return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, issueID, settings), nil
 }
 
 // detectMaxTurnsExceeded checks if the output indicates max turns was reached
@@ -473,7 +473,7 @@ func detectMaxTurnsExceeded(output string) bool {
 	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
 }
 
-func (s *Server) completeClaudeResult(result *ClaudeExecutionResult, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage string, settings AgentSettings) *ClaudeExecutionResult {
+func (s *Server) completeClaudeResult(result *ClaudeExecutionResult, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, issueID string, settings AgentSettings) *ClaudeExecutionResult {
 	if result == nil {
 		return nil
 	}
@@ -483,11 +483,11 @@ func (s *Server) completeClaudeResult(result *ClaudeExecutionResult, transcriptF
 	}
 
 	if err := ensureLastMessageFile(lastMessageFile, result.LastMessage); err != nil {
-		logging.LogWarn("Failed to persist last message fallback", "path", lastMessageFile, "error", err)
+		logging.LogWarn("Failed to persist last message fallback", "issue_id", issueID, "path", lastMessageFile, "error", err)
 	}
 
 	if err := ensureTranscriptFile(transcriptFile, prompt, result.LastMessage, combinedOutput, settings); err != nil {
-		logging.LogWarn("Failed to persist transcript fallback", "path", transcriptFile, "error", err)
+		logging.LogWarn("Failed to persist transcript fallback", "issue_id", issueID, "path", transcriptFile, "error", err)
 	}
 
 	return result

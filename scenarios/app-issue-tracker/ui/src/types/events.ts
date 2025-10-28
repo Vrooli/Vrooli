@@ -84,6 +84,7 @@ export interface AgentCompletedData {
   success: boolean;
   end_time: string;
   new_status?: string;
+  scenario_restart?: string; // "success", "failed:<reason>", or undefined if not attempted
 }
 
 export interface ProcessorStateData {

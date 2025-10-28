@@ -6,7 +6,7 @@ type IssueListData struct {
 }
 
 type IssueCreateData struct {
-	Issue       Issue  `json:"issue"`
+	Issue       *Issue `json:"issue"`
 	IssueID     string `json:"issue_id"`
 	StoragePath string `json:"storage_path"`
 }

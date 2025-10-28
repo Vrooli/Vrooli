@@ -189,6 +189,7 @@ func (rm *RateLimitManager) Clear(issueID string) {
 func (rm *RateLimitManager) clear(issueID string) {
 	loaded, issueDir, _, err := rm.server.loadIssueWithStatus(issueID)
 	if err != nil {
+		logging.LogWarn("Failed to load issue for rate limit clear", "issue_id", issueID, "error", err)
 		return
 	}
 
@@ -223,7 +224,7 @@ func detectRateLimit(output string, now time.Time) (bool, string) {
 		}
 
 		if resetTime == "" {
-			resetTime = now.Add(5 * time.Minute).Format(time.RFC3339)
+			resetTime = now.Add(DefaultRateLimitResetDuration).Format(time.RFC3339)
 		}
 
 		return true, resetTime

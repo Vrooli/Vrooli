@@ -7,6 +7,42 @@ import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 
 const BRIDGE_FLAG = '__homeAutomationBridgeInitialized';
 
+// Common suffix patterns that typically represent accessory entities rather than primary devices
+const DEVICE_GROUP_SUFFIX_PATTERNS = [
+    'battery',
+    'battery_level',
+    'connected',
+    'consumption',
+    'duration',
+    'energy',
+    'filter',
+    'filter_remaining',
+    'humidity',
+    'illuminance',
+    'last_changed',
+    'last_seen',
+    'last_update',
+    'last_updated',
+    'lighting',
+    'next_dawn',
+    'next_dusk',
+    'next_midnight',
+    'next_noon',
+    'next_rising',
+    'next_setting',
+    'power',
+    'pressure',
+    'schedule',
+    'schedule_turn_off',
+    'schedule_turn_on',
+    'signal',
+    'speed',
+    'state',
+    'status',
+    'temperature',
+    'voltage'
+];
+
 function initializeIframeBridge() {
     if (typeof window === 'undefined') {
         return;
@@ -51,6 +87,7 @@ class HomeAutomationApp {
         this.ws = null;
         this.currentUser = null;
         this.devices = new Map();
+        this.deviceGroups = [];
         this.automations = new Map();
         this.scenes = new Map();
         this.iconRetryAttempts = 0;
@@ -327,6 +364,7 @@ class HomeAutomationApp {
             // In implementation, this would call scenario-authenticator
             this.currentUser = {
                 id: 'mock-user-id',
+                profileId: 'profile-admin',
                 name: 'Demo User',
                 permissions: {
                     devices: ['*'],
@@ -386,8 +424,11 @@ class HomeAutomationApp {
         if (!devicesGrid) return;
 
         devicesGrid.innerHTML = '';
-        
-        if (this.devices.size === 0) {
+
+        const deviceGroups = this.buildDeviceGroups();
+        this.deviceGroups = deviceGroups;
+
+        if (deviceGroups.length === 0) {
             devicesGrid.innerHTML = `
                 <div class="device-placeholder">
                     <div class="placeholder-icon"><span class="icon" data-lucide="search"></span></div>
@@ -399,12 +440,290 @@ class HomeAutomationApp {
             return;
         }
 
-        this.devices.forEach(device => {
-            const deviceCard = this.createDeviceCard(device);
-            devicesGrid.appendChild(deviceCard);
+        deviceGroups.forEach(group => {
+            const groupCard = this.createDeviceGroupCard(group);
+            devicesGrid.appendChild(groupCard);
         });
 
         this.refreshIcons();
+    }
+
+    buildDeviceGroups() {
+        if (this.devices.size === 0) {
+            return [];
+        }
+
+        const groups = new Map();
+
+        this.devices.forEach(device => {
+            const groupId = device.groupId || device.id;
+            if (!groups.has(groupId)) {
+                groups.set(groupId, {
+                    id: groupId,
+                    devices: [],
+                    domains: new Set(),
+                    primary: null,
+                    primaryScore: Number.POSITIVE_INFINITY,
+                    name: null
+                });
+            }
+
+            const group = groups.get(groupId);
+            group.devices.push(device);
+
+            const domain = (device.domain || device.type || 'unknown').toLowerCase();
+            if (domain) {
+                group.domains.add(domain);
+            }
+
+            const score = this.getDomainPriority(domain, device);
+            if (!group.primary || score < group.primaryScore || (score === group.primaryScore && (device.name || '').localeCompare(group.primary.name || '', undefined, { sensitivity: 'base' }) < 0)) {
+                group.primary = device;
+                group.primaryScore = score;
+                group.name = this.computeGroupName(device);
+            }
+        });
+
+        const sortedGroups = Array.from(groups.values()).map(group => {
+            const others = group.devices.filter(device => !group.primary || device.id !== group.primary.id);
+            const orderedOthers = others.sort((a, b) => {
+                const diff = this.getDomainPriority(a.domain || a.type, a) - this.getDomainPriority(b.domain || b.type, b);
+                if (diff !== 0) {
+                    return diff;
+                }
+                return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+            });
+
+            return {
+                id: group.id,
+                name: group.name || group.primary?.name || group.id,
+                primary: group.primary || group.devices[0],
+                others: orderedOthers,
+                domains: Array.from(group.domains),
+                size: group.devices.length
+            };
+        });
+
+        sortedGroups.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+
+        return sortedGroups;
+    }
+
+    computeGroupName(device) {
+        if (!device) {
+            return 'Unnamed device';
+        }
+
+        const attributes = device.attributes || {};
+
+        if (attributes.device && typeof attributes.device === 'object' && attributes.device.name) {
+            return attributes.device.name;
+        }
+
+        if (attributes.friendly_name && typeof attributes.friendly_name === 'string') {
+            return attributes.friendly_name;
+        }
+
+        return device.name || device.id;
+    }
+
+    getDomainPriority(domain, device) {
+        const normalized = (domain || '').toLowerCase();
+        const priorityMap = {
+            'climate': 0,
+            'lock': 1,
+            'cover': 2,
+            'light': 3,
+            'fan': 4,
+            'switch': 5,
+            'humidifier': 6,
+            'binary_sensor': 8,
+            'sensor': 9,
+        };
+
+        const basePriority = Object.prototype.hasOwnProperty.call(priorityMap, normalized) ? priorityMap[normalized] : 20;
+        const accessoryPenalty = device?.isAccessory ? 20 : 0;
+
+        return basePriority + accessoryPenalty;
+    }
+
+    createDeviceGroupCard(group) {
+        const primaryDevice = group.primary;
+        const card = this.createDeviceCard(primaryDevice);
+
+        card.dataset.groupId = group.id;
+        card.dataset.domains = group.domains.join(',');
+        card.dataset.primaryDomain = primaryDevice?.domain || primaryDevice?.type || '';
+        card.dataset.groupSize = String(group.size || 1);
+
+        if (group.others.length > 0) {
+            card.classList.add('device-card--group');
+
+            const headerInfo = card.querySelector('.device-info');
+            if (headerInfo) {
+                const badge = document.createElement('div');
+                badge.className = 'device-badge device-badge--hub';
+                badge.innerHTML = `
+                    <span class="icon" data-lucide="git-branch"></span>
+                    <span>${group.others.length} linked ${group.others.length === 1 ? 'entity' : 'entities'}</span>
+                `;
+                headerInfo.appendChild(badge);
+            }
+
+            const summary = document.createElement('div');
+            summary.className = 'device-group-summary';
+
+            const header = document.createElement('div');
+            header.className = 'device-group-summary-header';
+
+            const headerIcon = document.createElement('span');
+            headerIcon.className = 'icon';
+            headerIcon.dataset.lucide = 'layers';
+
+            const headerLabel = document.createElement('span');
+            headerLabel.textContent = 'Linked controls & sensors';
+
+            header.appendChild(headerIcon);
+            header.appendChild(headerLabel);
+
+            summary.appendChild(header);
+
+            const controlsCount = group.others.filter(device => this.canControlDomain(device.domain)).length;
+            const sensorsCount = group.others.length - controlsCount;
+
+            const stats = document.createElement('div');
+            stats.className = 'device-group-summary-stats';
+            stats.textContent = `${controlsCount} control${controlsCount === 1 ? '' : 's'} • ${sensorsCount} sensor${sensorsCount === 1 ? '' : 's'}`;
+            summary.appendChild(stats);
+
+            const names = group.others
+                .map(device => this.buildLinkedSummaryLabel(group, device))
+                .filter(Boolean);
+            const summaryList = this.formatLinkedNames(names);
+
+            if (summaryList) {
+                const listEl = document.createElement('div');
+                listEl.className = 'device-group-summary-list';
+                listEl.textContent = summaryList;
+                summary.appendChild(listEl);
+            }
+
+            const subEntitiesContainer = document.createElement('div');
+            subEntitiesContainer.className = 'device-sub-entities';
+
+            group.others.forEach(device => {
+                subEntitiesContainer.appendChild(this.createSubEntityRow(device, group.name));
+            });
+
+            card.appendChild(summary);
+            card.appendChild(subEntitiesContainer);
+        }
+
+        return card;
+    }
+
+    formatLinkedNames(names) {
+        if (!names || names.length === 0) {
+            return '';
+        }
+
+        const joined = names.join(', ');
+
+        if (joined.length <= 80) {
+            return joined;
+        }
+
+        return `${joined.slice(0, 77)}...`;
+    }
+
+    createSubEntityRow(device, groupName) {
+        const row = document.createElement('div');
+        row.className = 'sub-entity-row';
+
+        const domain = device.domain || device.type || 'unknown';
+        const icon = this.iconForDomain(domain);
+
+        const meta = document.createElement('div');
+        meta.className = 'sub-entity-meta';
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'icon';
+        iconSpan.dataset.lucide = icon;
+
+        const textWrapper = document.createElement('div');
+        textWrapper.className = 'sub-entity-text';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'sub-entity-name';
+        nameEl.textContent = this.simplifyLinkedName(groupName, device.name || device.id);
+
+        const typeEl = document.createElement('div');
+        typeEl.className = 'sub-entity-type';
+        typeEl.textContent = this.describeLinkedEntity(domain, device);
+
+        textWrapper.appendChild(nameEl);
+        textWrapper.appendChild(typeEl);
+
+        meta.appendChild(iconSpan);
+        meta.appendChild(textWrapper);
+
+        const stateEl = document.createElement('div');
+        stateEl.className = 'sub-entity-state';
+        stateEl.innerHTML = this.formatDeviceState(device.state, device);
+
+        const controlsEl = document.createElement('div');
+        controlsEl.className = 'sub-entity-controls';
+        controlsEl.innerHTML = this.createSubEntityControls(device);
+
+        row.appendChild(meta);
+        row.appendChild(stateEl);
+        row.appendChild(controlsEl);
+
+        return row;
+    }
+
+    createSubEntityControls(device) {
+        const domain = device.domain || device.type;
+        if (!this.canControlDomain(domain) || !device.user_can_control) {
+            return '<span class="sub-entity-readonly">Read-only</span>';
+        }
+
+        const isOn = device.state?.on === true || device.state?.active === true;
+        const icon = isOn ? 'power-off' : 'power';
+        const label = isOn ? 'Off' : 'On';
+
+        return `
+            <button class="btn device-control btn-compact ${isOn ? 'btn-secondary' : 'btn-primary'}" 
+                    onclick="app.toggleDevice('${device.id}')">
+                <span class="icon" data-lucide="${icon}"></span>
+                <span>${label}</span>
+            </button>
+        `;
+    }
+
+    iconForDomain(domain) {
+        switch ((domain || '').toLowerCase()) {
+            case 'climate':
+                return 'thermometer';
+            case 'light':
+                return 'lightbulb';
+            case 'switch':
+                return 'toggle-left';
+            case 'fan':
+                return 'fan';
+            case 'lock':
+                return 'lock';
+            case 'cover':
+                return 'app-window';
+            case 'humidifier':
+                return 'droplet';
+            case 'sensor':
+                return 'activity';
+            case 'binary_sensor':
+                return 'scan';
+            default:
+                return 'circle';
+        }
     }
 
     updateDeviceDataSourceBanner() {
@@ -442,6 +761,184 @@ class HomeAutomationApp {
         return headers;
     }
 
+    deriveDeviceGroupId(raw, fallbackId) {
+        const attributes = (raw && typeof raw === 'object' && raw.attributes && typeof raw.attributes === 'object')
+            ? raw.attributes
+            : {};
+
+        if (raw?.group_id) {
+            return String(raw.group_id);
+        }
+
+        if (attributes.device_id) {
+            return String(attributes.device_id);
+        }
+
+        if (attributes.device && typeof attributes.device === 'object') {
+            const deviceMeta = attributes.device;
+            const nestedId = deviceMeta.id || deviceMeta.device_id || deviceMeta.identifier;
+            if (nestedId) {
+                return String(nestedId);
+            }
+
+            if (Array.isArray(deviceMeta.identifiers) && deviceMeta.identifiers.length > 0) {
+                const identifier = deviceMeta.identifiers[0];
+                if (Array.isArray(identifier)) {
+                    return identifier.map(part => String(part)).join(':');
+                }
+                if (identifier) {
+                    return String(identifier);
+                }
+            }
+
+            if (deviceMeta.name) {
+                const slug = this.slugifyName(deviceMeta.name);
+                if (slug) {
+                    return `ha:${slug}`;
+                }
+            }
+        }
+
+        const friendlyName = (raw?.name || attributes.friendly_name || '').trim();
+        const friendlySlug = this.slugifyName(friendlyName);
+
+        const entityId = raw?.device_id || raw?.id || fallbackId || '';
+        const entitySlug = this.slugifyName(entityId.includes('.') ? entityId.split('.')[1] : entityId);
+
+        const candidates = [];
+        if (entitySlug) {
+            const trimmed = this.stripAccessorySuffix(entitySlug);
+            if (trimmed) {
+                candidates.push(trimmed);
+            }
+        }
+
+        if (friendlySlug) {
+            const trimmed = this.stripAccessorySuffix(friendlySlug);
+            if (trimmed) {
+                candidates.push(trimmed);
+            }
+        }
+
+        const base = candidates.find(Boolean) || entitySlug || friendlySlug;
+        if (base) {
+            return `ha:${base}`;
+        }
+
+        return entityId || fallbackId || null;
+    }
+
+    stripAccessorySuffix(value) {
+        if (!value) {
+            return value;
+        }
+
+        let sanitized = value;
+        let changed = true;
+
+        while (changed && sanitized) {
+            changed = false;
+            sanitized = sanitized.replace(/_[0-9]+$/, '');
+
+            for (const suffix of DEVICE_GROUP_SUFFIX_PATTERNS) {
+                if (sanitized === suffix) {
+                    continue;
+                }
+
+                if (sanitized.endsWith(`_${suffix}`)) {
+                    sanitized = sanitized.slice(0, sanitized.length - suffix.length - 1);
+                    sanitized = sanitized.replace(/_[0-9]+$/, '');
+                    changed = true;
+                }
+            }
+        }
+
+        return sanitized;
+    }
+
+    slugifyName(value) {
+        if (!value || typeof value !== 'string') {
+            return '';
+        }
+
+        return value
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .replace(/_+/g, '_');
+    }
+
+    describeLinkedEntity(domain, device) {
+        const normalizedDomain = (domain || '').toLowerCase();
+        const baseLabel = normalizedDomain
+            ? normalizedDomain.replace(/_/g, ' ')
+            : 'entity';
+
+        const kindLabel = () => {
+            if (['sensor', 'binary_sensor'].includes(normalizedDomain)) {
+                return 'sensor';
+            }
+            if (this.canControlDomain(normalizedDomain)) {
+                return 'control';
+            }
+            return 'setting';
+        };
+
+        const category = device?.entityCategory
+            ? device.entityCategory.replace(/_/g, ' ')
+            : null;
+
+        let label = baseLabel;
+        if (category) {
+            label = `${label} • ${category}`;
+        } else {
+            const kind = kindLabel();
+            if (kind && !label.includes(kind)) {
+                label = `${label} ${kind}`;
+            }
+        }
+
+        return label.replace(/\b([a-z])/g, (_, char) => char.toUpperCase());
+    }
+
+    simplifyLinkedName(parentName, childName) {
+        if (!childName) {
+            return childName;
+        }
+
+        if (!parentName) {
+            return childName;
+        }
+
+        const normalizedParent = parentName.trim().toLowerCase();
+        const normalizedChild = childName.trim().toLowerCase();
+
+        if (normalizedChild.startsWith(normalizedParent)) {
+            let trimmed = childName.slice(parentName.length).trim();
+            trimmed = trimmed.replace(/^[-:•\s]+/, '');
+            return trimmed || childName;
+        }
+
+        return childName;
+    }
+
+    buildLinkedSummaryLabel(group, device) {
+        if (!device) {
+            return '';
+        }
+
+        const groupName = group?.name || group?.primary?.name || '';
+        const friendlyName = device.name || device.id;
+        const shortName = this.simplifyLinkedName(groupName, friendlyName);
+        const descriptor = this.describeLinkedEntity(device.domain || device.type, device);
+
+        if (!shortName || shortName.toLowerCase() === groupName.toLowerCase()) {
+            return descriptor;
+        }
+
+        return `${shortName} (${descriptor})`;
+    }
+
     normalizeDevice(raw) {
         if (!raw) {
             return null;
@@ -454,14 +951,27 @@ class HomeAutomationApp {
 
         const domain = (raw.type || (id.includes('.') ? id.split('.')[0] : 'unknown')).toLowerCase();
         const state = this.normalizeDeviceState(domain, raw.state || {});
+        const attributes = (raw.attributes && typeof raw.attributes === 'object') ? { ...raw.attributes } : {};
+        const entityCategory = raw.entity_category || attributes.entity_category || null;
+        const groupId = this.deriveDeviceGroupId(raw, id);
+        const friendlyName = raw.name || attributes.friendly_name || id;
+        let isAccessory = entityCategory && ['diagnostic', 'config', 'auxiliary'].includes((entityCategory || '').toLowerCase());
+
+        if (!isAccessory && groupId && groupId !== id) {
+            isAccessory = ['sensor', 'binary_sensor'].includes(domain);
+        }
 
         return {
             id,
-            name: raw.name || id,
+            name: friendlyName,
             type: domain,
             domain,
             state,
             rawState: raw.state || {},
+            attributes,
+            groupId,
+            entityCategory,
+            isAccessory,
             available: raw.available !== false,
             lastUpdated: raw.last_updated || raw.lastUpdated || null,
             user_can_control: this.canControlDomain(domain)
@@ -621,19 +1131,49 @@ class HomeAutomationApp {
             this.showLoading(`Updating ${device.name}...`);
 
             const { action, parameters } = this.getToggleCommand(device);
+            const commandParameters = parameters || {};
+
+            const controlPayload = {
+                device_id: device.id,
+                action,
+                parameters: commandParameters
+            };
+
+            const userId = this.currentUser?.id?.trim();
+            if (userId) {
+                controlPayload.user_id = userId;
+            }
+
+            const profileId = this.currentUser?.profileId?.trim();
+            if (profileId) {
+                controlPayload.profile_id = profileId;
+            }
 
             const result = await this.apiCall('/devices/control', {
                 method: 'POST',
-                body: JSON.stringify({
-                    device_id: device.id,
-                    action,
-                    parameters: parameters || {}
-                })
+                body: JSON.stringify(controlPayload)
             });
-            const updatedState = result.device_state || {};
-            const normalized = this.normalizeDevice({ ...device, state: updatedState, available: result.success !== false });
 
-            this.devices.set(device.id, normalized);
+            if (result?.success === false) {
+                const message = result?.error || result?.message || 'Unknown error';
+                throw new Error(message);
+            }
+
+            const mergedState = this.mergeDeviceControlResult(
+                device,
+                action,
+                commandParameters,
+                result?.device_state
+            );
+
+            const normalized = this.normalizeDevice({
+                ...device,
+                state: mergedState,
+                available: result?.success !== false,
+                last_updated: new Date().toISOString()
+            });
+
+            this.devices.set(normalized.id, normalized);
             this.renderDevices();
             this.showToast(`${device.name} updated successfully`, 'success');
         } catch (error) {
@@ -669,6 +1209,256 @@ class HomeAutomationApp {
             default:
                 return { action: state.on ? 'turn_off' : 'turn_on' };
         }
+    }
+
+    mergeDeviceControlResult(device, action, parameters, apiState) {
+        const domain = (device?.domain || device?.type || '').toLowerCase();
+        const previousState = {
+            ...(typeof device?.rawState === 'object' && device.rawState !== null ? device.rawState : {}),
+            ...(typeof device?.state === 'object' && device.state !== null ? device.state : {})
+        };
+
+        const mergedState = { ...previousState };
+
+        if (apiState && typeof apiState === 'object') {
+            Object.keys(apiState).forEach((key) => {
+                mergedState[key] = apiState[key];
+            });
+        }
+
+        this.applyOptimisticState(domain, mergedState, previousState, action, parameters);
+
+        if (mergedState.raw_state === undefined) {
+            if (domain === 'climate' && typeof mergedState.mode === 'string') {
+                mergedState.raw_state = mergedState.mode;
+            } else if (typeof mergedState.on === 'boolean') {
+                mergedState.raw_state = mergedState.on ? 'on' : 'off';
+            } else if (domain === 'lock' && typeof mergedState.locked === 'boolean') {
+                mergedState.raw_state = mergedState.locked ? 'locked' : 'unlocked';
+            } else if (domain === 'cover' && typeof mergedState.open === 'boolean') {
+                mergedState.raw_state = mergedState.open ? 'open' : 'closed';
+            }
+        }
+
+        if (mergedState.active === undefined && typeof mergedState.on === 'boolean') {
+            mergedState.active = mergedState.on;
+        }
+
+        return mergedState;
+    }
+
+    applyOptimisticState(domain, targetState, previousState, action, parameters = {}) {
+        const assign = (key, value) => {
+            if (value === undefined || value === null) {
+                return;
+            }
+            targetState[key] = value;
+        };
+
+        const assignOnState = (isOn) => {
+            if (typeof isOn !== 'boolean') {
+                return;
+            }
+            assign('on', isOn);
+            assign('active', isOn);
+            assign('raw_state', isOn ? 'on' : 'off');
+        };
+
+        const previousOn = this.resolveBooleanDeviceState(previousState, domain);
+        const currentOn = this.resolveBooleanDeviceState(targetState, domain);
+
+        const coalesceToggle = () => {
+            if (typeof currentOn === 'boolean') {
+                return !currentOn;
+            }
+            if (typeof previousOn === 'boolean') {
+                return !previousOn;
+            }
+            return !(targetState.raw_state === 'on');
+        };
+
+        switch (domain) {
+            case 'light':
+            case 'switch':
+            case 'fan':
+            case 'humidifier': {
+                if (action === 'turn_on') {
+                    assignOnState(true);
+                } else if (action === 'turn_off') {
+                    assignOnState(false);
+                } else if (action === 'toggle') {
+                    assignOnState(coalesceToggle());
+                } else if (action === 'set_brightness') {
+                    const hasPct = typeof parameters.brightness_pct === 'number';
+                    const normalizedPct = hasPct
+                        ? Math.max(0, Math.min(100, Number(parameters.brightness_pct)))
+                        : undefined;
+                    const normalizedValue = typeof parameters.brightness === 'number'
+                        ? Math.max(0, Math.min(255, Number(parameters.brightness)))
+                        : (normalizedPct !== undefined ? Math.round((normalizedPct / 100) * 255) : undefined);
+
+                    assign('brightness_pct', normalizedPct);
+                    assign('brightness', normalizedValue);
+                    if (normalizedPct !== undefined) {
+                        assignOnState(normalizedPct > 0);
+                    } else if (normalizedValue !== undefined) {
+                        assignOnState(normalizedValue > 0);
+                    } else {
+                        assignOnState(true);
+                    }
+                } else if (action === 'set_mode' && domain === 'fan') {
+                    assign('preset_mode', parameters.mode);
+                    if (typeof parameters.mode === 'string') {
+                        assignOnState(parameters.mode.toLowerCase() !== 'off');
+                    }
+                }
+                break;
+            }
+            case 'climate': {
+                if (action === 'set_mode') {
+                    const desiredMode = typeof parameters.mode === 'string'
+                        ? parameters.mode
+                        : (targetState.mode || previousState.mode || 'auto');
+                    assign('mode', desiredMode);
+                    assign('raw_state', desiredMode);
+                    if (typeof desiredMode === 'string') {
+                        const lowered = desiredMode.toLowerCase();
+                        const isActive = lowered !== 'off';
+                        assign('on', isActive);
+                        assign('active', isActive);
+                    }
+                } else if (action === 'turn_off') {
+                    assign('mode', 'off');
+                    assign('raw_state', 'off');
+                    assign('on', false);
+                    assign('active', false);
+                } else if (action === 'turn_on') {
+                    const fallbackMode = previousState.mode && previousState.mode !== 'off'
+                        ? previousState.mode
+                        : (targetState.mode && targetState.mode !== 'off' ? targetState.mode : 'cool');
+                    assign('mode', fallbackMode);
+                    assign('raw_state', fallbackMode);
+                    assign('on', true);
+                    assign('active', true);
+                } else if (action === 'set_temperature') {
+                    const temp = typeof parameters.temperature === 'number'
+                        ? parameters.temperature
+                        : (typeof parameters.target_temperature === 'number' ? parameters.target_temperature : undefined);
+                    assign('target_temperature', temp);
+                }
+                break;
+            }
+            case 'lock': {
+                const prevLocked = this.resolveLockedState(previousState, targetState);
+                if (action === 'turn_on') {
+                    assign('locked', false);
+                    assign('raw_state', 'unlocked');
+                    assign('active', false);
+                } else if (action === 'turn_off') {
+                    assign('locked', true);
+                    assign('raw_state', 'locked');
+                    assign('active', true);
+                } else if (action === 'toggle') {
+                    const nextLocked = !(typeof prevLocked === 'boolean' ? prevLocked : targetState.locked === true);
+                    assign('locked', nextLocked);
+                    assign('raw_state', nextLocked ? 'locked' : 'unlocked');
+                    assign('active', nextLocked);
+                }
+                break;
+            }
+            case 'cover': {
+                if (action === 'turn_on' || action === 'open_cover') {
+                    assign('open', true);
+                    assign('raw_state', 'open');
+                    assign('active', true);
+                } else if (action === 'turn_off' || action === 'close_cover') {
+                    assign('open', false);
+                    assign('raw_state', 'closed');
+                    assign('active', false);
+                } else if (action === 'toggle') {
+                    const currentlyOpen = typeof targetState.open === 'boolean' ? targetState.open : targetState.raw_state === 'open';
+                    const nextOpen = !currentlyOpen;
+                    assign('open', nextOpen);
+                    assign('raw_state', nextOpen ? 'open' : 'closed');
+                    assign('active', nextOpen);
+                }
+
+                if (typeof parameters.position === 'number') {
+                    assign('position', Math.max(0, Math.min(100, Number(parameters.position))));
+                }
+                break;
+            }
+            default: {
+                if (action === 'turn_on') {
+                    assignOnState(true);
+                } else if (action === 'turn_off') {
+                    assignOnState(false);
+                } else if (action === 'toggle') {
+                    assignOnState(coalesceToggle());
+                }
+            }
+        }
+    }
+
+    resolveBooleanDeviceState(state, domain) {
+        if (!state || typeof state !== 'object') {
+            return undefined;
+        }
+
+        if (typeof state.on === 'boolean') {
+            return state.on;
+        }
+
+        if (typeof state.active === 'boolean') {
+            return state.active;
+        }
+
+        if (typeof state.raw_state === 'string') {
+            const raw = state.raw_state.toLowerCase();
+            if (['on', 'open', 'cool', 'heat', 'heating', 'cooling', 'unlocked'].includes(raw)) {
+                return true;
+            }
+            if (['off', 'closed', 'locked', 'idle'].includes(raw)) {
+                return false;
+            }
+        }
+
+        if (domain === 'climate' && typeof state.mode === 'string') {
+            return state.mode.toLowerCase() !== 'off';
+        }
+
+        if (domain === 'cover' && typeof state.open === 'boolean') {
+            return state.open;
+        }
+
+        if (domain === 'lock' && typeof state.locked === 'boolean') {
+            return !state.locked;
+        }
+
+        return undefined;
+    }
+
+    resolveLockedState(previousState, targetState) {
+        if (previousState && typeof previousState.locked === 'boolean') {
+            return previousState.locked;
+        }
+
+        if (targetState && typeof targetState.locked === 'boolean') {
+            return targetState.locked;
+        }
+
+        const raw = (previousState && previousState.raw_state) || (targetState && targetState.raw_state);
+        if (typeof raw === 'string') {
+            const lowered = raw.toLowerCase();
+            if (lowered === 'locked') {
+                return true;
+            }
+            if (lowered === 'unlocked') {
+                return false;
+            }
+        }
+
+        return undefined;
     }
     
     async refreshDevice(deviceId) {
@@ -707,21 +1497,19 @@ class HomeAutomationApp {
         const normalizedFilter = filterMap[filter] || filter;
 
         deviceCards.forEach(card => {
-            const deviceId = card.dataset.deviceId;
-            const device = this.devices.get(deviceId);
-
             if (filter === 'all') {
-                card.style.display = 'block';
+                card.style.display = '';
                 return;
             }
 
-            const domain = device?.domain || device?.type;
+            const domains = (card.dataset.domains || '')
+                .split(',')
+                .map(item => item.trim())
+                .filter(Boolean);
 
-            if (normalizedFilter === domain) {
-                card.style.display = 'block';
-            } else {
-                card.style.display = 'none';
-            }
+            const primaryDomain = (card.dataset.primaryDomain || '').trim();
+            const matches = domains.includes(normalizedFilter) || normalizedFilter === primaryDomain;
+            card.style.display = matches ? '' : 'none';
         });
     }
     

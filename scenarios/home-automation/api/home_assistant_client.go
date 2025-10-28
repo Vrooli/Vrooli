@@ -393,7 +393,21 @@ func mapHAStateToDeviceStatus(st haState) DeviceStatus {
 		State:       state,
 		Available:   available,
 		LastUpdated: lastUpdated,
+		Attributes:  cloneAttributes(st.Attributes),
 	}
+}
+
+func cloneAttributes(src map[string]interface{}) map[string]interface{} {
+	if len(src) == 0 {
+		return nil
+	}
+
+	attrs := make(map[string]interface{}, len(src))
+	for k, v := range src {
+		attrs[k] = v
+	}
+
+	return attrs
 }
 
 func asFloat(value interface{}) (float64, bool) {

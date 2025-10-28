@@ -328,21 +328,16 @@ func (p *Processor) scheduleInvestigations(openIssues []issuespkg.Issue, availab
 			}
 		}
 
-		startTime := time.Now().UTC().Format(time.RFC3339)
-		p.RegisterRunningProcess(issue.ID, agentID, startTime, nil)
+		// TriggerInvestigation will handle the registration and unregistration
+		// of the running process, so we don't need to wrap it in a goroutine here.
+		// The investigation runs asynchronously inside TriggerInvestigation.
+		if err := p.host.TriggerInvestigation(issue.ID, agentID, true); err != nil {
+			logging.LogErrorErr("Failed to trigger investigation", err, "issue_id", issue.ID)
+			continue
+		}
+
 		scheduled++
-
-		sequence := currentlyRunning + scheduled
-		go func(issue issuespkg.Issue, agentID string, sequence int) {
-			defer p.UnregisterRunningProcess(issue.ID)
-
-			if err := p.host.TriggerInvestigation(issue.ID, agentID, true); err != nil {
-				logging.LogErrorErr("Failed to trigger investigation", err, "issue_id", issue.ID)
-				return
-			}
-
-			logging.LogInfo("Triggered investigation", "issue_id", issue.ID)
-		}(issue, agentID, sequence)
+		logging.LogInfo("Scheduled investigation", "issue_id", issue.ID, "sequence", currentlyRunning+scheduled)
 	}
 }
 

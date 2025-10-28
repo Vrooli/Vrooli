@@ -34,6 +34,9 @@ const (
 
 	// RateLimitCacheTTL is how long rate limit status is cached before re-checking
 	RateLimitCacheTTL = 1 * time.Second
+
+	// DefaultRateLimitResetDuration is the fallback duration when rate limit reset time cannot be parsed
+	DefaultRateLimitResetDuration = 5 * time.Minute
 )
 
 // SettingConstraint describes the allowed range for a numeric setting

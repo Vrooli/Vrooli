@@ -78,15 +78,17 @@ func (svc *InvestigationService) transitionIssueAndPublish(
 		actualStatus = ""
 	}
 
-	svc.server.hub.Publish(NewEvent(eventType, AgentCompletedData{
+	// Construct event data matching the event type
+	eventData := AgentCompletedData{
 		IssueID:         issueID,
 		AgentID:         agentID,
 		Success:         success,
 		EndTime:         endTime,
 		NewStatus:       actualStatus,
 		ScenarioRestart: scenarioRestart,
-	}))
+	}
 
+	svc.server.hub.Publish(NewEvent(eventType, eventData))
 	return actualStatus
 }
 
