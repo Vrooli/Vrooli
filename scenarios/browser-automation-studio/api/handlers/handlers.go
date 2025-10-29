@@ -87,6 +87,11 @@ type UpdateProjectRequest struct {
 	FolderPath  string `json:"folder_path,omitempty"`
 }
 
+// BulkDeleteProjectWorkflowsRequest represents the request payload for deleting multiple workflows
+type BulkDeleteProjectWorkflowsRequest struct {
+	WorkflowIDs []string `json:"workflow_ids"`
+}
+
 // ProjectWithStats represents a project with statistics
 type ProjectWithStats struct {
 	*database.Project
@@ -569,6 +574,57 @@ func (h *Handler) GetProjectWorkflows(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// BulkDeleteProjectWorkflows handles POST /api/v1/projects/{id}/workflows/bulk-delete
+func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		return
+	}
+
+	var req BulkDeleteProjectWorkflowsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to decode bulk delete request")
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.WorkflowIDs) == 0 {
+		http.Error(w, "workflow_ids is required", http.StatusBadRequest)
+		return
+	}
+
+	workflowIDs := make([]uuid.UUID, 0, len(req.WorkflowIDs))
+	for _, workflowIDStr := range req.WorkflowIDs {
+		workflowID, err := uuid.Parse(workflowIDStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid workflow ID: %s", workflowIDStr), http.StatusBadRequest)
+			return
+		}
+		workflowIDs = append(workflowIDs, workflowID)
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	if err := h.workflowService.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
+		h.log.WithError(err).WithFields(logrus.Fields{
+			"project_id": projectID,
+			"count":      len(workflowIDs),
+		}).Error("Failed to bulk delete project workflows")
+		http.Error(w, "Failed to delete workflows", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":        "deleted",
+		"deleted_count": len(workflowIDs),
+		"deleted_ids":   req.WorkflowIDs,
+	})
+}
+
 // CreateWorkflow handles POST /api/v1/workflows/create
 func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	var req CreateWorkflowRequest
@@ -811,6 +867,56 @@ func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"screenshots": screenshots,
 	})
+}
+
+// GetExecutionTimeline handles GET /api/v1/executions/{id}/timeline
+func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	executionID, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid execution ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	timeline, err := h.workflowService.GetExecutionTimeline(ctx, executionID)
+	if err != nil {
+		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get execution timeline")
+		http.Error(w, "Failed to get execution timeline", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(timeline); err != nil {
+		h.log.WithError(err).Error("Failed to encode execution timeline response")
+	}
+}
+
+// PostExecutionExport handles POST /api/v1/executions/{id}/export
+func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	executionID, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid execution ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	preview, svcErr := h.workflowService.DescribeExecutionExport(ctx, executionID)
+	if svcErr != nil {
+		if errors.Is(svcErr, database.ErrNotFound) {
+			http.Error(w, "Execution not found", http.StatusNotFound)
+			return
+		}
+		h.log.WithError(svcErr).WithField("execution_id", executionID).Error("Failed to describe execution export")
+		http.Error(w, "Failed to describe execution export", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(preview); err != nil {
+		h.log.WithError(err).Error("Failed to encode execution export response")
+	}
 }
 
 // HandleWebSocket handles WebSocket connections for real-time updates

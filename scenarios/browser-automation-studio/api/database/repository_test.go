@@ -13,6 +13,8 @@ import (
 )
 
 // setupTestDB creates a test database connection
+// AUDITOR NOTE: Fallback to DATABASE_URL is intentional for test flexibility.
+// Tests are skipped (not run with unsafe defaults) when neither variable is set.
 func setupTestDB(t *testing.T) (*DB, func()) {
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
@@ -35,6 +37,8 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 		// Clean up test data
 		ctx := context.Background()
 		queries := []string{
+			"DELETE FROM execution_artifacts WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
+			"DELETE FROM execution_steps WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
 			"DELETE FROM execution_logs WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
 			"DELETE FROM screenshots WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
 			"DELETE FROM extracted_data WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
@@ -228,6 +232,120 @@ func TestUpdateProject(t *testing.T) {
 			t.Error("Expected error for non-existent project")
 		}
 	})
+}
+
+func TestExecutionStepAndArtifactPersistence(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	log := logrus.New()
+	log.SetOutput(ioutil.Discard)
+
+	repo := NewRepository(db, log)
+	ctx := context.Background()
+
+	workflow := &Workflow{
+		ID:         uuid.New(),
+		Name:       "Step Test Workflow",
+		FolderPath: "/test/steps",
+		FlowDefinition: JSONMap{
+			"nodes": []interface{}{},
+			"edges": []interface{}{},
+		},
+	}
+	if err := repo.CreateWorkflow(ctx, workflow); err != nil {
+		t.Fatalf("failed to create workflow: %v", err)
+	}
+
+	execution := &Execution{
+		ID:              uuid.New(),
+		WorkflowID:      workflow.ID,
+		WorkflowVersion: workflow.Version,
+		Status:          "running",
+		TriggerType:     "manual",
+		TriggerMetadata: JSONMap{},
+		Parameters:      JSONMap{},
+		Progress:        0,
+		CurrentStep:     "initialize",
+	}
+	if err := repo.CreateExecution(ctx, execution); err != nil {
+		t.Fatalf("failed to create execution: %v", err)
+	}
+
+	step := &ExecutionStep{
+		ExecutionID: execution.ID,
+		StepIndex:   0,
+		NodeID:      "node-1",
+		StepType:    "navigate",
+		Status:      "running",
+		Input: JSONMap{
+			"url": "https://example.com",
+		},
+	}
+
+	if err := repo.CreateExecutionStep(ctx, step); err != nil {
+		t.Fatalf("failed to create execution step: %v", err)
+	}
+	if step.ID == uuid.Nil {
+		t.Fatal("expected execution step to have an ID after creation")
+	}
+
+	completedAt := time.Now()
+	step.Status = "completed"
+	step.CompletedAt = &completedAt
+	step.DurationMs = 1234
+	step.Output = JSONMap{
+		"finalUrl": "https://example.com/dashboard",
+	}
+
+	if err := repo.UpdateExecutionStep(ctx, step); err != nil {
+		t.Fatalf("failed to update execution step: %v", err)
+	}
+
+	steps, err := repo.ListExecutionSteps(ctx, execution.ID)
+	if err != nil {
+		t.Fatalf("failed to list execution steps: %v", err)
+	}
+	if len(steps) != 1 {
+		t.Fatalf("expected 1 execution step, got %d", len(steps))
+	}
+	if steps[0].Status != "completed" {
+		t.Errorf("expected execution step status 'completed', got %s", steps[0].Status)
+	}
+
+	size := int64(2048)
+	stepIndex := step.StepIndex
+	artifact := &ExecutionArtifact{
+		ExecutionID:  execution.ID,
+		StepID:       &step.ID,
+		StepIndex:    &stepIndex,
+		ArtifactType: "screenshot",
+		StorageURL:   "s3://test-bucket/executions/test/screenshot.png",
+		ContentType:  "image/png",
+		SizeBytes:    &size,
+		Payload: JSONMap{
+			"width":  1280,
+			"height": 720,
+		},
+	}
+
+	if err := repo.CreateExecutionArtifact(ctx, artifact); err != nil {
+		t.Fatalf("failed to create execution artifact: %v", err)
+	}
+	if artifact.ID == uuid.Nil {
+		t.Fatal("expected execution artifact to have an ID")
+	}
+
+	artifacts, err := repo.ListExecutionArtifacts(ctx, execution.ID)
+	if err != nil {
+		t.Fatalf("failed to list execution artifacts: %v", err)
+	}
+	if len(artifacts) != 1 {
+		t.Fatalf("expected 1 execution artifact, got %d", len(artifacts))
+	}
+	if artifacts[0].ArtifactType != "screenshot" {
+		t.Errorf("expected artifact type 'screenshot', got %s", artifacts[0].ArtifactType)
+	}
 }
 
 func TestDeleteProject(t *testing.T) {

@@ -3,6 +3,7 @@ package runtime
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/browserless/compiler"
@@ -18,17 +19,47 @@ type Instruction struct {
 
 // InstructionParam captures the parameter payload for a Browserless instruction.
 type InstructionParam struct {
-	URL            string `json:"url,omitempty"`
-	WaitUntil      string `json:"waitUntil,omitempty"`
-	TimeoutMs      int    `json:"timeoutMs,omitempty"`
-	WaitForMs      int    `json:"waitForMs,omitempty"`
-	WaitType       string `json:"waitType,omitempty"`
-	DurationMs     int    `json:"durationMs,omitempty"`
-	Selector       string `json:"selector,omitempty"`
-	Name           string `json:"name,omitempty"`
-	FullPage       *bool  `json:"fullPage,omitempty"`
-	ViewportWidth  int    `json:"viewportWidth,omitempty"`
-	ViewportHeight int    `json:"viewportHeight,omitempty"`
+	URL                   string   `json:"url,omitempty"`
+	WaitUntil             string   `json:"waitUntil,omitempty"`
+	TimeoutMs             int      `json:"timeoutMs,omitempty"`
+	WaitForMs             int      `json:"waitForMs,omitempty"`
+	WaitType              string   `json:"waitType,omitempty"`
+	DurationMs            int      `json:"durationMs,omitempty"`
+	Selector              string   `json:"selector,omitempty"`
+	WaitForSelector       string   `json:"waitForSelector,omitempty"`
+	Name                  string   `json:"name,omitempty"`
+	FullPage              *bool    `json:"fullPage,omitempty"`
+	ViewportWidth         int      `json:"viewportWidth,omitempty"`
+	ViewportHeight        int      `json:"viewportHeight,omitempty"`
+	Button                string   `json:"button,omitempty"`
+	ClickCount            int      `json:"clickCount,omitempty"`
+	Text                  string   `json:"text,omitempty"`
+	DelayMs               int      `json:"delayMs,omitempty"`
+	Clear                 *bool    `json:"clear,omitempty"`
+	Submit                *bool    `json:"submit,omitempty"`
+	ExtractType           string   `json:"extractType,omitempty"`
+	Attribute             string   `json:"attribute,omitempty"`
+	AllMatches            *bool    `json:"allMatches,omitempty"`
+	FocusSelector         string   `json:"focusSelector,omitempty"`
+	HighlightSelectors    []string `json:"highlightSelectors,omitempty"`
+	HighlightColor        string   `json:"highlightColor,omitempty"`
+	HighlightPadding      int      `json:"highlightPadding,omitempty"`
+	HighlightBorderRadius int      `json:"highlightBorderRadius,omitempty"`
+	MaskSelectors         []string `json:"maskSelectors,omitempty"`
+	MaskOpacity           float64  `json:"maskOpacity,omitempty"`
+	Background            string   `json:"background,omitempty"`
+	ZoomFactor            float64  `json:"zoomFactor,omitempty"`
+	CaptureDomSnapshot    bool     `json:"captureDomSnapshot,omitempty"`
+	AssertMode            string   `json:"assertMode,omitempty"`
+	ExpectedValue         any      `json:"expectedValue,omitempty"`
+	FailureMessage        string   `json:"failureMessage,omitempty"`
+	Expression            string   `json:"expression,omitempty"`
+	CaseSensitive         *bool    `json:"caseSensitive,omitempty"`
+	Negate                *bool    `json:"negate,omitempty"`
+	ContinueOnFailure     *bool    `json:"continueOnFailure,omitempty"`
+	RetryAttempts         int      `json:"retryAttempts,omitempty"`
+	RetryDelayMs          int      `json:"retryDelayMs,omitempty"`
+	RetryBackoffFactor    float64  `json:"retryBackoffFactor,omitempty"`
 }
 
 // InstructionsFromPlan converts a compiled execution plan into Browserless instructions.
@@ -58,17 +89,70 @@ type navigateConfig struct {
 
 type waitConfig struct {
 	Type      string `json:"type"`
+	WaitType  string `json:"waitType"`
 	Duration  int    `json:"duration"`
 	Selector  string `json:"selector"`
 	TimeoutMs int    `json:"timeoutMs"`
 }
 
 type screenshotConfig struct {
-	Name           string `json:"name"`
-	FullPage       *bool  `json:"fullPage"`
-	ViewportWidth  int    `json:"viewportWidth"`
-	ViewportHeight int    `json:"viewportHeight"`
-	WaitForMs      int    `json:"waitForMs"`
+	Name                  string   `json:"name"`
+	FullPage              *bool    `json:"fullPage"`
+	ViewportWidth         int      `json:"viewportWidth"`
+	ViewportHeight        int      `json:"viewportHeight"`
+	WaitForMs             int      `json:"waitForMs"`
+	FocusSelector         string   `json:"focusSelector"`
+	HighlightSelectors    []string `json:"highlightSelectors"`
+	HighlightColor        string   `json:"highlightColor"`
+	HighlightPadding      int      `json:"highlightPadding"`
+	HighlightBorderRadius int      `json:"highlightBorderRadius"`
+	MaskSelectors         []string `json:"maskSelectors"`
+	MaskOpacity           float64  `json:"maskOpacity"`
+	Background            string   `json:"background"`
+	ZoomFactor            float64  `json:"zoomFactor"`
+	CaptureDomSnapshot    bool     `json:"captureDomSnapshot"`
+}
+
+type clickConfig struct {
+	Selector        string `json:"selector"`
+	Button          string `json:"button"`
+	ClickCount      int    `json:"clickCount"`
+	TimeoutMs       int    `json:"timeoutMs"`
+	WaitForMs       int    `json:"waitForMs"`
+	WaitForSelector string `json:"waitForSelector"`
+}
+
+type typeConfig struct {
+	Selector  string `json:"selector"`
+	Text      string `json:"text"`
+	DelayMs   int    `json:"delayMs"`
+	Clear     *bool  `json:"clear"`
+	Submit    *bool  `json:"submit"`
+	TimeoutMs int    `json:"timeoutMs"`
+}
+
+type extractConfig struct {
+	Selector    string `json:"selector"`
+	ExtractType string `json:"extractType"`
+	Attribute   string `json:"attribute"`
+	AllMatches  *bool  `json:"allMatches"`
+}
+
+type assertConfig struct {
+	AssertMode        string `json:"assertMode"`
+	Mode              string `json:"mode"`
+	Comparison        string `json:"comparison"`
+	Selector          string `json:"selector"`
+	ExpectedValue     any    `json:"expectedValue"`
+	Expected          any    `json:"expected"`
+	Text              string `json:"text"`
+	TimeoutMs         int    `json:"timeoutMs"`
+	Expression        string `json:"expression"`
+	Attribute         string `json:"attribute"`
+	FailureMessage    string `json:"failureMessage"`
+	CaseSensitive     *bool  `json:"caseSensitive"`
+	Negate            *bool  `json:"negate"`
+	ContinueOnFailure *bool  `json:"continueOnFailure"`
 }
 
 func instructionFromStep(step compiler.ExecutionStep) (Instruction, error) {
@@ -77,6 +161,19 @@ func instructionFromStep(step compiler.ExecutionStep) (Instruction, error) {
 		NodeID: step.NodeID,
 		Type:   string(step.Type),
 		Params: InstructionParam{},
+	}
+
+	if attempts, ok := getIntParam(step.Params, "retryAttempts", "retry_attempts", "retry"); ok {
+		if attempts < 0 {
+			attempts = 0
+		}
+		base.Params.RetryAttempts = attempts
+	}
+	if delay, ok := getIntParam(step.Params, "retryDelayMs", "retry_delay_ms", "retryDelay"); ok && delay > 0 {
+		base.Params.RetryDelayMs = delay
+	}
+	if factor, ok := getFloatParam(step.Params, "retryBackoffFactor", "retry_backoff_factor", "retryBackoff"); ok && factor > 0 {
+		base.Params.RetryBackoffFactor = factor
 	}
 
 	switch step.Type {
@@ -103,7 +200,7 @@ func instructionFromStep(step compiler.ExecutionStep) (Instruction, error) {
 		if err := decodeParams(step.Params, &cfg); err != nil {
 			return Instruction{}, fmt.Errorf("wait node %s has invalid data: %w", step.NodeID, err)
 		}
-		waitType := strings.ToLower(strings.TrimSpace(cfg.Type))
+		waitType := strings.ToLower(strings.TrimSpace(firstNonEmpty(cfg.Type, cfg.WaitType)))
 		if waitType == "" || waitType == "time" {
 			base.Params.WaitType = "time"
 			if cfg.Duration > 0 {
@@ -113,10 +210,15 @@ func instructionFromStep(step compiler.ExecutionStep) (Instruction, error) {
 			}
 		} else if waitType == "element" {
 			base.Params.WaitType = "element"
-			base.Params.Selector = cfg.Selector
+			base.Params.Selector = strings.TrimSpace(cfg.Selector)
 			base.Params.TimeoutMs = cfg.TimeoutMs
-			if strings.TrimSpace(base.Params.Selector) == "" {
+			if base.Params.Selector == "" {
 				return Instruction{}, fmt.Errorf("wait node %s requires selector for element wait", step.NodeID)
+			}
+		} else if waitType == "navigation" {
+			base.Params.WaitType = "navigation"
+			if cfg.TimeoutMs > 0 {
+				base.Params.TimeoutMs = cfg.TimeoutMs
 			}
 		} else {
 			return Instruction{}, fmt.Errorf("wait node %s has unsupported type %q", step.NodeID, cfg.Type)
@@ -131,11 +233,307 @@ func instructionFromStep(step compiler.ExecutionStep) (Instruction, error) {
 		base.Params.ViewportHeight = cfg.ViewportHeight
 		base.Params.WaitForMs = cfg.WaitForMs
 		base.Params.FullPage = cfg.FullPage
+		if trimmed := strings.TrimSpace(cfg.FocusSelector); trimmed != "" {
+			base.Params.FocusSelector = trimmed
+		}
+		if selectors := normalizeStringSlice(cfg.HighlightSelectors); len(selectors) > 0 {
+			base.Params.HighlightSelectors = selectors
+		}
+		if color := strings.TrimSpace(cfg.HighlightColor); color != "" {
+			base.Params.HighlightColor = color
+		}
+		if cfg.HighlightPadding > 0 {
+			base.Params.HighlightPadding = cfg.HighlightPadding
+		}
+		if cfg.HighlightBorderRadius > 0 {
+			base.Params.HighlightBorderRadius = cfg.HighlightBorderRadius
+		}
+		if selectors := normalizeStringSlice(cfg.MaskSelectors); len(selectors) > 0 {
+			base.Params.MaskSelectors = selectors
+		}
+		if cfg.MaskOpacity > 0 {
+			base.Params.MaskOpacity = cfg.MaskOpacity
+		}
+		if background := strings.TrimSpace(cfg.Background); background != "" {
+			base.Params.Background = background
+		}
+		if cfg.ZoomFactor > 0 {
+			base.Params.ZoomFactor = cfg.ZoomFactor
+		}
+		if cfg.CaptureDomSnapshot {
+			base.Params.CaptureDomSnapshot = true
+		} else if capture, ok := getBoolParam(step.Params, "captureDomSnapshot", "capture_dom_snapshot", "captureDom"); ok && capture {
+			base.Params.CaptureDomSnapshot = true
+		}
+	case compiler.StepClick:
+		var cfg clickConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("click node %s has invalid data: %w", step.NodeID, err)
+		}
+		selector := strings.TrimSpace(cfg.Selector)
+		if selector == "" {
+			return Instruction{}, fmt.Errorf("click node %s missing selector", step.NodeID)
+		}
+		base.Params.Selector = selector
+		if button := strings.ToLower(strings.TrimSpace(cfg.Button)); button != "" && button != "left" {
+			base.Params.Button = button
+		}
+		if cfg.ClickCount > 1 {
+			base.Params.ClickCount = cfg.ClickCount
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+		if trimmed := strings.TrimSpace(cfg.WaitForSelector); trimmed != "" {
+			base.Params.WaitForSelector = trimmed
+		}
+	case compiler.StepTypeInput:
+		var cfg typeConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("type node %s has invalid data: %w", step.NodeID, err)
+		}
+		selector := strings.TrimSpace(cfg.Selector)
+		if selector == "" {
+			return Instruction{}, fmt.Errorf("type node %s missing selector", step.NodeID)
+		}
+		base.Params.Selector = selector
+		base.Params.Text = cfg.Text
+		if cfg.DelayMs > 0 {
+			base.Params.DelayMs = cfg.DelayMs
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.Clear != nil {
+			base.Params.Clear = cfg.Clear
+		}
+		if cfg.Submit != nil {
+			base.Params.Submit = cfg.Submit
+		}
+	case compiler.StepExtract:
+		var cfg extractConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("extract node %s has invalid data: %w", step.NodeID, err)
+		}
+		selector := strings.TrimSpace(cfg.Selector)
+		if selector == "" {
+			return Instruction{}, fmt.Errorf("extract node %s missing selector", step.NodeID)
+		}
+		base.Params.Selector = selector
+		typeValue := strings.ToLower(strings.TrimSpace(cfg.ExtractType))
+		if typeValue == "" {
+			typeValue = "text"
+		}
+		base.Params.ExtractType = typeValue
+		if strings.TrimSpace(cfg.Attribute) != "" {
+			base.Params.Attribute = strings.TrimSpace(cfg.Attribute)
+		}
+		if cfg.AllMatches != nil {
+			base.Params.AllMatches = cfg.AllMatches
+		}
+	case compiler.StepWorkflowCall:
+		return Instruction{}, fmt.Errorf("workflowCall node %s is not yet supported", step.NodeID)
+	case compiler.StepAssert:
+		var cfg assertConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("assert node %s has invalid data: %w", step.NodeID, err)
+		}
+
+		mode := normalizeAssertMode(firstNonEmpty(cfg.AssertMode, cfg.Mode, cfg.Comparison))
+		if mode == "" {
+			mode = "exists"
+		}
+
+		switch mode {
+		case "exists", "not_exists", "text_equals", "text_contains", "attribute_equals", "attribute_contains", "expression":
+		default:
+			return Instruction{}, fmt.Errorf("assert node %s has unsupported mode %q", step.NodeID, mode)
+		}
+
+		selector := strings.TrimSpace(cfg.Selector)
+		if selector == "" && mode != "expression" {
+			return Instruction{}, fmt.Errorf("assert node %s requires selector for mode %s", step.NodeID, mode)
+		}
+
+		base.Params.AssertMode = mode
+		if selector != "" {
+			base.Params.Selector = selector
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.CaseSensitive != nil {
+			base.Params.CaseSensitive = cfg.CaseSensitive
+		}
+		if cfg.Negate != nil {
+			base.Params.Negate = cfg.Negate
+		}
+		if cfg.ContinueOnFailure != nil {
+			base.Params.ContinueOnFailure = cfg.ContinueOnFailure
+		}
+		if trimmed := strings.TrimSpace(cfg.FailureMessage); trimmed != "" {
+			base.Params.FailureMessage = trimmed
+		}
+		if trimmed := strings.TrimSpace(cfg.Expression); trimmed != "" {
+			base.Params.Expression = trimmed
+		}
+		if attr := strings.TrimSpace(cfg.Attribute); attr != "" {
+			base.Params.Attribute = attr
+		}
+
+		expected := cfg.ExpectedValue
+		if expected == nil && cfg.Expected != nil {
+			expected = cfg.Expected
+		}
+		if expected == nil && strings.TrimSpace(cfg.Text) != "" {
+			expected = strings.TrimSpace(cfg.Text)
+		}
+
+		if needsExpectedValue(mode) && expected == nil {
+			return Instruction{}, fmt.Errorf("assert node %s requires expected value for mode %s", step.NodeID, mode)
+		}
+
+		if expected != nil {
+			base.Params.ExpectedValue = expected
+		}
+	case compiler.StepCustom:
+		return Instruction{}, fmt.Errorf("custom node %s is not yet supported", step.NodeID)
 	default:
-		return Instruction{}, fmt.Errorf("unsupported step type %q in execution plan", step.Type)
+		return Instruction{}, fmt.Errorf("step type %q is not supported", step.Type)
 	}
 
 	return base, nil
+}
+
+func normalizeStringSlice(values []string) []string {
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		normalized = append(normalized, trimmed)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
+func getIntParam(params map[string]any, keys ...string) (int, bool) {
+	if params == nil {
+		return 0, false
+	}
+	for _, key := range keys {
+		value, ok := params[key]
+		if !ok {
+			continue
+		}
+		switch v := value.(type) {
+		case int:
+			return v, true
+		case int32:
+			return int(v), true
+		case int64:
+			return int(v), true
+		case float64:
+			return int(v), true
+		case float32:
+			return int(v), true
+		case json.Number:
+			if i, err := v.Int64(); err == nil {
+				return int(i), true
+			}
+		case string:
+			trimmed := strings.TrimSpace(v)
+			if trimmed == "" {
+				continue
+			}
+			if i, err := strconv.Atoi(trimmed); err == nil {
+				return i, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func getFloatParam(params map[string]any, keys ...string) (float64, bool) {
+	if params == nil {
+		return 0, false
+	}
+	for _, key := range keys {
+		value, ok := params[key]
+		if !ok {
+			continue
+		}
+		switch v := value.(type) {
+		case float64:
+			return v, true
+		case float32:
+			return float64(v), true
+		case int:
+			return float64(v), true
+		case int32:
+			return float64(v), true
+		case int64:
+			return float64(v), true
+		case json.Number:
+			if f, err := v.Float64(); err == nil {
+				return f, true
+			}
+		case string:
+			trimmed := strings.TrimSpace(v)
+			if trimmed == "" {
+				continue
+			}
+			if f, err := strconv.ParseFloat(trimmed, 64); err == nil {
+				return f, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func getBoolParam(params map[string]any, keys ...string) (bool, bool) {
+	if params == nil {
+		return false, false
+	}
+	for _, key := range keys {
+		value, ok := params[key]
+		if !ok {
+			continue
+		}
+		switch v := value.(type) {
+		case bool:
+			return v, true
+		case string:
+			trimmed := strings.TrimSpace(v)
+			if trimmed == "" {
+				continue
+			}
+			if parsed, err := strconv.ParseBool(trimmed); err == nil {
+				return parsed, true
+			}
+		case int:
+			return v != 0, true
+		case int32:
+			return v != 0, true
+		case int64:
+			return v != 0, true
+		case float32:
+			return v != 0, true
+		case float64:
+			return v != 0, true
+		case json.Number:
+			if i, err := v.Int64(); err == nil {
+				return i != 0, true
+			}
+		}
+	}
+	return false, false
 }
 
 func decodeParams(src map[string]any, target interface{}) error {
@@ -144,4 +542,44 @@ func decodeParams(src map[string]any, target interface{}) error {
 		return err
 	}
 	return json.Unmarshal(raw, target)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func normalizeAssertMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "exists", "selector_exists", "success":
+		return "exists"
+	case "not_exists", "missing", "absent", "failure":
+		return "not_exists"
+	case "text", "text_equals", "equals", "equal", "text_equal":
+		return "text_equals"
+	case "text_contains", "contains", "text_contains_any":
+		return "text_contains"
+	case "attribute", "attribute_equals":
+		return "attribute_equals"
+	case "attribute_contains":
+		return "attribute_contains"
+	case "expression", "script":
+		return "expression"
+	default:
+		return strings.ToLower(strings.TrimSpace(raw))
+	}
+}
+
+func needsExpectedValue(mode string) bool {
+	switch mode {
+	case "text_equals", "text_contains", "attribute_equals", "attribute_contains":
+		return true
+	default:
+		return false
+	}
 }

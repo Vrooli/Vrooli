@@ -30,12 +30,12 @@ func (j *JSONMap) Scan(value interface{}) error {
 		*j = nil
 		return nil
 	}
-	
+
 	bytes, ok := value.([]byte)
 	if !ok {
 		return nil
 	}
-	
+
 	return json.Unmarshal(bytes, j)
 }
 
@@ -89,21 +89,21 @@ type WorkflowVersion struct {
 
 // Execution represents a workflow execution
 type Execution struct {
-	ID               uuid.UUID  `json:"id" db:"id"`
-	WorkflowID       uuid.UUID  `json:"workflow_id" db:"workflow_id"`
-	WorkflowVersion  int        `json:"workflow_version,omitempty" db:"workflow_version"`
-	Status           string     `json:"status" db:"status"`
-	TriggerType      string     `json:"trigger_type" db:"trigger_type"`
-	TriggerMetadata  JSONMap    `json:"trigger_metadata,omitempty" db:"trigger_metadata"`
-	Parameters       JSONMap    `json:"parameters,omitempty" db:"parameters"`
-	StartedAt        time.Time  `json:"started_at" db:"started_at"`
-	CompletedAt      *time.Time `json:"completed_at,omitempty" db:"completed_at"`
-	Error            string     `json:"error,omitempty" db:"error"`
-	Result           JSONMap    `json:"result,omitempty" db:"result"`
-	Progress         int        `json:"progress" db:"progress"`
-	CurrentStep      string     `json:"current_step,omitempty" db:"current_step"`
-	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at" db:"updated_at"`
+	ID              uuid.UUID  `json:"id" db:"id"`
+	WorkflowID      uuid.UUID  `json:"workflow_id" db:"workflow_id"`
+	WorkflowVersion int        `json:"workflow_version,omitempty" db:"workflow_version"`
+	Status          string     `json:"status" db:"status"`
+	TriggerType     string     `json:"trigger_type" db:"trigger_type"`
+	TriggerMetadata JSONMap    `json:"trigger_metadata,omitempty" db:"trigger_metadata"`
+	Parameters      JSONMap    `json:"parameters,omitempty" db:"parameters"`
+	StartedAt       time.Time  `json:"started_at" db:"started_at"`
+	CompletedAt     *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+	Error           string     `json:"error,omitempty" db:"error"`
+	Result          JSONMap    `json:"result,omitempty" db:"result"`
+	Progress        int        `json:"progress" db:"progress"`
+	CurrentStep     string     `json:"current_step,omitempty" db:"current_step"`
+	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // ExecutionLog represents a log entry for a workflow execution
@@ -141,6 +141,42 @@ type ExtractedData struct {
 	DataValue   JSONMap   `json:"data_value" db:"data_value"`
 	DataType    string    `json:"data_type,omitempty" db:"data_type"`
 	Metadata    JSONMap   `json:"metadata,omitempty" db:"metadata"`
+}
+
+// ExecutionStep represents the normalized record for each executed workflow step.
+type ExecutionStep struct {
+	ID          uuid.UUID  `json:"id" db:"id"`
+	ExecutionID uuid.UUID  `json:"execution_id" db:"execution_id"`
+	StepIndex   int        `json:"step_index" db:"step_index"`
+	NodeID      string     `json:"node_id" db:"node_id"`
+	StepType    string     `json:"step_type" db:"step_type"`
+	Status      string     `json:"status" db:"status"`
+	StartedAt   time.Time  `json:"started_at" db:"started_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+	DurationMs  int        `json:"duration_ms,omitempty" db:"duration_ms"`
+	Error       string     `json:"error,omitempty" db:"error"`
+	Input       JSONMap    `json:"input,omitempty" db:"input"`
+	Output      JSONMap    `json:"output,omitempty" db:"output"`
+	Metadata    JSONMap    `json:"metadata,omitempty" db:"metadata"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// ExecutionArtifact stores artifacts (screenshots, telemetry blobs, etc.) linked to a step.
+type ExecutionArtifact struct {
+	ID           uuid.UUID  `json:"id" db:"id"`
+	ExecutionID  uuid.UUID  `json:"execution_id" db:"execution_id"`
+	StepID       *uuid.UUID `json:"step_id,omitempty" db:"step_id"`
+	StepIndex    *int       `json:"step_index,omitempty" db:"step_index"`
+	ArtifactType string     `json:"artifact_type" db:"artifact_type"`
+	Label        string     `json:"label,omitempty" db:"label"`
+	StorageURL   string     `json:"storage_url,omitempty" db:"storage_url"`
+	ThumbnailURL string     `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
+	ContentType  string     `json:"content_type,omitempty" db:"content_type"`
+	SizeBytes    *int64     `json:"size_bytes,omitempty" db:"size_bytes"`
+	Payload      JSONMap    `json:"payload,omitempty" db:"payload"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // WorkflowSchedule represents a scheduled workflow execution

@@ -115,9 +115,52 @@ CREATE TABLE IF NOT EXISTS screenshots (
     metadata JSONB
 );
 
+-- Execution steps table
+CREATE TABLE IF NOT EXISTS execution_steps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    step_index INTEGER NOT NULL,
+    node_id VARCHAR(255) NOT NULL,
+    step_type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'running',
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    duration_ms INTEGER,
+    error TEXT,
+    input JSONB DEFAULT '{}',
+    output JSONB DEFAULT '{}',
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_execution_step UNIQUE (execution_id, step_index),
+    CONSTRAINT chk_execution_step_status CHECK (status IN ('pending','running','completed','failed'))
+);
+
+-- Execution artifacts table
+CREATE TABLE IF NOT EXISTS execution_artifacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    step_id UUID REFERENCES execution_steps(id) ON DELETE CASCADE,
+    step_index INTEGER,
+    artifact_type VARCHAR(100) NOT NULL,
+    label VARCHAR(255),
+    storage_url TEXT,
+    thumbnail_url TEXT,
+    content_type VARCHAR(100),
+    size_bytes BIGINT,
+    payload JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for screenshots
 CREATE INDEX idx_screenshots_execution ON screenshots(execution_id);
 CREATE INDEX idx_screenshots_timestamp ON screenshots(timestamp);
+
+-- Create indexes for execution steps & artifacts
+CREATE INDEX idx_execution_steps_execution ON execution_steps(execution_id);
+CREATE INDEX idx_execution_artifacts_execution ON execution_artifacts(execution_id);
+CREATE INDEX idx_execution_artifacts_step ON execution_artifacts(step_id);
 
 -- Extracted data table
 CREATE TABLE IF NOT EXISTS extracted_data (
@@ -214,6 +257,12 @@ CREATE TRIGGER update_workflow_schedules_updated_at BEFORE UPDATE ON workflow_sc
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_workflow_templates_updated_at BEFORE UPDATE ON workflow_templates
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_execution_steps_updated_at BEFORE UPDATE ON execution_steps
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_execution_artifacts_updated_at BEFORE UPDATE ON execution_artifacts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default folders

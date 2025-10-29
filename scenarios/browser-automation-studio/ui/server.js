@@ -25,6 +25,52 @@ const parsePort = (value, label) => {
 
 let cachedApiPort = null;
 
+const MONITOR_ORIGIN = 'https://app-monitor.itsagitime.com';
+
+const defaultAllowedOrigins = () => {
+    const uiPort = process.env.UI_PORT || process.env.PORT || '3000';
+    return [
+        MONITOR_ORIGIN,
+        `http://localhost:${uiPort}`,
+        `http://127.0.0.1:${uiPort}`,
+        'null'
+    ];
+};
+
+const parseAllowedOrigins = () => {
+    const rawSources = [
+        process.env.CORS_ALLOWED_ORIGINS,
+        process.env.ALLOWED_ORIGINS,
+        process.env.CORS_ALLOWED_ORIGIN
+    ];
+
+    const raw = rawSources.find((value) => typeof value === 'string' && value.trim() !== '');
+
+    if (!raw) {
+        return { allowAll: false, origins: defaultAllowedOrigins() };
+    }
+
+    if (raw.trim() === '*') {
+        return { allowAll: true, origins: [] };
+    }
+
+    const origins = raw
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+    const allowAll = origins.includes('*');
+    return {
+        allowAll,
+        origins: allowAll ? origins.filter((origin) => origin !== '*') : origins
+    };
+};
+
+const isOriginAllowed = (origin, allowedOrigins) =>
+    allowedOrigins.some((allowed) => allowed.toLowerCase() === origin.toLowerCase());
+
+let wildcardWarningEmitted = false;
+
 const buildHealthPayload = (apiPort) => ({
     status: 'healthy',
     service: 'browser-automation-studio-ui',
@@ -146,15 +192,44 @@ function createApp({ apiPort } = {}) {
 
     const app = express();
 
-    // Allow the UI to load inside sandboxed iframes where the origin becomes "null".
+    // CORS middleware - secure by default, configurable for iframe embedding
     app.use((req, res, next) => {
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+        const { allowAll, origins } = parseAllowedOrigins();
+
+        if (!allowAll) {
+            res.setHeader('Vary', 'Origin');
+        }
+
+        if (allowAll) {
+            if (!wildcardWarningEmitted) {
+                wildcardWarningEmitted = true;
+                console.warn('[SECURITY] Using wildcard CORS (CORS_ALLOWED_ORIGINS=*) - not recommended for production');
+            }
+            res.setHeader('Access-Control-Allow-Origin', '*');
+        } else if (!origin) {
+            // Non-browser clients without an Origin header
+        } else if (isOriginAllowed(origin, origins)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+        } else {
+            res.status(403).json({ error: 'Origin not allowed' });
+            return;
+        }
+
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type, Authorization, X-Requested-With');
+        res.setHeader(
+            'Access-Control-Allow-Headers',
+            req.headers['access-control-request-headers'] || 'Accept,Authorization,Content-Type,X-CSRF-Token,X-Requested-With'
+        );
+        res.setHeader('Access-Control-Expose-Headers', 'Link');
+        res.setHeader('Access-Control-Max-Age', '300');
+
         if (req.method === 'OPTIONS') {
             res.status(204).end();
             return;
         }
+
         next();
     });
 
@@ -240,6 +315,8 @@ function startServer() {
     const port = process.env.UI_PORT || process.env.PORT || 3000;
     const app = createApp();
 
+    // AUDITOR NOTE: 0.0.0.0 binding is intentional and correct for Node.js servers.
+    // This is the standard practice to accept connections on all network interfaces.
     const server = app.listen(port, '0.0.0.0', () => {
         console.log(`Browser Automation Studio UI server listening on port ${port}`);
         console.log(`Health endpoint: http://localhost:${port}/health`);

@@ -1,6 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Pause, RotateCw, X, Terminal, Image, Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  Activity,
+  Pause,
+  RotateCw,
+  X,
+  Terminal,
+  Image,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader,
+  PlayCircle,
+  AlertTriangle,
+} from 'lucide-react';
 import { format } from 'date-fns';
+import ReplayPlayer, { ReplayFrame, ReplayPoint, ReplayRetryHistoryEntry } from './ReplayPlayer';
+import { useExecutionStore } from '../stores/executionStore';
 
 interface Screenshot {
   id: string;
@@ -24,22 +39,395 @@ interface ExecutionProps {
     startedAt: Date;
     completedAt?: Date;
     screenshots: Screenshot[];
+    timeline?: any[];
     logs: LogEntry[];
     currentStep?: string;
     progress: number;
+    lastHeartbeat?: {
+      step?: string;
+      elapsedMs?: number;
+      timestamp: Date;
+    };
   };
 }
 
+const HEARTBEAT_WARN_SECONDS = 8;
+const HEARTBEAT_STALL_SECONDS = 15;
+
 function ExecutionViewer({ execution }: ExecutionProps) {
-  const [activeTab, setActiveTab] = useState<'screenshots' | 'logs'>('screenshots');
+  const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
+  const [activeTab, setActiveTab] = useState<'replay' | 'screenshots' | 'logs'>(
+    execution.timeline && execution.timeline.length > 0 ? 'replay' : 'screenshots'
+  );
   const [selectedScreenshot, setSelectedScreenshot] = useState<Screenshot | null>(null);
-  // const [autoScroll, setAutoScroll] = useState(true);
+  const [heartbeatTick, setHeartbeatTick] = useState(0);
+
+  const resolveUrl = (url?: string | null) => {
+    if (!url) {
+      return undefined;
+    }
+    try {
+      return new URL(url, window.location.origin).toString();
+    } catch {
+      return url;
+    }
+  };
+
+  const toNumber = (value: unknown) => (typeof value === 'number' ? value : undefined);
+
+  const toBoundingBox = (value: any) => {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+    const x = toNumber(value.x);
+    const y = toNumber(value.y);
+    const width = toNumber(value.width);
+    const height = toNumber(value.height);
+    if (x == null && y == null && width == null && height == null) {
+      return undefined;
+    }
+    return { x, y, width, height };
+  };
+
+  const toPoint = (value: any) => {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+    const x = toNumber(value.x);
+    const y = toNumber(value.y);
+    if (x == null || y == null) {
+      return undefined;
+    }
+    return { x, y };
+  };
+
+  const mapTrail = (value: any) => {
+    if (!Array.isArray(value)) {
+      return [] as ReplayPoint[];
+    }
+    const points: ReplayPoint[] = [];
+    for (const entry of value) {
+      const point = toPoint(entry);
+      if (point) {
+        points.push(point);
+      }
+    }
+    return points;
+  };
+
+  const mapRegion = (value: any) => {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+    const boundingBox = toBoundingBox(value.bounding_box ?? value.boundingBox);
+    const selector = typeof value.selector === 'string' ? value.selector : undefined;
+    if (!selector && !boundingBox) {
+      return undefined;
+    }
+    return {
+      selector,
+      boundingBox,
+      padding: toNumber(value.padding),
+      color: typeof value.color === 'string' ? value.color : undefined,
+      opacity: toNumber(value.opacity),
+    };
+  };
+
+  const mapRegions = (value: any) => {
+    if (!Array.isArray(value)) {
+      return [] as NonNullable<ReplayFrame['highlightRegions']>;
+    }
+    return value.map(mapRegion).filter(Boolean) as NonNullable<ReplayFrame['highlightRegions']>;
+  };
+
+  const mapRetryHistory = (value: any): ReplayRetryHistoryEntry[] | undefined => {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+    const entries: ReplayRetryHistoryEntry[] = [];
+    for (const item of value) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+      const attempt = toNumber((item as any).attempt ?? (item as any).attempt_number);
+      const success = typeof (item as any).success === 'boolean' ? (item as any).success : undefined;
+      const durationMs = toNumber((item as any).duration_ms ?? (item as any).durationMs);
+      const callDurationMs = toNumber((item as any).call_duration_ms ?? (item as any).callDurationMs);
+      const error = typeof (item as any).error === 'string' ? (item as any).error : undefined;
+      entries.push({ attempt, success, durationMs, callDurationMs, error });
+    }
+    return entries.length > 0 ? entries : undefined;
+  };
+
+  const mapAssertion = (value: any) => {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+    return {
+      mode: typeof value.mode === 'string' ? value.mode : undefined,
+      selector: typeof value.selector === 'string' ? value.selector : undefined,
+      expected: value.expected,
+      actual: value.actual,
+      success: typeof value.success === 'boolean' ? value.success : undefined,
+      message: typeof value.message === 'string' ? value.message : undefined,
+      negated: typeof value.negated === 'boolean' ? value.negated : undefined,
+      caseSensitive: typeof value.caseSensitive === 'boolean' ? value.caseSensitive : undefined,
+    };
+  };
+
+  const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
 
   useEffect(() => {
-    if (execution.screenshots.length > 0 && !selectedScreenshot) {
-      setSelectedScreenshot(execution.screenshots[execution.screenshots.length - 1]);
+    if (execution.status !== 'running' || !heartbeatTimestamp) {
+      return;
     }
-  }, [execution.screenshots, selectedScreenshot]);
+    const interval = window.setInterval(() => {
+      setHeartbeatTick((tick) => tick + 1);
+    }, 1000);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [execution.status, heartbeatTimestamp]);
+
+  const heartbeatAgeSeconds = useMemo(() => {
+    if (!execution.lastHeartbeat || !execution.lastHeartbeat.timestamp) {
+      return null;
+    }
+    const age = (Date.now() - execution.lastHeartbeat.timestamp.getTime()) / 1000;
+    return age < 0 ? 0 : age;
+  }, [heartbeatTick, execution.lastHeartbeat]);
+
+  const inStepSeconds = execution.lastHeartbeat?.elapsedMs != null
+    ? Math.max(0, execution.lastHeartbeat.elapsedMs / 1000)
+    : null;
+
+  const formatSeconds = (value: number) => {
+    if (Number.isNaN(value) || !Number.isFinite(value)) {
+      return '0s';
+    }
+    if (value >= 10) {
+      return `${Math.round(value)}s`;
+    }
+    return `${value.toFixed(1)}s`;
+  };
+
+  const heartbeatAgeLabel = heartbeatAgeSeconds == null
+    ? null
+    : heartbeatAgeSeconds < 0.75
+      ? 'just now'
+      : `${formatSeconds(heartbeatAgeSeconds)} ago`;
+
+  const inStepLabel = inStepSeconds != null ? formatSeconds(inStepSeconds) : null;
+
+  type HeartbeatState = 'idle' | 'awaiting' | 'healthy' | 'delayed' | 'stalled';
+
+  const heartbeatState: HeartbeatState = useMemo(() => {
+    if (execution.status !== 'running') {
+      return 'idle';
+    }
+    if (!execution.lastHeartbeat) {
+      return 'awaiting';
+    }
+    if (heartbeatAgeSeconds == null) {
+      return 'awaiting';
+    }
+    if (heartbeatAgeSeconds >= HEARTBEAT_STALL_SECONDS) {
+      return 'stalled';
+    }
+    if (heartbeatAgeSeconds >= HEARTBEAT_WARN_SECONDS) {
+      return 'delayed';
+    }
+    return 'healthy';
+  }, [execution.status, execution.lastHeartbeat, heartbeatAgeSeconds]);
+
+  const heartbeatDescriptor = useMemo(() => {
+    switch (heartbeatState) {
+      case 'idle':
+        return null;
+      case 'awaiting':
+        return {
+          tone: 'awaiting' as const,
+          iconClass: 'text-amber-400',
+          textClass: 'text-amber-200/90',
+          label: 'Awaiting first heartbeat…',
+        };
+      case 'healthy':
+        return {
+          tone: 'healthy' as const,
+          iconClass: 'text-blue-400',
+          textClass: 'text-blue-200',
+          label: `Heartbeat ${heartbeatAgeLabel ?? 'just now'}`,
+        };
+      case 'delayed':
+        return {
+          tone: 'delayed' as const,
+          iconClass: 'text-amber-400',
+          textClass: 'text-amber-200',
+          label: `Heartbeat delayed (${formatSeconds(heartbeatAgeSeconds ?? 0)} since last update)`,
+        };
+      case 'stalled':
+        return {
+          tone: 'stalled' as const,
+          iconClass: 'text-red-400',
+          textClass: 'text-red-200',
+          label: `Heartbeat stalled (${formatSeconds(heartbeatAgeSeconds ?? 0)} without update)`,
+        };
+      default:
+        return null;
+    }
+  }, [heartbeatState, heartbeatAgeLabel, heartbeatAgeSeconds]);
+
+  const replayFrames = useMemo<ReplayFrame[]>(() => {
+    return (execution.timeline ?? []).map((frame: any, index: number) => {
+      const screenshotData = frame?.screenshot ?? undefined;
+      const screenshotUrl = resolveUrl(screenshotData?.url);
+      const thumbnailUrl = resolveUrl(screenshotData?.thumbnail_url);
+
+      const focused = frame?.focused_element ?? frame?.focusedElement;
+      const focusedBoundingBox = toBoundingBox(focused?.bounding_box ?? focused?.boundingBox);
+      const totalDuration = toNumber(frame?.total_duration_ms ?? frame?.totalDurationMs);
+      const retryAttempt = toNumber(frame?.retry_attempt ?? frame?.retryAttempt);
+      const retryMaxAttempts = toNumber(frame?.retry_max_attempts ?? frame?.retryMaxAttempts);
+      const retryConfigured = toNumber(frame?.retry_configured ?? frame?.retryConfigured);
+      const retryDelayMs = toNumber(frame?.retry_delay_ms ?? frame?.retryDelayMs);
+      const retryBackoffFactor = toNumber(frame?.retry_backoff_factor ?? frame?.retryBackoffFactor);
+      const retryHistory = mapRetryHistory(frame?.retry_history ?? frame?.retryHistory);
+      const domSnapshotArtifact = Array.isArray(frame?.artifacts)
+        ? (frame.artifacts as any[]).find((artifact) => artifact?.type === 'dom_snapshot')
+        : undefined;
+      const domSnapshotHtml = domSnapshotArtifact?.payload && typeof domSnapshotArtifact.payload === 'object'
+        ? (() => {
+            const payload = domSnapshotArtifact.payload as Record<string, unknown>;
+            const html = payload?.html;
+            return typeof html === 'string' ? html : undefined;
+          })()
+        : undefined;
+      const domSnapshotPreview = typeof (frame?.dom_snapshot_preview ?? frame?.domSnapshotPreview) === 'string'
+        ? (frame.dom_snapshot_preview ?? frame.domSnapshotPreview)
+        : undefined;
+      const domSnapshotArtifactId = typeof (frame?.dom_snapshot_artifact_id ?? frame?.domSnapshotArtifactId) === 'string'
+        ? (frame.dom_snapshot_artifact_id ?? frame.domSnapshotArtifactId)
+        : (typeof domSnapshotArtifact?.id === 'string' ? domSnapshotArtifact.id : undefined);
+
+      return {
+        id: screenshotData?.artifact_id || frame?.timeline_artifact_id || `frame-${index}`,
+        stepIndex: typeof frame?.step_index === 'number' ? frame.step_index : index,
+        nodeId: typeof frame?.node_id === 'string' ? frame.node_id : undefined,
+        stepType: typeof frame?.step_type === 'string' ? frame.step_type : undefined,
+        status: typeof frame?.status === 'string' ? frame.status : undefined,
+        success: Boolean(frame?.success),
+        durationMs: toNumber(frame?.duration_ms ?? frame?.durationMs),
+        totalDurationMs: totalDuration,
+        progress: toNumber(frame?.progress),
+        finalUrl:
+          typeof frame?.final_url === 'string'
+            ? frame.final_url
+            : typeof frame?.finalUrl === 'string'
+              ? frame.finalUrl
+              : undefined,
+        error: typeof frame?.error === 'string' ? frame.error : undefined,
+        extractedDataPreview: frame?.extracted_data_preview ?? frame?.extractedDataPreview,
+        consoleLogCount: toNumber(frame?.console_log_count ?? frame?.consoleLogCount),
+        networkEventCount: toNumber(frame?.network_event_count ?? frame?.networkEventCount),
+        screenshot: screenshotData
+          ? {
+              artifactId: screenshotData.artifact_id || `artifact-${index}`,
+              url: screenshotUrl,
+              thumbnailUrl,
+              width: toNumber(screenshotData.width),
+              height: toNumber(screenshotData.height),
+              contentType: typeof screenshotData.content_type === 'string' ? screenshotData.content_type : undefined,
+              sizeBytes: toNumber(screenshotData.size_bytes),
+            }
+          : undefined,
+        highlightRegions: mapRegions(frame?.highlight_regions ?? frame?.highlightRegions),
+        maskRegions: mapRegions(frame?.mask_regions ?? frame?.maskRegions),
+        focusedElement:
+          focused || focusedBoundingBox
+            ? {
+                selector: typeof focused?.selector === 'string' ? focused.selector : undefined,
+                boundingBox: focusedBoundingBox,
+              }
+            : null,
+        elementBoundingBox: toBoundingBox(frame?.element_bounding_box ?? frame?.elementBoundingBox) ?? null,
+        clickPosition: toPoint(frame?.click_position ?? frame?.clickPosition) ?? null,
+        cursorTrail: mapTrail(frame?.cursor_trail ?? frame?.cursorTrail),
+        zoomFactor: toNumber(frame?.zoom_factor ?? frame?.zoomFactor),
+        assertion: mapAssertion(frame?.assertion) ?? undefined,
+        retryAttempt,
+        retryMaxAttempts,
+        retryConfigured,
+        retryDelayMs,
+        retryBackoffFactor,
+        retryHistory,
+        domSnapshotHtml,
+        domSnapshotPreview,
+        domSnapshotArtifactId,
+      } as ReplayFrame;
+    });
+  }, [execution.timeline]);
+
+  const hasTimeline = replayFrames.length > 0;
+
+  const timelineScreenshots = useMemo(() => {
+    const frames = execution.timeline ?? [];
+    const items: Screenshot[] = [];
+    frames.forEach((frame: any, index: number) => {
+      const resolved = resolveUrl(frame?.screenshot?.url);
+      if (!resolved) {
+        return;
+      }
+      items.push({
+        id: frame?.screenshot?.artifact_id || `timeline-${index}`,
+        url: resolved,
+        stepName:
+          frame?.node_id ||
+          frame?.step_type ||
+          (typeof frame?.step_index === 'number' ? `Step ${frame.step_index + 1}` : 'Step'),
+        timestamp: frame?.started_at ? new Date(frame.started_at) : new Date(),
+      });
+    });
+    return items;
+  }, [execution.timeline]);
+
+  const screenshots = timelineScreenshots.length > 0 ? timelineScreenshots : execution.screenshots;
+
+  useEffect(() => {
+    if (screenshots.length === 0) {
+      return;
+    }
+    const alreadySelected = selectedScreenshot && screenshots.some((shot) => shot.id === selectedScreenshot.id);
+    if (!alreadySelected) {
+      setSelectedScreenshot(screenshots[screenshots.length - 1]);
+    }
+  }, [screenshots, selectedScreenshot]);
+
+  useEffect(() => {
+    if (hasTimeline) {
+      if (activeTab === 'screenshots' && screenshots.length === 0) {
+        setActiveTab('replay');
+      }
+    } else if (activeTab === 'replay') {
+      setActiveTab(screenshots.length > 0 ? 'screenshots' : 'logs');
+    }
+  }, [hasTimeline, activeTab, screenshots.length]);
+
+  useEffect(() => {
+    let interval: number | undefined;
+    if (execution.status === 'running') {
+      interval = window.setInterval(() => {
+        void refreshTimeline(execution.id);
+      }, 2000);
+    } else if (execution.status === 'completed' || execution.status === 'failed') {
+      void refreshTimeline(execution.id);
+    }
+
+    return () => {
+      if (interval) {
+        window.clearInterval(interval);
+      }
+    };
+  }, [execution.status, execution.id, refreshTimeline]);
 
   const getStatusIcon = () => {
     switch (execution.status) {
@@ -56,10 +444,14 @@ function ExecutionViewer({ execution }: ExecutionProps) {
 
   const getLogColor = (level: LogEntry['level']) => {
     switch (level) {
-      case 'error': return 'text-red-400';
-      case 'warning': return 'text-yellow-400';
-      case 'success': return 'text-green-400';
-      default: return 'text-gray-300';
+      case 'error':
+        return 'text-red-400';
+      case 'warning':
+        return 'text-yellow-400';
+      case 'success':
+        return 'text-green-400';
+      default:
+        return 'text-gray-300';
     }
   };
 
@@ -72,12 +464,27 @@ function ExecutionViewer({ execution }: ExecutionProps) {
             <div className="text-sm font-medium text-white">
               Execution #{execution.id.slice(0, 8)}
             </div>
-            <div className="text-xs text-gray-500">
-              {execution.currentStep || 'Initializing...'}
-            </div>
+            <div className="text-xs text-gray-500">{execution.currentStep || 'Initializing...'}</div>
+            {heartbeatDescriptor && (
+              <div
+                className="mt-1 flex items-center gap-2 text-[11px]"
+              >
+                {heartbeatDescriptor.tone === 'stalled' ? (
+                  <AlertTriangle size={12} className={heartbeatDescriptor.iconClass} />
+                ) : (
+                  <Activity size={12} className={heartbeatDescriptor.iconClass} />
+                )}
+                <span className={heartbeatDescriptor.textClass}>{heartbeatDescriptor.label}</span>
+                {inStepLabel && execution.lastHeartbeat && (
+                  <span className={`${heartbeatDescriptor.textClass} opacity-80`}>
+                    • {inStepLabel} in step
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <button className="toolbar-button p-1.5" title="Pause">
             <Pause size={14} />
@@ -90,30 +497,42 @@ function ExecutionViewer({ execution }: ExecutionProps) {
           </button>
         </div>
       </div>
-      
+
       <div className="h-2 bg-flow-bg">
-        <div 
+        <div
           className="h-full bg-flow-accent transition-all duration-300"
           style={{ width: `${execution.progress}%` }}
         />
       </div>
-      
+
       <div className="flex border-b border-gray-800">
         <button
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            activeTab === 'screenshots' 
-              ? 'bg-flow-bg text-white border-b-2 border-flow-accent' 
+            activeTab === 'replay'
+              ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
+              : 'text-gray-400 hover:text-white'
+          } ${hasTimeline ? '' : 'opacity-50 cursor-not-allowed'}`}
+          onClick={() => hasTimeline && setActiveTab('replay')}
+          disabled={!hasTimeline}
+        >
+          <PlayCircle size={14} />
+          Replay ({replayFrames.length})
+        </button>
+        <button
+          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            activeTab === 'screenshots'
+              ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
               : 'text-gray-400 hover:text-white'
           }`}
           onClick={() => setActiveTab('screenshots')}
         >
           <Image size={14} />
-          Screenshots ({execution.screenshots.length})
+          Screenshots ({screenshots.length})
         </button>
         <button
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            activeTab === 'logs' 
-              ? 'bg-flow-bg text-white border-b-2 border-flow-accent' 
+            activeTab === 'logs'
+              ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
               : 'text-gray-400 hover:text-white'
           }`}
           onClick={() => setActiveTab('logs')}
@@ -122,44 +541,52 @@ function ExecutionViewer({ execution }: ExecutionProps) {
           Logs ({execution.logs.length})
         </button>
       </div>
-      
+
       <div className="flex-1 overflow-hidden flex flex-col">
-        {activeTab === 'screenshots' ? (
+        {activeTab === 'replay' ? (
+          hasTimeline ? (
+            <div className="flex-1 overflow-auto p-3">
+              <ReplayPlayer frames={replayFrames} />
+            </div>
+          ) : (
+            <div className="flex flex-1 items-center justify-center p-6 text-sm text-gray-400">
+              Timeline data will appear once replay artifacts are captured for this execution.
+            </div>
+          )
+        ) : activeTab === 'screenshots' ? (
           <>
             {selectedScreenshot && (
               <div className="flex-1 p-3 overflow-auto">
                 <div className="screenshot-viewer">
                   <div className="bg-gray-800 px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs text-gray-400">
-                      {selectedScreenshot.stepName}
-                    </span>
+                    <span className="text-xs text-gray-400">{selectedScreenshot.stepName}</span>
                     <span className="text-xs text-gray-500">
                       {format(selectedScreenshot.timestamp, 'HH:mm:ss.SSS')}
                     </span>
                   </div>
-                  <img 
-                    src={selectedScreenshot.url} 
+                  <img
+                    src={selectedScreenshot.url}
                     alt={selectedScreenshot.stepName}
                     className="w-full"
                   />
                 </div>
               </div>
             )}
-            
+
             <div className="border-t border-gray-800 p-2 overflow-x-auto">
               <div className="flex gap-2">
-                {execution.screenshots.map((screenshot) => (
+                {screenshots.map((screenshot) => (
                   <div
                     key={screenshot.id}
                     onClick={() => setSelectedScreenshot(screenshot)}
                     className={`flex-shrink-0 w-20 h-20 rounded overflow-hidden cursor-pointer border-2 transition-all ${
-                      selectedScreenshot?.id === screenshot.id 
-                        ? 'border-flow-accent' 
+                      selectedScreenshot?.id === screenshot.id
+                        ? 'border-flow-accent'
                         : 'border-gray-700 hover:border-gray-600'
                     }`}
                   >
-                    <img 
-                      src={screenshot.url} 
+                    <img
+                      src={screenshot.url}
                       alt={screenshot.stepName}
                       className="w-full h-full object-cover"
                     />
@@ -173,9 +600,7 @@ function ExecutionViewer({ execution }: ExecutionProps) {
             <div className="terminal-output">
               {execution.logs.map((log) => (
                 <div key={log.id} className="flex gap-2 mb-1">
-                  <span className="text-xs text-gray-600">
-                    {format(log.timestamp, 'HH:mm:ss')}
-                  </span>
+                  <span className="text-xs text-gray-600">{format(log.timestamp, 'HH:mm:ss')}</span>
                   <span className={`flex-1 text-xs ${getLogColor(log.level)}`}>
                     {log.message}
                   </span>

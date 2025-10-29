@@ -1,0 +1,28 @@
+version: "1.0"
+name: replay-render-check
+summary: |
+  Generates a workflow, executes it, exports the replay package, and uses the
+  CLI `execution render` command to build a stylised HTML bundle. Validates that
+  the resulting package includes the expected frames, assets, and metadata.
+labels:
+  - replay
+  - rendering
+  - marketing
+  - ci-smoke
+owner: execution-team@vrooli.dev
+prerequisites:
+  - Browser Automation Studio scenario dependencies installed via `./scripts/manage.sh setup`
+  - Browserless, Postgres, and MinIO resources available through the lifecycle system
+  - `vrooli`, `browser-automation-studio`, `curl`, `jq`, and `node` available on PATH
+steps:
+  - name: render-check
+    description: |
+      Launches the scenario, provisions a highlight-heavy workflow, exports the
+      replay package, renders the HTML bundle, and verifies output artifacts.
+    command: node ./automation/replay/render-check.js
+    timeout: 600
+success_criteria:
+  - type: log_scan
+    description: Automation prints "Render check successful" when validations pass.
+    pattern: "Render check successful"
+    source: stdout

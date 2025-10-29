@@ -65,6 +65,7 @@ interface WorkflowStore {
   generateWorkflow: (prompt: string, name: string, folderPath: string, projectId?: string) => Promise<Workflow>;
   modifyWorkflow: (prompt: string) => Promise<Workflow>;
   deleteWorkflow: (id: string) => Promise<void>;
+  bulkDeleteWorkflows: (projectId: string, workflowIds: string[]) => Promise<string[]>;
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
@@ -313,6 +314,47 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to delete workflow:', error);
+      throw error;
+    }
+  },
+
+  bulkDeleteWorkflows: async (projectId: string, workflowIds: string[]) => {
+    if (workflowIds.length === 0) {
+      return [];
+    }
+
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/projects/${projectId}/workflows/bulk-delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ workflow_ids: workflowIds }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Failed to delete workflows: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const deletedIds = Array.isArray(data.deleted_ids) ? (data.deleted_ids as string[]) : workflowIds;
+      const deletedSet = new Set(deletedIds);
+
+      set((state) => {
+        const currentDeleted = state.currentWorkflow && deletedSet.has(state.currentWorkflow.id);
+        return {
+          workflows: state.workflows.filter((workflow) => !deletedSet.has(workflow.id)),
+          currentWorkflow: currentDeleted ? null : state.currentWorkflow,
+          nodes: currentDeleted ? [] : state.nodes,
+          edges: currentDeleted ? [] : state.edges,
+        };
+      });
+
+      return deletedIds;
+    } catch (error) {
+      console.error('Failed to bulk delete workflows:', error);
       throw error;
     }
   }

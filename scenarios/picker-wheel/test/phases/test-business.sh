@@ -7,6 +7,12 @@ testing::phase::init --target-time "90s"
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
+# Validate required environment variables
+if [ -z "${API_PORT:-}" ]; then
+    echo "ERROR: API_PORT environment variable is required for tests"
+    exit 1
+fi
+
 echo "Running business logic tests..."
 
 # Test 1: Core business capability - Wheel Spinning
@@ -44,10 +50,10 @@ echo "  - Testing user-defined wheel functionality..."
 
 if command -v curl &> /dev/null; then
     # Check if API is running
-    if curl -sf http://localhost:${API_PORT:-19758}/health &> /dev/null; then
+    if curl -sf http://localhost:${API_PORT}/health &> /dev/null; then
         echo "    Creating custom test wheel via API..."
 
-        response=$(curl -sf -X POST "http://localhost:${API_PORT:-19758}/api/wheels" \
+        response=$(curl -sf -X POST "http://localhost:${API_PORT}/api/wheels" \
             -H "Content-Type: application/json" \
             -d '{
                 "name": "Test Wheel",
@@ -98,9 +104,9 @@ for preset in "${required_presets[@]}"; do
     echo "    Checking $preset preset..."
 
     if command -v curl &> /dev/null && \
-       curl -sf http://localhost:${API_PORT:-19758}/health &> /dev/null; then
+       curl -sf http://localhost:${API_PORT}/health &> /dev/null; then
 
-        if curl -sf "http://localhost:${API_PORT:-19758}/api/wheels/$preset" \
+        if curl -sf "http://localhost:${API_PORT}/api/wheels/$preset" \
             &> /dev/null; then
             echo "    ✓ $preset available"
         else
@@ -117,10 +123,10 @@ echo "Test 5: Spin History Tracking"
 echo "  - Verifying history storage capabilities..."
 
 if command -v curl &> /dev/null && \
-   curl -sf http://localhost:${API_PORT:-19758}/health &> /dev/null; then
+   curl -sf http://localhost:${API_PORT}/health &> /dev/null; then
 
     echo "    Fetching spin history..."
-    history=$(curl -sf "http://localhost:${API_PORT:-19758}/api/history" 2>&1)
+    history=$(curl -sf "http://localhost:${API_PORT}/api/history" 2>&1)
 
     if [ -n "$history" ]; then
         echo "    ✓ History endpoint accessible"
@@ -164,9 +170,9 @@ echo "Test 7: Business Value Metrics"
 echo "  - Calculating scenario value proposition..."
 
 if command -v curl &> /dev/null && \
-   curl -sf http://localhost:${API_PORT:-19758}/health &> /dev/null; then
+   curl -sf http://localhost:${API_PORT}/health &> /dev/null; then
 
-    wheels=$(curl -sf "http://localhost:${API_PORT:-19758}/api/wheels" 2>&1)
+    wheels=$(curl -sf "http://localhost:${API_PORT}/api/wheels" 2>&1)
     wheel_count=$(echo "$wheels" | grep -o '"id"' | wc -l)
 
     echo "  📊 Available wheels: $wheel_count"
@@ -213,19 +219,21 @@ fi
 echo "Test 9: Web UI Functionality"
 echo "  - Verifying browser-based interface..."
 
-if command -v curl &> /dev/null && \
-   curl -sf http://localhost:${UI_PORT:-39758}/health &> /dev/null; then
+if command -v curl &> /dev/null && [ -n "$UI_PORT" ]; then
+    if curl -sf http://localhost:${UI_PORT}/health &> /dev/null; then
+        echo "  ✓ UI server is running"
 
-    echo "  ✓ UI server is running"
-
-    # Check if main page loads
-    if curl -sf http://localhost:${UI_PORT:-39758}/ &> /dev/null; then
-        echo "  ✓ Main page accessible"
+        # Check if main page loads
+        if curl -sf http://localhost:${UI_PORT}/ &> /dev/null; then
+            echo "  ✓ Main page accessible"
+        else
+            echo "  ⚠ Main page may not be loading"
+        fi
     else
-        echo "  ⚠ Main page may not be loading"
+        echo "  ℹ UI server not responding"
     fi
 else
-    echo "  ℹ UI server not running"
+    echo "  ℹ UI_PORT not set or curl not available"
 fi
 
 # Test 10: CLI Command Coverage

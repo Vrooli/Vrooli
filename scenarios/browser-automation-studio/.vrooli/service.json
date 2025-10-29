@@ -107,7 +107,7 @@
            {
              "type": "binaries",
              "targets": [
-               "browser-automation-studio-api"
+               "api/browser-automation-studio-api"
              ]
            },
            {
@@ -187,37 +187,9 @@
       "description": "Test browser automation studio API and CLI",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "timeout 30 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 2; done'",
-          "description": "Test API health endpoint with retry"
-        },
-        {
-          "name": "test-workflow-endpoints",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/workflows",
-          "description": "Test workflow listing endpoint"
-        },
-        {
-          "name": "test-project-endpoints",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/projects",
-          "description": "Test project listing endpoint"
-        },
-        {
-          "name": "test-ui-accessibility",
-          "run": "curl -sf http://localhost:$UI_PORT/",
-          "description": "Test UI accessibility"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "browser-automation-studio status && browser-automation-studio help",
-          "description": "Test basic CLI functionality"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased test suite"
         }
       ]
     },

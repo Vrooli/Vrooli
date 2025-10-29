@@ -23,7 +23,13 @@ const (
 	EventStepScreenshot     EventType = "step.screenshot"
 	EventStepLog            EventType = "step.log"
 	EventStepTelemetry      EventType = "step.telemetry"
+	EventStepHeartbeat      EventType = "step.heartbeat"
 )
+
+// Sink is implemented by emitters capable of broadcasting execution events.
+type Sink interface {
+	Emit(Event)
+}
 
 // Event is the structured payload broadcast to clients.
 type Event struct {
@@ -120,14 +126,19 @@ func WithTimestamp(ts time.Time) Option {
 	}
 }
 
+// UpdateBroadcaster broadcasts execution updates to subscribers.
+type UpdateBroadcaster interface {
+	BroadcastUpdate(wsHub.ExecutionUpdate)
+}
+
 // Emitter bridges the new event contract with the existing WebSocket hub.
 type Emitter struct {
-	hub *wsHub.Hub
+	hub UpdateBroadcaster
 	log *logrus.Logger
 }
 
 // NewEmitter returns an emitter that broadcasts events through the hub.
-func NewEmitter(hub *wsHub.Hub, log *logrus.Logger) *Emitter {
+func NewEmitter(hub UpdateBroadcaster, log *logrus.Logger) *Emitter {
 	if hub == nil {
 		return nil
 	}

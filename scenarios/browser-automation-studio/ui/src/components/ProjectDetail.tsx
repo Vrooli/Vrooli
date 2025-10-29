@@ -1,8 +1,32 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, FileCode, Play, Clock, PlayCircle, Loader, WifiOff, Edit2, Check, X, FolderOpen, LayoutGrid, FolderTree, ChevronRight, ChevronDown } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  FileCode,
+  Play,
+  Clock,
+  PlayCircle,
+  Loader,
+  WifiOff,
+  Edit2,
+  Check,
+  X,
+  FolderOpen,
+  LayoutGrid,
+  FolderTree,
+  ChevronRight,
+  ChevronDown,
+  Trash2,
+  CheckSquare,
+  Square,
+  ListChecks,
+  PencilLine,
+} from 'lucide-react';
 import { Project, useProjectStore } from '../stores/projectStore';
+import { useWorkflowStore } from '../stores/workflowStore';
 import { getConfig } from '../config';
 import toast from 'react-hot-toast';
+import ProjectModal from './ProjectModal';
 
 interface Workflow {
   id: string;
@@ -46,7 +70,13 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   const [viewMode, setViewMode] = useState<'card' | 'tree'>('card');
   const [folderStructure, setFolderStructure] = useState<FolderItem[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
-  const { updateProject } = useProjectStore();
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedWorkflows, setSelectedWorkflows] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const { updateProject, deleteProject } = useProjectStore();
+  const { bulkDeleteWorkflows } = useWorkflowStore();
 
   const filteredWorkflows = workflows.filter(workflow =>
     workflow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -143,6 +173,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
       const workflowList = data.workflows || [];
       setWorkflows(workflowList);
       setFolderStructure(buildFolderStructure(workflowList));
+      setSelectedWorkflows(new Set());
+      setSelectionMode(false);
     } catch (error) {
       console.error('Failed to fetch workflows:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch workflows');
@@ -219,6 +251,93 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
     setIsEditingPath(false);
   };
 
+  const resetSelection = () => {
+    setSelectedWorkflows(new Set());
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode((prev) => {
+      if (prev) {
+        resetSelection();
+      }
+      return !prev;
+    });
+  };
+
+  const toggleWorkflowSelection = (workflowId: string) => {
+    setSelectedWorkflows((prev) => {
+      const next = new Set(prev);
+      if (next.has(workflowId)) {
+        next.delete(workflowId);
+      } else {
+        next.add(workflowId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedWorkflows.size === filteredWorkflows.length) {
+      resetSelection();
+      return;
+    }
+    setSelectedWorkflows(new Set(filteredWorkflows.map((workflow) => workflow.id)));
+  };
+
+  const handleBulkDeleteSelected = async () => {
+    if (selectedWorkflows.size === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${selectedWorkflows.size} workflow${selectedWorkflows.size === 1 ? '' : 's'}? This action cannot be undone.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    try {
+      const workflowIds = Array.from(selectedWorkflows);
+      const deletedIds = await bulkDeleteWorkflows(project.id, workflowIds);
+      const deletedSet = new Set(deletedIds);
+      const remainingWorkflows = workflows.filter((workflow) => !deletedSet.has(workflow.id));
+      setWorkflows(remainingWorkflows);
+      setFolderStructure(buildFolderStructure(remainingWorkflows));
+      toast.success(
+        `Deleted ${deletedSet.size} workflow${deletedSet.size === 1 ? '' : 's'}`
+      );
+      resetSelection();
+      setSelectionMode(false);
+    } catch (error) {
+      console.error('Failed to delete workflows:', error);
+      toast.error('Failed to delete selected workflows');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    const confirmed = window.confirm(
+      'Delete this project and all associated workflows? This action cannot be undone.'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingProject(true);
+    try {
+      await deleteProject(project.id);
+      toast.success('Project deleted successfully');
+      onBack();
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      toast.error('Failed to delete project');
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
+
   const toggleFolder = (path: string) => {
     const newExpanded = new Set(expandedFolders);
     if (newExpanded.has(path)) {
@@ -259,31 +378,65 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
             {item.children?.map((child) => (
               <FolderTreeItem key={child.path} item={child} level={level + 1} />
             ))}
-            {item.workflows?.map((workflow) => (
-              <div
-                key={workflow.id}
-                onClick={() => onWorkflowSelect(workflow)}
-                className="flex items-center gap-2 px-2 py-1.5 hover:bg-flow-node rounded cursor-pointer transition-colors group"
-                style={{ paddingLeft: `${(level + 1) * 20 + 28}px` }}
-              >
-                <FileCode size={14} className="text-green-400" />
-                <span className="text-sm text-gray-400 group-hover:text-white">{workflow.name}</span>
-                <div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
-                    disabled={executionInProgress[workflow.id]}
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-                    title="Execute Workflow"
-                  >
-                    {executionInProgress[workflow.id] ? (
-                      <Loader size={14} className="animate-spin" />
-                    ) : (
-                      <PlayCircle size={14} />
-                    )}
-                  </button>
+            {item.workflows?.map((workflow) => {
+              const isSelected = selectedWorkflows.has(workflow.id);
+              const handleRowClick = () => {
+                if (selectionMode) {
+                  toggleWorkflowSelection(workflow.id);
+                } else {
+                  onWorkflowSelect(workflow);
+                }
+              };
+
+              return (
+                <div
+                  key={workflow.id}
+                  onClick={handleRowClick}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors group ${
+                    selectionMode
+                      ? isSelected
+                        ? 'bg-flow-node/80 border border-flow-accent'
+                        : 'hover:bg-flow-node border border-transparent'
+                      : 'hover:bg-flow-node'
+                  }`}
+                  style={{ paddingLeft: `${(level + 1) * 20 + 28}px` }}
+                >
+                  {selectionMode ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleWorkflowSelection(workflow.id);
+                      }}
+                      className="text-gray-300 hover:text-white"
+                      title={isSelected ? 'Deselect workflow' : 'Select workflow'}
+                    >
+                      {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                    </button>
+                  ) : (
+                    <FileCode size={14} className="text-green-400" />
+                  )}
+                  <span className={`text-sm ${selectionMode && isSelected ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                    {workflow.name}
+                  </span>
+                  {!selectionMode && (
+                    <div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
+                        disabled={executionInProgress[workflow.id]}
+                        className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                        title="Execute Workflow"
+                      >
+                        {executionInProgress[workflow.id] ? (
+                          <Loader size={14} className="animate-spin" />
+                        ) : (
+                          <PlayCircle size={14} />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </>
         )}
       </div>
@@ -319,11 +472,12 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
+    <>
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="p-6 border-b border-gray-800">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+          <div className="flex items-start gap-4">
             <button
               onClick={onBack}
               className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
@@ -331,15 +485,25 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-white mb-2">{project.name}</h1>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-2xl font-bold text-white">{project.name}</h1>
+                <button
+                  onClick={() => setShowEditProjectModal(true)}
+                  className="flex items-center gap-1 px-2 py-1 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
+                  title="Edit project details"
+                >
+                  <PencilLine size={16} />
+                  Edit
+                </button>
+              </div>
               <p className="text-gray-400">
-                {project.description || 'Project workflows and automation'}
+                {project.description?.trim() ? project.description : 'Add a description to keep collaborators aligned.'}
               </p>
               {/* Folder Path Display/Edit */}
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <FolderOpen size={14} className="text-gray-500" />
                 {isEditingPath ? (
-                  <div className="flex items-center gap-2 flex-1">
+                  <div className="flex items-center gap-2 flex-1 min-w-[240px]">
                     <input
                       type="text"
                       value={editedPath}
@@ -386,7 +550,71 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              onClick={toggleSelectionMode}
+              disabled={workflows.length === 0}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${
+                selectionMode
+                  ? 'border-flow-accent text-flow-accent'
+                  : 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
+              } ${workflows.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+            >
+              {selectionMode ? (
+                <>
+                  <X size={14} />
+                  Done
+                </>
+              ) : (
+                <>
+                  <ListChecks size={16} />
+                  Manage Workflows
+                </>
+              )}
+            </button>
+            {selectionMode && (
+              <>
+                <button
+                  onClick={handleSelectAll}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white transition-colors"
+                >
+                  {selectedWorkflows.size === filteredWorkflows.length && filteredWorkflows.length > 0 ? (
+                    <CheckSquare size={14} />
+                  ) : (
+                    <Square size={14} />
+                  )}
+                  {selectedWorkflows.size === filteredWorkflows.length && filteredWorkflows.length > 0 ? 'Clear Selection' : 'Select All'}
+                </button>
+                <button
+                  onClick={handleBulkDeleteSelected}
+                  disabled={selectedWorkflows.size === 0 || isBulkDeleting}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
+                    selectedWorkflows.size === 0
+                      ? 'bg-red-500/20 text-red-300 opacity-60 cursor-not-allowed'
+                      : 'bg-red-500/10 text-red-300 hover:bg-red-500/20'
+                  }`}
+                >
+                  {isBulkDeleting ? (
+                    <Loader size={14} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                  Delete Selected
+                </button>
+              </>
+            )}
+            <button
+              onClick={handleDeleteProject}
+              disabled={isDeletingProject}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isDeletingProject ? (
+                <Loader size={14} className="animate-spin" />
+              ) : (
+                <Trash2 size={14} />
+              )}
+              Delete Project
+            </button>
             <button
               onClick={onCreateWorkflow}
               className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
@@ -527,46 +755,84 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredWorkflows.map((workflow) => (
-              <div
-                key={workflow.id}
-                onClick={() => onWorkflowSelect(workflow)}
-                className="bg-flow-node border border-gray-700 rounded-lg p-6 cursor-pointer hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20 transition-all"
-              >
-                {/* Workflow Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                      <FileCode size={16} className="text-green-400" />
+            {filteredWorkflows.map((workflow) => {
+              const isSelected = selectedWorkflows.has(workflow.id);
+              const handleCardClick = () => {
+                if (selectionMode) {
+                  toggleWorkflowSelection(workflow.id);
+                } else {
+                  onWorkflowSelect(workflow);
+                }
+              };
+
+              return (
+                <div
+                  key={workflow.id}
+                  onClick={handleCardClick}
+                  className={`bg-flow-node border rounded-lg p-6 cursor-pointer transition-all ${
+                    selectionMode
+                      ? isSelected
+                        ? 'border-flow-accent shadow-lg shadow-blue-500/20'
+                        : 'border-gray-700 hover:border-flow-accent/60'
+                      : 'border-gray-700 hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20'
+                  }`}
+                >
+                  {/* Workflow Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          selectionMode && isSelected ? 'bg-flow-accent/30' : 'bg-green-500/20'
+                        }`}
+                      >
+                        <FileCode size={16} className="text-green-400" />
+                      </div>
+                      <div>
+                        <h3
+                          className={`font-semibold truncate max-w-32 ${selectionMode && isSelected ? 'text-white' : 'text-white'}`}
+                          title={workflow.name}
+                        >
+                          {workflow.name}
+                        </h3>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-white truncate max-w-32" title={workflow.name}>
-                        {workflow.name}
-                      </h3>
-                    </div>
+
+                    {selectionMode ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleWorkflowSelection(workflow.id);
+                        }}
+                        className="p-2 text-gray-300 hover:text-white transition-colors"
+                        title={isSelected ? 'Deselect workflow' : 'Select workflow'}
+                      >
+                        {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
+                          disabled={executionInProgress[workflow.id]}
+                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={executionInProgress[workflow.id] ? 'Executing workflow...' : 'Execute Workflow'}
+                        >
+                          {executionInProgress[workflow.id] ? (
+                            <Loader size={14} className="animate-spin" />
+                          ) : (
+                            <PlayCircle size={14} />
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-1">
-                    {/* Execute Button */}
-                    <button
-                      onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
-                      disabled={executionInProgress[workflow.id]}
-                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={executionInProgress[workflow.id] ? 'Executing workflow...' : 'Execute Workflow'}
-                    >
-                      {executionInProgress[workflow.id] ? (
-                        <Loader size={14} className="animate-spin" />
-                      ) : (
-                        <PlayCircle size={14} />
-                      )}
-                    </button>
-                  </div>
-                </div>
 
                 {/* Workflow Description */}
                 {workflow.description && (
-                  <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                  <p
+                    className={`text-sm mb-4 line-clamp-2 ${
+                      selectionMode && isSelected ? 'text-gray-200' : 'text-gray-400'
+                    }`}
+                  >
                     {workflow.description}
                   </p>
                 )}
@@ -574,21 +840,29 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                 {/* Workflow Stats */}
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className="text-center">
-                    <div className="text-lg font-semibold text-white">
+                    <div className={`text-lg font-semibold ${selectionMode && isSelected ? 'text-white' : 'text-white'}`}>
                       {workflow.stats?.execution_count || 0}
                     </div>
-                    <div className="text-xs text-gray-500">Executions</div>
+                    <div className={`text-xs ${selectionMode && isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
+                      Executions
+                    </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-semibold text-white">
+                    <div className={`text-lg font-semibold ${selectionMode && isSelected ? 'text-white' : 'text-white'}`}>
                       {workflow.stats?.success_rate ? `${workflow.stats.success_rate}%` : 'N/A'}
                     </div>
-                    <div className="text-xs text-gray-500">Success Rate</div>
+                    <div className={`text-xs ${selectionMode && isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
+                      Success Rate
+                    </div>
                   </div>
                 </div>
 
                 {/* Last Activity */}
-                <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-700">
+                <div
+                  className={`flex items-center justify-between text-xs pt-4 border-t border-gray-700 ${
+                    selectionMode && isSelected ? 'text-gray-200' : 'text-gray-500'
+                  }`}
+                >
                   <div className="flex items-center gap-1">
                     <Clock size={12} />
                     <span>Updated {formatDate(workflow.updated_at)}</span>
@@ -602,15 +876,27 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                 </div>
 
                 {/* Folder Path */}
-                <div className="mt-2 text-xs text-gray-600 truncate" title={workflow.folder_path}>
+                <div
+                  className={`mt-2 text-xs truncate ${selectionMode && isSelected ? 'text-gray-300' : 'text-gray-600'}`}
+                  title={workflow.folder_path}
+                >
                   {workflow.folder_path}
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>
-    </div>
+      </div>
+      {showEditProjectModal && (
+        <ProjectModal
+          onClose={() => setShowEditProjectModal(false)}
+          project={project}
+          onSuccess={() => toast.success('Project updated successfully')}
+        />
+      )}
+    </>
   );
 }
 

@@ -1,16 +1,30 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "=== Test Integration ==="
 
-# Basic integration checks
-if make build &gt;/dev/null 2&gt;&amp;1; then
-  echo "✅ Build integration passed"
-else
-  echo "⚠️ Build integration skipped"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCENARIO_DIR="${ROOT_DIR}/scenarios/browser-automation-studio"
+
+cd "$SCENARIO_DIR"
+
+AUTOMATION_SCRIPT="automation/executions/telemetry-smoke.sh"
+
+if [[ ! -x "$AUTOMATION_SCRIPT" ]]; then
+  echo "❌ Missing telemetry smoke automation script ($AUTOMATION_SCRIPT)" >&2
+  exit 1
 fi
 
-# API health check (assuming service is running, but for structure just placeholder)
-echo "Integration endpoints would be tested here"
+# Allow outer harness to decide whether to stop the scenario afterwards
+: "${BAS_AUTOMATION_STOP_SCENARIO:=1}"
 
-echo "✅ Integration tests passed (basic checks)"
+echo "→ Running telemetry smoke automation"
+
+if BAS_AUTOMATION_STOP_SCENARIO="${BAS_AUTOMATION_STOP_SCENARIO}" "$AUTOMATION_SCRIPT"; then
+  echo "✅ Telemetry smoke automation passed"
+else
+  echo "❌ Telemetry smoke automation failed" >&2
+  exit 1
+fi
+
+echo "✅ Integration tests completed"

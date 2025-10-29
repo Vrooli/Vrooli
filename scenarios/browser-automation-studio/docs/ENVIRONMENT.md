@@ -37,7 +37,12 @@ These variables have sensible defaults but can be overridden for different deplo
 - `BROWSERLESS_HOST` - Browserless server host (default: `localhost`)
 
 ### CORS Configuration
-- `ALLOWED_ORIGINS` - Comma-separated list of additional allowed origins for CORS
+- `CORS_ALLOWED_ORIGINS` - Comma-separated list of allowed origins (supports `*` for development)
+- `ALLOWED_ORIGINS` - Legacy alias for `CORS_ALLOWED_ORIGINS`
+- `CORS_ALLOWED_ORIGIN` - Legacy single-origin setting (still honored)
+
+When no CORS variables are provided, the API and UI automatically allow requests from the lifecycle-managed UI port,
+`https://app-monitor.itsagitime.com`, and sandboxed iframe contexts (`Origin: null`).
 
 ### Screenshot Configuration
 - `SCREENSHOT_DEFAULT_WIDTH` - Default width for screenshots when not detected

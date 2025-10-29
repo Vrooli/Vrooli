@@ -1,33 +1,15 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { getConfig } from '../config';
-
-type ExecutionEventType =
-  | 'execution.started'
-  | 'execution.progress'
-  | 'execution.completed'
-  | 'execution.failed'
-  | 'execution.cancelled'
-  | 'step.started'
-  | 'step.completed'
-  | 'step.failed'
-  | 'step.screenshot'
-  | 'step.log'
-  | 'step.telemetry';
-
-interface ExecutionEventMessage {
-  type: ExecutionEventType;
-  execution_id: string;
-  workflow_id: string;
-  step_index?: number;
-  step_node_id?: string;
-  step_type?: string;
-  status?: string;
-  progress?: number;
-  message?: string;
-  payload?: Record<string, unknown> | null;
-  timestamp?: string;
-}
+import {
+  processExecutionEvent,
+  createId,
+  parseTimestamp,
+  type ExecutionEventMessage,
+  type ExecutionEventHandlers,
+  type Screenshot,
+  type LogEntry,
+} from './executionEventProcessor';
 
 interface ExecutionUpdateMessage {
   type: string;
@@ -40,18 +22,97 @@ interface ExecutionUpdateMessage {
   timestamp?: string;
 }
 
-interface Screenshot {
-  id: string;
-  timestamp: Date;
-  url: string;
-  stepName: string;
+interface TimelineBoundingBox {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
 }
 
-interface LogEntry {
+interface TimelineRegion {
+  selector?: string;
+  bounding_box?: TimelineBoundingBox;
+  padding?: number;
+  color?: string;
+  opacity?: number;
+}
+
+interface TimelineRetryHistoryEntry {
+  attempt?: number;
+  success?: boolean;
+  duration_ms?: number;
+  call_duration_ms?: number;
+  error?: string;
+}
+
+interface TimelineScreenshot {
+  artifact_id: string;
+  url?: string;
+  thumbnail_url?: string;
+  width?: number;
+  height?: number;
+  content_type?: string;
+  size_bytes?: number;
+}
+
+interface TimelineAssertion {
+  mode?: string;
+  selector?: string;
+  expected?: unknown;
+  actual?: unknown;
+  success?: boolean;
+  message?: string;
+  negated?: boolean;
+  caseSensitive?: boolean;
+}
+
+interface TimelineArtifact {
   id: string;
-  timestamp: Date;
-  level: 'info' | 'warning' | 'error' | 'success';
-  message: string;
+  type: string;
+  label?: string;
+  storage_url?: string;
+  thumbnail_url?: string;
+  content_type?: string;
+  size_bytes?: number;
+  step_index?: number;
+  payload?: Record<string, unknown> | null;
+}
+
+interface TimelineFrame {
+  step_index: number;
+  node_id?: string;
+  step_type?: string;
+  status?: string;
+  success: boolean;
+  duration_ms?: number;
+  total_duration_ms?: number;
+  progress?: number;
+  started_at?: string;
+  completed_at?: string;
+  final_url?: string;
+  error?: string;
+  console_log_count?: number;
+  network_event_count?: number;
+  extracted_data_preview?: unknown;
+  highlight_regions?: TimelineRegion[];
+  mask_regions?: TimelineRegion[];
+  focused_element?: { selector?: string; bounding_box?: TimelineBoundingBox };
+  element_bounding_box?: TimelineBoundingBox;
+  click_position?: { x?: number; y?: number };
+  cursor_trail?: Array<{ x?: number; y?: number }>;
+  zoom_factor?: number;
+  screenshot?: TimelineScreenshot | null;
+  artifacts?: TimelineArtifact[];
+  assertion?: TimelineAssertion | null;
+  retry_attempt?: number;
+  retry_max_attempts?: number;
+  retry_configured?: number;
+  retry_delay_ms?: number;
+  retry_backoff_factor?: number;
+  retry_history?: TimelineRetryHistoryEntry[];
+  dom_snapshot_preview?: string;
+  dom_snapshot_artifact_id?: string;
+  dom_snapshot?: TimelineArtifact | null;
 }
 
 interface Execution {
@@ -61,10 +122,16 @@ interface Execution {
   startedAt: Date;
   completedAt?: Date;
   screenshots: Screenshot[];
+  timeline: TimelineFrame[];
   logs: LogEntry[];
   currentStep?: string;
   progress: number;
   error?: string;
+  lastHeartbeat?: {
+    step?: string;
+    elapsedMs?: number;
+    timestamp: Date;
+  };
 }
 
 interface ExecutionStore {
@@ -76,25 +143,34 @@ interface ExecutionStore {
   stopExecution: (executionId: string) => Promise<void>;
   loadExecutions: (workflowId?: string) => Promise<void>;
   loadExecution: (executionId: string) => Promise<void>;
+  refreshTimeline: (executionId: string) => Promise<void>;
   connectWebSocket: (executionId: string) => Promise<void>;
   disconnectWebSocket: () => void;
   addScreenshot: (screenshot: Screenshot) => void;
   addLog: (log: LogEntry) => void;
   updateExecutionStatus: (status: Execution['status'], error?: string) => void;
   updateProgress: (progress: number, currentStep?: string) => void;
+  recordHeartbeat: (step?: string, elapsedMs?: number) => void;
 }
 
-const createId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return Math.random().toString(36).slice(2);
+const normalizeExecution = (raw: any): Execution => {
+  const startedAt = raw.started_at ?? raw.startedAt;
+  const completedAt = raw.completed_at ?? raw.completedAt;
+  return {
+    id: raw.id ?? raw.execution_id ?? '',
+    workflowId: raw.workflow_id ?? raw.workflowId ?? '',
+    status: raw.status ?? 'pending',
+    startedAt: startedAt ? new Date(startedAt) : new Date(),
+    completedAt: completedAt ? new Date(completedAt) : undefined,
+    screenshots: Array.isArray(raw.screenshots) ? raw.screenshots : [],
+    timeline: Array.isArray(raw.timeline) ? (raw.timeline as TimelineFrame[]) : [],
+    logs: Array.isArray(raw.logs) ? raw.logs : [],
+    currentStep: raw.current_step ?? raw.currentStep,
+    progress: typeof raw.progress === 'number' ? raw.progress : 0,
+    error: raw.error ?? undefined,
+    lastHeartbeat: undefined,
+  };
 };
-
-const parseTimestamp = (timestamp?: string) => (timestamp ? new Date(timestamp) : new Date());
-
-const stepLabel = (event: ExecutionEventMessage) =>
-  event.step_node_id || event.step_type || (typeof event.step_index === 'number' ? `Step ${event.step_index + 1}` : 'Step');
 
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   executions: [],
@@ -114,12 +190,15 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         status: 'running',
         startedAt: new Date(),
         screenshots: [],
+        timeline: [],
         logs: [],
         progress: 0,
+        lastHeartbeat: undefined,
       };
 
       set({ currentExecution: execution });
       await get().connectWebSocket(execution.id);
+      void get().refreshTimeline(execution.id);
     } catch (error) {
       console.error('Failed to start execution:', error);
       throw error;
@@ -159,9 +238,30 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     try {
       const config = await getConfig();
       const response = await axios.get(`${config.API_URL}/executions/${executionId}`);
-      set({ currentExecution: response.data });
+      const execution = normalizeExecution(response.data);
+      set({ currentExecution: execution });
+      void get().refreshTimeline(executionId);
     } catch (error) {
       console.error('Failed to load execution:', error);
+    }
+  },
+
+  refreshTimeline: async (executionId: string) => {
+    try {
+      const config = await getConfig();
+      const response = await axios.get(`${config.API_URL}/executions/${executionId}/timeline`);
+      const frames = Array.isArray(response.data?.frames)
+        ? (response.data.frames as TimelineFrame[])
+        : [];
+
+      set((state) => ({
+        currentExecution:
+          state.currentExecution && state.currentExecution.id === executionId
+            ? { ...state.currentExecution, timeline: frames }
+            : state.currentExecution,
+      }));
+    } catch (error) {
+      console.error('Failed to load execution timeline:', error);
     }
   },
 
@@ -173,90 +273,18 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     const socket = new WebSocket(wsUrl.toString());
 
     const handleEvent = (event: ExecutionEventMessage, fallbackTimestamp?: string, fallbackProgress?: number) => {
-      const eventTimestamp = event.timestamp ?? fallbackTimestamp;
-      if (typeof event.progress === 'number') {
-        get().updateProgress(event.progress, event.step_node_id ?? event.step_type);
-      } else if (typeof fallbackProgress === 'number') {
-        get().updateProgress(fallbackProgress, event.step_node_id ?? event.step_type);
-      }
+      const handlers: ExecutionEventHandlers = {
+        updateExecutionStatus: get().updateExecutionStatus,
+        updateProgress: get().updateProgress,
+        addLog: get().addLog,
+        addScreenshot: get().addScreenshot,
+        recordHeartbeat: get().recordHeartbeat,
+      };
 
-      switch (event.type) {
-        case 'execution.started':
-          get().updateExecutionStatus('running');
-          return;
-        case 'execution.completed':
-          get().updateExecutionStatus('completed');
-          return;
-        case 'execution.failed':
-          get().updateExecutionStatus('failed', event.message);
-          return;
-        case 'execution.cancelled':
-          get().updateExecutionStatus('failed', event.message ?? 'Execution cancelled');
-          return;
-        case 'execution.progress':
-          if (typeof event.progress === 'number') {
-            get().updateProgress(event.progress, event.step_node_id ?? event.step_type);
-          }
-          return;
-        case 'step.started':
-          if (typeof event.progress === 'number') {
-            get().updateProgress(event.progress, event.step_node_id ?? event.step_type);
-          }
-          get().addLog({
-            id: createId(),
-            level: 'info',
-            message: event.message ?? `${stepLabel(event)} started`,
-            timestamp: parseTimestamp(eventTimestamp),
-          });
-          return;
-        case 'step.completed':
-        case 'step.failed': {
-          const message = event.message ?? `${stepLabel(event)} ${event.type === 'step.completed' ? 'completed' : 'failed'}`;
-          get().addLog({
-            id: createId(),
-            level: event.type === 'step.failed' ? 'error' : 'success',
-            message,
-            timestamp: parseTimestamp(eventTimestamp),
-          });
-
-          if (event.type === 'step.failed') {
-            get().updateExecutionStatus('failed', message);
-          }
-          return;
-        }
-        case 'step.screenshot': {
-          const payload = event.payload ?? {};
-          const url = (payload.url as string | undefined) ??
-            ((payload.base64 as string | undefined) ? `data:image/png;base64,${payload.base64 as string}` : undefined);
-          if (!url) {
-            return;
-          }
-
-          const screenshot: Screenshot = {
-            id: (payload.screenshot_id as string | undefined) ?? createId(),
-            url,
-            stepName: stepLabel(event),
-            timestamp: parseTimestamp((payload.timestamp as string | undefined) ?? eventTimestamp),
-          };
-
-          get().addScreenshot(screenshot);
-          return;
-        }
-        case 'step.log': {
-          const payload = event.payload ?? {};
-          const message = (payload.message as string | undefined) ?? event.message ?? 'Step log';
-          const level = (payload.level as LogEntry['level'] | undefined) ?? 'info';
-          get().addLog({
-            id: createId(),
-            level,
-            message,
-            timestamp: parseTimestamp(eventTimestamp),
-          });
-          return;
-        }
-        default:
-          return;
-      }
+      processExecutionEvent(handlers, event, {
+        fallbackTimestamp,
+        fallbackProgress,
+      });
     };
 
     const handleUpdate = (raw: ExecutionUpdateMessage) => {
@@ -371,6 +399,20 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
             ...state.currentExecution,
             progress,
             currentStep: currentStep ?? state.currentExecution.currentStep,
+          }
+        : state.currentExecution,
+    }));
+  },
+  recordHeartbeat: (step?: string, elapsedMs?: number) => {
+    set((state) => ({
+      currentExecution: state.currentExecution
+        ? {
+            ...state.currentExecution,
+            lastHeartbeat: {
+              step,
+              elapsedMs,
+              timestamp: new Date(),
+            },
           }
         : state.currentExecution,
     }));

@@ -37,7 +37,7 @@ interface ProjectState {
   // Actions
   fetchProjects: () => Promise<void>;
   createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'stats'>) => Promise<Project>;
-  updateProject: (id: string, updates: Partial<Pick<Project, 'name' | 'description' | 'folder_path'>>) => Promise<void>;
+  updateProject: (id: string, updates: Partial<Pick<Project, 'name' | 'description' | 'folder_path'>>) => Promise<Project>;
   deleteProject: (id: string) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
   getProject: (id: string) => Promise<Project | null>;
@@ -127,13 +127,15 @@ export const useProjectStore = create<ProjectState>((set) => ({
       }
 
       const data = await response.json();
-      const updatedProject = data.project;
+      const updatedProject = data.project as Project;
 
       set(state => ({
         projects: state.projects.map(p => p.id === id ? updatedProject : p),
         currentProject: state.currentProject?.id === id ? updatedProject : state.currentProject,
         isLoading: false
       }));
+
+      return updatedProject;
     } catch (error) {
       console.error('Failed to update project:', error);
       set({ 

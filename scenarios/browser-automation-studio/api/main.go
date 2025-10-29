@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -29,10 +31,35 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Change working directory to project root for proper resource access
-	// API runs from scenarios/browser-automation-studio/api/, so go up 3 levels to project root
-	if err := os.Chdir("../../../"); err != nil {
-		fmt.Fprintf(os.Stderr, "❌ Failed to change to project root directory: %v\n", err)
+	// Determine project root securely
+	// API runs from scenarios/browser-automation-studio/api/ directory
+	projectRoot := os.Getenv("VROOLI_ROOT")
+	if projectRoot == "" {
+		// Fallback: resolve from current executable location
+		if execPath, err := os.Executable(); err == nil {
+			// Expected structure: {VROOLI_ROOT}/scenarios/browser-automation-studio/api/binary
+			// So go up 3 directories to reach VROOLI_ROOT
+			projectRoot = filepath.Join(filepath.Dir(execPath), "..", "..", "..")
+			projectRoot, _ = filepath.Abs(projectRoot)
+		} else {
+			fmt.Fprintf(os.Stderr, "❌ VROOLI_ROOT not set and cannot determine project root: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	// Validate and change to project root
+	if absRoot, err := filepath.Abs(projectRoot); err == nil {
+		// Security check: ensure path doesn't contain suspicious patterns
+		if filepath.Clean(absRoot) != absRoot {
+			fmt.Fprintf(os.Stderr, "❌ Invalid project root path (potential path traversal): %s\n", projectRoot)
+			os.Exit(1)
+		}
+		if err := os.Chdir(absRoot); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Failed to change to project root directory %s: %v\n", absRoot, err)
+			os.Exit(1)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "❌ Failed to resolve project root path %s: %v\n", projectRoot, err)
 		os.Exit(1)
 	}
 
@@ -93,32 +120,16 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// Simple CORS middleware - allows all origins for development
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Set CORS headers
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token, X-Requested-With")
-			w.Header().Set("Access-Control-Expose-Headers", "Link")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Max-Age", "300")
-
-			// Handle preflight requests
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	})
+	// CORS middleware - secure by default, configurable via environment
+	r.Use(corsMiddleware(log))
 
 	// Routes
 	r.Get("/health", handler.Health)
 	r.Get("/ws", handler.HandleWebSocket) // WebSocket endpoint
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Health endpoint under /api/v1 for consistency
+		r.Get("/health", handler.Health)
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
 		r.Get("/projects", handler.ListProjects)
@@ -126,6 +137,7 @@ func main() {
 		r.Put("/projects/{id}", handler.UpdateProject)
 		r.Delete("/projects/{id}", handler.DeleteProject)
 		r.Get("/projects/{id}/workflows", handler.GetProjectWorkflows)
+		r.Post("/projects/{id}/workflows/bulk-delete", handler.BulkDeleteProjectWorkflows)
 		r.Post("/projects/{id}/execute-all", handler.ExecuteAllProjectWorkflows)
 
 		// Workflow routes
@@ -138,6 +150,8 @@ func main() {
 		// Execution routes
 		r.Get("/executions", handler.ListExecutions)
 		r.Get("/executions/{id}", handler.GetExecution)
+		r.Get("/executions/{id}/timeline", handler.GetExecutionTimeline)
+		r.Post("/executions/{id}/export", handler.PostExecutionExport)
 		r.Post("/executions/{id}/stop", handler.StopExecution)
 		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
 
@@ -170,10 +184,18 @@ func main() {
 		apiHost = "localhost"
 	}
 
+	corsCfg := resolveAllowedOrigins()
+	corsPolicy := "restricted"
+	if corsCfg.allowAll {
+		corsPolicy = "allow_all"
+	} else {
+		corsPolicy = strings.Join(corsCfg.allowedOrigins, ",")
+	}
+
 	log.WithFields(logrus.Fields{
 		"api_port":    port,
 		"api_host":    apiHost,
-		"cors_policy": "allow_all",
+		"cors_policy": corsPolicy,
 	}).Info("🚀 Browser Automation Studio API starting")
 	log.WithField("endpoint", fmt.Sprintf("http://%s:%s/api/v1", apiHost, port)).Info("📊 API endpoint ready")
 

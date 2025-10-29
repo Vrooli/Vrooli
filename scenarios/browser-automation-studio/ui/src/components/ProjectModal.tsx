@@ -66,8 +66,8 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
 
     try {
       if (isEditing && project) {
-        await updateProject(project.id, formData);
-        onSuccess?.(project);
+        const updated = await updateProject(project.id, formData);
+        onSuccess?.(updated);
       } else {
         const newProject = await createProject(formData);
         onSuccess?.(newProject);
