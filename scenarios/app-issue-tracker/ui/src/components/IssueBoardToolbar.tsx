@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ChevronDown, Eye, EyeOff, Filter, X } from 'lucide-react';
-import type { IssueStatus, Priority } from '../data/sampleData';
+import type { IssueStatus, Priority } from '../types/issue';
 import { Modal } from './Modal';
 import { getIssueStatusColumn } from '../constants/board';
 import type { PriorityFilterValue } from '../types/issueCreation';

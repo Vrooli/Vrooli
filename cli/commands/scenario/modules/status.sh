@@ -270,6 +270,9 @@ scenario::status::format_display_individual() {
     [[ "$stopped_at" != "null" ]] && [[ "$stopped_at" != "N/A" ]] && echo "Stopped:       $stopped_at"
     [[ "$restart_count" != "0" ]] && echo "Restarts:      $restart_count"
 
+    scenario::insights::display_metadata "$insights_json" "$scenario_name"
+    scenario::insights::display_documentation "$insights_json"
+
     scenario::insights::display_stack "$insights_json"
 
     # Show allocated ports from native Go API format
@@ -293,6 +296,7 @@ scenario::status::format_display_individual() {
     scenario::insights::display_resources "$insights_json"
     scenario::insights::display_workspace_packages "$insights_json"
     scenario::insights::display_lifecycle "$insights_json"
+    scenario::insights::display_health_config "$insights_json"
 
     # Enhanced Health Checks and Diagnostics using unified data collection
     local diagnostic_data
@@ -590,10 +594,13 @@ scenario::status::display_running_diagnostics() {
         has_performance_issues=true
     fi
     
+    local analysis_printed=false
+
     # Display diagnostics if there are any issues
     if [[ "$has_warnings" == "true" ]] || [[ "$has_resource_issues" == "true" ]] || [[ "$has_performance_warnings" == "true" ]] || [[ "$has_performance_issues" == "true" ]]; then
         echo ""
         echo "🔍 Running Scenario Analysis:"
+        analysis_printed=true
         
         # Show recent warnings
         if [[ "$has_warnings" == "true" ]]; then
@@ -644,6 +651,63 @@ scenario::status::display_running_diagnostics() {
         echo "  • Check logs: vrooli scenario logs $scenario_name"
         echo "  • Validate health endpoints comply with schemas in:"
         echo "    ${SCENARIO_CMD_DIR}/schemas/"
+    fi
+
+    local api_event ui_event
+    api_event=$(echo "$diagnostic_data" | jq -c '.log_analysis.recent_events.api // empty' 2>/dev/null || echo "")
+    ui_event=$(echo "$diagnostic_data" | jq -c '.log_analysis.recent_events.ui // empty' 2>/dev/null || echo "")
+
+    if [[ -n "$api_event" ]] || [[ -n "$ui_event" ]]; then
+        if [[ "$analysis_printed" != "true" ]]; then
+            echo ""
+        fi
+        echo "Recent Signals:"
+
+        if [[ -n "$api_event" ]]; then
+            local api_type api_message api_step api_icon
+            api_type=$(echo "$api_event" | jq -r '.type // "info"')
+            api_message=$(echo "$api_event" | jq -r '.message // ""')
+            api_step=$(echo "$api_event" | jq -r '.step // "start-api"')
+            case "$api_type" in
+                error)
+                    api_icon="🔴"
+                    ;;
+                warning)
+                    api_icon="⚠️"
+                    ;;
+                *)
+                    api_icon="ℹ️"
+                    ;;
+            esac
+            printf '  %s API logs (%s): %s\n' "$api_icon" "$api_step" "$api_message"
+            if [[ "$api_type" != "info" ]]; then
+                echo "     • Investigate: vrooli scenario logs $scenario_name --step $api_step"
+            fi
+        fi
+
+        if [[ -n "$ui_event" ]]; then
+            local ui_type ui_message ui_step ui_icon
+            ui_type=$(echo "$ui_event" | jq -r '.type // "info"')
+            ui_message=$(echo "$ui_event" | jq -r '.message // ""')
+            ui_step=$(echo "$ui_event" | jq -r '.step // "start-ui"')
+            case "$ui_type" in
+                error)
+                    ui_icon="🔴"
+                    ;;
+                warning)
+                    ui_icon="⚠️"
+                    ;;
+                *)
+                    ui_icon="ℹ️"
+                    ;;
+            esac
+            printf '  %s UI logs (%s): %s\n' "$ui_icon" "$ui_step" "$ui_message"
+            if [[ "$ui_type" != "info" ]]; then
+                echo "     • Investigate: vrooli scenario logs $scenario_name --step $ui_step"
+            fi
+        fi
+
+        echo ""
     fi
 }
 

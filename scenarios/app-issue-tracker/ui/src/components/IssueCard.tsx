@@ -1,11 +1,20 @@
 import { useEffect, useRef } from 'react';
 import type { DragEvent, KeyboardEventHandler, MouseEvent, PointerEvent, TouchEvent } from 'react';
 import { Archive, Brain, CalendarClock, GripVertical, Hash, Tag, Trash2, AlertCircle, StopCircle } from 'lucide-react';
-import { Issue } from '../data/sampleData';
+import type { Issue } from '../types/issue';
+import { MANUAL_FAILURE_REASON_LABELS, type ManualFailureReason } from '../types/issue';
 import { formatDistanceToNow } from '../utils/date';
 import { toTitleCase } from '../utils/string';
 
 const TOUCH_MOVE_THRESHOLD = 14;
+
+// Extended HTMLDivElement interface for drag-and-drop data attributes
+interface DraggableCardElement extends HTMLDivElement {
+  dataset: DOMStringMap & {
+    mouseDragState?: 'pending' | 'active';
+    preventClick?: 'true' | 'false';
+  };
+}
 
 // Extract a concise error summary from investigation report
 function extractErrorSummary(report: string): string | null {
@@ -84,8 +93,11 @@ export function IssueCard({
 
   const isRunning = !!runningProcess;
   const isFailed = issue.status === 'failed';
-  // Check multiple error sources: metadata.extra.agent_last_error first, then investigation.report
+  // Check multiple error sources: manual failure reason first (with label), then agent_last_error, then investigation.report
   const errorMessage = isFailed && (
+    (issue.manual_review?.marked_as_failed && issue.manual_review?.failure_reason
+      ? MANUAL_FAILURE_REASON_LABELS[issue.manual_review.failure_reason as ManualFailureReason] || issue.manual_review.failure_reason
+      : null) ||
     issue.metadata?.extra?.agent_last_error ||
     (issue.investigation?.report && extractErrorSummary(issue.investigation.report))
   );
@@ -109,7 +121,7 @@ export function IssueCard({
       return;
     }
     // Check if drag just happened
-    if (cardRef.current && (cardRef.current as any).dataset.preventClick === 'true') {
+    if (cardRef.current && (cardRef.current as DraggableCardElement).dataset.preventClick === 'true') {
       return;
     }
     onSelect?.(issue.id);
@@ -148,20 +160,20 @@ export function IssueCard({
   };
 
   const handleDragStartInternal = (event: DragEvent<HTMLDivElement>) => {
-    const card = cardRef.current;
-    if (!card || (card as any).dataset.mouseDragState !== 'pending') {
+    const card = cardRef.current as DraggableCardElement | null;
+    if (!card || card.dataset.mouseDragState !== 'pending') {
       event.preventDefault();
       return;
     }
-    (card as any).dataset.mouseDragState = 'active';
+    card.dataset.mouseDragState = 'active';
     onDragStart?.(issue, event);
   };
 
   const handleDragEndInternal = (event: DragEvent<HTMLDivElement>) => {
-    const card = cardRef.current;
+    const card = cardRef.current as DraggableCardElement | null;
     if (card) {
-      delete (card as any).dataset.mouseDragState;
-      (card as any).draggable = false;
+      delete card.dataset.mouseDragState;
+      card.draggable = false;
     }
     onDragEnd?.(issue, event);
   };
@@ -184,7 +196,7 @@ export function IssueCard({
 
     // Mouse drag: enable native drag
     if (event.pointerType !== 'touch') {
-      const card = cardRef.current as any;
+      const card = cardRef.current as DraggableCardElement;
       card.dataset.mouseDragState = 'pending';
       card.draggable = true;
 

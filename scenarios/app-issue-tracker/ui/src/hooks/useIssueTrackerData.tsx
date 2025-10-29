@@ -8,7 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { AgentSettings, DashboardStats, Issue, IssueStatus, ProcessorSettings } from '../data/sampleData';
+import type { Issue, IssueStatus } from '../types/issue';
+import type { AgentSettings, DashboardStats, ProcessorSettings } from '../data/sampleData';
 import {
   fetchIssueStats,
   fetchProcessorState,

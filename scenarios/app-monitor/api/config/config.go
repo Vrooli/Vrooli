@@ -88,7 +88,7 @@ func LoadConfig() (*Config, error) {
 			RetryBackoffMax:   getDurationEnv("DB_RETRY_BACKOFF_MAX", 30*time.Second),
 		},
 		Redis: RedisConfig{
-			URL:             getEnv("REDIS_URL", ""),
+			URL:             buildRedisURL(),
 			MaxRetries:      getIntEnv("REDIS_MAX_RETRIES", 3),
 			MinRetryBackoff: getDurationEnv("REDIS_MIN_RETRY_BACKOFF", 8*time.Millisecond),
 			MaxRetryBackoff: getDurationEnv("REDIS_MAX_RETRY_BACKOFF", 512*time.Millisecond),
@@ -296,6 +296,23 @@ func buildPostgresURL() string {
 	if host != "" && port != "" && user != "" && password != "" && dbName != "" {
 		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			user, password, host, port, dbName)
+	}
+
+	return ""
+}
+
+func buildRedisURL() string {
+	// First check for complete URL
+	if url := os.Getenv("REDIS_URL"); url != "" {
+		return url
+	}
+
+	// Try to build from individual components
+	host := os.Getenv("REDIS_HOST")
+	port := os.Getenv("REDIS_PORT")
+
+	if host != "" && port != "" {
+		return fmt.Sprintf("redis://%s:%s", host, port)
 	}
 
 	return ""

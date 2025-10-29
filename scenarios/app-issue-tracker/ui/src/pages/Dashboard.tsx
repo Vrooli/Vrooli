@@ -3,9 +3,12 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  CircleSlash,
   Clock3,
   Flame,
   TrendingUp,
+  XCircle,
+  AlertOctagon,
 } from 'lucide-react';
 import {
   BarElement,
@@ -17,7 +20,9 @@ import {
   Tooltip,
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
-import { AgentSettings, DashboardStats, Issue, ProcessorSettings } from '../data/sampleData';
+import type { Issue } from '../types/issue';
+import type { AgentSettings, DashboardStats, ProcessorSettings } from '../data/sampleData';
+import { MANUAL_FAILURE_REASON_LABELS, type ManualFailureReason } from '../types/issue';
 import { StatsCard } from '../components/StatsCard';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -99,6 +104,67 @@ export function Dashboard({
     [],
   );
 
+  // Failure breakdown chart
+  const failureBreakdownData = useMemo(() => {
+    if (!stats.failureReasonsBreakdown || Object.keys(stats.failureReasonsBreakdown).length === 0) {
+      return null;
+    }
+
+    const formatReasonLabel = (reason: string): string => {
+      // Check if it's a manual failure reason
+      if (reason in MANUAL_FAILURE_REASON_LABELS) {
+        return MANUAL_FAILURE_REASON_LABELS[reason as ManualFailureReason];
+      }
+      // Format auto-failure reasons
+      return reason
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    };
+
+    const entries = Object.entries(stats.failureReasonsBreakdown).sort(([, a], [, b]) => b - a);
+    const labels = entries.map(([reason]) => formatReasonLabel(reason));
+    const values = entries.map(([, count]) => count);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Failure Count',
+          data: values,
+          backgroundColor: '#ef4444',
+          borderRadius: 6,
+          barThickness: 28,
+        },
+      ],
+    };
+  }, [stats.failureReasonsBreakdown]);
+
+  const failureBreakdownOptions = useMemo(
+    () => ({
+      indexAxis: 'y' as const,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context: any) => `${context.parsed.x} failure${context.parsed.x !== 1 ? 's' : ''}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { precision: 0 },
+          grid: { display: true },
+        },
+        y: { grid: { display: false } },
+      },
+    }),
+    [],
+  );
+
   const recentIssues = useMemo(
     () =>
       issues
@@ -160,6 +226,55 @@ export function Dashboard({
           onClick={onOpenIssues}
         />
       </section>
+
+      {(stats.manualFailures !== undefined || stats.autoFailures !== undefined) && (
+        <section className="stats-grid" style={{ marginTop: '24px' }}>
+          {stats.manualFailures !== undefined && (
+            <StatsCard
+              title="Manual Failures"
+              value={stats.manualFailures}
+              subtitle="Incorrectly marked complete"
+              icon={XCircle}
+              tone="danger"
+              onClick={onOpenIssues}
+            />
+          )}
+          {stats.autoFailures !== undefined && (
+            <StatsCard
+              title="Auto Failures"
+              value={stats.autoFailures}
+              subtitle="Agent execution errors"
+              icon={CircleSlash}
+              tone="danger"
+              onClick={onOpenIssues}
+            />
+          )}
+          {stats.manualFailures !== undefined && stats.autoFailures !== undefined && (
+            <StatsCard
+              title="Total Failures"
+              value={stats.manualFailures + stats.autoFailures}
+              subtitle="All failure types"
+              icon={AlertOctagon}
+              tone="danger"
+              onClick={onOpenIssues}
+            />
+          )}
+        </section>
+      )}
+
+      {failureBreakdownData && (
+        <section className="chart-row" style={{ marginTop: '24px' }}>
+          <div className="chart-card" style={{ gridColumn: '1 / -1' }}>
+            <header>
+              <h3>Failure Breakdown by Type</h3>
+              <AlertOctagon size={16} />
+            </header>
+            <div className="chart-wrapper" style={{ minHeight: '280px' }}>
+              <Bar options={failureBreakdownOptions} data={failureBreakdownData} />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="chart-row">
         <div className="chart-card">

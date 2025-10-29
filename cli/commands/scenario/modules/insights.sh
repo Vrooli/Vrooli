@@ -30,18 +30,120 @@ scenario::insights::collect_data() {
     local service_json
     service_json=$(scenario::insights::find_service_json "$scenario_path")
 
-    local stack_json resources_json packages_json lifecycle_json
+    local stack_json resources_json packages_json lifecycle_json metadata_json documentation_json health_config_json
     stack_json=$(scenario::insights::collect_stack_data "$scenario_path" "$service_json")
     resources_json=$(scenario::insights::collect_resource_data "$scenario_name" "$service_json")
     packages_json=$(scenario::insights::collect_workspace_packages "$scenario_path")
     lifecycle_json=$(scenario::insights::collect_lifecycle_data "$service_json")
+    metadata_json=$(scenario::insights::collect_metadata "$scenario_name" "$service_json")
+    documentation_json=$(scenario::insights::collect_documentation "$scenario_name")
+    health_config_json=$(scenario::insights::collect_health_config "$service_json")
 
     jq -n \
         --argjson stack "$stack_json" \
         --argjson resources "$resources_json" \
         --argjson packages "$packages_json" \
         --argjson lifecycle "$lifecycle_json" \
-        '{stack: $stack, resources: $resources, packages: $packages, lifecycle: $lifecycle}'
+        --argjson metadata "$metadata_json" \
+        --argjson documentation "$documentation_json" \
+        --argjson health_config "$health_config_json" \
+        '{stack: $stack, resources: $resources, packages: $packages, lifecycle: $lifecycle, metadata: $metadata, documentation: $documentation, health_config: $health_config}'
+}
+
+# Collect high-level metadata (display name, description, tags)
+scenario::insights::collect_metadata() {
+    local scenario_name="$1"
+    local service_json="$2"
+
+    local display_name=""
+    local description=""
+    local tags_json='[]'
+
+    if [[ -n "$service_json" ]] && [[ -f "$service_json" ]]; then
+        display_name=$(jq -r '.service.displayName // .service.display_name // ""' "$service_json" 2>/dev/null || echo "")
+        description=$(jq -r '.service.description // ""' "$service_json" 2>/dev/null || echo "")
+        tags_json=$(jq -c '.service.tags // []' "$service_json" 2>/dev/null || echo '[]')
+    fi
+
+    # Fallback to scenario id if no display name defined
+    if [[ -z "$display_name" ]]; then
+        display_name="$scenario_name"
+    fi
+
+    jq -n \
+        --arg display_name "$display_name" \
+        --arg description "$description" \
+        --argjson tags "$tags_json" \
+        '{display_name: $display_name, description: (if $description == "" then null else $description end), tags: $tags}'
+}
+
+# Collect documentation and runbook references
+scenario::insights::collect_documentation() {
+    local scenario_name="$1"
+    local scenario_rel_path="scenarios/${scenario_name}"
+
+    local docs='[]'
+    local base_dir
+    base_dir="${APP_ROOT:-$(pwd -P)}"
+    base_dir="${base_dir%/}"
+
+    local readme_path="${scenario_rel_path}/README.md"
+    local readme_abs="${base_dir}/${readme_path}"
+    if [[ -f "${base_dir}/${readme_path}" ]]; then
+        docs=$(echo "$docs" | jq --arg label "README" --arg path "$readme_path" --arg abs "$readme_abs" '. += [{label: $label, path: $path, absolute_path: $abs, exists: true}]')
+    else
+        docs=$(echo "$docs" | jq --arg label "README" --arg path "$readme_path" --arg abs "$readme_abs" '. += [{label: $label, path: $path, absolute_path: $abs, exists: false, suggestion: "Create a project README summarizing business value and setup."}]')
+    fi
+
+    local prd_path="${scenario_rel_path}/PRD.md"
+    local prd_abs="${base_dir}/${prd_path}"
+    if [[ -f "${base_dir}/${prd_path}" ]]; then
+        docs=$(echo "$docs" | jq --arg label "PRD" --arg path "$prd_path" --arg abs "$prd_abs" '. += [{label: $label, path: $path, absolute_path: $abs, exists: true}]')
+    else
+        docs=$(echo "$docs" | jq --arg label "PRD" --arg path "$prd_path" --arg abs "$prd_abs" '. += [{label: $label, path: $path, absolute_path: $abs, exists: false, suggestion: "Document product requirements in PRD.md to clarify acceptance criteria."}]')
+    fi
+
+    local playbook_path="${scenario_rel_path}/RUNBOOK.md"
+    local playbook_abs="${base_dir}/${playbook_path}"
+    if [[ -f "${base_dir}/${playbook_path}" ]]; then
+        docs=$(echo "$docs" | jq --arg label "Runbook" --arg path "$playbook_path" --arg abs "$playbook_abs" '. += [{label: $label, path: $path, absolute_path: $abs, exists: true}]')
+    fi
+
+    jq -n --argjson docs "$docs" '{items: $docs}'
+}
+
+# Summarize health configuration coverage from service.json
+scenario::insights::collect_health_config() {
+    local service_json="$1"
+
+    if [[ -z "$service_json" ]] || [[ ! -f "$service_json" ]]; then
+        echo '{"present":false,"description":null,"endpoints":{},"missing_core_endpoints":["api","ui"],"checks":{"count":0,"critical":0,"items":[]}}'
+        return 0
+    fi
+
+    local config_raw
+    config_raw=$(jq -c '(.lifecycle.health // .health // null)' "$service_json" 2>/dev/null || echo "null")
+
+    if [[ -z "$config_raw" ]] || [[ "$config_raw" == "null" ]]; then
+        echo '{"present":false,"description":null,"endpoints":{},"missing_core_endpoints":["api","ui"],"checks":{"count":0,"critical":0,"items":[]}}'
+        return 0
+    fi
+
+    echo "$config_raw" | jq -c '
+        def safe_checks: (.checks // []);
+        def endpoint_keys: ((.endpoints // {}) | keys);
+        {
+            present: true,
+            description: (.description // null),
+            endpoints: (.endpoints // {}),
+            missing_core_endpoints: (["api","ui"] - endpoint_keys),
+            checks: {
+                count: (safe_checks | length),
+                critical: (safe_checks | map(select(.critical == true)) | length),
+                items: (safe_checks | map({name: (.name // null), type: (.type // null), target: (.target // null), critical: (.critical // false)}))
+            }
+        }
+    '
 }
 
 # Build tech stack metadata
@@ -388,6 +490,134 @@ scenario::insights::collect_lifecycle_data() {
 }
 
 # Display helpers ------------------------------------------------------------
+
+scenario::insights::display_metadata() {
+    local insights_json="$1"
+    local scenario_name="$2"
+
+    local metadata_json
+    metadata_json=$(echo "$insights_json" | jq -c '.metadata // {}' 2>/dev/null || echo '{}')
+
+    if [[ "$metadata_json" == "{}" ]]; then
+        return 0
+    fi
+
+    local display_name description tags joined_tags
+    display_name=$(echo "$metadata_json" | jq -r '.display_name // ""')
+    description=$(echo "$metadata_json" | jq -r '.description // ""')
+    joined_tags=$(echo "$metadata_json" | jq -r 'if (.tags // [] | length) > 0 then (.tags | join(", ")) else "" end')
+
+    # Avoid repeating scenario id if nothing custom is provided
+    if [[ "$display_name" == "$scenario_name" ]] && [[ -z "$description" ]] && [[ -n "$joined_tags" ]]; then
+        :
+    fi
+
+    if [[ "$display_name" == "$scenario_name" ]] && [[ -z "$description" ]] && [[ -z "$joined_tags" ]]; then
+        return 0
+    fi
+
+    echo "Profile:"
+    if [[ -n "$display_name" ]] && [[ "$display_name" != "$scenario_name" ]]; then
+        printf '  Name: %s\n' "$display_name"
+    fi
+    if [[ -n "$description" ]]; then
+        echo "  Description:"
+        echo "$description" | fold -s -w 72 | sed 's/^/    /'
+    fi
+    if [[ -n "$joined_tags" ]]; then
+        printf '  Tags: %s\n' "$joined_tags"
+    fi
+    echo ""
+}
+
+scenario::insights::display_documentation() {
+    local insights_json="$1"
+    local docs_json
+    docs_json=$(echo "$insights_json" | jq -c '.documentation.items // []' 2>/dev/null || echo '[]')
+
+    local doc_count
+    doc_count=$(echo "$docs_json" | jq 'length' 2>/dev/null || echo 0)
+    if [[ "$doc_count" -eq 0 ]]; then
+        return 0
+    fi
+
+    echo "Docs & Runbooks:"
+    echo "$docs_json" | jq -c '.[]' | while read -r doc; do
+        local label path absolute exists suggestion
+        label=$(echo "$doc" | jq -r '.label')
+        path=$(echo "$doc" | jq -r '.path')
+        absolute=$(echo "$doc" | jq -r '.absolute_path // ""')
+        exists=$(echo "$doc" | jq -r '.exists')
+        suggestion=$(echo "$doc" | jq -r '.suggestion // ""')
+
+        local path_display
+        if [[ -n "$absolute" ]]; then
+            path_display="$absolute"
+        else
+            local base_dir="${APP_ROOT:-$(pwd)}"
+            base_dir="${base_dir%/}"
+            path_display="${base_dir}/${path}"
+        fi
+
+        if [[ "$exists" == "true" ]]; then
+            printf '  ✅ %s: %s\n' "$label" "$path_display"
+        else
+            printf '  ⚠️  %s missing — expected at %s\n' "$label" "$path_display"
+            if [[ -n "$suggestion" ]]; then
+                echo "     • $suggestion"
+            fi
+        fi
+    done
+    echo ""
+}
+
+scenario::insights::display_health_config() {
+    local insights_json="$1"
+    local coverage_json
+    coverage_json=$(echo "$insights_json" | jq -c '.health_config // {}' 2>/dev/null || echo '{}')
+
+    if [[ "$coverage_json" == "{}" ]]; then
+        return 0
+    fi
+
+    local present
+    present=$(echo "$coverage_json" | jq -r '.present // false')
+
+    echo "Health Config:"
+    if [[ "$present" != "true" ]]; then
+        echo "  ⚠️  No health configuration defined in .vrooli/service.json"
+        echo "     • Add lifecycle.health endpoints so diagnostics stay reliable"
+        echo ""
+        return 0
+    fi
+
+    local check_count critical_count
+    check_count=$(echo "$coverage_json" | jq -r '.checks.count // 0')
+    critical_count=$(echo "$coverage_json" | jq -r '.checks.critical // 0')
+    printf '  Coverage: ✅ defined (%s checks, %s critical)\n' "$check_count" "$critical_count"
+
+    local description
+    description=$(echo "$coverage_json" | jq -r '.description // ""')
+    if [[ -n "$description" ]]; then
+        echo "  Purpose:"
+        echo "$description" | fold -s -w 72 | sed 's/^/    /'
+    fi
+
+    local endpoints_json
+    endpoints_json=$(echo "$coverage_json" | jq -c '.endpoints // {}')
+    if [[ "$endpoints_json" != "{}" ]]; then
+        echo "  Endpoints:"
+        echo "$endpoints_json" | jq -r 'to_entries[] | "    • " + .key + " → " + (.value // "")'
+    fi
+
+    local missing_core
+    missing_core=$(echo "$coverage_json" | jq -r '(.missing_core_endpoints // []) | join(", ")')
+    if [[ -n "$missing_core" ]]; then
+        echo "  ⚠️  Missing core endpoints: $missing_core"
+    fi
+
+    echo ""
+}
 
 scenario::insights::display_stack() {
     local insights_json="$1"

@@ -28,11 +28,13 @@ import {
   User,
   X,
 } from 'lucide-react';
-import type { Issue, IssueAttachment, IssueStatus } from '../data/sampleData';
+import type { Issue, IssueAttachment, IssueStatus } from '../types/issue';
+import { MANUAL_FAILURE_REASONS, MANUAL_FAILURE_REASON_LABELS, type ManualFailureReason } from '../types/issue';
 import { formatDistanceToNow as formatRelativeDistance } from '../utils/date';
 import { formatFileSize } from '../utils/files';
 import { toTitleCase } from '../utils/string';
 import { getFallbackStatuses } from '../utils/issues';
+import { updateIssue } from '../services/issues';
 import { Modal } from './Modal';
 
 interface AgentConversationEntryPayload {
@@ -134,6 +136,9 @@ export function IssueDetailsModal({
   const [archivePending, setArchivePending] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [manualFailureReason, setManualFailureReason] = useState<string>('');
+  const [manualFailureNotes, setManualFailureNotes] = useState<string>('');
+  const [markingAsFailed, setMarkingAsFailed] = useState(false);
   const fetchAbortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -259,6 +264,41 @@ export function IssueDetailsModal({
     const newStatus = event.target.value as IssueStatus;
     if (newStatus !== issue.status && onStatusChange) {
       await onStatusChange(issue.id, newStatus);
+    }
+  };
+
+  const handleMarkAsFailed = async () => {
+    if (!manualFailureReason.trim()) {
+      return;
+    }
+
+    setMarkingAsFailed(true);
+    try {
+      await updateIssue(apiBaseUrl, {
+        issueId: issue.id,
+        status: 'failed',
+        manual_review: {
+          marked_as_failed: true,
+          failure_reason: manualFailureReason,
+          reviewed_by: 'manual-reviewer',
+          reviewed_at: new Date().toISOString(),
+          review_notes: manualFailureNotes.trim() || undefined,
+          original_status: issue.status,
+        },
+      });
+
+      // Reset form
+      setManualFailureReason('');
+      setManualFailureNotes('');
+
+      // Trigger status change callback to refresh issue
+      if (onStatusChange) {
+        await onStatusChange(issue.id, 'failed');
+      }
+    } catch (error) {
+      console.error('[IssueTracker] Failed to mark issue as failed:', error);
+    } finally {
+      setMarkingAsFailed(false);
     }
   };
 
@@ -701,6 +741,168 @@ export function IssueDetailsModal({
                           <div className="investigation-report-body">
                             <MarkdownView content={issue.investigation.report} />
                           </div>
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })()}
+
+                {issue.status === 'completed' && !issue.manual_review?.marked_as_failed && (() => {
+                  const { headingId, contentId } = buildSectionIds('manual-review-form');
+                  const collapsed = isSectionCollapsed('manual-review-form');
+
+                  return (
+                    <section
+                      className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                      aria-labelledby={headingId}
+                    >
+                      <div className="issue-section-heading">
+                        <div className="issue-section-title">
+                          <h3 id={headingId}>Mark as Manual Failure</h3>
+                        </div>
+                        <button
+                          type="button"
+                          className="issue-section-toggle"
+                          onClick={() => handleToggleSection('manual-review-form')}
+                          aria-expanded={!collapsed}
+                          aria-controls={contentId}
+                          aria-label={collapsed ? 'Expand manual failure form' : 'Collapse manual failure form'}
+                          title={collapsed ? 'Expand manual failure form' : 'Collapse manual failure form'}
+                        >
+                          <ChevronDown
+                            size={16}
+                            className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                          />
+                        </button>
+                      </div>
+                      <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                        <div className="manual-review-form">
+                          <p className="manual-review-description">
+                            If the agent marked this as completed but didn't actually complete the task, you can manually mark it as failed to track it in metrics.
+                          </p>
+                          <div className="form-field">
+                            <label htmlFor="failure-reason-select" className="form-label">
+                              Failure Reason <span className="form-required">*</span>
+                            </label>
+                            <select
+                              id="failure-reason-select"
+                              className="form-select"
+                              value={manualFailureReason}
+                              onChange={(e) => setManualFailureReason(e.target.value)}
+                              disabled={markingAsFailed}
+                            >
+                              <option value="">Select a reason...</option>
+                              {MANUAL_FAILURE_REASONS.map((reason) => (
+                                <option key={reason} value={reason}>
+                                  {MANUAL_FAILURE_REASON_LABELS[reason]}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="form-field">
+                            <label htmlFor="failure-notes-textarea" className="form-label">
+                              Additional Notes (optional)
+                            </label>
+                            <textarea
+                              id="failure-notes-textarea"
+                              className="form-textarea"
+                              rows={3}
+                              placeholder="Provide additional context about why this was marked as failed..."
+                              value={manualFailureNotes}
+                              onChange={(e) => setManualFailureNotes(e.target.value)}
+                              disabled={markingAsFailed}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-mark-failed"
+                            onClick={handleMarkAsFailed}
+                            disabled={!manualFailureReason.trim() || markingAsFailed}
+                          >
+                            {markingAsFailed ? (
+                              <>
+                                <Loader2 size={14} className="button-spinner" />
+                                Marking as Failed...
+                              </>
+                            ) : (
+                              <>
+                                <AlertCircle size={14} />
+                                Mark as Failed
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })()}
+
+                {issue.manual_review?.marked_as_failed && (() => {
+                  const { headingId, contentId } = buildSectionIds('manual-review-display');
+                  const collapsed = isSectionCollapsed('manual-review-display');
+
+                  return (
+                    <section
+                      className={`issue-detail-section${collapsed ? ' is-collapsed' : ''}`}
+                      aria-labelledby={headingId}
+                    >
+                      <div className="issue-section-heading">
+                        <div className="issue-section-title">
+                          <h3 id={headingId}>Manual Review</h3>
+                        </div>
+                        <button
+                          type="button"
+                          className="issue-section-toggle"
+                          onClick={() => handleToggleSection('manual-review-display')}
+                          aria-expanded={!collapsed}
+                          aria-controls={contentId}
+                          aria-label={collapsed ? 'Expand manual review details' : 'Collapse manual review details'}
+                          title={collapsed ? 'Expand manual review details' : 'Collapse manual review details'}
+                        >
+                          <ChevronDown
+                            size={16}
+                            className={`issue-section-toggle-icon${!collapsed ? ' is-open' : ''}`}
+                          />
+                        </button>
+                      </div>
+                      <div id={contentId} className="issue-section-content" hidden={collapsed}>
+                        <div className="manual-review-display">
+                          <div className="manual-review-header">
+                            <AlertCircle size={16} />
+                            <span className="manual-review-status">Manually Marked as Failed</span>
+                          </div>
+                          {issue.manual_review.failure_reason && (
+                            <div className="manual-review-field">
+                              <strong>Reason:</strong>
+                              <span>
+                                {MANUAL_FAILURE_REASON_LABELS[issue.manual_review.failure_reason as ManualFailureReason] || issue.manual_review.failure_reason}
+                              </span>
+                            </div>
+                          )}
+                          {issue.manual_review.review_notes && (
+                            <div className="manual-review-field">
+                              <strong>Notes:</strong>
+                              <p>{issue.manual_review.review_notes}</p>
+                            </div>
+                          )}
+                          {issue.manual_review.reviewed_by && (
+                            <div className="manual-review-field">
+                              <strong>Reviewed By:</strong>
+                              <span>{issue.manual_review.reviewed_by}</span>
+                            </div>
+                          )}
+                          {issue.manual_review.reviewed_at && (
+                            <div className="manual-review-field">
+                              <strong>Reviewed At:</strong>
+                              <span>{formatDateTime(issue.manual_review.reviewed_at)}</span>
+                            </div>
+                          )}
+                          {issue.manual_review.original_status && (
+                            <div className="manual-review-field">
+                              <strong>Original Status:</strong>
+                              <span>{toTitleCase(issue.manual_review.original_status)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </section>

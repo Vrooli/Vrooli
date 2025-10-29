@@ -1,16 +1,15 @@
-import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Clock, Construction } from 'lucide-react';
-import type { IssueStatus } from '../data/sampleData';
+import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Construction, type LucideIcon } from 'lucide-react';
+import type { IssueStatus } from '../types/issue';
 import { formatStatusLabel } from '../utils/issues';
 
 export interface ColumnDefinition {
   title: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
 }
 
 const BASE_COLUMNS: Record<string, ColumnDefinition> = {
   open: { title: 'Open', icon: AlertTriangle },
   active: { title: 'Active', icon: Construction },
-  waiting: { title: 'Waiting', icon: Clock },
   completed: { title: 'Completed', icon: CheckCircle2 },
   failed: { title: 'Failed', icon: CircleSlash },
   archived: { title: 'Archived', icon: ArchiveRestore },
@@ -28,4 +27,4 @@ export function getIssueStatusColumn(status: IssueStatus): ColumnDefinition {
   } satisfies ColumnDefinition;
 }
 
-export const DEFAULT_BOARD_STATUS_ORDER: IssueStatus[] = ['open', 'active', 'waiting', 'completed', 'failed', 'archived'];
+export const DEFAULT_BOARD_STATUS_ORDER: IssueStatus[] = ['open', 'active', 'completed', 'failed', 'archived'];

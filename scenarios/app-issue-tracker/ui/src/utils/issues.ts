@@ -1,53 +1,21 @@
-import { DashboardStats, Issue, IssueStatus, Priority } from '../data/sampleData';
+import type { Issue, IssueStatus, Priority } from '../types/issue';
+import type { DashboardStats } from '../data/sampleData';
+import type { ApiIssue } from '../types/events';
 
-export interface ApiAttachment {
-  name?: string;
-  type?: string;
-  path?: string;
-  size?: number;
-  category?: string;
-  description?: string;
-}
-
-export interface ApiIssue {
-  id: string;
-  title: string;
-  description?: string;
-  notes?: string;
-  priority?: string;
-  app_id?: string;
-  status?: string;
-  metadata?: {
-    created_at?: string;
-    updated_at?: string;
-    resolved_at?: string;
-    tags?: string[];
-    labels?: Record<string, string>;
-    extra?: Record<string, string>;
-  };
-  reporter?: {
-    name?: string;
-    email?: string;
-    timestamp?: string;
-  };
-  investigation?: {
-    agent_id?: string;
-    report?: string;
-    confidence_score?: number;
-    started_at?: string;
-    completed_at?: string;
-  };
-  attachments?: ApiAttachment[];
-}
+// Re-export ApiIssue from types/events for backward compatibility
+export type { ApiIssue };
 
 export interface ApiStatsPayload {
   totalIssues?: number;
   openIssues?: number;
   inProgress?: number;
   completedToday?: number;
+  manualFailures?: number;
+  autoFailures?: number;
+  failureReasonsBreakdown?: Record<string, number>;
 }
 
-const FALLBACK_STATUSES: IssueStatus[] = ['open', 'active', 'waiting', 'completed', 'failed', 'archived'];
+const FALLBACK_STATUSES: IssueStatus[] = ['open', 'active', 'completed', 'failed', 'archived'];
 
 let validStatuses: IssueStatus[] = [...FALLBACK_STATUSES];
 
@@ -192,6 +160,7 @@ export function buildStatusTrend(issues: Issue[]): DashboardStats['statusTrend']
 }
 
 export function buildDashboardStats(issues: Issue[], apiStats?: ApiStatsPayload | null): DashboardStats {
+  // Priority breakdown and status trend are UI-specific calculations based on currently loaded issues
   const priorityBreakdown: DashboardStats['priorityBreakdown'] = {
     Critical: 0,
     High: 0,
@@ -203,23 +172,15 @@ export function buildDashboardStats(issues: Issue[], apiStats?: ApiStatsPayload 
     priorityBreakdown[issue.priority] = (priorityBreakdown[issue.priority] ?? 0) + 1;
   });
 
-  const openStatuses: IssueStatus[] = ['open'];
-  const todayKey = new Date().toISOString().slice(0, 10);
-
-  const totalsFromIssues = {
-    total: issues.length,
-    open: issues.filter((issue) => openStatuses.includes(issue.status)).length,
-    inProgress: issues.filter((issue) => issue.status === 'active').length,
-    completedToday: issues.filter(
-      (issue) => issue.status === 'completed' && getDateKey(issue.resolvedAt) === todayKey,
-    ).length,
-  };
-
+  // All other stats come from the API which has the full dataset
   return {
-    totalIssues: apiStats?.totalIssues ?? totalsFromIssues.total,
-    openIssues: apiStats?.openIssues ?? totalsFromIssues.open,
-    inProgress: apiStats?.inProgress ?? totalsFromIssues.inProgress,
-    completedToday: apiStats?.completedToday ?? totalsFromIssues.completedToday,
+    totalIssues: apiStats?.totalIssues ?? 0,
+    openIssues: apiStats?.openIssues ?? 0,
+    inProgress: apiStats?.inProgress ?? 0,
+    completedToday: apiStats?.completedToday ?? 0,
+    manualFailures: apiStats?.manualFailures,
+    autoFailures: apiStats?.autoFailures,
+    failureReasonsBreakdown: apiStats?.failureReasonsBreakdown,
     priorityBreakdown,
     statusTrend: buildStatusTrend(issues),
   };
@@ -389,6 +350,7 @@ export function transformIssue(raw: ApiIssue, options: TransformIssueOptions): I
     notes: notes || undefined,
     metadata: raw.metadata,
     investigation: raw.investigation,
+    manual_review: raw.manual_review,
   };
 }
 

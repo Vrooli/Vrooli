@@ -111,7 +111,8 @@ export function useProcessorSettingsManager({
         setIssuesProcessed(payload.issues_processed as number);
       }
       if (payload.issues_remaining !== undefined) {
-        setIssuesRemaining(payload.issues_remaining ?? 'unlimited');
+        const remaining = payload.issues_remaining;
+        setIssuesRemaining(typeof remaining === 'number' || typeof remaining === 'string' ? remaining : 'unlimited');
       }
       clearProcessorError();
     },

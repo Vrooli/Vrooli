@@ -1,9 +1,24 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { DragEvent, TouchEvent } from 'react';
 import { EyeOff } from 'lucide-react';
-import { Issue, IssueStatus } from '../data/sampleData';
+import type { Issue, IssueStatus } from '../types/issue';
 import { IssueCard } from '../components/IssueCard';
 import { getIssueStatusColumn, DEFAULT_BOARD_STATUS_ORDER } from '../constants/board';
+
+// Proper type for pointer drag state
+interface PointerDragState {
+  pointerId: number;
+  issueId: string;
+  fromStatus: IssueStatus;
+  startX: number;
+  startY: number;
+  offsetX: number;
+  offsetY: number;
+  ghost: HTMLElement | null;
+  dragging: boolean;
+  card: HTMLElement;
+  cleanup?: () => void;
+}
 
 interface IssuesBoardProps {
   issues: Issue[];
@@ -34,17 +49,7 @@ export function IssuesBoard({
 }: IssuesBoardProps) {
   const [dragState, setDragState] = useState<{ issueId: string; from: IssueStatus } | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<IssueStatus | null>(null);
-  const [pointerDragState, setPointerDragState] = useState<{
-    pointerId: number;
-    issueId: string;
-    fromStatus: IssueStatus;
-    startX: number;
-    startY: number;
-    offsetX: number;
-    offsetY: number;
-    ghost: HTMLElement | null;
-    dragging: boolean;
-  } | null>(null);
+  const [pointerDragState, setPointerDragState] = useState<PointerDragState | null>(null);
   const kanbanGridRef = useRef<HTMLDivElement>(null);
   const scrollLockRef = useRef<{ timeout: number | null }>({
     timeout: null,
@@ -302,7 +307,7 @@ export function IssuesBoard({
     const offsetX = event.clientX - rect.left;
     const offsetY = event.clientY - rect.top;
 
-    const state = {
+    const state: PointerDragState = {
       pointerId: event.pointerId,
       issueId: issue.id,
       fromStatus: issue.status,
@@ -315,27 +320,27 @@ export function IssuesBoard({
       card,
     };
 
-    setPointerDragState(state as any);
+    setPointerDragState(state);
 
     card.setPointerCapture?.(event.pointerId);
 
     // Use document listeners like ecosystem-manager
-    const handleDocumentPointerMove = (e: PointerEvent) => handlePointerMoveDocument(e, state as any);
-    const handleDocumentPointerUp = (e: PointerEvent) => handlePointerUpDocument(e, state as any);
+    const handleDocumentPointerMove = (e: PointerEvent) => handlePointerMoveDocument(e, state);
+    const handleDocumentPointerUp = (e: PointerEvent) => handlePointerUpDocument(e, state);
 
     document.addEventListener('pointermove', handleDocumentPointerMove, { passive: false });
     document.addEventListener('pointerup', handleDocumentPointerUp, { passive: false });
     document.addEventListener('pointercancel', handleDocumentPointerUp, { passive: false });
 
     // Store cleanup function
-    (state as any).cleanup = () => {
+    state.cleanup = () => {
       document.removeEventListener('pointermove', handleDocumentPointerMove);
       document.removeEventListener('pointerup', handleDocumentPointerUp);
       document.removeEventListener('pointercancel', handleDocumentPointerUp);
     };
   };
 
-  const handlePointerMoveDocument = (e: PointerEvent, state: any) => {
+  const handlePointerMoveDocument = (e: PointerEvent, state: PointerDragState) => {
     if (!state || e.pointerId !== state.pointerId) {
       return;
     }
@@ -422,7 +427,7 @@ export function IssuesBoard({
     }
   };
 
-  const handlePointerUpDocument = async (e: PointerEvent, state: any) => {
+  const handlePointerUpDocument = async (e: PointerEvent, state: PointerDragState) => {
     if (!state || e.pointerId !== state.pointerId) {
       return;
     }

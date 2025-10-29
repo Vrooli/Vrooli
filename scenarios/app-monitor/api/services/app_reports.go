@@ -39,7 +39,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		return nil, errors.New("issue message is required")
 	}
 
-	primaryDescription := strings.TrimSpace(stringValue(req.PrimaryDescription))
+	primaryDescription := trimmedStringPtr(req.PrimaryDescription)
 	includeDiagnosticsSummary := false
 	if req.IncludeDiagnosticsSummary != nil && *req.IncludeDiagnosticsSummary {
 		includeDiagnosticsSummary = true
@@ -47,8 +47,8 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 
 	reportedAt := s.timeNow().UTC()
 
-	appName := strings.TrimSpace(stringValue(req.AppName))
-	scenarioName := strings.TrimSpace(stringValue(req.ScenarioName))
+	appName := trimmedStringPtr(req.AppName)
+	scenarioName := trimmedStringPtr(req.ScenarioName)
 
 	if app, err := s.GetApp(ctx, appID); err == nil && app != nil {
 		if appName == "" {
@@ -71,7 +71,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		previewURL = normalizePreviewURL(*req.PreviewURL)
 	}
 
-	screenshotData := strings.TrimSpace(stringValue(req.ScreenshotData))
+	screenshotData := trimmedStringPtr(req.ScreenshotData)
 	if screenshotData != "" {
 		if _, err := base64.StdEncoding.DecodeString(screenshotData); err != nil {
 			logger.Warn("invalid screenshot data provided, ignoring", err)
@@ -123,9 +123,9 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		logsTotal = len(req.Logs)
 	}
 
-	logsCapturedAt := strings.TrimSpace(stringValue(req.LogsCapturedAt))
-	consoleCapturedAt := strings.TrimSpace(stringValue(req.ConsoleCapturedAt))
-	networkCapturedAt := strings.TrimSpace(stringValue(req.NetworkCapturedAt))
+	logsCapturedAt := trimmedStringPtr(req.LogsCapturedAt)
+	consoleCapturedAt := trimmedStringPtr(req.ConsoleCapturedAt)
+	networkCapturedAt := trimmedStringPtr(req.NetworkCapturedAt)
 
 	consoleLogs := sanitizeConsoleLogs(req.ConsoleLogs, maxConsoleLogs, maxConsoleTextLength)
 	consoleTotal := valueOrDefault(req.ConsoleLogsTotal, len(req.ConsoleLogs))
@@ -152,14 +152,14 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	if healthTotal <= 0 {
 		healthTotal = len(req.HealthChecks)
 	}
-	healthCapturedAt := strings.TrimSpace(stringValue(req.HealthChecksCapturedAt))
+	healthCapturedAt := trimmedStringPtr(req.HealthChecksCapturedAt)
 
 	statusLines := filterNonEmptyStrings(req.AppStatusLines)
 	if len(statusLines) > maxStatusLines {
 		statusLines = statusLines[len(statusLines)-maxStatusLines:]
 	}
-	statusLabel := strings.TrimSpace(stringValue(req.AppStatusLabel))
-	statusSeverity := strings.ToLower(strings.TrimSpace(stringValue(req.AppStatusSeverity)))
+	statusLabel := trimmedStringPtr(req.AppStatusLabel)
+	statusSeverity := strings.ToLower(trimmedStringPtr(req.AppStatusSeverity))
 	switch statusSeverity {
 	case "", "ok", "warn", "error":
 		// use as-is
@@ -170,11 +170,11 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	default:
 		statusSeverity = "warn"
 	}
-	statusCapturedAt := strings.TrimSpace(stringValue(req.AppStatusCapturedAt))
+	statusCapturedAt := trimmedStringPtr(req.AppStatusCapturedAt)
 
 	includeScreenshot := pageCaptureCount > 0 || screenshotData != ""
 	title := deriveIssueTitle(primaryDescription, message, captures, includeDiagnosticsSummary, includeScreenshot)
-	reportSource := strings.TrimSpace(stringValue(req.Source))
+	reportSource := trimmedStringPtr(req.Source)
 	description := buildIssueDescription(
 		appName,
 		scenarioName,
@@ -470,6 +470,9 @@ func (s *AppService) submitIssueToTracker(ctx context.Context, port int, payload
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call app-issue-tracker: %w", err)
+	}
+	if resp == nil {
+		return nil, errors.New("http client returned nil response without error")
 	}
 	defer resp.Body.Close()
 
@@ -1102,7 +1105,7 @@ func buildIssueTags(scenarioName string) []string {
 	if trimmed := strings.TrimSpace(scenarioName); trimmed != "" {
 		tags = append(tags, trimmed)
 	}
-	return uniqueStrings(tags)
+	return dedupeStrings(tags)
 }
 
 func buildIssueEnvironment(appID, appName, previewURL, source string, reportedAt time.Time) map[string]string {

@@ -100,6 +100,15 @@ type Issue struct {
 
 	Attachments []Attachment `yaml:"attachments,omitempty" json:"attachments,omitempty"`
 
+	ManualReview struct {
+		MarkedAsFailed   bool   `yaml:"marked_as_failed" json:"marked_as_failed"`
+		FailureReason    string `yaml:"failure_reason,omitempty" json:"failure_reason,omitempty"`
+		ReviewedBy       string `yaml:"reviewed_by,omitempty" json:"reviewed_by,omitempty"`
+		ReviewedAt       string `yaml:"reviewed_at,omitempty" json:"reviewed_at,omitempty"`
+		ReviewNotes      string `yaml:"review_notes,omitempty" json:"review_notes,omitempty"`
+		OriginalStatus   string `yaml:"original_status,omitempty" json:"original_status,omitempty"`
+	} `yaml:"manual_review,omitempty" json:"manual_review,omitempty"`
+
 	Metadata struct {
 		CreatedAt  string            `yaml:"created_at" json:"created_at"`
 		UpdatedAt  string            `yaml:"updated_at" json:"updated_at"`
@@ -194,6 +203,15 @@ type UpdateIssueRequest struct {
 		RollbackPlan       *string `json:"rollback_plan"`
 		FixDurationMinutes *int    `json:"fix_duration_minutes"`
 	} `json:"fix"`
+
+	ManualReview *struct {
+		MarkedAsFailed *bool   `json:"marked_as_failed"`
+		FailureReason  *string `json:"failure_reason"`
+		ReviewedBy     *string `json:"reviewed_by"`
+		ReviewedAt     *string `json:"reviewed_at"`
+		ReviewNotes    *string `json:"review_notes"`
+		OriginalStatus *string `json:"original_status"`
+	} `json:"manual_review"`
 
 	Artifacts []ArtifactPayload `json:"artifacts"`
 }

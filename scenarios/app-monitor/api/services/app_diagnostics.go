@@ -17,13 +17,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"app-monitor-api/repository"
 )
 
 // =============================================================================
 // Scenario Status Diagnostics
 // =============================================================================
 
-// GetAppScenarioStatus executes vrooli scenario status --json for detailed diagnostics
+// GetAppScenarioStatus executes vrooli scenario status for detailed diagnostics.
+// Returns the raw, agent-optimized CLI output instead of re-interpreting it.
 func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*AppScenarioStatus, error) {
 	id := strings.TrimSpace(appID)
 	if id == "" {
@@ -46,21 +49,16 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 		scenarioName = id
 	}
 
-	commandIdentifier := sanitizeCommandIdentifier(scenarioName)
-	if commandIdentifier == "" {
-		commandIdentifier = sanitizeCommandIdentifier(app.ID)
-	}
-	if commandIdentifier == "" {
-		commandIdentifier = sanitizeCommandIdentifier(id)
-	}
+	commandIdentifier := resolveScenarioCommandIdentifier(app, id)
 	if commandIdentifier == "" {
 		commandIdentifier = scenarioName
 	}
 
+	// Execute vrooli scenario status WITHOUT --json to get raw, agent-optimized text output
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", commandIdentifier, "--json")
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", commandIdentifier)
 	cmd.Env = append(os.Environ(), "TERM=dumb")
 	output, cmdErr := cmd.CombinedOutput()
 	if cmdErr != nil {
@@ -71,86 +69,60 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 		return nil, fmt.Errorf("failed to execute vrooli scenario status: %w", cmdErr)
 	}
 
-	var resp scenarioStatusCLIResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse scenario status response: %w", err)
-	}
+	// Split raw output into lines for Details field
+	rawOutput := strings.TrimSpace(string(output))
+	details := strings.Split(rawOutput, "\n")
 
-	statusValue := strings.TrimSpace(resp.ScenarioData.Status)
-	if statusValue == "" {
-		statusValue = strings.TrimSpace(resp.RawResponse.Data.Status)
-	}
-	statusLabel, severity := formatScenarioStatusLabel(statusValue)
-	processCount := len(resp.ScenarioData.Processes)
-	if processCount == 0 && severity == ScenarioStatusSeverityOK {
-		severity = ScenarioStatusSeverityWarn
-	}
+	// Also fetch JSON for metadata extraction (ports, severity, etc)
+	cmdJSON := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", commandIdentifier, "--json")
+	cmdJSON.Env = append(os.Environ(), "TERM=dumb")
+	jsonOutput, jsonErr := cmdJSON.CombinedOutput()
 
+	// Default values in case JSON parsing fails
+	statusLabel := "UNKNOWN"
+	severity := ScenarioStatusSeverityWarn
 	ports := make(map[string]int)
-	for key, value := range resp.ScenarioData.AllocatedPorts {
-		ports[strings.ToUpper(strings.TrimSpace(key))] = value
-	}
+	var recs []string
+	capturedAt := s.timeNow().UTC().Format(time.RFC3339)
+	runtime := ""
+	processCount := 0
 
-	details := make([]string, 0, 32)
-	details = append(details, fmt.Sprintf("Scenario: %s", scenarioName))
-	details = append(details, fmt.Sprintf("Status:   %s", statusLabel))
-	if runtime := strings.TrimSpace(resp.ScenarioData.Runtime); runtime != "" {
-		details = append(details, fmt.Sprintf("Runtime:  %s", runtime))
-	}
-	if started := strings.TrimSpace(resp.ScenarioData.StartedAt); started != "" {
-		details = append(details, fmt.Sprintf("Started:  %s", started))
-	}
-	if processCount > 0 {
-		details = append(details, fmt.Sprintf("Processes: %d", processCount))
-	}
+	// Parse JSON if available for structured metadata
+	if jsonErr == nil {
+		cleanJSON, extractErr := extractFirstJSONDocument(jsonOutput)
+		if extractErr == nil {
+			var resp scenarioStatusCLIResponse
+			if err := json.Unmarshal(cleanJSON, &resp); err == nil {
+				statusValue := strings.TrimSpace(resp.ScenarioData.Status)
+				if statusValue == "" {
+					statusValue = strings.TrimSpace(resp.RawResponse.Data.Status)
+				}
+				statusLabel, severity = formatScenarioStatusLabel(statusValue)
+				processCount = len(resp.ScenarioData.Processes)
+				if processCount == 0 && severity == ScenarioStatusSeverityOK {
+					severity = ScenarioStatusSeverityWarn
+				}
 
-	if len(ports) > 0 {
-		keys := make([]string, 0, len(ports))
-		for key := range ports {
-			keys = append(keys, key)
+				for key, value := range resp.ScenarioData.AllocatedPorts {
+					ports[strings.ToUpper(strings.TrimSpace(key))] = value
+				}
+
+				runtime = strings.TrimSpace(resp.ScenarioData.Runtime)
+
+				recs = resp.Recommendations
+				if resp.TestInfrastructure.Overall != nil {
+					recs = append(recs, resp.TestInfrastructure.Overall.Recommendations...)
+					if resp.TestInfrastructure.Overall.Recommendation != "" {
+						recs = append(recs, resp.TestInfrastructure.Overall.Recommendation)
+					}
+				}
+				recs = dedupeStrings(filterNonEmptyStrings(recs))
+
+				if ts := strings.TrimSpace(resp.Metadata.Timestamp); ts != "" {
+					capturedAt = ts
+				}
+			}
 		}
-		sort.Strings(keys)
-		details = append(details, "", "Allocated Ports:")
-		for _, key := range keys {
-			details = append(details, fmt.Sprintf("  %s: %d", key, ports[key]))
-		}
-	}
-
-	healthSeverity, healthLines := summarizeScenarioHealth(resp.Diagnostics.HealthChecks)
-	severity = escalateScenarioSeverity(severity, healthSeverity)
-	if len(healthLines) > 0 {
-		details = append(details, "", "Health Checks:")
-		details = append(details, healthLines...)
-	}
-
-	testSeverity, testLines, testRecs := summarizeScenarioTests(resp.TestInfrastructure)
-	severity = escalateScenarioSeverity(severity, testSeverity)
-	if len(testLines) > 0 {
-		details = append(details, "", "Test Infrastructure:")
-		details = append(details, testLines...)
-	}
-
-	recs := resp.Recommendations
-	if len(testRecs) > 0 {
-		recs = append(recs, testRecs...)
-	}
-	if overall := resp.TestInfrastructure.Overall; overall != nil {
-		recs = append(recs, overall.Recommendations...)
-		if overall.Recommendation != "" {
-			recs = append(recs, overall.Recommendation)
-		}
-	}
-	recs = dedupeStrings(filterNonEmptyStrings(recs))
-	if len(recs) > 0 {
-		details = append(details, "", "Recommendations:")
-		for _, rec := range recs {
-			details = append(details, fmt.Sprintf("  - %s", rec))
-		}
-	}
-
-	capturedAt := strings.TrimSpace(resp.Metadata.Timestamp)
-	if capturedAt == "" {
-		capturedAt = s.timeNow().UTC().Format(time.RFC3339)
 	}
 
 	return &AppScenarioStatus{
@@ -159,12 +131,102 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 		CapturedAt:      capturedAt,
 		StatusLabel:     statusLabel,
 		Severity:        severity,
-		Runtime:         strings.TrimSpace(resp.ScenarioData.Runtime),
+		Runtime:         runtime,
 		ProcessCount:    processCount,
 		Ports:           ports,
 		Recommendations: recs,
 		Details:         details,
 	}, nil
+}
+
+func resolveScenarioCommandIdentifier(app *repository.App, fallback string) string {
+	var candidates []string
+	if app != nil {
+		candidates = append(candidates,
+			sanitizeCommandIdentifier(app.ID),
+			sanitizeCommandIdentifier(app.ScenarioName),
+			sanitizeCommandIdentifier(app.Name),
+		)
+	}
+	candidates = append(candidates, sanitizeCommandIdentifier(fallback))
+
+	for _, candidate := range candidates {
+		if candidate != "" {
+			return candidate
+		}
+	}
+
+	var rawCandidates []string
+	if app != nil {
+		rawCandidates = append(rawCandidates,
+			strings.TrimSpace(app.ID),
+			strings.TrimSpace(app.ScenarioName),
+			strings.TrimSpace(app.Name),
+		)
+	}
+	rawCandidates = append(rawCandidates, strings.TrimSpace(fallback))
+
+	for _, candidate := range rawCandidates {
+		if candidate != "" {
+			return candidate
+		}
+	}
+
+	return ""
+}
+
+func extractFirstJSONDocument(output []byte) ([]byte, error) {
+	trimmed := bytes.TrimSpace(output)
+	if len(trimmed) == 0 {
+		return nil, errors.New("empty response")
+	}
+
+	start := -1
+	for i, b := range trimmed {
+		if b == '{' || b == '[' {
+			start = i
+			break
+		}
+	}
+	if start == -1 {
+		return nil, errors.New("no JSON document found")
+	}
+
+	data := trimmed[start:]
+	depth := 0
+	inString := false
+	escaped := false
+
+	for i, b := range data {
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		if inString {
+			switch b {
+			case '\\':
+				escaped = true
+			case '"':
+				inString = false
+			}
+			continue
+		}
+
+		switch b {
+		case '"':
+			inString = true
+		case '{', '[':
+			depth++
+		case '}', ']':
+			depth--
+			if depth == 0 {
+				return data[:i+1], nil
+			}
+		}
+	}
+
+	return nil, errors.New("incomplete JSON document")
 }
 
 // =============================================================================
@@ -920,7 +982,18 @@ func summarizeScenarioHealth(health map[string]scenarioStatusHealthCheck) (Scena
 		entry := health[key]
 		displayName := strings.TrimSpace(entry.Name)
 		if displayName == "" {
-			displayName = strings.Title(strings.ReplaceAll(key, "_", " "))
+			// Format key as title case (e.g., "api_health" -> "Api Health")
+			formatted := strings.ReplaceAll(key, "_", " ")
+			if formatted != "" {
+				// Simple title case: capitalize first letter of each word
+				words := strings.Fields(formatted)
+				for i, word := range words {
+					if len(word) > 0 {
+						words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
+					}
+				}
+				displayName = strings.Join(words, " ")
+			}
 		}
 		if displayName == "" {
 			displayName = strings.ToUpper(key)

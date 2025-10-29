@@ -306,5 +306,26 @@ func ApplyUpdateRequest(issue *Issue, req *UpdateIssueRequest, currentFolder str
 		}
 	}
 
+	if req.ManualReview != nil {
+		if req.ManualReview.MarkedAsFailed != nil {
+			issue.ManualReview.MarkedAsFailed = *req.ManualReview.MarkedAsFailed
+		}
+		if req.ManualReview.FailureReason != nil {
+			issue.ManualReview.FailureReason = strings.TrimSpace(*req.ManualReview.FailureReason)
+		}
+		if req.ManualReview.ReviewedBy != nil {
+			issue.ManualReview.ReviewedBy = strings.TrimSpace(*req.ManualReview.ReviewedBy)
+		}
+		if req.ManualReview.ReviewedAt != nil {
+			issue.ManualReview.ReviewedAt = strings.TrimSpace(*req.ManualReview.ReviewedAt)
+		}
+		if req.ManualReview.ReviewNotes != nil {
+			issue.ManualReview.ReviewNotes = strings.TrimSpace(*req.ManualReview.ReviewNotes)
+		}
+		if req.ManualReview.OriginalStatus != nil {
+			issue.ManualReview.OriginalStatus = strings.TrimSpace(*req.ManualReview.OriginalStatus)
+		}
+	}
+
 	return targetStatus, nil
 }

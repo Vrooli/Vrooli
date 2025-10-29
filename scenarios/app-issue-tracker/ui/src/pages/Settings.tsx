@@ -6,6 +6,7 @@ import {
   MonitorCog,
   SlidersHorizontal,
   Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 import {
   AgentSettings,
@@ -46,7 +47,7 @@ interface PromptPreviewResponse {
 const tabConfig: {
   key: TabKey;
   label: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
 }[] = [
   { key: "processor", label: "Processor", icon: ActivitySquare },
   { key: "agent", label: "Agent", icon: Bot },

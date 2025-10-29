@@ -91,7 +91,7 @@ func (s *AppService) GetApps(ctx context.Context) ([]repository.App, error) {
 	logger.Warn("failed to get apps from orchestrator", err)
 
 	// Fall back to database if orchestrator fails
-	if s.repo != nil {
+	if s.hasRepo() {
 		fallbackApps, repoErr := s.repo.GetApps(ctx)
 		if repoErr == nil {
 			for i := range fallbackApps {
@@ -134,7 +134,7 @@ func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, er
 		lastErr = err
 	}
 
-	if s.repo != nil {
+	if s.hasRepo() {
 		app, repoErr := s.repo.GetApp(ctx, id)
 		if repoErr == nil {
 			markFallbackApp(app)
@@ -185,8 +185,8 @@ func markFallbackApp(app *repository.App) {
 
 // UpdateAppStatus updates the status of an app
 func (s *AppService) UpdateAppStatus(ctx context.Context, id string, status string) error {
-	if s.repo == nil {
-		return fmt.Errorf("database not available")
+	if err := s.requireRepo(); err != nil {
+		return err
 	}
 	return s.repo.UpdateAppStatus(ctx, id, status)
 }
@@ -208,7 +208,7 @@ func (s *AppService) StartApp(ctx context.Context, appName string) error {
 	}
 
 	// Update status in database if available
-	if s.repo != nil {
+	if s.hasRepo() {
 		s.repo.UpdateAppStatus(ctx, appName, "running")
 	}
 
@@ -230,7 +230,7 @@ func (s *AppService) StopApp(ctx context.Context, appName string) error {
 	}
 
 	// Update status in database if available
-	if s.repo != nil {
+	if s.hasRepo() {
 		s.repo.UpdateAppStatus(ctx, appName, "stopped")
 	}
 
@@ -251,7 +251,7 @@ func (s *AppService) RestartApp(ctx context.Context, appName string) error {
 		return fmt.Errorf("failed to restart app %s: %w (output: %s)", appName, err, string(output))
 	}
 
-	if s.repo != nil {
+	if s.hasRepo() {
 		s.repo.UpdateAppStatus(ctx, appName, "running")
 	}
 
@@ -265,16 +265,16 @@ func (s *AppService) RestartApp(ctx context.Context, appName string) error {
 // =============================================================================
 
 func (s *AppService) RecordAppStatus(ctx context.Context, status *repository.AppStatus) error {
-	if s.repo == nil {
-		return fmt.Errorf("database not available")
+	if err := s.requireRepo(); err != nil {
+		return err
 	}
 	return s.repo.CreateAppStatus(ctx, status)
 }
 
 // GetAppStatusHistory retrieves historical status for an app
 func (s *AppService) GetAppStatusHistory(ctx context.Context, appID string, hours int) ([]repository.AppStatus, error) {
-	if s.repo == nil {
-		return nil, fmt.Errorf("database not available")
+	if err := s.requireRepo(); err != nil {
+		return nil, err
 	}
 	return s.repo.GetAppStatusHistory(ctx, appID, hours)
 }
@@ -302,7 +302,7 @@ func (s *AppService) RecordAppView(ctx context.Context, identifier string) (*rep
 
 	var stats *repository.AppViewStats
 
-	if s.repo != nil {
+	if s.hasRepo() {
 		persisted, err := s.repo.RecordAppView(ctx, scenarioName)
 		if err != nil {
 			logger.Warn(fmt.Sprintf("failed to persist view stats for %s", scenarioName), err)

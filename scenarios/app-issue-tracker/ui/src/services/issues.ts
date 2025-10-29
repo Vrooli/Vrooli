@@ -1,4 +1,4 @@
-import type { IssueStatus } from '../data/sampleData';
+import type { IssueStatus } from '../types/issue';
 import type { CreateIssueInput, UpdateIssueInput, CreateIssueAttachmentPayload } from '../types/issueCreation';
 import { apiJsonRequest, apiVoidRequest } from '../utils/api';
 import { buildApiUrl, type ApiIssue, type ApiStatsPayload, formatStatusLabel } from '../utils/issues';
@@ -36,66 +36,74 @@ export interface RunningProcessPayload {
 }
 
 export async function fetchIssueStatuses(baseUrl: string): Promise<IssueStatusMetadata[]> {
-  return apiJsonRequest<IssueStatusMetadata[]>(buildApiUrl(baseUrl, '/metadata/statuses'), {
-    selector: (payload) => {
-      const statuses = (payload as { data?: { statuses?: Array<Record<string, unknown>> } } | null | undefined)
-        ?.data?.statuses;
-      if (!Array.isArray(statuses)) {
-        return [];
-      }
+  try {
+    return await apiJsonRequest<IssueStatusMetadata[]>(buildApiUrl(baseUrl, '/metadata/statuses'), {
+      selector: (payload) => {
+        const statuses = (payload as { data?: { statuses?: Array<Record<string, unknown>> } } | null | undefined)
+          ?.data?.statuses;
+        if (!Array.isArray(statuses)) {
+          return [];
+        }
 
-      return statuses
-        .map((entry) => {
-          const idRaw = typeof entry.id === 'string' ? entry.id.trim().toLowerCase() : '';
-          if (!idRaw) {
-            return null;
-          }
-          const labelRaw = typeof entry.label === 'string' ? entry.label.trim() : '';
-          return {
-            id: idRaw as IssueStatus,
-            label: labelRaw || formatStatusLabel(idRaw),
-          } satisfies IssueStatusMetadata;
-        })
-        .filter((entry): entry is IssueStatusMetadata => Boolean(entry));
-    },
-    fallback: [],
-  });
+        return statuses
+          .map((entry) => {
+            const idRaw = typeof entry.id === 'string' ? entry.id.trim().toLowerCase() : '';
+            if (!idRaw) {
+              return null;
+            }
+            const labelRaw = typeof entry.label === 'string' ? entry.label.trim() : '';
+            return {
+              id: idRaw as IssueStatus,
+              label: labelRaw || formatStatusLabel(idRaw),
+            } satisfies IssueStatusMetadata;
+          })
+          .filter((entry): entry is IssueStatusMetadata => Boolean(entry));
+      },
+    });
+  } catch (error) {
+    console.error('[IssueTracker] Failed to fetch issue statuses:', error);
+    return [];
+  }
 }
 
 export async function fetchRunningProcesses(baseUrl: string): Promise<RunningProcessPayload[]> {
-  return apiJsonRequest<RunningProcessPayload[]>(buildApiUrl(baseUrl, '/processes/running'), {
-    selector: (payload) => {
-      const rawProcesses = (payload as { data?: { processes?: Array<Record<string, unknown>> } } | null | undefined)
-        ?.data?.processes;
-      if (!Array.isArray(rawProcesses)) {
-        return [];
-      }
+  try {
+    return await apiJsonRequest<RunningProcessPayload[]>(buildApiUrl(baseUrl, '/processes/running'), {
+      selector: (payload) => {
+        const rawProcesses = (payload as { data?: { processes?: Array<Record<string, unknown>> } } | null | undefined)
+          ?.data?.processes;
+        if (!Array.isArray(rawProcesses)) {
+          return [];
+        }
 
-      return rawProcesses
-        .map((item) => {
-          if (typeof item !== 'object' || item === null) {
-            return null;
-          }
+        return rawProcesses
+          .map((item): RunningProcessPayload | null => {
+            if (typeof item !== 'object' || item === null) {
+              return null;
+            }
 
-          const issueId = typeof item.issue_id === 'string' ? item.issue_id.trim() : '';
-          if (!issueId) {
-            return null;
-          }
+            const issueId = typeof item.issue_id === 'string' ? item.issue_id.trim() : '';
+            if (!issueId) {
+              return null;
+            }
 
-          const agentId = typeof item.agent_id === 'string' ? item.agent_id.trim() : 'unknown';
-          const startTime = typeof item.start_time === 'string' ? item.start_time.trim() : new Date().toISOString();
+            const agentId = typeof item.agent_id === 'string' ? item.agent_id.trim() : 'unknown';
+            const startTime = typeof item.start_time === 'string' ? item.start_time.trim() : new Date().toISOString();
 
-          return {
-            issue_id: issueId,
-            agent_id: agentId || 'unknown',
-            start_time: startTime,
-            status: typeof item.status === 'string' ? item.status.trim() : undefined,
-          } satisfies RunningProcessPayload;
-        })
-        .filter((entry): entry is RunningProcessPayload => Boolean(entry));
-    },
-    fallback: [],
-  });
+            return {
+              issue_id: issueId,
+              agent_id: agentId || 'unknown',
+              start_time: startTime,
+              status: typeof item.status === 'string' ? item.status.trim() : undefined,
+            };
+          })
+          .filter((entry): entry is RunningProcessPayload => entry !== null);
+      },
+    });
+  } catch (error) {
+    console.error('[IssueTracker] Failed to fetch running processes:', error);
+    return [];
+  }
 }
 
 export async function listIssues(baseUrl: string, limit: number): Promise<ApiIssue[]> {
@@ -119,6 +127,12 @@ export async function fetchIssueStats(baseUrl: string): Promise<ApiStatsPayload 
         openIssues: typeof raw.open_issues === 'number' ? raw.open_issues : undefined,
         inProgress: typeof raw.in_progress === 'number' ? raw.in_progress : undefined,
         completedToday: typeof raw.completed_today === 'number' ? raw.completed_today : undefined,
+        manualFailures: typeof raw.manual_failures === 'number' ? raw.manual_failures : undefined,
+        autoFailures: typeof raw.auto_failures === 'number' ? raw.auto_failures : undefined,
+        failureReasonsBreakdown:
+          typeof raw.failure_reasons_breakdown === 'object' && raw.failure_reasons_breakdown !== null
+            ? (raw.failure_reasons_breakdown as Record<string, number>)
+            : undefined,
       } satisfies ApiStatsPayload;
     },
   });
@@ -301,6 +315,10 @@ export async function updateIssue(
 
   if (Array.isArray(input.attachments) && input.attachments.length > 0) {
     body.artifacts = input.attachments.map(mapAttachmentPayload);
+  }
+
+  if (input.manual_review) {
+    body.manual_review = input.manual_review;
   }
 
   const response = await apiJsonRequest<Record<string, unknown>>(

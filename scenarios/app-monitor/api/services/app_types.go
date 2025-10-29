@@ -14,6 +14,7 @@ import (
 var (
 	ErrAppIdentifierRequired         = errors.New("app identifier is required")
 	ErrAppNotFound                   = errors.New("app not found")
+	ErrDatabaseUnavailable           = errors.New("database not available")
 	ErrScenarioAuditorUnavailable    = errors.New("scenario-auditor unavailable")
 	ErrScenarioBridgeScenarioMissing = errors.New("scenario missing for bridge audit")
 	ErrIssueTrackerUnavailable       = errors.New("app-issue-tracker unavailable")
@@ -415,15 +416,15 @@ type scenarioStatusDependency struct {
 }
 
 type scenarioStatusHealthCheck struct {
-	Name            string                                         `json:"name"`
-	Status          string                                         `json:"status"`
-	Port            int                                            `json:"port"`
-	Available       bool                                           `json:"available"`
-	ResponseTime    *float64                                       `json:"response_time"`
-	SchemaValid     *bool                                          `json:"schema_valid"`
-	APIConnectivity *scenarioStatusConnectivity                    `json:"api_connectivity"`
-	Dependencies    map[string]map[string]scenarioStatusDependency `json:"dependencies"`
-	Message         string                                         `json:"message"`
+	Name            string                      `json:"name"`
+	Status          string                      `json:"status"`
+	Port            int                         `json:"port"`
+	Available       bool                        `json:"available"`
+	ResponseTime    *float64                    `json:"response_time"`
+	SchemaValid     *bool                       `json:"schema_valid"`
+	APIConnectivity *scenarioStatusConnectivity `json:"api_connectivity"`
+	Dependencies    map[string]interface{}      `json:"dependencies"`
+	Message         string                      `json:"message"`
 }
 
 type scenarioStatusTestEntry struct {

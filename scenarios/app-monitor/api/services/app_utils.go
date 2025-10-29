@@ -15,6 +15,25 @@ import (
 )
 
 // =============================================================================
+// Repository Helper Methods
+// =============================================================================
+
+// requireRepo returns an error if the repository is not available.
+// Use this for operations that must have database access.
+func (s *AppService) requireRepo() error {
+	if s.repo == nil {
+		return ErrDatabaseUnavailable
+	}
+	return nil
+}
+
+// hasRepo returns true if the repository is available.
+// Use this for operations that can work without database access.
+func (s *AppService) hasRepo() bool {
+	return s != nil && s.repo != nil
+}
+
+// =============================================================================
 // Filesystem Utilities
 // =============================================================================
 
@@ -109,6 +128,15 @@ func stringValue(value *string) string {
 	return *value
 }
 
+// trimmedStringPtr is a convenience helper that dereferences a string pointer and trims whitespace.
+// This reduces the common pattern of strings.TrimSpace(stringValue(...)) to a single call.
+func trimmedStringPtr(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
+}
+
 func trimmedString(value interface{}) string {
 	return strings.TrimSpace(anyString(value))
 }
@@ -155,7 +183,7 @@ func sanitizeCommandIdentifier(value string) string {
 	}
 
 	invalid := []string{
-		"--", "-", "~", ".", "/",
+		"--", "~", ".", "/",
 		"*", "?", "[", "]", "{", "}",
 		"$", "&", "|", ";", "<", ">",
 		"(", ")", "!", "#", "%", "^",
@@ -167,8 +195,11 @@ func sanitizeCommandIdentifier(value string) string {
 		safe = strings.ReplaceAll(safe, char, "")
 	}
 
-	safe = strings.Join(strings.Fields(safe), "_")
-	return safe
+	fields := strings.Fields(safe)
+	if len(fields) == 0 {
+		return safe
+	}
+	return strings.Join(fields, "_")
 }
 
 func parseOrEchoTimestamp(value string) string {
@@ -184,25 +215,6 @@ func parseOrEchoTimestamp(value string) string {
 // =============================================================================
 // Slice Utilities
 // =============================================================================
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-
-	for _, value := range values {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			continue
-		}
-		if _, exists := seen[trimmed]; exists {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		result = append(result, trimmed)
-	}
-
-	return result
-}
 
 func dedupeStrings(values []string) []string {
 	if len(values) == 0 {

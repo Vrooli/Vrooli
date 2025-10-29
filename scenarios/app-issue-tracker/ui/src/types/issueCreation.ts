@@ -1,4 +1,4 @@
-import type { IssueStatus, Priority } from '../data/sampleData';
+import type { IssueStatus, Priority } from './issue';
 
 export interface CreateIssueAttachmentPayload {
   name: string;
@@ -58,6 +58,14 @@ export interface UpdateIssueInput {
   reporterName?: string;
   reporterEmail?: string;
   attachments?: CreateIssueAttachmentPayload[];
+  manual_review?: {
+    marked_as_failed?: boolean;
+    failure_reason?: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    review_notes?: string;
+    original_status?: string;
+  };
 }
 
 export type PriorityFilterValue = Priority | 'all';

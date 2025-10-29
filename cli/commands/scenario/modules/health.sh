@@ -492,13 +492,36 @@ scenario::health::collect_log_analysis_data() {
     local result='{
         "recent_warnings": [],
         "resource_issues": [],
-        "performance_warnings": []
+        "performance_warnings": [],
+        "recent_events": {"api": null, "ui": null}
     }'
     
     # Check API logs for warnings
     local recent_api_logs
     recent_api_logs=$(vrooli scenario logs "$scenario_name" --step start-api 2>/dev/null | tail -20)
     if [[ -n "$recent_api_logs" ]]; then
+        local api_tail
+        api_tail=$(echo "$recent_api_logs" | tail -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        if [[ -n "$api_tail" ]]; then
+            local api_summary="$api_tail"
+            if [[ ${#api_summary} -gt 160 ]]; then
+                api_summary="${api_summary:0:157}..."
+            fi
+
+            local api_type="info"
+            if echo "$api_tail" | grep -qiE '(error|fail|panic|fatal|exception)'; then
+                api_type="error"
+            elif echo "$api_tail" | grep -qiE '(warn|timeout)'; then
+                api_type="warning"
+            fi
+
+            result=$(echo "$result" | jq \
+                --arg type "$api_type" \
+                --arg message "$api_summary" \
+                '.recent_events.api = {type: $type, message: $message, step: "start-api"}')
+        fi
+
         # Look for warnings
         if echo "$recent_api_logs" | grep -qE "(WARNING|WARN|Error:|error:|timeout|failed|exception)"; then
             local warning=$(echo "$recent_api_logs" | grep -E "(WARNING|WARN|Error:|error:)" | tail -1 | cut -c1-100)
@@ -543,6 +566,28 @@ scenario::health::collect_log_analysis_data() {
     local recent_ui_logs
     recent_ui_logs=$(vrooli scenario logs "$scenario_name" --step start-ui 2>/dev/null | tail -20)
     if [[ -n "$recent_ui_logs" ]]; then
+        local ui_tail
+        ui_tail=$(echo "$recent_ui_logs" | tail -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        if [[ -n "$ui_tail" ]]; then
+            local ui_summary="$ui_tail"
+            if [[ ${#ui_summary} -gt 160 ]]; then
+                ui_summary="${ui_summary:0:157}..."
+            fi
+
+            local ui_type="info"
+            if echo "$ui_tail" | grep -qiE '(error|fail|panic|fatal|exception)'; then
+                ui_type="error"
+            elif echo "$ui_tail" | grep -qiE '(warn|timeout)'; then
+                ui_type="warning"
+            fi
+
+            result=$(echo "$result" | jq \
+                --arg type "$ui_type" \
+                --arg message "$ui_summary" \
+                '.recent_events.ui = {type: $type, message: $message, step: "start-ui"}')
+        fi
+
         if echo "$recent_ui_logs" | grep -qE "(WARNING|WARN|Error:|error:|failed|crash)"; then
             local warning=$(echo "$recent_ui_logs" | grep -E "(WARNING|WARN|Error:|error:)" | tail -1 | cut -c1-100)
             result=$(echo "$result" | jq \

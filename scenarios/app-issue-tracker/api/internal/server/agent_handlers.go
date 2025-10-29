@@ -33,17 +33,23 @@ func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	analytics := newIssueAnalytics(issues, time.Now())
 	totalIssues, openIssues, inProgress, completedToday, avgResolutionHours := analytics.totals()
 	topApps := analytics.topApps(5)
+	manualFailures, autoFailures, failureReasons := analytics.failureMetrics()
+	avgCompletedAge := analytics.avgCompletedAgeHours()
 
 	response := ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
 			"stats": map[string]interface{}{
-				"total_issues":         totalIssues,
-				"open_issues":          openIssues,
-				"in_progress":          inProgress,
-				"completed_today":      completedToday,
-				"avg_resolution_hours": avgResolutionHours,
-				"top_apps":             topApps,
+				"total_issues":              totalIssues,
+				"open_issues":               openIssues,
+				"in_progress":               inProgress,
+				"completed_today":           completedToday,
+				"avg_resolution_hours":      avgResolutionHours,
+				"avg_completed_age_hours":   avgCompletedAge,
+				"top_apps":                  topApps,
+				"manual_failures":           manualFailures,
+				"auto_failures":             autoFailures,
+				"failure_reasons_breakdown": failureReasons,
 			},
 		},
 	}

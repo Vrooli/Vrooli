@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { Issue } from '../data/sampleData';
+import type { Issue } from '../types/issue';
 import type { PriorityFilterValue } from '../types/issueCreation';
 
 interface UseIssueFiltersOptions {
@@ -62,7 +62,7 @@ export function useIssueFilters({ issues }: UseIssueFiltersOptions): UseIssueFil
       const matchesSearch =
         issue.id.toLowerCase().includes(query) ||
         issue.title.toLowerCase().includes(query) ||
-        issue.description.toLowerCase().includes(query) ||
+        (issue.description?.toLowerCase().includes(query) ?? false) ||
         issue.assignee.toLowerCase().includes(query) ||
         issue.tags.some((tag) => tag.toLowerCase().includes(query)) ||
         (issue.reporterName?.toLowerCase().includes(query) ?? false) ||

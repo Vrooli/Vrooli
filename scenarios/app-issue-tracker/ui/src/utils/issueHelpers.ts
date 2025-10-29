@@ -1,6 +1,7 @@
 import { formatFileSize } from './files';
 import { buildIssueSnapshot } from './issues';
-import type { AgentSettings, Issue, IssueAttachment } from '../data/sampleData';
+import type { Issue, IssueAttachment } from '../types/issue';
+import type { AgentSettings } from '../data/sampleData';
 import type {
   CreateIssueInitialFields,
   CreateIssuePrefill,

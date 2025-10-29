@@ -11,6 +11,13 @@ readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
+scenario::test::absolute_path() {
+    local relative_path="$1"
+    local base_dir="${APP_ROOT:-$(pwd -P)}"
+    base_dir="${base_dir%/}"
+    printf '%s/%s' "$base_dir" "$relative_path"
+}
+
 # Validate test infrastructure for a scenario
 # Usage: scenario::test::validate_infrastructure <scenario_name> <scenario_path>
 scenario::test::validate_infrastructure() {
@@ -309,6 +316,9 @@ scenario::test::calculate_overall_status() {
     local unit_tests="$3"
     local cli_tests="$4" 
     local ui_tests="$5"
+
+    local phased_docs_path
+    phased_docs_path=$(scenario::test::absolute_path "docs/scenarios/PHASED_TESTING_ARCHITECTURE.md")
     
     local score=0
     local max_score=5
@@ -324,7 +334,7 @@ scenario::test::calculate_overall_status() {
         # Give partial credit for legacy format but recommend migration
         score=$((score + 0))  # No credit for legacy format
         recommendations+=("⚠️  Migrate from legacy scenario-test.yaml to new phased testing architecture")
-        recommendations+=("See docs/scenarios/PHASED_TESTING_ARCHITECTURE.md for migration guide")
+        recommendations+=("See ${phased_docs_path} for migration guide")
     else
         recommendations+=("Define test lifecycle event in .vrooli/service.json")
     fi
@@ -384,7 +394,10 @@ scenario::test::calculate_overall_status() {
 scenario::test::display_validation() {
     local scenario_name="$1"
     local validation_data="$2"
-    
+
+    local phased_docs_path
+    phased_docs_path=$(scenario::test::absolute_path "docs/scenarios/PHASED_TESTING_ARCHITECTURE.md")
+
     echo ""
     echo "🧪 Test Infrastructure:"
     
@@ -501,6 +514,6 @@ scenario::test::display_validation() {
         echo "💡 Recommendations:"
         echo "$validation_data" | jq -r '.overall.recommendations[] | "   • " + .'
         echo ""
-        echo "📚 See: docs/scenarios/PHASED_TESTING_ARCHITECTURE.md"
+        echo "📚 See: $phased_docs_path"
     fi
 }

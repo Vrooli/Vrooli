@@ -13,7 +13,7 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react';
-import type { Issue, IssueStatus, Priority } from '../data/sampleData';
+import type { Issue, IssueStatus, Priority } from '../types/issue';
 import { Modal } from './Modal';
 import { getFallbackStatuses } from '../utils/issues';
 import { toTitleCase } from '../utils/string';

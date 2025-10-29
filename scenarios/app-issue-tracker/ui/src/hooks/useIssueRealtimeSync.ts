@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { buildApiUrl } from '@vrooli/api-base';
-import type { Issue } from '../data/sampleData';
+import type { Issue } from '../types/issue';
 import type { RateLimitStatusPayload } from '../services/issues';
 import { normalizeStatus, transformIssue } from '../utils/issues';
-import type { WebSocketEvent } from '../types/events';
+import type {
+  WebSocketEvent,
+  IssueCreatedEvent,
+  IssueUpdatedEvent,
+  IssueStatusChangedEvent,
+  IssueDeletedEvent,
+  AgentStartedEvent,
+  AgentCompletedEvent,
+  AgentFailedEvent,
+  ProcessorStateChangedEvent,
+  RateLimitChangedEvent,
+  ProcessorErrorEvent
+} from '../types/events';
 import { useWebSocket, type ConnectionStatus } from './useWebSocket';
 
 export type RunningProcessMap = Map<string, { agent_id: string; start_time: string; duration?: string; status?: string }>;
@@ -141,116 +153,105 @@ export function useIssueRealtimeSync({
 
   const handleWebSocketEvent = useCallback(
     (event: WebSocketEvent) => {
-      switch (event.type) {
-        case 'issue.created':
-        case 'issue.updated': {
-          const rawIssue = event.data.issue;
-          if (!rawIssue) {
-            return;
-          }
-          const updatedIssue = transformIssue(rawIssue, { apiBaseUrl });
-          updateIssuesState((previous) => {
-            const index = previous.findIndex((issue) => issue.id === updatedIssue.id);
-            if (index >= 0) {
-              const next = [...previous];
-              next[index] = updatedIssue;
-              return next;
-            }
-            return [...previous, updatedIssue];
-          });
-          break;
+      if (event.type === 'issue.created' || event.type === 'issue.updated') {
+        const rawIssue = (event as IssueCreatedEvent | IssueUpdatedEvent).data.issue;
+        if (!rawIssue) {
+          return;
         }
-        case 'issue.status_changed': {
-          const { issue_id, new_status } = event.data;
+        const updatedIssue = transformIssue(rawIssue, { apiBaseUrl });
+        updateIssuesState((previous) => {
+          const index = previous.findIndex((issue) => issue.id === updatedIssue.id);
+          if (index >= 0) {
+            const next = [...previous];
+            next[index] = updatedIssue;
+            return next;
+          }
+          return [...previous, updatedIssue];
+        });
+      } else if (event.type === 'issue.status_changed') {
+        const { issue_id, new_status } = (event as IssueStatusChangedEvent).data;
+        updateIssuesState((previous) =>
+          previous.map((issue) =>
+            issue.id === issue_id ? { ...issue, status: normalizeStatus(new_status) } : issue,
+          ),
+        );
+      } else if (event.type === 'issue.deleted') {
+        const { issue_id } = (event as IssueDeletedEvent).data;
+        updateIssuesState((previous) => previous.filter((issue) => issue.id !== issue_id));
+        setRunningProcesses((previous) => {
+          if (!previous.has(issue_id)) {
+            return previous;
+          }
+          const next = new Map(previous);
+          next.delete(issue_id);
+          return next;
+        });
+      } else if (event.type === 'agent.started') {
+        const { issue_id, agent_id, start_time } = (event as AgentStartedEvent).data;
+        setRunningProcesses((previous) => {
+          const existing = previous.get(issue_id);
+          if (existing && existing.agent_id === agent_id && existing.start_time === start_time) {
+            if (existing.status === 'running') {
+              return previous;
+            }
+            const next = new Map(previous);
+            next.set(issue_id, { ...existing, status: 'running' });
+            return next;
+          }
+          const next = new Map(previous);
+          next.set(issue_id, { agent_id, start_time, status: 'running' });
+          return next;
+        });
+      } else if (event.type === 'agent.completed' || event.type === 'agent.failed') {
+        const { issue_id, new_status } = (event as AgentCompletedEvent | AgentFailedEvent).data;
+        setRunningProcesses((previous) => {
+          if (!previous.has(issue_id)) {
+            return previous;
+          }
+          const next = new Map(previous);
+          next.delete(issue_id);
+          return next;
+        });
+        if (new_status) {
           updateIssuesState((previous) =>
             previous.map((issue) =>
-              issue.id === issue_id ? { ...issue, status: normalizeStatus(new_status) } : issue,
+              issue.id === issue_id
+                ? {
+                    ...issue,
+                    status: normalizeStatus(new_status),
+                  }
+                : issue,
             ),
           );
-          break;
         }
-        case 'issue.deleted': {
-          const { issue_id } = event.data;
-          updateIssuesState((previous) => previous.filter((issue) => issue.id !== issue_id));
-          setRunningProcesses((previous) => {
-            if (!previous.has(issue_id)) {
-              return previous;
-            }
-            const next = new Map(previous);
-            next.delete(issue_id);
-            return next;
-          });
-          break;
-        }
-        case 'agent.started': {
-          const { issue_id, agent_id, start_time } = event.data;
-          setRunningProcesses((previous) => {
-            const existing = previous.get(issue_id);
-            if (existing && existing.agent_id === agent_id && existing.start_time === start_time) {
-              if (existing.status === 'running') {
-                return previous;
-              }
-              const next = new Map(previous);
-              next.set(issue_id, { ...existing, status: 'running' });
-              return next;
-            }
-            const next = new Map(previous);
-            next.set(issue_id, { agent_id, start_time, status: 'running' });
-            return next;
-          });
-          break;
-        }
-        case 'agent.completed':
-        case 'agent.failed': {
-          const { issue_id, new_status } = event.data;
-          setRunningProcesses((previous) => {
-            if (!previous.has(issue_id)) {
-              return previous;
-            }
-            const next = new Map(previous);
-            next.delete(issue_id);
-            return next;
-          });
-          if (new_status) {
-            updateIssuesState((previous) =>
-              previous.map((issue) =>
-                issue.id === issue_id
-                  ? {
-                      ...issue,
-                      status: normalizeStatus(new_status),
-                    }
-                  : issue,
-              ),
-            );
-          }
-          break;
-        }
-        case 'processor.state_changed': {
-          const data = event.data ?? {};
-          applyProcessorRealtimeUpdate(data as Record<string, unknown>);
-          break;
-        }
-        case 'rate_limit.changed': {
-          setRateLimitStatus((previous) => ({
-            rate_limited: Boolean(event.data.rate_limited),
-            rate_limited_count: Number(
-              event.data.rate_limited_count ?? (typeof previous?.rate_limited_count === 'number' ? previous.rate_limited_count : 0),
-            ),
-            seconds_until_reset: Number(
-              event.data.seconds_until_reset ?? (typeof previous?.seconds_until_reset === 'number' ? previous.seconds_until_reset : 0),
-            ),
-            reset_time: event.data.reset_time ?? previous?.reset_time ?? new Date().toISOString(),
-            rate_limit_agent: event.data.rate_limit_agent ?? previous?.rate_limit_agent ?? 'unknown',
-          }));
-          break;
-        }
-        case 'processor.error': {
-          const message = typeof event.data?.message === 'string' ? event.data.message : 'Automation error';
-          reportProcessorError(message);
-          break;
-        }
-        default:
-          break;
+      } else if (event.type === 'processor.state_changed') {
+        const eventData = (event as ProcessorStateChangedEvent).data;
+        const data: Record<string, unknown> = {
+          active: eventData.active,
+          concurrent_slots: eventData.concurrent_slots,
+          refresh_interval: eventData.refresh_interval,
+          max_issues: eventData.max_issues,
+          issues_processed: eventData.issues_processed,
+          issues_remaining: eventData.issues_remaining,
+          max_issues_disabled: eventData.max_issues_disabled,
+        };
+        applyProcessorRealtimeUpdate(data);
+      } else if (event.type === 'rate_limit.changed') {
+        const eventData = (event as RateLimitChangedEvent).data;
+        setRateLimitStatus((previous) => ({
+          rate_limited: Boolean(eventData.rate_limited),
+          rate_limited_count: Number(
+            eventData.rate_limited_count ?? (typeof previous?.rate_limited_count === 'number' ? previous.rate_limited_count : 0),
+          ),
+          seconds_until_reset: Number(
+            eventData.seconds_until_reset ?? (typeof previous?.seconds_until_reset === 'number' ? previous.seconds_until_reset : 0),
+          ),
+          reset_time: eventData.reset_time ?? previous?.reset_time ?? new Date().toISOString(),
+          rate_limit_agent: eventData.rate_limit_agent ?? previous?.rate_limit_agent ?? 'unknown',
+        }));
+      } else if (event.type === 'processor.error') {
+        const message = typeof (event as ProcessorErrorEvent).data.message === 'string' ? (event as ProcessorErrorEvent).data.message : 'Automation error';
+        reportProcessorError(message);
       }
     },
     [apiBaseUrl, applyProcessorRealtimeUpdate, reportProcessorError, setRateLimitStatus, updateIssuesState],

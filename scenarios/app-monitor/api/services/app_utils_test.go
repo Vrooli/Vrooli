@@ -386,7 +386,7 @@ func TestSanitizeCommandIdentifier(t *testing.T) {
 		{
 			name:     "with hyphens",
 			input:    "test-app-name",
-			expected: "testappname",
+			expected: "test-app-name",
 		},
 		{
 			name:     "with spaces",
@@ -471,59 +471,6 @@ func TestParseOrEchoTimestamp(t *testing.T) {
 // =============================================================================
 // Slice Utilities Tests
 // =============================================================================
-
-func TestUniqueStrings(t *testing.T) {
-	testCases := []struct {
-		name     string
-		input    []string
-		expected []string
-	}{
-		{
-			name:     "empty slice",
-			input:    []string{},
-			expected: []string{},
-		},
-		{
-			name:     "no duplicates",
-			input:    []string{"a", "b", "c"},
-			expected: []string{"a", "b", "c"},
-		},
-		{
-			name:     "with duplicates",
-			input:    []string{"a", "b", "a", "c", "b"},
-			expected: []string{"a", "b", "c"},
-		},
-		{
-			name:     "with empty strings",
-			input:    []string{"a", "", "b", "", "c"},
-			expected: []string{"a", "b", "c"},
-		},
-		{
-			name:     "with whitespace",
-			input:    []string{"a", "  ", "b", "  a  ", "c"},
-			expected: []string{"a", "b", "c"},
-		},
-		{
-			name:     "all empty",
-			input:    []string{"", "", ""},
-			expected: []string{},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := uniqueStrings(tc.input)
-			if len(result) != len(tc.expected) {
-				t.Fatalf("Expected length %d, got %d", len(tc.expected), len(result))
-			}
-			for i, v := range result {
-				if v != tc.expected[i] {
-					t.Errorf("At index %d: expected %q, got %q", i, tc.expected[i], v)
-				}
-			}
-		})
-	}
-}
 
 func TestDedupeStrings(t *testing.T) {
 	testCases := []struct {

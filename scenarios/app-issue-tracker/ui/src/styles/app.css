@@ -4078,3 +4078,169 @@ textarea::placeholder {
   border-color: rgba(255, 255, 255, 0.1);
   color: #e5e7eb;
 }
+
+/* Manual Review Form Styles */
+.manual-review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(245, 158, 11, 0.05);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 12px;
+}
+
+.dark .manual-review-form {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.manual-review-description {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.form-required {
+  color: #dc2626;
+}
+
+.form-select,
+.form-textarea {
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.form-select:disabled,
+.form-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.btn-mark-failed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: #dc2626;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  align-self: flex-start;
+}
+
+.btn-mark-failed:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.btn-mark-failed:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-mark-failed:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-mark-failed .button-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Manual Review Display Styles */
+.manual-review-display {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+}
+
+.dark .manual-review-display {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.manual-review-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+}
+
+.dark .manual-review-header {
+  border-bottom-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.manual-review-status {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.manual-review-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.manual-review-field strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.manual-review-field span,
+.manual-review-field p {
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}

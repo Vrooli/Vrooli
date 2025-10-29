@@ -216,7 +216,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 			description = strings.TrimSpace(meta.Description)
 		}
 
-		tags := uniqueStrings(append(append([]string{}, orchApp.Tags...), meta.Tags...))
+		tags := dedupeStrings(append(append([]string{}, orchApp.Tags...), meta.Tags...))
 		runtime := strings.TrimSpace(orchApp.Runtime)
 
 		portMappings := make(map[string]interface{}, len(orchApp.Ports))
@@ -347,7 +347,7 @@ func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.A
 		}
 
 		description := strings.TrimSpace(scenario.Description)
-		tags := uniqueStrings(scenario.Tags)
+		tags := dedupeStrings(scenario.Tags)
 		portMappings := convertPortsToMap(scenario.Ports)
 
 		app := repository.App{
@@ -488,7 +488,7 @@ func (s *AppService) mergeViewStats(ctx context.Context, apps []repository.App) 
 		return
 	}
 
-	if s.repo != nil {
+	if s.hasRepo() {
 		stats, err := s.repo.GetAppViewStats(ctx)
 		if err != nil {
 			logger.Warn("failed to fetch app view stats", err)

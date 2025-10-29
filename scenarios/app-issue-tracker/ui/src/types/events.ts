@@ -1,3 +1,5 @@
+import type { Issue } from './issue';
+
 export type EventType =
   | 'issue.created'
   | 'issue.updated'
@@ -7,6 +9,7 @@ export type EventType =
   | 'agent.completed'
   | 'agent.failed'
   | 'processor.state_changed'
+  | 'processor.error'
   | 'rate_limit.changed';
 
 export interface BaseEvent<T = unknown> {
@@ -15,7 +18,8 @@ export interface BaseEvent<T = unknown> {
   data: T;
 }
 
-export interface Issue {
+// API Issue type for websocket events (may differ from UI Issue type)
+export interface ApiIssue {
   id: string;
   title: string;
   description?: string;
@@ -35,6 +39,8 @@ export interface Issue {
       agent_failure_time?: string;
       rate_limit_until?: string;
       rate_limit_agent?: string;
+      agent_transcript_path?: string;
+      agent_last_message_path?: string;
       [key: string]: string | undefined;
     };
   };
@@ -55,11 +61,21 @@ export interface Issue {
     type?: string;
     path?: string;
     size?: number;
+    category?: string;
+    description?: string;
   }>;
+  manual_review?: {
+    marked_as_failed: boolean;
+    failure_reason?: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    review_notes?: string;
+    original_status?: string;
+  };
 }
 
 export interface IssueEventData {
-  issue: Issue;
+  issue: ApiIssue;
 }
 
 export interface IssueStatusChangedData {
@@ -105,6 +121,11 @@ export interface RateLimitData {
   rate_limit_agent?: string;
 }
 
+export interface ProcessorErrorData {
+  message: string;
+  details?: Record<string, unknown>;
+}
+
 export type IssueCreatedEvent = BaseEvent<IssueEventData>;
 export type IssueUpdatedEvent = BaseEvent<IssueEventData>;
 export type IssueStatusChangedEvent = BaseEvent<IssueStatusChangedData>;
@@ -113,6 +134,7 @@ export type AgentStartedEvent = BaseEvent<AgentStartedData>;
 export type AgentCompletedEvent = BaseEvent<AgentCompletedData>;
 export type AgentFailedEvent = BaseEvent<AgentCompletedData>;
 export type ProcessorStateChangedEvent = BaseEvent<ProcessorStateData>;
+export type ProcessorErrorEvent = BaseEvent<ProcessorErrorData>;
 export type RateLimitChangedEvent = BaseEvent<RateLimitData>;
 
 export type WebSocketEvent =
@@ -124,4 +146,5 @@ export type WebSocketEvent =
   | AgentCompletedEvent
   | AgentFailedEvent
   | ProcessorStateChangedEvent
+  | ProcessorErrorEvent
   | RateLimitChangedEvent;

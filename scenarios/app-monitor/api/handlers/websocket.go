@@ -145,16 +145,20 @@ func (h *WebSocketHandler) handleClientMessages(conn *websocket.Conn, done chan 
 
 		case "subscribe":
 			// Handle subscription requests
-			if appID, ok := msg.Payload.(map[string]interface{})["appId"].(string); ok {
-				log.Printf("Client subscribed to app: %s", appID)
-				// In the future, implement app-specific subscriptions
+			if payload, ok := msg.Payload.(map[string]interface{}); ok {
+				if appID, ok := payload["appId"].(string); ok {
+					log.Printf("Client subscribed to app: %s", appID)
+					// In the future, implement app-specific subscriptions
+				}
 			}
 
 		case "unsubscribe":
 			// Handle unsubscription requests
-			if appID, ok := msg.Payload.(map[string]interface{})["appId"].(string); ok {
-				log.Printf("Client unsubscribed from app: %s", appID)
-				// In the future, implement app-specific unsubscriptions
+			if payload, ok := msg.Payload.(map[string]interface{}); ok {
+				if appID, ok := payload["appId"].(string); ok {
+					log.Printf("Client unsubscribed from app: %s", appID)
+					// In the future, implement app-specific unsubscriptions
+				}
 			}
 
 		default:

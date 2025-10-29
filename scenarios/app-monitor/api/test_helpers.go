@@ -235,10 +235,22 @@ type TestApp struct {
 
 // createTestApp creates a test app instance
 func createTestApp(name string) *TestApp {
+	// Simple title case: capitalize first letter of each word
+	displayName := name
+	if name != "" {
+		words := strings.Fields(strings.ReplaceAll(name, "-", " "))
+		for i, word := range words {
+			if len(word) > 0 {
+				words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
+			}
+		}
+		displayName = strings.Join(words, " ")
+	}
+
 	return &TestApp{
 		ID:          name,
 		Name:        name,
-		DisplayName: strings.ReplaceAll(strings.Title(name), "-", " "),
+		DisplayName: displayName,
 		Status:      "active",
 		Type:        "scenario",
 	}
