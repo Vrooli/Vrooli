@@ -111,7 +111,6 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 	v1.HandleFunc("/metadata/statuses", server.getIssueStatusesHandler).Methods("GET")
 	v1.HandleFunc("/investigate", server.triggerInvestigationHandler).Methods("POST")
 	v1.HandleFunc("/investigate/preview", server.previewInvestigationPromptHandler).Methods("POST")
-	v1.HandleFunc("/generate-fix", server.triggerFixGenerationHandler).Methods("POST")
 	v1.HandleFunc("/stats", server.getStatsHandler).Methods("GET")
 	v1.HandleFunc("/export", server.exportIssuesHandler).Methods("GET")
 	v1.HandleFunc("/automation/processor", server.getProcessorHandler).Methods("GET")

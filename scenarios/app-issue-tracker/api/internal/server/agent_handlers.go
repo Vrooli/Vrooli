@@ -53,28 +53,58 @@ func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getAgentsHandler returns available agents
+// getAgentsHandler returns available agents (currently returns current provider configuration)
+// Note: This endpoint returns the configured AI provider, not a list of separate agents.
+// All issues are resolved using the unified workflow with the configured backend (codex or claude-code).
 func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
-	// Single unified agent exposed for the simplified workflow
-	agents := []Agent{
+	settings := GetAgentSettings()
+
+	// Calculate actual stats from issues
+	issues, err := s.getAllIssues("", "", "", "", 0)
+	if err != nil {
+		logging.LogErrorErr("Failed to load issues for agent stats", err)
+		handlers.WriteError(w, http.StatusInternalServerError, "Failed to load agent stats")
+		return
+	}
+
+	// Calculate success metrics from real data
+	totalRuns := 0
+	successfulRuns := 0
+	for _, issue := range issues {
+		if issue.Investigation.CompletedAt != "" {
+			totalRuns++
+			if issue.Status == StatusCompleted {
+				successfulRuns++
+			}
+		}
+	}
+
+	successRate := 0.0
+	if totalRuns > 0 {
+		successRate = float64(successfulRuns) / float64(totalRuns) * 100
+	}
+
+	// Return the current provider as the active agent
+	agentList := []Agent{
 		{
-			ID:             agents.UnifiedResolverID,
-			Name:           agents.UnifiedResolverID,
-			DisplayName:    "Unified Issue Resolver",
-			Description:    "Single-pass agent that triages, investigates, and proposes fixes",
+			ID:             agents.UnifiedResolverID, // Keep for backwards compatibility
+			Name:           settings.Provider,
+			DisplayName:    formatProviderDisplayName(settings.Provider),
+			Description:    "AI agent that triages, investigates, and proposes fixes for issues",
 			Capabilities:   []string{"triage", "investigate", "fix", "test"},
 			IsActive:       true,
-			SuccessRate:    88.4,
-			TotalRuns:      173,
-			SuccessfulRuns: 153,
+			SuccessRate:    successRate,
+			TotalRuns:      totalRuns,
+			SuccessfulRuns: successfulRuns,
 		},
 	}
 
 	response := ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"agents": agents,
-			"count":  len(agents),
+			"agents":   agentList,
+			"count":    len(agentList),
+			"provider": settings.Provider, // Include actual provider for clarity
 		},
 	}
 
@@ -83,9 +113,18 @@ func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// triggerFixGenerationHandler returns deprecation notice
-func (s *Server) triggerFixGenerationHandler(w http.ResponseWriter, r *http.Request) {
-	handlers.WriteError(w, http.StatusGone, "Fix generation now runs automatically as part of the unified /investigate workflow. Pass auto_resolve=false to /investigate for investigation-only runs.")
+// formatProviderDisplayName converts provider ID to human-readable name
+func formatProviderDisplayName(provider string) string {
+	switch provider {
+	case "codex":
+		return "Codex Agent"
+	case "claude-code":
+		return "Claude Code Agent"
+	default:
+		// Title case the provider name
+		caser := cases.Title(language.English)
+		return caser.String(strings.ReplaceAll(provider, "-", " ")) + " Agent"
+	}
 }
 
 // getAppsHandler returns a list of applications with issue counts

@@ -265,6 +265,7 @@ type AgentConversationPayload struct {
 	IssueID             string                   `json:"issue_id"`
 	Available           bool                     `json:"available"`
 	Provider            string                   `json:"provider,omitempty"`
+	SessionID           string                   `json:"session_id,omitempty"`
 	Prompt              string                   `json:"prompt,omitempty"`
 	Metadata            map[string]interface{}   `json:"metadata,omitempty"`
 	Entries             []AgentConversationEntry `json:"entries,omitempty"`

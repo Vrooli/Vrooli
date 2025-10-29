@@ -125,26 +125,6 @@ func (svc *InvestigationService) attemptScenarioRestart(issue *Issue, issueID st
 	return &result
 }
 
-func (s *Server) loadPromptTemplate() string {
-	return s.investigations.loadPromptTemplate()
-}
-
-func (s *Server) buildInvestigationPrompt(issue *Issue, issueDir, agentID, projectPath, timestamp string) string {
-	return s.investigations.buildInvestigationPrompt(issue, issueDir, agentID, projectPath, timestamp)
-}
-
-func (s *Server) persistInvestigationStart(issue *Issue, issueDir, agentID, startedAt string) error {
-	return s.investigations.persistInvestigationStart(issue, issueDir, agentID, startedAt)
-}
-
-func (s *Server) rateLimitStatus() RateLimitStatus {
-	return s.investigations.RateLimitStatus()
-}
-
-func (s *Server) handleInvestigationRateLimit(issueID, agentID string, result *ClaudeExecutionResult) bool {
-	return s.investigations.handleInvestigationRateLimit(issueID, agentID, result)
-}
-
 func (svc *InvestigationService) utcNow() time.Time {
 	return svc.now().UTC()
 }
@@ -213,7 +193,9 @@ func (svc *InvestigationService) persistInvestigationStart(issue *Issue, issueDi
 		startedAt = startedAtTime.Format(time.RFC3339)
 	}
 
-	services.MarkInvestigationStarted(issue, agentID, startedAtTime)
+	// Get the actual provider (codex/claude-code) from settings
+	provider := GetAgentSettings().Provider
+	services.MarkInvestigationStarted(issue, agentID, provider, startedAtTime)
 
 	if err := svc.server.writeIssueMetadata(issueDir, issue); err != nil {
 		return fmt.Errorf("failed to update issue: %w", err)
@@ -357,7 +339,9 @@ func (svc *InvestigationService) handleInvestigationFailure(issueID, agentID str
 
 	issue, issueDir, _, loadErr := svc.server.loadIssueWithStatus(issueID)
 	if loadErr == nil {
-		services.RecordAgentExecutionFailure(issue, result.Error, nowUTC, result.TranscriptPath, result.LastMessagePath, result.MaxTurnsExceeded)
+		// Get the actual provider (codex/claude-code) from settings
+		provider := GetAgentSettings().Provider
+		services.RecordAgentExecutionFailure(issue, result.Error, provider, nowUTC, result.TranscriptPath, result.LastMessagePath, svc.server.config.ScenarioRoot, result.MaxTurnsExceeded)
 		issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
 		svc.server.writeIssueMetadata(issueDir, issue)
 
@@ -387,7 +371,9 @@ func (svc *InvestigationService) handleInvestigationSuccess(issueID, agentID str
 	// Restart scenario after successful investigation
 	scenarioRestart := svc.attemptScenarioRestart(issue, issueID)
 
-	services.MarkInvestigationSuccess(issue, reportContent, nowUTC, result.TranscriptPath, result.LastMessagePath)
+	// Get the actual provider (codex/claude-code) from settings
+	provider := GetAgentSettings().Provider
+	services.MarkInvestigationSuccess(issue, reportContent, provider, nowUTC, result.TranscriptPath, result.LastMessagePath, svc.server.config.ScenarioRoot)
 
 	if persistErr := svc.server.writeIssueMetadata(issueDir, issue); persistErr != nil {
 		logging.LogErrorErr("Failed to persist investigation results", persistErr, "issue_id", issueID)

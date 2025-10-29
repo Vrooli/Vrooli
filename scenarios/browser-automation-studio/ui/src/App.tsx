@@ -11,6 +11,7 @@ import ProjectModal from './components/ProjectModal';
 import { useExecutionStore } from './stores/executionStore';
 import { useProjectStore, Project } from './stores/projectStore';
 import { useWorkflowStore } from './stores/workflowStore';
+import { logger } from './utils/logger';
 import 'reactflow/dist/style.css';
 
 
@@ -47,7 +48,7 @@ function App() {
       }
     } catch (error) {
       // Some embedded hosts sandbox history APIs; log but continue rendering.
-      console.warn('[BrowserAutomationStudio] Failed to update history state', error);
+      logger.warn('Failed to update history state', { component: 'App', action: 'safeNavigate' }, error);
     }
   }, []);
 
@@ -169,7 +170,7 @@ function App() {
         await openWorkflow(currentProject, workflow.id, { workflowData: workflow });
       }
     } catch (error) {
-      console.error('Failed to create workflow:', error);
+      logger.error('Failed to create workflow', { component: 'App', action: 'handleCreateWorkflow', projectId: currentProject?.id }, error);
     }
   };
 
@@ -181,7 +182,7 @@ function App() {
     try {
       await openWorkflow(currentProject, workflow.id, { workflowData: workflow });
     } catch (error) {
-      console.error('Failed to open generated workflow:', error);
+      logger.error('Failed to open generated workflow', { component: 'App', action: 'handleWorkflowGenerated', workflowId: workflow.id, projectId: currentProject.id }, error);
     }
   };
 
@@ -229,12 +230,12 @@ function App() {
     };
 
     resolvePath(window.location.pathname, true).catch((error) => {
-      console.warn('[BrowserAutomationStudio] Failed to resolve initial route', error);
+      logger.warn('Failed to resolve initial route', { component: 'App', action: 'resolvePath' }, error);
     });
 
     const popHandler = () => {
       resolvePath(window.location.pathname, true).catch((error) => {
-        console.warn('[BrowserAutomationStudio] Failed to resolve popstate route', error);
+        logger.warn('Failed to resolve popstate route', { component: 'App', action: 'handlePopState' }, error);
       });
     };
 

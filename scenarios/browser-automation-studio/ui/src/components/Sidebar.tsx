@@ -1,4 +1,5 @@
 import { ChevronRight, ChevronDown, Folder, FolderOpen, FileCode, Plus, Search } from 'lucide-react';
+import { logger } from '../utils/logger';
 import { useState, useEffect } from 'react';
 import NodePalette from './NodePalette';
 import { getConfig } from '../config';
@@ -104,7 +105,7 @@ function Sidebar({ selectedFolder, onFolderSelect, projectId }: SidebarProps) {
         const config = await getConfig();
         const response = await fetch(`${config.API_URL}/projects/${projectId}/workflows`);
         if (!response.ok) {
-          console.error('Failed to fetch workflows');
+          logger.error('Failed to fetch workflows', { component: 'Sidebar', action: 'fetchWorkflows' });
           return;
         }
         const data = await response.json();
@@ -168,7 +169,7 @@ function Sidebar({ selectedFolder, onFolderSelect, projectId }: SidebarProps) {
         
         setFolderStructure(rootFolders);
       } catch (error) {
-        console.error('Failed to fetch workflows:', error);
+        logger.error('Failed to fetch workflows', { component: 'Sidebar', action: 'fetchWorkflows' }, error);
       } finally {
         setIsLoading(false);
       }

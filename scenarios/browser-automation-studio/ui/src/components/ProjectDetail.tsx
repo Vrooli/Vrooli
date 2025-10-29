@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { logger } from '../utils/logger';
 import {
   ArrowLeft,
   Plus,
@@ -21,6 +22,7 @@ import {
   Square,
   ListChecks,
   PencilLine,
+  UploadCloud,
 } from 'lucide-react';
 import { Project, useProjectStore } from '../stores/projectStore';
 import { useWorkflowStore } from '../stores/workflowStore';
@@ -75,6 +77,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [isImportingRecording, setIsImportingRecording] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { updateProject, deleteProject } = useProjectStore();
   const { bulkDeleteWorkflows } = useWorkflowStore();
 
@@ -176,7 +180,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
       setSelectedWorkflows(new Set());
       setSelectionMode(false);
     } catch (error) {
-      console.error('Failed to fetch workflows:', error);
+      logger.error('Failed to fetch workflows', { component: 'ProjectDetail', action: 'loadWorkflows', projectId: project.id }, error);
       setError(error instanceof Error ? error.message : 'Failed to fetch workflows');
     } finally {
       setIsLoading(false);
@@ -199,6 +203,61 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
     });
   };
 
+  const handleRecordingImportClick = () => {
+    if (isImportingRecording) {
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleRecordingImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const file = files[0];
+    setIsImportingRecording(true);
+
+    try {
+      const config = await getConfig();
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('project_id', project.id);
+      if (project.name) {
+        formData.append('project_name', project.name);
+      }
+
+      const response = await fetch(`${config.API_URL}/recordings/import`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        try {
+          const payload = JSON.parse(text);
+          const message = payload.message || payload.error || 'Failed to import recording';
+          throw new Error(message);
+        } catch (error) {
+          throw new Error(text || 'Failed to import recording');
+        }
+      }
+
+      const payload = await response.json();
+      const executionId = payload.execution_id || payload.executionId;
+      toast.success(`Recording imported${executionId ? ` (execution ${executionId})` : ''}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to import recording';
+      toast.error(message);
+    } finally {
+      setIsImportingRecording(false);
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
+  };
+
   const handleExecuteWorkflow = async (e: React.MouseEvent, workflowId: string) => {
     e.stopPropagation(); // Prevent workflow selection
     setExecutionInProgress(prev => ({ ...prev, [workflowId]: true }));
@@ -217,10 +276,10 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
       }
 
       const result = await response.json();
-      console.log('Workflow execution started:', result);
+      logger.info('Workflow execution started', { component: 'ProjectDetail', action: 'handleExecuteWorkflow', workflowId, result });
       // You could show a success message here
     } catch (error) {
-      console.error('Failed to execute workflow:', error);
+      logger.error('Failed to execute workflow', { component: 'ProjectDetail', action: 'handleExecuteWorkflow', workflowId }, error);
       alert('Failed to execute workflow. Please try again.');
     } finally {
       setExecutionInProgress(prev => ({ ...prev, [workflowId]: false }));
@@ -310,7 +369,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
       resetSelection();
       setSelectionMode(false);
     } catch (error) {
-      console.error('Failed to delete workflows:', error);
+      logger.error('Failed to delete workflows', { component: 'ProjectDetail', action: 'handleBulkDelete', projectId: project.id }, error);
       toast.error('Failed to delete selected workflows');
     } finally {
       setIsBulkDeleting(false);
@@ -331,7 +390,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
       toast.success('Project deleted successfully');
       onBack();
     } catch (error) {
-      console.error('Failed to delete project:', error);
+      logger.error('Failed to delete project', { component: 'ProjectDetail', action: 'handleDeleteProject', projectId: project.id }, error);
       toast.error('Failed to delete project');
     } finally {
       setIsDeletingProject(false);
@@ -474,6 +533,13 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   return (
     <>
       <div className="flex-1 flex flex-col h-full overflow-hidden">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".zip"
+          className="hidden"
+          onChange={handleRecordingImport}
+        />
       {/* Header */}
       <div className="p-6 border-b border-gray-800">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -603,6 +669,18 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                 </button>
               </>
             )}
+            <button
+              onClick={handleRecordingImportClick}
+              disabled={isImportingRecording}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isImportingRecording ? (
+                <Loader size={14} className="animate-spin" />
+              ) : (
+                <UploadCloud size={16} />
+              )}
+              {isImportingRecording ? 'Importing...' : 'Import Recording'}
+            </button>
             <button
               onClick={handleDeleteProject}
               disabled={isDeletingProject}

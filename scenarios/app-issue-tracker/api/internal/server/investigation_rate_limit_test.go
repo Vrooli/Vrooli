@@ -26,7 +26,7 @@ func TestHandleInvestigationRateLimitMovesIssueToFailed(t *testing.T) {
 		Output:  "upstream responded with 429 Too Many Requests; next window resumes at " + resetTime,
 	}
 
-	handled := env.Server.handleInvestigationRateLimit(issue.ID, agents.UnifiedResolverID, result)
+	handled := env.Server.investigations.handleInvestigationRateLimit(issue.ID, agents.UnifiedResolverID, result)
 	if !handled {
 		t.Fatal("Expected rate limit handler to consume result")
 	}

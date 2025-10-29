@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { getConfig } from '../config';
+import { logger } from '../utils/logger';
 import {
   processExecutionEvent,
   createId,
@@ -200,7 +201,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       await get().connectWebSocket(execution.id);
       void get().refreshTimeline(execution.id);
     } catch (error) {
-      console.error('Failed to start execution:', error);
+      logger.error('Failed to start execution', { component: 'ExecutionStore', action: 'startExecution', workflowId }, error);
       throw error;
     }
   },
@@ -217,7 +218,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
             : state.currentExecution,
       }));
     } catch (error) {
-      console.error('Failed to stop execution:', error);
+      logger.error('Failed to stop execution', { component: 'ExecutionStore', action: 'stopExecution', executionId }, error);
     }
   },
 
@@ -230,7 +231,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       const response = await axios.get(url);
       set({ executions: response.data.executions });
     } catch (error) {
-      console.error('Failed to load executions:', error);
+      logger.error('Failed to load executions', { component: 'ExecutionStore', action: 'loadExecutions', workflowId }, error);
     }
   },
 
@@ -242,7 +243,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       set({ currentExecution: execution });
       void get().refreshTimeline(executionId);
     } catch (error) {
-      console.error('Failed to load execution:', error);
+      logger.error('Failed to load execution', { component: 'ExecutionStore', action: 'loadExecution', executionId }, error);
     }
   },
 
@@ -261,13 +262,19 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
             : state.currentExecution,
       }));
     } catch (error) {
-      console.error('Failed to load execution timeline:', error);
+      logger.error('Failed to load execution timeline', { component: 'ExecutionStore', action: 'refreshTimeline', executionId }, error);
     }
   },
 
   connectWebSocket: async (executionId: string) => {
     const config = await getConfig();
-    const wsUrl = new URL('/ws', config.WS_URL);
+    if (!config.WS_URL) {
+      logger.error('WebSocket base URL not configured', { component: 'ExecutionStore', action: 'connectWebSocket', executionId });
+      return;
+    }
+
+    const wsBase = config.WS_URL.endsWith('/') ? config.WS_URL : `${config.WS_URL}/`;
+    const wsUrl = new URL('ws', wsBase);
     wsUrl.searchParams.set('execution_id', executionId);
 
     const socket = new WebSocket(wsUrl.toString());
@@ -333,12 +340,12 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         const data = JSON.parse(event.data) as ExecutionUpdateMessage;
         handleUpdate(data);
       } catch (err) {
-        console.error('Failed to parse execution update', err);
+        logger.error('Failed to parse execution update', { component: 'ExecutionStore', action: 'handleWebSocketMessage', executionId }, err);
       }
     });
 
     socket.addEventListener('error', (event) => {
-      console.error('WebSocket error', event);
+      logger.error('WebSocket error', { component: 'ExecutionStore', action: 'handleWebSocketError', executionId }, event);
       get().updateExecutionStatus('failed', 'WebSocket error');
     });
 

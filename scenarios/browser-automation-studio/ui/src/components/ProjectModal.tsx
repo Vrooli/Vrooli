@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import { X, FolderOpen, AlertCircle } from 'lucide-react';
 import { useProjectStore, Project } from '../stores/projectStore';
 
@@ -74,7 +75,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
       }
       onClose();
     } catch (error) {
-      console.error('Failed to save project:', error);
+      logger.error('Failed to save project', { component: 'ProjectModal', action: 'handleSave' }, error);
     } finally {
       setIsSubmitting(false);
     }

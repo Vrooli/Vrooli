@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { logger } from '../utils/logger';
 import { Monitor, Search, ChevronRight, ChevronDown, Code, Loader } from 'lucide-react';
 import { getConfig } from '../config';
 import toast from 'react-hot-toast';
@@ -86,7 +87,7 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
       }
       setExpandedNodes(nodesToExpand);
     } catch (error) {
-      console.error('Failed to fetch DOM tree:', error);
+      logger.error('Failed to fetch DOM tree', { component: 'BrowserInspectorTab', action: 'fetchDOMTree' }, error);
       toast.error('Failed to fetch DOM tree');
     } finally {
       setIsLoading(false);

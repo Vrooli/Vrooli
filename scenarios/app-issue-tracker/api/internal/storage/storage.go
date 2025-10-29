@@ -89,7 +89,7 @@ func (fs *FileIssueStore) LoadIssueFromDir(issueDir string) (*issuespkg.Issue, e
 
 	var issue issuespkg.Issue
 	if err := yaml.Unmarshal(data, &issue); err != nil {
-		return nil, fmt.Errorf("error parsing YAML: %v", err)
+		return nil, fmt.Errorf("error parsing YAML: %w", err)
 	}
 
 	if issue.ID == "" {
@@ -246,7 +246,7 @@ func (fs *FileIssueStore) WriteIssueMetadata(issueDir string, issue *issuespkg.I
 
 	data, err := yaml.Marshal(issue)
 	if err != nil {
-		return fmt.Errorf("error marshaling YAML: %v", err)
+		return fmt.Errorf("error marshaling YAML: %w", err)
 	}
 
 	return fs.ops.WriteFile(fs.metadataPath(issueDir), data, 0o644)

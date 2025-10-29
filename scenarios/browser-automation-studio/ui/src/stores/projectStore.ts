@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getConfig } from '../config';
+import { logger } from '../utils/logger';
 
 export interface Project {
   id: string;
@@ -64,8 +65,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
       const data = await response.json();
       set({ projects: data.projects || [], isLoading: false, isConnected: true });
     } catch (error) {
-      console.error('Failed to fetch projects:', error);
-      set({ 
+      logger.error('Failed to fetch projects', { component: 'ProjectStore', action: 'fetchProjects' }, error);
+      set({
         error: error instanceof Error ? error.message : 'Failed to fetch projects',
         isLoading: false,
         isConnected: false
@@ -100,10 +101,10 @@ export const useProjectStore = create<ProjectState>((set) => ({
 
       return newProject;
     } catch (error) {
-      console.error('Failed to create project:', error);
-      set({ 
+      logger.error('Failed to create project', { component: 'ProjectStore', action: 'createProject' }, error);
+      set({
         error: error instanceof Error ? error.message : 'Failed to create project',
-        isLoading: false 
+        isLoading: false
       });
       throw error;
     }
@@ -137,10 +138,10 @@ export const useProjectStore = create<ProjectState>((set) => ({
 
       return updatedProject;
     } catch (error) {
-      console.error('Failed to update project:', error);
-      set({ 
+      logger.error('Failed to update project', { component: 'ProjectStore', action: 'updateProject' }, error);
+      set({
         error: error instanceof Error ? error.message : 'Failed to update project',
-        isLoading: false 
+        isLoading: false
       });
       throw error;
     }
@@ -165,10 +166,10 @@ export const useProjectStore = create<ProjectState>((set) => ({
         isLoading: false
       }));
     } catch (error) {
-      console.error('Failed to delete project:', error);
-      set({ 
+      logger.error('Failed to delete project', { component: 'ProjectStore', action: 'deleteProject' }, error);
+      set({
         error: error instanceof Error ? error.message : 'Failed to delete project',
-        isLoading: false 
+        isLoading: false
       });
       throw error;
     }
@@ -184,7 +185,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
       const project = await response.json();
       return project;
     } catch (error) {
-      console.error('Failed to fetch project:', error);
+      logger.error('Failed to fetch project', { component: 'ProjectStore', action: 'getProject', projectId: id }, error);
       return null;
     }
   },
@@ -215,13 +216,13 @@ export const useProjectStore = create<ProjectState>((set) => ({
 
       const result = await response.json();
 
-      set(state => ({ 
+      set(state => ({
         bulkExecutionInProgress: { ...state.bulkExecutionInProgress, [projectId]: false }
       }));
 
       return result;
     } catch (error) {
-      console.error('Failed to execute all workflows:', error);
+      logger.error('Failed to execute all workflows', { component: 'ProjectStore', action: 'executeAllWorkflows', projectId }, error);
       set(state => ({
         bulkExecutionInProgress: { ...state.bulkExecutionInProgress, [projectId]: false },
         error: error instanceof Error ? error.message : 'Failed to execute workflows'

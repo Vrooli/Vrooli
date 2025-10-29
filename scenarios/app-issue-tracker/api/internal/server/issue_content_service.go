@@ -142,14 +142,20 @@ func (svc *IssueContentService) AgentConversation(issueID string, maxEntries int
 		Available: false,
 	}
 
-	if issue.Investigation.AgentID != "" {
-		payload.Provider = issue.Investigation.AgentID
-	}
-
+	// Prioritize metadata.AgentProviderKey (contains actual provider: codex/claude-code)
+	// over issue.Investigation.AgentID (may contain legacy "unified-resolver" value)
 	if issue.Metadata.Extra != nil {
-		if provider := strings.TrimSpace(issue.Metadata.Extra[metadata.AgentProviderKey]); provider != "" && payload.Provider == "" {
+		if provider := strings.TrimSpace(issue.Metadata.Extra[metadata.AgentProviderKey]); provider != "" {
 			payload.Provider = provider
 		}
+		if sessionID := strings.TrimSpace(issue.Metadata.Extra[metadata.AgentSessionIDKey]); sessionID != "" {
+			payload.SessionID = sessionID
+		}
+	}
+
+	// Fallback to AgentID for backwards compatibility with old issues
+	if payload.Provider == "" && issue.Investigation.AgentID != "" {
+		payload.Provider = issue.Investigation.AgentID
 	}
 
 	lastMessagePath := ""

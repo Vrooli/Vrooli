@@ -73,8 +73,8 @@ func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *htt
 	}
 
 	generatedAt := time.Now().UTC().Format(time.RFC3339)
-	promptTemplate := s.loadPromptTemplate()
-	promptMarkdown := s.buildInvestigationPrompt(issue, issueDir, agentID, s.config.ScenarioRoot, generatedAt)
+	promptTemplate := s.investigations.loadPromptTemplate()
+	promptMarkdown := s.investigations.buildInvestigationPrompt(issue, issueDir, agentID, s.config.ScenarioRoot, generatedAt)
 
 	resp := PromptPreviewResponse{
 		IssueID:        issue.ID,
