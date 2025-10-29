@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# Validate required environment variables
+if [ -z "${HOME:-}" ]; then
+    echo "Error: HOME environment variable is not set" >&2
+    exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_NAME="picker-wheel"
 CLI_PATH="${SCRIPT_DIR}/${CLI_NAME}"
@@ -20,6 +26,12 @@ echo "Installing Picker Wheel CLI..."
 if [ ! -d "$INSTALL_DIR" ]; then
     echo "Creating directory: $INSTALL_DIR"
     mkdir -p "$INSTALL_DIR"
+fi
+
+# Validate CLI_PATH exists
+if [ -z "${CLI_PATH:-}" ] || [ ! -f "$CLI_PATH" ]; then
+    echo "Error: CLI binary not found at $CLI_PATH" >&2
+    exit 1
 fi
 
 # Make CLI executable

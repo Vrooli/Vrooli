@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { logger } from '../utils/logger';
 import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle, Brain } from 'lucide-react';
 import { getConfig } from '../config';
 import toast from 'react-hot-toast';
@@ -88,7 +89,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
         setScreenshot(data.screenshot);
       }
     } catch (error) {
-      console.error('Failed to take screenshot:', error);
+      logger.error('Failed to take screenshot', { component: 'ElementPickerModal', action: 'fetchScreenshot' }, error);
       toast.error('Failed to take screenshot');
     } finally {
       setIsLoading(false);
@@ -120,7 +121,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
       setCustomSelector(bestSelector);
       setActiveTab('custom');
     } catch (error) {
-      console.error('Failed to get element at coordinate:', error);
+      logger.error('Failed to get element at coordinate', { component: 'ElementPickerModal', action: 'handleScreenshotClick' }, error);
       toast.error('Failed to get element at coordinate');
     } finally {
       setIsLoading(false);
@@ -129,24 +130,21 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
 
   const handleScreenshotClick = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
     const img = e.target as HTMLImageElement;
-    
+
     // Calculate coordinates relative to the image's natural size
     const x = Math.round(e.nativeEvent.offsetX * (img.naturalWidth / img.offsetWidth));
     const y = Math.round(e.nativeEvent.offsetY * (img.naturalHeight / img.offsetHeight));
-    
-    console.log('Click debug:', {
-      offsetX: e.nativeEvent.offsetX,
-      offsetY: e.nativeEvent.offsetY,
+
+    logger.debug('Click debug', {
+      component: 'ElementPickerModal',
+      x,
+      y,
       naturalWidth: img.naturalWidth,
       naturalHeight: img.naturalHeight,
-      offsetWidth: img.offsetWidth,
-      offsetHeight: img.offsetHeight,
-      scaleX: img.naturalWidth / img.offsetWidth,
-      scaleY: img.naturalHeight / img.offsetHeight,
-      calculatedX: x,
-      calculatedY: y
+      displayWidth: img.offsetWidth,
+      displayHeight: img.offsetHeight
     });
-    
+
     setClickPosition({ x, y });
     getElementAtCoordinate(x, y);
   }, [url]);
@@ -195,7 +193,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
         setCustomSelector(suggestions[0].selectors?.[0]?.selector || '');
       }
     } catch (error) {
-      console.error('Failed to analyze with AI:', error);
+      logger.error('Failed to analyze with AI', { component: 'ElementPickerModal', action: 'handleAIAnalysis' }, error);
       toast.error('AI analysis failed. Make sure Ollama is running.');
     } finally {
       setAiAnalyzing(false);

@@ -6,17 +6,27 @@ Visual browser automation workflow builder with AI-powered generation and debugg
 
 Browser Automation Studio transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
 
-## ⚠️ Current Implementation Status (2025-10-18)
-- The Go executor (`api/browserless/client.go`) now generates scripts for Browserless' `/chrome/function`, updates execution records, and stores real screenshots, but it only supports sequential `navigate`/`wait`/`screenshot` nodes. React Flow edges are ignored, interaction nodes fail with "unsupported" errors, and there is no console/network/cursor telemetry.
-- WebSocket updates now use the native gorilla hub events and the UI store consumes the same payloads; richer visuals still depend on adding cursor/network artifacts.
-- Replay tooling, screenshot highlighting, and artifact stitching are aspirational; only ad-hoc preview endpoints shell out to `resource-browserless` today.
-- Requirements tracking: `docs/requirements.yaml` (draft) plus `scripts/requirements/report.js` now emit summary coverage; integration with automated test outputs is still outstanding.
-- Tests cover structure/linting only; no integration tests exercise the automation path. Use this scenario as a work-in-progress playground until the action plan lands.
+## ⚠️ Current Implementation Status (2025-11-03)
+- The Go executor (`api/browserless/client.go`) maintains a persistent Browserless session and executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` nodes in sequence. Step results capture console logs, network events, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata; artifacts persist via `execution_steps` and `execution_artifacts` (including timeline frames). Success/failure/else branching now routes executions conditionally (respecting `continueOnFailure`), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry. Loop constructs and richer conditional expressions remain on the roadmap.
+- Assertion nodes now evaluate selector existence/text/attributes directly in Browserless, emitting structured assertion artifacts, timeline metadata, and CLI/UI logs that short-circuit executions on failure.
+- Structured WebSocket events (`execution.*`, `step.*`) now include mid-step `step.heartbeat` telemetry. The UI panel surfaces the latest heartbeat with elapsed timing while console/network payloads continue streaming via `step.telemetry` events.
+- The CLI watcher attaches to the WebSocket stream when Node.js is available, echoing heartbeats alongside step events and retaining HTTP polling + timeline summary fallbacks. The `execution export` command now streams replay-export packages and can write the JSON payload to disk for automation tooling.
+- Replay tooling offers a Replay tab with highlight/mask overlays, zoom anchoring, cursor trails, and storyboard navigation, and the API now serves structured `/executions/{id}/export` packages with transition hints, theme presets, and asset references. DOM snapshots are captured alongside screenshots, surface in the UI replay inspector, and ship as embedded HTML in export bundles so downstream renderers can animate DOM-aware transitions. Automated video rendering remains on the roadmap.
+- Requirements tracking continues through `docs/requirements.yaml` (v0.1.1) and `scripts/requirements/report.js`, now reflecting telemetry/replay progress; automated CI hooks remain pending.
+- Automated coverage exercises the compiler/runtime helpers and executor telemetry persistence; WebSocket contract, handler integration, and end-to-end Browserless tests remain gaps.
+- Documentation across README/PRD/action-plan matches the current executor and replay capabilities while calling out remaining milestones.
 
 > See `docs/action-plan.md` for the full backlog and execution roadmap.
 
+### Current Limitations
+- Looping, expression-based branching, and workflow sub-calls are not yet available; complex flows still rely on duplicated node paths.
+- The replay pipeline exports interactive HTML packages (`execution render`) but cannot yet render MP4/GIF assets or advanced cursor animations.
+- Chrome extension capture remains unintegrated, so real-user recordings cannot be replayed inside the studio.
+- Requirements coverage is status-only—the report script does not ingest automated test outcomes yet.
+- AI workflow generation/debugging endpoints exist but still require manual validation before they can be considered production-ready.
+
 ## 📊 Status Dashboard
-- Requirement coverage (`docs/requirements.yaml`): total 4 • complete 0 • in progress 0 • pending 4 • critical gap (P0/P1 incomplete) 4.
+- Requirement coverage (`docs/requirements.yaml` v0.1.4): total 4 • complete 0 • in progress 3 • pending 1 • critical gap (P0/P1 incomplete) 4.
 - Generate a fresh snapshot with `node ../../scripts/requirements/report.js --scenario browser-automation-studio --format markdown` from the scenario root.
 
 ## ✨ Features
@@ -24,15 +34,16 @@ Browser Automation Studio transforms browser automation from code-based scripts 
 Status legend: ✅ scaffolding exists • 🚧 active development • 🌀 planned polish
 
 - ✅ **Visual Workflow Builder**: React Flow UI stores node/edge JSON and project folders in Postgres.
-- ✅ **API/CLI Scaffolding**: REST handlers and CLI commands exist for workflows/executions; the API now runs sequential Browserless steps but responses lack interaction data and streaming updates.
-- 🚧 **Real-time Execution Stream**: Native WebSocket events reach the UI; timelines still lack cursor/network overlays until the executor streams those artifacts.
+- ✅ **API/CLI Scaffolding**: REST handlers and CLI commands exist for workflows/executions; the API executes sequential Browserless steps with per-step telemetry while the CLI opens a live WebSocket stream (when Node.js is available) and prints execution timeline summaries after runs.
+- ✅ **Execution Timeline API**: `/api/v1/executions/{id}/timeline` now assembles per-step `timeline_frame` artifacts with screenshot metadata, highlights, masks, and console/network references for replay consumers.
+- 🚧 **Real-time Execution Stream**: Structured WebSocket events deliver per-step logs, mid-step heartbeats, telemetry, and screenshots; the execution viewer now surfaces last-heartbeat timing while rendering `step.telemetry` console/network output. Tune heartbeat cadence with `BROWSERLESS_HEARTBEAT_INTERVAL` (Go duration, `0` disables). Cursor trails render inside the Replay tab; richer CLI overlays remain on the roadmap.
 - 🚧 **AI Workflow Generation**: Prompt pipeline calls OpenRouter but lacks validation against a runnable executor.
 - 🚧 **AI Debugging Loop**: Endpoint stubs exist; needs real telemetry + replay artifacts to be effective.
-- 🌀 **Replay & Marketing Renderer**: Highlighted screenshots, cursor animation, and stitched exports are design goals awaiting artifact schema work.
+- 🚧 **Replay & Marketing Renderer**: Timeline artifacts feed the replay UI, `/executions/{id}/export` packages expose animation/transition hints (including DOM snapshot HTML), and the CLI `execution render` command now materialises a stylised HTML replay with downloaded assets; automated MP4/GIF exporters remain future work.
 
 ## 🚀 Quick Start
 
-> Current executables run limited sequential workflows (navigate/wait/screenshot only). Use these commands to validate plumbing while the full executor roadmap lands.
+> Current executables handle sequential workflows plus conditional success/failure branches (including continue-on-failure assertions). Looping and replay exporters are still in development, so treat this as plumbing validation while the roadmap lands.
 
 ### Prerequisites
 
@@ -89,7 +100,31 @@ browser-automation-studio workflow execute "test-flow" --wait
 
 # List workflows
 browser-automation-studio workflow list
+
+# Generate replay export metadata
+browser-automation-studio execution export <execution-id> --output bas-export.json
+
+# Produce a stylised HTML replay package (screenshots downloaded automatically)
+browser-automation-studio execution render <execution-id> --output ./replays/demo-run
 ```
+
+### Demo Workflow
+
+On first run (or whenever the database is empty) the API seeds a ready-to-run workflow named **Demo: Capture Example.com Hero** inside the `/demo` workflow folder. The seed run creates a project called **Demo Browser Automations** whose backing directory defaults to `scenarios/browser-automation-studio/data/projects/demo` (override with `BAS_DEMO_PROJECT_PATH`). The directory is created automatically so replay exports and rendered bundles have a safe place to land.
+
+- **From the UI:** Start the scenario, open the dashboard, and select **Demo Browser Automations**. The preloaded "Demo" folder contains the workflow—click **Run** to watch live telemetry. When the execution finishes, open the Replay tab to see the branded screenshots, cursor trail, and assertion summary.
+- **From the CLI:**
+
+  ```bash
+  # Execute the demo workflow and wait for completion
+  browser-automation-studio workflow execute "Demo: Capture Example.com Hero" --wait
+
+  # Stream the replay/telemetry for the most recent run
+  browser-automation-studio execution watch <execution-id>
+  ```
+
+  The `execute` command prints the execution ID so you can feed it directly into `execution watch`, `execution export`, or `execution render` to pull telemetry and marketing-ready assets.
+- **Automation sanity check:** `./automation/projects/demo-sanity.sh` boots the scenario and verifies the demo project/workflow are exposed via the API—handy for CI keep-alive jobs or local smoke checks.
 
 ## 🏗️ Architecture
 
@@ -108,18 +143,20 @@ browser-automation-studio workflow list
    - MinIO for screenshot storage
 
 3. **CLI (Bash)**
-   - Thin wrapper around API
-   - Currently polls `/executions` because streaming endpoints are unfinished
+   - Thin wrapper around API with WebSocket-enabled execution watching
+   - `execution export` command streams replay-export packages for downstream tooling
+   - `execution render` command downloads assets and produces a standalone HTML replay for marketing previews
    - JSON and human-readable output
 
 ### Workflow Node Types
 
 - **Navigate**: Executes via Browserless for sequential flows; edges/branching are ignored and each step shares a single page context.
-- **Click**: Not yet supported—executor returns an unsupported step error until interaction primitives land.
-- **Type**: Not yet supported—text input helpers are part of the execution-core backlog.
-- **Screenshot**: Stores real full-page PNGs (MinIO/local fallback) but lacks element highlighting, viewport presets, or cursor overlays.
-- **Wait**: Time waits execute; element waits only perform `waitForSelector` without retry/backoff instrumentation yet.
-- **Extract**: Still placeholder—the executor has no DOM extraction helpers wired.
+- **Click**: Supported for visible selectors; emits bounding boxes and synthetic click coordinates and now honours node-level retry/backoff policies.
+- **Type**: Supported with optional delay/clear/submit flags; richer form heuristics and masking are pending.
+- **Screenshot**: Captures full-page PNGs (MinIO/local fallback) with optional focus, highlight, mask, background, and zoom controls while preserving cursor trails for replay animation.
+- **Wait**: Time waits execute; element waits leverage configurable retry/backoff instrumentation, though richer loop constructs are still pending.
+- **Extract**: Supported for text/value/html/attribute payloads and persists results (no schema enforcement yet).
+- **Assert**: Evaluate selector existence, text, or attribute conditions directly in Browserless, surfacing assertion artifacts, execution logs, and replay metadata; failures halt the run unless future branching allows continuations.
 
 ## 🤖 AI Integration
 
@@ -179,11 +216,11 @@ The UI follows a technical, developer-focused aesthetic:
 - Dark theme with syntax highlighting
 - Split-pane layout for workflow building and execution viewing
 - Console-style log output
-- Filmstrip screenshot timeline
+- Filmstrip screenshot timeline (driven by the execution timeline API when populated)
 
 ## 🧪 Testing
 
-> Automated coverage is limited to structure/linting checks today; add executor + handler tests as the integration lands.
+> Automated coverage combines unit baselines with the telemetry smoke integration run (highlight overlays, console logs, network events, replay export manifest). Handler/websocket suites are still pending.
 
 ```bash
 # Run scenario tests
@@ -192,6 +229,9 @@ vrooli scenario test browser-automation-studio
 # Run unit tests
 cd api && go test ./...
 cd ../ui && npm test
+
+# Run replay renderer automation
+node automation/replay/render-check.js
 ```
 
 ## 📊 Metrics
@@ -217,10 +257,10 @@ Planned controls:
 
 ## 🚧 Known Limitations
 
-- Workflow executions use mocked Browserless responses; no DOM interaction occurs yet.
-- UI real-time panels now hydrate from native WebSocket events; enhanced telemetry (network, console, cursor) remains on the roadmap.
-- Replay/highlight/custom screenshot features are unimplemented.
-- Browserless resource still needs session orchestration to avoid cold start cost once executor ships.
+- Loop constructs, sub-workflows, and richer conditional expressions are still on the execution roadmap.
+- Telemetry exports (webhook routing, analytics packages) are not wired; monitoring remains console/CLI only.
+- Replay pipeline outputs interactive HTML packages (including DOM snapshots) but cannot yet render MP4/GIF video assets or automate cinematic cursor choreography.
+- Chrome extension capture path is not integrated with the replay/automation pipeline.
 
 ## 🔮 Future Enhancements
 

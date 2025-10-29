@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Node, Edge } from 'reactflow';
 import { getConfig } from '../config';
+import { logger } from '../utils/logger';
 
 interface Workflow {
   id: string;
@@ -65,6 +66,7 @@ interface WorkflowStore {
   generateWorkflow: (prompt: string, name: string, folderPath: string, projectId?: string) => Promise<Workflow>;
   modifyWorkflow: (prompt: string) => Promise<Workflow>;
   deleteWorkflow: (id: string) => Promise<void>;
+  bulkDeleteWorkflows: (projectId: string, workflowIds: string[]) => Promise<string[]>;
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
@@ -126,7 +128,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const data = await response.json();
       set({ workflows: data.workflows });
     } catch (error) {
-      console.error('Failed to load workflows:', error);
+      logger.error('Failed to load workflows', { component: 'WorkflowStore', action: 'loadWorkflows', projectId }, error);
     }
   },
   
@@ -138,13 +140,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(`Failed to load workflow: ${response.status}`);
       }
       const workflow = await response.json();
-      set({ 
+      set({
         currentWorkflow: workflow,
         nodes: normalizeNodes(workflow.nodes),
         edges: normalizeEdges(workflow.edges)
       });
     } catch (error) {
-      console.error('Failed to load workflow:', error);
+      logger.error('Failed to load workflow', { component: 'WorkflowStore', action: 'loadWorkflow', workflowId: id }, error);
     }
   },
   
@@ -171,14 +173,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(message || `Failed to create workflow: ${response.status}`);
       }
       const workflow = await response.json();
-      set({ 
+      set({
         currentWorkflow: workflow,
         nodes: [],
         edges: []
       });
       return workflow;
     } catch (error) {
-      console.error('Failed to create workflow:', error);
+      logger.error('Failed to create workflow', { component: 'WorkflowStore', action: 'createWorkflow', name, projectId }, error);
       throw error;
     }
   },
@@ -204,16 +206,16 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       if (!response.ok) {
         throw new Error(`Failed to save workflow: ${response.status}`);
       }
-      set({ 
-        currentWorkflow: { 
-          ...currentWorkflow, 
-          nodes, 
+      set({
+        currentWorkflow: {
+          ...currentWorkflow,
+          nodes,
           edges,
           updatedAt: new Date()
         }
       });
     } catch (error) {
-      console.error('Failed to save workflow:', error);
+      logger.error('Failed to save workflow', { component: 'WorkflowStore', action: 'saveWorkflow', workflowId: currentWorkflow.id }, error);
       throw error;
     }
   },
@@ -250,14 +252,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(message || `Failed to generate workflow: ${response.status}`);
       }
       const workflow = await response.json();
-      set({ 
+      set({
         currentWorkflow: workflow,
         nodes: normalizeNodes(workflow.nodes),
         edges: normalizeEdges(workflow.edges)
       });
       return workflow;
     } catch (error) {
-      console.error('Failed to generate workflow:', error);
+      logger.error('Failed to generate workflow', { component: 'WorkflowStore', action: 'generateWorkflow', name, projectId }, error);
       throw error;
     }
   },
@@ -285,14 +287,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(message || `Failed to modify workflow: ${response.status}`);
       }
       const modifiedWorkflow = await response.json();
-      set({ 
+      set({
         currentWorkflow: modifiedWorkflow,
         nodes: normalizeNodes(modifiedWorkflow.nodes),
         edges: normalizeEdges(modifiedWorkflow.edges)
       });
       return modifiedWorkflow;
     } catch (error) {
-      console.error('Failed to modify workflow:', error);
+      logger.error('Failed to modify workflow', { component: 'WorkflowStore', action: 'modifyWorkflow', workflowId: currentWorkflow.id }, error);
       throw error;
     }
   },
@@ -312,7 +314,48 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         set({ currentWorkflow: null, nodes: [], edges: [] });
       }
     } catch (error) {
-      console.error('Failed to delete workflow:', error);
+      logger.error('Failed to delete workflow', { component: 'WorkflowStore', action: 'deleteWorkflow', workflowId: id }, error);
+      throw error;
+    }
+  },
+
+  bulkDeleteWorkflows: async (projectId: string, workflowIds: string[]) => {
+    if (workflowIds.length === 0) {
+      return [];
+    }
+
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/projects/${projectId}/workflows/bulk-delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ workflow_ids: workflowIds }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Failed to delete workflows: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const deletedIds = Array.isArray(data.deleted_ids) ? (data.deleted_ids as string[]) : workflowIds;
+      const deletedSet = new Set(deletedIds);
+
+      set((state) => {
+        const currentDeleted = state.currentWorkflow && deletedSet.has(state.currentWorkflow.id);
+        return {
+          workflows: state.workflows.filter((workflow) => !deletedSet.has(workflow.id)),
+          currentWorkflow: currentDeleted ? null : state.currentWorkflow,
+          nodes: currentDeleted ? [] : state.nodes,
+          edges: currentDeleted ? [] : state.edges,
+        };
+      });
+
+      return deletedIds;
+    } catch (error) {
+      logger.error('Failed to bulk delete workflows', { component: 'WorkflowStore', action: 'bulkDeleteWorkflows', projectId, count: workflowIds.length }, error);
       throw error;
     }
   }

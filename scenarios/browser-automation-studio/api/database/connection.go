@@ -2,11 +2,14 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
@@ -25,22 +28,22 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	dbUser := os.Getenv("POSTGRES_USER")
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	dbName := os.Getenv("POSTGRES_DB")
-	
+
 	// Override database name for this scenario if not specifically set
 	if dbName == "vrooli" || dbName == "" {
 		dbName = "browser_automation_studio"
 	}
-	
+
 	var databaseURL string
-	
+
 	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
 		// Construct URL from individual components
 		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 		log.WithFields(logrus.Fields{
-			"host": dbHost,
-			"port": dbPort,
-			"user": dbUser,
+			"host":     dbHost,
+			"port":     dbPort,
+			"user":     dbUser,
 			"database": dbName,
 		}).Info("Using individual PostgreSQL environment variables")
 	} else {
@@ -67,7 +70,7 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			err = db.PingContext(ctx)
 			cancel()
-			
+
 			if err == nil {
 				log.Info("Successfully connected to database")
 				break
@@ -86,10 +89,10 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		actualDelay := delay + jitter
 
 		log.WithFields(logrus.Fields{
-			"attempt": attempt + 1,
+			"attempt":    attempt + 1,
 			"maxRetries": maxRetries,
-			"delay": actualDelay,
-			"error": err.Error(),
+			"delay":      actualDelay,
+			"error":      err.Error(),
 		}).Warn("Failed to connect to database, retrying...")
 
 		time.Sleep(actualDelay)
@@ -127,7 +130,7 @@ func (db *DB) Close() error {
 func (db *DB) HealthCheck() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	
+
 	return db.PingContext(ctx)
 }
 
@@ -248,6 +251,44 @@ CREATE TABLE IF NOT EXISTS screenshots (
     metadata JSONB DEFAULT '{}'
 );
 
+-- Create execution steps table
+CREATE TABLE IF NOT EXISTS execution_steps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    step_index INTEGER NOT NULL,
+    node_id VARCHAR(255) NOT NULL,
+    step_type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'running',
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    duration_ms INTEGER,
+    error TEXT,
+    input JSONB DEFAULT '{}',
+    output JSONB DEFAULT '{}',
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_execution_step UNIQUE (execution_id, step_index),
+    CONSTRAINT chk_execution_step_status CHECK (status IN ('pending','running','completed','failed'))
+);
+
+-- Create execution artifacts table
+CREATE TABLE IF NOT EXISTS execution_artifacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    step_id UUID REFERENCES execution_steps(id) ON DELETE CASCADE,
+    step_index INTEGER,
+    artifact_type VARCHAR(100) NOT NULL,
+    label VARCHAR(255),
+    storage_url VARCHAR(1000),
+    thumbnail_url VARCHAR(1000),
+    content_type VARCHAR(100),
+    size_bytes BIGINT,
+    payload JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create extracted data table
 CREATE TABLE IF NOT EXISTS extracted_data (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -311,6 +352,9 @@ CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id)
 CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
 CREATE INDEX IF NOT EXISTS idx_execution_logs_execution_id ON execution_logs(execution_id);
 CREATE INDEX IF NOT EXISTS idx_screenshots_execution_id ON screenshots(execution_id);
+CREATE INDEX IF NOT EXISTS idx_execution_steps_execution ON execution_steps(execution_id);
+CREATE INDEX IF NOT EXISTS idx_execution_artifacts_execution ON execution_artifacts(execution_id);
+CREATE INDEX IF NOT EXISTS idx_execution_artifacts_step ON execution_artifacts(step_id);
 CREATE INDEX IF NOT EXISTS idx_extracted_data_execution_id ON extracted_data(execution_id);
 CREATE INDEX IF NOT EXISTS idx_workflow_schedules_active ON workflow_schedules(is_active);
 CREATE INDEX IF NOT EXISTS idx_ai_generations_workflow_id ON ai_generations(workflow_id);
@@ -339,17 +383,271 @@ CREATE TRIGGER update_workflow_schedules_updated_at BEFORE UPDATE ON workflow_sc
 
 DROP TRIGGER IF EXISTS update_workflow_templates_updated_at ON workflow_templates;
 CREATE TRIGGER update_workflow_templates_updated_at BEFORE UPDATE ON workflow_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_execution_steps_updated_at ON execution_steps;
+CREATE TRIGGER update_execution_steps_updated_at BEFORE UPDATE ON execution_steps FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_execution_artifacts_updated_at ON execution_artifacts;
+CREATE TRIGGER update_execution_artifacts_updated_at BEFORE UPDATE ON execution_artifacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 	`
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	_, err := db.ExecContext(ctx, schema)
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
 		return err
 	}
-	
+
 	db.log.Info("Database schema initialized successfully")
+
+	if err := db.seedDemoWorkflow(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db *DB) seedDemoWorkflow() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	const demoWorkflowFolder = "/demo"
+	const demoProjectName = "Demo Browser Automations"
+	const demoProjectDescription = "Seeded workflows that showcase Browser Automation Studio execution, telemetry, and replay features."
+	const demoWorkflowName = "Demo: Capture Example.com Hero"
+
+	demoProjectFolder := os.Getenv("BAS_DEMO_PROJECT_PATH")
+	if demoProjectFolder == "" {
+		demoProjectFolder = filepath.Join("scenarios", "browser-automation-studio", "data", "projects", "demo")
+	}
+
+	absDemoProjectFolder, err := filepath.Abs(demoProjectFolder)
+	if err != nil {
+		return fmt.Errorf("failed to resolve demo project folder: %w", err)
+	}
+
+	if err := os.MkdirAll(absDemoProjectFolder, 0o755); err != nil {
+		return fmt.Errorf("failed to create demo project directory: %w", err)
+	}
+
+	type projectRow struct {
+		ID         uuid.UUID `db:"id"`
+		FolderPath string    `db:"folder_path"`
+	}
+
+	var project projectRow
+	err = db.GetContext(ctx, &project, `SELECT id, folder_path FROM projects WHERE name = $1 LIMIT 1`, demoProjectName)
+	switch {
+	case err == nil:
+		if filepath.Clean(project.FolderPath) != filepath.Clean(absDemoProjectFolder) {
+			if _, err := db.ExecContext(
+				ctx,
+				`UPDATE projects SET folder_path = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+				absDemoProjectFolder,
+				project.ID,
+			); err != nil {
+				return fmt.Errorf("failed to update demo project folder: %w", err)
+			}
+			project.FolderPath = absDemoProjectFolder
+		}
+	case err == sql.ErrNoRows:
+		project = projectRow{ID: uuid.New(), FolderPath: absDemoProjectFolder}
+		if _, err := db.ExecContext(
+			ctx,
+			`INSERT INTO projects (id, name, description, folder_path, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+			 ON CONFLICT (folder_path) DO NOTHING`,
+			project.ID,
+			demoProjectName,
+			demoProjectDescription,
+			absDemoProjectFolder,
+		); err != nil {
+			return fmt.Errorf("failed to seed demo project: %w", err)
+		}
+
+		if err := db.GetContext(ctx, &project, `SELECT id, folder_path FROM projects WHERE name = $1 LIMIT 1`, demoProjectName); err != nil {
+			return fmt.Errorf("failed to confirm demo project id: %w", err)
+		}
+
+		if db.log != nil {
+			db.log.WithFields(logrus.Fields{
+				"project_id":  project.ID,
+				"folder_path": project.FolderPath,
+			}).Info("Seeded demo project 'Demo Browser Automations'")
+		}
+	default:
+		return fmt.Errorf("failed to lookup demo project: %w", err)
+	}
+
+	folderPath := demoWorkflowFolder
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO workflow_folders (id, path, name, description, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		 ON CONFLICT (path) DO NOTHING`,
+		uuid.New(),
+		folderPath,
+		"Demo Workflows",
+		"Sample browser automation journeys seeded by Browser Automation Studio",
+	); err != nil {
+		return fmt.Errorf("failed to seed demo workflow folder: %w", err)
+	}
+
+	flowDefinition := JSONMap{
+		"nodes": []any{
+			map[string]any{
+				"id":   "navigate-home",
+				"type": "navigate",
+				"position": map[string]any{
+					"x": -320,
+					"y": -60,
+				},
+				"data": map[string]any{
+					"label":     "Navigate to Example",
+					"url":       "https://example.com",
+					"waitUntil": "networkidle2",
+					"timeoutMs": 20000,
+				},
+			},
+			map[string]any{
+				"id":   "wait-for-hero",
+				"type": "wait",
+				"position": map[string]any{
+					"x": -80,
+					"y": -60,
+				},
+				"data": map[string]any{
+					"label":    "Allow page to settle",
+					"type":     "time",
+					"duration": 1500,
+				},
+			},
+			map[string]any{
+				"id":   "assert-hero",
+				"type": "assert",
+				"position": map[string]any{
+					"x": 160,
+					"y": -60,
+				},
+				"data": map[string]any{
+					"label":             "Verify hero heading",
+					"mode":              "text_contains",
+					"selector":          "h1",
+					"expectedValue":     "Example Domain",
+					"continueOnFailure": false,
+					"caseSensitive":     false,
+				},
+			},
+			map[string]any{
+				"id":   "screenshot-hero",
+				"type": "screenshot",
+				"position": map[string]any{
+					"x": 400,
+					"y": -60,
+				},
+				"data": map[string]any{
+					"label":              "Capture hero",
+					"name":               "example-hero",
+					"focusSelector":      "h1",
+					"highlightSelectors": []any{"h1", "p"},
+					"highlightColor":     "#38bdf8",
+					"highlightPadding":   12,
+					"maskSelectors":      []any{"a"},
+					"maskOpacity":        0.5,
+					"zoomFactor":         1.15,
+					"background":         "#0f172a",
+					"waitForMs":          500,
+				},
+			},
+		},
+		"edges": []any{
+			map[string]any{"id": "edge-navigate-wait", "source": "navigate-home", "target": "wait-for-hero"},
+			map[string]any{"id": "edge-wait-assert", "source": "wait-for-hero", "target": "assert-hero"},
+			map[string]any{"id": "edge-assert-screenshot", "source": "assert-hero", "target": "screenshot-hero"},
+		},
+	}
+
+	type workflowRow struct {
+		ID         uuid.UUID      `db:"id"`
+		ProjectID  *uuid.UUID     `db:"project_id"`
+		FolderPath string         `db:"folder_path"`
+		CreatedBy  sql.NullString `db:"created_by"`
+	}
+
+	var workflow workflowRow
+	err = db.GetContext(ctx, &workflow, `SELECT id, project_id, folder_path FROM workflows WHERE name = $1 LIMIT 1`, demoWorkflowName)
+	switch {
+	case err == nil:
+		needsUpdate := false
+		if workflow.ProjectID == nil || *workflow.ProjectID != project.ID {
+			needsUpdate = true
+		}
+		if filepath.Clean(workflow.FolderPath) != filepath.Clean(folderPath) {
+			needsUpdate = true
+		}
+		createdByValue := "seed"
+		if workflow.CreatedBy.Valid {
+			createdByValue = workflow.CreatedBy.String
+		}
+		if !workflow.CreatedBy.Valid {
+			needsUpdate = true
+		}
+		if needsUpdate {
+			if _, err := db.ExecContext(
+				ctx,
+				`UPDATE workflows SET project_id = $1, folder_path = $2, created_by = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+				project.ID,
+				folderPath,
+				createdByValue,
+				workflow.ID,
+			); err != nil {
+				return fmt.Errorf("failed to update demo workflow metadata: %w", err)
+			}
+		}
+		return nil
+	case err != sql.ErrNoRows:
+		return fmt.Errorf("failed to lookup demo workflow: %w", err)
+	}
+
+	workflow.ID = uuid.New()
+	description := "Demo workflow that loads example.com, verifies the hero heading, and captures an annotated screenshot."
+
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO workflows (id, project_id, name, folder_path, flow_definition, description, version, created_by, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, 1, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+		workflow.ID,
+		project.ID,
+		demoWorkflowName,
+		folderPath,
+		flowDefinition,
+		description,
+		"seed",
+	); err != nil {
+		return fmt.Errorf("failed to seed demo workflow: %w", err)
+	}
+
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO workflow_versions (id, workflow_id, version, flow_definition, change_description, created_at)
+		 VALUES ($1, $2, 1, $3, $4, CURRENT_TIMESTAMP)
+		 ON CONFLICT (workflow_id, version) DO NOTHING`,
+		uuid.New(),
+		workflow.ID,
+		flowDefinition,
+		"Initial demo workflow seed",
+	); err != nil {
+		return fmt.Errorf("failed to seed demo workflow version: %w", err)
+	}
+
+	if db.log != nil {
+		db.log.WithFields(logrus.Fields{
+			"workflow_id": workflow.ID,
+			"project_id":  project.ID,
+		}).Info("Seeded demo workflow 'Demo: Capture Example.com Hero'")
+	}
+
 	return nil
 }

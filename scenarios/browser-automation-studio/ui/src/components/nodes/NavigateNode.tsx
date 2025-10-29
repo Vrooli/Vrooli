@@ -1,4 +1,5 @@
 import { memo, FC, useState, useEffect } from 'react';
+import { logger } from '../../utils/logger';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Globe, Eye, Loader, X, Monitor, FileText } from 'lucide-react';
 import { getConfig } from '../../config';
@@ -65,7 +66,7 @@ const NavigateNode: FC<NodeProps> = ({ data, selected, id }) => {
         throw new Error('No screenshot data received');
       }
     } catch (error) {
-      console.error('Failed to take screenshot:', error);
+      logger.error('Failed to take screenshot', { component: 'NavigateNode', action: 'handleTakeScreenshot' }, error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to take preview screenshot';
       
       // Show more specific error messages

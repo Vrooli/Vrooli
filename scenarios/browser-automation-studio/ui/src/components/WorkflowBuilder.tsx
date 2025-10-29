@@ -1,4 +1,5 @@
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { logger } from '../utils/logger';
 import ReactFlow, {
   Node,
   Edge,
@@ -56,7 +57,7 @@ interface WorkflowBuilderProps {
 
 function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   // TODO: Implement project-specific workflow features
-  console.log('Project ID:', projectId);
+  logger.debug('Project ID loaded', { component: 'WorkflowBuilder', projectId });
   
   const { nodes: storeNodes, edges: storeEdges, updateWorkflow } = useWorkflowStore();
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
@@ -98,7 +99,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
         2
       );
     } catch (error) {
-      console.error('Failed to stringify workflow definition:', error);
+      logger.error('Failed to stringify workflow definition', { component: 'WorkflowBuilder', action: 'handleSaveError' }, error);
       return '{\n  "nodes": [],\n  "edges": []\n}';
     }
   }, [storeNodes, storeEdges]);

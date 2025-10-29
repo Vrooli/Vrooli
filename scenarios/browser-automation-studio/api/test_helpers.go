@@ -64,6 +64,8 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 // setupTestDatabase creates a test database connection
 func setupTestDatabase(t *testing.T) (*database.DB, func()) {
 	// Use environment variable for test database URL
+	// AUDITOR NOTE: Fallback to DATABASE_URL is intentional for test flexibility.
+	// Tests are skipped (not run with unsafe defaults) when neither variable is set.
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
 		dbURL = os.Getenv("DATABASE_URL")

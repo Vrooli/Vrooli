@@ -15,15 +15,15 @@
 
 ## 3. Current Findings Snapshot
 - **Browserless Resource:** CLI + workflow interpreter cover navigation, element actions, screenshots (page/element/full) and console capture with page/network/dialog telemetry. Generic workflows still expose `browser::get_console_logs` as a stub, so rich logging only exists when we call the console helper directly. No native utilities for overlays, highlights, cursor animation, or stitched replays.
-- **Scenario Implementation:** `api/browserless/client.go` now ships generated scripts to Browserless' `/chrome/function`, persists progress updates, and stores real screenshots, but it only supports sequential `navigate`/`wait`/`screenshot` nodes. React Flow edges are ignored, click/type/extract nodes fail fast, and no console or network telemetry is captured. The WebSocket hub emits structured events consumed by the UI; CLI telemetry remains absent.
+- **Scenario Implementation:** `api/browserless/client.go` now drives a persistent Browserless session, executes `navigate`/`wait`/`click`/`type`/`extract`/`screenshot` nodes sequentially, and persists screenshots, extracted payloads, console logs, and network events. React Flow edges now honour success/failure/else branching (including `continueOnFailure` assertions); loop constructs and advanced resiliency controls (retries/backoff) remain absent, and CLI telemetry is still limited.
 - **Testing:** Phase scripts live under `test/phases/`, but coverage stalls around 5–8%; handlers, storage, websocket, and end-to-end execution paths have no tests. The legacy `scenario-test.yaml` was retired (2025-10-20) so the phased suite is now the single source of truth.
 - **Documentation & Tracking:** README/PRD continue to market finished capabilities (live execution, replay, AI debugging) without highlighting gaps. Requirements are not traceable to tests or automations, so completion scoring is subjective.
 
 ## 4. Key Gaps & Risks
-- **Execution Engine Gap:** Visual workflows do not translate into Browserless executions. Without a real runner we cannot capture screenshots, DOM state, or console data per step.
-- **Replay Artifact Gap:** We lack a normalized artifact schema (timeline, screenshots, DOM snapshots, cursor positions) to power validation replays or marketing-quality animations.
-- **Screenshot Customization Gap:** Browserless has no helper to highlight/zoom/focus target elements before capture; replay UX demands these overlays.
-- **Real-time Telemetry Gap:** API broadcasts nothing over WebSockets; UI/CLI assume socket.io events and break without live updates.
+- **Execution Engine Gap:** Success/failure branching now executes conditionally, yet the engine still lacks loop constructs, richer conditional expressions, and resiliency controls (retries/backoff, circuit breakers).
+- **Replay Artifact Gap:** Timeline artifacts capture highlight/mask/zoom metadata and cursor trails, `/executions/{id}/export` returns themed replay packages, and `execution render` assembles an HTML replay. DOM snapshots, audio, and automated video rendering remain outstanding for marketing-quality animations.
+- **Screenshot Customization Gap:** Highlight/zoom/mask controls ship and HTML replays provide a basic stylised chrome, yet we still need configurable cursor overlays, multi-theme presets, and deeper animation primitives to satisfy high-end marketing output.
+- **Real-time Telemetry Gap:** Mid-step heartbeats stream to UI/CLI with stall detection, yet we still need persistent alert routing (webhooks/Slack), richer anomaly analytics, and end-to-end telemetry exports.
 - **Requirements Traceability Gap:** PRD checkboxes are the only completion signal. No structured mapping to design-level requirements, tests, or automations.
 - **Documentation Debt:** Public docs overstate maturity, increasing downstream confusion and risk of contract drift.
 
@@ -31,8 +31,8 @@
 | Priority | Area | Task | Deliverable |
 |----------|------|------|------------|
 | P0 | Documentation | Update `README.md` and `PRD.md` with "Current Limitations", execution status, and link to this plan. | Accurate public docs preventing feature assumptions. |
-| P0 | Execution Core | Replace `api/browserless/client.go` stubs with a Browserless orchestration layer that: (1) translates React Flow graphs into ordered steps, (2) invokes Browserless (CLI or function API) using a persistent session, (3) captures per-step artifacts (screenshots, DOM extracts, console logs, network events), (4) stores artifacts in MinIO/Postgres, and (5) emits structured websocket events. | Production-ready executor powering all automations. |
-| P0 | Telemetry Infrastructure | Align WebSocket implementation and UI expectations. Choose protocol (native websocket vs socket.io), implement server-side broadcasting using the new executor events, and update UI/CLI wiring. | Live progress/log streaming across UI & CLI. |
+| P0 | Execution Core | Extend the Browserless orchestration layer with loop-aware planning, resilient retries/backoff, and richer step options (success/failure branching landed 2025-11-05, retry/backoff completed 2025-11-06) while retaining the persistent session + artifact pipeline. | Production-ready executor powering all automations. |
+| P0 | Telemetry Infrastructure | Harden structured events with stalled-heartbeat detection, cursor overlays, and richer CLI summaries while keeping UI alignment as events evolve. | Live progress/log streaming across UI & CLI. |
 | P0 | Testing Hygiene | Legacy `scenario-test.yaml` retired (2025-10-20); next ensure phase scripts stay authoritative and add foundational unit tests for handlers/storage/websocket once the executor lands. | `test-genie` compatible tests with improved coverage baseline. |
 | P1 | Replay Artifact Schema | Define `ExecutionArtifact` schema (timeline, steps, metadata, screenshot references, cursor path, viewport). Persist alongside executions, expose via API, and document contract. | Stable artifact format for replay & validation. |
 | P1 | Replay Renderer | Build UI module + (optional) Node rendering utility that consumes the artifact schema to produce interactive replays with fades/zoom/cursor animation. | Executable replays for validation + marketing. |
@@ -43,24 +43,21 @@
 
 > **Note:** P0 items unblock core execution and telemetry. P1 layers replay polish + automation validation. P2 focuses on expansion once foundations stabilize.
 
-### Current Implementation Inventory (2025-10-18)
+### Current Implementation Inventory (2025-11-03)
 - **API – execution path**
-  - `api/browserless/client.go` builds sequential instructions from workflow nodes and posts a generated script to Browserless' `/chrome/function`, persisting screenshots via MinIO/local fallback. Only `navigate`, `wait`, and `screenshot` nodes are supported today; edges/branching metadata are discarded and interaction nodes return unsupported errors.
-  - `api/services/workflow_service.go` launches background executions and updates progress/result records but still emits only coarse `ExecutionUpdate` envelopes; step-level artifacts and telemetry never hit the WebSocket hub.
-  - `api/handlers/handlers.go` shells out to `resource-browserless` for previews and element analysis per request, bypassing any reusable session or artifact pipeline.
+  - `api/browserless/client.go` executes sequential `navigate`/`wait`/`click`/`type`/`extract`/`screenshot` steps against a persistent Browserless session, persisting console + network telemetry, highlight/mask/zoom metadata, and click coordinates into `execution_steps`/`execution_artifacts`. Success/failure/else branching now executes conditionally; loop constructs and expression-based routing remain future work.
+  - `api/services/workflow_service.go` now assembles `/executions/{id}/timeline` from step + artifact tables and emits structured `execution.*`, `step.*`, and `step.heartbeat` events over the WebSocket hub. Cancellation and pause semantics are still thin.
+  - `api/handlers/handlers.go` exposes CRUD + execution endpoints leveraging the shared artifact pipeline; preview helpers still bypass the persistent session.
 - **WebSocket & clients**
-  - `api/websocket/hub.go` exposes a native gorilla WebSocket hub broadcasting `ExecutionUpdate` payloads alongside structured events.
-  - `ui/src/stores/executionStore.ts` now connects via native `WebSocket` and reacts to execution/step events; screenshot/log timelines still need richer payloads.
-  - CLI `execution watch` (`cli/browser-automation-studio`) falls back to polling `/executions/{id}` every two seconds because streaming data is unavailable.
-- **Artifact persistence**
-  - Tables such as `screenshots`, `execution_logs`, and `extracted_data` now receive real PNG uploads and log entries for supported steps, but coverage stops at sequential screenshots.
-  - There is still no schema or storage path for replay timelines, cursor metadata, highlight overlays, or network logs referenced in the PRD.
-- **Workflow authoring**
-  - React Flow JSON persists in Postgres and `api/browserless/client.go` derives sequential instructions from the saved `nodes`, ignoring `edges` entirely. Branching, ordering guarantees, and per-node validation remain unimplemented.
-  - Execution viewer components (`ui/src/components/ExecutionViewer.tsx`) render screenshots/logs from the store, yet nothing ever populates these arrays beyond mocked CLI imports.
-- **Testing footprint**
-  - `test/phases/` scripts focus on linting/structure; there are no executor or handler unit tests, and integration coverage is effectively 0%.
-  - `api/browserless/client_test.go` only asserts constructor behavior and health-check invocation—no real automation scenarios are exercised.
+  - `api/websocket/hub.go` broadcasts structured events consumed by both UI and CLI, including mid-step heartbeats.
+  - `ui/src/stores/executionStore.ts` records timeline frames, screenshots, and last-heartbeat metadata; `ExecutionViewer` surfaces heartbeat aging alongside replay playback. Cursor trails and failure alerts are still missing.
+  - CLI `execution watch` streams WebSocket events (steps, screenshots, heartbeats) when Node.js is available and falls back to HTTP polling otherwise.
+- **Artifact persistence & replay**
+  - Postgres + MinIO now persist screenshots, console/network dumps, extracted data, and replay-ready `timeline_frame` payloads with highlight/mask/zoom metadata.
+  - `ui/src/components/ReplayPlayer.tsx` renders highlight overlays, zoom transitions, storyboard navigation, and smoothed cursor positioning, while the CLI `execution render` command stitches export packages into a stylised HTML replay. Automated marketing-grade video exports and richer cursor trails remain on the roadmap.
+- **Testing & tracking**
+  - Unit coverage exists for the compiler, repository helpers, and browserless client telemetry persistence, but WebSocket contract and integration tests are still absent.
+  - `docs/requirements.yaml` v0.1.1 + `scripts/requirements/report.js` provide coverage reporting, though CI integration and requirement-tagged automations remain to be built.
 
 
 ## 6. Execution Core Blueprint
@@ -89,7 +86,7 @@
    - Stream aggregated network diagnostics (e.g., request summaries, failure events) so clients can surface them in real time.
 
 5. **Error Handling & Recovery**
-   - Implement retry/backoff for transient Browserless failures.
+  - Implement retry/backoff for transient Browserless failures (✅ delivered 2025-11-06).
    - Capture failure artifacts (final screenshot + console/network summary) before aborting.
    - Surface actionable error codes to UI/CLI.
 
@@ -137,4 +134,142 @@
 4. ✅ Draft `docs/requirements.yaml` skeleton + reporting script interface (reports via `scripts/requirements/report.js`, 2025-10-19).
 5. ✅ Remove `scenario-test.yaml` once phase scripts + reporting are authoritative (2025-10-20).
 
-*Last updated: 2025-10-19*
+## 12. Progress Update (2025-10-20)
+- Execution compiler now normalizes `click`, `type`, and `extract` nodes (alongside existing navigation nodes) and surfaces edge metadata for downstream planners.
+- Browserless runtime ships interaction support with console + network telemetry, element bounding boxes, and extracted payloads included in step results.
+- API client persists console output and extracted data, broadcasts telemetry events, and unit coverage (`api/browserless/client_test.go`) exercises the new pathways without a live Browserless instance.
+- Remaining foundation work: branching/conditional execution, artifact migrations, and UI/CLI consumption of the enriched event stream.
+
+*Last updated: 2025-10-20*
+
+## 13. Progress Update (2025-10-27)
+- Executor now maintains a persistent Browserless session so click/type/extract nodes operate against shared page state while collecting console and network telemetry per step.
+- Step results persist to Postgres/MinIO and emit structured `step.started/step.completed/step.telemetry/step.screenshot` events consumed by the UI; streaming now happens after every step, with mid-step heartbeats and CLI listeners still pending.
+- Documentation (README/PRD) reflects the richer executor capabilities; next focus: branching planner enhancements, replay artifact schema, and CLI/WebSocket parity.
+
+*Last updated: 2025-10-27*
+
+## 14. Progress Update (2025-10-28)
+- Introduced normalized `execution_steps` and `execution_artifacts` tables plus repository helpers so every Browserless run now records per-step inputs, outputs, and associated media in Postgres.
+- The executor writes step records as it runs, persists console/network/extraction telemetry into the artifact table, and references artifact IDs in WebSocket payloads to unblock replay tooling.
+- Added unit coverage in `api/database/repository_test.go` exercising the new persistence layer and verified the browserless client emits artifact metadata for downstream renderers.
+
+*Last updated: 2025-10-28*
+
+## 15. Progress Update (2025-10-29)
+- Screenshot nodes now honour `focusSelector`/`highlightSelectors`/`maskSelectors`/`zoomFactor` parameters, injecting browser-side overlays before capture so artifacts include highlight and mask metadata.
+- The executor emits `timeline_frame` artifacts per step (with focus, highlight, mask, zoom, and related artifact references) and surfaces the new metadata through WebSocket payloads + screenshot artifacts to unblock replay renderers.
+- Extended unit coverage (`api/browserless/client_test.go`) to validate timeline artifact persistence and highlight metadata propagation without requiring a live Browserless instance.
+
+*Last updated: 2025-10-29*
+
+## 16. Progress Update (2025-10-30)
+- `WorkflowService.GetExecutionTimeline` now normalizes execution steps and associated artifacts into a replay-ready schema exposed at `/api/v1/executions/{id}/timeline`, complete with unit coverage.
+- The React execution viewer consumes the new timeline endpoint to drive its screenshot filmstrip, falling back to legacy screenshot arrays when timeline data is absent.
+
+*Last updated: 2025-10-30*
+
+## 17. Progress Update (2025-10-31)
+- Introduced a dedicated UI `ReplayPlayer` that consumes timeline frames to deliver marketing-style playback with highlight/mask overlays, zoom anchoring, and transport controls built atop the artifact schema.
+- Execution Viewer now exposes a Replay tab backed by the aggregated timeline endpoint, complete with automatic polling during active runs and graceful fallbacks when artifacts are missing.
+- Timeline refresh hooks keep the UI synchronized with in-flight executions so replay metadata appears without manual reloads.
+
+*Last updated: 2025-10-31*
+
+## 18. Progress Update (2025-11-01)
+- Refreshed README, PRD, and `docs/requirements.yaml` (v0.1.1) to reflect the executor/replay milestones, updated coverage dashboard figures, and clarified remaining gaps (branching, streaming CLI, export tooling).
+- The UI execution store now consumes `step.telemetry` events so console and network activity surface in real-time logs, complementing the Replay metadata filmstrip.
+- CLI `execution watch` now connects to the WebSocket stream when Node.js is available and still emits a timeline summary derived from `/executions/{id}/timeline`, keeping operators aligned with replay artifacts.
+
+*Last updated: 2025-11-01*
+
+## 19. Progress Update (2025-11-02)
+- Browserless executor now emits `step.heartbeat` events during long-running instructions, carrying elapsed timing metadata so UI/CLI clients can surface "still running" activity without waiting for step completion.
+- CLI WebSocket subscriber prints heartbeat updates (with elapsed seconds) while falling back to HTTP polling, and the UI store updates progress in place without emitting redundant log spam.
+- Added unit coverage ensuring heartbeat emissions occur before step completion, cementing the telemetry contract ahead of cursor trail work.
+- Heartbeat cadence is configurable via `BROWSERLESS_HEARTBEAT_INTERVAL`, enabling slower or faster telemetry without code changes (use `0` to disable).
+
+*Last updated: 2025-11-02*
+
+## 20. Progress Update (2025-11-03)
+- UI execution store now records last-heartbeat metadata and the Execution Viewer surfaces heartbeat aging alongside the active step, giving operators immediate visibility into stalled steps.
+- Replay player smooths cursor positioning between frames, renders cursor trails, and retains highlight/mask/zoom overlays, improving the fidelity of marketing-style replays ahead of export tooling.
+- README, PRD, and execution architecture docs refreshed to reflect heartbeat streaming, cursor trails, and the new export-preview stub; action plan gaps reworded to focus on exporter delivery.
+- API now exposes `/executions/{id}/export` as a not-implemented preview endpoint surfaced via the CLI to outline forthcoming exporter capabilities.
+
+*Last updated: 2025-11-03*
+
+## 21. Progress Update (2025-11-04)
+- Browserless executor now supports `assert` nodes (exists/text/attribute checks) and records assertion metadata in execution steps, timeline artifacts, dedicated assertion artifacts, and WebSocket payloads so failures produce actionable, replayable evidence.
+- CLI `execution watch` timeline summary surfaces assertion status (pass/fail + message) and the UI Replay Player renders assertion details alongside frame metadata, while the event processor logs assertion outcomes in real time.
+- Added Go and Node unit coverage (`client_test.go`, `timeline_test.go`, `ui/tests/executionEventProcessor.assertion.test.mjs`) validating assertion persistence and stream consumption; README/PRD updated to reflect the new validation capability.
+
+*Last updated: 2025-11-04*
+
+## 22. Progress Update (2025-11-05)
+- Browserless executor now evaluates success/failure/else edges (including `continueOnFailure` assertions), allowing workflows to route failures without aborting the run while preserving sequential execution semantics.
+- Added Go unit coverage (`api/browserless/client_test.go`) validating branching to failure/success paths and fatal failure handling, ensuring regressions are caught without a live Browserless dependency.
+- README, PRD, and this plan updated to reflect the new branching capability while calling out the remaining gaps around loops and advanced conditionals.
+
+*Last updated: 2025-11-05*
+
+## 23. Progress Update (2025-11-06)
+- Added configurable retry/backoff handling to the Browserless executor: per-node settings now retry transient failures, capture attempt history, and persist total duration/attempt metadata into `execution_steps`, timeline artifacts, and WebSocket payloads.
+- Extended Go coverage (`api/browserless/client_test.go`) to validate retry behaviour without a live Browserless instance, and expanded `api/services/timeline_test.go` to assert the new replay metadata contract.
+- UI `ReplayPlayer` surfaces resiliency insights (attempt counts, durations, history) and CLI timeline summaries now include total duration and retry info, keeping operators aligned during flaky runs.
+- README, PRD, and this action plan updated to reflect the new resiliency capability while leaving loop-aware execution marked as the remaining execution-core gap.
+
+*Last updated: 2025-11-06*
+
+## 24. Progress Update (2025-11-07)
+- Execution Viewer now surfaces heartbeat health states (awaiting/delayed/stalled) with color-coded messaging so operators can escalate Browserless issues before runs hang silently.
+- CLI `execution watch` monitors heartbeat cadence, emits warnings when telemetry lags, and announces recoveries once Browserless resumes streaming.
+- Requirements registry updated to capture the stall-detection milestone and residual telemetry follow-ups (webhook routing, analytics exports).
+
+*Last updated: 2025-11-07*
+
+## 25. Progress Update (2025-11-08)
+- `/executions/{id}/export` now returns replay-export packages built by `BuildReplayExport`, including transition hints, theme presets, and asset manifests for downstream renderers.
+- Added Go coverage (`api/services/exporter_test.go`) validating export package generation and resilience metadata, preventing regression before video exporters land.
+- CLI `execution export` accepts `--output` to save export JSON locally, prints package summary (frames, total duration, theme accent), and surfaces server errors cleanly.
+- README, architecture blueprint, and requirements registry refreshed to reflect the new exporter while keeping video rendering and DOM snapshot gaps visible.
+
+*Last updated: 2025-11-08*
+
+## 26. Progress Update (2025-11-09)
+- Database bootstrapping now seeds a `/demo` folder with the "Demo: Capture Example.com Hero" workflow whenever the workspace has no workflows, giving operators an immediate end-to-end validation path (navigate → assert → annotated screenshot) without hand-authoring anything.
+- Updated README/PRD to document the seeded journey, including UI and CLI instructions so teammates can execute it, watch real-time telemetry, and export the replay package as part of scenario completeness checks.
+- CLI quick start now references the demo workflow, reinforcing that replay/export tooling can be exercised instantly after setup.
+
+*Last updated: 2025-11-09*
+
+## 27. Progress Update (2025-11-10)
+- Added `automation/executions/telemetry-smoke.sh` + YAML harness to execute a highlight-rich data-URL workflow, asserting timeline frames persist screenshots, highlight metadata, console logs, network events, and assertion payloads before validating replay export packages.
+- Bumped `docs/requirements.yaml` to v0.1.4, marking the telemetry smoke automation as implemented so requirement coverage now reflects executable validation alongside the heartbeat stall check.
+- Refreshed README known limitations to focus on remaining execution/replay/extension gaps rather than legacy Browserless placeholders, keeping public docs aligned with the current implementation.
+
+*Last updated: 2025-11-10*
+
+## 28. Progress Update (2025-11-11)
+- Added `execution render` to the scenario CLI, pairing the replay exporter with a Node-based renderer that downloads timeline assets and emits a stylised HTML replay (background gradient, browser chrome, highlight overlays, cursor pulses).
+- Authored `cli/render-export.js` to normalise export packages into marketing-ready bundles (assets/, index.html, README) so teams can review automations without bespoke tooling.
+- Updated README and PRD with explicit "Current Limitations" callouts and refreshed replay documentation, reducing the documentation debt flagged in the backlog.
+- Action plan gaps realigned to note that HTML replays are available while MP4/GIF renders, DOM snapshots, and chrome extension ingestion remain open.
+
+*Last updated: 2025-11-11*
+
+## 29. Progress Update (2025-11-12)
+- Demo seeding now provisions **Demo Browser Automations** with a concrete workspace under `scenarios/browser-automation-studio/data/projects/demo` (override via `BAS_DEMO_PROJECT_PATH`), ensuring UI launches with an executable workflow and replay exports have a writable destination.
+- README and PRD refreshed to highlight the demo project location, UI run instructions, and the new environment variable for customising the seed path.
+- Authored `automation/projects/demo-sanity.(sh|yaml)` so nightly runs can assert the seeded project + workflow remain accessible via the public API, matching the UI expectations.
+- Added this note so contributors know the dashboard will always display at least one runnable project after a clean start, aligning with scenario completeness goals.
+
+*Last updated: 2025-11-12*
+
+## 30. Progress Update (2025-11-13)
+- Screenshot steps now persist DOM snapshots alongside highlight metadata; the Go client stores each snapshot as a `dom_snapshot` artifact, trims a preview for execution metadata, and broadcasts the reference via WebSocket payloads.
+- Timeline aggregation and replay exports were extended to surface DOM previews and embed the full HTML in replay packages, while the UI Replay tab renders a readable snippet so operators can inspect captured markup without leaving the dashboard.
+- Execution event processing logs an explicit "DOM snapshot captured" message, and the CLI/HTML renderer consume the enriched export schema without breaking existing automation flows.
+- README, PRD, and this action plan were refreshed to document the DOM snapshot milestone and narrow remaining replay gaps to video rendering and advanced animations.
+
+*Last updated: 2025-11-13*

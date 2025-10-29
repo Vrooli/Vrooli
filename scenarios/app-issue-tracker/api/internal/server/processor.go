@@ -206,7 +206,7 @@ func (s *Server) isIssueRunning(issueID string) bool {
 }
 
 func (s *Server) getRateLimitStatusHandler(w http.ResponseWriter, r *http.Request) {
-	status := s.rateLimitStatus()
+	status := s.investigations.RateLimitStatus()
 	response := ApiResponse{
 		Success: true,
 		Data:    status,

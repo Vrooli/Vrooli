@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import { Plus, FolderOpen, Play, Clock, Calendar, PlayCircle, Loader, WifiOff } from 'lucide-react';
 import { useProjectStore, Project } from '../stores/projectStore';
 import { openCalendar } from '../utils/vrooli';
@@ -42,7 +43,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
     try {
       await openCalendar();
     } catch (error) {
-      console.error('Failed to open calendar:', error);
+      logger.error('Failed to open calendar', { component: 'Dashboard', action: 'handleOpenCalendar' }, error);
       alert('Failed to open calendar. Make sure the calendar scenario is running.');
     }
   };
@@ -63,7 +64,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
       
       alert(message);
     } catch (error) {
-      console.error('Failed to execute workflows:', error);
+      logger.error('Failed to execute all workflows', { component: 'Dashboard', action: 'handleExecuteAll' }, error);
       alert('Failed to execute workflows. Please try again.');
     }
   };

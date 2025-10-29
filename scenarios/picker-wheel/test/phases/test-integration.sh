@@ -3,8 +3,16 @@ set -e
 
 echo "=== Integration Tests for Picker Wheel ==="
 
-API_PORT="${API_PORT:-19899}"
-UI_PORT="${UI_PORT:-37193}"
+# Validate required environment variables
+if [ -z "${API_PORT:-}" ]; then
+    echo "ERROR: API_PORT environment variable is required for tests"
+    exit 1
+fi
+if [ -z "${UI_PORT:-}" ]; then
+    echo "ERROR: UI_PORT environment variable is required for tests"
+    exit 1
+fi
+
 API_URL="http://localhost:${API_PORT}"
 UI_URL="http://localhost:${UI_PORT}"
 

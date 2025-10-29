@@ -116,3 +116,43 @@ func TestHubFiltersByExecutionID(t *testing.T) {
 		// expected
 	}
 }
+
+func TestGetClientCount(t *testing.T) {
+	hub := newTestHub(t)
+
+	if count := hub.GetClientCount(); count != 0 {
+		t.Fatalf("expected 0 clients, got %d", count)
+	}
+
+	client1 := &Client{
+		ID:   uuid.New(),
+		Send: make(chan ExecutionUpdate, 4),
+		Hub:  hub,
+	}
+	client2 := &Client{
+		ID:   uuid.New(),
+		Send: make(chan ExecutionUpdate, 4),
+		Hub:  hub,
+	}
+
+	hub.register <- client1
+	time.Sleep(50 * time.Millisecond)
+
+	if count := hub.GetClientCount(); count != 1 {
+		t.Fatalf("expected 1 client after registration, got %d", count)
+	}
+
+	hub.register <- client2
+	time.Sleep(50 * time.Millisecond)
+
+	if count := hub.GetClientCount(); count != 2 {
+		t.Fatalf("expected 2 clients after second registration, got %d", count)
+	}
+
+	hub.unregister <- client1
+	time.Sleep(50 * time.Millisecond)
+
+	if count := hub.GetClientCount(); count != 1 {
+		t.Fatalf("expected 1 client after unregister, got %d", count)
+	}
+}

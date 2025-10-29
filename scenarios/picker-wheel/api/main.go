@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"math"
 	"math/rand"
 	"net/http"
@@ -40,14 +41,19 @@ type SpinResult struct {
 }
 
 type HealthResponse struct {
-	Status  string `json:"status"`
-	Service string `json:"service"`
-	Version string `json:"version"`
+	Status    string    `json:"status"`
+	Service   string    `json:"service"`
+	Version   string    `json:"version"`
+	Timestamp time.Time `json:"timestamp"`
+	Readiness bool      `json:"readiness"`
 }
 
-var db *sql.DB
-var wheels []Wheel
-var history []SpinResult
+var (
+	db      *sql.DB
+	wheels  []Wheel
+	history []SpinResult
+	logger  *slog.Logger
+)
 
 func initDB() {
 	// Database configuration - support both POSTGRES_URL and individual components
@@ -61,7 +67,9 @@ func initDB() {
 		dbName := os.Getenv("POSTGRES_DB")
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Println("❌ Database configuration missing. Using in-memory fallback. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+			logger.Warn("database configuration incomplete, using in-memory fallback",
+				"missing_vars", "POSTGRES_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB",
+				"recommendation", "provide complete database credentials for persistence")
 			return
 		}
 
@@ -72,7 +80,8 @@ func initDB() {
 	var err error
 	db, err = sql.Open("postgres", postgresURL)
 	if err != nil {
-		log.Printf("Failed to open database connection: %v - using in-memory fallback", err)
+		logger.Error("failed to open database connection, using in-memory fallback",
+			"error", err)
 		return
 	}
 
@@ -86,14 +95,18 @@ func initDB() {
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
 
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
+	logger.Info("attempting database connection with exponential backoff",
+		"max_retries", maxRetries,
+		"base_delay", baseDelay,
+		"max_delay", maxDelay)
 
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
+			logger.Info("database connected successfully",
+				"attempt", attempt+1,
+				"max_retries", maxRetries)
 			break
 		}
 
@@ -108,30 +121,41 @@ func initDB() {
 		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
 
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		logger.Warn("database connection attempt failed",
+			"attempt", attempt+1,
+			"max_retries", maxRetries,
+			"error", pingErr,
+			"next_delay", actualDelay)
 
 		// Provide detailed status every few attempts
 		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+			logger.Info("database connection retry progress",
+				"attempts_made", attempt+1,
+				"max_retries", maxRetries,
+				"total_wait_time", time.Duration(attempt*2)*baseDelay,
+				"current_delay", delay,
+				"jitter", jitter)
 		}
 
 		time.Sleep(actualDelay)
 	}
 
 	if pingErr != nil {
-		log.Printf("❌ Database connection failed after %d attempts: %v - using in-memory fallback", maxRetries, pingErr)
+		logger.Error("database connection failed after all retries, using in-memory fallback",
+			"attempts", maxRetries,
+			"error", pingErr)
 		db = nil
 		return
 	}
 
-	log.Println("🎉 Database connection pool established successfully!")
+	logger.Info("database connection pool established successfully",
+		"max_open_conns", 25,
+		"max_idle_conns", 5,
+		"conn_max_lifetime", 5*time.Minute)
 }
 
 func main() {
+	// Check lifecycle management FIRST before any business logic
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
@@ -143,6 +167,11 @@ func main() {
 `)
 		os.Exit(1)
 	}
+
+	// Initialize structured logger
+	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
 
 	// Initialize database connection
 	initDB()
@@ -185,17 +214,23 @@ func main() {
 
 	handler := c.Handler(router)
 
-	log.Printf("🎯 Picker Wheel API starting on port %s", port)
+	logger.Info("picker wheel API starting",
+		"port", port,
+		"service", "picker-wheel-api",
+		"version", "1.0.0")
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 // getEnv removed to prevent hardcoded defaults
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	response := HealthResponse{
-		Status:  "healthy",
-		Service: "picker-wheel-api",
-		Version: "1.0.0",
+		Status:    "healthy",
+		Service:   "picker-wheel-api",
+		Version:   "1.0.0",
+		Timestamp: time.Now(),
+		Readiness: true,
 	}
 	json.NewEncoder(w).Encode(response)
 }
@@ -210,16 +245,19 @@ func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.Query(`
-        SELECT id, name, description, options, theme, times_used, created_at 
-        FROM wheels 
-        WHERE is_public = true 
+        SELECT id, name, description, options, theme, times_used, created_at
+        FROM wheels
+        WHERE is_public = true
         ORDER BY times_used DESC, created_at DESC
         LIMIT 20
     `)
 	if err != nil {
-		log.Printf("Error querying wheels: %v", err)
+		logger.Error("failed to query wheels from database",
+			"error", err,
+			"fallback", "in-memory wheels")
 		// Return in-memory wheels on any database error
 		wheels = getDefaultWheels()
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(wheels)
 		return
 	}
@@ -232,12 +270,15 @@ func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
 		err := rows.Scan(&wheel.ID, &wheel.Name, &wheel.Description,
 			&optionsJSON, &wheel.Theme, &wheel.TimesUsed, &wheel.CreatedAt)
 		if err != nil {
-			log.Printf("Error scanning wheel: %v", err)
+			logger.Error("failed to scan wheel row",
+				"error", err)
 			continue
 		}
 
 		if err := json.Unmarshal(optionsJSON, &wheel.Options); err != nil {
-			log.Printf("Error unmarshalling options: %v", err)
+			logger.Error("failed to unmarshal wheel options",
+				"error", err,
+				"wheel_id", wheel.ID)
 			continue
 		}
 
@@ -282,11 +323,14 @@ func createWheelHandler(w http.ResponseWriter, r *http.Request) {
     `, wheel.Name, wheel.Description, optionsJSON, wheel.Theme, false).Scan(&id)
 
 	if err != nil {
-		log.Printf("Error creating wheel in database: %v - falling back to in-memory", err)
+		logger.Error("failed to create wheel in database, using in-memory fallback",
+			"error", err,
+			"wheel_name", wheel.Name)
 		// Fallback to in-memory on database error
 		wheel.ID = fmt.Sprintf("wheel_%d", time.Now().Unix())
 		wheels = append(wheels, wheel)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(wheel)
 		return
 	}
@@ -466,22 +510,26 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
 	// Store in database if available
 	if db != nil {
 		_, err := db.Exec(`
-			INSERT INTO spin_history (wheel_id, result, session_id, timestamp) 
+			INSERT INTO spin_history (wheel_id, result, session_id, timestamp)
 			VALUES ($1, $2, $3, $4)
 		`, spinRequest.WheelID, selectedOption, spinRequest.SessionID, result.Timestamp)
 
 		if err != nil {
-			log.Printf("Error storing spin history: %v", err)
+			logger.Error("failed to store spin history in database",
+				"error", err,
+				"wheel_id", spinRequest.WheelID)
 		}
 
 		// Also update times_used for the wheel
 		_, err = db.Exec(`
-			UPDATE wheels SET times_used = times_used + 1 
+			UPDATE wheels SET times_used = times_used + 1
 			WHERE id = $1
 		`, spinRequest.WheelID)
 
 		if err != nil {
-			log.Printf("Error updating wheel usage count: %v", err)
+			logger.Error("failed to update wheel usage count",
+				"error", err,
+				"wheel_id", spinRequest.WheelID)
 		}
 	}
 

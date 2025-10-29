@@ -113,20 +113,20 @@
     },
     "setup": {
       "description": "Initialize Picker Wheel",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "picker-wheel-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "picker-wheel"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/picker-wheel-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "picker-wheel"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -152,7 +152,7 @@
         },
         {
           "name": "install-cli",
-          "run": "chmod +x cli/picker-wheel && ln -sf $(pwd)/cli/picker-wheel ~/.local/bin/picker-wheel 2>/dev/null || true",
+          "run": "cd cli && chmod +x picker-wheel && ln -sf $(pwd)/picker-wheel ~/.local/bin/picker-wheel 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {
@@ -190,16 +190,21 @@
           "description": "Start UI server in background",
           "background": true
         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: picker-wheel --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: picker-wheel --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
       "description": "Test Picker Wheel API and CLI",
       "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Run comprehensive phased test suite"
+        },
         {
           "name": "test-go-build",
           "run": "cd api && go build -o test-build . && rm test-build",

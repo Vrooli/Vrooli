@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,6 +26,7 @@ type Session struct {
 	baseURL    string
 	httpClient *http.Client
 	log        *logrus.Logger
+	sessionID  string
 }
 
 // NewSession creates a Browserless session wrapper.
@@ -36,25 +39,37 @@ func NewSession(baseURL string, httpClient *http.Client, log *logrus.Logger) *Se
 		baseURL:    trimmed,
 		httpClient: httpClient,
 		log:        log,
+		sessionID:  uuid.New().String(),
 	}
 }
 
-// Execute ships the provided instructions to Browserless and returns the execution response.
-func (s *Session) Execute(ctx context.Context, instructions []Instruction) (*ExecutionResponse, error) {
-	if len(instructions) == 0 {
-		return &ExecutionResponse{Success: true, Steps: []StepResult{}}, nil
-	}
-
-	script, err := buildWorkflowScript(instructions)
+// ExecuteInstruction runs a single instruction within a persistent Browserless session.
+func (s *Session) ExecuteInstruction(ctx context.Context, instruction Instruction) (*ExecutionResponse, error) {
+	script, err := buildStepScript(instruction)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build browserless script: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.baseURL+browserlessFunctionPath, strings.NewReader(script))
+	payload := map[string]any{
+		"code": script,
+	}
+
+	if strings.TrimSpace(s.sessionID) != "" {
+		payload["context"] = map[string]any{
+			"sessionId": s.sessionID,
+		}
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode browserless payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.baseURL+browserlessFunctionPath, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to build browserless request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/javascript")
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -77,4 +92,9 @@ func (s *Session) Execute(ctx context.Context, instructions []Instruction) (*Exe
 	}
 
 	return &response, nil
+}
+
+// SessionID returns the underlying Browserless session identifier.
+func (s *Session) SessionID() string {
+	return s.sessionID
 }

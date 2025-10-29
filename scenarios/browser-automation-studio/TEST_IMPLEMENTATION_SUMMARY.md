@@ -56,7 +56,9 @@ Comprehensive test suite enhancement completed for the browser-automation-studio
    - Configuration validation
    - Browser session creation
    - Repository integration
-   - **Coverage**: 7.7% of browserless package
+   - Execution telemetry persistence (console logs, extracted data, assertion artifacts, retry/backoff attempt metadata, event payload counts)
+   - Resiliency coverage: retry/backoff execution paths exercised without a live Browserless instance
+   - **Coverage**: 7.7% of browserless package (growing with resiliency tests)
 
 6. **api/services/workflow_service_test.go** (existing, enhanced)
    - AI error message extraction
@@ -64,9 +66,13 @@ Comprehensive test suite enhancement completed for the browser-automation-studio
    - AI workflow error handling
    - **Coverage**: 5.5% of services package
 
+7. **ui/tests/** - Node-based event processor tests
+   - `executionEventProcessor.heartbeat.test.mjs` validates heartbeat progress tracking
+   - `executionEventProcessor.assertion.test.mjs` ensures assertion payloads emit readable log entries and retry attempt suffixes surface in logs
+
 ### Performance Tests
 
-7. **api/performance_test.go** - Performance and load testing
+8. **api/performance_test.go** - Performance and load testing
    - Health endpoint benchmarks
    - Concurrent health check benchmarks
    - Project creation benchmarks

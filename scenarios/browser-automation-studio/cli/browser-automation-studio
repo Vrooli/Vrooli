@@ -5,7 +5,12 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if command -v readlink >/dev/null 2>&1; then
+    SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    SCRIPT_PATH="${BASH_SOURCE[0]}"
+fi
+SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
 
 # Get API URL from environment or exit with error
 if [ -n "${API_PORT}" ]; then
@@ -42,6 +47,8 @@ COMMANDS:
     execution watch         Watch live execution with screenshots
     execution list          List all executions
     execution stop          Stop a running execution
+    execution export        Generate replay export metadata for an execution
+    execution render        Build a marketing-style HTML replay package for an execution
     help                    Display this help message
     version                 Show CLI and API version information
 
@@ -75,6 +82,12 @@ EXECUTION COMMANDS:
     execution stop <execution-id>
         Stop a running execution
 
+    execution export <execution-id> [--output <file>]
+        Generate replay export metadata (JSON). Use --output to save response.
+
+    execution render <execution-id> [--output <dir>] [--overwrite]
+        Generate a standalone HTML replay using captured screenshots and timeline metadata.
+
 EXAMPLES:
     # Create a workflow from AI prompt
     browser-automation-studio workflow create "test-flow" \\
@@ -89,6 +102,9 @@ EXAMPLES:
     # Watch a live execution
     browser-automation-studio execution watch abc123
 
+    # Generate replay export package and save to file
+    browser-automation-studio execution export abc123 --output bas-export.json
+
 EOF
 }
 
@@ -101,43 +117,106 @@ check_api_health() {
 }
 
 show_status() {
-    echo -e "${BLUE}Browser Automation Studio Status${NC}"
-    echo "================================"
-    
-    # Check API
+    local json_output=false
+
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}" >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    # Check API health
+    local api_running=false
     if curl -s "${API_URL%/api/v1}/health" > /dev/null 2>&1; then
-        echo -e "API Server: ${GREEN}✓ Running${NC}"
-    else
-        echo -e "API Server: ${RED}✗ Not responding${NC}"
+        api_running=true
     fi
-    
+
     # Check browserless
+    local browserless_status="not_installed"
     if command -v resource-browserless &> /dev/null; then
         if resource-browserless status 2>/dev/null | grep -q "running"; then
-            echo -e "Browserless: ${GREEN}✓ Available${NC}"
+            browserless_status="running"
         else
-            echo -e "Browserless: ${YELLOW}⚠ Not running${NC}"
+            browserless_status="stopped"
         fi
-    else
-        echo -e "Browserless: ${RED}✗ Not installed${NC}"
     fi
-    
-    # Show workflow count
-    workflow_count=$(curl -s "${API_URL}/workflows" | grep -o '"id"' | wc -l || echo "0")
-    echo -e "Workflows: ${workflow_count}"
-    
-    echo ""
-    echo -e "${GREEN}Ready for automation!${NC}"
+
+    # Get workflow count
+    local workflow_count=0
+    if [ "$api_running" = true ]; then
+        workflow_count=$(curl -s "${API_URL}/workflows" 2>/dev/null | grep -o '"id"' | wc -l || echo "0")
+    fi
+
+    if [ "$json_output" = true ]; then
+        # Output as JSON
+        cat << EOF
+{
+  "api_server": {
+    "running": $api_running,
+    "url": "${API_URL}"
+  },
+  "browserless": {
+    "status": "${browserless_status}"
+  },
+  "workflows": {
+    "count": ${workflow_count}
+  }
+}
+EOF
+    else
+        # Human-readable output
+        echo -e "${BLUE}Browser Automation Studio Status${NC}"
+        echo "================================"
+
+        if [ "$api_running" = true ]; then
+            echo -e "API Server: ${GREEN}✓ Running${NC}"
+        else
+            echo -e "API Server: ${RED}✗ Not responding${NC}"
+        fi
+
+        case "$browserless_status" in
+            running)
+                echo -e "Browserless: ${GREEN}✓ Available${NC}"
+                ;;
+            stopped)
+                echo -e "Browserless: ${YELLOW}⚠ Not running${NC}"
+                ;;
+            *)
+                echo -e "Browserless: ${RED}✗ Not installed${NC}"
+                ;;
+        esac
+
+        echo -e "Workflows: ${workflow_count}"
+
+        echo ""
+        echo -e "${GREEN}Ready for automation!${NC}"
+    fi
 }
 
 create_workflow() {
     local name="$1"
+
+    # Validate required name argument
+    if [ -z "$name" ] || [[ "$name" == --* ]]; then
+        echo -e "${RED}Error: Workflow name is required${NC}"
+        echo "Usage: browser-automation-studio workflow create <name> [options]"
+        exit 1
+    fi
+
     shift
-    
+
     local folder="/"
     local from_file=""
     local ai_prompt=""
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --folder)
@@ -199,12 +278,20 @@ create_workflow() {
 
 execute_workflow() {
     local workflow="$1"
+
+    # Validate required workflow argument
+    if [ -z "$workflow" ] || [[ "$workflow" == --* ]]; then
+        echo -e "${RED}Error: Workflow ID or name is required${NC}"
+        echo "Usage: browser-automation-studio workflow execute <workflow> [options]"
+        exit 1
+    fi
+
     shift
-    
+
     local params="{}"
     local wait=false
     local output_dir=""
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --params)
@@ -327,7 +414,7 @@ list_workflows() {
 # Main command router
 case "${1:-}" in
     status)
-        show_status
+        show_status "${@:2}"
         ;;
     workflow)
         case "${2:-}" in
@@ -365,11 +452,270 @@ case "${1:-}" in
                     echo -e "${RED}Error: Execution ID required${NC}"
                     exit 1
                 fi
-                
+
                 echo -e "${BLUE}Watching execution: ${execution_id}${NC}"
                 echo "Press Ctrl+C to stop watching"
                 echo ""
-                
+
+                ws_pid=""
+                trap 'if [ -n "${ws_pid}" ]; then kill "${ws_pid}" 2>/dev/null; wait "${ws_pid}" 2>/dev/null; fi; exit 130' INT
+                trap 'if [ -n "${ws_pid}" ]; then kill "${ws_pid}" 2>/dev/null; wait "${ws_pid}" 2>/dev/null; fi' TERM EXIT
+
+                if command -v node >/dev/null 2>&1; then
+                    ws_base="${API_URL%/api/v1}"
+                    if [ -z "$ws_base" ] || [ "$ws_base" = "$API_URL" ]; then
+                        ws_base="$API_URL"
+                    fi
+                    if [[ "$ws_base" == https:* ]]; then
+                        ws_endpoint="${ws_base/https:/wss:}"
+                    else
+                        ws_endpoint="${ws_base/http:/ws:}"
+                    fi
+                    ws_endpoint="${ws_endpoint%%/}/ws?execution_id=${execution_id}"
+                    node - "$ws_endpoint" "$execution_id" <<'NODE' &
+const url = process.argv[2];
+const executionId = process.argv[3] || '';
+
+if (!url) {
+  process.exit(0);
+}
+
+if (typeof WebSocket === 'undefined') {
+  console.error('[stream] WebSocket API unavailable in this Node runtime.');
+  process.exit(0);
+}
+
+const ws = new WebSocket(url);
+
+const HEARTBEAT_WARN_MS = 8000;
+const HEARTBEAT_STALL_MS = 15000;
+
+let lastHeartbeatAt = Date.now();
+let heartbeatInitialized = false;
+let heartbeatState = 'init';
+let lastHeartbeatStep = '';
+
+const describeStep = () => (lastHeartbeatStep ? ` (${lastHeartbeatStep})` : '');
+
+const notifyState = (state, deltaMs) => {
+  const deltaLabel = typeof deltaMs === 'number' && Number.isFinite(deltaMs)
+    ? ` (${Math.round(deltaMs / 1000)}s)`
+    : '';
+  switch (state) {
+    case 'awaiting_warn':
+      console.log(`[stream] … awaiting first heartbeat${deltaLabel}`);
+      break;
+    case 'awaiting_stalled':
+      console.log(`[stream] ⚠ no heartbeat yet${deltaLabel}`);
+      break;
+    case 'delayed':
+      console.log(`[stream] … heartbeat delayed${describeStep()}${deltaLabel}`);
+      break;
+    case 'stalled':
+      console.log(`[stream] ⚠ heartbeat stalled${describeStep()}${deltaLabel}`);
+      break;
+    case 'recovered_initial':
+      console.log(`[stream] 💓 first heartbeat received${describeStep()}`);
+      break;
+    case 'recovered':
+      console.log(`[stream] 💓 heartbeat recovered${describeStep()}`);
+      break;
+    default:
+      break;
+  }
+};
+
+const evaluateHeartbeat = () => {
+  const delta = Date.now() - lastHeartbeatAt;
+  if (!heartbeatInitialized) {
+    if (delta >= HEARTBEAT_STALL_MS) {
+      if (heartbeatState !== 'awaiting_stalled') {
+        heartbeatState = 'awaiting_stalled';
+        notifyState('awaiting_stalled', delta);
+      }
+    } else if (delta >= HEARTBEAT_WARN_MS) {
+      if (heartbeatState !== 'awaiting_warn') {
+        heartbeatState = 'awaiting_warn';
+        notifyState('awaiting_warn', delta);
+      }
+    }
+    return;
+  }
+
+  if (delta >= HEARTBEAT_STALL_MS) {
+    if (heartbeatState !== 'stalled') {
+      heartbeatState = 'stalled';
+      notifyState('stalled', delta);
+    }
+    return;
+  }
+
+  if (delta >= HEARTBEAT_WARN_MS) {
+    if (heartbeatState !== 'delayed') {
+      heartbeatState = 'delayed';
+      notifyState('delayed', delta);
+    }
+    return;
+  }
+
+  heartbeatState = 'healthy';
+};
+
+const heartbeatTicker = setInterval(evaluateHeartbeat, 2000);
+
+const labelFor = (event) => {
+  if (typeof event.step_node_id === 'string' && event.step_node_id.trim().length > 0) {
+    return event.step_node_id;
+  }
+  if (typeof event.step_type === 'string' && event.step_type.trim().length > 0) {
+    return event.step_type;
+  }
+  if (typeof event.step_index === 'number') {
+    return `step ${event.step_index + 1}`;
+  }
+  return 'step';
+};
+
+const summarizeTelemetry = (payload, label) => {
+  const consoleLogs = Array.isArray(payload?.console_logs) ? payload.console_logs.length : 0;
+  const networkEvents = Array.isArray(payload?.network_events) ? payload.network_events.length : 0;
+  if (consoleLogs === 0 && networkEvents === 0) {
+    return;
+  }
+  console.log(`[stream] ⚙ ${label}: console ${consoleLogs}, network ${networkEvents}`);
+};
+
+const fmtDuration = (payload) => {
+  const direct = payload?.duration_ms ?? payload?.durationMs;
+  if (typeof direct === 'number' && Number.isFinite(direct)) {
+    return `${direct}ms`;
+  }
+  return '';
+};
+
+ws.onopen = () => {
+  const note = executionId ? ` (${executionId})` : '';
+  console.log(`[stream] Connected to execution telemetry${note}`);
+};
+
+ws.onmessage = (event) => {
+  const text = typeof event.data === 'string' ? event.data : '';
+  let payload;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch (error) {
+    payload = null;
+  }
+
+  if (!payload) {
+    if (text) {
+      console.log(`[stream] ${text}`);
+    }
+    return;
+  }
+
+  if (payload.type === 'event' && payload.data) {
+    const evt = payload.data;
+    const label = labelFor(evt);
+    switch (evt.type) {
+      case 'execution.started':
+        console.log('[stream] ▶ execution started');
+        return;
+      case 'execution.completed':
+        console.log('[stream] ✅ execution completed');
+        return;
+      case 'execution.failed':
+        console.log(`[stream] ❌ execution failed${evt.message ? ` - ${evt.message}` : ''}`);
+        return;
+      case 'execution.cancelled':
+        console.log('[stream] ⏹ execution cancelled');
+        return;
+      case 'step.started':
+        console.log(`[stream] ➤ ${label} started`);
+        return;
+      case 'step.completed':
+        console.log(`[stream] ✓ ${label} completed ${fmtDuration(evt.payload)}`.trim());
+        return;
+      case 'step.failed':
+        console.log(`[stream] ✗ ${label} failed${evt.message ? ` - ${evt.message}` : ''}`);
+        return;
+      case 'step.heartbeat': {
+        const elapsedMs = typeof evt.payload?.elapsed_ms === 'number' ? evt.payload.elapsed_ms : null;
+        const elapsedLabel = elapsedMs !== null ? ` (${Math.round(elapsedMs / 1000)}s)` : '';
+        console.log(`[stream] … ${label} heartbeat${elapsedLabel}`);
+        lastHeartbeatStep = label;
+        lastHeartbeatAt = Date.now();
+        if (!heartbeatInitialized) {
+          heartbeatInitialized = true;
+          if (heartbeatState === 'awaiting_warn' || heartbeatState === 'awaiting_stalled') {
+            notifyState('recovered_initial');
+          }
+        } else if (heartbeatState === 'delayed' || heartbeatState === 'stalled') {
+          notifyState('recovered');
+        }
+        heartbeatState = 'healthy';
+        return;
+      }
+      case 'step.screenshot': {
+        const shotLabel = evt.payload?.url || evt.payload?.artifact_id ? 'stored' : 'inline';
+        console.log(`[stream] 📸 ${label} screenshot (${shotLabel})`);
+        return;
+      }
+      case 'step.telemetry':
+        summarizeTelemetry(evt.payload || {}, label);
+        return;
+      default:
+        return;
+    }
+  }
+
+  if (payload.type === 'progress') {
+    const progress = typeof payload.progress === 'number' ? `${payload.progress}%` : '';
+    const currentStep = payload.current_step ? ` - ${payload.current_step}` : '';
+    console.log(`[stream] progress ${progress}${currentStep}`.trim());
+    return;
+  }
+
+  if (payload.type === 'completed') {
+    console.log('[stream] ✅ execution completed');
+    return;
+  }
+
+  if (payload.type === 'failed') {
+    console.log(`[stream] ❌ execution failed${payload.message ? ` - ${payload.message}` : ''}`);
+    return;
+  }
+};
+
+ws.onerror = (error) => {
+  const message = error?.message || String(error);
+  console.error(`[stream] WebSocket error: ${message}`);
+};
+
+ws.onclose = () => {
+  console.log('[stream] Telemetry stream closed');
+  clearInterval(heartbeatTicker);
+  process.exit(0);
+};
+
+const shutdown = () => {
+  try {
+    ws.close(1000);
+  } catch (error) {
+    // ignore
+  }
+  clearInterval(heartbeatTicker);
+  setTimeout(() => process.exit(0), 150);
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+NODE
+                    ws_pid=$!
+                else
+                    echo -e "${YELLOW}Node.js not available; streaming telemetry disabled${NC}"
+                fi
+
                 # Poll for execution updates
                 while true; do
                     # Get current execution status
@@ -393,33 +739,365 @@ case "${1:-}" in
                         echo -e "${GREEN}✓ Execution ${status}${NC}"
                         break
                     fi
-                    
+
                     sleep 2
                 done
+
+                if [ -n "$ws_pid" ]; then
+                    kill "$ws_pid" 2>/dev/null
+                    wait "$ws_pid" 2>/dev/null
+                    ws_pid=""
+                fi
+                trap - INT TERM EXIT
+
+                if command -v jq >/dev/null 2>&1; then
+                    timeline_response=$(curl -s "${API_URL}/executions/${execution_id}/timeline")
+                    if [ -n "$timeline_response" ]; then
+                        timeline_count=$(echo "$timeline_response" | jq -r 'try (.frames | length) catch "error"' 2>/dev/null)
+                        if [ "$timeline_count" != "error" ] && printf '%s' "$timeline_count" | grep -Eq '^[0-9]+$'; then
+                            if [ "$timeline_count" -gt 0 ]; then
+                                echo ""
+                                echo -e "${BLUE}Timeline Summary${NC}"
+                                echo "$timeline_response" | jq -r '
+                                  .frames
+                                  | sort_by(.step_index // 0)
+                                  | to_entries
+                                  | .[]
+                                  | .value as $frame
+                                  | ($frame.step_index // 0) + 1 as $number
+                                  | ($frame.step_type // "step") as $type
+                                  | ($frame.status // "unknown") as $status
+                                  | ($frame.success == true) as $success
+                                  | ($frame.duration_ms // 0) as $duration
+                                  | ($frame.total_duration_ms // 0) as $total
+                                  | (($frame.highlight_regions // []) | length) as $highlights
+                                  | (($frame.mask_regions // []) | length) as $masks
+                                  | ($frame.console_log_count // 0) as $console
+                                  | ($frame.network_event_count // 0) as $network
+                                  | ($frame.focused_element.selector // "") as $focus
+                                  | ($frame.screenshot != null and $frame.screenshot != {}) as $hasShot
+                                  | ($frame.final_url // "") as $url
+                                  | ($frame.error // "") as $error
+                                  | ($frame.assertion // {}) as $assert
+                                  | ($assert.success // true) as $assertSuccess
+                                  | ($assert.selector // ($assert.mode // "")) as $assertLabel
+                                  | ($assert.message // "") as $assertMessage
+                                  | ($frame.retry_attempt // 0) as $retryAttempt
+                                  | ($frame.retry_max_attempts // 0) as $retryMax
+                                  | "\($number). \($type) [\($status)] \(if $success then "✓" else "✗" end) - \($duration)ms\(if ($total > 0 and $total != $duration) then " (total \($total)ms)" else "" end) - console: \($console) network: \($network)\(if $hasShot then " - screenshot" else "" end)\(if $focus != "" then " - focus: \($focus)" else "" end)\(if $highlights > 0 then " - highlights: \($highlights)" else "" end)\(if $masks > 0 then " - masks: \($masks)" else "" end)\(if $url != "" then " - url: \($url)" else "" end)\(if $error != "" then " - error: \($error)" else "" end)\(if $retryAttempt > 1 then " - retry: \($retryAttempt)" + (if $retryMax > 0 then "/\($retryMax)" else "" end) else "" end)\(if $assertLabel != "" then " - assertion: \($assertLabel)\(if $assertSuccess then " (ok)" else " (failed)" end)\(if (!$assertSuccess and $assertMessage != "") then " - \($assertMessage)" else "" end)" else "" end)"
+                                '
+                            elif [ "$timeline_count" -eq 0 ]; then
+                                echo ""
+                                echo -e "${YELLOW}No timeline artifacts available for this execution${NC}"
+                            else
+                                echo ""
+                                echo -e "${YELLOW}Unable to parse execution timeline response${NC}"
+                            fi
+                        else
+                            echo ""
+                            echo -e "${YELLOW}Unable to parse execution timeline response${NC}"
+                        fi
+                    else
+                        echo ""
+                        echo -e "${YELLOW}No timeline response received from API${NC}"
+                    fi
+                else
+                    echo ""
+                    echo -e "${YELLOW}jq not installed; skipping timeline summary${NC}"
+                fi
                 ;;
             list)
                 check_api_health
-                echo -e "${BLUE}Recent Executions${NC}"
-                echo "=================="
-                
-                response=$(curl -s "${API_URL}/executions")
-                if echo "$response" | grep -q '"executions"'; then
-                    # Parse and display executions in a readable format
-                    echo "$response" | grep -o '"id":"[^"]*\|"status":"[^"]*\|"started_at":"[^"]*' | \
-                    awk 'BEGIN{print ""} 
-                         /id/{id=$0; gsub(/.*"id":"/, "", id); gsub(/".*/, "", id)} 
-                         /status/{status=$0; gsub(/.*"status":"/, "", status); gsub(/".*/, "", status)} 
-                         /started_at/{started=$0; gsub(/.*"started_at":"/, "", started); gsub(/T.*/, "", started); 
-                                    printf "  📊 %s [%s] - %s\n", id, status, started}' 
+
+                # Shift to get arguments after "execution list"
+                shift 2
+
+                json_output=false
+                workflow_filter=""
+                status_filter=""
+
+                # Parse flags
+                while [[ $# -gt 0 ]]; do
+                    case $1 in
+                        --json)
+                            json_output=true
+                            shift
+                            ;;
+                        --workflow)
+                            workflow_filter="$2"
+                            shift 2
+                            ;;
+                        --status)
+                            status_filter="$2"
+                            shift 2
+                            ;;
+                        *)
+                            echo -e "${RED}Unknown option: $1${NC}" >&2
+                            exit 1
+                            ;;
+                    esac
+                done
+
+                # Build query params
+                query_params=""
+                if [ -n "$workflow_filter" ]; then
+                    query_params="?workflow_id=${workflow_filter}"
+                fi
+                if [ -n "$status_filter" ]; then
+                    if [ -n "$query_params" ]; then
+                        query_params="${query_params}&status=${status_filter}"
+                    else
+                        query_params="?status=${status_filter}"
+                    fi
+                fi
+
+                response=$(curl -s "${API_URL}/executions${query_params}")
+
+                if [ "$json_output" = true ]; then
+                    echo "$response"
                 else
-                    echo "No executions found"
+                    echo -e "${BLUE}Recent Executions${NC}"
+                    echo "=================="
+
+                    if echo "$response" | grep -q '"executions"'; then
+                        # Parse and display executions in a readable format
+                        echo "$response" | grep -o '"id":"[^"]*\|"status":"[^"]*\|"started_at":"[^"]*' | \
+                        awk 'BEGIN{print ""}
+                             /id/{id=$0; gsub(/.*"id":"/, "", id); gsub(/".*/, "", id)}
+                             /status/{status=$0; gsub(/.*"status":"/, "", status); gsub(/".*/, "", status)}
+                             /started_at/{started=$0; gsub(/.*"started_at":"/, "", started); gsub(/T.*/, "", started);
+                                        printf "  📊 %s [%s] - %s\n", id, status, started}'
+                    else
+                        echo "No executions found"
+                    fi
                 fi
                 ;;
             stop)
                 check_api_health
-                echo -e "${YELLOW}Stopping execution: ${3}${NC}"
-                curl -X POST "${API_URL}/executions/${3}/stop"
-                echo -e "${GREEN}✓ Execution stopped${NC}"
+
+                execution_id="${3}"
+                if [ -z "$execution_id" ]; then
+                    echo -e "${RED}Error: Execution ID is required${NC}"
+                    echo "Usage: browser-automation-studio execution stop <execution-id>"
+                    exit 1
+                fi
+
+                echo -e "${YELLOW}Stopping execution: ${execution_id}${NC}"
+                response=$(curl -s -X POST "${API_URL}/executions/${execution_id}/stop")
+
+                # Check if response indicates error
+                if echo "$response" | grep -qi "error\|not found"; then
+                    echo -e "${RED}✗ Failed to stop execution${NC}"
+                    echo "$response"
+                    exit 1
+                else
+                    echo -e "${GREEN}✓ Execution stopped${NC}"
+                fi
+                ;;
+            export)
+                check_api_health
+                args=("${@:3}")
+                execution_id=""
+                output_path=""
+
+                i=0
+                while [ $i -lt ${#args[@]} ]; do
+                    # Parse argument token (not a security credential - just CLI arg parser variable)
+                    token="${args[$i]}"
+                    case "$token" in
+                        --output|--out)
+                            next=$((i + 1))
+                            if [ $next -ge ${#args[@]} ]; then
+                                echo -e "${RED}Error:${NC} --output flag requires a file path"
+                                exit 1
+                            fi
+                            output_path="${args[$next]}"
+                            i=$((i + 2))
+                            continue
+                            ;;
+                        --output=*|--out=*)
+                            output_path="${token#*=}"
+                            ;;
+                        --*)
+                            echo -e "${RED}Unknown option:${NC} ${token}"
+                            exit 1
+                            ;;
+                        *)
+                            if [ -z "$execution_id" ]; then
+                                execution_id="$token"
+                            else
+                                echo -e "${RED}Unexpected argument:${NC} ${token}"
+                                exit 1
+                            fi
+                            ;;
+                    esac
+                    i=$((i + 1))
+                done
+
+                if [ -z "$execution_id" ]; then
+                    echo -e "${RED}Execution ID is required${NC}"
+                    echo "Usage: browser-automation-studio execution export <execution-id> [--output <file>]"
+                    exit 1
+                fi
+
+                tmp_file=$(mktemp)
+                status_code=$(curl -s -o "$tmp_file" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export")
+                body=$(cat "$tmp_file")
+                rm -f "$tmp_file"
+
+                if [ "$status_code" = "404" ]; then
+                    echo -e "${RED}✗ Execution not found${NC}"
+                    exit 1
+                fi
+
+                if [ "$status_code" != "200" ]; then
+                    if command -v jq >/dev/null 2>&1; then
+                        message=$(printf '%s' "$body" | jq -r '.message // empty' 2>/dev/null)
+                    else
+                        message=$(printf '%s' "$body" | grep -o '"message":"[^"]*' | head -n1 | cut -d'"' -f4)
+                    fi
+                    echo -e "${YELLOW}Received response (${status_code}):${NC} ${message:-$body}"
+                    exit 1
+                fi
+
+                if command -v jq >/dev/null 2>&1; then
+                    message=$(printf '%s' "$body" | jq -r '.message // empty' 2>/dev/null)
+                    statusLabel=$(printf '%s' "$body" | jq -r '.status // empty' 2>/dev/null)
+                    frameCount=$(printf '%s' "$body" | jq -r '.package.summary.frame_count // empty' 2>/dev/null)
+                    totalDuration=$(printf '%s' "$body" | jq -r '.package.summary.total_duration_ms // empty' 2>/dev/null)
+                    accentColor=$(printf '%s' "$body" | jq -r '.package.theme.accent_color // empty' 2>/dev/null)
+                else
+                    message=$(printf '%s' "$body" | grep -o '"message":"[^"]*' | head -n1 | cut -d'"' -f4)
+                    statusLabel=$(printf '%s' "$body" | grep -o '"status":"[^"]*' | head -n1 | cut -d'"' -f4)
+                    frameCount=""
+                    totalDuration=""
+                    accentColor=""
+                fi
+
+                echo -e "${GREEN}✓ Export ready${NC}: ${message:-Replay export generated}"
+                if [ -n "$statusLabel" ]; then
+                    echo -e "Status: ${statusLabel}"
+                fi
+                if [ -n "$frameCount" ] || [ -n "$totalDuration" ]; then
+                    frameLabel=${frameCount:-"?"}
+                    durationLabel=${totalDuration:-"?"}
+                    echo -e "Frames: ${frameLabel}, Total Duration: ${durationLabel}ms"
+                fi
+                if [ -n "$accentColor" ]; then
+                    echo -e "Theme Accent: ${accentColor}"
+                fi
+
+                if [ -n "$output_path" ]; then
+                    mkdir -p "$(dirname "$output_path")" 2>/dev/null || true
+                    if printf '%s\n' "$body" > "$output_path"; then
+                        echo -e "Saved export package to ${output_path}"
+                    else
+                        echo -e "${RED}Failed to write export package to${NC} ${output_path}"
+                    fi
+                else
+                    echo -e "Tip: use --output <file> to save the export package."
+                fi
+                ;;
+            render)
+                check_api_health
+                if ! command -v node >/dev/null 2>&1; then
+                    echo -e "${RED}Error:${NC} Node.js is required for replay rendering"
+                    exit 1
+                fi
+
+                args=("${@:3}")
+                execution_id=""
+                output_dir=""
+                overwrite_flag=0
+
+                i=0
+                while [ $i -lt ${#args[@]} ]; do
+                    token="${args[$i]}"
+                    case "$token" in
+                        --output|--out|--dir)
+                            next=$((i + 1))
+                            if [ $next -ge ${#args[@]} ]; then
+                                echo -e "${RED}Error:${NC} --output flag requires a directory path"
+                                exit 1
+                            fi
+                            output_dir="${args[$next]}"
+                            i=$((i + 2))
+                            continue
+                            ;;
+                        --output=*|--out=*|--dir=*)
+                            output_dir="${token#*=}"
+                            ;;
+                        --overwrite|-f)
+                            overwrite_flag=1
+                            ;;
+                        --*)
+                            echo -e "${RED}Unknown option:${NC} ${token}"
+                            exit 1
+                            ;;
+                        *)
+                            if [ -z "$execution_id" ]; then
+                                execution_id="$token"
+                            else
+                                echo -e "${RED}Unexpected argument:${NC} ${token}"
+                                exit 1
+                            fi
+                            ;;
+                    esac
+                    i=$((i + 1))
+                done
+
+                if [ -z "$execution_id" ]; then
+                    echo -e "${RED}Execution ID is required${NC}"
+                    echo "Usage: browser-automation-studio execution render <execution-id> [--output <dir>] [--overwrite]"
+                    exit 1
+                fi
+
+                tmp_json=$(mktemp)
+                status_code=$(curl -s -o "$tmp_json" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export")
+                if [ "$status_code" = "404" ]; then
+                    rm -f "$tmp_json"
+                    echo -e "${RED}✗ Execution not found${NC}"
+                    exit 1
+                fi
+
+                if [ "$status_code" != "200" ]; then
+                    error_body=$(cat "$tmp_json")
+                    rm -f "$tmp_json"
+                    if command -v jq >/dev/null 2>&1; then
+                        message=$(printf '%s' "$error_body" | jq -r '.message // empty' 2>/dev/null)
+                    else
+                        message=$(printf '%s' "$error_body" | grep -o '"message":"[^"]*' | head -n1 | cut -d'"' -f4)
+                    fi
+                    echo -e "${RED}Failed to generate export:${NC} ${message:-$error_body}"
+                    exit 1
+                fi
+
+                if [ -z "$output_dir" ]; then
+                    output_dir="bas-replay-${execution_id}"
+                fi
+
+                renderer="${SCRIPT_DIR}/render-export.js"
+                if [ ! -f "$renderer" ]; then
+                    rm -f "$tmp_json"
+                    echo -e "${RED}Replay renderer script missing:${NC} ${renderer}"
+                    exit 1
+                fi
+
+                base_url="${API_URL%/api/v1}"
+
+                node_args=("$renderer" --input "$tmp_json" --output "$output_dir" --base-url "$base_url")
+                if [ "$overwrite_flag" -eq 1 ]; then
+                    node_args+=("--overwrite")
+                fi
+
+                if ! node "${node_args[@]}"; then
+                    rm -f "$tmp_json"
+                    echo -e "${RED}✗ Failed to render replay${NC}"
+                    exit 1
+                fi
+
+                rm -f "$tmp_json"
+                echo -e "${GREEN}✓ Replay package ready${NC}: open ${output_dir}/index.html"
                 ;;
             *)
                 echo -e "${RED}Unknown execution command: ${2}${NC}"

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import { X, FolderOpen, AlertCircle } from 'lucide-react';
 import { useProjectStore, Project } from '../stores/projectStore';
 
@@ -66,15 +67,15 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
 
     try {
       if (isEditing && project) {
-        await updateProject(project.id, formData);
-        onSuccess?.(project);
+        const updated = await updateProject(project.id, formData);
+        onSuccess?.(updated);
       } else {
         const newProject = await createProject(formData);
         onSuccess?.(newProject);
       }
       onClose();
     } catch (error) {
-      console.error('Failed to save project:', error);
+      logger.error('Failed to save project', { component: 'ProjectModal', action: 'handleSave' }, error);
     } finally {
       setIsSubmitting(false);
     }

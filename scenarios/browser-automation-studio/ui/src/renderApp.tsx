@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import App from './App';
 import './index.css';
+import { logger } from './utils/logger';
 
 declare global {
   interface Window {
@@ -48,7 +49,7 @@ function ensureBridge() {
       parentOrigin = new URL(document.referrer).origin;
     }
   } catch (error) {
-    console.warn('[BrowserAutomationStudio] Unable to parse parent origin for iframe bridge', error);
+    logger.warn('Unable to parse parent origin for iframe bridge', { component: 'renderApp', action: 'ensureBridge' }, error);
   }
 
   initIframeBridgeChild({ parentOrigin, appId: 'browser-automation-studio' });

@@ -21,6 +21,8 @@ import {
   Mail,
   Pencil,
   Paperclip,
+  Play,
+  RotateCcw,
   Tag,
   Trash2,
   User,
@@ -47,6 +49,7 @@ interface AgentConversationPayloadResponse {
   issue_id: string;
   available: boolean;
   provider?: string;
+  session_id?: string;
   prompt?: string;
   metadata?: Record<string, unknown> | null;
   entries?: AgentConversationEntryPayload[];
@@ -864,6 +867,7 @@ function AgentConversationPanel({ conversation }: AgentConversationPanelProps) {
   const [expandedEntries, setExpandedEntries] = useState<Set<number>>(new Set());
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [selectedKinds, setSelectedKinds] = useState<Set<string>>(new Set());
+  const [sessionIdCopied, setSessionIdCopied] = useState(false);
 
   if (entries.length === 0) {
     return <div className="agent-transcript-empty">Transcript captured but no events were recorded.</div>;
@@ -898,7 +902,7 @@ function AgentConversationPanel({ conversation }: AgentConversationPanelProps) {
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
     } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
+      // Clipboard API may be blocked, silently fail
     }
   };
 
@@ -937,6 +941,37 @@ function AgentConversationPanel({ conversation }: AgentConversationPanelProps) {
     setSelectedKinds(new Set());
   };
 
+  const handleCopySessionId = async (sessionId: string) => {
+    try {
+      await navigator.clipboard.writeText(sessionId);
+      setSessionIdCopied(true);
+      setTimeout(() => setSessionIdCopied(false), 2000);
+    } catch (error) {
+      // Clipboard API may be blocked, silently fail
+    }
+  };
+
+  const handleResumeAgent = (sessionId: string, provider: string) => {
+    // Generate correct CLI command based on provider
+    let command: string;
+    if (provider === 'codex') {
+      command = `codex resume ${sessionId}`;
+    } else if (provider === 'claude-code') {
+      command = `claude --resume ${sessionId}`;
+    } else {
+      // Fallback for unknown providers
+      command = `# Unknown provider: ${provider}\n# Session ID: ${sessionId}`;
+    }
+
+    // Copy command to clipboard for user to run
+    navigator.clipboard.writeText(command).then(() => {
+      alert(`Resume command copied to clipboard:\n\n${command}\n\nRun this in your terminal to resume the agent session.`);
+    }).catch(() => {
+      // Clipboard API may be blocked, show command directly
+      alert(`To resume this agent session, run:\n\n${command}`);
+    });
+  };
+
   // Filter entries based on selected kinds
   const filteredEntries = useMemo(() => {
     if (selectedKinds.size === 0) {
@@ -961,6 +996,35 @@ function AgentConversationPanel({ conversation }: AgentConversationPanelProps) {
           <div className="agent-conversation-metadata-item">
             <span className="agent-conversation-metadata-label">Breakdown:</span>
             <span className="agent-conversation-metadata-value">{messageCountSummary}</span>
+          </div>
+        )}
+        {conversation.session_id && (
+          <div className="agent-conversation-metadata-item agent-conversation-session">
+            <span className="agent-conversation-metadata-label">Session ID:</span>
+            <span className="agent-conversation-metadata-value agent-conversation-session-id">
+              <code>{conversation.session_id}</code>
+              <button
+                type="button"
+                className="agent-conversation-session-action"
+                onClick={() => handleCopySessionId(conversation.session_id!)}
+                aria-label="Copy session ID"
+                title="Copy session ID to clipboard"
+              >
+                {sessionIdCopied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+              {conversation.provider && (
+                <button
+                  type="button"
+                  className="agent-conversation-session-action agent-conversation-resume-btn"
+                  onClick={() => handleResumeAgent(conversation.session_id!, conversation.provider!)}
+                  aria-label="Resume agent session"
+                  title="Copy resume command to clipboard"
+                >
+                  <RotateCcw size={14} />
+                  Resume
+                </button>
+              )}
+            </span>
           </div>
         )}
       </div>

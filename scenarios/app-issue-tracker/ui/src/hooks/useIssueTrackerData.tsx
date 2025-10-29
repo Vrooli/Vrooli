@@ -166,7 +166,7 @@ export function IssueTrackerDataProvider({
           setValidStatuses(nextCatalog.map((status) => status.id));
         }
       } catch (error) {
-        console.warn('Failed to load issue status catalog', error);
+        // Silently fall back to default status catalog
         if (!cancelled) {
           setStatusCatalog(DEFAULT_STATUS_CATALOG);
           setValidStatuses(DEFAULT_STATUS_CATALOG.map((status) => status.id));
@@ -231,13 +231,13 @@ export function IssueTrackerDataProvider({
         statsFromApi = stats;
       }
     } catch (error) {
-      console.warn('Failed to load stats', error);
+      // Stats are supplementary, continue without them
     }
 
     try {
       runningProcessesSnapshot = await fetchRunningProcesses(apiBaseUrl);
     } catch (error) {
-      console.warn('Failed to load running processes', error);
+      // Running processes are supplementary, continue without them
       runningProcessesSnapshot = [];
     }
 
@@ -261,7 +261,7 @@ export function IssueTrackerDataProvider({
         }
       }
     } catch (error) {
-      console.warn('Failed to load processor settings', error);
+      // Report processor error to UI without console noise
       if (isMountedRef.current) {
         reportProcessorError('Failed to load automation status.');
       }
@@ -273,7 +273,7 @@ export function IssueTrackerDataProvider({
         setRateLimitStatus(status ?? null);
       }
     } catch (error) {
-      console.warn('Failed to load rate limit status', error);
+      // Rate limit status is optional, continue without it
       if (isMountedRef.current) {
         setRateLimitStatus(null);
       }

@@ -2,10 +2,34 @@
 
 ## Problems Encountered
 
-### 1. Standards Compliance (361 violations)
-**Issue**: Scenario auditor detected 361 standards violations, mostly formatting issues.
+### 1. Standards Compliance
+**Initial Issue**: Scenario auditor detected 361 standards violations, mostly formatting issues.
 **Solution**: Applied Go formatting with `gofmt`, reduced violations significantly.
 **Status**: ✅ Resolved
+
+**Update 2025-10-26**: Further improvements made:
+- Added Content-Type headers to all JSON API endpoints (health, wheels, history)
+- Fixed HTTP status code for database errors (now returns 500 instead of 200)
+- Enhanced Makefile usage documentation with complete command reference
+- **Result**: 59 violations (down from 60), 0 security issues
+- **Remaining**: 6 high-severity (Makefile format expectations), 53 medium-severity (logging, env validation, hardcoded values)
+
+**Update 2025-10-27**: Health endpoint schema compliance fixed:
+- Added `timestamp` and `readiness` fields to API health response
+- Updated HealthResponse struct and healthHandler implementation
+- Updated unit tests to validate new fields
+- Added comprehensive test coverage suite (coverage_test.go)
+- **Result**: 20 violations (down from 59 - 66% improvement), 0 security issues
+- API health endpoint now fully compliant with schema requirements
+- **Remaining**: Medium-severity violations for env validation and logging
+
+**Update 2025-10-28**: Code quality improvements:
+- Removed hardcoded port fallbacks from test-business.sh (improved test reliability)
+- Removed duplicate Content-Type header in getWheelsHandler (cleaner code)
+- **Result**: 19 violations (down from 20), 0 security issues
+- **Note**: Remaining violations are mostly auditor false positives (SVG namespace constant, env vars that ARE validated, shell script variables)
+- All critical env vars (API_PORT, UI_PORT, database config) properly validated
+- Test coverage stable at 39.3% (documented technical debt requiring PostgreSQL for improvement)
 
 ### 2. Custom Wheel UI Implementation
 **Issue**: Initial assessment indicated custom wheel UI wasn't implemented.
@@ -34,11 +58,19 @@
 
 ## Recommendations
 
-1. **Database Persistence**: Start PostgreSQL resource for proper data persistence
-2. **Workflow Automation**: Import n8n workflows when resource is available
-3. **Performance Monitoring**: Add metrics collection for spin response times
-4. **Custom Themes**: Implement theme switching in UI
-5. **Weight Testing**: Add tests for weighted probability selection
+### High Priority
+1. **Address Makefile Format**: Investigate exact format expectations for auditor compliance
+2. **Structured Logging**: Replace log.Printf with structured logger to reduce logging violations
+3. **Environment Validation**: Add validation for N8N_PORT and other env vars in UI server
+
+### Medium Priority
+4. **Database Persistence**: Start PostgreSQL resource for proper data persistence
+5. **Workflow Automation**: Import n8n workflows when resource is available
+6. **Performance Monitoring**: Add metrics collection for spin response times
+
+### Low Priority
+7. **Custom Themes**: Implement theme switching in UI
+8. **Weight Testing**: Add tests for weighted probability selection
 
 ## Testing Commands
 

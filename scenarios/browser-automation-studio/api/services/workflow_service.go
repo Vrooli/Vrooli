@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,6 +40,14 @@ type AIWorkflowError struct {
 // Error implements the error interface.
 func (e *AIWorkflowError) Error() string {
 	return e.Reason
+}
+
+// ExecutionExportPreview summarises the export readiness state for an execution.
+type ExecutionExportPreview struct {
+	ExecutionID uuid.UUID            `json:"execution_id"`
+	Status      string               `json:"status"`
+	Message     string               `json:"message"`
+	Package     *ReplayExportPackage `json:"package,omitempty"`
 }
 
 // NewWorkflowService creates a new workflow service
@@ -113,6 +122,14 @@ func (s *WorkflowService) GetProjectStats(ctx context.Context, projectID uuid.UU
 // ListWorkflowsByProject lists workflows for a specific project
 func (s *WorkflowService) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
 	return s.repo.ListWorkflowsByProject(ctx, projectID, limit, offset)
+}
+
+// DeleteProjectWorkflows deletes a set of workflows within a project boundary
+func (s *WorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
+	if len(workflowIDs) == 0 {
+		return nil
+	}
+	return s.repo.DeleteProjectWorkflows(ctx, projectID, workflowIDs)
 }
 
 // Workflow methods
@@ -224,6 +241,47 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	go s.executeWorkflowAsync(execution, workflow)
 
 	return execution, nil
+}
+
+// DescribeExecutionExport returns the current replay export status for an execution.
+func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*ExecutionExportPreview, error) {
+	execution, err := s.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, database.ErrNotFound) {
+			return nil, database.ErrNotFound
+		}
+		return nil, err
+	}
+
+	var workflow *database.Workflow
+	if wf, wfErr := s.repo.GetWorkflow(ctx, execution.WorkflowID); wfErr == nil {
+		workflow = wf
+	} else if !errors.Is(wfErr, database.ErrNotFound) {
+		return nil, wfErr
+	}
+
+	timeline, err := s.GetExecutionTimeline(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+
+	exportPackage, err := BuildReplayExport(execution, workflow, timeline)
+	if err != nil {
+		return nil, err
+	}
+
+	frameCount := exportPackage.Summary.FrameCount
+	if frameCount == 0 {
+		frameCount = len(timeline.Frames)
+	}
+	message := fmt.Sprintf("Replay export ready (%d frames, %dms)", frameCount, exportPackage.Summary.TotalDurationMs)
+
+	return &ExecutionExportPreview{
+		ExecutionID: execution.ID,
+		Status:      "ready",
+		Message:     message,
+		Package:     exportPackage,
+	}, nil
 }
 
 // GetExecutionScreenshots gets screenshots for an execution

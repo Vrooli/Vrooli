@@ -15,14 +15,15 @@ import (
 type StepType string
 
 const (
-	StepNavigate   StepType = "navigate"
-	StepClick      StepType = "click"
-	StepTypeInput  StepType = "type"
-	StepWait       StepType = "wait"
-	StepScreenshot StepType = "screenshot"
-	StepExtract    StepType = "extract"
-	StepAssert     StepType = "assert"
-	StepCustom     StepType = "custom"
+	StepNavigate     StepType = "navigate"
+	StepClick        StepType = "click"
+	StepTypeInput    StepType = "type"
+	StepWait         StepType = "wait"
+	StepScreenshot   StepType = "screenshot"
+	StepExtract      StepType = "extract"
+	StepAssert       StepType = "assert"
+	StepWorkflowCall StepType = "workflowcall"
+	StepCustom       StepType = "custom"
 )
 
 var supportedStepTypes = map[StepType]struct{}{
@@ -33,6 +34,7 @@ var supportedStepTypes = map[StepType]struct{}{
 	StepScreenshot: {},
 	StepExtract:    {},
 	StepAssert:     {},
+	StepWorkflowCall: {},
 	StepCustom:     {},
 }
 

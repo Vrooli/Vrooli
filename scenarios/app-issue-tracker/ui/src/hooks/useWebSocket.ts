@@ -59,7 +59,6 @@ export function useWebSocket({
 
       ws.onopen = () => {
         if (!isMountedRef.current) return;
-        console.log('[WebSocket] Connected');
         setStatus('connected');
         setError(null);
         reconnectAttemptsRef.current = 0;
@@ -80,17 +79,15 @@ export function useWebSocket({
         }
       };
 
-      ws.onerror = (evt) => {
+      ws.onerror = () => {
         if (!isMountedRef.current) return;
-        console.warn('[WebSocket] Error:', evt);
         const errorObj = new Error('WebSocket connection error');
         setError(errorObj);
         setStatus('error');
       };
 
-      ws.onclose = (evt) => {
+      ws.onclose = () => {
         if (!isMountedRef.current) return;
-        console.log('[WebSocket] Disconnected:', evt.code, evt.reason);
         setStatus('disconnected');
         wsRef.current = null;
 
@@ -106,10 +103,6 @@ export function useWebSocket({
           );
           const jitter = Math.random() * 1000;
           const delay = backoff + jitter;
-
-          console.log(
-            `[WebSocket] Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${reconnectAttemptsRef.current})`,
-          );
 
           reconnectTimeoutRef.current = window.setTimeout(() => {
             if (isMountedRef.current && enabledRef.current) {

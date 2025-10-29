@@ -1,12 +1,12 @@
 # Execution Architecture Blueprint
 
-_Last reviewed: 2025-10-19_
+_Last reviewed: 2025-11-08_
 
 ## Context Snapshot
-- `api/browserless/client.go` currently generates a monolithic Browserless script, walks the stored `nodes` sequentially (`navigate`, `wait`, `screenshot`), and persists screenshots/log entries. All other node types throw "unsupported" errors and no telemetry beyond coarse `ExecutionUpdate` envelopes is emitted.
-- React Flow payloads (`workflow.flow_definition`) contain both `nodes` and `edges`, but the executor ignores edges and branching semantics. There is no concept of step IDs, action metadata, or parameter validation before execution.
-- The WebSocket hub (`api/websocket/hub.go`) broadcasts single JSON envelopes, while the UI/CLI expect granular events (screenshot, log, status). No stream exists for console output, network traffic, pointer coordinates, or error context.
-- Artifact persistence stops at full-page screenshots. There is no normalized schema for per-step metadata, highlight regions, cursor paths, network traces, or replay timelines, so marketing-style replays and requirement-level validation cannot be generated.
+- `api/browserless/client.go` now executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` nodes against a persistent Browserless session. Each step persists to `execution_steps`/`execution_artifacts`, capturing console + network telemetry, element bounding boxes, click coordinates, and highlight/mask/zoom metadata. Success/failure/else branching and per-node retry/backoff policies ship; loop constructs remain outstanding.
+- React Flow payloads store nodes and edges; the compiler normalises the DAG and preserves branching metadata for runtime evaluation, but loop constructs and richer compile-time validation are still pending.
+- The WebSocket hub (`api/websocket/hub.go`) streams structured `execution.*`, `step.*`, and `step.heartbeat` events consumed by the UI replay panel and CLI watcher. Cursor overlays for the UI remain roadmap work, but the CLI now emits heartbeat health states and can trigger replay exports directly.
+- Artifact persistence includes MinIO-backed screenshots, per-step telemetry bundles, cursor trails, replay-ready `timeline_frame` payloads, and JSON replay export packages. DOM snapshots and automated video rendering remain future milestones.
 
 ## Objectives
 1. Execute arbitrarily complex workflows (branching, loops, conditions) against Browserless with first-class actions (navigate, click, type, evaluate, extract, assertions).
@@ -114,13 +114,14 @@ Each executor calls `emit(ExecutionEvent)` multiple times: start, progress updat
 | `step.log`             | `level`, `message`, `meta` (e.g., selector, retries)                                             |
 | `step.console`         | `severity`, `text`, `arguments` (stringified)                                                    |
 | `step.network`         | `request_id`, `url`, `method`, `status`, `timings`, `transfer_size`, `failure_reason?`           |
+| `step.heartbeat`       | `elapsed_ms`, `step_type`, `node_id`                                                             |
 | `step.screenshot`      | `screenshot_id`, `url`, `thumbnail_url`, `viewport`, `highlights`, `cursor_path`                 |
 | `step.extract`         | `extracted_data_id`, `schema`, `rows`, `sample`                                                  |
 | `step.completed`       | `status` (`success`|`skipped`), `duration_ms`, `output_summary`                                   |
 | `execution.failed`     | `error_code`, `message`, `stack`, `failing_step`                                                 |
 | `execution.completed`  | `duration_ms`, `success_count`, `failure_count`, `artifact_manifest`                             |
 
-The hub simply broadcasts the JSON; richer routing (per-execution subscriptions) remains via `Client.ExecutionID` filtering.
+The hub simply broadcasts the JSON; richer routing (per-execution subscriptions) remains via `Client.ExecutionID` filtering. Heartbeat cadence defaults to 2 s and can be tuned (or disabled with `0`) using the `BROWSERLESS_HEARTBEAT_INTERVAL` environment variable.
 
 ### 5. Artifact Persistence
 
@@ -140,8 +141,8 @@ executions/<execution-id>/steps/<step-index>/
 ```
 
 Screenshot customization pipeline:
-- Provide JS helpers in `resources/browserless/lib/workflow/highlight.js` that accept highlight regions, blur masks, zoom focus, and cursor animation frames.
-- Step executor composes options from node params (`focus_selector`, `cursor_path`, `zoom`), renders overlays in the browser context, captures PNG, and returns overlay metadata for replays.
+- Baseline overlay injection now lives in `browserless/runtime/script.go`; extract reusable helpers into `resources/browserless/lib/workflow/highlight.js` so highlight/mask logic can be shared with future cursor/animation tooling.
+- Step executor composes options from node params (`focus_selector`, `highlight_selectors`, `mask_selectors`, `zoom_factor`), renders overlays in the browser context, captures PNG, and returns overlay metadata for replays.
 
 ### 6. Error Handling & Cancellation
 - Wrap each step in a retry policy (configurable per node) for transient Browserless/network hiccups.
@@ -150,7 +151,7 @@ Screenshot customization pipeline:
 
 ### 7. CLI & UI Integration Notes
 - **UI:** Replace `socket.io-client` usage with native `WebSocket`, subscribe to new event types, update stores to build filmstrip + log timeline from streamed payloads.
-- **CLI:** `execution watch` listens to the same WebSocket and renders textual logs + optional inline preview thumbnails (base64) or downloads artifacts for later replay.
+- **CLI:** `execution watch` listens to the same WebSocket and renders textual logs + heartbeat health, while `execution export` retrieves replay packages (use `--output` to persist the JSON for renderers).
 - Provide a shared TypeScript schema (`ui/src/types/executionEvents.ts`) generated from Go structs via `quicktype` or manual definitions to keep payloads in sync.
 
 ## Implementation Phases
@@ -163,7 +164,7 @@ Screenshot customization pipeline:
 
 2. **Interaction Support (P0)**
    - Implement `click`, `type`, `assert`, `extract` executors with telemetry capture (console/network/DOM snapshots).
-   - Add cursor coordinate tracking + highlight metadata for screenshot steps.
+   - Add cursor coordinate tracking and (DONE Oct-2025) highlight/mask metadata for screenshot steps.
    - Update UI/CLI stores to render streamed data in real time.
 
 3. **Advanced Telemetry (P1)**
@@ -171,12 +172,59 @@ Screenshot customization pipeline:
    - Add failure heuristics (auto-screenshot on error, aggregated error codes) for AI debugging loop.
 
 4. **Replay & Rendering (P1)**
-   - Define replay JSON schema (leveraging `execution_artifacts`), implement client-side renderer with cursor animation + zoom transitions.
+   - ✅ (2025-11-08) Defined replay JSON schema via `BuildReplayExport` and `/executions/{id}/export`, supplying transition hints, theme presets, and asset manifests for UI/CLI consumers.
    - Provide CLI renderer (Node + ffmpeg) to export marketing reels.
 
 5. **Extension & Recording (P2)**
    - Align Chrome extension recording format with `execution_artifacts` schema to reuse renderer.
    - Support ingestion endpoints that accept external recordings, run validations, and populate the same tables.
+
+### Chrome Extension Capture Ingestion
+
+**Goal:** Let the forthcoming Chrome extension submit user-driven recordings that can be replayed with the same renderer as automated executions.
+
+**Capture contract (extension side):**
+- Background script records a sequence of `frame` objects:
+  ```json
+  {
+    "runId": "uuid",
+    "viewport": { "width": 1440, "height": 900 },
+    "frames": [
+      {
+        "index": 0,
+        "timestamp": 0,
+        "event": "navigate",
+        "url": "https://app.example.com",
+        "screenshot": "frames/0000.png",
+        "cursor": { "path": [[120, 340], [312, 410]] },
+        "focus": { "selector": "#hero" },
+        "annotations": { "highlights": [...], "masks": [...] },
+        "console": [],
+        "network": []
+      }
+    ]
+  }
+  ```
+- Assets (PNG frames, optional HAR snippets) are bundled with the manifest in a zip archive using deterministic filenames.
+- Extension posts the archive to the scenario API once capture stops; retries handled client-side.
+
+**API ingestion flow:**
+1. New endpoint `POST /api/v1/recordings/import` accepts multipart or raw zip payloads.
+2. `RecordingService` validates manifest schema, normalises timestamps, and assigns an internal `execution_id`/`project_id` (either supplied or defaulted to the demo project).
+3. Assets are streamed to MinIO under `recordings/<execution-id>/frames/####.png` and mirrored to `execution_artifacts` with `artifact_type = 'timeline_frame'` + `origin = 'extension'` metadata.
+4. Each manifest frame becomes an `execution_step` with `step_type = 'recording_frame'` and `output.retry.history = []`, ensuring replay tooling can reuse cursor trails, highlight regions, and viewport data without special cases.
+5. Optional console/network attachments are persisted as dedicated artifacts when present so the UI telemetry tab mirrors automated runs.
+6. Once ingest completes, the API emits `execution.imported` over WebSocket so the UI can surface the new recording instantly.
+
+**Data alignment considerations:**
+- Reuse the existing replay export builder (`BuildReplayExport`) by pointing it at the ingested steps; the exporter only needs to understand `origin` to toggle cursor animation presets (real vs synthetic).
+- Maintain a manifest hash to de-duplicate uploads and allow future delta sync from the extension.
+- Flag imported runs in `executions.trigger_type = 'extension'` so analytics can filter by origin.
+
+**Security & validation:**
+- Enforce `maxFrames`, `maxTotalBytes`, and per-frame resolution limits before accepting the archive.
+- Validate that all referenced asset paths exist inside the archive to avoid directory traversal.
+- Optionally scan PNG payloads for metadata stripping to prevent leaking user PII.
 
 ## Next Actions
 - Break down `browserless.Client` refactor into incremental PRs (compiler, runtime/session manager, executors, telemetry).
