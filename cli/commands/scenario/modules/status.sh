@@ -159,22 +159,26 @@ scenario::status::format_json_individual() {
     # Collect comprehensive diagnostic data
     local diagnostic_data
     diagnostic_data=$(scenario::health::collect_all_diagnostic_data "$scenario_name" "$response" "$status")
-    
+
+    local insights_json
+    insights_json=$(scenario::insights::collect_data "$scenario_name" 2>/dev/null || echo '{"stack":{},"resources":{},"packages":{},"lifecycle":{}}')
+
     # Collect test infrastructure validation data
     local test_validation="{}"
     local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
     if [[ -d "$scenario_path" ]] && command -v scenario::test::validate_infrastructure >/dev/null 2>&1; then
         test_validation=$(scenario::test::validate_infrastructure "$scenario_name" "$scenario_path")
     fi
-    
+
     # Create enhanced JSON response for individual scenario with diagnostics and test validation
-    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" --argjson diagnostics "$diagnostic_data" --argjson test_infrastructure "$test_validation" '
+    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" --argjson diagnostics "$diagnostic_data" --argjson test_infrastructure "$test_validation" --argjson insights "$insights_json" '
     {
         "success": .success,
         "scenario_name": $scenario_name,
         "scenario_data": .data,
         "diagnostics": $diagnostics,
         "test_infrastructure": $test_infrastructure,
+        "insights": $insights,
         "raw_response": .,
         "metadata": {
             "query_type": "individual_scenario",
@@ -245,6 +249,9 @@ scenario::status::format_display_individual() {
     stopped_at="N/A"  # New orchestrator doesn't track stopped_at yet
     restart_count=0   # New orchestrator doesn't track restart_count yet
     runtime_formatted=$(echo "$response" | jq -r '.data.runtime // "N/A"' 2>/dev/null)
+
+    local insights_json
+    insights_json=$(scenario::insights::collect_data "$scenario_name" 2>/dev/null || echo '{"stack":{},"resources":{},"packages":{},"lifecycle":{}}')
     
     echo "📋 SCENARIO: $scenario_name"
     echo "═══════════════════════════════════════"
@@ -262,12 +269,9 @@ scenario::status::format_display_individual() {
     [[ "$runtime_formatted" != "null" ]] && [[ "$runtime_formatted" != "N/A" ]] && echo "Runtime:       $runtime_formatted"
     [[ "$stopped_at" != "null" ]] && [[ "$stopped_at" != "N/A" ]] && echo "Stopped:       $stopped_at"
     [[ "$restart_count" != "0" ]] && echo "Restarts:      $restart_count"
-    
-    # Automatic failure diagnosis for stopped scenarios
-    if [[ "$status" == "stopped" ]]; then
-        scenario::health::diagnose_failure "$scenario_name" "false"
-    fi
-    
+
+    scenario::insights::display_stack "$insights_json"
+
     # Show allocated ports from native Go API format
     local ports
     ports=$(echo "$response" | jq -r '.data.allocated_ports // {}' 2>/dev/null)
@@ -285,7 +289,11 @@ scenario::status::format_display_individual() {
         echo "Port Status:"
         echo "$port_status" | jq -r 'to_entries[] | "  \(.key): http://localhost:\(.value.port) - \(if .value.listening then "✓ listening" else "✗ not listening" end)"' 2>/dev/null
     fi
-    
+
+    scenario::insights::display_resources "$insights_json"
+    scenario::insights::display_workspace_packages "$insights_json"
+    scenario::insights::display_lifecycle "$insights_json"
+
     # Enhanced Health Checks and Diagnostics using unified data collection
     local diagnostic_data
     diagnostic_data=$(scenario::health::collect_all_diagnostic_data "$scenario_name" "$response" "$status")
@@ -437,14 +445,14 @@ scenario::status::display_diagnostic_data() {
         scenario::status::display_health_checks "$diagnostic_data"
         scenario::status::display_running_diagnostics "$diagnostic_data" "$scenario_name"
     fi
-    
-    # For stopped scenarios, display failure diagnostics
+
+    # Always display test infrastructure validation (for all statuses)
+    scenario::status::display_test_infrastructure "$scenario_name"
+
+    # For stopped scenarios, display failure diagnostics after test insights
     if [[ "$status" == "stopped" ]]; then
         scenario::status::display_failure_diagnostics "$diagnostic_data" "$scenario_name"
     fi
-    
-    # Always display test infrastructure validation (for all statuses)
-    scenario::status::display_test_infrastructure "$scenario_name"
 }
 
 # Display health check information for running scenarios

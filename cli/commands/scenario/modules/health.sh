@@ -287,7 +287,6 @@ scenario::health::diagnose_failure() {
         echo "💡 Troubleshooting tips:"
         echo "   • Check detailed logs: vrooli scenario logs $scenario_name"
         echo "   • Verify dependencies: make sure required resources are running"
-        echo "   • Clean restart: vrooli scenario stop $scenario_name && vrooli scenario start $scenario_name"
     fi
 }
 
@@ -646,12 +645,11 @@ scenario::health::collect_failure_diagnostics() {
     fi
     
     # Add general recommendations if no specific failures found
-    local has_failures=$(echo "$failure_data" | jq '.api_failures | length > 0 or .ui_failures | length > 0')
+    local has_failures=$(echo "$failure_data" | jq '((.api_failures | length) > 0) or ((.ui_failures | length) > 0)')
     if [[ "$has_failures" == "false" ]]; then
         failure_data=$(echo "$failure_data" | jq '.general_recommendations += [
             "Check detailed logs: vrooli scenario logs '"$scenario_name"'",
-            "Verify dependencies: make sure required resources are running",
-            "Clean restart: vrooli scenario stop '"$scenario_name"' && vrooli scenario start '"$scenario_name"'"
+            "Verify dependencies: make sure required resources are running"
         ]')
     fi
     

@@ -55,9 +55,29 @@
       "type": "boolean",
       "description": "Whether the service is ready to serve traffic (true) or still initializing/draining (false). Distinguishes startup state from operational health."
     },
+    "status_notes": {
+      "description": "Optional human-readable notes that explain degraded or unhealthy states",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      ]
+    },
     "version": {
       "type": "string",
       "description": "API version string"
+    },
+    "uptime_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Service uptime in seconds"
     },
     "dependencies": {
       "type": "object",
@@ -122,6 +142,26 @@
             }
           }
         }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          },
+          "latency_ms": {
+            "type": ["number", "null"],
+            "minimum": 0
+          },
+          "error": {
+            "oneOf": [
+              {"$ref": "#/definitions/errorObject"},
+              {"type": "null"}
+            ],
+            "description": "Structured error information if connection failed, null if successful"
+          }
+        },
+        "additionalProperties": true
       }
     },
     "metrics": {
@@ -161,6 +201,25 @@
         "type": "string",
         "enum": ["closed", "open", "half-open"]
       }
+    },
+    "build": {
+      "type": "object",
+      "description": "Metadata describing the build that produced this service instance",
+      "properties": {
+        "commit": {
+          "type": "string",
+          "description": "Source control revision identifier"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version or tag for the build"
+        },
+        "environment": {
+          "type": "string",
+          "description": "Deployment environment identifier (e.g., local, staging, prod)"
+        }
+      },
+      "additionalProperties": true
     }
   },
   "additionalProperties": true

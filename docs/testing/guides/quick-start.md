@@ -40,27 +40,47 @@ Create `api/handler_test.go`:
 package main
 
 import (
+    "encoding/json"
     "net/http"
     "net/http/httptest"
     "testing"
+    "time"
 )
+
+type HealthResponse struct {
+    Status    string    `json:"status"`
+    Service   string    `json:"service"`
+    Timestamp time.Time `json:"timestamp"`
+    Readiness bool      `json:"readiness"`
+}
 
 func TestHealthHandler(t *testing.T) {
     req, _ := http.NewRequest("GET", "/health", nil)
     rr := httptest.NewRecorder()
-    
+
     handler := http.HandlerFunc(healthHandler)
     handler.ServeHTTP(rr, req)
-    
+
     if status := rr.Code; status != http.StatusOK {
-        t.Errorf("handler returned wrong status code: got %v want %v",
-            status, http.StatusOK)
+        t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
     }
-    
-    expected := `{"status":"healthy"}`
-    if rr.Body.String() != expected {
-        t.Errorf("handler returned unexpected body: got %v want %v",
-            rr.Body.String(), expected)
+
+    var resp HealthResponse
+    if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+        t.Fatalf("failed to parse health response: %v", err)
+    }
+
+    if resp.Status != "healthy" {
+        t.Errorf("unexpected status: got %q want %q", resp.Status, "healthy")
+    }
+    if resp.Service == "" {
+        t.Error("service should be populated")
+    }
+    if resp.Timestamp.IsZero() {
+        t.Error("timestamp should be set")
+    }
+    if !resp.Readiness {
+        t.Error("readiness should be true when the service is ready")
     }
 }
 ```
