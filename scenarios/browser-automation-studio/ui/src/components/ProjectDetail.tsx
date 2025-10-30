@@ -34,6 +34,7 @@ import toast from 'react-hot-toast';
 import ProjectModal from './ProjectModal';
 import ExecutionHistory from './ExecutionHistory';
 import ExecutionViewer from './ExecutionViewer';
+import { usePopoverPosition } from '../hooks/usePopoverPosition';
 
 // Extended Workflow interface with API response fields
 interface WorkflowWithStats extends Workflow {
@@ -89,6 +90,19 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   const viewModeDropdownRef = useRef<HTMLDivElement | null>(null);
   const moreMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const { floatingStyles: statsPopoverStyles } = usePopoverPosition(statsButtonRef, statsPopoverRef, {
+    isOpen: showStatsPopover,
+    placementPriority: ['bottom-end', 'bottom-start', 'top-end', 'top-start'],
+  });
+  const { floatingStyles: viewModeDropdownStyles } = usePopoverPosition(viewModeButtonRef, viewModeDropdownRef, {
+    isOpen: showViewModeDropdown,
+    placementPriority: ['bottom-end', 'bottom-start', 'top-end', 'top-start'],
+    matchReferenceWidth: true,
+  });
+  const { floatingStyles: moreMenuStyles } = usePopoverPosition(moreMenuButtonRef, moreMenuRef, {
+    isOpen: showMoreMenu,
+    placementPriority: ['bottom-end', 'top-end', 'bottom-start', 'top-start'],
+  });
   const { deleteProject } = useProjectStore();
   const { bulkDeleteWorkflows } = useWorkflowStore();
   const { loadExecution } = useExecutionStore();
@@ -526,97 +540,154 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
     [project.updated_at, formatDate]
   );
 
-  // Tree View Component
-  const FolderTreeItem = ({ item, level = 0 }: { item: FolderItem; level?: number }) => {
-    const isExpanded = expandedFolders.has(item.path);
-    const hasChildren = (item.children && item.children.length > 0) || (item.workflows && item.workflows.length > 0);
-    
+  const renderTreePrefix = (prefixParts: boolean[]) => {
+    if (prefixParts.length === 0) {
+      return null;
+    }
+
+    const prefix = prefixParts
+      .map((hasSibling, index) => {
+        const isLast = index === prefixParts.length - 1;
+        if (isLast) {
+          return hasSibling ? '├── ' : '└── ';
+        }
+        return hasSibling ? '│   ' : '    ';
+      })
+      .join('');
+
     return (
-      <div>
+      <span
+        aria-hidden="true"
+        className="font-mono text-[11px] leading-4 text-gray-500 whitespace-pre pointer-events-none select-none"
+      >
+        {prefix}
+      </span>
+    );
+  };
+
+  interface TreeEntry {
+    kind: 'folder' | 'workflow';
+    folder?: FolderItem;
+    workflow?: WorkflowWithStats;
+  }
+
+  // Tree View Component
+  const FolderTreeItem = ({ item, prefixParts = [] }: { item: FolderItem; prefixParts?: boolean[] }) => {
+    const isExpanded = expandedFolders.has(item.path);
+    const childFolders = item.children ?? [];
+    const workflowItems = item.workflows ?? [];
+    const hasChildren = childFolders.length > 0 || workflowItems.length > 0;
+
+    const entries: TreeEntry[] = [
+      ...childFolders.map(child => ({ kind: 'folder', folder: child })),
+      ...workflowItems.map(workflow => ({ kind: 'workflow', workflow })),
+    ];
+
+    return (
+      <div className="select-none">
         <div
-          className="flex items-center gap-2 px-2 py-1.5 hover:bg-flow-node rounded cursor-pointer transition-colors"
-          style={{ paddingLeft: `${level * 20 + 8}px` }}
+          className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-flow-node rounded cursor-pointer transition-colors"
           onClick={() => toggleFolder(item.path)}
         >
-          {hasChildren && (
-            isExpanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />
+          {renderTreePrefix(prefixParts)}
+          {hasChildren ? (
+            isExpanded ? (
+              <ChevronDown size={14} className="text-gray-400" />
+            ) : (
+              <ChevronRight size={14} className="text-gray-400" />
+            )
+          ) : (
+            <span className="inline-block w-3.5" aria-hidden="true" />
           )}
-          {!hasChildren && <div className="w-3.5" />}
           <FolderOpen size={14} className="text-yellow-500" />
           <span className="text-sm text-gray-300">{item.name}</span>
-          {item.workflows && item.workflows.length > 0 && (
+          {workflowItems.length > 0 && (
             <span className="ml-auto text-xs text-gray-500 mr-2">
-              {item.workflows.length} workflow{item.workflows.length !== 1 ? 's' : ''}
+              {workflowItems.length} workflow{workflowItems.length !== 1 ? 's' : ''}
             </span>
           )}
         </div>
-        
-        {isExpanded && (
-          <>
-            {item.children?.map((child) => (
-              <FolderTreeItem key={child.path} item={child} level={level + 1} />
-            ))}
-            {item.workflows?.map((workflow) => {
-              const isSelected = selectedWorkflows.has(workflow.id);
-              const handleRowClick = async () => {
-                if (selectionMode) {
-                  toggleWorkflowSelection(workflow.id);
-                } else {
-                  await onWorkflowSelect(workflow);
-                }
-              };
 
-              return (
-                <div
-                  key={workflow.id}
-                  onClick={handleRowClick}
-                  className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors group ${
-                    selectionMode
-                      ? isSelected
-                        ? 'bg-flow-node/80 border border-flow-accent'
-                        : 'hover:bg-flow-node border border-transparent'
-                      : 'hover:bg-flow-node'
-                  }`}
-                  style={{ paddingLeft: `${(level + 1) * 20 + 28}px` }}
+        {isExpanded && entries.map((entry, index) => {
+          const isLastChild = index === entries.length - 1;
+          const childPrefix = [...prefixParts, !isLastChild];
+
+          if (entry.kind === 'folder' && entry.folder) {
+            return (
+              <FolderTreeItem
+                key={entry.folder.path}
+                item={entry.folder}
+                prefixParts={childPrefix}
+              />
+            );
+          }
+
+          if (!entry.workflow) {
+            return null;
+          }
+
+          const workflow = entry.workflow;
+          const isSelected = selectedWorkflows.has(workflow.id);
+
+          const handleRowClick = async () => {
+            if (selectionMode) {
+              toggleWorkflowSelection(workflow.id);
+            } else {
+              await onWorkflowSelect(workflow);
+            }
+          };
+
+          return (
+            <div
+              key={workflow.id}
+              onClick={handleRowClick}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer transition-colors group ${
+                selectionMode
+                  ? isSelected
+                    ? 'bg-flow-node/80 border border-flow-accent'
+                    : 'hover:bg-flow-node border border-transparent'
+                  : 'hover:bg-flow-node'
+              }`}
+            >
+              {renderTreePrefix(childPrefix)}
+              {selectionMode ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleWorkflowSelection(workflow.id);
+                  }}
+                  className="text-gray-300 hover:text-white"
+                  title={isSelected ? 'Deselect workflow' : 'Select workflow'}
+                  aria-label={isSelected ? 'Deselect workflow' : 'Select workflow'}
                 >
-                  {selectionMode ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleWorkflowSelection(workflow.id);
-                      }}
-                      className="text-gray-300 hover:text-white"
-                      title={isSelected ? 'Deselect workflow' : 'Select workflow'}
-                    >
-                      {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                    </button>
-                  ) : (
-                    <FileCode size={14} className="text-green-400" />
-                  )}
-                  <span className={`text-sm ${selectionMode && isSelected ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
-                    {workflow.name}
-                  </span>
-                  {!selectionMode && (
-                    <div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
-                        disabled={executionInProgress[workflow.id]}
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-                        title="Execute Workflow"
-                      >
-                        {executionInProgress[workflow.id] ? (
-                          <Loader size={14} className="animate-spin" />
-                        ) : (
-                          <PlayCircle size={14} />
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                </button>
+              ) : (
+                <FileCode size={14} className="text-green-400" />
+              )}
+              <span className={`text-sm ${selectionMode && isSelected ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                {workflow.name}
+              </span>
+              {!selectionMode && (
+                <div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
+                    disabled={executionInProgress[workflow.id]}
+                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                    title="Execute Workflow"
+                    aria-label="Execute Workflow"
+                  >
+                    {executionInProgress[workflow.id] ? (
+                      <Loader size={14} className="animate-spin" />
+                    ) : (
+                      <PlayCircle size={14} />
+                    )}
+                  </button>
                 </div>
-              );
-            })}
-          </>
-        )}
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -688,7 +759,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                     {showStatsPopover && (
                       <div
                         ref={statsPopoverRef}
-                        className="absolute right-0 z-30 mt-2 w-80 rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
+                        style={statsPopoverStyles}
+                        className="z-30 w-80 rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
                       >
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="text-sm font-semibold text-white">Project Details</h3>
@@ -772,7 +844,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                     {showMoreMenu && (
                       <div
                         ref={moreMenuRef}
-                        className="absolute right-0 z-30 mt-2 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
+                        style={moreMenuStyles}
+                        className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
                       >
                         <button
                           onClick={() => {
@@ -973,7 +1046,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                 {showViewModeDropdown && (
                   <div
                     ref={viewModeDropdownRef}
-                    className="absolute right-0 z-30 mt-2 w-48 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
+                    style={viewModeDropdownStyles}
+                    className="z-30 w-48 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
                   >
                     <button
                       onClick={() => {
@@ -1091,9 +1165,17 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
               </div>
             ) : (
               <div className="space-y-1">
-                {memoizedFolderStructure.map((folder) => (
-                  <FolderTreeItem key={folder.path} item={folder} />
-                ))}
+                  {memoizedFolderStructure.map((folder, index) => {
+                    const hasNextRoot = index < memoizedFolderStructure.length - 1;
+                    const rootPrefix = memoizedFolderStructure.length > 1 ? [hasNextRoot] : [];
+                    return (
+                      <FolderTreeItem
+                        key={folder.path}
+                        item={folder}
+                        prefixParts={rootPrefix}
+                      />
+                    );
+                  })}
               </div>
             )}
           </div>

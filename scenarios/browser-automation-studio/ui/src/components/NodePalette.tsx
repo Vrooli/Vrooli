@@ -1,7 +1,7 @@
 import { Globe, MousePointer, Keyboard, Camera, Clock, Database, Code, Play } from 'lucide-react';
 
 const nodeTypes = [
-  { type: 'navigate', label: 'Navigate', icon: Globe, color: 'text-blue-400', description: 'Navigate to URL' },
+  { type: 'navigate', label: 'Navigate', icon: Globe, color: 'text-blue-400', description: 'Navigate to URL or scenario' },
   { type: 'click', label: 'Click', icon: MousePointer, color: 'text-green-400', description: 'Click an element' },
   { type: 'type', label: 'Type', icon: Keyboard, color: 'text-yellow-400', description: 'Type text in input' },
   { type: 'screenshot', label: 'Screenshot', icon: Camera, color: 'text-purple-400', description: 'Capture screenshot' },

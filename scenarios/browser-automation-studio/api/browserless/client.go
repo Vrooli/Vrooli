@@ -113,7 +113,7 @@ func NewClient(log *logrus.Logger, repo database.Repository) *Client {
 
 // ExecuteWorkflow executes the supplied workflow via Browserless, capturing artifacts per step.
 func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execution, workflow *database.Workflow, emitter events.Sink) error {
-	plan, instructions, err := c.compileWorkflow(workflow)
+	plan, instructions, err := c.compileWorkflow(ctx, workflow)
 	if err != nil {
 		return err
 	}
@@ -1114,17 +1114,17 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 }
 
 func (c *Client) buildInstructions(workflow *database.Workflow) ([]runtime.Instruction, error) {
-	_, instructions, err := c.compileWorkflow(workflow)
+	_, instructions, err := c.compileWorkflow(context.Background(), workflow)
 	return instructions, err
 }
 
-func (c *Client) compileWorkflow(workflow *database.Workflow) (*compiler.ExecutionPlan, []runtime.Instruction, error) {
+func (c *Client) compileWorkflow(ctx context.Context, workflow *database.Workflow) (*compiler.ExecutionPlan, []runtime.Instruction, error) {
 	plan, err := compiler.CompileWorkflow(workflow)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	instructions, err := runtime.InstructionsFromPlan(plan)
+	instructions, err := runtime.InstructionsFromPlan(ctx, plan)
 	if err != nil {
 		return nil, nil, err
 	}

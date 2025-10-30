@@ -13,6 +13,7 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import { useExecutionStore } from '../stores/executionStore';
 import { logger } from '../utils/logger';
+import { usePopoverPosition } from '../hooks/usePopoverPosition';
 
 interface ExecutionHistoryProps {
   workflowId?: string;
@@ -43,7 +44,19 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  const mobileFilterRef = useRef<HTMLDivElement | null>(null);
+  const mobileFilterContainerRef = useRef<HTMLDivElement | null>(null);
+  const mobileFilterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mobileFilterDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const { floatingStyles: mobileFilterStyles } = usePopoverPosition(
+    mobileFilterButtonRef,
+    mobileFilterDropdownRef,
+    {
+      isOpen: isMobileFilterOpen,
+      placementPriority: ['bottom-start', 'bottom-end', 'top-start', 'top-end'],
+      matchReferenceWidth: true,
+    },
+  );
 
   const loadExecutions = useExecutionStore((state) => state.loadExecutions);
 
@@ -86,10 +99,10 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
     }
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (!mobileFilterRef.current) {
+      if (!mobileFilterContainerRef.current) {
         return;
       }
-      if (!mobileFilterRef.current.contains(event.target as Node)) {
+      if (!mobileFilterContainerRef.current.contains(event.target as Node)) {
         setIsMobileFilterOpen(false);
       }
     };
@@ -243,8 +256,9 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
 
         {/* Mobile filter dropdown */}
         <div className="flex items-center gap-2 md:hidden">
-          <div className="relative flex-1" ref={mobileFilterRef}>
+          <div className="relative flex-1" ref={mobileFilterContainerRef}>
             <button
+              ref={mobileFilterButtonRef}
               type="button"
               onClick={() => setIsMobileFilterOpen((prev) => !prev)}
               className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-700 bg-flow-node px-3 py-2 text-sm text-gray-200 hover:border-flow-accent hover:text-white transition-colors"
@@ -261,7 +275,11 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
               />
             </button>
             {isMobileFilterOpen && (
-              <div className="absolute left-0 right-0 mt-2 rounded-lg border border-gray-700 bg-flow-node shadow-lg z-20 overflow-hidden">
+              <div
+                ref={mobileFilterDropdownRef}
+                style={mobileFilterStyles}
+                className="z-20 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
+              >
                 {STATUS_FILTERS.map((filter) => (
                   <button
                     key={filter}

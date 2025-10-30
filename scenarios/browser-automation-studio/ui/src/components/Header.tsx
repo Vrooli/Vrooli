@@ -5,6 +5,7 @@ import { useExecutionStore } from '../stores/executionStore';
 import { Project, useProjectStore } from '../stores/projectStore';
 import AIEditModal from './AIEditModal';
 import toast from 'react-hot-toast';
+import { usePopoverPosition } from '../hooks/usePopoverPosition';
 
 interface Workflow {
   id: string;
@@ -35,6 +36,11 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
   const infoButtonRef = useRef<HTMLButtonElement | null>(null);
   const infoPopoverRef = useRef<HTMLDivElement | null>(null);
   const [showWorkflowInfo, setShowWorkflowInfo] = useState(false);
+
+  const { floatingStyles: workflowInfoStyles } = usePopoverPosition(infoButtonRef, infoPopoverRef, {
+    isOpen: showWorkflowInfo,
+    placementPriority: ['bottom-end', 'bottom-start', 'top-end', 'top-start'],
+  });
   
   // Use the workflow from props if provided, otherwise use the one from store
   const displayWorkflow = selectedWorkflow || currentWorkflow;
@@ -167,7 +173,7 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
   return (
     <>
       <header className="bg-flow-node border-b border-gray-800 px-4 py-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               {onBackToDashboard && (
@@ -243,7 +249,8 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
                   {showWorkflowInfo && (
                     <div
                       ref={infoPopoverRef}
-                      className="absolute left-0 sm:right-0 sm:left-auto z-30 mt-2 w-80 max-h-96 overflow-y-auto rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
+                      style={workflowInfoStyles}
+                      className="z-30 w-80 max-h-96 overflow-y-auto rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-white">Workflow Details</h3>
@@ -323,52 +330,57 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
               <button
                 onClick={onNewWorkflow}
-                className="toolbar-button flex items-center gap-2"
+                className="toolbar-button flex items-center gap-0 sm:gap-2"
                 title="New Workflow"
+                aria-label="New Workflow"
               >
                 <Plus size={16} />
-                <span className="text-sm">New</span>
+                <span className="hidden text-sm sm:inline">New</span>
               </button>
               
               <button
                 onClick={handleSave}
-                className="toolbar-button flex items-center gap-2"
+                className="toolbar-button flex items-center gap-0 sm:gap-2"
                 title="Save Workflow"
+                aria-label="Save Workflow"
               >
                 <Save size={16} />
-                <span className="text-sm">Save</span>
+                <span className="hidden text-sm sm:inline">Save</span>
               </button>
               
               <button
-                className="toolbar-button flex items-center gap-2"
+                className="toolbar-button flex items-center gap-0 sm:gap-2"
                 title="Open Workflow"
+                aria-label="Open Workflow"
               >
                 <FolderOpen size={16} />
-                <span className="text-sm">Open</span>
+                <span className="hidden text-sm sm:inline">Open</span>
               </button>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExecute}
-              className="bg-flow-accent hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-              title="Execute Workflow"
-            >
-              <Play size={16} />
-              <span className="text-sm font-medium">Execute</span>
-            </button>
-            
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={handleDebug}
-              className="toolbar-button flex items-center gap-2"
+              className="toolbar-button flex items-center gap-0 sm:gap-2"
               title="Edit with AI"
+              aria-label="Edit with AI"
             >
               <Bug size={16} />
-              <span className="text-sm">Debug</span>
+              <span className="hidden text-sm sm:inline">Debug</span>
+            </button>
+
+            <button
+              onClick={handleExecute}
+              className="bg-flow-accent hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
+              title="Execute Workflow"
+              aria-label="Execute Workflow"
+            >
+              <Play size={16} />
+              <span className="hidden text-sm font-medium sm:inline">Execute</span>
             </button>
           </div>
         </div>

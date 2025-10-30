@@ -1,12 +1,14 @@
 package runtime
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/browserless/compiler"
+	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 )
 
 // Instruction represents a normalized execution step that can be shipped to Browserless.
@@ -64,14 +66,18 @@ type InstructionParam struct {
 }
 
 // InstructionsFromPlan converts a compiled execution plan into Browserless instructions.
-func InstructionsFromPlan(plan *compiler.ExecutionPlan) ([]Instruction, error) {
+func InstructionsFromPlan(ctx context.Context, plan *compiler.ExecutionPlan) ([]Instruction, error) {
 	if plan == nil {
 		return nil, fmt.Errorf("execution plan is nil")
 	}
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	instructions := make([]Instruction, 0, len(plan.Steps))
 	for _, step := range plan.Steps {
-		instr, err := instructionFromStep(step)
+		instr, err := instructionFromStep(ctx, step)
 		if err != nil {
 			return nil, err
 		}
@@ -82,10 +88,14 @@ func InstructionsFromPlan(plan *compiler.ExecutionPlan) ([]Instruction, error) {
 }
 
 type navigateConfig struct {
-	URL       string `json:"url"`
-	WaitUntil string `json:"waitUntil"`
-	TimeoutMs int    `json:"timeoutMs"`
-	WaitForMs int    `json:"waitForMs"`
+	URL             string `json:"url"`
+	WaitUntil       string `json:"waitUntil"`
+	TimeoutMs       int    `json:"timeoutMs"`
+	WaitForMs       int    `json:"waitForMs"`
+	Scenario        string `json:"scenario"`
+	ScenarioPath    string `json:"scenarioPath"`
+	ScenarioPort    string `json:"scenarioPort"`
+	DestinationType string `json:"destinationType"`
 }
 
 type waitConfig struct {
@@ -156,7 +166,7 @@ type assertConfig struct {
 	ContinueOnFailure *bool  `json:"continueOnFailure"`
 }
 
-func instructionFromStep(step compiler.ExecutionStep) (Instruction, error) {
+func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Instruction, error) {
 	base := Instruction{
 		Index:  step.Index,
 		NodeID: step.NodeID,
@@ -183,10 +193,32 @@ func instructionFromStep(step compiler.ExecutionStep) (Instruction, error) {
 		if err := decodeParams(step.Params, &cfg); err != nil {
 			return Instruction{}, fmt.Errorf("navigate node %s has invalid data: %w", step.NodeID, err)
 		}
-		if strings.TrimSpace(cfg.URL) == "" {
-			return Instruction{}, fmt.Errorf("navigate node %s missing url", step.NodeID)
+		destinationType := strings.ToLower(strings.TrimSpace(cfg.DestinationType))
+		scenarioName := strings.TrimSpace(cfg.Scenario)
+		scenarioSelected := destinationType == "scenario" || (destinationType == "" && scenarioName != "")
+
+		if scenarioSelected {
+			if scenarioName == "" {
+				return Instruction{}, fmt.Errorf("navigate node %s missing scenario name", step.NodeID)
+			}
+
+			portCandidates := []string{}
+			if strings.TrimSpace(cfg.ScenarioPort) != "" {
+				portCandidates = append(portCandidates, cfg.ScenarioPort)
+			}
+
+			resolvedURL, _, err := scenarioport.ResolveURL(ctx, scenarioName, cfg.ScenarioPath, portCandidates...)
+			if err != nil {
+				return Instruction{}, fmt.Errorf("navigate node %s failed to resolve scenario %s: %w", step.NodeID, scenarioName, err)
+			}
+			base.Params.URL = resolvedURL
+		} else {
+			trimmedURL := strings.TrimSpace(cfg.URL)
+			if trimmedURL == "" {
+				return Instruction{}, fmt.Errorf("navigate node %s missing url", step.NodeID)
+			}
+			base.Params.URL = trimmedURL
 		}
-		base.Params.URL = cfg.URL
 		if wait := strings.TrimSpace(cfg.WaitUntil); wait != "" {
 			base.Params.WaitUntil = wait
 		}

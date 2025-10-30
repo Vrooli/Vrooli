@@ -156,6 +156,7 @@ func main() {
 		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
 
 		// Scenario routes
+		r.Get("/scenarios", handler.ListScenarios)
 		r.Get("/scenarios/{name}/port", handler.GetScenarioPort)
 
 		// Screenshot serving routes
