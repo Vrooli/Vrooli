@@ -1,4 +1,4 @@
-import { Globe, MousePointer, Keyboard, Camera, Clock, Database, Code, Play } from 'lucide-react';
+import { Globe, MousePointer, Keyboard, Camera, Clock, Database, Code, Play, CheckCircle } from 'lucide-react';
 
 const nodeTypes = [
   { type: 'navigate', label: 'Navigate', icon: Globe, color: 'text-blue-400', description: 'Navigate to URL or scenario' },
@@ -7,6 +7,7 @@ const nodeTypes = [
   { type: 'screenshot', label: 'Screenshot', icon: Camera, color: 'text-purple-400', description: 'Capture screenshot' },
   { type: 'wait', label: 'Wait', icon: Clock, color: 'text-gray-400', description: 'Wait for condition' },
   { type: 'extract', label: 'Extract', icon: Database, color: 'text-pink-400', description: 'Extract data' },
+  { type: 'assert', label: 'Assert', icon: CheckCircle, color: 'text-orange-400', description: 'Verify page conditions' },
   { type: 'workflowCall', label: 'Call Workflow', icon: Play, color: 'text-violet-400', description: 'Execute another workflow' },
 ];
 

@@ -28,6 +28,7 @@ import TypeNode from './nodes/TypeNode';
 import ScreenshotNode from './nodes/ScreenshotNode';
 import WaitNode from './nodes/WaitNode';
 import ExtractNode from './nodes/ExtractNode';
+import AssertNode from './nodes/AssertNode';
 import WorkflowCallNode from './nodes/WorkflowCallNode';
 import WorkflowToolbar from './WorkflowToolbar';
 import CustomConnectionLine from './CustomConnectionLine';
@@ -42,6 +43,7 @@ const nodeTypes: NodeTypes = {
   screenshot: ScreenshotNode,
   wait: WaitNode,
   extract: ExtractNode,
+  assert: AssertNode,
   workflowCall: WorkflowCallNode,
 };
 
@@ -67,22 +69,41 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     logger.debug('Project ID loaded', { component: 'WorkflowBuilder', projectId });
   }
 
-  const { nodes: storeNodes, edges: storeEdges, updateWorkflow } = useWorkflowStore();
+  // Use selectors to only subscribe to specific parts of the store
+  const storeNodes = useWorkflowStore((state) => state.nodes);
+  const storeEdges = useWorkflowStore((state) => state.edges);
+  const updateWorkflow = useWorkflowStore((state) => state.updateWorkflow);
+
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);
 
+  const connectingNodeId = useRef<string | null>(null);
+  const isLoadingFromStore = useRef(false);
+
+  // Sync FROM store TO local state (on workflow load)
   useEffect(() => {
     if (storeNodes) {
+      isLoadingFromStore.current = true;
       setNodes(storeNodes as Node[]);
+      // Reset flag after state update completes
+      setTimeout(() => { isLoadingFromStore.current = false; }, 0);
     }
   }, [storeNodes, setNodes]);
 
   useEffect(() => {
     if (storeEdges) {
+      isLoadingFromStore.current = true;
       setEdges(storeEdges as Edge[]);
+      setTimeout(() => { isLoadingFromStore.current = false; }, 0);
     }
   }, [storeEdges, setEdges]);
-  const connectingNodeId = useRef<string | null>(null);
+
+  // Sync FROM local state TO store (on any user change, not from store load)
+  useEffect(() => {
+    if (!isLoadingFromStore.current) {
+      updateWorkflow({ nodes, edges });
+    }
+  }, [nodes, edges, updateWorkflow]);
   
   // Toolbar state
   const [showGrid, setShowGrid] = useState(true);
@@ -104,8 +125,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     try {
       return JSON.stringify(
         {
-          nodes: storeNodes ?? [],
-          edges: storeEdges ?? [],
+          nodes: nodes ?? [],
+          edges: edges ?? [],
         },
         null,
         2
@@ -114,7 +135,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       logger.error('Failed to stringify workflow definition', { component: 'WorkflowBuilder', action: 'handleSaveError' }, error);
       return '{\n  "nodes": [],\n  "edges": []\n}';
     }
-  }, [storeNodes, storeEdges]);
+  }, [nodes, edges]);
 
   useEffect(() => {
     if (!codeDirty || viewMode !== 'code') {
@@ -150,7 +171,6 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       saveToHistory();
       setNodes(parsedNodes);
       setEdges(parsedEdges);
-      updateWorkflow({ nodes: parsedNodes, edges: parsedEdges });
       setCodeDirty(false);
       setCodeError(null);
       if (!options?.silent) {
@@ -204,9 +224,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       setNodes(previousState.nodes);
       setEdges(previousState.edges);
       setHistoryIndex(prev => prev - 1);
-      updateWorkflow({ nodes: previousState.nodes, edges: previousState.edges });
     }
-  }, [history, historyIndex, setNodes, setEdges, updateWorkflow]);
+  }, [history, historyIndex, setNodes, setEdges]);
 
   // Redo function
   const redo = useCallback(() => {
@@ -215,9 +234,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       setNodes(nextState.nodes);
       setEdges(nextState.edges);
       setHistoryIndex(prev => prev + 1);
-      updateWorkflow({ nodes: nextState.nodes, edges: nextState.edges });
     }
-  }, [history, historyIndex, setNodes, setEdges, updateWorkflow]);
+  }, [history, historyIndex, setNodes, setEdges]);
 
   // Duplicate selected nodes
   const duplicateSelected = useCallback(() => {
@@ -239,10 +257,9 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     // Deselect original nodes and add new ones
     const updatedNodes = nodes.map(node => ({ ...node, selected: false }));
     const allNodes = [...updatedNodes, ...newNodes];
-    
+
     setNodes(allNodes);
-    updateWorkflow({ nodes: allNodes, edges });
-  }, [nodes, edges, setNodes, updateWorkflow, saveToHistory]);
+  }, [nodes, edges, setNodes, saveToHistory]);
 
   // Delete selected nodes and edges
   const deleteSelected = useCallback(() => {
@@ -265,16 +282,14 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     
     setNodes(remainingNodes);
     setEdges(remainingEdges);
-    updateWorkflow({ nodes: remainingNodes, edges: remainingEdges });
-  }, [nodes, edges, setNodes, setEdges, updateWorkflow, saveToHistory]);
+  }, [nodes, edges, setNodes, setEdges, saveToHistory]);
 
   const onConnect = useCallback(
     (params: Connection) => {
       const newEdges = addEdge(params, edges);
       setEdges(newEdges);
-      updateWorkflow({ nodes, edges: newEdges });
     },
-    [edges, nodes, setEdges, updateWorkflow]
+    [edges, setEdges]
   );
 
   // Track when connection starts
@@ -300,9 +315,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       }
 
       onNodesChange(changes);
-      updateWorkflow({ nodes, edges });
     },
-    [onNodesChange, nodes, edges, updateWorkflow, saveToHistory]
+    [onNodesChange, saveToHistory]
   );
 
   const onEdgesChangeHandler = useCallback(
@@ -317,9 +331,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       }
 
       onEdgesChange(changes);
-      updateWorkflow({ nodes, edges });
     },
-    [onEdgesChange, nodes, edges, updateWorkflow, saveToHistory]
+    [onEdgesChange, saveToHistory]
   );
 
   const onDrop = useCallback(
@@ -343,9 +356,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       };
 
       setNodes((nds) => nds.concat(newNode));
-      updateWorkflow({ nodes: [...nodes, newNode], edges });
     },
-    [nodes, edges, setNodes, updateWorkflow]
+    [setNodes]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {

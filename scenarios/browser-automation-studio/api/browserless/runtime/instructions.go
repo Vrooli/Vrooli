@@ -23,6 +23,9 @@ type Instruction struct {
 // InstructionParam captures the parameter payload for a Browserless instruction.
 type InstructionParam struct {
 	URL                   string   `json:"url,omitempty"`
+	Scenario              string   `json:"scenario,omitempty"`              // Scenario name for navigate nodes
+	ScenarioPath          string   `json:"scenarioPath,omitempty"`          // Scenario path for navigate nodes
+	DestinationType       string   `json:"destinationType,omitempty"`       // url or scenario
 	WaitUntil             string   `json:"waitUntil,omitempty"`
 	TimeoutMs             int      `json:"timeoutMs,omitempty"`
 	WaitForMs             int      `json:"waitForMs,omitempty"`
@@ -93,6 +96,7 @@ type navigateConfig struct {
 	TimeoutMs       int    `json:"timeoutMs"`
 	WaitForMs       int    `json:"waitForMs"`
 	Scenario        string `json:"scenario"`
+	ScenarioName    string `json:"scenarioName"`
 	ScenarioPath    string `json:"scenarioPath"`
 	ScenarioPort    string `json:"scenarioPort"`
 	DestinationType string `json:"destinationType"`
@@ -195,6 +199,9 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		destinationType := strings.ToLower(strings.TrimSpace(cfg.DestinationType))
 		scenarioName := strings.TrimSpace(cfg.Scenario)
+		if scenarioName == "" {
+			scenarioName = strings.TrimSpace(cfg.ScenarioName)
+		}
 		scenarioSelected := destinationType == "scenario" || (destinationType == "" && scenarioName != "")
 
 		if scenarioSelected {
@@ -212,12 +219,16 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 				return Instruction{}, fmt.Errorf("navigate node %s failed to resolve scenario %s: %w", step.NodeID, scenarioName, err)
 			}
 			base.Params.URL = resolvedURL
+			base.Params.Scenario = scenarioName
+			base.Params.ScenarioPath = strings.TrimSpace(cfg.ScenarioPath)
+			base.Params.DestinationType = "scenario"
 		} else {
 			trimmedURL := strings.TrimSpace(cfg.URL)
 			if trimmedURL == "" {
 				return Instruction{}, fmt.Errorf("navigate node %s missing url", step.NodeID)
 			}
 			base.Params.URL = trimmedURL
+			base.Params.DestinationType = "url"
 		}
 		if wait := strings.TrimSpace(cfg.WaitUntil); wait != "" {
 			base.Params.WaitUntil = wait

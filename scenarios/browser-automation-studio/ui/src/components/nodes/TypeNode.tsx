@@ -1,4 +1,4 @@
-import { memo, FC, useState } from 'react';
+import { memo, FC, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Keyboard, Globe, Target } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
@@ -10,7 +10,20 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
   const [showElementPicker, setShowElementPicker] = useState(false);
   const { getNodes, setNodes } = useReactFlow();
 
-  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
+  // Local state for inputs to avoid re-renders on every keystroke
+  const [selector, setSelector] = useState(data.selector || '');
+  const [text, setText] = useState(data.text || '');
+
+  // Sync local state when data changes from external sources
+  useEffect(() => {
+    setSelector(data.selector || '');
+  }, [data.selector]);
+
+  useEffect(() => {
+    setText(data.text || '');
+  }, [data.text]);
+
+  const updateNodeData = (updates: Record<string, any>) => {
     const nodes = getNodes();
     const updatedNodes = nodes.map(node => {
       if (node.id === id) {
@@ -18,14 +31,18 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
           ...node,
           data: {
             ...node.data,
-            selector: selector,
-            elementInfo: elementInfo
+            ...updates
           }
         };
       }
       return node;
     });
     setNodes(updatedNodes);
+  };
+
+  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
+    setSelector(selector);
+    updateNodeData({ selector, elementInfo });
   };
 
   return (
@@ -52,24 +69,9 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
             type="text"
             placeholder="CSS Selector..."
             className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            defaultValue={data.selector || ''}
-            onChange={(e) => {
-              const newSelector = e.target.value;
-              const nodes = getNodes();
-              const updatedNodes = nodes.map(node => {
-                if (node.id === id) {
-                  return {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      selector: newSelector
-                    }
-                  };
-                }
-                return node;
-              });
-              setNodes(updatedNodes);
-            }}
+            value={selector}
+            onChange={(e) => setSelector(e.target.value)}
+            onBlur={() => updateNodeData({ selector })}
           />
           <div 
             className="inline-block"
@@ -92,24 +94,9 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
           placeholder="Text to type..."
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none resize-none"
           rows={2}
-          defaultValue={data.text || ''}
-          onChange={(e) => {
-            const newText = e.target.value;
-            const nodes = getNodes();
-            const updatedNodes = nodes.map(node => {
-              if (node.id === id) {
-                return {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    text: newText
-                  }
-                };
-              }
-              return node;
-            });
-            setNodes(updatedNodes);
-          }}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => updateNodeData({ text })}
         />
         
         <Handle type="source" position={Position.Bottom} className="node-handle" />
@@ -121,7 +108,7 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
           onClose={() => setShowElementPicker(false)}
           url={upstreamUrl}
           onSelectElement={handleElementSelection}
-          selectedSelector={data.selector}
+          selectedSelector={selector}
         />
       )}
     </>

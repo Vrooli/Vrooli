@@ -1102,15 +1102,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
               <ExecutionHistory onSelectExecution={handleSelectExecution} />
             </div>
             {isExecutionViewerOpen && (
-              <div className="relative w-full md:w-1/2 flex-1 flex flex-col min-h-0">
-                <button
-                  onClick={handleCloseExecutionViewer}
-                  className="absolute top-2 right-2 z-10 p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                  title="Close"
-                >
-                  <X size={16} />
-                </button>
-                <ExecutionViewer execution={currentExecution} />
+              <div className="w-full md:w-1/2 flex-1 flex flex-col min-h-0">
+                <ExecutionViewer execution={currentExecution} onClose={handleCloseExecutionViewer} />
               </div>
             )}
           </div>

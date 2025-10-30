@@ -1,4 +1,4 @@
-import { memo, FC } from 'react';
+import { memo, FC, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Clock, Globe } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
@@ -6,6 +6,39 @@ import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
 const WaitNode: FC<NodeProps> = ({ data, selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
   const { getNodes, setNodes } = useReactFlow();
+
+  const [waitType, setWaitType] = useState(data.waitType || 'time');
+  const [duration, setDuration] = useState(data.duration || 1000);
+  const [selector, setSelector] = useState(data.selector || '');
+
+  useEffect(() => {
+    setWaitType(data.waitType || 'time');
+  }, [data.waitType]);
+
+  useEffect(() => {
+    setDuration(data.duration || 1000);
+  }, [data.duration]);
+
+  useEffect(() => {
+    setSelector(data.selector || '');
+  }, [data.selector]);
+
+  const updateNodeData = (updates: Record<string, any>) => {
+    const nodes = getNodes();
+    const updatedNodes = nodes.map(node => {
+      if (node.id === id) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            ...updates
+          }
+        };
+      }
+      return node;
+    });
+    setNodes(updatedNodes);
+  };
 
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -27,23 +60,11 @@ const WaitNode: FC<NodeProps> = ({ data, selected, id }) => {
       
       <select
         className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none mb-2"
-        defaultValue={data.waitType || 'time'}
+        value={waitType}
         onChange={(e) => {
           const newType = e.target.value;
-          const nodes = getNodes();
-          const updatedNodes = nodes.map(node => {
-            if (node.id === id) {
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  waitType: newType
-                }
-              };
-            }
-            return node;
-          });
-          setNodes(updatedNodes);
+          setWaitType(newType);
+          updateNodeData({ waitType: newType });
         }}
       >
         <option value="time">Wait for time</option>
@@ -51,53 +72,23 @@ const WaitNode: FC<NodeProps> = ({ data, selected, id }) => {
         <option value="navigation">Wait for navigation</option>
       </select>
       
-      {data.waitType === 'time' ? (
+      {waitType === 'time' ? (
         <input
           type="number"
           placeholder="Milliseconds..."
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          defaultValue={data.duration || 1000}
-          onChange={(e) => {
-            const newDuration = parseInt(e.target.value);
-            const nodes = getNodes();
-            const updatedNodes = nodes.map(node => {
-              if (node.id === id) {
-                return {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    duration: newDuration
-                  }
-                };
-              }
-              return node;
-            });
-            setNodes(updatedNodes);
-          }}
+          value={duration}
+          onChange={(e) => setDuration(parseInt(e.target.value) || 0)}
+          onBlur={() => updateNodeData({ duration })}
         />
       ) : (
         <input
           type="text"
           placeholder="CSS Selector..."
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          defaultValue={data.selector || ''}
-          onChange={(e) => {
-            const newSelector = e.target.value;
-            const nodes = getNodes();
-            const updatedNodes = nodes.map(node => {
-              if (node.id === id) {
-                return {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    selector: newSelector
-                  }
-                };
-              }
-              return node;
-            });
-            setNodes(updatedNodes);
-          }}
+          value={selector}
+          onChange={(e) => setSelector(e.target.value)}
+          onBlur={() => updateNodeData({ selector })}
         />
       )}
       

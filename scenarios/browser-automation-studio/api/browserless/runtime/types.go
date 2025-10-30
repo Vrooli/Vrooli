@@ -20,6 +20,9 @@ type StepResult struct {
 	DurationMs         int               `json:"durationMs,omitempty"`
 	ScreenshotBase64   string            `json:"screenshotBase64,omitempty"`
 	FinalURL           string            `json:"finalUrl,omitempty"`
+	Scenario           string            `json:"scenario,omitempty"`           // Scenario name for navigate nodes
+	ScenarioPath       string            `json:"scenarioPath,omitempty"`       // Scenario path for navigate nodes
+	DestinationType    string            `json:"destinationType,omitempty"`    // url or scenario
 	ConsoleLogs        []ConsoleLog      `json:"consoleLogs,omitempty"`
 	NetworkEvents      []NetworkEvent    `json:"networkEvents,omitempty"`
 	ElementBoundingBox *BoundingBox      `json:"elementBoundingBox,omitempty"`

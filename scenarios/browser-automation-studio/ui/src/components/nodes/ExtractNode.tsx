@@ -1,4 +1,4 @@
-import { memo, FC, useState } from 'react';
+import { memo, FC, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Database, Globe, Target } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
@@ -10,7 +10,23 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
   const [showElementPicker, setShowElementPicker] = useState(false);
   const { getNodes, setNodes } = useReactFlow();
 
-  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
+  const [selector, setSelector] = useState(data.selector || '');
+  const [extractType, setExtractType] = useState(data.extractType || 'text');
+  const [attribute, setAttribute] = useState(data.attribute || '');
+
+  useEffect(() => {
+    setSelector(data.selector || '');
+  }, [data.selector]);
+
+  useEffect(() => {
+    setExtractType(data.extractType || 'text');
+  }, [data.extractType]);
+
+  useEffect(() => {
+    setAttribute(data.attribute || '');
+  }, [data.attribute]);
+
+  const updateNodeData = (updates: Record<string, any>) => {
     const nodes = getNodes();
     const updatedNodes = nodes.map(node => {
       if (node.id === id) {
@@ -18,14 +34,18 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
           ...node,
           data: {
             ...node.data,
-            selector: selector,
-            elementInfo: elementInfo
+            ...updates
           }
         };
       }
       return node;
     });
     setNodes(updatedNodes);
+  };
+
+  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
+    setSelector(selector);
+    updateNodeData({ selector, elementInfo });
   };
 
   return (
@@ -52,24 +72,9 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
             type="text"
             placeholder="CSS Selector..."
             className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            defaultValue={data.selector || ''}
-            onChange={(e) => {
-              const newSelector = e.target.value;
-              const nodes = getNodes();
-              const updatedNodes = nodes.map(node => {
-                if (node.id === id) {
-                  return {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      selector: newSelector
-                    }
-                  };
-                }
-                return node;
-              });
-              setNodes(updatedNodes);
-            }}
+            value={selector}
+            onChange={(e) => setSelector(e.target.value)}
+            onBlur={() => updateNodeData({ selector })}
           />
           <div 
             className="inline-block"
@@ -90,23 +95,11 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
         
         <select
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none mb-2"
-          defaultValue={data.extractType || 'text'}
+          value={extractType}
           onChange={(e) => {
             const newType = e.target.value;
-            const nodes = getNodes();
-            const updatedNodes = nodes.map(node => {
-              if (node.id === id) {
-                return {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    extractType: newType
-                  }
-                };
-              }
-              return node;
-            });
-            setNodes(updatedNodes);
+            setExtractType(newType);
+            updateNodeData({ extractType: newType });
           }}
         >
           <option value="text">Text Content</option>
@@ -115,29 +108,14 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
           <option value="value">Input Value</option>
         </select>
         
-        {data.extractType === 'attribute' && (
+        {extractType === 'attribute' && (
           <input
             type="text"
             placeholder="Attribute name..."
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            defaultValue={data.attribute || ''}
-            onChange={(e) => {
-              const newAttribute = e.target.value;
-              const nodes = getNodes();
-              const updatedNodes = nodes.map(node => {
-                if (node.id === id) {
-                  return {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      attribute: newAttribute
-                    }
-                  };
-                }
-                return node;
-              });
-              setNodes(updatedNodes);
-            }}
+            value={attribute}
+            onChange={(e) => setAttribute(e.target.value)}
+            onBlur={() => updateNodeData({ attribute })}
           />
         )}
         
@@ -150,7 +128,7 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
           onClose={() => setShowElementPicker(false)}
           url={upstreamUrl}
           onSelectElement={handleElementSelection}
-          selectedSelector={data.selector}
+          selectedSelector={selector}
         />
       )}
     </>

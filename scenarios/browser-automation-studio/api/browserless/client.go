@@ -302,6 +302,18 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 					attemptStep.Type = instruction.Type
 				}
 				attemptStep.Index = instruction.Index
+				// Preserve scenario information from instruction params for navigate steps
+				if instruction.Type == "navigate" {
+					if instruction.Params.Scenario != "" {
+						attemptStep.Scenario = instruction.Params.Scenario
+					}
+					if instruction.Params.ScenarioPath != "" {
+						attemptStep.ScenarioPath = instruction.Params.ScenarioPath
+					}
+					if instruction.Params.DestinationType != "" {
+						attemptStep.DestinationType = instruction.Params.DestinationType
+					}
+				}
 				if !attemptStep.Success {
 					if attemptStep.Error != "" {
 						lastErr = fmt.Errorf(attemptStep.Error)
@@ -1451,6 +1463,15 @@ func stepResultOutputMap(step runtime.StepResult) database.JSONMap {
 
 	if step.FinalURL != "" {
 		output["finalUrl"] = step.FinalURL
+	}
+	if step.Scenario != "" {
+		output["scenario"] = step.Scenario
+	}
+	if step.ScenarioPath != "" {
+		output["scenarioPath"] = step.ScenarioPath
+	}
+	if step.DestinationType != "" {
+		output["destinationType"] = step.DestinationType
 	}
 	if step.ElementBoundingBox != nil {
 		output["elementBoundingBox"] = step.ElementBoundingBox

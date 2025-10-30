@@ -4,17 +4,12 @@ import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Globe, Eye, Loader, X, Monitor, FileText, Link2, AppWindow, RefreshCcw } from 'lucide-react';
 import { getConfig } from '../../config';
 import toast from 'react-hot-toast';
+import { useScenarioStore } from '../../stores/scenarioStore';
 
 interface ConsoleLog {
   level: string;
   message: string;
   timestamp: string;
-}
-
-interface ScenarioOption {
-  name: string;
-  description: string;
-  status: string;
 }
 
 type DestinationType = 'url' | 'scenario';
@@ -31,11 +26,9 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
   const [consoleLogs, setConsoleLogs] = useState<ConsoleLog[]>([]);
   const [activeTab, setActiveTab] = useState<'screenshot' | 'console'>('screenshot');
   const [previewTargetUrl, setPreviewTargetUrl] = useState<string | null>(null);
-  const [scenarioOptions, setScenarioOptions] = useState<ScenarioOption[]>([]);
-  const [scenariosLoading, setScenariosLoading] = useState(false);
-  const [scenariosError, setScenariosError] = useState<string | null>(null);
 
   const { getNodes, setNodes } = useReactFlow();
+  const { scenarios: scenarioOptions, isLoading: scenariosLoading, error: scenariosError, fetchScenarios } = useScenarioStore();
 
   const scenarioName = useMemo(() => {
     const direct = typeof data.scenario === 'string' ? data.scenario.trim() : '';
@@ -74,51 +67,12 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     setNodes(updatedNodes);
   }, [getNodes, id, setNodes]);
 
-  const fetchScenarioOptions = useCallback(async () => {
-    if (scenariosLoading) {
-      return;
-    }
-
-    setScenariosLoading(true);
-    setScenariosError(null);
-
-    try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/scenarios`);
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to load scenarios (${response.status})`);
-      }
-
-      const payload = await response.json();
-      const items = Array.isArray(payload?.scenarios) ? payload.scenarios : [];
-      const mapped = items
-        .map((item: any) => ({
-          name: typeof item?.name === 'string' ? item.name : '',
-          description: typeof item?.description === 'string' ? item.description : '',
-          status: typeof item?.status === 'string' ? item.status : '',
-        }))
-        .filter(option => option.name);
-
-      setScenarioOptions(mapped);
-      if (mapped.length === 0) {
-        setScenariosError('No scenarios found. Install or start a scenario, then refresh.');
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load scenarios';
-      setScenariosError(message);
-      logger.error('Failed to load scenarios', { component: 'NavigateNode', action: 'fetchScenarioOptions' }, error);
-      toast.error('Failed to load scenarios');
-    } finally {
-      setScenariosLoading(false);
-    }
-  }, [scenariosLoading]);
-
+  // Pre-fetch scenarios when destinationType is scenario
   useEffect(() => {
     if (destinationType === 'scenario' && scenarioOptions.length === 0 && !scenariosLoading) {
-      void fetchScenarioOptions();
+      void fetchScenarios();
     }
-  }, [destinationType, scenarioOptions.length, scenariosLoading, fetchScenarioOptions]);
+  }, [destinationType, scenarioOptions.length, scenariosLoading, fetchScenarios]);
 
   const resolveScenarioUrl = useCallback(async (): Promise<string | null> => {
     const trimmedScenario = scenarioName.trim();
@@ -245,7 +199,13 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
   }, [updateNodeData]);
 
   const handleDestinationChange = useCallback((nextType: DestinationType) => {
-    updateNodeData({ destinationType: nextType });
+    if (nextType === 'scenario') {
+      // Clear URL when switching to scenario mode
+      updateNodeData({ destinationType: 'scenario', url: '' });
+    } else {
+      // Clear scenario fields when switching to URL mode
+      updateNodeData({ destinationType: 'url', scenario: '', scenarioName: '', scenarioPath: '' });
+    }
   }, [updateNodeData]);
 
   const scenarioSuggestionId = `navigate-scenario-options-${id}`;
@@ -318,7 +278,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
               </datalist>
               <button
                 type="button"
-                onClick={() => void fetchScenarioOptions()}
+                onClick={() => void fetchScenarios()}
                 className="p-1.5 bg-flow-bg hover:bg-gray-700 rounded border border-gray-700 transition-colors"
                 title="Refresh scenarios"
                 aria-label="Refresh scenarios"

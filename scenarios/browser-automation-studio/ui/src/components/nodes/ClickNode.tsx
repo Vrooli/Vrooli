@@ -1,4 +1,4 @@
-import { memo, FC, useState } from 'react';
+import { memo, FC, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { MousePointer, Globe, Target } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
@@ -10,7 +10,13 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
   const [showElementPicker, setShowElementPicker] = useState(false);
   const { getNodes, setNodes } = useReactFlow();
 
-  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
+  const [selector, setSelector] = useState(data.selector || '');
+
+  useEffect(() => {
+    setSelector(data.selector || '');
+  }, [data.selector]);
+
+  const updateNodeData = (updates: Record<string, any>) => {
     const nodes = getNodes();
     const updatedNodes = nodes.map(node => {
       if (node.id === id) {
@@ -18,14 +24,18 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
           ...node,
           data: {
             ...node.data,
-            selector: selector,
-            elementInfo: elementInfo
+            ...updates
           }
         };
       }
       return node;
     });
     setNodes(updatedNodes);
+  };
+
+  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
+    setSelector(selector);
+    updateNodeData({ selector, elementInfo });
   };
 
   return (
@@ -52,24 +62,9 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
             type="text"
             placeholder="CSS Selector..."
             className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            defaultValue={data.selector || ''}
-            onChange={(e) => {
-              const newSelector = e.target.value;
-              const nodes = getNodes();
-              const updatedNodes = nodes.map(node => {
-                if (node.id === id) {
-                  return {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      selector: newSelector
-                    }
-                  };
-                }
-                return node;
-              });
-              setNodes(updatedNodes);
-            }}
+            value={selector}
+            onChange={(e) => setSelector(e.target.value)}
+            onBlur={() => updateNodeData({ selector })}
           />
           <div 
             className="inline-block"
@@ -97,7 +92,7 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
           onClose={() => setShowElementPicker(false)}
           url={upstreamUrl}
           onSelectElement={handleElementSelection}
-          selectedSelector={data.selector}
+          selectedSelector={selector}
         />
       )}
     </>

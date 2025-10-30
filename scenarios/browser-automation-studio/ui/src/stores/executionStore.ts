@@ -152,6 +152,7 @@ interface ExecutionStore {
   updateExecutionStatus: (status: Execution['status'], error?: string) => void;
   updateProgress: (progress: number, currentStep?: string) => void;
   recordHeartbeat: (step?: string, elapsedMs?: number) => void;
+  clearCurrentExecution: () => void;
 }
 
 const normalizeExecution = (raw: any): Execution => {
@@ -489,5 +490,10 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           }
         : state.currentExecution,
     }));
+  },
+
+  clearCurrentExecution: () => {
+    get().disconnectWebSocket();
+    set({ currentExecution: null });
   },
 }));

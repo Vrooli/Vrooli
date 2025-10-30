@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import WorkflowBuilder from './components/WorkflowBuilder';
 import ExecutionViewer from './components/ExecutionViewer';
+import ResponsiveDialog from './components/ResponsiveDialog';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import AIPromptModal from './components/AIPromptModal';
@@ -11,6 +12,8 @@ import ProjectModal from './components/ProjectModal';
 import { useExecutionStore } from './stores/executionStore';
 import { useProjectStore, Project } from './stores/projectStore';
 import { useWorkflowStore } from './stores/workflowStore';
+import { useScenarioStore } from './stores/scenarioStore';
+import { useMediaQuery } from './hooks/useMediaQuery';
 import type { Workflow } from './stores/workflowStore';
 
 interface NormalizedWorkflow extends Partial<Workflow> {
@@ -37,6 +40,14 @@ function App() {
   const { currentProject, setCurrentProject } = useProjectStore();
   const { loadWorkflow } = useWorkflowStore();
   const currentExecution = useExecutionStore((state) => state.currentExecution);
+  const clearCurrentExecution = useExecutionStore((state) => state.clearCurrentExecution);
+  const { fetchScenarios } = useScenarioStore();
+  const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+
+  // Pre-fetch scenarios on app mount for faster loading in NavigateNode
+  useEffect(() => {
+    void fetchScenarios();
+  }, [fetchScenarios]);
 
   interface RawWorkflow {
     id?: string;
@@ -344,11 +355,26 @@ function App() {
             <div className="flex-1 flex flex-col min-h-0">
               <WorkflowBuilder projectId={currentProject?.id} />
             </div>
-            
+
             {currentExecution && (
-              <div className="w-1/3 min-w-[400px] border-l border-gray-800 flex flex-col min-h-0">
-                <ExecutionViewer execution={currentExecution} />
-              </div>
+              <>
+                {isLargeScreen ? (
+                  /* Desktop: side pane on large screens */
+                  <div className="w-1/3 min-w-[400px] border-l border-gray-800 flex flex-col min-h-0">
+                    <ExecutionViewer execution={currentExecution} onClose={clearCurrentExecution} />
+                  </div>
+                ) : (
+                  /* Mobile/Medium: responsive dialog */
+                  <ResponsiveDialog
+                    isOpen={true}
+                    onDismiss={clearCurrentExecution}
+                    ariaLabel="Execution Viewer"
+                    size="xl"
+                  >
+                    <ExecutionViewer execution={currentExecution} onClose={clearCurrentExecution} />
+                  </ResponsiveDialog>
+                )}
+              </>
             )}
           </div>
         </div>

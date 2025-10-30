@@ -128,12 +128,13 @@ interface ExecutionProps {
       timestamp: Date;
     };
   };
+  onClose?: () => void;
 }
 
 const HEARTBEAT_WARN_SECONDS = 8;
 const HEARTBEAT_STALL_SECONDS = 15;
 
-function ExecutionViewer({ execution }: ExecutionProps) {
+function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
   const [activeTab, setActiveTab] = useState<'replay' | 'screenshots' | 'logs'>(
     execution.timeline && execution.timeline.length > 0 ? 'replay' : 'screenshots'
@@ -461,6 +462,15 @@ function ExecutionViewer({ execution }: ExecutionProps) {
           <button className="toolbar-button p-1.5 text-red-400" title="Stop">
             <X size={14} />
           </button>
+          {onClose && (
+            <button
+              className="toolbar-button p-1.5 ml-2 border-l border-gray-700 pl-3"
+              title="Close"
+              onClick={onClose}
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
