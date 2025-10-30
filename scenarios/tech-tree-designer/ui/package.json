@@ -19,6 +19,7 @@
     "lucide-react": "^0.294.0",
     "recharts": "^2.8.0",
     "framer-motion": "^10.16.16",
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "devDependencies": {
@@ -29,12 +30,13 @@
   },
   "keywords": [
     "tech-tree",
-    "strategic-planning", 
+    "strategic-planning",
     "civilization-intelligence",
     "digital-twin-roadmap",
     "superintelligence-pathway",
     "technology-visualization"
   ],
   "author": "Vrooli Strategic Intelligence",
-  "license": "MIT"
+  "license": "MIT",
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }

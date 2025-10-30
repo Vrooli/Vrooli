@@ -306,7 +306,7 @@ function AppContent() {
     if (!websocketError) {
       return;
     }
-    console.error('[App] WebSocket error:', websocketError);
+    // WebSocket error is tracked in state for debugging
   }, [websocketError]);
 
   const {
@@ -391,7 +391,6 @@ function AppContent() {
         setCreateIssuePrefill(prefill);
         openCreateIssue();
       } catch (error) {
-        console.error('[IssueTracker] Failed to prepare follow-up issue', error);
         const message = error instanceof Error ? error.message : 'Failed to prepare follow-up issue.';
         showSnack(message, 'error');
       } finally {
@@ -423,12 +422,9 @@ function AppContent() {
 
   const handleIssueArchive = useCallback(
     async (issue: Issue) => {
-      console.info('[IssueTracker] handleIssueArchive start', issue.id, issue.status);
       try {
         await updateIssueStatusAction(issue.id, 'archived');
-        console.info('[IssueTracker] handleIssueArchive success', issue.id);
       } catch (error) {
-        console.error('Failed to archive issue', error);
         showSnack('Failed to archive issue. Please try again.', 'error');
       }
     },
@@ -438,15 +434,12 @@ function AppContent() {
   const handleIssueDelete = useCallback(
     async (issue: Issue) => {
       const issueId = issue.id;
-      console.info('[IssueTracker] handleIssueDelete start', issueId);
       try {
         await deleteIssueAction(issueId);
-        console.info('[IssueTracker] handleIssueDelete success', issueId);
         if (focusedIssueId === issueId) {
           clearFocus();
         }
       } catch (error) {
-        console.error('Failed to delete issue', error);
         showSnack('Failed to delete issue. Please try again.', 'error');
       }
     },
@@ -461,7 +454,6 @@ function AppContent() {
       try {
         await updateIssueStatusAction(issueId, targetStatus);
       } catch (error) {
-        console.error('Failed to update issue status', error);
         showSnack('Failed to move issue. Please try again.', 'error');
       }
     },

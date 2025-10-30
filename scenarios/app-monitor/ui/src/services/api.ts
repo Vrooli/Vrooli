@@ -10,6 +10,10 @@ import type {
   BridgeDiagnosticsReport,
   AppProxyMetadata,
   LocalhostUsageReport,
+  CompleteDiagnostics,
+  AppDocument,
+  AppDocumentsList,
+  AppDocumentMatch,
 } from '@/types';
 import type {
   ApiHealthResponse,
@@ -400,6 +404,53 @@ export const appService = {
     } catch (error) {
       logger.warn(`Failed to fetch localhost usage report for ${appId}`, error);
       return null;
+    }
+  },
+
+  // Get complete diagnostics for an app
+  async getCompleteDiagnostics(appId: string, fast = false): Promise<CompleteDiagnostics | null> {
+    try {
+      const params = fast ? '?fast=true' : '';
+      const { data } = await api.get<ApiResponse<CompleteDiagnostics>>(`/apps/${encodeURIComponent(appId)}/diagnostics${params}`);
+      return data.data ?? null;
+    } catch (error) {
+      logger.error(`Failed to fetch complete diagnostics for ${appId}`, error);
+      return null;
+    }
+  },
+
+  // Get list of documents for an app
+  async getAppDocuments(appId: string): Promise<AppDocumentsList | null> {
+    try {
+      const { data } = await api.get<ApiResponse<AppDocumentsList>>(`/apps/${encodeURIComponent(appId)}/docs`);
+      return data.data ?? null;
+    } catch (error) {
+      logger.warn(`Failed to fetch documents for ${appId}`, error);
+      return null;
+    }
+  },
+
+  // Get a specific document
+  async getAppDocument(appId: string, docPath: string, render = true): Promise<AppDocument | null> {
+    try {
+      const params = render ? '?render=true' : '?render=false';
+      const encodedPath = docPath.startsWith('/') ? docPath.substring(1) : docPath;
+      const { data } = await api.get<ApiResponse<AppDocument>>(`/apps/${encodeURIComponent(appId)}/docs/${encodedPath}${params}`);
+      return data.data ?? null;
+    } catch (error) {
+      logger.warn(`Failed to fetch document ${docPath} for ${appId}`, error);
+      return null;
+    }
+  },
+
+  // Search documents
+  async searchAppDocuments(appId: string, query: string): Promise<AppDocumentMatch[]> {
+    try {
+      const { data} = await api.get<ApiResponse<AppDocumentMatch[]>>(`/apps/${encodeURIComponent(appId)}/docs-search?q=${encodeURIComponent(query)}`);
+      return data.data ?? [];
+    } catch (error) {
+      logger.warn(`Failed to search documents for ${appId}`, error);
+      return [];
     }
   },
 };

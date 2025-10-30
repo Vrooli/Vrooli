@@ -524,7 +524,7 @@ func writeFallbackTranscript(path, prompt, lastMessage, combinedOutput string, s
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := utils.NowRFC3339()
 
 	metadata := map[string]interface{}{
 		"sandbox":      "fallback-transcript",

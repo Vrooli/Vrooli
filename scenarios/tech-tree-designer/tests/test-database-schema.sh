@@ -5,12 +5,51 @@
 
 set -e
 
-# Configuration
+# Derive configuration from common environment variables
+if command -v resource-postgres &> /dev/null; then
+    POSTGRES_INFO=$(resource-postgres status --format json 2>/dev/null || true)
+    if [[ -n "$POSTGRES_INFO" ]]; then
+        DB_HOST=${DB_HOST:-localhost}
+        DB_PORT=${DB_PORT:-$(echo "$POSTGRES_INFO" | jq -r '.port')}
+        DB_USER=${DB_USER:-$(echo "$POSTGRES_INFO" | jq -r '.user')}
+        DB_NAME=${DB_NAME:-$(echo "$POSTGRES_INFO" | jq -r '.database')}
+    fi
+fi
+
+if [[ -n "${DATABASE_URL:-}" ]]; then
+    eval "$(python3 - <<'PY'
+import os
+from urllib.parse import urlparse
+
+url = urlparse(os.environ["DATABASE_URL"])
+def to_env(name, value):
+    if value is None:
+        return ""
+    return f"{name}={value}"
+
+print(to_env("DB_HOST", url.hostname or ""))
+print(to_env("DB_PORT", url.port or ""))
+print(to_env("DB_USER", url.username or ""))
+print(to_env("DB_PASSWORD", url.password or ""))
+print(to_env("DB_NAME", (url.path.lstrip('/') or "")))
+PY
+)"
+fi
+
+[[ -z "${DB_HOST:-}" && -n "${POSTGRES_HOST:-}" ]] && DB_HOST="$POSTGRES_HOST"
+[[ -z "${DB_PORT:-}" && -n "${POSTGRES_PORT:-}" ]] && DB_PORT="$POSTGRES_PORT"
+[[ -z "${DB_USER:-}" && -n "${POSTGRES_USER:-}" ]] && DB_USER="$POSTGRES_USER"
+[[ -z "${DB_PASSWORD:-}" && -n "${POSTGRES_PASSWORD:-}" ]] && DB_PASSWORD="$POSTGRES_PASSWORD"
+[[ -z "${DB_NAME:-}" && -n "${POSTGRES_DB:-}" ]] && DB_NAME="$POSTGRES_DB"
+
+# Configuration defaults
 DB_HOST=${DB_HOST:-localhost}
 DB_PORT=${DB_PORT:-5432}
 DB_USER=${DB_USER:-postgres}
 DB_NAME=${DB_NAME:-vrooli}
-export PGPASSWORD=${DB_PASSWORD:-postgres}
+DB_PASSWORD=${DB_PASSWORD:-lUq9qvemypKpuEeXCV6Vnxak1}
+
+export PGPASSWORD="$DB_PASSWORD"
 
 # Colors
 GREEN='\033[0;32m'
@@ -18,6 +57,11 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+
+if ! command -v psql &> /dev/null; then
+    echo -e "${YELLOW}⚠️  Skipping database schema tests: psql is not installed${NC}"
+    exit 0
+fi
 
 TESTS_PASSED=0
 TESTS_FAILED=0
@@ -28,12 +72,12 @@ log_test() {
 
 log_success() {
     echo -e "${GREEN}✅ $1${NC}"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED += 1))
 }
 
 log_error() {
     echo -e "${RED}❌ $1${NC}"
-    ((TESTS_FAILED++))
+    ((TESTS_FAILED += 1))
 }
 
 run_query() {

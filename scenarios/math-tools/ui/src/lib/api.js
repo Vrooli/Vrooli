@@ -1,5 +1,40 @@
 import { resolveApiBase } from '@vrooli/api-base';
-export const DEFAULT_API_PORT = import.meta.env.VITE_API_PORT?.trim() || '16430';
+function normalizePort(value) {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) && value > 0 ? String(value) : undefined;
+    }
+    if (typeof value !== 'string') {
+        return undefined;
+    }
+    const trimmed = value.trim();
+    return /^\d+$/.test(trimmed) ? trimmed : undefined;
+}
+function resolveDefaultApiPort() {
+    const candidates = [
+        import.meta.env.VITE_API_PORT,
+        import.meta.env.VITE_PROXY_API_PORT,
+        import.meta.env.API_PORT,
+    ];
+    for (const candidate of candidates) {
+        const normalized = normalizePort(candidate);
+        if (normalized) {
+            return normalized;
+        }
+    }
+    if (typeof window !== 'undefined') {
+        var _a, _b;
+        const proxyPort = (_a = window.__APP_MONITOR_PROXY_INFO__) === null || _a === void 0 ? void 0 : (_b = _a.ports) === null || _b === void 0 ? void 0 : _b.api;
+        const windowCandidates = [proxyPort, window.location?.port];
+        for (const candidate of windowCandidates) {
+            const normalized = normalizePort(candidate);
+            if (normalized) {
+                return normalized;
+            }
+        }
+    }
+    return undefined;
+}
+export const DEFAULT_API_PORT = resolveDefaultApiPort();
 export const DEFAULT_API_TOKEN = import.meta.env.VITE_API_TOKEN?.trim() || 'math-tools-api-token';
 export const DEFAULT_API_BASE_URL = resolveApiBase({
     explicitUrl: import.meta.env.VITE_API_BASE_URL?.trim(),

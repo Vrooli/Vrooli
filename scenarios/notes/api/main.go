@@ -10,28 +10,78 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 )
 
+// Structured logger for better observability
+type Logger struct {
+	prefix string
+}
+
+func NewLogger(prefix string) *Logger {
+	return &Logger{prefix: prefix}
+}
+
+func (l *Logger) Info(msg string, fields ...interface{}) {
+	l.log("INFO", msg, fields...)
+}
+
+func (l *Logger) Warn(msg string, fields ...interface{}) {
+	l.log("WARN", msg, fields...)
+}
+
+func (l *Logger) Error(msg string, fields ...interface{}) {
+	l.log("ERROR", msg, fields...)
+}
+
+func (l *Logger) Fatal(msg string, fields ...interface{}) {
+	l.log("FATAL", msg, fields...)
+	os.Exit(1)
+}
+
+func (l *Logger) log(level, msg string, fields ...interface{}) {
+	entry := map[string]interface{}{
+		"timestamp": time.Now().Format(time.RFC3339),
+		"level":     level,
+		"service":   "smartnotes-api",
+		"message":   msg,
+	}
+
+	// Add prefix if provided
+	if l.prefix != "" {
+		entry["component"] = l.prefix
+	}
+
+	// Add fields as key-value pairs
+	for i := 0; i < len(fields)-1; i += 2 {
+		if key, ok := fields[i].(string); ok {
+			entry[key] = fields[i+1]
+		}
+	}
+
+	jsonBytes, _ := json.Marshal(entry)
+	log.Println(string(jsonBytes))
+}
+
 type Note struct {
-	ID                 string    `json:"id"`
-	UserID            string    `json:"user_id"`
-	FolderID          *string   `json:"folder_id,omitempty"`
-	Title             string    `json:"title"`
-	Content           string    `json:"content"`
-	ContentType       string    `json:"content_type"`
-	Summary           *string   `json:"summary,omitempty"`
-	IsPinned          bool      `json:"is_pinned"`
-	IsArchived        bool      `json:"is_archived"`
-	IsFavorite        bool      `json:"is_favorite"`
-	WordCount         int       `json:"word_count"`
-	ReadingTime       int       `json:"reading_time_minutes"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
-	LastAccessed      time.Time `json:"last_accessed"`
-	Tags              []string  `json:"tags,omitempty"`
+	ID           string    `json:"id"`
+	UserID       string    `json:"user_id"`
+	FolderID     *string   `json:"folder_id,omitempty"`
+	Title        string    `json:"title"`
+	Content      string    `json:"content"`
+	ContentType  string    `json:"content_type"`
+	Summary      *string   `json:"summary,omitempty"`
+	IsPinned     bool      `json:"is_pinned"`
+	IsArchived   bool      `json:"is_archived"`
+	IsFavorite   bool      `json:"is_favorite"`
+	WordCount    int       `json:"word_count"`
+	ReadingTime  int       `json:"reading_time_minutes"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	LastAccessed time.Time `json:"last_accessed"`
+	Tags         []string  `json:"tags,omitempty"`
 }
 
 type Folder struct {
@@ -67,6 +117,7 @@ type Template struct {
 
 var db *sql.DB
 var defaultUserID string
+var logger *Logger
 
 func getDefaultUserID() string {
 	if defaultUserID == "" {
@@ -81,7 +132,7 @@ func getDefaultUserID() string {
 				RETURNING id
 			`).Scan(&defaultUserID)
 			if err != nil {
-				log.Printf("Warning: Could not get or create default user: %v", err)
+				logger.Warn("Could not get or create default user", "error", err.Error())
 				// Use a fallback UUID
 				defaultUserID = "00000000-0000-0000-0000-000000000001"
 			}
@@ -91,8 +142,8 @@ func getDefaultUserID() string {
 }
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
    vrooli scenario start notes
@@ -100,8 +151,11 @@ func main() {
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.
 `)
-        os.Exit(1)
-    }
+		os.Exit(1)
+	}
+
+	// Initialize structured logger
+	logger = NewLogger("main")
 	// Database configuration - support both POSTGRES_URL and individual components
 	// SmartNotes uses its own database named 'notes'
 	dbURL := os.Getenv("NOTES_DB_URL")
@@ -115,19 +169,20 @@ func main() {
 		dbName := "notes"
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
-			log.Fatal("❌ Database configuration missing. Provide NOTES_DB_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD")
+			logger.Fatal("Database configuration missing. Provide NOTES_DB_URL or all required POSTGRES_* environment variables",
+				"required_vars", []string{"POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSWORD"})
 		}
 
 		// Build connection string without logging sensitive info
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
-		log.Println("📝 Database connection string configured")
+		logger.Info("Database connection string configured", "database", dbName, "host", dbHost, "port", dbPort)
 	}
 
 	var err error
 	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		logger.Fatal("Failed to open database connection", "error", err.Error())
 	}
 	defer db.Close()
 
@@ -140,100 +195,114 @@ func main() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	
+
+	logger.Info("Attempting database connection with exponential backoff", "max_retries", maxRetries, "base_delay", baseDelay.String())
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			logger.Info("Database connected successfully", "attempt", attempt+1, "max_retries", maxRetries)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
+		logger.Warn("Database connection attempt failed",
+			"attempt", attempt+1,
+			"max_retries", maxRetries,
+			"error", pingErr.Error(),
+			"retry_delay", actualDelay.String())
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		if attempt > 0 && attempt%3 == 0 {
+			logger.Info("Retry progress update",
+				"attempts_made", attempt+1,
+				"max_retries", maxRetries,
+				"current_delay", delay.String(),
+				"jitter", jitter.String())
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+		logger.Fatal("Database connection failed after all retries",
+			"max_retries", maxRetries,
+			"error", pingErr.Error())
 	}
-	
-	log.Println("🎉 Database connection pool established successfully!")
+
+	logger.Info("Database connection pool established successfully",
+		"max_open_conns", 25,
+		"max_idle_conns", 5,
+		"conn_max_lifetime", "5m")
 
 	// Setup routes
 	router := mux.NewRouter()
-	
+
 	// Health check
 	router.HandleFunc("/health", healthHandler).Methods("GET")
-	
+
 	// Notes endpoints
 	router.HandleFunc("/api/notes", getNotesHandler).Methods("GET")
 	router.HandleFunc("/api/notes", createNoteHandler).Methods("POST")
 	router.HandleFunc("/api/notes/{id}", getNoteHandler).Methods("GET")
 	router.HandleFunc("/api/notes/{id}", updateNoteHandler).Methods("PUT")
 	router.HandleFunc("/api/notes/{id}", deleteNoteHandler).Methods("DELETE")
-	
+
 	// Folders endpoints
 	router.HandleFunc("/api/folders", getFoldersHandler).Methods("GET")
 	router.HandleFunc("/api/folders", createFolderHandler).Methods("POST")
 	router.HandleFunc("/api/folders/{id}", updateFolderHandler).Methods("PUT")
 	router.HandleFunc("/api/folders/{id}", deleteFolderHandler).Methods("DELETE")
-	
+
 	// Tags endpoints
 	router.HandleFunc("/api/tags", getTagsHandler).Methods("GET")
 	router.HandleFunc("/api/tags", createTagHandler).Methods("POST")
-	
+
 	// Templates endpoints
 	router.HandleFunc("/api/templates", getTemplatesHandler).Methods("GET")
 	router.HandleFunc("/api/templates", createTemplateHandler).Methods("POST")
-	
+
 	// Search endpoints
 	router.HandleFunc("/api/search", searchHandler).Methods("POST")
 	router.HandleFunc("/api/search/semantic", semanticSearchHandler).Methods("POST")
-	
+
 	// Setup CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	})
-	
+
 	handler := c.Handler(router)
-	
+
 	// Port configuration - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("PORT")
+		logger.Fatal("API_PORT environment variable is required")
 	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
-	}
-	
-	log.Printf("SmartNotes API starting on port %s", port)
+
+	logger.Info("SmartNotes API starting", "port", port, "endpoints", map[string]int{
+		"notes":     5,
+		"folders":   4,
+		"tags":      2,
+		"templates": 2,
+		"search":    2,
+		"health":    1,
+	})
+
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
+		logger.Fatal("Server failed to start", "port", port, "error", err.Error())
 	}
 }
 
@@ -245,7 +314,61 @@ func getEnv(key, defaultValue string) string {
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy", "service": "smartnotes-api"})
+	w.Header().Set("Content-Type", "application/json")
+
+	// Check database connectivity
+	dbConnected := false
+	var dbLatency float64
+	var dbError map[string]interface{}
+
+	if db != nil {
+		start := time.Now()
+		err := db.Ping()
+		dbLatency = float64(time.Since(start).Milliseconds())
+
+		if err == nil {
+			dbConnected = true
+		} else {
+			dbError = map[string]interface{}{
+				"code":      "CONNECTION_FAILED",
+				"message":   "Database ping failed",
+				"category":  "resource",
+				"retryable": true,
+			}
+		}
+	} else {
+		dbError = map[string]interface{}{
+			"code":      "NOT_INITIALIZED",
+			"message":   "Database connection not initialized",
+			"category":  "configuration",
+			"retryable": false,
+		}
+	}
+
+	// Determine overall health status
+	status := "healthy"
+	readiness := true
+	if !dbConnected {
+		status = "degraded"
+		readiness = false
+	}
+
+	response := map[string]interface{}{
+		"status":    status,
+		"service":   "smartnotes-api",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"readiness": readiness,
+		"dependencies": map[string]interface{}{
+			"database": map[string]interface{}{
+				"connected":  dbConnected,
+				"latency_ms": dbLatency,
+				"error":      dbError,
+			},
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func getNotesHandler(w http.ResponseWriter, r *http.Request) {
@@ -253,7 +376,7 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 	if userID == "" {
 		userID = getDefaultUserID()
 	}
-	
+
 	query := `
 		SELECT n.id, n.title, n.content, n.content_type, n.summary,
 		       n.is_pinned, n.is_archived, n.is_favorite,
@@ -267,14 +390,14 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE n.user_id = $1 AND n.is_archived = false
 		GROUP BY n.id
 		ORDER BY n.is_pinned DESC, n.updated_at DESC`
-	
+
 	rows, err := db.Query(query, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	notes := []Note{} // Initialize as empty slice instead of nil
 	for rows.Next() {
 		var n Note
@@ -293,7 +416,7 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		notes = append(notes, n)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(notes)
 }
@@ -304,21 +427,21 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	if note.UserID == "" {
 		note.UserID = getDefaultUserID()
 	}
-	
+
 	// Set defaults if not provided
 	if note.ContentType == "" {
 		note.ContentType = "markdown"
 	}
-	
+
 	query := `
 		INSERT INTO notes (user_id, title, content, content_type, folder_id)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at, last_accessed`
-	
+
 	err := db.QueryRow(query, note.UserID, note.Title, note.Content,
 		note.ContentType, note.FolderID).Scan(&note.ID, &note.CreatedAt, &note.UpdatedAt, &note.LastAccessed)
 	if err != nil {
@@ -327,7 +450,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Calculate word count and reading time
-	note.WordCount = len(note.Content) / 5 // Rough estimate
+	note.WordCount = len(note.Content) / 5          // Rough estimate
 	note.ReadingTime = (note.WordCount + 199) / 200 // Assuming 200 words per minute
 
 	// Index in Qdrant for semantic search
@@ -341,7 +464,7 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	var note Note
 	query := `
 		SELECT n.id, n.user_id, n.title, n.content, n.content_type, n.summary,
@@ -350,21 +473,21 @@ func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 		       n.created_at, n.updated_at, n.last_accessed, n.folder_id
 		FROM notes n
 		WHERE n.id = $1`
-	
-	err := db.QueryRow(query, id).Scan(&note.ID, &note.UserID, &note.Title, 
+
+	err := db.QueryRow(query, id).Scan(&note.ID, &note.UserID, &note.Title,
 		&note.Content, &note.ContentType, &note.Summary,
 		&note.IsPinned, &note.IsArchived, &note.IsFavorite,
 		&note.WordCount, &note.ReadingTime,
 		&note.CreatedAt, &note.UpdatedAt, &note.LastAccessed, &note.FolderID)
-	
+
 	if err != nil {
 		http.Error(w, "Note not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// Update last accessed
 	db.Exec("UPDATE notes SET last_accessed = CURRENT_TIMESTAMP WHERE id = $1", id)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(note)
 }
@@ -372,20 +495,20 @@ func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	var note Note
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	query := `
 		UPDATE notes 
 		SET title = $2, content = $3, folder_id = $4,
 		    is_pinned = $5, is_favorite = $6, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
-	
+
 	err := db.QueryRow(query, id, note.Title, note.Content, note.FolderID,
 		note.IsPinned, note.IsFavorite).Scan(&note.UpdatedAt)
 
@@ -407,7 +530,7 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	_, err := db.Exec("DELETE FROM notes WHERE id = $1", id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -425,31 +548,31 @@ func getFoldersHandler(w http.ResponseWriter, r *http.Request) {
 	if userID == "" {
 		userID = getDefaultUserID()
 	}
-	
+
 	query := `
 		SELECT id, user_id, parent_id, name, icon, color, position, created_at, updated_at
 		FROM folders
 		WHERE user_id = $1
 		ORDER BY position, name`
-	
+
 	rows, err := db.Query(query, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var folders []Folder
 	for rows.Next() {
 		var f Folder
-		err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.Name, &f.Icon, 
+		err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.Name, &f.Icon,
 			&f.Color, &f.Position, &f.CreatedAt, &f.UpdatedAt)
 		if err != nil {
 			continue
 		}
 		folders = append(folders, f)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(folders)
 }
@@ -460,7 +583,7 @@ func createFolderHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	if folder.UserID == "" {
 		folder.UserID = getDefaultUserID()
 	}
@@ -470,20 +593,20 @@ func createFolderHandler(w http.ResponseWriter, r *http.Request) {
 	if folder.Color == "" {
 		folder.Color = "#6366f1"
 	}
-	
+
 	query := `
 		INSERT INTO folders (user_id, parent_id, name, icon, color, position)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at`
-	
+
 	err := db.QueryRow(query, folder.UserID, folder.ParentID, folder.Name,
 		folder.Icon, folder.Color, folder.Position).Scan(&folder.ID, &folder.CreatedAt, &folder.UpdatedAt)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(folder)
@@ -492,27 +615,27 @@ func createFolderHandler(w http.ResponseWriter, r *http.Request) {
 func updateFolderHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	var folder Folder
 	if err := json.NewDecoder(r.Body).Decode(&folder); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	query := `
 		UPDATE folders 
 		SET name = $2, icon = $3, color = $4, position = $5, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
-	
-	err := db.QueryRow(query, id, folder.Name, folder.Icon, folder.Color, 
+
+	err := db.QueryRow(query, id, folder.Name, folder.Icon, folder.Color,
 		folder.Position).Scan(&folder.UpdatedAt)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	folder.ID = id
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(folder)
@@ -521,13 +644,13 @@ func updateFolderHandler(w http.ResponseWriter, r *http.Request) {
 func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	_, err := db.Exec("DELETE FROM folders WHERE id = $1", id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -536,20 +659,20 @@ func getTagsHandler(w http.ResponseWriter, r *http.Request) {
 	if userID == "" {
 		userID = getDefaultUserID()
 	}
-	
+
 	query := `
 		SELECT id, name, color, usage_count
 		FROM tags
 		WHERE user_id = $1
 		ORDER BY usage_count DESC, name`
-	
+
 	rows, err := db.Query(query, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var tags []Tag
 	for rows.Next() {
 		var t Tag
@@ -559,7 +682,7 @@ func getTagsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		tags = append(tags, t)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(tags)
 }
@@ -570,30 +693,30 @@ func createTagHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
 		userID = getDefaultUserID()
 	}
-	
+
 	if tag.Color == "" {
 		tag.Color = "#10b981"
 	}
-	
+
 	query := `
 		INSERT INTO tags (user_id, name, color)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, name) DO UPDATE
 		SET usage_count = tags.usage_count + 1
 		RETURNING id, usage_count`
-	
+
 	err := db.QueryRow(query, userID, tag.Name, tag.Color).Scan(&tag.ID, &tag.UsageCount)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(tag)
@@ -604,20 +727,20 @@ func getTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 	if userID == "" {
 		userID = getDefaultUserID()
 	}
-	
+
 	query := `
 		SELECT id, user_id, name, description, content, category, usage_count, is_public, created_at
 		FROM templates
 		WHERE user_id = $1 OR is_public = true
 		ORDER BY usage_count DESC, name`
-	
+
 	rows, err := db.Query(query, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var templates []Template
 	for rows.Next() {
 		var t Template
@@ -628,7 +751,7 @@ func getTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		templates = append(templates, t)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(templates)
 }
@@ -639,24 +762,24 @@ func createTemplateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	if template.UserID == "" {
 		template.UserID = getDefaultUserID()
 	}
-	
+
 	query := `
 		INSERT INTO templates (user_id, name, description, content, category, is_public)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at`
-	
+
 	err := db.QueryRow(query, template.UserID, template.Name, template.Description,
 		template.Content, template.Category, template.IsPublic).Scan(&template.ID, &template.CreatedAt)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(template)
@@ -668,19 +791,19 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		UserID string `json:"user_id"`
 		Limit  int    `json:"limit"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&searchReq); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	if searchReq.UserID == "" {
 		searchReq.UserID = getDefaultUserID()
 	}
 	if searchReq.Limit == 0 {
 		searchReq.Limit = 20
 	}
-	
+
 	// Simple text search - in production, this would call the n8n workflow
 	query := `
 		SELECT n.id, n.title, n.content, n.summary, n.created_at, n.updated_at
@@ -690,7 +813,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		  AND n.is_archived = false
 		ORDER BY n.updated_at DESC
 		LIMIT $3`
-	
+
 	searchPattern := fmt.Sprintf("%%%s%%", searchReq.Query)
 	rows, err := db.Query(query, searchReq.UserID, searchPattern, searchReq.Limit)
 	if err != nil {
@@ -698,7 +821,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var results []Note
 	for rows.Next() {
 		var n Note
@@ -709,7 +832,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		n.UserID = searchReq.UserID
 		results = append(results, n)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"results": results,

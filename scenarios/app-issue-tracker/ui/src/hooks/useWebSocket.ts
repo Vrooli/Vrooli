@@ -75,7 +75,7 @@ export function useWebSocket({
             onEventRef.current(parsed);
           }
         } catch (err) {
-          console.error('[WebSocket] Failed to parse message:', err);
+          // Silently ignore malformed messages
         }
       };
 
@@ -112,7 +112,6 @@ export function useWebSocket({
         }
       };
     } catch (err) {
-      console.error('[WebSocket] Failed to create connection:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
       setStatus('error');
     }

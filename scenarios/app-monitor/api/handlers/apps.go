@@ -393,3 +393,145 @@ func (h *AppHandler) CheckAppLocalhostUsage(c *gin.Context) {
 		"data":    result,
 	})
 }
+
+// GetAppCompleteDiagnostics returns aggregated diagnostics for an application
+func (h *AppHandler) GetAppCompleteDiagnostics(c *gin.Context) {
+	id := c.Param("id")
+
+	// Parse options from query parameters
+	opts := services.DefaultDiagnosticOptions()
+
+	// Allow selective fetching via query params
+	if c.Query("fast") == "true" {
+		opts = services.FastDiagnosticOptions()
+	} else {
+		if c.Query("health") == "false" {
+			opts.IncludeHealth = false
+		}
+		if c.Query("issues") == "false" {
+			opts.IncludeIssues = false
+		}
+		if c.Query("bridge") == "false" {
+			opts.IncludeBridgeRules = false
+		}
+		if c.Query("localhost") == "false" {
+			opts.IncludeLocalhostScan = false
+		}
+		if c.Query("tech_stack") == "false" {
+			opts.IncludeTechStack = false
+		}
+		if c.Query("docs") == "false" {
+			opts.IncludeDocuments = false
+		}
+		if c.Query("status") == "false" {
+			opts.IncludeStatus = false
+		}
+	}
+
+	diagnostics, err := h.appService.GetCompleteDiagnostics(c.Request.Context(), id, opts)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		}
+
+		c.JSON(status, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    diagnostics,
+	})
+}
+
+// GetAppDocuments lists all available documentation for an application
+func (h *AppHandler) GetAppDocuments(c *gin.Context) {
+	id := c.Param("id")
+
+	docsList, err := h.appService.ListAppDocuments(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		}
+
+		c.JSON(status, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    docsList,
+	})
+}
+
+// GetAppDocument retrieves a specific document for an application
+func (h *AppHandler) GetAppDocument(c *gin.Context) {
+	id := c.Param("id")
+	docPath := c.Param("path")
+
+	// Check if rendering is requested
+	render := c.DefaultQuery("render", "true") == "true"
+
+	doc, err := h.appService.GetAppDocument(c.Request.Context(), id, docPath, render)
+	if err != nil {
+		status := http.StatusInternalServerError
+		errMsg := err.Error()
+
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		case strings.Contains(errMsg, "not found"):
+			status = http.StatusNotFound
+		case strings.Contains(errMsg, "invalid") || strings.Contains(errMsg, "traversal"):
+			status = http.StatusBadRequest
+		}
+
+		c.JSON(status, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    doc,
+	})
+}
+
+// SearchAppDocuments searches documentation content
+func (h *AppHandler) SearchAppDocuments(c *gin.Context) {
+	id := c.Param("id")
+	query := c.Query("q")
+
+	if strings.TrimSpace(query) == "" {
+		c.JSON(http.StatusBadRequest, errorResponse("search query parameter 'q' is required"))
+		return
+	}
+
+	results, err := h.appService.SearchAppDocuments(c.Request.Context(), id, query)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		}
+
+		c.JSON(status, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    results,
+	})
+}

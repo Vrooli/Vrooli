@@ -181,7 +181,6 @@ export function useProcessorSettingsManager({
           return;
         }
 
-        console.error('Failed to save processor settings', error);
         const fallback: ProcessorSettings = lastSyncedRef.current
           ? { ...lastSyncedRef.current }
           : { ...SampleData.processor };

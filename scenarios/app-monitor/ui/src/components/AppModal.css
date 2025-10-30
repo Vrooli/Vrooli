@@ -7,6 +7,7 @@
 
 .modal-content {
   width: min(720px, 92vw);
+  height: min(92vh, 860px);
   max-height: min(92vh, 860px);
   display: flex;
   flex-direction: column;
@@ -36,6 +37,109 @@
   border-bottom: 1px solid rgba(0, 255, 170, 0.18);
   background: linear-gradient(180deg, rgba(0, 32, 24, 0.4), rgba(0, 12, 8, 0.2));
   min-width: 0;
+}
+
+/* Tab Navigation */
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 0.5rem;
+  background: rgba(0, 12, 8, 0.6);
+  border-bottom: 1px solid rgba(0, 255, 170, 0.12);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 255, 128, 0.3) transparent;
+  flex-shrink: 0;
+}
+
+.modal-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.modal-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-tabs::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 128, 0.3);
+  border-radius: 2px;
+}
+
+.modal-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: rgba(160, 255, 220, 0.7);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.modal-tab:hover {
+  color: rgba(200, 255, 240, 0.9);
+  background: rgba(0, 255, 128, 0.05);
+}
+
+.modal-tab--active {
+  color: var(--matrix-cyan);
+  border-bottom-color: var(--matrix-cyan);
+  background: rgba(0, 255, 200, 0.08);
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+}
+
+.modal-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 64, 129, 0.85);
+  border-radius: 10px;
+  box-shadow: 0 0 8px rgba(255, 64, 129, 0.5);
+}
+
+/* Tab Panels */
+.tab-panel {
+  padding: 1.5rem;
+  min-height: 200px;
+}
+
+.tab-panel__loading,
+.tab-panel__error,
+.tab-panel__empty,
+.tab-panel__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: rgba(180, 255, 230, 0.7);
+  font-size: 0.9rem;
+}
+
+.tab-panel__error {
+  color: rgba(255, 100, 120, 0.9);
+}
+
+.tab-panel__placeholder p {
+  margin: 0.25rem 0;
+  color: rgba(160, 255, 220, 0.8);
 }
 
 .modal-header__titles {
@@ -199,6 +303,8 @@
 }
 
 .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 1.6rem 1.75rem;
   overflow-y: auto;
   display: flex;
@@ -328,14 +434,77 @@
 
 .detail-panel__alert {
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.75rem;
   padding: 0.75rem 0.9rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 176, 0, 0.6);
   background: rgba(255, 176, 0, 0.12);
   color: rgba(255, 232, 180, 0.92);
   box-shadow: inset 0 0 18px rgba(255, 176, 0, 0.18);
+}
+
+.detail-panel--clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-align: left;
+  width: 100%;
+}
+
+.detail-panel--clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.detail-panel__alert--success {
+  border: 1px solid rgba(0, 255, 128, 0.6);
+  background: rgba(0, 255, 128, 0.12);
+  color: rgba(200, 255, 235, 0.92);
+  box-shadow: inset 0 0 18px rgba(0, 255, 128, 0.18);
+}
+
+.detail-panel__alert--warning {
+  border: 1px solid rgba(255, 176, 0, 0.6);
+  background: rgba(255, 176, 0, 0.12);
+  color: rgba(255, 232, 180, 0.92);
+  box-shadow: inset 0 0 18px rgba(255, 176, 0, 0.18);
+}
+
+.detail-panel__alert--loading {
+  border: 1px solid rgba(0, 176, 255, 0.6);
+  background: rgba(0, 176, 255, 0.12);
+  color: rgba(200, 235, 255, 0.92);
+  box-shadow: inset 0 0 18px rgba(0, 176, 255, 0.18);
+}
+
+.detail-panel__alert-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+}
+
+.detail-panel__alert-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .detail-panel__alert-title {

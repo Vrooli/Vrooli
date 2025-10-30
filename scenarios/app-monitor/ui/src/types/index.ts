@@ -1,4 +1,17 @@
 // Application Types
+export interface AppDependency {
+  name: string;
+  type: string;
+  description?: string;
+  required: boolean;
+  enabled: boolean;
+  status: string;
+  running: boolean;
+  healthy: boolean;
+  installed: boolean;
+  note?: string;
+}
+
 export interface App {
   id: string;
   name: string;
@@ -22,6 +35,9 @@ export interface App {
   view_count?: number;
   first_viewed_at?: string | null;
   last_viewed_at?: string | null;
+  // Detailed insights (populated by GetApp for single app queries)
+  tech_stack?: string[];
+  dependencies?: AppDependency[];
 }
 
 export interface AppProxyPortInfo {
@@ -220,4 +236,145 @@ export interface FilterOptions {
 export interface SortOptions {
   field: 'name' | 'status' | 'port' | 'cpu' | 'memory';
   direction: 'asc' | 'desc';
+}
+
+// Complete Diagnostics Types
+export interface DiagnosticWarning {
+  source: string; // "health", "bridge", "localhost", "issues", "status"
+  severity: string; // "warn", "error", "info"
+  message: string;
+  file_path?: string;
+  line?: number;
+}
+
+export interface TechStackResource {
+  type: string; // "postgres", "redis", "ollama", etc.
+  enabled: boolean;
+  required: boolean;
+  purpose?: string;
+}
+
+export interface TechStackInfo {
+  runtime?: string; // "Go", "Node.js", etc.
+  processes: number;
+  resources?: TechStackResource[];
+  tags?: string[];
+  dependencies?: Record<string, unknown>;
+  ports?: Record<string, number>;
+}
+
+export interface AppDocumentInfo {
+  name: string;
+  path: string;
+  size: number;
+  is_markdown: boolean;
+  modified_at: string;
+}
+
+export interface AppDocumentsList {
+  root_docs: AppDocumentInfo[];
+  docs_docs: AppDocumentInfo[];
+  total: number;
+}
+
+export interface AppDocument {
+  name: string;
+  path: string;
+  size: number;
+  is_markdown: boolean;
+  modified_at: string;
+  content: string;
+  rendered_html?: string;
+}
+
+export interface AppDocumentMatch {
+  document: AppDocumentInfo;
+  matches: Array<{
+    line_number: number;
+    line: string;
+    context?: string;
+  }>;
+  score: number;
+}
+
+export interface AppScenarioStatus {
+  app_id: string;
+  scenario: string;
+  captured_at?: string;
+  status_label: string;
+  severity: 'ok' | 'warn' | 'error';
+  runtime?: string;
+  process_count?: number;
+  ports?: Record<string, number>;
+  recommendations?: string[];
+  details: string[];
+}
+
+export interface AppHealthCheck {
+  id: string;
+  name: string;
+  status: string; // "pass", "fail", "warn"
+  endpoint?: string;
+  latency_ms?: number;
+  message?: string;
+  code?: string;
+  response?: string;
+}
+
+export interface AppHealthDiagnostics {
+  app_id: string;
+  app_name?: string;
+  scenario?: string;
+  captured_at: string;
+  ports?: Record<string, number>;
+  checks: AppHealthCheck[];
+  errors?: string[];
+}
+
+export interface AppIssuesSummary {
+  scenario: string;
+  app_id: string;
+  issues: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    created_at: string;
+    updated_at: string;
+    reporter: string;
+    issue_url?: string;
+  }>;
+  open_count: number;
+  active_count: number;
+  total_count: number;
+  tracker_url?: string;
+  last_fetched: string;
+  from_cache: boolean;
+  stale: boolean;
+}
+
+export interface CompleteDiagnostics {
+  app_id: string;
+  scenario: string;
+  captured_at: string;
+
+  // Status & Health
+  scenario_status?: AppScenarioStatus;
+  health_checks?: AppHealthDiagnostics;
+
+  // Issues
+  issues?: AppIssuesSummary;
+
+  // Compliance
+  bridge_rules?: BridgeDiagnosticsReport;
+  localhost_usage?: LocalhostUsageReport;
+
+  // Metadata
+  tech_stack?: TechStackInfo;
+  documents?: AppDocumentsList;
+
+  // Aggregated Summary
+  warnings: DiagnosticWarning[];
+  severity: 'ok' | 'warn' | 'error' | 'unknown' | 'degraded';
+  summary?: string;
 }

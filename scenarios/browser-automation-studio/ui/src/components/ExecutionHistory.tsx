@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Clock,
   CheckCircle,
@@ -8,6 +8,7 @@ import {
   Eye,
   Filter,
   RefreshCw,
+  ChevronDown,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useExecutionStore } from '../stores/executionStore';
@@ -32,12 +33,17 @@ interface ExecutionSummary {
 
 type StatusFilter = 'all' | 'completed' | 'failed' | 'running';
 
+const STATUS_FILTERS: StatusFilter[] = ['all', 'completed', 'failed', 'running'];
+
 function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryProps) {
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
+  const mobileFilterRef = useRef<HTMLDivElement | null>(null);
 
   const loadExecutions = useExecutionStore((state) => state.loadExecutions);
 
@@ -73,6 +79,29 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
   useEffect(() => {
     fetchExecutions();
   }, [fetchExecutions]);
+
+  useEffect(() => {
+    if (!isMobileFilterOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (!mobileFilterRef.current) {
+        return;
+      }
+      if (!mobileFilterRef.current.contains(event.target as Node)) {
+        setIsMobileFilterOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isMobileFilterOpen]);
 
   const filteredExecutions = useMemo(() => {
     if (statusFilter === 'all') {
@@ -151,6 +180,8 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
     };
   }, [executions]);
 
+  const formatFilterLabel = (filter: StatusFilter) => filter.charAt(0).toUpperCase() + filter.slice(1);
+
   if (isLoading && executions.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -183,11 +214,11 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
   return (
     <div className="flex flex-col h-full">
       {/* Header with filters */}
-      <div className="p-4 border-b border-gray-800">
-        {/* Status filter tabs */}
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="p-4 border-b border-gray-800 space-y-2">
+        {/* Desktop filters */}
+        <div className="hidden md:flex items-center gap-2 flex-wrap">
           <Filter size={14} className="text-gray-500" />
-          {(['all', 'completed', 'failed', 'running'] as StatusFilter[]).map((filter) => (
+          {STATUS_FILTERS.map((filter) => (
             <button
               key={filter}
               onClick={() => setStatusFilter(filter)}
@@ -197,10 +228,63 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
                   : 'bg-flow-node text-gray-400 hover:text-white hover:bg-gray-700'
               }`}
             >
-              {filter.charAt(0).toUpperCase() + filter.slice(1)} ({statusCounts[filter]})
+              {formatFilterLabel(filter)} ({statusCounts[filter]})
             </button>
           ))}
           <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="ml-auto p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh"
+          >
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>
+
+        {/* Mobile filter dropdown */}
+        <div className="flex items-center gap-2 md:hidden">
+          <div className="relative flex-1" ref={mobileFilterRef}>
+            <button
+              type="button"
+              onClick={() => setIsMobileFilterOpen((prev) => !prev)}
+              className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-700 bg-flow-node px-3 py-2 text-sm text-gray-200 hover:border-flow-accent hover:text-white transition-colors"
+              aria-haspopup="listbox"
+              aria-expanded={isMobileFilterOpen}
+            >
+              <span className="flex items-center gap-2">
+                <Filter size={14} />
+                <span>{formatFilterLabel(statusFilter)} ({statusCounts[statusFilter]})</span>
+              </span>
+              <ChevronDown
+                size={16}
+                className={`transition-transform ${isMobileFilterOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {isMobileFilterOpen && (
+              <div className="absolute left-0 right-0 mt-2 rounded-lg border border-gray-700 bg-flow-node shadow-lg z-20 overflow-hidden">
+                {STATUS_FILTERS.map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(filter);
+                      setIsMobileFilterOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+                      statusFilter === filter
+                        ? 'bg-flow-accent/20 text-white'
+                        : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                    }`}
+                  >
+                    <span>{formatFilterLabel(filter)}</span>
+                    <span className="text-xs text-gray-400">{statusCounts[filter]}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="ml-auto p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -225,18 +226,18 @@ type TestNote struct {
 // createTestNote creates a note in the database for testing
 func createTestNote(t *testing.T, env *TestEnvironment, title, content string) *TestNote {
 	note := &Note{
-		ID:          uuid.New().String(),
-		UserID:      env.TestUserID,
-		Title:       title,
-		Content:     content,
-		ContentType: "markdown",
-		IsPinned:    false,
-		IsArchived:  false,
-		IsFavorite:  false,
-		WordCount:   len(content) / 5, // Rough estimate
-		ReadingTime: len(content) / 1000,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:           uuid.New().String(),
+		UserID:       env.TestUserID,
+		Title:        title,
+		Content:      content,
+		ContentType:  "markdown",
+		IsPinned:     false,
+		IsArchived:   false,
+		IsFavorite:   false,
+		WordCount:    len(content) / 5, // Rough estimate
+		ReadingTime:  len(content) / 1000,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 		LastAccessed: time.Now(),
 	}
 

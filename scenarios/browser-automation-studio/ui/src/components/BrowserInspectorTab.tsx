@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { logger } from '../utils/logger';
-import { Monitor, Search, ChevronRight, ChevronDown, Code, Loader } from 'lucide-react';
+import { Monitor, Search, ChevronRight, ChevronDown, Code, Loader, X } from 'lucide-react';
 import { getConfig } from '../config';
 import toast from 'react-hot-toast';
 
@@ -214,8 +214,18 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
               placeholder="Search elements by tag, id, class, or text..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 bg-flow-bg border border-gray-700 rounded-lg text-sm focus:border-blue-400 focus:outline-none"
+              className="w-full pl-10 pr-10 py-2 bg-flow-bg border border-gray-700 rounded-lg text-sm focus:border-blue-400 focus:outline-none"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                aria-label="Clear element search"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
           <button
             onClick={fetchDOMTree}

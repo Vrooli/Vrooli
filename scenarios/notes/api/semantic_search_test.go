@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -97,8 +98,8 @@ func TestSemanticSearch(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/search/semantic",
 			Body: map[string]interface{}{
-				"query":  "artificial intelligence",
-				"limit":  5,
+				"query": "artificial intelligence",
+				"limit": 5,
 			},
 		})
 
@@ -131,8 +132,8 @@ func TestSemanticSearch(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/search/semantic",
 			Body: map[string]interface{}{
-				"query":  "fallback",
-				"limit":  5,
+				"query": "fallback",
+				"limit": 5,
 			},
 		})
 
@@ -159,8 +160,8 @@ func TestSemanticSearch(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/search/semantic",
 			Body: map[string]interface{}{
-				"query":  "",
-				"limit":  5,
+				"query": "",
+				"limit": 5,
 			},
 		})
 
@@ -210,8 +211,8 @@ func TestTextSearchHandler(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/search",
 			Body: map[string]interface{}{
-				"query":  "unique keywords",
-				"limit":  10,
+				"query": "unique keywords",
+				"limit": 10,
 			},
 		})
 
@@ -234,8 +235,8 @@ func TestTextSearchHandler(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/search",
 			Body: map[string]interface{}{
-				"query":  "nonexistent-unique-term-12345",
-				"limit":  10,
+				"query": "nonexistent-unique-term-12345",
+				"limit": 10,
 			},
 		})
 
@@ -270,8 +271,8 @@ func TestTextSearchHandler(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/search",
 			Body: map[string]interface{}{
-				"query":  "Common search term",
-				"limit":  2,
+				"query": "Common search term",
+				"limit": 2,
 			},
 		})
 

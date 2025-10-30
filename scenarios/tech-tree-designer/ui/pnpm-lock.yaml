@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@vrooli/api-base':
+        specifier: file:../../../packages/api-base
+        version: file:../../../packages/api-base
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
@@ -48,6 +51,254 @@ importers:
       vite:
         specifier: ^5.0.8
         version: 5.4.20
+
+  ../../../packages/api-base: {}
+
+  ../../../packages/iframe-bridge: {}
+
+  ../../agent-dashboard/ui: {}
+
+  ../../agent-metareasoning-manager/ui: {}
+
+  ../../ai-chatbot-manager/ui: {}
+
+  ../../ai-model-orchestra-controller/ui: {}
+
+  ../../algorithm-library/ui: {}
+
+  ../../api-library/ui: {}
+
+  ../../app-debugger/ui: {}
+
+  ../../app-issue-tracker/ui: {}
+
+  ../../app-monitor/ui: {}
+
+  ../../audio-intelligence-platform/ui: {}
+
+  ../../bedtime-story-generator/ui: {}
+
+  ../../bookmark-intelligence-hub/ui: {}
+
+  ../../brand-manager/ui: {}
+
+  ../../browser-automation-studio/ui: {}
+
+  ../../calendar/ui: {}
+
+  ../../campaign-content-studio/ui: {}
+
+  ../../chart-generator/ui: {}
+
+  ../../chore-tracking/ui: {}
+
+  ../../code-smell/ui: {}
+
+  ../../code-tidiness-manager/ui: {}
+
+  ../../comment-system/ui: {}
+
+  ../../competitor-change-monitor/ui: {}
+
+  ../../core-debugger/ui: {}
+
+  ../../crypto-tools/ui: {}
+
+  ../../date-night-planner/ui: {}
+
+  ../../db-schema-explorer/ui: {}
+
+  ../../document-manager/ui: {}
+
+  ../../ecosystem-manager/ui: {}
+
+  ../../elo-swipe/ui: {}
+
+  ../../email-triage/ui: {}
+
+  ../../fall-foliage-explorer/ui: {}
+
+  ../../feature-request-voting/ui: {}
+
+  ../../file-tools/ui: {}
+
+  ../../financial-calculators-hub/ui: {}
+
+  ../../funnel-builder/ui: {}
+
+  ../../game-dialog-generator/ui: {}
+
+  ../../git-control-tower/ui: {}
+
+  ../../graph-studio/ui: {}
+
+  ../../home-automation/ui: {}
+
+  ../../idea-generator/ui: {}
+
+  ../../image-generation-pipeline/ui: {}
+
+  ../../invoice-generator/ui: {}
+
+  ../../job-to-scenario-pipeline/ui: {}
+
+  ../../kids-dashboard/ui: {}
+
+  ../../knowledge-observatory/ui: {}
+
+  ../../maintenance-orchestrator/ui: {}
+
+  ../../make-it-vegan/ui: {}
+
+  ../../math-tools/ui: {}
+
+  ../../math-tools/ui/ui: {}
+
+  ../../mind-maps/ui: {}
+
+  ../../morning-vision-walk/ui: {}
+
+  ../../network-tools/ui: {}
+
+  ../../news-aggregator-bias-analysis/ui: {}
+
+  ../../notes/ui: {}
+
+  ../../notification-hub/ui: {}
+
+  ../../nutrition-tracker/test-app-demo/ui: {}
+
+  ../../nutrition-tracker/ui: {}
+
+  ../../palette-gen/ui: {}
+
+  ../../period-tracker/ui: {}
+
+  ../../personal-digital-twin/ui: {}
+
+  ../../personal-relationship-manager/ui: {}
+
+  ../../picker-wheel/ui: {}
+
+  ../../prd-control-tower/ui: {}
+
+  ../../pregnancy-tracker/ui: {}
+
+  ../../product-manager-agent/ui: {}
+
+  ../../prompt-injection-arena/ui: {}
+
+  ../../prompt-manager/ui: {}
+
+  ../../qr-code-generator/ui: {}
+
+  ../../quiz-generator/ui: {}
+
+  ../../react-component-library/ui: {}
+
+  ../../recipe-book/ui: {}
+
+  ../../recommendation-engine/ui: {}
+
+  ../../referral-program-generator/ui: {}
+
+  ../../research-assistant/ui: {}
+
+  ../../resource-experimenter/ui: {}
+
+  ../../resume-screening-assistant/ui: {}
+
+  ../../retro-game-launcher/ui: {}
+
+  ../../roi-fit-analysis/ui: {}
+
+  ../../saas-landing-manager/ui: {}
+
+  ../../scalable-app-cookbook/ui: {}
+
+  ../../scenario-auditor/api/rules/structure/testdata/cra-fallback-success/ui: {}
+
+  ../../scenario-auditor/api/rules/structure/testdata/react-success/ui: {}
+
+  ../../scenario-auditor/api/rules/ui/testdata/package-incomplete-install/ui: {}
+
+  ../../scenario-auditor/api/rules/ui/testdata/package-missing-bridge/ui: {}
+
+  ../../scenario-auditor/api/rules/ui/testdata/package-missing-install/ui: {}
+
+  ../../scenario-auditor/api/rules/ui/testdata/package-shared-valid/ui: {}
+
+  ../../scenario-auditor/api/testdata/package-incomplete-install/ui: {}
+
+  ../../scenario-auditor/api/testdata/package-missing-install/ui: {}
+
+  ../../scenario-auditor/api/testdata/package-shared-valid/ui: {}
+
+  ../../scenario-auditor/ui: {}
+
+  ../../scenario-authenticator/ui: {}
+
+  ../../scenario-surfer/ui: {}
+
+  ../../scenario-to-android/ui: {}
+
+  ../../scenario-to-desktop/ui: {}
+
+  ../../scenario-to-extension/ui: {}
+
+  ../../scenario-to-mcp/ui: {}
+
+  ../../secrets-manager/ui: {}
+
+  ../../secure-document-processing/ui: {}
+
+  ../../seo-optimizer/ui: {}
+
+  ../../smart-file-photo-manager/ui: {}
+
+  ../../smart-shopping-assistant/ui: {}
+
+  ../../social-media-scheduler/ui: {}
+
+  ../../stream-of-consciousness-analyzer/ui: {}
+
+  ../../study-buddy/ui: {}
+
+  ../../swarm-manager/ui: {}
+
+  ../../symbol-search/ui: {}
+
+  ../../system-monitor/ui: {}
+
+  ../../task-planner/ui: {}
+
+  ../../test-data-generator/ui: {}
+
+  ../../test-genie/ui: {}
+
+  ../../text-tools/ui: {}
+
+  ../../token-economy/ui: {}
+
+  ../../travel-map-filler/ui: {}
+
+  ../../typing-test/ui: {}
+
+  ../../video-downloader/ui: {}
+
+  ../../visited-tracker/ui: {}
+
+  ../../visitor-intelligence/ui: {}
+
+  ../../vrooli-assistant/ui: {}
+
+  ../../vrooli-orchestrator/ui: {}
+
+  ../../web-console/ui: {}
+
+  ../../web-scraper-manager/ui: {}
+
+  ../../workflow-scheduler/ui: {}
 
 packages:
 
@@ -541,6 +792,9 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
+
+  '@vrooli/api-base@file:../../../packages/api-base':
+    resolution: {directory: ../../../packages/api-base, type: directory}
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -1490,6 +1744,8 @@ snapshots:
       vite: 5.4.20
     transitivePeerDependencies:
       - supports-color
+
+  '@vrooli/api-base@file:../../../packages/api-base': {}
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

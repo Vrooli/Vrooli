@@ -329,7 +329,6 @@ export function CreateIssueModal(props: CreateIssueModalProps) {
       }
       onClose();
     } catch (error) {
-      console.error(props.mode === 'edit' ? 'Failed to update issue' : 'Failed to create issue', error);
       const fallbackMessage = props.mode === 'edit' ? 'Failed to update issue.' : 'Failed to create issue.';
       setErrorMessage(error instanceof Error ? error.message : fallbackMessage);
     } finally {

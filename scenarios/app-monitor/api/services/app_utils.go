@@ -477,7 +477,7 @@ func derivePrimaryPort(ports map[string]interface{}) (string, interface{}) {
 }
 
 func applyPortConfig(app *repository.App, ports map[string]interface{}) {
-	if len(ports) == 0 {
+	if app == nil || len(ports) == 0 {
 		return
 	}
 
@@ -502,11 +502,17 @@ func applyPortConfig(app *repository.App, ports map[string]interface{}) {
 	}
 }
 
+// resolvePort attempts to find a valid port number from a map of port mappings.
+// It searches in this order:
+// 1. First try each preferredKey (case-insensitive match)
+// 2. If no preferred keys match, try any valid port in the map
+// Returns 0 if no valid port is found.
 func resolvePort(portMappings map[string]interface{}, preferredKeys []string) int {
 	if len(portMappings) == 0 {
 		return 0
 	}
 
+	// First pass: try preferred keys in order
 	for _, key := range preferredKeys {
 		for label, value := range portMappings {
 			if strings.EqualFold(label, key) {
@@ -517,6 +523,7 @@ func resolvePort(portMappings map[string]interface{}, preferredKeys []string) in
 		}
 	}
 
+	// Second pass: accept any valid port if no preferred keys matched
 	for _, value := range portMappings {
 		if port, err := parsePortFromAny(value); err == nil {
 			return port
@@ -526,29 +533,42 @@ func resolvePort(portMappings map[string]interface{}, preferredKeys []string) in
 	return 0
 }
 
+// resolveAppPort finds a port for an app by checking multiple locations.
+// Search order (stops at first valid port found):
+// 1. app.PortMappings (direct port map)
+// 2. app.Config["ports"] (nested port configuration)
+// 3. app.Config[key] (direct config key for each preferredKey)
+// 4. app.Environment (environment variables)
+// Returns 0 if no valid port is found or if app is nil.
 func resolveAppPort(app *repository.App, preferredKeys []string) int {
 	if app == nil {
 		return 0
 	}
 
+	// Check direct port mappings first
 	if port := resolvePort(app.PortMappings, preferredKeys); port > 0 {
 		return port
 	}
 
-	if configPorts := extractInterfaceMap(app.Config["ports"]); len(configPorts) > 0 {
-		if port := resolvePort(configPorts, preferredKeys); port > 0 {
-			return port
-		}
-	}
-
-	for _, key := range preferredKeys {
-		if value, ok := app.Config[key]; ok {
-			if port, err := parsePortFromAny(value); err == nil {
+	// Check nested config.ports
+	if app.Config != nil {
+		if configPorts := extractInterfaceMap(app.Config["ports"]); len(configPorts) > 0 {
+			if port := resolvePort(configPorts, preferredKeys); port > 0 {
 				return port
+			}
+		}
+
+		// Check direct config keys (e.g., config["API_PORT"])
+		for _, key := range preferredKeys {
+			if value, ok := app.Config[key]; ok {
+				if port, err := parsePortFromAny(value); err == nil {
+					return port
+				}
 			}
 		}
 	}
 
+	// Fallback to environment variables
 	if port := resolvePort(app.Environment, preferredKeys); port > 0 {
 		return port
 	}

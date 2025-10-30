@@ -8,11 +8,11 @@ SCRIPT_DIR="${APP_ROOT}/scenarios/notes/cli"
 PROJECT_ROOT="${APP_ROOT}/scenarios/notes"
 
 # Default configuration
-# Try to detect the running API port
+# API_PORT must be provided by environment
 if [ -z "$API_PORT" ]; then
-    # Try to find the port from lsof
-    DETECTED_PORT=$(lsof -i -P -n 2>/dev/null | grep "notes-api" | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1)
-    API_PORT="${DETECTED_PORT:-17001}"
+    echo "Error: API_PORT environment variable is required"
+    echo "Run 'make start' or 'vrooli scenario start notes' to start the service and set environment variables"
+    exit 1
 fi
 API_URL="${NOTES_API_URL:-http://localhost:${API_PORT}}"
 USER_ID="${NOTES_USER_ID:-df9cdbc0-b4eb-4799-8514-cce7c15ebeaf}"
@@ -43,8 +43,9 @@ show_help() {
     echo "  help                Show this help message"
     echo ""
     echo "Environment Variables:"
-    echo "  NOTES_API_URL       API endpoint (default: http://localhost:8950)"
-    echo "  NOTES_USER_ID       User ID (default: default-user)"
+    echo "  API_PORT            Required - API port number"
+    echo "  NOTES_API_URL       Optional - Override API endpoint"
+    echo "  NOTES_USER_ID       Optional - User ID"
 }
 
 list_notes() {

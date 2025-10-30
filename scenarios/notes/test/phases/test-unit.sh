@@ -34,9 +34,13 @@ else
     # Fallback to legacy test execution
     echo "⚠️  Centralized testing library not found, using legacy test execution"
 
-    # Test configuration
-    API_URL="http://localhost:${API_PORT:-17009}"
-    UI_URL="http://localhost:${UI_PORT:-36529}"
+    # Test configuration - require ports from environment
+    if [ -z "$API_PORT" ] || [ -z "$UI_PORT" ]; then
+        echo "❌ API_PORT and UI_PORT environment variables are required"
+        exit 1
+    fi
+    API_URL="http://localhost:${API_PORT}"
+    UI_URL="http://localhost:${UI_PORT}"
 
     # Function to make API calls
     api_call() {

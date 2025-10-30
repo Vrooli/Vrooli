@@ -36,11 +36,16 @@
     }
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "range": "15000-19999",
-       "description": "Main API port"
-     }
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Main API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999",
+      "description": "Web UI development server port"
+    }
   },
   "components": {
     "api": {
@@ -134,14 +139,22 @@
       "description": "Application health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
+        "ui": "/health",
         "metrics": "/api/metrics"
       },
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
+          "target": "http://127.0.0.1:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://127.0.0.1:${UI_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -199,6 +212,14 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
           "description": "Install CLI command globally",
@@ -216,7 +237,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 Application initialized\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  CLI: math-tools --help\"",
+          "run": "echo \"🚀 Application initialized\" && echo \"  API: http://127.0.0.1:${API_PORT}\" && echo \"  CLI: math-tools --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -224,22 +245,31 @@
     "develop": {
       "description": "Start application services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./math-tools-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/math-tools-api"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo \"🚀 Services running\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  CLI: math-tools --help\"",
-           "description": "Display all running service URLs"
-         }
-      ]
-    },
+      {
+        "name": "start-api",
+        "run": "cd api && ./math-tools-api",
+        "description": "Start Go API server in background",
+        "background": true,
+        "condition": {
+          "file_exists": "api/math-tools-api"
+        }
+      },
+      {
+        "name": "start-ui",
+        "run": "cd ui && PORT_VALUE=${UI_PORT:-5173} && API_VALUE=${API_PORT:-15000} && UI_PORT=$PORT_VALUE VITE_API_PORT=$API_VALUE npm run dev -- --host 0.0.0.0 --port $PORT_VALUE",
+        "description": "Start Vite dev server for the Math Tools UI",
+        "background": true,
+        "condition": {
+          "file_exists": "ui/package.json"
+        }
+      },
+      {
+        "name": "show-urls",
+        "run": "echo \"🚀 Services running\" && echo \"  API: http://127.0.0.1:${API_PORT}\" && echo \"  UI: http://127.0.0.1:${UI_PORT}\" && echo \"  CLI: math-tools --help\"",
+        "description": "Display all running service URLs"
+      }
+    ]
+  },
     "test": {
       "description": "Test application functionality",
       "steps": [
@@ -261,7 +291,7 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
+          "run": "curl -sf http://127.0.0.1:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
@@ -285,16 +315,21 @@
     "stop": {
       "description": "Stop application services",
       "steps": [
-        {
-          "name": "stop-api-server",
-          "run": "pkill -f 'math-tools-api' || true; sleep 1; pkill -9 -f 'math-tools-api' 2>/dev/null || true",
-          "description": "Stop Go API server processes"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Application services stopped'",
-          "description": "Confirm services stopped"
-        }
+      {
+        "name": "stop-api-server",
+        "run": "pkill -f 'math-tools-api' || true; sleep 1; pkill -9 -f 'math-tools-api' 2>/dev/null || true",
+        "description": "Stop Go API server processes"
+      },
+      {
+        "name": "stop-ui-server",
+        "run": "pkill -f 'vite' || true",
+        "description": "Stop Vite development server"
+      },
+      {
+        "name": "confirm-stop",
+        "run": "echo '🛑 Application services stopped'",
+        "description": "Confirm services stopped"
+      }
       ]
     }
   },
@@ -302,9 +337,9 @@
     "target": "docker",
     "strategy": "rolling-update",
     "urls": {
-      "application": "http://localhost:{{ UI_PORT }}",
-      "api": "http://localhost:{{ API_PORT }}",
-      "health": "http://localhost:{{ API_PORT }}/health"
+      "application": "http://127.0.0.1:{{ UI_PORT }}",
+      "api": "http://127.0.0.1:{{ API_PORT }}",
+      "health": "http://127.0.0.1:{{ API_PORT }}/health"
     },
     "initialization": {
       "phases": [
@@ -393,7 +428,7 @@
           "threshold": 3
         },
         "workflows": {
-          "endpoint": "http://localhost:${RESOURCE_PORTS[windmill]}/api/version",
+          "endpoint": "http://127.0.0.1:${RESOURCE_PORTS[windmill]}/api/version",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -443,11 +478,11 @@
       "enabled": true,
       "timeout": "30m",
       "script": "./test.sh",
-      "ui": {
-        "required": true,
-        "type": "windmill",
-        "url": "{{ urls.application }}"
-      },
+    "ui": {
+      "required": true,
+      "type": "iframe",
+      "url": "{{ urls.application }}"
+    },
       "performance": {
         "loadTest": {
           "users": 10,
@@ -458,7 +493,7 @@
     }
   },
   "api": {
-    "base_url": "http://localhost:${API_PORT}/api",
+    "base_url": "http://127.0.0.1:${API_PORT}/api",
     "endpoints": [
       {
         "path": "/health",

@@ -333,20 +333,20 @@ function App() {
           showBackToProject={currentView === 'project-workflow'}
         />
         
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden min-h-0">
           <Sidebar
             selectedFolder={selectedFolder}
             onFolderSelect={setSelectedFolder}
             projectId={currentProject?.id}
           />
           
-          <div className="flex-1 flex">
-            <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex min-h-0">
+            <div className="flex-1 flex flex-col min-h-0">
               <WorkflowBuilder projectId={currentProject?.id} />
             </div>
             
             {currentExecution && (
-              <div className="w-1/3 min-w-[400px] border-l border-gray-800">
+              <div className="w-1/3 min-w-[400px] border-l border-gray-800 flex flex-col min-h-0">
                 <ExecutionViewer execution={currentExecution} />
               </div>
             )}

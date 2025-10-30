@@ -5,23 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browser Extension Generator - Vrooli</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
 </head>
 <body>
     <!-- Header -->
     <header class="header">
         <div class="container">
             <div class="header-content">
-                <div class="logo">
-                    <h1>🚀 Extension Generator</h1>
-                    <span class="subtitle">Transform Scenarios into Browser Extensions</span>
+                <div class="logo" role="presentation">
+                    <span class="logo-mark" data-lucide="sparkles" aria-hidden="true"></span>
+                    <div class="logo-copy">
+                        <h1>Extension Generator</h1>
+                        <span class="subtitle">Transform scenarios into polished browser extensions</span>
+                    </div>
                 </div>
                 <div class="header-actions">
+                    <span class="api-source-pill" id="api-source-pill" title="Resolving API base...">API: resolving</span>
                     <button class="btn btn-outline" onclick="refreshStatus()">
-                        <span class="icon">🔄</span>
-                        Refresh
+                        <span class="btn-icon" data-lucide="refresh-cw" aria-hidden="true"></span>
+                        <span>Refresh</span>
                     </button>
-                    <div class="status-indicator" id="status-indicator">
-                        <span class="dot" id="status-dot"></span>
+                    <div class="status-indicator" id="status-indicator" data-status="loading">
+                        <span class="status-icon" data-role="status-icon" data-lucide="loader-2" aria-hidden="true"></span>
                         <span id="status-text">Checking...</span>
                     </div>
                 </div>
@@ -34,10 +39,22 @@
         <div class="container">
             <!-- Navigation Tabs -->
             <nav class="tabs" id="main-tabs">
-                <button class="tab-button active" data-tab="generator">Generator</button>
-                <button class="tab-button" data-tab="builds">Builds</button>
-                <button class="tab-button" data-tab="templates">Templates</button>
-                <button class="tab-button" data-tab="testing">Testing</button>
+                <button class="tab-button active" data-tab="generator">
+                    <span class="tab-icon" data-lucide="wand-2" aria-hidden="true"></span>
+                    <span>Generator</span>
+                </button>
+                <button class="tab-button" data-tab="builds">
+                    <span class="tab-icon" data-lucide="boxes" aria-hidden="true"></span>
+                    <span>Builds</span>
+                </button>
+                <button class="tab-button" data-tab="templates">
+                    <span class="tab-icon" data-lucide="layers" aria-hidden="true"></span>
+                    <span>Templates</span>
+                </button>
+                <button class="tab-button" data-tab="testing">
+                    <span class="tab-icon" data-lucide="test-tube-2" aria-hidden="true"></span>
+                    <span>Testing</span>
+                </button>
             </nav>
 
             <!-- Generator Tab -->
@@ -74,7 +91,7 @@
                             <div class="form-group">
                                 <label for="api-endpoint">API Endpoint *</label>
                                 <input type="url" id="api-endpoint" name="api_endpoint" required 
-                                       placeholder="http://localhost:3000" value="http://localhost:3000">
+                                       placeholder="https://your-api-base">
                                 <span class="help-text">Base URL of your scenario's API</span>
                             </div>
                         </div>
@@ -84,7 +101,7 @@
                             <h3>Extension Template</h3>
                             <div class="template-grid" id="template-grid">
                                 <div class="template-card active" data-template="full">
-                                    <div class="template-icon">🔧</div>
+                                    <div class="template-icon" aria-hidden="true" data-lucide="puzzle"></div>
                                     <h4>Full Extension</h4>
                                     <p>Complete extension with background, content scripts, and popup UI</p>
                                     <div class="template-features">
@@ -95,7 +112,7 @@
                                 </div>
                                 
                                 <div class="template-card" data-template="content-script-only">
-                                    <div class="template-icon">📄</div>
+                                    <div class="template-icon" aria-hidden="true" data-lucide="file-code-2"></div>
                                     <h4>Content Script Only</h4>
                                     <p>Inject scripts into web pages for data extraction and manipulation</p>
                                     <div class="template-features">
@@ -106,7 +123,7 @@
                                 </div>
                                 
                                 <div class="template-card" data-template="background-only">
-                                    <div class="template-icon">⚙️</div>
+                                    <div class="template-icon" aria-hidden="true" data-lucide="workflow"></div>
                                     <h4>Background Only</h4>
                                     <p>Headless automation and cross-tab coordination</p>
                                     <div class="template-features">
@@ -117,7 +134,7 @@
                                 </div>
                                 
                                 <div class="template-card" data-template="popup-only">
-                                    <div class="template-icon">🎛️</div>
+                                    <div class="template-icon" aria-hidden="true" data-lucide="panel-right-open"></div>
                                     <h4>Popup Only</h4>
                                     <p>Simple UI tools and utilities accessible from toolbar</p>
                                     <div class="template-features">
@@ -187,8 +204,8 @@
                                 Reset Form
                             </button>
                             <button type="submit" class="btn btn-primary" id="generate-btn">
-                                <span class="icon">⚡</span>
-                                Generate Extension
+                                <span class="btn-icon" data-lucide="sparkles" aria-hidden="true"></span>
+                                <span>Generate Extension</span>
                                 <div class="spinner hidden" id="generate-spinner"></div>
                             </button>
                         </div>
@@ -202,8 +219,8 @@
                     <div class="card-header">
                         <h2>Extension Builds</h2>
                         <button class="btn btn-outline" onclick="loadBuilds()">
-                            <span class="icon">🔄</span>
-                            Refresh
+                            <span class="btn-icon" data-lucide="refresh-cw" aria-hidden="true"></span>
+                            <span>Refresh</span>
                         </button>
                     </div>
                     
@@ -214,7 +231,7 @@
                         </div>
                         
                         <div class="empty-state hidden" id="builds-empty">
-                            <div class="empty-icon">📦</div>
+                            <div class="empty-icon" data-lucide="package" aria-hidden="true"></div>
                             <h3>No Builds Yet</h3>
                             <p>Generate your first extension to see builds here.</p>
                             <button class="btn btn-primary" onclick="switchTab('generator')">
@@ -289,8 +306,8 @@
                         
                         <div class="form-actions">
                             <button type="submit" class="btn btn-primary" id="test-btn">
-                                <span class="icon">🧪</span>
-                                Run Tests
+                                <span class="btn-icon" data-lucide="test-tube-2" aria-hidden="true"></span>
+                                <span>Run Tests</span>
                                 <div class="spinner hidden" id="test-spinner"></div>
                             </button>
                         </div>
@@ -313,7 +330,7 @@
             <div class="footer-links">
                 <a href="https://github.com/vrooli/vrooli" target="_blank">GitHub</a>
                 <a href="/docs" target="_blank">Documentation</a>
-                <a href="/api/v1/health" target="_blank">API Health</a>
+                <a href="#" id="api-health-link" target="_blank" rel="noopener">API Health</a>
             </div>
         </div>
     </footer>

@@ -87,7 +87,7 @@ function handleNavigation(e) {
 // Notes Management
 async function loadNotes() {
     try {
-        const response = await fetch(`${API_URL}/api/notes?user_id=default-user`);
+        const response = await fetch(`${API_URL}/api/notes`);
         notes = await response.json();
         displayNotes(notes);
         updateStats();
@@ -479,7 +479,7 @@ async function performSearch() {
 // Folders
 async function loadFolders() {
     try {
-        const response = await fetch(`${API_URL}/api/folders?user_id=default-user`);
+        const response = await fetch(`${API_URL}/api/folders`);
         folders = await response.json();
         displayFolders(folders);
     } catch (error) {
@@ -543,7 +543,7 @@ async function createFolder() {
 // Tags
 async function loadTags() {
     try {
-        const response = await fetch(`${API_URL}/api/tags?user_id=default-user`);
+        const response = await fetch(`${API_URL}/api/tags`);
         tags = await response.json();
         displayTags(tags);
     } catch (error) {
@@ -653,7 +653,7 @@ function loadNotesByTag(tagName) {
 
 async function loadTemplates() {
     try {
-        const response = await fetch(`${API_URL}/api/templates?user_id=default-user`);
+        const response = await fetch(`${API_URL}/api/templates`);
         templates = await response.json();
         displayTemplates(templates);
     } catch (error) {

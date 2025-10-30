@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -104,56 +105,69 @@ func (s *AppService) GetApps(ctx context.Context) ([]repository.App, error) {
 // GetApp retrieves a single app by ID
 func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, error) {
 	var lastErr error
+	var app *repository.App
 
 	if cached, isPartial := s.getAppFromCache(id, true); cached != nil {
 		if isPartial {
 			s.hydrateOrchestratorCacheAsync()
 		}
-		return cached, nil
-	}
-
-	apps, err := s.GetAppsFromOrchestrator(ctx)
-	if err == nil {
-		for i := range apps {
-			candidate := apps[i]
-			if candidate.ID == id || candidate.Name == id || candidate.ScenarioName == id {
-				result := candidate
-				return &result, nil
-			}
-		}
+		app = cached
 	} else {
-		lastErr = err
-	}
-
-	if s.hasRepo() {
-		app, repoErr := s.repo.GetApp(ctx, id)
-		if repoErr == nil {
-			markFallbackApp(app)
-			return app, nil
+		apps, err := s.GetAppsFromOrchestrator(ctx)
+		if err == nil {
+			for i := range apps {
+				candidate := apps[i]
+				if candidate.ID == id || candidate.Name == id || candidate.ScenarioName == id {
+					result := candidate
+					app = &result
+					break
+				}
+			}
+		} else {
+			lastErr = err
 		}
 
-		if lastErr == nil {
-			lastErr = repoErr
-		}
-	}
-
-	if summaries, summaryErr := s.fetchScenarioSummaries(ctx); summaryErr == nil {
-		for i := range summaries {
-			candidate := summaries[i]
-			if candidate.ID == id || candidate.Name == id || candidate.ScenarioName == id {
-				result := candidate
-				return &result, nil
+		if app == nil && s.hasRepo() {
+			repoApp, repoErr := s.repo.GetApp(ctx, id)
+			if repoErr == nil {
+				markFallbackApp(repoApp)
+				app = repoApp
+			} else if lastErr == nil {
+				lastErr = repoErr
 			}
 		}
-	} else if lastErr == nil {
-		lastErr = summaryErr
+
+		if app == nil {
+			if summaries, summaryErr := s.fetchScenarioSummaries(ctx); summaryErr == nil {
+				for i := range summaries {
+					candidate := summaries[i]
+					if candidate.ID == id || candidate.Name == id || candidate.ScenarioName == id {
+						result := candidate
+						app = &result
+						break
+					}
+				}
+			} else if lastErr == nil {
+				lastErr = summaryErr
+			}
+		}
+
+		if app == nil {
+			if lastErr != nil {
+				return nil, lastErr
+			}
+			return nil, fmt.Errorf("app not found: %s", id)
+		}
 	}
 
-	if lastErr != nil {
-		return nil, lastErr
+	// Enrich app with detailed insights (tech stack and dependencies)
+	// This is done for individual app lookups to avoid N+1 queries on list views
+	if enrichErr := s.enrichAppWithDetailedInsights(ctx, app); enrichErr != nil {
+		logger.Warn(fmt.Sprintf("failed to enrich app %s with detailed insights", id), enrichErr)
+		// Don't fail the request if enrichment fails - just return app without detailed data
 	}
 
-	return nil, fmt.Errorf("app not found: %s", id)
+	return app, nil
 }
 
 func markFallbackApp(app *repository.App) {
@@ -169,8 +183,13 @@ func markFallbackApp(app *repository.App) {
 	}
 	app.Status = trimmedStatus
 
-	if strings.TrimSpace(app.HealthStatus) == "" {
-		app.HealthStatus = trimmedStatus
+	// Only set HealthStatus if empty AND different from status
+	// This avoids UI redundancy when health and status are the same
+	trimmedHealth := normalizeLower(app.HealthStatus)
+	if trimmedHealth == "" || trimmedHealth == trimmedStatus {
+		app.HealthStatus = ""
+	} else {
+		app.HealthStatus = trimmedHealth
 	}
 }
 
@@ -417,4 +436,211 @@ func (s *AppService) updateCacheWithViewStats(stats *repository.AppViewStats, al
 			}
 		}
 	}
+}
+
+// =============================================================================
+// Log Fetching
+// =============================================================================
+
+func (s *AppService) runScenarioLogsCommand(ctx context.Context, appName string, extraArgs ...string) (string, error) {
+	args := []string{"scenario", "logs", appName}
+	if len(extraArgs) > 0 {
+		args = append(args, extraArgs...)
+	}
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		outStr := string(output)
+		lower := strings.ToLower(outStr)
+		if strings.Contains(lower, "not found") || strings.Contains(lower, "no such") {
+			return outStr, nil
+		}
+		return "", fmt.Errorf("failed to execute %s: %w (output: %s)", strings.Join(cmd.Args, " "), err, strings.TrimSpace(outStr))
+	}
+
+	return string(output), nil
+}
+
+// GetAppLogs retrieves lifecycle and background logs for an application.
+func (s *AppService) GetAppLogs(ctx context.Context, appName string, logType string) (*AppLogsResult, error) {
+	normalized := strings.ToLower(strings.TrimSpace(logType))
+	if normalized == "" || normalized == "all" {
+		normalized = "both"
+	}
+
+	primaryOutput, err := s.runScenarioLogsCommand(ctx, appName)
+	if err != nil {
+		return nil, err
+	}
+
+	trimmedOutput := strings.TrimSpace(primaryOutput)
+	lifecycle := make([]string, 0)
+	if trimmedOutput != "" {
+		lifecycle = strings.Split(trimmedOutput, "\n")
+	}
+	if len(lifecycle) == 0 {
+		lifecycle = []string{fmt.Sprintf("No logs available for scenario '%s'", appName)}
+	}
+
+	result := &AppLogsResult{}
+	if normalized != "background" {
+		result.Lifecycle = lifecycle
+	}
+
+	if normalized == "lifecycle" {
+		return result, nil
+	}
+
+	backgroundCandidates := parseBackgroundLogCandidates(primaryOutput)
+	if len(backgroundCandidates) == 0 {
+		return result, nil
+	}
+
+	backgroundLogs := make([]BackgroundLog, 0, len(backgroundCandidates))
+	for _, candidate := range backgroundCandidates {
+		stepOutput, stepErr := s.runScenarioLogsCommand(ctx, appName, "--step", candidate.Step)
+		if stepErr != nil {
+			logger.Warn(fmt.Sprintf("failed to fetch background logs for %s/%s", appName, candidate.Step), stepErr)
+			continue
+		}
+
+		trimmed := strings.TrimSpace(stepOutput)
+		lines := make([]string, 0)
+		if trimmed != "" {
+			lines = strings.Split(trimmed, "\n")
+		}
+		if len(lines) == 0 {
+			lines = []string{fmt.Sprintf("No logs captured for background step '%s'", candidate.Step)}
+		}
+
+		backgroundLogs = append(backgroundLogs, BackgroundLog{
+			Step:    candidate.Step,
+			Phase:   candidate.Phase,
+			Label:   candidate.Label,
+			Command: candidate.Command,
+			Lines:   lines,
+		})
+	}
+
+	if len(backgroundLogs) > 0 {
+		result.Background = backgroundLogs
+	}
+
+	return result, nil
+}
+
+// parseBackgroundLogCandidates extracts background log information from lifecycle logs
+func parseBackgroundLogCandidates(raw string) []backgroundLogCandidate {
+	lines := strings.Split(raw, "\n")
+	if len(lines) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{})
+	results := make([]backgroundLogCandidate, 0)
+
+	inSection := false
+	lastLabel := ""
+	lastAvailable := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if strings.Contains(trimmed, "BACKGROUND STEP LOGS AVAILABLE") {
+			inSection = true
+			lastLabel = ""
+			lastAvailable = false
+			continue
+		}
+
+		if !inSection {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "💡") {
+			break
+		}
+
+		switch {
+		case strings.HasPrefix(trimmed, "✅"):
+			lastLabel = trimmed
+			lastAvailable = true
+			continue
+		case strings.HasPrefix(trimmed, "⚠️"), strings.HasPrefix(trimmed, "⚠"):
+			lastLabel = trimmed
+			lastAvailable = false
+			continue
+		case strings.HasPrefix(trimmed, "❌"):
+			lastLabel = trimmed
+			lastAvailable = false
+			continue
+		case strings.HasPrefix(trimmed, "View:"):
+			matches := backgroundViewCommandRegex.FindStringSubmatch(trimmed)
+			if len(matches) != 3 {
+				continue
+			}
+			if !lastAvailable {
+				continue
+			}
+
+			step := strings.TrimSpace(matches[2])
+			if step == "" {
+				continue
+			}
+
+			label, phase := normalizeBackgroundLabel(lastLabel)
+			key := step + "|" + phase
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+
+			candidate := backgroundLogCandidate{
+				Step:    step,
+				Phase:   phase,
+				Label:   label,
+				Command: fmt.Sprintf("vrooli scenario logs %s --step %s", strings.TrimSpace(matches[1]), step),
+			}
+			results = append(results, candidate)
+		}
+	}
+
+	return results
+}
+
+func normalizeBackgroundLabel(raw string) (string, string) {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return "", ""
+	}
+
+	iconPrefixes := []string{"✅", "⚠️", "⚠", "❌", "•"}
+	for _, prefix := range iconPrefixes {
+		clean = strings.TrimPrefix(clean, prefix)
+		clean = strings.TrimPrefix(clean, strings.TrimSpace(prefix))
+	}
+	clean = strings.TrimSpace(clean)
+
+	if idx := strings.Index(clean, " - "); idx > -1 {
+		clean = strings.TrimSpace(clean[:idx])
+	}
+
+	label := clean
+	phase := ""
+	if open := strings.LastIndex(clean, "("); open > -1 && strings.HasSuffix(clean, ")") {
+		phase = strings.TrimSpace(clean[open+1 : len(clean)-1])
+		name := strings.TrimSpace(clean[:open])
+		if name != "" {
+			label = fmt.Sprintf("%s (%s)", name, phase)
+		}
+	}
+
+	return label, phase
 }

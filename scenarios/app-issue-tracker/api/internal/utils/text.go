@@ -1,6 +1,9 @@
 package utils
 
-import "regexp"
+import (
+	"regexp"
+	"time"
+)
 
 // ansiRegex is compiled once at package initialization for performance.
 // It matches ANSI escape sequences commonly used for terminal colors and formatting.
@@ -25,4 +28,10 @@ var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 // This is used to clean agent output before storage and display.
 func StripANSI(str string) string {
 	return ansiRegex.ReplaceAllString(str, "")
+}
+
+// NowRFC3339 returns the current UTC timestamp formatted as RFC3339.
+// This provides a consistent timestamp format across the application.
+func NowRFC3339() string {
+	return time.Now().UTC().Format(time.RFC3339)
 }

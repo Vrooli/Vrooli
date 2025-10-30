@@ -4,6 +4,7 @@ import { EyeOff } from 'lucide-react';
 import type { Issue, IssueStatus } from '../types/issue';
 import { IssueCard } from '../components/IssueCard';
 import { getIssueStatusColumn, DEFAULT_BOARD_STATUS_ORDER } from '../constants/board';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 
 // Proper type for pointer drag state
 interface PointerDragState {
@@ -51,6 +52,7 @@ export function IssuesBoard({
   const [dragOverStatus, setDragOverStatus] = useState<IssueStatus | null>(null);
   const [pointerDragState, setPointerDragState] = useState<PointerDragState | null>(null);
   const kanbanGridRef = useRef<HTMLDivElement>(null);
+  const { confirm } = useConfirmDialog();
   const scrollLockRef = useRef<{ timeout: number | null }>({
     timeout: null,
   });
@@ -213,24 +215,15 @@ export function IssuesBoard({
     };
   }, []);
 
-  const shouldBypassConfirm = useMemo(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
-    }
-    return window.matchMedia('(pointer: coarse)').matches;
-  }, []);
-
   const confirmDelete = (issue: Issue) => {
     if (!onIssueDelete) {
       return;
     }
-    if (!shouldBypassConfirm && typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      const confirmed = window.confirm(
-        `Delete ${issue.id}${issue.title ? ` — ${issue.title}` : ''}? This cannot be undone.`,
-      );
-      if (!confirmed) {
-        return;
-      }
+    const confirmed = confirm(
+      `Delete ${issue.id}${issue.title ? ` — ${issue.title}` : ''}? This cannot be undone.`,
+    );
+    if (!confirmed) {
+      return;
     }
     onIssueDelete(issue);
   };
@@ -239,10 +232,7 @@ export function IssuesBoard({
     if (!onIssueArchive) {
       return;
     }
-    let shouldArchive = true;
-    if (!shouldBypassConfirm && typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      shouldArchive = window.confirm(`Archive ${issue.id}? The issue will move to the Archived column.`);
-    }
+    const shouldArchive = confirm(`Archive ${issue.id}? The issue will move to the Archived column.`);
     if (!shouldArchive) {
       return;
     }

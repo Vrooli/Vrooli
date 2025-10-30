@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -139,39 +140,101 @@ type CrossSectorImpact struct {
 
 var db *sql.DB
 
+func getAppVersion() string {
+	version := os.Getenv("APP_VERSION")
+	if version == "" {
+		return "1.0.0"
+	}
+	return version
+}
+
+func buildHealthResponse(ctx context.Context) gin.H {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	dbErr := db.PingContext(ctx)
+	latency := time.Since(start).Milliseconds()
+
+	databaseHealth := gin.H{
+		"connected":  dbErr == nil,
+		"latency_ms": float64(latency),
+		"error":      nil,
+	}
+
+	status := "healthy"
+	readiness := true
+
+	if dbErr != nil {
+		status = "degraded"
+		readiness = false
+		databaseHealth["error"] = gin.H{
+			"code":      "DATABASE_UNAVAILABLE",
+			"message":   dbErr.Error(),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return gin.H{
+		"status":    status,
+		"service":   "tech-tree-designer-api",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": readiness,
+		"version":   getAppVersion(),
+		"dependencies": gin.H{
+			"database": databaseHealth,
+		},
+	}
+}
+
 func initDB() error {
 	_ = godotenv.Load()
 
-	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		dbHost := os.Getenv("POSTGRES_HOST")
+		if dbHost == "" {
+			dbHost = os.Getenv("DB_HOST")
+		}
+		if dbHost == "" {
+			dbHost = "localhost"
+		}
 
-	dbPort := os.Getenv("DB_PORT")
-	if dbPort == "" {
-		return fmt.Errorf("DB_PORT environment variable is required")
-	}
+		dbPort := os.Getenv("POSTGRES_PORT")
+		if dbPort == "" {
+			dbPort = os.Getenv("DB_PORT")
+		}
 
-	dbUser := os.Getenv("DB_USER")
-	if dbUser == "" {
-		return fmt.Errorf("DB_USER environment variable is required")
-	}
+		dbUser := os.Getenv("POSTGRES_USER")
+		if dbUser == "" {
+			dbUser = os.Getenv("DB_USER")
+		}
 
-	dbPassword := os.Getenv("DB_PASSWORD")
-	if dbPassword == "" {
-		return fmt.Errorf("DB_PASSWORD environment variable is required (never use hardcoded passwords)")
-	}
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		if dbPassword == "" {
+			dbPassword = os.Getenv("DB_PASSWORD")
+		}
 
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		return fmt.Errorf("DB_NAME environment variable is required")
-	}
+		dbName := os.Getenv("POSTGRES_DB")
+		if dbName == "" {
+			dbName = os.Getenv("DB_NAME")
+		}
 
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+		if dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			return fmt.Errorf("database configuration missing. Provide DATABASE_URL or all of: POSTGRES_HOST/DB_HOST, POSTGRES_PORT/DB_PORT, POSTGRES_USER/DB_USER, POSTGRES_PASSWORD/DB_PASSWORD, POSTGRES_DB/DB_NAME")
+		}
+
+		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	}
 
 	var err error
-	db, err = sql.Open("postgres", psqlInfo)
+	db, err = sql.Open("postgres", databaseURL)
 	if err != nil {
 		return err
 	}
@@ -253,14 +316,18 @@ func main() {
 		c.Next()
 	})
 
-	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "healthy", "service": "tech-tree-designer"})
-	})
+	// Health check endpoints compatible with lifecycle schemas
+	healthHandler := func(c *gin.Context) {
+		c.JSON(http.StatusOK, buildHealthResponse(c.Request.Context()))
+	}
+
+	r.GET("/health", healthHandler)
 
 	// API routes
 	api := r.Group("/api/v1")
 	{
+		api.GET("/health", healthHandler)
+
 		// Tech tree routes
 		api.GET("/tech-tree", getTechTree)
 		api.GET("/tech-tree/sectors", getSectors)
@@ -532,16 +599,21 @@ func updateScenarioStatus(c *gin.Context) {
 	}
 
 	// Update scenario mapping
-	_, err := db.Exec(`
+	result, err := db.Exec(`
 		UPDATE scenario_mappings 
 		SET completion_status = $1, notes = $2, last_status_check = CURRENT_TIMESTAMP,
 		    updated_at = CURRENT_TIMESTAMP,
 		    estimated_impact = CASE WHEN $3 > 0 THEN $3 ELSE estimated_impact END
-		WHERE scenario_name = $1
+		WHERE scenario_name = $4
 	`, request.CompletionStatus, request.Notes, request.EstimatedImpact, scenarioName)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update scenario status"})
+		return
+	}
+
+	if rowsAffected, rowsErr := result.RowsAffected(); rowsErr == nil && rowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Scenario mapping not found"})
 		return
 	}
 

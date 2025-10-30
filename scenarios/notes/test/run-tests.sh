@@ -28,9 +28,23 @@ if [ -z "$API_PORT" ]; then
     exit 1
 fi
 
+# Detect UI port - find the node process listening on a port in the UI range (35000-39999)
+# that belongs to the notes scenario (check cwd via pwdx)
+UI_PORT=$(lsof -i -P -n 2>/dev/null | awk '/node.*LISTEN/ && $9 ~ /:3[5-9][0-9]{3}/ {print $2,$9}' | while read pid port; do
+    cwd=$(pwdx "$pid" 2>/dev/null | cut -d: -f2 | tr -d ' ')
+    if [[ "$cwd" == */scenarios/notes/ui ]]; then
+        echo "$port" | cut -d: -f2
+        break
+    fi
+done | head -1)
+
 export API_PORT
+export UI_PORT
 export API_URL="http://localhost:${API_PORT}"
 echo -e "${GREEN}✓ Detected API on port ${API_PORT}${NC}"
+if [ -n "$UI_PORT" ]; then
+    echo -e "${GREEN}✓ Detected UI on port ${UI_PORT}${NC}"
+fi
 echo ""
 
 # Run each test phase
@@ -47,19 +61,22 @@ run_phase() {
 
     if bash "$script"; then
         echo -e "${GREEN}✓ ${phase} tests passed${NC}"
-        ((PASSED_TESTS++))
+        PASSED_TESTS=$((PASSED_TESTS + 1))
     else
         echo -e "${RED}✗ ${phase} tests failed${NC}"
-        ((FAILED_TESTS++))
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     echo ""
 }
 
-# Run test phases
+# Run test phases (in order of increasing complexity)
 run_phase "smoke"
-run_phase "unit"
+run_phase "structure"
+run_phase "dependencies"
 run_phase "integration"
+run_phase "business"
+run_phase "performance"
 
 # Summary
 echo "========================================"

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -266,8 +267,9 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 			}
 		}
 
-		if app.HealthStatus == "" {
-			app.HealthStatus = status
+		// Only set HealthStatus if it differs from Status to avoid UI redundancy
+		if health != "" && health != status {
+			app.HealthStatus = health
 		}
 
 		if orchApp.Processes > 0 {
@@ -294,6 +296,65 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	s.cache.mu.Unlock()
 
 	return apps, nil
+}
+
+// enrichAppWithDetailedInsights fetches tech stack and dependencies for a specific app
+func (s *AppService) enrichAppWithDetailedInsights(ctx context.Context, app *repository.App) error {
+	if app == nil {
+		return errors.New("app is nil")
+	}
+
+	scenarioName := strings.TrimSpace(app.ScenarioName)
+	if scenarioName == "" {
+		scenarioName = strings.TrimSpace(app.ID)
+	}
+	if scenarioName == "" {
+		return errors.New("cannot determine scenario name")
+	}
+
+	// Execute detailed status query for this specific scenario
+	output, err := executeVrooliCommand(ctx, 45*time.Second, "scenario", "status", scenarioName, "--json")
+	if err != nil {
+		logger.Warn(fmt.Sprintf("failed to fetch detailed insights for %s", scenarioName), err)
+		return err
+	}
+
+	var detailed scenarioStatusDetailedResponse
+	if err := json.Unmarshal(output, &detailed); err != nil {
+		logger.Warn(fmt.Sprintf("failed to parse detailed insights for %s", scenarioName), err)
+		return err
+	}
+
+	// Populate tech stack
+	if len(detailed.Insights.Stack.Components) > 0 {
+		app.TechStack = dedupeStrings(detailed.Insights.Stack.Components)
+	}
+
+	// Populate dependencies
+	if len(detailed.Insights.Resources.Items) > 0 {
+		deps := make([]repository.AppDependency, 0, len(detailed.Insights.Resources.Items))
+		for _, item := range detailed.Insights.Resources.Items {
+			note := ""
+			if item.Note != nil {
+				note = strings.TrimSpace(*item.Note)
+			}
+			deps = append(deps, repository.AppDependency{
+				Name:        item.Name,
+				Type:        item.Type,
+				Description: item.Description,
+				Required:    item.Required,
+				Enabled:     item.Enabled,
+				Status:      item.Status,
+				Running:     item.Running,
+				Healthy:     item.Healthy,
+				Installed:   item.Installed,
+				Note:        note,
+			})
+		}
+		app.Dependencies = deps
+	}
+
+	return nil
 }
 
 // fetchScenarioList retrieves scenario metadata from the Vrooli CLI
@@ -358,8 +419,8 @@ func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.A
 			Tags:         tags,
 			Uptime:       "N/A",
 			Type:         "scenario",
-			HealthStatus: status,
-			IsPartial:    true,
+			// Don't set HealthStatus for summaries - it would be redundant with Status
+			IsPartial: true,
 		}
 
 		if scenario.Version != "" {

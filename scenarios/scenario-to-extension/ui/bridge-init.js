@@ -1,6 +1,33 @@
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 
-if (typeof window !== 'undefined' && typeof window.initIframeBridgeChild !== 'function') {
-  // Expose the shared bridge initializer for non-module entry scripts
-  window.initIframeBridgeChild = initIframeBridgeChild
-}
+const BRIDGE_FLAG = '__scenarioToExtensionBridgeInitialized'
+
+(function bootstrapIframeBridge() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  if (window.parent === window) {
+    return
+  }
+
+  if (window[BRIDGE_FLAG]) {
+    return
+  }
+
+  let parentOrigin
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin
+    }
+  } catch (error) {
+    console.warn('[scenario-to-extension] Unable to determine parent origin for iframe bridge:', error)
+  }
+
+  if (typeof window.initIframeBridgeChild !== 'function') {
+    window.initIframeBridgeChild = initIframeBridgeChild
+  }
+
+  initIframeBridgeChild({ appId: 'scenario-to-extension-ui', parentOrigin })
+  window[BRIDGE_FLAG] = true
+})()

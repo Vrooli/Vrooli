@@ -13,7 +13,6 @@
   "dependencies": {
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "app-issue-tracker-ui": "link:../app-issue-tracker-ui",
     "chart.js": "^4.4.4",
     "express": "^4.19.2",
     "http-proxy": "^1.18.1",

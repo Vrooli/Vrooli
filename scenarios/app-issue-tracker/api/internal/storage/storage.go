@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	issuespkg "app-issue-tracker-api/internal/issues"
 	"app-issue-tracker-api/internal/logging"
+	"app-issue-tracker-api/internal/utils"
 
 	"gopkg.in/yaml.v3"
 )
@@ -238,7 +238,7 @@ func inferAttachmentCategory(filename string) string {
 }
 
 func (fs *FileIssueStore) WriteIssueMetadata(issueDir string, issue *issuespkg.Issue) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := utils.NowRFC3339()
 	if issue.Metadata.CreatedAt == "" {
 		issue.Metadata.CreatedAt = now
 	}
@@ -365,7 +365,7 @@ func (fs *FileIssueStore) MoveIssue(issueID, toFolder string) (*issuespkg.Issue,
 		return issue, currentFolder, toFolder, nil
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := utils.NowRFC3339()
 	issue.Status = toFolder
 	issue.Metadata.UpdatedAt = now
 

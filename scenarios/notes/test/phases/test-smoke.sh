@@ -1,8 +1,12 @@
 #!/bin/bash
 # SmartNotes smoke tests - basic health and connectivity checks
 
-# Test configuration
-API_URL="${API_URL:-http://localhost:${API_PORT:-16993}}"
+# Test configuration - require API_PORT from environment
+if [ -z "$API_PORT" ]; then
+    echo "❌ API_PORT environment variable is required"
+    exit 1
+fi
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
 
 # Colors
 GREEN='\033[0;32m'

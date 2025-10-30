@@ -139,17 +139,17 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm install && npm run build",
+          "run": "cd ui && pnpm install --filter tech-tree-designer-ui --config.lockfile-dir=./ --no-frozen-lockfile && pnpm run build",
           "description": "Build interactive tech tree visualization interface"
         },
         {
           "name": "seed-civilization-tree",
-          "run": "./cli/tech-tree-designer initialize --civilization-complete",
-          "description": "Populate database with complete civilization technology roadmap"
+          "run": "./cli/tech-tree-designer progress --list > /dev/null",
+          "description": "Validate civilization progress data is accessible via CLI"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Tech Tree Designer initialized\\n  Strategic Dashboard: http://localhost:${UI_PORT}\\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\\n  CLI: tech-tree-designer --help\\n\\n🎯 Civilization Progress: Ready for strategic intelligence acceleration'",
+          "run": "cat <<EOF\n🚀 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n🎯 Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
           "description": "Display tech tree access URLs and strategic overview"
         }
       ]
@@ -168,18 +168,18 @@
          },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
+          "run": "cd ui && pnpm run dev",
           "description": "Start interactive tech tree visualization server",
           "background": true,
           "condition": {
             "file_exists": "ui/package.json"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Strategic Intelligence System Online:\\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\\n  🧠 Analysis API: http://localhost:${API_PORT}\\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\\n  🎯 Strategic CLI: tech-tree-designer --help\\n\\n🌟 Ready to guide Vrooli\\'s evolution toward superintelligence'",
-           "description": "Display all running strategic planning services"
-         }
+        {
+          "name": "show-urls",
+          "run": "cat <<EOF\n🚀 Strategic Intelligence System Online:\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\n  🧠 Analysis API: http://localhost:${API_PORT}\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  🎯 Strategic CLI: tech-tree-designer --help\n\n🌟 Ready to guide Vrooli's evolution toward superintelligence\nEOF",
+          "description": "Display all running strategic planning services"
+        }
       ]
     },
     "test": {
@@ -205,22 +205,22 @@
         },
         {
           "name": "test-tree-endpoints",
-          "run": "bash test/test-tech-tree-api.sh",
+          "run": "bash tests/test-api-endpoints.sh",
           "description": "Test tech tree data and analysis endpoints"
         },
         {
           "name": "test-progress-tracking",
-          "run": "bash test/test-progress-tracking.sh",
+          "run": "bash tests/test-database-schema.sh",
           "description": "Test scenario progress mapping and updates"
         },
         {
           "name": "test-strategic-analysis",
-          "run": "bash test/test-ai-analysis.sh",
+          "run": "bash tests/test-cli-commands.sh",
           "description": "Test AI-powered strategic recommendations"
         },
         {
           "name": "test-cli-commands",
-          "run": "cd cli && bats tech-tree-designer.bats",
+          "run": "if [ -f cli/tech-tree-designer.bats ]; then cd cli && bats tech-tree-designer.bats; else echo 'Skipping legacy BATS suite (cli/tech-tree-designer.bats not found)'; fi",
           "description": "Run CLI test suite",
           "condition": {
             "file_exists": "cli/tech-tree-designer.bats"

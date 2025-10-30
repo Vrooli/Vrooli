@@ -27,16 +27,16 @@ log_test() {
 
 log_success() {
     echo -e "${GREEN}✅ $1${NC}"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED += 1))
 }
 
 log_error() {
     echo -e "${RED}❌ $1${NC}"
-    ((TESTS_FAILED++))
+    ((TESTS_FAILED += 1))
 }
 
 check_api_running() {
-    if ! curl -sf "$API_BASE/../health" > /dev/null 2>&1; then
+    if ! curl -sf "http://localhost:${API_PORT}/health" > /dev/null 2>&1; then
         echo -e "${RED}❌ API is not running on port $API_PORT${NC}"
         echo -e "${YELLOW}Start with: vrooli scenario run tech-tree-designer${NC}"
         exit 1
@@ -120,12 +120,6 @@ test_endpoint "POST" "/tech-tree/analyze" "200" "Strategic path analysis" '{
     "priority_sectors": ["software", "manufacturing"]
 }'
 
-# Test scenario status update
-test_endpoint "PUT" "/progress/scenarios/test-scenario" "200" "Update scenario status" '{
-    "completion_status": "completed",
-    "notes": "API test completion"
-}'
-
 # Test adding scenario mapping
 test_endpoint "POST" "/progress/scenarios" "200" "Add scenario mapping" '{
     "scenario_name": "api-test-scenario",
@@ -134,6 +128,12 @@ test_endpoint "POST" "/progress/scenarios" "200" "Add scenario mapping" '{
     "contribution_weight": 0.8,
     "priority": 2,
     "estimated_impact": 7.5
+}'
+
+# Test scenario status update
+test_endpoint "PUT" "/progress/scenarios/api-test-scenario" "200" "Update scenario status" '{
+    "completion_status": "completed",
+    "notes": "API test completion"
 }'
 
 echo -e "\n${YELLOW}📈 Performance Tests${NC}"

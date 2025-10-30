@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronDown, ChevronLeft, Folder, FolderOpen, FileCode, Plus, Search } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronLeft, Folder, FolderOpen, FileCode, Plus, Search, X } from 'lucide-react';
 import { logger } from '../utils/logger';
 import { useState, useEffect } from 'react';
 import NodePalette from './NodePalette';
@@ -225,10 +225,20 @@ function Sidebar({ selectedFolder, onFolderSelect, projectId }: SidebarProps) {
                   <input
                     type="text"
                     placeholder="Search workflows..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-flow-bg rounded text-sm border border-gray-700 focus:border-flow-accent focus:outline-none"
+                    className="w-full pl-8 pr-10 py-1.5 bg-flow-bg rounded text-sm border border-gray-700 focus:border-flow-accent focus:outline-none"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                      aria-label="Clear workflow search"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 

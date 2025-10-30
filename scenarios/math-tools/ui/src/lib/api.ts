@@ -1,6 +1,49 @@
 import { resolveApiBase } from '@vrooli/api-base'
 
-export const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '16430'
+function normalizePort(value?: string | number | null): string | undefined {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? String(value) : undefined
+  }
+
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const trimmed = value.trim()
+  return /^\d+$/.test(trimmed) ? trimmed : undefined
+}
+
+function resolveDefaultApiPort(): string | undefined {
+  const candidates: Array<string | number | undefined> = [
+    import.meta.env.VITE_API_PORT as string | undefined,
+    import.meta.env.VITE_PROXY_API_PORT as string | undefined,
+    import.meta.env.API_PORT as string | undefined,
+  ]
+
+  for (const candidate of candidates) {
+    const normalized = normalizePort(candidate)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    const proxyPort = (window as typeof window & {
+      __APP_MONITOR_PROXY_INFO__?: { ports?: Record<string, string | number> }
+    }).__APP_MONITOR_PROXY_INFO__?.ports?.api
+    const windowCandidates = [proxyPort, window.location?.port]
+    for (const candidate of windowCandidates) {
+      const normalized = normalizePort(candidate)
+      if (normalized) {
+        return normalized
+      }
+    }
+  }
+
+  return undefined
+}
+
+export const DEFAULT_API_PORT = resolveDefaultApiPort()
 export const DEFAULT_API_TOKEN =
   (import.meta.env.VITE_API_TOKEN as string | undefined)?.trim() || 'math-tools-api-token'
 export const DEFAULT_API_BASE_URL = resolveApiBase({

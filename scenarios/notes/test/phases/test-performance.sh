@@ -7,10 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Get ports from environment
-API_PORT="${API_PORT:-}"
-
-if [ -z "${API_PORT}" ]; then
+# Get ports from environment - required
+if [ -z "${API_PORT:-}" ]; then
     echo "❌ API_PORT not set and scenario not running"
     echo "ℹ️  Start the scenario first: make run"
     exit 1
@@ -22,6 +20,24 @@ echo "   API: http://localhost:${API_PORT}"
 # Track failures
 FAILURES=0
 WARNINGS=0
+
+# Track created resources for cleanup
+CREATED_NOTE_IDS=()
+
+# Cleanup function
+cleanup_test_data() {
+    if [ ${#CREATED_NOTE_IDS[@]} -gt 0 ]; then
+        echo ""
+        echo "🧹 Cleaning up ${#CREATED_NOTE_IDS[@]} test note(s)..."
+        for note_id in "${CREATED_NOTE_IDS[@]}"; do
+            curl -sf -X DELETE "http://localhost:${API_PORT}/api/notes/${note_id}" > /dev/null 2>&1 || true
+        done
+        echo "✅ Test data cleaned up"
+    fi
+}
+
+# Register cleanup to run on exit
+trap cleanup_test_data EXIT
 
 # Performance thresholds (in milliseconds)
 HEALTH_THRESHOLD=500
@@ -37,15 +53,22 @@ measure_response_time() {
 
     local url="http://localhost:${API_PORT}${endpoint}"
     local start=$(date +%s%N)
+    local response=""
 
     if [ -n "${data}" ]; then
-        curl -sf -X "${method}" -H "Content-Type: application/json" -d "${data}" "${url}" > /dev/null 2>&1
+        response=$(curl -sf -X "${method}" -H "Content-Type: application/json" -d "${data}" "${url}" 2>&1)
     else
-        curl -sf -X "${method}" "${url}" > /dev/null 2>&1
+        response=$(curl -sf -X "${method}" "${url}" 2>&1)
     fi
 
     local end=$(date +%s%N)
     local duration=$(( (end - start) / 1000000 )) # Convert to milliseconds
+
+    # Track created note IDs for cleanup
+    if [[ "${method}" == "POST" && "${endpoint}" == "/api/notes" ]]; then
+        local note_id=$(echo "${response}" | jq -r '.id' 2>/dev/null || echo "")
+        [ -n "${note_id}" ] && [ "${note_id}" != "null" ] && CREATED_NOTE_IDS+=("${note_id}")
+    fi
 
     if [ ${duration} -lt ${threshold} ]; then
         echo "  ✅ ${desc}: ${duration}ms (< ${threshold}ms)"

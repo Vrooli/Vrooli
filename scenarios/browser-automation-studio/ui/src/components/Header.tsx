@@ -1,4 +1,4 @@
-import { Plus, Play, Save, FolderOpen, Brain, Bug, ArrowLeft, Wifi, WifiOff, Edit2, Check, X } from 'lucide-react';
+import { Plus, Play, Save, FolderOpen, Bug, ArrowLeft, Edit2, Check, X, Info } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { useExecutionStore } from '../stores/executionStore';
@@ -32,9 +32,25 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const infoButtonRef = useRef<HTMLButtonElement | null>(null);
+  const infoPopoverRef = useRef<HTMLDivElement | null>(null);
+  const [showWorkflowInfo, setShowWorkflowInfo] = useState(false);
   
   // Use the workflow from props if provided, otherwise use the one from store
   const displayWorkflow = selectedWorkflow || currentWorkflow;
+
+  const formatDetailDate = (value?: Date | string) => {
+    if (!value) {
+      return 'Not available';
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return 'Not available';
+    }
+    return date.toLocaleString();
+  };
+
+  const workflowDescription = displayWorkflow?.description?.trim();
 
   const handleSave = async () => {
     if (!currentWorkflow) {
@@ -112,6 +128,42 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
     }
   }, [isEditingTitle]);
 
+  useEffect(() => {
+    if (!showWorkflowInfo) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        infoPopoverRef.current &&
+        !infoPopoverRef.current.contains(target) &&
+        infoButtonRef.current &&
+        !infoButtonRef.current.contains(target)
+      ) {
+        setShowWorkflowInfo(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowWorkflowInfo(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showWorkflowInfo]);
+
+  useEffect(() => {
+    setShowWorkflowInfo(false);
+  }, [displayWorkflow?.id, currentProject?.id]);
+
   return (
     <>
       <header className="bg-flow-node border-b border-gray-800 px-4 py-3">
@@ -175,22 +227,98 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
                   </div>
                 ) : (currentProject ? currentProject.name : 'Browser Automation Studio')}
               </h1>
-              
               {(currentProject || displayWorkflow) && (
-                <div className="text-sm text-gray-400">
-                  {displayWorkflow ? (
-                    <>
-                      <span className="mr-2">• {currentProject?.name}</span>
-                      <span className="text-xs">{displayWorkflow.folderPath}</span>
-                    </>
-                  ) : currentProject ? (
-                    <>
-                      {currentProject.description && (
-                        <span className="mr-2">• {currentProject.description}</span>
+                <div className="relative">
+                  <button
+                    ref={infoButtonRef}
+                    type="button"
+                    onClick={() => setShowWorkflowInfo((prev) => !prev)}
+                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                    title="Workflow details"
+                    aria-label="Workflow details"
+                    aria-expanded={showWorkflowInfo}
+                  >
+                    <Info size={16} />
+                  </button>
+                  {showWorkflowInfo && (
+                    <div
+                      ref={infoPopoverRef}
+                      className="absolute left-0 sm:right-0 sm:left-auto z-30 mt-2 w-80 max-h-96 overflow-y-auto rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-white">Workflow Details</h3>
+                        <button
+                          type="button"
+                          onClick={() => setShowWorkflowInfo(false)}
+                          className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                          aria-label="Close workflow details"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+
+                      {displayWorkflow && (
+                        <div className="mb-4 pb-4 border-b border-gray-700">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Workflow</h4>
+                          <dl className="space-y-2 text-sm text-gray-300">
+                            <div>
+                              <dt className="text-xs text-gray-500">Name</dt>
+                              <dd className="text-sm font-medium text-white">{displayWorkflow.name}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-gray-500">Description</dt>
+                              <dd className="text-sm text-gray-300">
+                                {workflowDescription || 'No description provided'}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-gray-500">Folder</dt>
+                              <dd className="text-sm text-gray-300 font-mono break-all">{displayWorkflow.folderPath || '/'}</dd>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <dt className="text-xs text-gray-500">Created</dt>
+                                <dd className="text-xs text-gray-300">{formatDetailDate(displayWorkflow.createdAt)}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-xs text-gray-500">Last Updated</dt>
+                                <dd className="text-xs text-gray-300">{formatDetailDate(displayWorkflow.updatedAt)}</dd>
+                              </div>
+                            </div>
+                          </dl>
+                        </div>
                       )}
-                      <span className="text-xs">{currentProject.folder_path}</span>
-                    </>
-                  ) : null}
+
+                      {currentProject && (
+                        <div className="space-y-2 text-sm text-gray-300">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Project</h4>
+                          <dl className="space-y-2">
+                            <div>
+                              <dt className="text-xs text-gray-500">Name</dt>
+                              <dd className="text-sm font-medium text-white">{currentProject.name}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-gray-500">Description</dt>
+                              <dd className="text-sm text-gray-300">
+                                {currentProject.description?.trim() || 'No description provided'}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-gray-500">Save Path</dt>
+                              <dd className="text-sm text-gray-300 font-mono break-all">{currentProject.folder_path}</dd>
+                            </div>
+                          </dl>
+                        </div>
+                      )}
+
+                      <div className="mt-4 pt-4 border-t border-gray-800 space-y-2 text-sm text-gray-300">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Connection</h4>
+                        <p className={isConnected ? 'text-xs text-green-300' : 'text-xs text-rose-300'}>
+                          {isConnected ? 'Connected to project services' : error ? `Disconnected: ${error}` : 'Disconnected from project services'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

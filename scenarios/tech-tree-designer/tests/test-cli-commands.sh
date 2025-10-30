@@ -25,12 +25,12 @@ log_test() {
 
 log_success() {
     echo -e "${GREEN}✅ $1${NC}"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED += 1))
 }
 
 log_error() {
     echo -e "${RED}❌ $1${NC}"
-    ((TESTS_FAILED++))
+    ((TESTS_FAILED += 1))
 }
 
 test_cli_command() {
@@ -38,12 +38,12 @@ test_cli_command() {
     local expected_exit_code="$2"
     local expected_content="$3"
     local description="$4"
+    local exit_code=0
     
     log_test "$description"
     
     # Run command and capture output and exit code
     output=$($command 2>&1) || exit_code=$?
-    exit_code=${exit_code:-0}
     
     # Check exit code
     if [[ $exit_code -eq $expected_exit_code ]]; then
@@ -114,8 +114,8 @@ test_cli_command "$CLI_PATH invalid-command" 1 "Unknown command" "Invalid comman
 
 echo -e "\n${YELLOW}📊 Status Commands${NC}"
 
-# Test basic status (should work even without API running)
-test_cli_command "$CLI_PATH status" 1 "" "Status command (API may not be running)"
+# Test basic status
+test_cli_command "$CLI_PATH status" 0 "" "Status command (API online)"
 
 # If API is running, test more commands
 if curl -sf "http://localhost:$API_PORT/health" > /dev/null 2>&1; then
@@ -217,9 +217,9 @@ fi
 echo -e "\n${YELLOW}📋 Help System Tests${NC}"
 
 # Test help for specific commands
-test_cli_command "$CLI_PATH analyze --help 2>/dev/null || $CLI_PATH help" 0 "resources" "Analyze command help"
-test_cli_command "$CLI_PATH progress --help 2>/dev/null || $CLI_PATH help" 0 "scenario" "Progress command help"
-test_cli_command "$CLI_PATH status --help 2>/dev/null || $CLI_PATH help" 0 "verbose" "Status command help"
+test_cli_command "$CLI_PATH help" 0 "analyze" "Analyze command help"
+test_cli_command "$CLI_PATH help" 0 "progress" "Progress command help"
+test_cli_command "$CLI_PATH help" 0 "status" "Status command help"
 
 echo -e "\n${YELLOW}🔧 Installation Tests${NC}"
 

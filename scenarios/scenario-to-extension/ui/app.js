@@ -1,28 +1,23 @@
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
-
 /**
  * Browser Extension Generator UI
  * Main application logic for the scenario-to-extension web interface
  */
 
-const BRIDGE_APP_ID = 'scenario-to-extension-ui';
+const API_PATH = '/api/v1';
+const DEFAULT_API_PORT = 3201;
+const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
 
-const bootstrapIframeBridge = () => {
-    if (window.__scenarioToExtensionBridgeInitialized) {
-        return;
-    }
+const apiResolution = resolveApiConfig();
 
-    initIframeBridgeChild({ appId: BRIDGE_APP_ID });
-    window.__scenarioToExtensionBridgeInitialized = true;
-};
-
-if (typeof window !== 'undefined' && window.parent !== window) {
-    bootstrapIframeBridge();
+if (typeof window !== 'undefined') {
+    window.__scenarioToExtensionApi = apiResolution;
 }
 
 // Configuration
 const CONFIG = {
-    API_BASE: '/api/v1',
+    API_BASE: apiResolution.base,
+    API_ROOT: apiResolution.root,
+    API_SOURCE: apiResolution.source,
     POLL_INTERVAL: 5000, // 5 seconds
     NOTIFICATION_TIMEOUT: 5000,
     DEBUG: false
@@ -76,6 +71,313 @@ function formatDuration(startTime, endTime) {
     if (hours > 0) return `${hours}h ${minutes % 60}m`;
     if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
     return `${seconds}s`;
+}
+
+function formatStatusLabel(value) {
+    if (typeof value !== 'string' || !value) {
+        return 'Unknown';
+    }
+
+    return value
+        .split(/[_\s-]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+// ============================================
+// Proxy & API Resolution
+// ============================================
+
+function resolveApiConfig() {
+    const win = typeof window !== 'undefined' ? window : undefined;
+    const loopbackRoot = buildLoopbackRoot(win);
+    const loopbackBase = ensureApiPath(loopbackRoot);
+
+    const resolution = {
+        base: loopbackBase,
+        root: stripApiSuffix(loopbackBase),
+        source: 'loopback-fallback',
+        notes: 'Using default loopback developer API base'
+    };
+
+    if (!win) {
+        return resolution;
+    }
+
+    const proxyBootstrap = readProxyBootstrap(win);
+    const proxyBase = resolveProxyBase(proxyBootstrap, win);
+    if (proxyBase) {
+        const ensured = ensureApiPath(proxyBase);
+        return {
+            base: ensured,
+            root: stripApiSuffix(ensured),
+            source: 'app-monitor-proxy',
+            notes: 'Resolved via App Monitor proxy metadata'
+        };
+    }
+
+    const derivedFromLocation = deriveProxyBaseFromLocation(win);
+    if (derivedFromLocation) {
+        const ensured = ensureApiPath(derivedFromLocation);
+        return {
+            base: ensured,
+            root: stripApiSuffix(ensured),
+            source: 'location-derived',
+            notes: 'Derived from current location pathname'
+        };
+    }
+
+    const { origin, hostname } = win.location || {};
+    if (origin && hostname && !isLocalHostname(hostname)) {
+        const ensured = ensureApiPath(origin);
+        return {
+            base: ensured,
+            root: stripApiSuffix(ensured),
+            source: 'same-origin',
+            notes: 'Using current origin as API base'
+        };
+    }
+
+    return resolution;
+}
+
+function buildLoopbackRoot(win) {
+    const protocol = win?.location?.protocol || 'http:';
+    return `${protocol}//127.0.0.1:${DEFAULT_API_PORT}`;
+}
+
+function readProxyBootstrap(win) {
+    if (!win) {
+        return undefined;
+    }
+
+    for (const key of PROXY_INFO_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(win, key) && win[key]) {
+            return win[key];
+        }
+    }
+
+    return undefined;
+}
+
+function resolveProxyBase(proxyInfo, win) {
+    if (!proxyInfo || typeof proxyInfo !== 'object') {
+        return undefined;
+    }
+
+    const candidates = collectProxyCandidates(proxyInfo);
+    const derived = deriveProxyBaseFromLocation(win);
+    if (derived) {
+        candidates.unshift(derived);
+    }
+
+    for (const candidate of candidates) {
+        const normalized = normalizeProxyCandidate(candidate, win);
+        if (normalized) {
+            return normalized;
+        }
+    }
+
+    return undefined;
+}
+
+function collectProxyCandidates(source) {
+    const queue = [source];
+    const seen = new Set();
+    const candidates = [];
+    const keys = [
+        'apiBase',
+        'apiUrl',
+        'api',
+        'url',
+        'baseUrl',
+        'publicUrl',
+        'proxyUrl',
+        'origin',
+        'target',
+        'path',
+        'proxyPath',
+        'paths',
+        'endpoint',
+        'endpoints',
+        'service',
+        'services',
+        'host',
+        'hosts',
+        'port',
+        'ports',
+        'httpProxyBase',
+        'http_proxy_base'
+    ];
+
+    while (queue.length > 0) {
+        const value = queue.shift();
+        if (!value) {
+            continue;
+        }
+
+        if (typeof value === 'string') {
+            candidates.push(value);
+            continue;
+        }
+
+        if (Array.isArray(value)) {
+            queue.push(...value);
+            continue;
+        }
+
+        if (typeof value === 'object') {
+            if (seen.has(value)) {
+                continue;
+            }
+            seen.add(value);
+            keys.forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(value, key)) {
+                    queue.push(value[key]);
+                }
+            });
+        }
+    }
+
+    return candidates;
+}
+
+function normalizeProxyCandidate(candidate, win) {
+    if (typeof candidate !== 'string') {
+        return undefined;
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (trimmed.startsWith('//')) {
+        const protocol = win?.location?.protocol || 'https:';
+        return stripTrailingSlash(`${protocol}${trimmed}`);
+    }
+
+    if (trimmed.startsWith('/')) {
+        const origin = win?.location?.origin;
+        if (origin) {
+            return stripTrailingSlash(`${origin}${trimmed}`);
+        }
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(trimmed)) {
+        return stripTrailingSlash(`http://${trimmed}`);
+    }
+
+    const origin = win?.location?.origin;
+    if (origin) {
+        return stripTrailingSlash(`${origin}/${trimmed.replace(/^\/+/, '')}`);
+    }
+
+    return stripTrailingSlash(`/${trimmed.replace(/^\/+/, '')}`);
+}
+
+function deriveProxyBaseFromLocation(win) {
+    if (!win?.location) {
+        return undefined;
+    }
+
+    const { origin, pathname } = win.location;
+    if (!origin || !pathname) {
+        return undefined;
+    }
+
+    if (!/\/proxy(\b|\/)/i.test(pathname)) {
+        return undefined;
+    }
+
+    return `${origin}${pathname}`.replace(/\/+$/, '');
+}
+
+function stripTrailingSlash(value) {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    return value.replace(/\/+$/, '');
+}
+
+function ensureApiPath(base) {
+    if (typeof base !== 'string' || !base) {
+        return API_PATH;
+    }
+
+    const normalized = stripTrailingSlash(base);
+    if (normalized.endsWith(API_PATH)) {
+        return normalized;
+    }
+
+    if (normalized.endsWith('/api')) {
+        return `${normalized}${API_PATH.slice(4)}`;
+    }
+
+    return `${normalized}${API_PATH.startsWith('/') ? '' : '/'}${API_PATH}`;
+}
+
+function stripApiSuffix(value) {
+    if (typeof value !== 'string') {
+        return value;
+    }
+
+    const normalized = stripTrailingSlash(value);
+    if (normalized.endsWith(API_PATH)) {
+        return normalized.slice(0, -API_PATH.length) || normalized;
+    }
+
+    return normalized;
+}
+
+function isLocalHostname(value) {
+    if (typeof value !== 'string') {
+        return false;
+    }
+
+    return /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(value);
+}
+
+// ============================================
+// Icon Utilities
+// ============================================
+
+function createIconMarkup(name, { className = '', size, title } = {}) {
+    if (!name) {
+        return '';
+    }
+
+    const classes = ['lucide-icon', className].filter(Boolean).join(' ');
+    const styleAttr = size ? ` style="width:${size}px;height:${size}px"` : '';
+    const titleAttr = title ? ` aria-label="${title}"` : ' aria-hidden="true"';
+    const classAttr = classes ? ` class="${classes}"` : '';
+
+    return `<span${classAttr} data-lucide="${name}"${titleAttr}${styleAttr}></span>`;
+}
+
+function renderLucideIcons(scope = document) {
+    if (!window.lucide?.createIcons || !scope) {
+        return;
+    }
+
+    const elements = [];
+
+    if (scope !== document && scope.matches?.('[data-lucide]')) {
+        elements.push(scope);
+    }
+
+    const descendants = scope.querySelectorAll?.('[data-lucide]') ?? [];
+    descendants.forEach((el) => elements.push(el));
+
+    if (elements.length > 0) {
+        window.lucide.createIcons({ elements });
+    }
 }
 
 // ============================================
@@ -141,16 +443,29 @@ class NotificationManager {
     static show(type, title, message, timeout = CONFIG.NOTIFICATION_TIMEOUT) {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
+        const iconName = {
+            success: 'check-circle-2',
+            warning: 'alert-triangle',
+            error: 'circle-x',
+            info: 'info'
+        }[type] || 'bell';
         notification.innerHTML = `
             <div class="notification-header">
-                <span class="notification-title">${title}</span>
-                <button class="notification-close">&times;</button>
+                <div class="notification-title">
+                    ${createIconMarkup(iconName, { className: 'notification-icon' })}
+                    <span>${title}</span>
+                </div>
+                <button class="notification-close" type="button" aria-label="Dismiss notification">
+                    ${createIconMarkup('x', { className: 'notification-close-icon' })}
+                </button>
             </div>
             <div class="notification-message">${message}</div>
         `;
         
         const container = document.getElementById('notifications');
         container.appendChild(notification);
+
+        renderLucideIcons(notification);
         
         // Close button handler
         notification.querySelector('.notification-close').addEventListener('click', () => {
@@ -260,6 +575,15 @@ function switchTab(tabName) {
 // ============================================
 
 async function refreshStatus() {
+    const indicator = document.getElementById('status-indicator');
+    const icon = indicator?.querySelector('[data-role="status-icon"]');
+    if (indicator && icon) {
+        indicator.dataset.status = 'loading';
+        icon.setAttribute('data-lucide', 'loader-2');
+        icon.classList.add('is-spinning');
+        renderLucideIcons(indicator);
+    }
+
     try {
         const status = await APIClient.get('/health');
         state.systemStatus = status;
@@ -272,21 +596,58 @@ async function refreshStatus() {
 
 function updateStatusIndicator(status) {
     const indicator = document.getElementById('status-indicator');
-    const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
-    
-    // Remove all status classes
-    indicator.classList.remove('healthy', 'warning', 'error');
-    
-    if (status.status === 'healthy') {
-        indicator.classList.add('healthy');
-        text.textContent = 'System Healthy';
-    } else if (status.status === 'warning') {
-        indicator.classList.add('warning');
-        text.textContent = 'System Warning';
-    } else {
-        indicator.classList.add('error');
-        text.textContent = 'System Error';
+    const icon = indicator?.querySelector('[data-role="status-icon"]');
+    const state = status?.status || 'error';
+
+    if (!indicator) {
+        return;
+    }
+
+    indicator.dataset.status = state;
+    indicator.setAttribute('title', `API base: ${CONFIG.API_BASE} (${CONFIG.API_SOURCE})`);
+
+    if (text) {
+        if (state === 'healthy') {
+            text.textContent = 'System Healthy';
+        } else if (state === 'warning') {
+            text.textContent = 'System Warning';
+        } else {
+            text.textContent = 'System Error';
+        }
+    }
+
+    if (icon) {
+        const iconName = {
+            healthy: 'check-circle-2',
+            warning: 'alert-triangle',
+            error: 'alert-octagon'
+        }[state] || 'loader-2';
+        icon.setAttribute('data-lucide', iconName);
+        icon.classList.toggle('is-spinning', state === 'building' || state === 'loading');
+    }
+
+    renderLucideIcons(indicator);
+}
+
+function applyApiContext() {
+    const apiSourcePill = document.getElementById('api-source-pill');
+    if (apiSourcePill) {
+        const label = formatStatusLabel(CONFIG.API_SOURCE || 'configured');
+        apiSourcePill.textContent = `API: ${label}`;
+        apiSourcePill.setAttribute('title', CONFIG.API_BASE);
+    }
+
+    const apiInput = document.getElementById('api-endpoint');
+    if (apiInput && CONFIG.API_ROOT) {
+        apiInput.value = CONFIG.API_ROOT;
+        apiInput.placeholder = CONFIG.API_ROOT;
+        apiInput.dataset.prefilled = 'true';
+    }
+
+    const healthLink = document.getElementById('api-health-link');
+    if (healthLink) {
+        healthLink.href = `${CONFIG.API_BASE}/health`;
     }
 }
 
@@ -295,6 +656,12 @@ function updateStatusIndicator(status) {
 // ============================================
 
 function initializeGenerator() {
+    const apiEndpointInput = document.getElementById('api-endpoint');
+    if (apiEndpointInput && CONFIG.API_ROOT) {
+        apiEndpointInput.value = CONFIG.API_ROOT;
+        apiEndpointInput.placeholder = CONFIG.API_ROOT;
+    }
+
     // Template selection
     const templateCards = document.querySelectorAll('.template-card');
     templateCards.forEach(card => {
@@ -390,7 +757,10 @@ async function handleExtensionGeneration(event) {
 
 function resetForm() {
     document.getElementById('extension-form').reset();
-    document.getElementById('api-endpoint').value = 'http://localhost:3000';
+    const apiInput = document.getElementById('api-endpoint');
+    if (apiInput) {
+        apiInput.value = CONFIG.API_ROOT || '';
+    }
     document.getElementById('version').value = '1.0.0';
     document.getElementById('author').value = 'Vrooli Scenario Generator';
     
@@ -454,18 +824,44 @@ function renderBuilds() {
         const buildElement = createBuildElement(build);
         list.appendChild(buildElement);
     });
+
+    renderLucideIcons(list);
 }
 
 function createBuildElement(build) {
     const div = document.createElement('div');
     div.className = 'build-item';
     
-    const statusClass = build.status;
-    const statusIcon = {
-        building: '⚙️',
-        ready: '✅',
-        failed: '❌'
-    }[build.status] || '❓';
+    const statusState = (build.status || 'unknown').toLowerCase();
+    const statusMeta = {
+        building: {
+            icon: 'loader-2',
+            label: 'Building',
+            badgeClass: 'is-building',
+            iconClass: 'is-spinning'
+        },
+        ready: {
+            icon: 'check-circle-2',
+            label: 'Ready',
+            badgeClass: 'is-ready'
+        },
+        failed: {
+            icon: 'circle-x',
+            label: 'Failed',
+            badgeClass: 'is-failed'
+        }
+    }[statusState] || {
+        icon: 'circle-help',
+        label: formatStatusLabel(build.status || 'Pending'),
+        badgeClass: 'is-unknown'
+    };
+
+    const statusClasses = ['build-status', statusMeta.badgeClass, `status-${statusState}`]
+        .filter(Boolean)
+        .join(' ');
+    const statusIconMarkup = createIconMarkup(statusMeta.icon, {
+        className: ['status-icon', statusMeta.iconClass].filter(Boolean).join(' ')
+    });
     
     div.innerHTML = `
         <div class="build-header">
@@ -473,8 +869,9 @@ function createBuildElement(build) {
                 <h4>${build.scenario_name}</h4>
                 <div class="build-id">${build.build_id}</div>
             </div>
-            <div class="build-status ${statusClass}">
-                ${statusIcon} ${build.status}
+            <div class="${statusClasses}">
+                ${statusIconMarkup}
+                <span>${statusMeta.label}</span>
             </div>
         </div>
         
@@ -509,21 +906,22 @@ function createBuildElement(build) {
         <div class="build-actions">
             ${build.status === 'ready' ? `
                 <button class="btn btn-outline" onclick="testBuild('${build.build_id}')">
-                    <span class="icon">🧪</span>
-                    Test Extension
+                    ${createIconMarkup('beaker', { className: 'btn-icon' })}
+                    <span>Test Extension</span>
                 </button>
                 <button class="btn btn-outline" onclick="downloadBuild('${build.build_id}')">
-                    <span class="icon">📦</span>
-                    Download
+                    ${createIconMarkup('download', { className: 'btn-icon' })}
+                    <span>Download</span>
                 </button>
             ` : ''}
             <button class="btn btn-outline" onclick="viewBuildDetails('${build.build_id}')">
-                <span class="icon">👁️</span>
-                View Details
+                ${createIconMarkup('eye', { className: 'btn-icon' })}
+                <span>View Details</span>
             </button>
         </div>
     `;
     
+    renderLucideIcons(div);
     return div;
 }
 
@@ -625,6 +1023,8 @@ function renderTemplates() {
         const templateElement = createTemplateElement(template);
         list.appendChild(templateElement);
     });
+
+    renderLucideIcons(list);
 }
 
 function createTemplateElement(template) {
@@ -745,7 +1145,9 @@ function displayTestResults(results) {
                         ` : ''}
                     </div>
                     <div class="test-result-status">
-                        <span class="test-result-icon">${result.loaded ? '✅' : '❌'}</span>
+                        ${createIconMarkup(result.loaded ? 'check-circle-2' : 'circle-x', {
+                            className: 'test-result-icon'
+                        })}
                         <span>${result.loaded ? 'PASS' : 'FAIL'}</span>
                         ${result.load_time_ms ? `<span class="text-muted">(${result.load_time_ms}ms)</span>` : ''}
                     </div>
@@ -755,6 +1157,7 @@ function displayTestResults(results) {
     `;
     
     resultsContainer.classList.remove('hidden');
+    renderLucideIcons(resultsContent);
 }
 
 function browseExtension() {
@@ -769,6 +1172,9 @@ function browseExtension() {
 document.addEventListener('DOMContentLoaded', () => {
     log('Extension Generator UI initializing...');
     
+    applyApiContext();
+    renderLucideIcons();
+
     // Initialize components
     initializeTabs();
     initializeGenerator();

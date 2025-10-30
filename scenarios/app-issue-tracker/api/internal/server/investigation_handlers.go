@@ -11,6 +11,7 @@ import (
 	"app-issue-tracker-api/internal/logging"
 	"app-issue-tracker-api/internal/server/handlers"
 	services "app-issue-tracker-api/internal/server/services"
+	"app-issue-tracker-api/internal/utils"
 )
 
 const maxInvestigationPayloadBytes int64 = 1 << 20 // 1 MiB
@@ -72,7 +73,7 @@ func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *htt
 		}
 	}
 
-	generatedAt := time.Now().UTC().Format(time.RFC3339)
+	generatedAt := utils.NowRFC3339()
 	promptTemplate := s.investigations.loadPromptTemplate()
 	promptMarkdown := s.investigations.buildInvestigationPrompt(issue, issueDir, agentID, s.config.ScenarioRoot, generatedAt)
 

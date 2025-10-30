@@ -464,11 +464,11 @@ func (h *SystemHandler) GetSystemStatus(c *gin.Context) {
 	appCount, resourceCount, uptime, status := getQuickSystemStatus(ctx)
 
 	c.JSON(http.StatusOK, gin.H{
-		"status":          status,
-		"app_count":       appCount,
-		"resource_count":  resourceCount,
-		"uptime_seconds":  uptime,
-		"checked_at":      time.Now().UTC().Format(time.RFC3339),
+		"status":         status,
+		"app_count":      appCount,
+		"resource_count": resourceCount,
+		"uptime_seconds": uptime,
+		"checked_at":     time.Now().UTC().Format(time.RFC3339),
 	})
 }
 

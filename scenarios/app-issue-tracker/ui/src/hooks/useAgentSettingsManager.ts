@@ -155,7 +155,7 @@ export function useAgentSettingsManager({
           return settings;
         });
       } catch (error) {
-        console.warn('Failed to load agent backend settings', error);
+        // Failed to load settings - will use defaults
       }
     };
 
@@ -198,7 +198,6 @@ export function useAgentSettingsManager({
         await patchAgentSettings(apiBaseUrl, payload);
         lastSnapshotRef.current = snapshot;
       } catch (error) {
-        console.error('Failed to save agent backend settings', error);
         onSaveError?.('Failed to save agent settings');
       }
     };

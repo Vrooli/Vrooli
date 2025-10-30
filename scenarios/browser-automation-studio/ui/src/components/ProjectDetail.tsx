@@ -9,8 +9,6 @@ import {
   PlayCircle,
   Loader,
   WifiOff,
-  Edit2,
-  Check,
   X,
   FolderOpen,
   LayoutGrid,
@@ -26,6 +24,7 @@ import {
   History,
   Info,
   MoreVertical,
+  Search,
 } from 'lucide-react';
 import { Project, useProjectStore } from '../stores/projectStore';
 import { useWorkflowStore, type Workflow } from '../stores/workflowStore';
@@ -70,9 +69,6 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [executionInProgress, setExecutionInProgress] = useState<Record<string, boolean>>({});
-  const [isEditingPath, setIsEditingPath] = useState(false);
-  const [editedPath, setEditedPath] = useState(project.folder_path);
-  const [isSavingPath, setIsSavingPath] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'tree'>('card');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
@@ -93,10 +89,11 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   const viewModeDropdownRef = useRef<HTMLDivElement | null>(null);
   const moreMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
-  const { updateProject, deleteProject } = useProjectStore();
+  const { deleteProject } = useProjectStore();
   const { bulkDeleteWorkflows } = useWorkflowStore();
   const { loadExecution } = useExecutionStore();
   const currentExecution = useExecutionStore((state) => state.currentExecution);
+  const isExecutionViewerOpen = Boolean(selectedExecutionId && currentExecution);
 
   // Memoize filtered workflows to prevent recalculation on every render
   const filteredWorkflows = useMemo(() => {
@@ -213,10 +210,6 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   useEffect(() => {
     fetchWorkflows();
   }, [fetchWorkflows]);
-
-  useEffect(() => {
-    setEditedPath(project.folder_path);
-  }, [project.folder_path]);
 
   useEffect(() => {
     if (!showStatsPopover) {
@@ -405,30 +398,6 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
       setExecutionInProgress(prev => ({ ...prev, [workflowId]: false }));
     }
   }, []);
-
-  const handleSavePath = useCallback(async () => {
-    if (editedPath === project.folder_path) {
-      setIsEditingPath(false);
-      return;
-    }
-
-    setIsSavingPath(true);
-    try {
-      await updateProject(project.id, { folder_path: editedPath });
-      toast.success('Project path updated successfully');
-      setIsEditingPath(false);
-    } catch (error) {
-      toast.error('Failed to update project path');
-      setEditedPath(project.folder_path); // Reset to original value
-    } finally {
-      setIsSavingPath(false);
-    }
-  }, [editedPath, project.folder_path, project.id, updateProject]);
-
-  const handleCancelEdit = useCallback(() => {
-    setEditedPath(project.folder_path);
-    setIsEditingPath(false);
-  }, [project.folder_path]);
 
   const toggleSelectionMode = useCallback(() => {
     setSelectionMode((prev) => {
@@ -682,7 +651,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
 
   return (
     <>
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
         <input
           ref={fileInputRef}
           type="file"
@@ -726,9 +695,10 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                           <button
                             type="button"
                             onClick={() => setShowStatsPopover(false)}
-                            className="text-xs text-gray-400 hover:text-white transition-colors"
+                            className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                            aria-label="Close project details"
                           >
-                            Close
+                            <X size={14} />
                           </button>
                         </div>
 
@@ -848,60 +818,18 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                       </div>
                     )}
                   </div>
+                  <button
+                    onClick={onCreateWorkflow}
+                    className="hidden md:flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors md:ml-auto"
+                  >
+                    <Plus size={16} />
+                    <span>New Workflow</span>
+                  </button>
                 </div>
               </div>
               <p className="hidden md:block text-gray-400">
                 {project.description?.trim() ? project.description : 'Add a description to keep collaborators aligned.'}
               </p>
-              {/* Folder Path Display/Edit */}
-              <div className="hidden md:flex mt-3 items-center gap-2 flex-wrap">
-                <FolderOpen size={14} className="text-gray-500" />
-                {isEditingPath ? (
-                  <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-                    <input
-                      type="text"
-                      value={editedPath}
-                      onChange={(e) => setEditedPath(e.target.value)}
-                      className="flex-1 px-2 py-1 bg-flow-node border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-flow-accent"
-                      placeholder="Enter save path..."
-                      disabled={isSavingPath}
-                    />
-                    <button
-                      onClick={handleSavePath}
-                      disabled={isSavingPath}
-                      className="p-1.5 text-green-400 hover:text-green-300 disabled:opacity-50"
-                      title="Save"
-                    >
-                      {isSavingPath ? (
-                        <Loader size={14} className="animate-spin" />
-                      ) : (
-                        <Check size={14} />
-                      )}
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      disabled={isSavingPath}
-                      className="p-1.5 text-red-400 hover:text-red-300 disabled:opacity-50"
-                      title="Cancel"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">
-                      Save path: <span className="text-gray-400 font-mono">{project.folder_path}</span>
-                    </span>
-                    <button
-                      onClick={() => setIsEditingPath(true)}
-                      className="p-1 text-gray-400 hover:text-white transition-colors"
-                      title="Edit save path"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -948,36 +876,9 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                 </button>
               </>
             )}
-            {/* New Workflow button - desktop only (mobile uses FAB) */}
-            <button
-              onClick={onCreateWorkflow}
-              className="hidden md:flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              <Plus size={16} />
-              <span>New Workflow</span>
-            </button>
           </div>
         </div>
-        <div className="hidden md:flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-400">
-          <span className="flex items-center gap-2">
-            <FileCode size={14} className="text-flow-accent" />
-            <span className="text-white font-medium">{workflowCount}</span>
-            workflows
-          </span>
-          <span className="flex items-center gap-2">
-            <Play size={14} className="text-flow-accent" />
-            <span className="text-white font-medium">{totalExecutions}</span>
-            total executions
-          </span>
-          <span className="flex items-center gap-2">
-            <History size={14} className="text-flow-accent" />
-            Last run <span className="text-white font-medium">{lastExecutionLabel}</span>
-          </span>
-          <span className="flex items-center gap-2">
-            <Clock size={14} className="text-flow-accent" />
-            Updated <span className="text-white font-medium">{lastUpdatedLabel}</span>
-          </span>
-        </div>
+        
 
         <div>
           <div className="flex items-center gap-3 border-b border-gray-700 pb-2">
@@ -1013,13 +914,24 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
           {activeTab === 'workflows' && (
             <div className="mt-0 md:mt-4 flex items-center gap-3">
               <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search workflows..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+                  className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    aria-label="Clear workflow search"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
               {/* Desktop: Toggle buttons */}
               <div className="hidden md:flex items-center gap-2 bg-flow-node border border-gray-700 rounded-lg p-1">
@@ -1103,16 +1015,20 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
       <StatusBar />
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden min-h-0">
         {activeTab === 'executions' ? (
-          <div className="h-full flex">
-            <div className={selectedExecutionId && currentExecution ? 'w-1/2 border-r border-gray-800' : 'w-full'}>
-              <ExecutionHistory
-                onSelectExecution={handleSelectExecution}
-              />
+          <div className="h-full flex flex-col md:flex-row min-h-0">
+            <div
+              className={`${
+                isExecutionViewerOpen
+                  ? 'hidden md:block md:w-1/2 md:border-r md:border-gray-800'
+                  : 'block md:w-full'
+              } flex-1 min-h-0`}
+            >
+              <ExecutionHistory onSelectExecution={handleSelectExecution} />
             </div>
-            {selectedExecutionId && currentExecution && (
-              <div className="w-1/2 relative">
+            {isExecutionViewerOpen && (
+              <div className="relative w-full md:w-1/2 flex-1 flex flex-col min-h-0">
                 <button
                   onClick={handleCloseExecutionViewer}
                   className="absolute top-2 right-2 z-10 p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
@@ -1133,7 +1049,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
             ) : filteredWorkflows.length === 0 && searchTerm === '' ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="text-gray-600 mb-4">
+              <div className="mb-4 flex items-center justify-center text-gray-600">
                 {error ? <WifiOff size={48} /> : <FileCode size={48} />}
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">
@@ -1159,7 +1075,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
         ) : filteredWorkflows.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="text-gray-600 mb-4">
+              <div className="mb-4 flex items-center justify-center text-gray-600">
                 <FileCode size={48} />
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">No Workflows Found</h3>

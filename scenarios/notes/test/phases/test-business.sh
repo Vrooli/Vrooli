@@ -7,13 +7,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Get ports from environment or use defaults
-API_PORT="${API_PORT:-}"
-UI_PORT="${UI_PORT:-}"
-
-# If ports not set, try to get from service.json or fail
-if [ -z "${API_PORT}" ]; then
+# Get ports from environment - required
+if [ -z "${API_PORT:-}" ]; then
     echo "❌ API_PORT not set and scenario not running"
+    echo "ℹ️  Start the scenario first: make run"
+    exit 1
+fi
+if [ -z "${UI_PORT:-}" ]; then
+    echo "❌ UI_PORT not set and scenario not running"
     echo "ℹ️  Start the scenario first: make run"
     exit 1
 fi
@@ -24,6 +25,24 @@ echo "   API: http://localhost:${API_PORT}"
 # Track failures
 FAILURES=0
 
+# Track created resources for cleanup
+CREATED_TAG_IDS=()
+
+# Cleanup function
+cleanup_test_data() {
+    if [ ${#CREATED_TAG_IDS[@]} -gt 0 ]; then
+        echo ""
+        echo "🧹 Cleaning up ${#CREATED_TAG_IDS[@]} test tag(s)..."
+        for tag_id in "${CREATED_TAG_IDS[@]}"; do
+            curl -sf -X DELETE "http://localhost:${API_PORT}/api/tags/${tag_id}" > /dev/null 2>&1 || true
+        done
+        echo "✅ Test data cleaned up"
+    fi
+}
+
+# Register cleanup to run on exit
+trap cleanup_test_data EXIT
+
 test_endpoint() {
     local method=$1
     local endpoint=$2
@@ -33,7 +52,13 @@ test_endpoint() {
     local url="http://localhost:${API_PORT}${endpoint}"
 
     if [ -n "${data}" ]; then
-        if curl -sf -X "${method}" -H "Content-Type: application/json" -d "${data}" "${url}" > /dev/null; then
+        local response=$(curl -sf -X "${method}" -H "Content-Type: application/json" -d "${data}" "${url}" 2>&1)
+        if [ $? -eq 0 ]; then
+            # Track created tag IDs for cleanup
+            if [[ "${method}" == "POST" && "${endpoint}" == "/api/tags" ]]; then
+                local tag_id=$(echo "${response}" | jq -r '.id' 2>/dev/null || echo "")
+                [ -n "${tag_id}" ] && [ "${tag_id}" != "null" ] && CREATED_TAG_IDS+=("${tag_id}")
+            fi
             echo "  ✅ ${desc}"
             return 0
         else

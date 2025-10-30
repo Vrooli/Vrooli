@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Copy, ExternalLink, Play, RotateCcw, ScrollText, Square } from 'lucide-react';
+import { Copy, ExternalLink, Play, RotateCcw, ScrollText, Square, FileText, Activity, Layers, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
-import type { App, AppProxyMetadata, AppProxyPortInfo, LocalhostUsageReport } from '@/types';
+import type { App, AppProxyMetadata, AppProxyPortInfo, LocalhostUsageReport, CompleteDiagnostics } from '@/types';
 import { buildPreviewUrl } from '@/utils/appPreview';
+import { useAppDiagnostics } from '@/hooks/useAppDiagnostics';
+import TechStackTab from './tabs/TechStackTab';
+import DiagnosticsTab from './tabs/DiagnosticsTab';
+import DocumentationTab from './tabs/DocumentationTab';
 import './AppModal.css';
 
 interface AppModalProps {
@@ -18,11 +22,11 @@ interface AppModalProps {
 }
 
 type OtherPort = { label: string; value: string };
-type LocalhostFinding = NonNullable<LocalhostUsageReport['findings']>[number];
-type LocalhostWarning = NonNullable<LocalhostUsageReport['warnings']>[number];
 
 const FOCUSABLE_SELECTORS =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
+type TabType = 'overview' | 'diagnostics' | 'tech-stack' | 'docs';
 
 export default function AppModal({
   app,
@@ -31,17 +35,23 @@ export default function AppModal({
   onAction,
   onViewLogs,
   proxyMetadata,
-  localhostReport,
   previewUrl,
 }: AppModalProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [hasCopiedPreviewUrl, setHasCopiedPreviewUrl] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const fallbackPreviewUrl = useMemo(() => buildPreviewUrl(app) ?? null, [app]);
   const modalContentRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
+
+  // Fetch complete diagnostics when modal opens
+  const { diagnostics, loading: diagnosticsLoading } = useAppDiagnostics(
+    isOpen ? app.id : null,
+    { enabled: isOpen, refetchOnOpen: true }
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -173,10 +183,6 @@ export default function AppModal({
     };
   }, [app.config?.primary_port, app.config?.primary_port_label, app.port_mappings, proxyMetadata?.ports]);
 
-  const localhostFindings = (localhostReport?.findings ?? []) as LocalhostFinding[];
-  const localhostWarnings = (localhostReport?.warnings ?? []) as LocalhostWarning[];
-  const localhostFindingsCount = localhostFindings.length;
-  const showLocalhostDiagnostics = Boolean(localhostReport);
 
   const uptime = app.uptime && app.uptime !== 'N/A' ? app.uptime : 'N/A';
   const runtime = app.runtime && app.runtime !== 'N/A' && app.runtime !== uptime ? app.runtime : null;
@@ -288,34 +294,92 @@ export default function AppModal({
           </button>
         </div>
 
+        <div className="modal-tabs">
+          <button
+            type="button"
+            className={clsx('modal-tab', { 'modal-tab--active': activeTab === 'overview' })}
+            onClick={() => setActiveTab('overview')}
+            aria-label="Overview tab"
+          >
+            <Layers size={16} aria-hidden />
+            <span>Overview</span>
+          </button>
+          <button
+            type="button"
+            className={clsx('modal-tab', { 'modal-tab--active': activeTab === 'diagnostics' })}
+            onClick={() => setActiveTab('diagnostics')}
+            aria-label="Diagnostics tab"
+          >
+            <Activity size={16} aria-hidden />
+            <span>Diagnostics</span>
+            {diagnostics && diagnostics.warnings.length > 0 && (
+              <span className="modal-tab-badge">{diagnostics.warnings.length}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            className={clsx('modal-tab', { 'modal-tab--active': activeTab === 'tech-stack' })}
+            onClick={() => setActiveTab('tech-stack')}
+            aria-label="Tech stack tab"
+          >
+            <AlertCircle size={16} aria-hidden />
+            <span>Tech Stack</span>
+          </button>
+          <button
+            type="button"
+            className={clsx('modal-tab', { 'modal-tab--active': activeTab === 'docs' })}
+            onClick={() => setActiveTab('docs')}
+            aria-label="Documentation tab"
+          >
+            <FileText size={16} aria-hidden />
+            <span>Docs</span>
+            {diagnostics?.documents && diagnostics.documents.total > 0 && (
+              <span className="modal-tab-badge">{diagnostics.documents.total}</span>
+            )}
+          </button>
+        </div>
+
         <div className="modal-body" id={descriptionId}>
-          <OverviewSection
-            apiPort={apiPort}
-            normalizedStatus={normalizedStatus}
-            primaryPortLabel={primaryPortLabel}
-            primaryPortValue={primaryPortValue}
-            runtime={runtime}
-            status={app.status}
-            healthStatus={app.health_status}
-            typeLabel={typeLabel}
-            uptime={uptime}
-          />
+          {activeTab === 'overview' && (
+            <>
+              <OverviewSection
+                apiPort={apiPort}
+                normalizedStatus={normalizedStatus}
+                primaryPortLabel={primaryPortLabel}
+                primaryPortValue={primaryPortValue}
+                runtime={runtime}
+                status={app.status}
+                typeLabel={typeLabel}
+                uptime={uptime}
+              />
 
-          {(otherPorts.length > 0 || proxyRoutes.length > 0) && (
-            <PortsRoutesSection otherPorts={otherPorts} proxyRoutes={proxyRoutes} />
+              {(otherPorts.length > 0 || proxyRoutes.length > 0) && (
+                <PortsRoutesSection otherPorts={otherPorts} proxyRoutes={proxyRoutes} />
+              )}
+
+              <DiagnosticsAlertSection
+                diagnostics={diagnostics}
+                diagnosticsLoading={diagnosticsLoading}
+                onOpenDiagnostics={() => setActiveTab('diagnostics')}
+              />
+
+              {app.description && <DescriptionSection description={app.description} />}
+
+              {app.tags && app.tags.length > 0 && <TagsSection tags={app.tags} />}
+            </>
           )}
 
-          {showLocalhostDiagnostics && (
-            <LocalhostDiagnosticsSection
-              findings={localhostFindings}
-              findingsCount={localhostFindingsCount}
-              warnings={localhostWarnings}
-            />
+          {activeTab === 'diagnostics' && (
+            <DiagnosticsTab diagnostics={diagnostics} loading={diagnosticsLoading} />
           )}
 
-          {app.description && <DescriptionSection description={app.description} />}
+          {activeTab === 'tech-stack' && (
+            <TechStackTab app={app} techStack={diagnostics?.tech_stack} loading={diagnosticsLoading} />
+          )}
 
-          {app.tags && app.tags.length > 0 && <TagsSection tags={app.tags} />}
+          {activeTab === 'docs' && (
+            <DocumentationTab appId={app.id} documents={diagnostics?.documents} loading={diagnosticsLoading} />
+          )}
         </div>
 
         <div className="modal-footer">
@@ -377,7 +441,6 @@ export default function AppModal({
 
 interface OverviewSectionProps {
   status: App['status'];
-  healthStatus: App['health_status'];
   normalizedStatus: string;
   primaryPortLabel: string;
   primaryPortValue: string;
@@ -389,7 +452,6 @@ interface OverviewSectionProps {
 
 function OverviewSection({
   status,
-  healthStatus,
   normalizedStatus,
   primaryPortLabel,
   primaryPortValue,
@@ -406,9 +468,6 @@ function OverviewSection({
           <span className="detail-card__label">Status</span>
           <span className={clsx('detail-card__value', 'detail-card__value--status', `status-${normalizedStatus}`)}>
             {status ? status.toUpperCase() : 'UNKNOWN'}
-            {healthStatus && healthStatus !== status && (
-              <span className="detail-card__subvalue">{healthStatus.toUpperCase()}</span>
-            )}
           </span>
         </div>
 
@@ -484,49 +543,74 @@ function PortsRoutesSection({ otherPorts, proxyRoutes }: PortsRoutesSectionProps
   );
 }
 
-interface LocalhostDiagnosticsSectionProps {
-  findings: LocalhostFinding[];
-  findingsCount: number;
-  warnings: LocalhostWarning[];
+interface DiagnosticsAlertSectionProps {
+  diagnostics: CompleteDiagnostics | null;
+  diagnosticsLoading: boolean;
+  onOpenDiagnostics: () => void;
 }
 
-function LocalhostDiagnosticsSection({ findings, findingsCount, warnings }: LocalhostDiagnosticsSectionProps) {
-  return (
-    <section className="detail-section">
-      <h3 className="detail-section__title">Localhost Diagnostics</h3>
-      <div className="detail-panel detail-panel--list">
-        {findingsCount > 0 && (
-          <div className="detail-panel__alert detail-panel__alert--warning">
-            <span className="detail-panel__alert-title">
-              {findingsCount} hard-coded localhost reference{findingsCount === 1 ? '' : 's'} detected
-            </span>
+function DiagnosticsAlertSection({ diagnostics, diagnosticsLoading, onOpenDiagnostics }: DiagnosticsAlertSectionProps) {
+  if (diagnosticsLoading) {
+    return (
+      <section className="detail-section">
+        <h3 className="detail-section__title">Diagnostics</h3>
+        <div className="detail-panel detail-panel--alert detail-panel__alert--loading">
+          <div className="detail-panel__alert-icon">
+            <Loader size={20} className="spinning" aria-hidden />
+          </div>
+          <div className="detail-panel__alert-content">
+            <span className="detail-panel__alert-title">Loading diagnostics...</span>
             <p className="detail-panel__alert-message">
-              Update requests to use the scenario proxy base so the preview remains accessible from other hosts.
+              Analyzing application health, configuration, and documentation.
             </p>
           </div>
-        )}
-        {findingsCount === 0 ? (
-          <p className="detail-panel__text">No hard-coded localhost references detected.</p>
-        ) : (
-          <ul className="detail-list">
-            {findings.slice(0, 6).map((finding) => (
-              <li key={`${finding.file_path}:${finding.line}`}>
-                <code>{finding.file_path}:{finding.line}</code>
-                {finding.pattern ? ` (${finding.pattern})` : ''}
-                <span className="detail-list__snippet">{finding.snippet}</span>
-              </li>
-            ))}
-            {findings.length > 6 && <li>…and {findings.length - 6} more occurrences</li>}
-          </ul>
-        )}
-        {warnings.length > 0 && (
-          <ul className="detail-list detail-list--warnings">
-            {warnings.map((warning, index) => (
-              <li key={`localhost-warning-${index}`}>{warning}</li>
-            ))}
-          </ul>
-        )}
-      </div>
+        </div>
+      </section>
+    );
+  }
+
+  const warningCount = diagnostics?.warnings?.length ?? 0;
+  const hasIssues = warningCount > 0;
+
+  return (
+    <section className="detail-section">
+      <h3 className="detail-section__title">Diagnostics</h3>
+      <button
+        type="button"
+        className={clsx('detail-panel detail-panel--alert detail-panel--clickable', {
+          'detail-panel__alert--success': !hasIssues,
+          'detail-panel__alert--warning': hasIssues,
+        })}
+        onClick={onOpenDiagnostics}
+        aria-label={hasIssues ? `View ${warningCount} diagnostic warnings` : 'View diagnostics details'}
+      >
+        <div className="detail-panel__alert-icon">
+          {hasIssues ? (
+            <AlertCircle size={20} aria-hidden />
+          ) : (
+            <CheckCircle size={20} aria-hidden />
+          )}
+        </div>
+        <div className="detail-panel__alert-content">
+          {hasIssues ? (
+            <>
+              <span className="detail-panel__alert-title">
+                {warningCount} diagnostic issue{warningCount === 1 ? '' : 's'} detected
+              </span>
+              <p className="detail-panel__alert-message">
+                Click to view details in the Diagnostics tab.
+              </p>
+            </>
+          ) : (
+            <>
+              <span className="detail-panel__alert-title">All diagnostics passed</span>
+              <p className="detail-panel__alert-message">
+                Click to view detailed health report.
+              </p>
+            </>
+          )}
+        </div>
+      </button>
     </section>
   );
 }

@@ -23,12 +23,13 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: #e2e8f0;
-            overflow: hidden;
-            height: 100vh;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
         
         #root {
-            height: 100vh;
+            min-height: 100vh;
             width: 100vw;
         }
         
@@ -124,7 +125,11 @@
         </div>
     </div>
     
-    <script>
+    <script type="module">
+        const apiHost = import.meta.env.VITE_API_HOST || window.location.hostname;
+        const apiPort = import.meta.env.VITE_API_PORT || '';
+        const apiHealthUrl = apiPort ? `http://${apiHost}:${apiPort}/health` : `http://${apiHost}/health`;
+
         // Remove loading screen once React app loads
         window.addEventListener('load', () => {
             setTimeout(() => {
@@ -141,8 +146,16 @@
         // Health check endpoint for service monitoring
         window.__TECH_TREE_HEALTH__ = {
             status: 'initializing',
-            timestamp: Date.now(),
-            service: 'tech-tree-designer-ui'
+            service: 'tech-tree-designer-ui',
+            timestamp: new Date().toISOString(),
+            readiness: false,
+            api_connectivity: {
+                connected: false,
+                api_url: apiHealthUrl,
+                last_check: new Date().toISOString(),
+                error: null,
+                latency_ms: null
+            }
         };
         
         // Expose health endpoint

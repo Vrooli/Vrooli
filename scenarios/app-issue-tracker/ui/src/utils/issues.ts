@@ -93,7 +93,6 @@ export function buildAttachmentUrl(baseUrl: string, issueId: string, attachmentP
 
     return resolved.toString();
   } catch (error) {
-    console.warn('[IssueTracker] Failed to normalize attachment URL', error);
     if (window.location.origin) {
       const origin = window.location.origin.replace(/\/$/, '');
       const normalizedRelative = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;

@@ -92,6 +92,7 @@ interface ReplayPlayerProps {
   autoPlay?: boolean;
   loop?: boolean;
   onFrameChange?: (frame: ReplayFrame, index: number) => void;
+  executionStatus?: 'pending' | 'running' | 'completed' | 'failed';
 }
 
 const DEFAULT_DURATION = 1600;
@@ -186,7 +187,7 @@ const pickZoomAnchor = (frame: ReplayFrame): ReplayBoundingBox | undefined => {
   return undefined;
 };
 
-export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChange }: ReplayPlayerProps) {
+export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChange, executionStatus }: ReplayPlayerProps) {
   const normalizedFrames = useMemo(() => {
     return frames
       .filter((frame): frame is ReplayFrame => Boolean(frame))
@@ -759,6 +760,17 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
                 </div>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {executionStatus === 'failed' && frames.length > 0 && (
+        <div className="mt-6 mx-4 p-6 rounded-lg border border-dashed border-gray-600 bg-gray-900/30 text-center">
+          <div className="text-sm text-gray-400 mb-2">
+            Workflow execution stopped at step {frames.length}
+          </div>
+          <div className="text-xs text-gray-500">
+            Subsequent steps were not executed due to failure
           </div>
         </div>
       )}

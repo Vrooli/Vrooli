@@ -136,13 +136,11 @@ export function IssueCard({
 
   const handleDeleteClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    console.info('[IssueTracker] IssueCard delete tap', issue.id);
     onDelete?.(issue);
   };
 
   const handleArchiveClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    console.info('[IssueTracker] IssueCard archive tap', issue.id);
     onArchive?.(issue);
   };
 

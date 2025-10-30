@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { logger } from '../utils/logger';
-import { Plus, FolderOpen, Play, Clock, Calendar, PlayCircle, Loader, WifiOff } from 'lucide-react';
+import { Plus, FolderOpen, Play, Clock, Calendar, PlayCircle, Loader, WifiOff, Search, X } from 'lucide-react';
 import { useProjectStore, Project } from '../stores/projectStore';
 import { openCalendar } from '../utils/vrooli';
 
@@ -111,7 +111,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
             </div>
             <button
               onClick={onCreateProject}
-              className="inline-flex w-full justify-center items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors sm:w-auto"
+              className="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
               <Plus size={16} />
               New Project
@@ -120,13 +120,24 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
 
           {/* Search */}
           <div className="relative mt-4 sm:mt-6">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
               placeholder="Search projects..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+              className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                aria-label="Clear project search"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -143,7 +154,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
         ) : filteredProjects.length === 0 && searchTerm === '' ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="text-gray-600 mb-4">
+              <div className="mb-4 flex items-center justify-center text-gray-600">
                 {error ? <WifiOff size={48} /> : <FolderOpen size={48} />}
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">
@@ -169,7 +180,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
         ) : filteredProjects.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="text-gray-600 mb-4">
+              <div className="mb-4 flex items-center justify-center text-gray-600">
                 <FolderOpen size={48} />
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">No Projects Found</h3>
@@ -277,6 +288,16 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
           </div>
         )}
       </div>
+
+      {/* Floating Action Button - Mobile */}
+      <button
+        type="button"
+        onClick={onCreateProject}
+        className="md:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-flow-accent text-white rounded-full shadow-lg hover:bg-blue-600 transition-all hover:shadow-xl flex items-center justify-center"
+        aria-label="Create new project"
+      >
+        <Plus size={24} />
+      </button>
     </div>
   );
 }

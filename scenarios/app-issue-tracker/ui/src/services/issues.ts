@@ -61,7 +61,6 @@ export async function fetchIssueStatuses(baseUrl: string): Promise<IssueStatusMe
       },
     });
   } catch (error) {
-    console.error('[IssueTracker] Failed to fetch issue statuses:', error);
     return [];
   }
 }
@@ -101,7 +100,6 @@ export async function fetchRunningProcesses(baseUrl: string): Promise<RunningPro
       },
     });
   } catch (error) {
-    console.error('[IssueTracker] Failed to fetch running processes:', error);
     return [];
   }
 }

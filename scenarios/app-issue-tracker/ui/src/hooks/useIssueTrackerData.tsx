@@ -216,7 +216,6 @@ export function IssueTrackerDataProvider({
       const rawIssues = await listIssues(apiBaseUrl, issueFetchLimit);
       mappedIssues = rawIssues.map((issue) => transformIssue(issue, { apiBaseUrl }));
     } catch (error) {
-      console.error('Failed to load issues', error);
       if (isMountedRef.current) {
         setLoadError('Failed to load issues from the API.');
         setLoading(false);
@@ -386,7 +385,6 @@ export function IssueTrackerDataProvider({
           await stopRunningProcess(apiBaseUrl, issueId);
           removeProcess(issueId);
         } catch (error) {
-          console.error('Failed to stop running agent', error);
           showSnackbar('Failed to stop agent. Please try again.', 'error');
         }
       },

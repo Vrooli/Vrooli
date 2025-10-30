@@ -36,6 +36,7 @@ import { toTitleCase } from '../utils/string';
 import { getFallbackStatuses } from '../utils/issues';
 import { updateIssue } from '../services/issues';
 import { Modal } from './Modal';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 
 interface AgentConversationEntryPayload {
   kind: string;
@@ -92,6 +93,7 @@ export function IssueDetailsModal({
   followUpLoadingId,
   validStatuses = getFallbackStatuses(),
 }: IssueDetailsModalProps) {
+  const { confirm } = useConfirmDialog();
   const statusLabel = toTitleCase(issue.status.replace(/-/g, ' '));
   const assigneeLabel = issue.assignee || 'Unassigned';
   const description = issue.description?.trim();
@@ -192,7 +194,6 @@ export function IssueDetailsModal({
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
-      console.error('[IssueTracker] Failed to fetch agent conversation', error);
       setConversationError(error instanceof Error ? error.message : 'Failed to load transcript');
     } finally {
       if (fetchAbortRef.current === controller) {
@@ -296,7 +297,7 @@ export function IssueDetailsModal({
         await onStatusChange(issue.id, 'failed');
       }
     } catch (error) {
-      console.error('[IssueTracker] Failed to mark issue as failed:', error);
+      // Failed to update status - will be retried on next attempt
     } finally {
       setMarkingAsFailed(false);
     }
@@ -383,14 +384,9 @@ export function IssueDetailsModal({
     if (!onArchive || issue.status === 'archived' || archivePending) {
       return;
     }
-    console.info('[IssueTracker] Modal archive tap', issue.id);
-    let shouldArchive = true;
-    const bypassConfirm = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-    if (!bypassConfirm && typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      shouldArchive = window.confirm(
-        `Archive ${issue.id}? The issue will move to the Archived column.`,
-      );
-    }
+    const shouldArchive = confirm(
+      `Archive ${issue.id}? The issue will move to the Archived column.`,
+    );
     if (!shouldArchive) {
       return;
     }
@@ -407,15 +403,9 @@ export function IssueDetailsModal({
     if (!onDelete || deletePending) {
       return;
     }
-
-    console.info('[IssueTracker] Modal delete tap', issue.id);
-    let shouldDelete = true;
-    const bypassConfirm = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-    if (!bypassConfirm && typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      shouldDelete = window.confirm(
-        `Delete ${issue.id}${issue.title ? ` — ${issue.title}` : ''}? This cannot be undone.`,
-      );
-    }
+    const shouldDelete = confirm(
+      `Delete ${issue.id}${issue.title ? ` — ${issue.title}` : ''}? This cannot be undone.`,
+    );
     if (!shouldDelete) {
       return;
     }

@@ -422,7 +422,7 @@ function ExecutionViewer({ execution }: ExecutionProps) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-flow-node">
+    <div className="h-full flex flex-col bg-flow-node min-h-0">
       <div className="flex items-center justify-between p-3 border-b border-gray-800">
         <div className="flex items-center gap-3">
           {getStatusIcon()}
@@ -482,7 +482,10 @@ function ExecutionViewer({ execution }: ExecutionProps) {
           disabled={!hasTimeline}
         >
           <PlayCircle size={14} />
-          Replay ({replayFrames.length})
+          Replay ({replayFrames.length}
+          {execution.status === 'failed' && execution.progress < 100 && (
+            <span className="ml-1 text-rose-300 text-xs">incomplete</span>
+          )})
         </button>
         <button
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
@@ -508,11 +511,30 @@ function ExecutionViewer({ execution }: ExecutionProps) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         {activeTab === 'replay' ? (
           hasTimeline ? (
-            <div className="flex-1 overflow-auto p-3">
-              <ReplayPlayer frames={replayFrames} />
+            <div className="flex-1 overflow-auto p-3 space-y-3">
+              {execution.status === 'failed' && execution.progress < 100 && (
+                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 flex items-start gap-3">
+                  <AlertTriangle size={18} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 text-sm">
+                    <div className="font-medium text-rose-200 mb-1">
+                      Execution Failed - Replay Incomplete
+                    </div>
+                    <div className="text-rose-100/80">
+                      This replay shows only {replayFrames.length} of the workflow's steps.
+                      Execution failed at: {execution.currentStep || 'unknown step'}
+                    </div>
+                    {execution.error && (
+                      <div className="mt-2 text-xs font-mono text-rose-100/70 bg-rose-950/30 px-2 py-1 rounded">
+                        {execution.error}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <ReplayPlayer frames={replayFrames} executionStatus={execution.status} />
             </div>
           ) : (
             <div className="flex flex-1 items-center justify-center p-6 text-sm text-gray-400">
@@ -520,47 +542,66 @@ function ExecutionViewer({ execution }: ExecutionProps) {
             </div>
           )
         ) : activeTab === 'screenshots' ? (
-          <>
-            {selectedScreenshot && (
-              <div className="flex-1 p-3 overflow-auto">
-                <div className="screenshot-viewer">
-                  <div className="bg-gray-800 px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs text-gray-400">{selectedScreenshot.stepName}</span>
-                    <span className="text-xs text-gray-500">
-                      {format(selectedScreenshot.timestamp, 'HH:mm:ss.SSS')}
-                    </span>
+          screenshots.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center p-6 text-center">
+              <div>
+                <Image size={32} className="mx-auto mb-3 text-gray-600" />
+                <div className="text-sm text-gray-400 mb-1">No screenshots captured</div>
+                {execution.status === 'failed' && (
+                  <div className="text-xs text-gray-500">
+                    Execution failed before screenshot steps could run
                   </div>
-                  <img
-                    src={selectedScreenshot.url}
-                    alt={selectedScreenshot.stepName}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="border-t border-gray-800 p-2 overflow-x-auto">
-              <div className="flex gap-2">
-                {screenshots.map((screenshot) => (
-                  <div
-                    key={screenshot.id}
-                    onClick={() => setSelectedScreenshot(screenshot)}
-                    className={`flex-shrink-0 w-20 h-20 rounded overflow-hidden cursor-pointer border-2 transition-all ${
-                      selectedScreenshot?.id === screenshot.id
-                        ? 'border-flow-accent'
-                        : 'border-gray-700 hover:border-gray-600'
-                    }`}
-                  >
-                    <img
-                      src={screenshot.url}
-                      alt={screenshot.stepName}
-                      className="w-full h-full object-cover"
-                    />
+                )}
+                {execution.status === 'completed' && (
+                  <div className="text-xs text-gray-500">
+                    This workflow does not include screenshot steps
                   </div>
-                ))}
+                )}
               </div>
             </div>
-          </>
+          ) : (
+            <>
+              {selectedScreenshot && (
+                <div className="flex-1 p-3 overflow-auto">
+                  <div className="screenshot-viewer">
+                    <div className="bg-gray-800 px-3 py-2 flex items-center justify-between">
+                      <span className="text-xs text-gray-400">{selectedScreenshot.stepName}</span>
+                      <span className="text-xs text-gray-500">
+                        {format(selectedScreenshot.timestamp, 'HH:mm:ss.SSS')}
+                      </span>
+                    </div>
+                    <img
+                      src={selectedScreenshot.url}
+                      alt={selectedScreenshot.stepName}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t border-gray-800 p-2 overflow-x-auto">
+                <div className="flex gap-2">
+                  {screenshots.map((screenshot) => (
+                    <div
+                      key={screenshot.id}
+                      onClick={() => setSelectedScreenshot(screenshot)}
+                      className={`flex-shrink-0 w-20 h-20 rounded overflow-hidden cursor-pointer border-2 transition-all ${
+                        selectedScreenshot?.id === screenshot.id
+                          ? 'border-flow-accent'
+                          : 'border-gray-700 hover:border-gray-600'
+                      }`}
+                    >
+                      <img
+                        src={screenshot.url}
+                        alt={screenshot.stepName}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )
         ) : (
           <div className="flex-1 overflow-auto p-3">
             <div className="terminal-output">

@@ -38,15 +38,6 @@
       "@/*": [
         "src/*"
       ],
-      "@vrooli/api-base": [
-        "../../../packages/api-base/dist/index.js"
-      ],
-      "@vrooli/iframe-bridge": [
-        "../../../packages/iframe-bridge/dist/index.js"
-      ],
-      "@vrooli/iframe-bridge/*": [
-        "../../../packages/iframe-bridge/dist/*"
-      ]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
