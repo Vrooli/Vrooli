@@ -183,7 +183,7 @@ func (m *MinIOClient) DeleteScreenshot(ctx context.Context, objectName string) e
 // ListExecutionScreenshots lists all screenshots for an execution
 func (m *MinIOClient) ListExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]string, error) {
 	prefix := fmt.Sprintf("screenshots/%s/", executionID)
-	
+
 	objectCh := m.client.ListObjects(ctx, m.bucketName, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,

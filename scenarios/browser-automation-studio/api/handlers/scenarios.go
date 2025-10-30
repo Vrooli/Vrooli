@@ -2,16 +2,15 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/constants"
 )
 
 // ScenarioPortInfo represents port information for a scenario
@@ -25,22 +24,21 @@ type ScenarioPortInfo struct {
 func (h *Handler) GetScenarioPort(w http.ResponseWriter, r *http.Request) {
 	scenarioName := chi.URLParam(r, "name")
 	if scenarioName == "" {
-		http.Error(w, "Scenario name is required", http.StatusBadRequest)
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "name"}))
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
 	portInfo, err := h.getScenarioPortInfo(ctx, scenarioName)
 	if err != nil {
 		h.log.WithError(err).WithField("scenario", scenarioName).Error("Failed to get scenario port")
-		http.Error(w, "Failed to get scenario port information", http.StatusInternalServerError)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "get_scenario_port", "scenario": scenarioName}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(portInfo)
+	h.respondSuccess(w, http.StatusOK, portInfo)
 }
 
 func (h *Handler) getScenarioPortInfo(ctx context.Context, scenarioName string) (*ScenarioPortInfo, error) {

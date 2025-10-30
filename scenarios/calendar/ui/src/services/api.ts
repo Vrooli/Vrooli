@@ -9,6 +9,14 @@ import type {
   User
 } from '@/types'
 import { resolveApiBase } from '@vrooli/api-base'
+import {
+  clearStoredAuth,
+  dispatchAuthRequiredEvent,
+  extractUserIdentifiers,
+  getStoredAuthToken,
+  getStoredAuthUser,
+  resolveAuthenticatorLoginUrl
+} from '@/utils/auth'
 
 const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '18000'
 
@@ -31,9 +39,21 @@ class CalendarAPI {
 
     // Add auth token to requests
     this.client.interceptors.request.use((config) => {
-      const token = localStorage.getItem('auth_token')
+      const token = getStoredAuthToken()
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
+      }
+
+      const storedUser = getStoredAuthUser()
+      if (storedUser) {
+        const { userId, email } = extractUserIdentifiers(storedUser)
+        if (userId) {
+          config.headers['X-User-ID'] = userId
+          config.headers['X-Auth-User-ID'] = userId
+        }
+        if (email) {
+          config.headers['X-User-Email'] = email
+        }
       }
       return config
     })
@@ -43,8 +63,9 @@ class CalendarAPI {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          localStorage.removeItem('auth_token')
-          window.location.href = '/login'
+          clearStoredAuth()
+          const loginUrl = resolveAuthenticatorLoginUrl()
+          dispatchAuthRequiredEvent(loginUrl)
         }
         return Promise.reject(error)
       }

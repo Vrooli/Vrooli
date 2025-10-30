@@ -11,10 +11,11 @@ import (
 
 // Instruction represents a normalized execution step that can be shipped to Browserless.
 type Instruction struct {
-	Index  int              `json:"index"`
-	NodeID string           `json:"nodeId"`
-	Type   string           `json:"type"`
-	Params InstructionParam `json:"params"`
+	Index       int              `json:"index"`
+	NodeID      string           `json:"nodeId"`
+	Type        string           `json:"type"`
+	Params      InstructionParam `json:"params"`
+	PreloadHTML string           `json:"preloadHtml,omitempty"`
 }
 
 // InstructionParam captures the parameter payload for a Browserless instruction.
@@ -536,7 +537,7 @@ func getBoolParam(params map[string]any, keys ...string) (bool, bool) {
 	return false, false
 }
 
-func decodeParams(src map[string]any, target interface{}) error {
+func decodeParams(src map[string]any, target any) error {
 	raw, err := json.Marshal(src)
 	if err != nil {
 		return err

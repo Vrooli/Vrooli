@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/vrooli/browser-automation-studio/constants"
 )
 
 // ServeScreenshot handles GET /api/v1/screenshots/*
@@ -17,7 +17,7 @@ func (h *Handler) ServeScreenshot(w http.ResponseWriter, r *http.Request) {
 	// Extract object name from URL path
 	objectName := chi.URLParam(r, "*")
 	if objectName == "" {
-		http.Error(w, "Screenshot path required", http.StatusBadRequest)
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "screenshot_path"}))
 		return
 	}
 
@@ -25,18 +25,18 @@ func (h *Handler) ServeScreenshot(w http.ResponseWriter, r *http.Request) {
 	objectName = strings.TrimPrefix(objectName, "/")
 
 	if h.storage == nil {
-		http.Error(w, "Screenshot storage not available", http.StatusServiceUnavailable)
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Screenshot storage not available"))
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
 	// Get screenshot from MinIO
 	object, info, err := h.storage.GetScreenshot(ctx, objectName)
 	if err != nil {
 		h.log.WithError(err).WithField("object_name", objectName).Error("Failed to get screenshot")
-		http.Error(w, "Screenshot not found", http.StatusNotFound)
+		h.respondError(w, ErrScreenshotNotFound.WithDetails(map[string]string{"screenshot": objectName}))
 		return
 	}
 	defer object.Close()

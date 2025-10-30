@@ -27,15 +27,15 @@ const (
 )
 
 var supportedStepTypes = map[StepType]struct{}{
-	StepNavigate:   {},
-	StepClick:      {},
-	StepTypeInput:  {},
-	StepWait:       {},
-	StepScreenshot: {},
-	StepExtract:    {},
-	StepAssert:     {},
+	StepNavigate:     {},
+	StepClick:        {},
+	StepTypeInput:    {},
+	StepWait:         {},
+	StepScreenshot:   {},
+	StepExtract:      {},
+	StepAssert:       {},
 	StepWorkflowCall: {},
-	StepCustom:     {},
+	StepCustom:       {},
 }
 
 // ExecutionPlan represents a validated sequence of steps derived from a workflow definition.

@@ -18,7 +18,7 @@ func TestDatabaseModels(t *testing.T) {
 	t.Run("JSONMapValue", func(t *testing.T) {
 		m := database.JSONMap{
 			"key": "value",
-			"nested": map[string]interface{}{
+			"nested": map[string]any{
 				"inner": "data",
 			},
 		}
@@ -72,8 +72,8 @@ func TestDatabaseModels(t *testing.T) {
 			Name:       "Test Workflow",
 			FolderPath: "/test",
 			FlowDefinition: database.JSONMap{
-				"nodes": []interface{}{},
-				"edges": []interface{}{},
+				"nodes": []any{},
+				"edges": []any{},
 			},
 			Tags:    []string{"test", "automation"},
 			Version: 1,
@@ -140,7 +140,7 @@ func TestJSONSerialization(t *testing.T) {
 			FolderPath: "/test",
 			FlowDefinition: database.JSONMap{
 				"version": "1.0",
-				"nodes":   []interface{}{},
+				"nodes":   []any{},
 			},
 			Tags:    []string{"test"},
 			Version: 1,

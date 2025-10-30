@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -305,6 +307,8 @@ func connectDatabase(cfg *config.Config) (*sql.DB, error) {
 
 	// Test connection with retries
 	maxRetries := 10
+	randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		err = db.Ping()
 		if err == nil {
@@ -312,7 +316,11 @@ func connectDatabase(cfg *config.Config) (*sql.DB, error) {
 			return db, nil
 		}
 
-		waitTime := time.Duration(attempt+1) * time.Second
+		delay := time.Duration(math.Min(float64(500*time.Millisecond)*math.Pow(2, float64(attempt)), float64(30*time.Second)))
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(randSource.Float64() * jitterRange)
+		waitTime := delay + jitter
+
 		log.Printf("⚠️  Database connection attempt %d/%d failed: %v", attempt+1, maxRetries, err)
 		log.Printf("⏳ Waiting %v before next attempt", waitTime)
 		time.Sleep(waitTime)

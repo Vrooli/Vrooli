@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -96,7 +97,7 @@ func setupTestDatabase(t *testing.T) (*database.DB, func()) {
 type HTTPTestRequest struct {
 	Method      string
 	Path        string
-	Body        interface{}
+	Body        any
 	URLVars     map[string]string
 	QueryParams map[string]string
 	Headers     map[string]string
@@ -140,7 +141,7 @@ func makeHTTPRequest(req HTTPTestRequest) (*httptest.ResponseRecorder, error) {
 }
 
 // assertJSONResponse validates a JSON response
-func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, target interface{}) {
+func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, target any) {
 	t.Helper()
 
 	if w.Code != expectedStatus {
@@ -167,7 +168,7 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 		t.Errorf("Expected status %d, got %d. Body: %s", expectedStatus, w.Code, w.Body.String())
 	}
 
-	var errorResp map[string]interface{}
+	var errorResp map[string]any
 	if err := json.NewDecoder(w.Body).Decode(&errorResp); err != nil {
 		t.Errorf("Failed to decode error response: %v. Body: %s", err, w.Body.String())
 		return
@@ -223,8 +224,8 @@ func createTestWorkflow(t *testing.T, repo database.Repository, projectID *uuid.
 		Name:       name,
 		FolderPath: "/test",
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{},
-			"edges": []interface{}{},
+			"nodes": []any{},
+			"edges": []any{},
 		},
 		Tags:      []string{},
 		Version:   1,

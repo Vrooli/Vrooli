@@ -2,13 +2,12 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -17,22 +16,21 @@ func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request
 	idStr := chi.URLParam(r, "id")
 	executionID, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid execution ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidExecutionID)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	screenshots, err := h.workflowService.GetExecutionScreenshots(ctx, executionID)
 	if err != nil {
 		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get screenshots")
-		http.Error(w, "Failed to get screenshots", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_screenshots", "execution_id": executionID.String()}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"screenshots": screenshots,
 	})
 }
@@ -42,22 +40,21 @@ func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	executionID, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid execution ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidExecutionID)
 		return
 	}
 
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+	defer cancel()
+
 	timeline, err := h.workflowService.GetExecutionTimeline(ctx, executionID)
 	if err != nil {
 		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get execution timeline")
-		http.Error(w, "Failed to get execution timeline", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_timeline", "execution_id": executionID.String()}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(timeline); err != nil {
-		h.log.WithError(err).Error("Failed to encode execution timeline response")
-	}
+	h.respondSuccess(w, http.StatusOK, timeline)
 }
 
 // PostExecutionExport handles POST /api/v1/executions/{id}/export
@@ -65,26 +62,25 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	executionID, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid execution ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidExecutionID)
 		return
 	}
 
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+	defer cancel()
+
 	preview, svcErr := h.workflowService.DescribeExecutionExport(ctx, executionID)
 	if svcErr != nil {
 		if errors.Is(svcErr, database.ErrNotFound) {
-			http.Error(w, "Execution not found", http.StatusNotFound)
+			h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
 			return
 		}
 		h.log.WithError(svcErr).WithField("execution_id", executionID).Error("Failed to describe execution export")
-		http.Error(w, "Failed to describe execution export", http.StatusInternalServerError)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "describe_export"}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(preview); err != nil {
-		h.log.WithError(err).Error("Failed to encode execution export response")
-	}
+	h.respondSuccess(w, http.StatusOK, preview)
 }
 
 // GetExecution handles GET /api/v1/executions/{id}
@@ -92,22 +88,21 @@ func (h *Handler) GetExecution(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid execution ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidExecutionID)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	execution, err := h.workflowService.GetExecution(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get execution")
-		http.Error(w, "Execution not found", http.StatusNotFound)
+		h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": id.String()}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(execution)
+	h.respondSuccess(w, http.StatusOK, execution)
 }
 
 // ListExecutions handles GET /api/v1/executions
@@ -121,18 +116,17 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	executions, err := h.workflowService.ListExecutions(ctx, workflowID, 100, 0)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list executions")
-		http.Error(w, "Failed to list executions", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_executions"}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"executions": executions,
 	})
 }
@@ -142,21 +136,20 @@ func (h *Handler) StopExecution(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid execution ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidExecutionID)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	if err := h.workflowService.StopExecution(ctx, id); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to stop execution")
-		http.Error(w, "Failed to stop execution", http.StatusInternalServerError)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "stop_execution", "execution_id": id.String()}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"status": "stopped",
 	})
 }

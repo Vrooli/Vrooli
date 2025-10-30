@@ -1,10 +1,12 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -121,15 +123,19 @@ func normalizeIdentifier(value string) string {
 	return strings.ToLower(trimmed)
 }
 
-func stringValue(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
+// normalizeLower trims whitespace and converts to lowercase in a single operation.
+// Use this for consistent string normalization patterns instead of nested trim+lower calls.
+func normalizeLower(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+// isEmptyOrWhitespace returns true if the string is empty or contains only whitespace.
+// This provides a cleaner alternative to `strings.TrimSpace(s) == ""` checks.
+func isEmptyOrWhitespace(s string) bool {
+	return strings.TrimSpace(s) == ""
 }
 
 // trimmedStringPtr is a convenience helper that dereferences a string pointer and trims whitespace.
-// This reduces the common pattern of strings.TrimSpace(stringValue(...)) to a single call.
 func trimmedStringPtr(value *string) string {
 	if value == nil {
 		return ""
@@ -340,6 +346,73 @@ func plural(count int) string {
 // Port Resolution Utilities
 // =============================================================================
 
+// parsePortFromAny is the canonical port parser that handles all value types.
+// It returns an error if the value cannot be parsed as a valid port number.
+func parsePortFromAny(value interface{}) (int, error) {
+	if value == nil {
+		return 0, errors.New("nil port value")
+	}
+
+	switch v := value.(type) {
+	case int:
+		if v > 0 && v <= 65535 {
+			return v, nil
+		}
+		return 0, fmt.Errorf("port %d out of valid range (1-65535)", v)
+	case int32:
+		if v > 0 && v <= 65535 {
+			return int(v), nil
+		}
+		return 0, fmt.Errorf("port %d out of valid range (1-65535)", v)
+	case int64:
+		if v > 0 && v <= 65535 {
+			return int(v), nil
+		}
+		return 0, fmt.Errorf("port %d out of valid range (1-65535)", v)
+	case float64:
+		port := int(v)
+		if port > 0 && port <= 65535 && float64(port) == v {
+			return port, nil
+		}
+		return 0, fmt.Errorf("port %v not a valid integer in range (1-65535)", v)
+	case float32:
+		port := int(v)
+		if port > 0 && port <= 65535 && float32(port) == v {
+			return port, nil
+		}
+		return 0, fmt.Errorf("port %v not a valid integer in range (1-65535)", v)
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			if i > 0 && i <= 65535 {
+				return int(i), nil
+			}
+			return 0, fmt.Errorf("port %d out of valid range (1-65535)", i)
+		}
+		if f, err := v.Float64(); err == nil {
+			port := int(f)
+			if port > 0 && port <= 65535 && float64(port) == f {
+				return port, nil
+			}
+		}
+		return 0, fmt.Errorf("port value %q cannot be parsed as integer", v.String())
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0, errors.New("empty port string")
+		}
+		port, err := strconv.Atoi(trimmed)
+		if err != nil {
+			return 0, fmt.Errorf("port string %q is not a valid number: %w", trimmed, err)
+		}
+		if port <= 0 || port > 65535 {
+			return 0, fmt.Errorf("port %d out of valid range (1-65535)", port)
+		}
+		return port, nil
+	default:
+		return 0, fmt.Errorf("unsupported port value type: %T", value)
+	}
+}
+
 func convertPortsToMap(entries []scenarioPort) map[string]interface{} {
 	if len(entries) == 0 {
 		return nil
@@ -363,35 +436,21 @@ func convertPortsToMap(entries []scenarioPort) map[string]interface{} {
 }
 
 func normalizePortValue(value interface{}) interface{} {
+	// Try to parse as a valid port number
+	if port, err := parsePortFromAny(value); err == nil {
+		return port
+	}
+
+	// If parsing fails, preserve the original value for better error reporting
 	switch v := value.(type) {
-	case float64:
-		return int(v)
-	case float32:
-		return int(v)
-	case int:
-		return v
-	case int32:
-		return int(v)
-	case int64:
-		return int(v)
 	case json.Number:
-		if i, err := v.Int64(); err == nil {
-			return int(i)
-		}
-		if f, err := v.Float64(); err == nil {
-			return int(f)
-		}
+		// For json.Number, convert to string if we can't parse it
 		return v.String()
 	case string:
-		trimmed := strings.TrimSpace(v)
-		if trimmed == "" {
-			return trimmed
-		}
-		if i, err := strconv.Atoi(trimmed); err == nil {
-			return i
-		}
-		return trimmed
+		// For strings, trim whitespace even if invalid
+		return strings.TrimSpace(v)
 	default:
+		// For other types, return as-is
 		return v
 	}
 }
@@ -443,24 +502,6 @@ func applyPortConfig(app *repository.App, ports map[string]interface{}) {
 	}
 }
 
-func parsePortValueFromString(value string) (int, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return 0, errors.New("empty port value")
-	}
-
-	port, err := strconv.Atoi(trimmed)
-	if err != nil {
-		return 0, fmt.Errorf("invalid port value %q", value)
-	}
-
-	if port <= 0 || port > 65535 {
-		return 0, fmt.Errorf("port value out of range: %d", port)
-	}
-
-	return port, nil
-}
-
 func resolvePort(portMappings map[string]interface{}, preferredKeys []string) int {
 	if len(portMappings) == 0 {
 		return 0
@@ -469,7 +510,7 @@ func resolvePort(portMappings map[string]interface{}, preferredKeys []string) in
 	for _, key := range preferredKeys {
 		for label, value := range portMappings {
 			if strings.EqualFold(label, key) {
-				if port, ok := parsePortValue(value); ok {
+				if port, err := parsePortFromAny(value); err == nil {
 					return port
 				}
 			}
@@ -477,54 +518,12 @@ func resolvePort(portMappings map[string]interface{}, preferredKeys []string) in
 	}
 
 	for _, value := range portMappings {
-		if port, ok := parsePortValue(value); ok {
+		if port, err := parsePortFromAny(value); err == nil {
 			return port
 		}
 	}
 
 	return 0
-}
-
-func parsePortValue(value interface{}) (int, bool) {
-	switch v := value.(type) {
-	case int:
-		if v > 0 {
-			return v, true
-		}
-	case int32:
-		if v > 0 {
-			return int(v), true
-		}
-	case int64:
-		if v > 0 {
-			return int(v), true
-		}
-	case float64:
-		port := int(v)
-		if port > 0 {
-			return port, true
-		}
-	case json.Number:
-		if i, err := v.Int64(); err == nil && i > 0 {
-			return int(i), true
-		}
-		if f, err := v.Float64(); err == nil {
-			port := int(f)
-			if port > 0 {
-				return port, true
-			}
-		}
-	case string:
-		trimmed := strings.TrimSpace(v)
-		if trimmed == "" {
-			return 0, false
-		}
-		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
-			return parsed, true
-		}
-	}
-
-	return 0, false
 }
 
 func resolveAppPort(app *repository.App, preferredKeys []string) int {
@@ -544,7 +543,7 @@ func resolveAppPort(app *repository.App, preferredKeys []string) int {
 
 	for _, key := range preferredKeys {
 		if value, ok := app.Config[key]; ok {
-			if port, parsed := parsePortValue(value); parsed {
+			if port, err := parsePortFromAny(value); err == nil {
 				return port
 			}
 		}
@@ -608,4 +607,43 @@ func anyStringFromMap(data map[string]interface{}, keys ...string) string {
 		return trimmedString(value)
 	}
 	return ""
+}
+
+// =============================================================================
+// URL Building Utilities
+// =============================================================================
+
+// buildLocalAPIURL constructs a localhost HTTP URL for internal service communication.
+// This centralizes URL construction for easier testing and future scheme changes.
+func buildLocalAPIURL(port int, path string) string {
+	if port <= 0 {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return fmt.Sprintf("http://localhost:%d%s", port, path)
+}
+
+// =============================================================================
+// CLI Command Execution Utilities
+// =============================================================================
+
+// executeVrooliCommand wraps vrooli CLI execution with consistent timeouts and error handling.
+// This provides a single point for all vrooli command invocations, making it easier to:
+// - Add logging/metrics for CLI calls
+// - Mock commands in tests
+// - Ensure consistent error messages
+// - Change timeout strategies globally
+func executeVrooliCommand(ctx context.Context, timeout time.Duration, args ...string) ([]byte, error) {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("vrooli %s failed: %w (output: %s)",
+			strings.Join(args, " "), err, strings.TrimSpace(string(output)))
+	}
+	return output, nil
 }

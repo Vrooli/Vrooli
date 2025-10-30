@@ -552,13 +552,13 @@ func TestSanitizeIssueCaptures(t *testing.T) {
 
 func TestDeriveIssueTitle(t *testing.T) {
 	testCases := []struct {
-		name                   string
-		primaryDescription     string
-		message                string
-		captures               []IssueCapture
-		includeDiagnostics     bool
-		includeScreenshot      bool
-		expectedSubstring      string
+		name               string
+		primaryDescription string
+		message            string
+		captures           []IssueCapture
+		includeDiagnostics bool
+		includeScreenshot  bool
+		expectedSubstring  string
 	}{
 		{
 			name:               "primary description only",

@@ -661,6 +661,8 @@ func main() {
 
 			log.Println("🔄 Attempting database connection with exponential backoff...")
 
+			randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 			var pingErr error
 			for attempt := 0; attempt < maxRetries; attempt++ {
 				pingErr = db.Ping()
@@ -675,9 +677,9 @@ func main() {
 					float64(maxDelay),
 				))
 
-				// Add progressive jitter to prevent thundering herd
+				// Add random jitter to prevent thundering herd
 				jitterRange := float64(delay) * 0.25
-				jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+				jitter := time.Duration(randSource.Float64() * jitterRange)
 				actualDelay := delay + jitter
 
 				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)

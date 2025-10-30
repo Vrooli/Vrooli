@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"app-monitor-api/logger"
+
 	"github.com/docker/docker/client"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/lib/pq"
@@ -159,18 +161,18 @@ func (c *Config) testDatabaseConnection(db *sql.DB) error {
 		cancel()
 
 		if err == nil {
-			fmt.Printf("✅ Database connected successfully on attempt %d\n", attempt+1)
+			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt+1))
 			return nil
 		}
 
 		lastErr = err
-		fmt.Printf("⚠️  Database connection attempt %d/%d failed: %v\n", attempt+1, c.Database.MaxRetries, err)
+		logger.Warn(fmt.Sprintf("Database connection attempt %d/%d failed", attempt+1, c.Database.MaxRetries), err)
 
 		if attempt < c.Database.MaxRetries-1 {
 			exponentialDelay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxBackoff)))
 			jitter := time.Duration(rand.Float64() * float64(exponentialDelay) * 0.25)
 			wait := exponentialDelay + jitter
-			fmt.Printf("⏳ Waiting %v before next attempt\n", wait)
+			logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", wait))
 			time.Sleep(wait)
 		}
 	}
@@ -207,7 +209,7 @@ func (c *Config) InitializeRedis() (*redis.Client, error) {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	fmt.Println("✅ Redis connected successfully")
+	logger.Info("✅ Redis connected successfully")
 	return client, nil
 }
 
@@ -240,7 +242,7 @@ func (c *Config) InitializeDocker() (*client.Client, error) {
 		return nil, fmt.Errorf("failed to connect to Docker: %w", err)
 	}
 
-	fmt.Println("✅ Docker connected successfully")
+	logger.Info("✅ Docker connected successfully")
 	return dockerClient, nil
 }
 

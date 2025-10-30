@@ -174,6 +174,10 @@ func main() {
 		// AI-powered element analysis route using Ollama text models with DOM
 		r.Post("/ai-analyze-elements", handler.AIAnalyzeElements)
 
+		// Recording ingestion and asset serving
+		r.Post("/recordings/import", handler.ImportRecording)
+		r.Get("/recordings/assets/{executionID}/*", handler.ServeRecordingAsset)
+
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)
 	})

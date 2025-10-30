@@ -6,19 +6,21 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/vrooli/browser-automation-studio/constants"
 )
 
 // Health handles GET /health and GET /api/v1/health
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	// Check database health
 	var databaseHealthy bool
 	var databaseLatency float64
-	var databaseError map[string]interface{}
+	var databaseError map[string]any
 
 	start := time.Now()
 	if h.repo != nil {
@@ -28,7 +30,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			databaseHealthy = false
-			databaseError = map[string]interface{}{
+			databaseError = map[string]any{
 				"code":      "DATABASE_CONNECTION_ERROR",
 				"message":   fmt.Sprintf("Database health check failed: %v", err),
 				"category":  "resource",
@@ -39,7 +41,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		databaseHealthy = false
-		databaseError = map[string]interface{}{
+		databaseError = map[string]any{
 			"code":      "REPOSITORY_NOT_INITIALIZED",
 			"message":   "Database repository not initialized",
 			"category":  "internal",
@@ -49,12 +51,12 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 	// Check browserless health
 	var browserlessHealthy bool
-	var browserlessError map[string]interface{}
+	var browserlessError map[string]any
 
 	if h.browserless != nil {
 		if err := h.browserless.CheckBrowserlessHealth(); err != nil {
 			browserlessHealthy = false
-			browserlessError = map[string]interface{}{
+			browserlessError = map[string]any{
 				"code":      "BROWSERLESS_CONNECTION_ERROR",
 				"message":   fmt.Sprintf("Browserless health check failed: %v", err),
 				"category":  "resource",
@@ -65,7 +67,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		browserlessHealthy = false
-		browserlessError = map[string]interface{}{
+		browserlessError = map[string]any{
 			"code":      "BROWSERLESS_NOT_INITIALIZED",
 			"message":   "Browserless client not initialized",
 			"category":  "internal",
@@ -86,13 +88,13 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build dependencies map
-	dependencies := map[string]interface{}{
-		"database": map[string]interface{}{
+	dependencies := map[string]any{
+		"database": map[string]any{
 			"connected":  databaseHealthy,
 			"latency_ms": databaseLatency,
 			"error":      nil,
 		},
-		"external_services": []map[string]interface{}{
+		"external_services": []map[string]any{
 			{
 				"name":      "browserless",
 				"connected": browserlessHealthy,
@@ -103,10 +105,10 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 	// Add errors if present
 	if databaseError != nil {
-		dependencies["database"].(map[string]interface{})["error"] = databaseError
+		dependencies["database"].(map[string]any)["error"] = databaseError
 	}
 	if browserlessError != nil {
-		dependencies["external_services"].([]map[string]interface{})[0]["error"] = browserlessError
+		dependencies["external_services"].([]map[string]any)[0]["error"] = browserlessError
 	}
 
 	response := HealthResponse{
@@ -116,7 +118,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		Readiness:    readiness,
 		Version:      "1.0.0",
 		Dependencies: dependencies,
-		Metrics: map[string]interface{}{
+		Metrics: map[string]any{
 			"goroutines": 0, // Could be populated with runtime.NumGoroutine() if needed
 		},
 	}
@@ -128,5 +130,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		h.log.WithError(err).Error("Failed to encode health response")
+	}
 }

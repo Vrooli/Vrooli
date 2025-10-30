@@ -49,6 +49,8 @@ COMMANDS:
     execution stop          Stop a running execution
     execution export        Generate replay export metadata for an execution
     execution render        Build a marketing-style HTML replay package for an execution
+    execution render-video  Generate an MP4/WEBM replay video from captured timeline metadata
+    recording import        Import a Chrome extension recording archive
     help                    Display this help message
     version                 Show CLI and API version information
 
@@ -86,7 +88,16 @@ EXECUTION COMMANDS:
         Generate replay export metadata (JSON). Use --output to save response.
 
     execution render <execution-id> [--output <dir>] [--overwrite]
+    execution render-video <execution-id> [--output <file>] [--format mp4|webm] [--overwrite]
         Generate a standalone HTML replay using captured screenshots and timeline metadata.
+
+RECORDING COMMANDS:
+    recording import <archive.zip> [flags]
+        --project-id <uuid>     Associate recording with an existing project
+        --project-name <name>   Resolve project by name (defaults to demo seed)
+        --workflow-id <uuid>    Attach to an existing workflow
+        --workflow-name <name>  Create/resolve workflow label for the recording
+        --json                  Output raw API response JSON
 
 EXAMPLES:
     # Create a workflow from AI prompt
@@ -365,6 +376,147 @@ execute_workflow() {
         echo -e "${RED}Failed to start execution${NC}"
         echo "$response"
         exit 1
+    fi
+}
+
+import_recording() {
+    if [ $# -eq 0 ]; then
+        echo -e "${RED}Error: Recording archive path is required${NC}"
+        echo "Usage: browser-automation-studio recording import <file.zip> [options]"
+        echo "Options:"
+        echo "  --project-id <uuid>"
+        echo "  --project-name <name>"
+        echo "  --workflow-id <uuid>"
+        echo "  --workflow-name <name>"
+        echo "  --json"
+        exit 1
+    fi
+
+    local file_path=""
+    local project_id=""
+    local project_name=""
+    local workflow_id=""
+    local workflow_name=""
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --project-id)
+                project_id="$2"
+                shift 2
+                ;;
+            --project-name)
+                project_name="$2"
+                shift 2
+                ;;
+            --workflow-id)
+                workflow_id="$2"
+                shift 2
+                ;;
+            --workflow-name)
+                workflow_name="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --*)
+                echo -e "${RED}Unknown option: $1${NC}"
+                exit 1
+                ;;
+            *)
+                if [ -z "$file_path" ]; then
+                    file_path="$1"
+                else
+                    echo -e "${RED}Unexpected argument: $1${NC}"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$file_path" ]; then
+        echo -e "${RED}Error: Recording archive path is required${NC}"
+        exit 1
+    fi
+
+    if [ ! -f "$file_path" ]; then
+        echo -e "${RED}Error:${NC} Recording archive not found at ${file_path}"
+        exit 1
+    fi
+
+    check_api_health
+
+    local response_file
+    response_file=$(mktemp)
+
+    local curl_args=(-s -o "$response_file" -w "%{http_code}" -X POST "${API_URL}/recordings/import" -H "Accept: application/json" -F "file=@${file_path}")
+    if [ -n "$project_id" ]; then
+        curl_args+=(-F "project_id=${project_id}")
+    fi
+    if [ -n "$project_name" ]; then
+        curl_args+=(-F "project_name=${project_name}")
+    fi
+    if [ -n "$workflow_id" ]; then
+        curl_args+=(-F "workflow_id=${workflow_id}")
+    fi
+    if [ -n "$workflow_name" ]; then
+        curl_args+=(-F "workflow_name=${workflow_name}")
+    fi
+
+    set +e
+    local status_code
+    status_code=$(curl "${curl_args[@]}")
+    local curl_exit=$?
+    set -e
+
+    if [ "$curl_exit" -ne 0 ]; then
+        rm -f "$response_file"
+        echo -e "${RED}Error:${NC} Failed to reach the API for recording import"
+        exit 1
+    fi
+
+    local body
+    body=$(cat "$response_file")
+    rm -f "$response_file"
+
+    if [[ ! "$status_code" =~ ^2 ]]; then
+        if command -v jq >/dev/null 2>&1; then
+            local message
+            message=$(printf '%s' "$body" | jq -r '.message // .error // empty' 2>/dev/null)
+            if [ -n "$message" ]; then
+                echo -e "${RED}Import failed:${NC} ${message}"
+            else
+                echo -e "${RED}Import failed:${NC} ${body}"
+            fi
+        else
+            echo -e "${RED}Import failed:${NC} ${body}"
+        fi
+        exit 1
+    fi
+
+    if [ "$json_output" = true ]; then
+        printf '%s\n' "$body"
+        return
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        local execution_id workflow_label frame_count asset_count
+        execution_id=$(printf '%s' "$body" | jq -r '.execution_id // empty' 2>/dev/null)
+        workflow_label=$(printf '%s' "$body" | jq -r '.workflow_name // empty' 2>/dev/null)
+        frame_count=$(printf '%s' "$body" | jq -r '.frame_count // empty' 2>/dev/null)
+        asset_count=$(printf '%s' "$body" | jq -r '.asset_count // empty' 2>/dev/null)
+        echo -e "${GREEN}✓ Recording imported${NC}"
+        [ -n "$workflow_label" ] && echo "Workflow: ${workflow_label}"
+        [ -n "$execution_id" ] && echo "Execution ID: ${execution_id}"
+        if [ -n "$frame_count" ] || [ -n "$asset_count" ]; then
+            echo "Frames: ${frame_count:-?}, Assets: ${asset_count:-?}"
+        fi
+    else
+        echo -e "${GREEN}✓ Recording imported${NC}"
+        echo "$body"
     fi
 }
 
@@ -1099,9 +1251,172 @@ NODE
                 rm -f "$tmp_json"
                 echo -e "${GREEN}✓ Replay package ready${NC}: open ${output_dir}/index.html"
                 ;;
+            render-video)
+                check_api_health
+                if ! command -v node >/dev/null 2>&1; then
+                    echo -e "${RED}Error:${NC} Node.js is required for video rendering"
+                    exit 1
+                fi
+                if ! command -v ffmpeg >/dev/null 2>&1; then
+                    echo -e "${RED}Error:${NC} ffmpeg is required for video rendering"
+                    exit 1
+                fi
+
+                args=("${@:3}")
+                execution_id=""
+                output_file=""
+                format="mp4"
+                work_dir=""
+                overwrite_flag=0
+
+                i=0
+                while [ $i -lt ${#args[@]} ]; do
+                    token="${args[$i]}"
+                    case "$token" in
+                        --output|--out|--file)
+                            next=$((i + 1))
+                            if [ $next -ge ${#args[@]} ]; then
+                                echo -e "${RED}Error:${NC} --output flag requires a file path"
+                                exit 1
+                            fi
+                            output_file="${args[$next]}"
+                            i=$((i + 2))
+                            continue
+                            ;;
+                        --output=*|--out=*|--file=*)
+                            output_file="${token#*=}"
+                            ;;
+                        --format|--video-format)
+                            next=$((i + 1))
+                            if [ $next -ge ${#args[@]} ]; then
+                                echo -e "${RED}Error:${NC} --format flag requires mp4 or webm"
+                                exit 1
+                            fi
+                            format="${args[$next]}"
+                            i=$((i + 2))
+                            continue
+                            ;;
+                        --format=*|--video-format=*)
+                            format="${token#*=}"
+                            ;;
+                        --work-dir)
+                            next=$((i + 1))
+                            if [ $next -ge ${#args[@]} ]; then
+                                echo -e "${RED}Error:${NC} --work-dir flag requires a directory path"
+                                exit 1
+                            fi
+                            work_dir="${args[$next]}"
+                            i=$((i + 2))
+                            continue
+                            ;;
+                        --work-dir=*)
+                            work_dir="${token#*=}"
+                            ;;
+                        --overwrite|-f)
+                            overwrite_flag=1
+                            ;;
+                        --*)
+                            echo -e "${RED}Unknown option:${NC} ${token}"
+                            exit 1
+                            ;;
+                        *)
+                            if [ -z "$execution_id" ]; then
+                                execution_id="$token"
+                            else
+                                echo -e "${RED}Unexpected argument:${NC} ${token}"
+                                exit 1
+                            fi
+                            ;;
+                    esac
+                    i=$((i + 1))
+                done
+
+                format=$(printf '%s' "$format" | tr '[:upper:]' '[:lower:]')
+
+                if [ -z "$execution_id" ]; then
+                    echo -e "${RED}Execution ID is required${NC}"
+                    echo "Usage: browser-automation-studio execution render-video <execution-id> [--output <file>] [--format mp4|webm] [--overwrite]"
+                    exit 1
+                fi
+
+                if [ "$format" != "mp4" ] && [ "$format" != "webm" ]; then
+                    echo -e "${RED}Unsupported format:${NC} ${format} (expected mp4 or webm)"
+                    exit 1
+                fi
+
+                tmp_json=$(mktemp)
+                status_code=$(curl -s -o "$tmp_json" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export")
+                if [ "$status_code" = "404" ]; then
+                    rm -f "$tmp_json"
+                    echo -e "${RED}✗ Execution not found${NC}"
+                    exit 1
+                fi
+
+                if [ "$status_code" != "200" ]; then
+                    error_body=$(cat "$tmp_json")
+                    rm -f "$tmp_json"
+                    if command -v jq >/dev/null 2>&1; then
+                        message=$(printf '%s' "$error_body" | jq -r '.message // empty' 2>/dev/null)
+                    else
+                        message=$(printf '%s' "$error_body" | grep -o '"message":"[^"]*' | head -n1 | cut -d'"' -f4)
+                    fi
+                    echo -e "${RED}Failed to generate export:${NC} ${message:-$error_body}"
+                    exit 1
+                fi
+
+                if [ -z "$output_file" ]; then
+                    output_file="bas-replay-${execution_id}.${format}"
+                fi
+
+                renderer="${SCRIPT_DIR}/render-video.js"
+                if [ ! -f "$renderer" ]; then
+                    rm -f "$tmp_json"
+                    echo -e "${RED}Video renderer script missing:${NC} ${renderer}"
+                    exit 1
+                fi
+
+                base_url="${API_URL%/api/v1}"
+                node_args=("$renderer" --input "$tmp_json" --output "$output_file" --base-url "$base_url" --format "$format")
+                if [ "$overwrite_flag" -eq 1 ]; then
+                    node_args+=("--overwrite")
+                fi
+                if [ -n "$work_dir" ]; then
+                    node_args+=("--work-dir" "$work_dir")
+                fi
+
+                if ! node "${node_args[@]}"; then
+                    rm -f "$tmp_json"
+                    echo -e "${RED}✗ Failed to render replay video${NC}"
+                    exit 1
+                fi
+
+                rm -f "$tmp_json"
+                echo -e "${GREEN}✓ Replay video ready${NC}: ${output_file}"
+                ;;
             *)
                 echo -e "${RED}Unknown execution command: ${2}${NC}"
                 show_help
+                exit 1
+                ;;
+        esac
+        ;;
+    recording)
+        if [ "$#" -lt 2 ]; then
+            echo -e "${RED}Error: recording command requires a subcommand${NC}"
+            echo "Available subcommands: import"
+            exit 1
+        fi
+
+        subcommand="$2"
+        shift 2
+
+        case "$subcommand" in
+            import)
+                import_recording "$@"
+                ;;
+            *)
+                echo -e "${RED}Unknown recording command: ${subcommand}${NC}"
+                echo "Available subcommands: import"
                 exit 1
                 ;;
         esac

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -65,15 +64,7 @@ func (s *AppService) GetAppsSummary(ctx context.Context) ([]repository.App, erro
 	s.cache.mu.Unlock()
 
 	if shouldHydrate {
-		go func() {
-			if _, err := s.GetAppsFromOrchestrator(context.Background()); err != nil {
-				logger.Warn("background hydration failed", err)
-			}
-
-			s.cache.mu.Lock()
-			s.cache.loading = false
-			s.cache.mu.Unlock()
-		}()
+		s.hydrateOrchestratorInBackground("background hydration failed")
 	}
 
 	return summaries, nil
@@ -172,7 +163,7 @@ func markFallbackApp(app *repository.App) {
 
 	app.IsPartial = true
 
-	trimmedStatus := strings.ToLower(strings.TrimSpace(app.Status))
+	trimmedStatus := normalizeLower(app.Status)
 	if trimmedStatus == "" {
 		trimmedStatus = "unknown"
 	}
@@ -198,13 +189,9 @@ func (s *AppService) UpdateAppStatus(ctx context.Context, id string, status stri
 // StartApp starts an application using vrooli commands
 func (s *AppService) StartApp(ctx context.Context, appName string) error {
 	// Add timeout to prevent hanging (60s for start as it can take time)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "run", appName)
-	output, err := cmd.CombinedOutput()
+	_, err := executeVrooliCommand(ctx, 60*time.Second, "scenario", "run", appName)
 	if err != nil {
-		return fmt.Errorf("failed to start app %s: %w (output: %s)", appName, err, string(output))
+		return fmt.Errorf("failed to start app %s: %w", appName, err)
 	}
 
 	// Update status in database if available
@@ -220,13 +207,9 @@ func (s *AppService) StartApp(ctx context.Context, appName string) error {
 // StopApp stops an application using vrooli commands
 func (s *AppService) StopApp(ctx context.Context, appName string) error {
 	// Add timeout to prevent hanging (20s for stop to allow graceful shutdown)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "stop", appName)
-	output, err := cmd.CombinedOutput()
+	_, err := executeVrooliCommand(ctx, 20*time.Second, "scenario", "stop", appName)
 	if err != nil {
-		return fmt.Errorf("failed to stop app %s: %w (output: %s)", appName, err, string(output))
+		return fmt.Errorf("failed to stop app %s: %w", appName, err)
 	}
 
 	// Update status in database if available
@@ -242,13 +225,9 @@ func (s *AppService) StopApp(ctx context.Context, appName string) error {
 // RestartApp restarts an application using vrooli commands
 func (s *AppService) RestartApp(ctx context.Context, appName string) error {
 	// Restart may take longer due to stop + start sequencing
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 90*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "restart", appName)
-	output, err := cmd.CombinedOutput()
+	_, err := executeVrooliCommand(ctx, 90*time.Second, "scenario", "restart", appName)
 	if err != nil {
-		return fmt.Errorf("failed to restart app %s: %w (output: %s)", appName, err, string(output))
+		return fmt.Errorf("failed to restart app %s: %w", appName, err)
 	}
 
 	if s.hasRepo() {

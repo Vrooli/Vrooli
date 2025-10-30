@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -37,7 +37,7 @@ type BulkDeleteProjectWorkflowsRequest struct {
 // ProjectWithStats represents a project with statistics
 type ProjectWithStats struct {
 	*database.Project
-	Stats map[string]interface{} `json:"stats"`
+	Stats map[string]any `json:"stats"`
 }
 
 // CreateProject handles POST /api/v1/projects
@@ -45,46 +45,46 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	var req CreateProjectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.WithError(err).Error("Failed to decode create project request")
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidRequest)
 		return
 	}
 
 	// Validate required fields
 	if req.Name == "" {
-		http.Error(w, "Name is required", http.StatusBadRequest)
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "name"}))
 		return
 	}
 
 	if req.FolderPath == "" {
-		http.Error(w, "Folder path is required", http.StatusBadRequest)
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "folder_path"}))
 		return
 	}
 
 	// Validate folder path exists and is accessible
 	absPath, err := filepath.Abs(req.FolderPath)
 	if err != nil {
-		http.Error(w, "Invalid folder path", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": "invalid path"}))
 		return
 	}
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(absPath, 0755); err != nil {
 		h.log.WithError(err).WithField("folder_path", absPath).Error("Failed to create project directory")
-		http.Error(w, "Failed to create project directory", http.StatusInternalServerError)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "create_directory"}))
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	// Check if project with this name or folder path already exists
 	if existingProject, _ := h.workflowService.GetProjectByName(ctx, req.Name); existingProject != nil {
-		http.Error(w, "Project with this name already exists", http.StatusConflict)
+		h.respondError(w, ErrProjectAlreadyExists.WithMessage("Project with this name already exists"))
 		return
 	}
 
 	if existingProject, _ := h.workflowService.GetProjectByFolderPath(ctx, absPath); existingProject != nil {
-		http.Error(w, "Project with this folder path already exists", http.StatusConflict)
+		h.respondError(w, ErrProjectAlreadyExists.WithMessage("Project with this folder path already exists"))
 		return
 	}
 
@@ -96,13 +96,11 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.workflowService.CreateProject(ctx, project); err != nil {
 		h.log.WithError(err).Error("Failed to create project")
-		http.Error(w, "Failed to create project", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "create_project"}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusCreated, map[string]any{
 		"project_id": project.ID,
 		"status":     "created",
 		"project":    project,
@@ -111,13 +109,13 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 // ListProjects handles GET /api/v1/projects
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	projects, err := h.workflowService.ListProjects(ctx, 100, 0)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list projects")
-		http.Error(w, "Failed to list projects", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_projects"}))
 		return
 	}
 
@@ -127,7 +125,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 		stats, err := h.workflowService.GetProjectStats(ctx, project.ID)
 		if err != nil {
 			h.log.WithError(err).WithField("project_id", project.ID).Warn("Failed to get project stats")
-			stats = make(map[string]interface{})
+			stats = make(map[string]any)
 		}
 
 		projectsWithStats[i] = &ProjectWithStats{
@@ -136,8 +134,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"projects": projectsWithStats,
 	})
 }
@@ -147,17 +144,17 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidProjectID)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	project, err := h.workflowService.GetProject(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get project")
-		http.Error(w, "Project not found", http.StatusNotFound)
+		h.respondError(w, ErrProjectNotFound.WithDetails(map[string]string{"project_id": id.String()}))
 		return
 	}
 
@@ -165,7 +162,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	stats, err := h.workflowService.GetProjectStats(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", id).Warn("Failed to get project stats")
-		stats = make(map[string]interface{})
+		stats = make(map[string]any)
 	}
 
 	projectWithStats := &ProjectWithStats{
@@ -173,8 +170,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 		Stats:   stats,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(projectWithStats)
+	h.respondSuccess(w, http.StatusOK, projectWithStats)
 }
 
 // UpdateProject handles PUT /api/v1/projects/{id}
@@ -182,25 +178,25 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidProjectID)
 		return
 	}
 
 	var req UpdateProjectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.WithError(err).Error("Failed to decode update project request")
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidRequest)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	// Get existing project
 	project, err := h.workflowService.GetProject(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get project for update")
-		http.Error(w, "Project not found", http.StatusNotFound)
+		h.respondError(w, ErrProjectNotFound.WithDetails(map[string]string{"project_id": id.String()}))
 		return
 	}
 
@@ -215,14 +211,14 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		// Validate and update folder path
 		absPath, err := filepath.Abs(req.FolderPath)
 		if err != nil {
-			http.Error(w, "Invalid folder path", http.StatusBadRequest)
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": "invalid path"}))
 			return
 		}
 
 		// Create directory if it doesn't exist
 		if err := os.MkdirAll(absPath, 0755); err != nil {
 			h.log.WithError(err).WithField("folder_path", absPath).Error("Failed to create project directory")
-			http.Error(w, "Failed to create project directory", http.StatusInternalServerError)
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "create_directory"}))
 			return
 		}
 
@@ -231,12 +227,11 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.workflowService.UpdateProject(ctx, project); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to update project")
-		http.Error(w, "Failed to update project", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "update_project"}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"status":  "updated",
 		"project": project,
 	})
@@ -247,21 +242,20 @@ func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidProjectID)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	if err := h.workflowService.DeleteProject(ctx, id); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to delete project")
-		http.Error(w, "Failed to delete project", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project"}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"status": "deleted",
 	})
 }
@@ -271,22 +265,21 @@ func (h *Handler) GetProjectWorkflows(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	projectID, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidProjectID)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	workflows, err := h.workflowService.ListWorkflowsByProject(ctx, projectID, 100, 0)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to list project workflows")
-		http.Error(w, "Failed to list workflows", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"workflows": workflows,
 	})
 }
@@ -296,19 +289,19 @@ func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	idStr := chi.URLParam(r, "id")
 	projectID, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidProjectID)
 		return
 	}
 
 	var req BulkDeleteProjectWorkflowsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to decode bulk delete request")
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidRequest)
 		return
 	}
 
 	if len(req.WorkflowIDs) == 0 {
-		http.Error(w, "workflow_ids is required", http.StatusBadRequest)
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "workflow_ids"}))
 		return
 	}
 
@@ -316,13 +309,13 @@ func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	for _, workflowIDStr := range req.WorkflowIDs {
 		workflowID, err := uuid.Parse(workflowIDStr)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid workflow ID: %s", workflowIDStr), http.StatusBadRequest)
+			h.respondError(w, ErrInvalidWorkflowID.WithDetails(map[string]string{"workflow_id": workflowIDStr}))
 			return
 		}
 		workflowIDs = append(workflowIDs, workflowID)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
 	if err := h.workflowService.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
@@ -330,12 +323,11 @@ func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Requ
 			"project_id": projectID,
 			"count":      len(workflowIDs),
 		}).Error("Failed to bulk delete project workflows")
-		http.Error(w, "Failed to delete workflows", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "bulk_delete_workflows"}))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"status":        "deleted",
 		"deleted_count": len(workflowIDs),
 		"deleted_ids":   req.WorkflowIDs,
@@ -347,37 +339,36 @@ func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	idStr := chi.URLParam(r, "id")
 	projectID, err := uuid.Parse(idStr)
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidProjectID)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
 	// Get all workflows for this project
 	workflows, err := h.workflowService.ListWorkflowsByProject(ctx, projectID, 1000, 0)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to get project workflows")
-		http.Error(w, "Failed to get project workflows", http.StatusInternalServerError)
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
 		return
 	}
 
 	if len(workflows) == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		h.respondSuccess(w, http.StatusOK, map[string]any{
 			"message":    "No workflows found in project",
-			"executions": []interface{}{},
+			"executions": []any{},
 		})
 		return
 	}
 
 	// Start execution for each workflow
-	executions := make([]map[string]interface{}, 0, len(workflows))
+	executions := make([]map[string]any, 0, len(workflows))
 	for _, workflow := range workflows {
-		execution, err := h.workflowService.ExecuteWorkflow(ctx, workflow.ID, map[string]interface{}{})
+		execution, err := h.workflowService.ExecuteWorkflow(ctx, workflow.ID, map[string]any{})
 		if err != nil {
 			h.log.WithError(err).WithField("workflow_id", workflow.ID).Warn("Failed to execute workflow in bulk operation")
-			executions = append(executions, map[string]interface{}{
+			executions = append(executions, map[string]any{
 				"workflow_id":   workflow.ID.String(),
 				"workflow_name": workflow.Name,
 				"status":        "failed",
@@ -386,7 +377,7 @@ func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Requ
 			continue
 		}
 
-		executions = append(executions, map[string]interface{}{
+		executions = append(executions, map[string]any{
 			"workflow_id":   workflow.ID.String(),
 			"workflow_name": workflow.Name,
 			"execution_id":  execution.ID.String(),
@@ -394,8 +385,7 @@ func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Requ
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"message":    fmt.Sprintf("Started execution for %d workflows", len(executions)),
 		"executions": executions,
 	})

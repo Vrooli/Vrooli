@@ -115,7 +115,7 @@ func (s *WorkflowService) ListProjects(ctx context.Context, limit, offset int) (
 }
 
 // GetProjectStats gets statistics for a project
-func (s *WorkflowService) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error) {
+func (s *WorkflowService) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
 	return s.repo.GetProjectStats(ctx, projectID)
 }
 
@@ -135,7 +135,7 @@ func (s *WorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID 
 // Workflow methods
 
 // CreateWorkflow creates a new workflow
-func (s *WorkflowService) CreateWorkflow(ctx context.Context, name, folderPath string, flowDefinition map[string]interface{}, aiPrompt string) (*database.Workflow, error) {
+func (s *WorkflowService) CreateWorkflow(ctx context.Context, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
 	workflow := &database.Workflow{
 		ID:         uuid.New(),
 		Name:       name,
@@ -156,8 +156,8 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, name, folderPath s
 		workflow.FlowDefinition = database.JSONMap(flowDefinition)
 	} else {
 		workflow.FlowDefinition = database.JSONMap{
-			"nodes": []interface{}{},
-			"edges": []interface{}{},
+			"nodes": []any{},
+			"edges": []any{},
 		}
 	}
 
@@ -169,7 +169,7 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, name, folderPath s
 }
 
 // CreateWorkflowWithProject creates a new workflow with optional project association
-func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]interface{}, aiPrompt string) (*database.Workflow, error) {
+func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
 	workflow := &database.Workflow{
 		ID:         uuid.New(),
 		ProjectID:  projectID,
@@ -191,8 +191,8 @@ func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, project
 		workflow.FlowDefinition = database.JSONMap(flowDefinition)
 	} else {
 		workflow.FlowDefinition = database.JSONMap{
-			"nodes": []interface{}{},
-			"edges": []interface{}{},
+			"nodes": []any{},
+			"edges": []any{},
 		}
 	}
 
@@ -214,7 +214,7 @@ func (s *WorkflowService) GetWorkflow(ctx context.Context, id uuid.UUID) (*datab
 }
 
 // ExecuteWorkflow executes a workflow
-func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]interface{}) (*database.Execution, error) {
+func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
 	// Verify workflow exists
 	workflow, err := s.repo.GetWorkflow(ctx, workflowID)
 	if err != nil {
@@ -396,7 +396,7 @@ User prompt:
 
 	cleaned := extractJSONObject(stripJSONCodeFence(response))
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(cleaned), &payload); err != nil {
 		s.log.WithError(err).WithFields(logrus.Fields{
 			"raw_response": truncateForLog(response, 2000),
@@ -441,9 +441,9 @@ func extractJSONObject(raw string) string {
 	return strings.TrimSpace(raw[start : end+1])
 }
 
-func normalizeFlowDefinition(payload map[string]interface{}) (database.JSONMap, error) {
+func normalizeFlowDefinition(payload map[string]any) (database.JSONMap, error) {
 	candidate := payload
-	if workflow, ok := payload["workflow"].(map[string]interface{}); ok {
+	if workflow, ok := payload["workflow"].(map[string]any); ok {
 		candidate = workflow
 	}
 
@@ -453,27 +453,27 @@ func normalizeFlowDefinition(payload map[string]interface{}) (database.JSONMap, 
 
 	rawNodes, ok := candidate["nodes"]
 	if !ok {
-		if steps, ok := candidate["steps"].([]interface{}); ok {
+		if steps, ok := candidate["steps"].([]any); ok {
 			candidate["nodes"] = steps
 			rawNodes = steps
 		}
 	}
 
-	nodes, ok := rawNodes.([]interface{})
+	nodes, ok := rawNodes.([]any)
 	if !ok || len(nodes) == 0 {
 		return nil, &AIWorkflowError{Reason: "AI workflow generation did not return any steps. Specify real URLs, selectors, and actions, then try again."}
 	}
 
 	for i, rawNode := range nodes {
-		node, ok := rawNode.(map[string]interface{})
+		node, ok := rawNode.(map[string]any)
 		if !ok {
 			return nil, errors.New("AI node payload is not an object")
 		}
 		if _, ok := node["id"].(string); !ok {
 			node["id"] = fmt.Sprintf("node-%d", i+1)
 		}
-		if _, ok := node["position"].(map[string]interface{}); !ok {
-			node["position"] = map[string]interface{}{
+		if _, ok := node["position"].(map[string]any); !ok {
+			node["position"] = map[string]any{
 				"x": float64(100 + i*200),
 				"y": float64(100 + i*120),
 			}
@@ -483,17 +483,17 @@ func normalizeFlowDefinition(payload map[string]interface{}) (database.JSONMap, 
 	candidate["nodes"] = nodes
 
 	edgesRaw, hasEdges := candidate["edges"]
-	edges, _ := edgesRaw.([]interface{})
+	edges, _ := edgesRaw.([]any)
 	if !hasEdges || edges == nil {
-		edges = []interface{}{}
+		edges = []any{}
 	}
 
 	if len(edges) == 0 && len(nodes) > 1 {
-		edges = make([]interface{}, 0, len(nodes)-1)
+		edges = make([]any, 0, len(nodes)-1)
 		for i := 0; i < len(nodes)-1; i++ {
-			source := nodes[i].(map[string]interface{})["id"].(string)
-			target := nodes[i+1].(map[string]interface{})["id"].(string)
-			edges = append(edges, map[string]interface{}{
+			source := nodes[i].(map[string]any)["id"].(string)
+			target := nodes[i+1].(map[string]any)["id"].(string)
+			edges = append(edges, map[string]any{
 				"id":     fmt.Sprintf("edge-%d", i+1),
 				"source": source,
 				"target": target,
@@ -505,16 +505,16 @@ func normalizeFlowDefinition(payload map[string]interface{}) (database.JSONMap, 
 	return database.JSONMap(candidate), nil
 }
 
-func detectAIWorkflowError(payload map[string]interface{}) error {
+func detectAIWorkflowError(payload map[string]any) error {
 	if reason := extractAIErrorMessage(payload); reason != "" {
 		return &AIWorkflowError{Reason: reason}
 	}
 	return nil
 }
 
-func extractAIErrorMessage(value interface{}) string {
+func extractAIErrorMessage(value any) string {
 	switch typed := value.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		if msg, ok := typed["error"].(string); ok {
 			trimmed := strings.TrimSpace(msg)
 			if trimmed != "" {
@@ -527,7 +527,7 @@ func extractAIErrorMessage(value interface{}) string {
 				return trimmed
 			}
 		}
-		if workflow, ok := typed["workflow"].(map[string]interface{}); ok {
+		if workflow, ok := typed["workflow"].(map[string]any); ok {
 			if nested := extractAIErrorMessage(workflow); nested != "" {
 				return nested
 			}
@@ -543,32 +543,32 @@ func extractAIErrorMessage(value interface{}) string {
 
 func defaultWorkflowDefinition() database.JSONMap {
 	return database.JSONMap{
-		"nodes": []interface{}{
-			map[string]interface{}{
+		"nodes": []any{
+			map[string]any{
 				"id":   "node-1",
 				"type": "navigate",
-				"position": map[string]interface{}{
+				"position": map[string]any{
 					"x": float64(100),
 					"y": float64(100),
 				},
-				"data": map[string]interface{}{
+				"data": map[string]any{
 					"url": "https://example.com",
 				},
 			},
-			map[string]interface{}{
+			map[string]any{
 				"id":   "node-2",
 				"type": "screenshot",
-				"position": map[string]interface{}{
+				"position": map[string]any{
 					"x": float64(350),
 					"y": float64(220),
 				},
-				"data": map[string]interface{}{
+				"data": map[string]any{
 					"name": "homepage",
 				},
 			},
 		},
-		"edges": []interface{}{
-			map[string]interface{}{
+		"edges": []any{
+			map[string]any{
 				"id":     "edge-1",
 				"source": "node-1",
 				"target": "node-2",
@@ -578,7 +578,7 @@ func defaultWorkflowDefinition() database.JSONMap {
 }
 
 // ModifyWorkflow applies an AI-driven modification to an existing workflow.
-func (s *WorkflowService) ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, modificationPrompt string, overrideFlow map[string]interface{}) (*database.Workflow, error) {
+func (s *WorkflowService) ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, modificationPrompt string, overrideFlow map[string]any) (*database.Workflow, error) {
 	if s.aiClient == nil {
 		return nil, errors.New("openrouter client not configured")
 	}
@@ -591,7 +591,7 @@ func (s *WorkflowService) ModifyWorkflow(ctx context.Context, workflowID uuid.UU
 		return nil, err
 	}
 
-	baseFlow := map[string]interface{}{}
+	baseFlow := map[string]any{}
 	if overrideFlow != nil {
 		baseFlow = overrideFlow
 	} else if workflow.FlowDefinition != nil {
@@ -636,7 +636,7 @@ User requested modifications:
 
 	cleaned := extractJSONObject(stripJSONCodeFence(response))
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(cleaned), &payload); err != nil {
 		s.log.WithError(err).WithFields(logrus.Fields{
 			"raw_response": truncateForLog(response, 2000),
@@ -764,7 +764,7 @@ func (s *WorkflowService) executeWorkflowAsync(execution *database.Execution, wo
 			Progress:    100,
 			CurrentStep: "Completed",
 			Message:     "Workflow completed successfully",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"success": true,
 				"result":  execution.Result,
 			},

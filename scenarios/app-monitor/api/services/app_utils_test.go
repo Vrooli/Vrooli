@@ -193,44 +193,6 @@ func TestNormalizeIdentifier(t *testing.T) {
 	}
 }
 
-func TestStringValue(t *testing.T) {
-	testCases := []struct {
-		name     string
-		input    *string
-		expected string
-	}{
-		{
-			name:     "nil pointer",
-			input:    nil,
-			expected: "",
-		},
-		{
-			name:     "empty string",
-			input:    stringPtr(""),
-			expected: "",
-		},
-		{
-			name:     "non-empty string",
-			input:    stringPtr("test"),
-			expected: "test",
-		},
-		{
-			name:     "whitespace string",
-			input:    stringPtr("  test  "),
-			expected: "  test  ",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := stringValue(tc.input)
-			if result != tc.expected {
-				t.Errorf("Expected %q, got %q", tc.expected, result)
-			}
-		})
-	}
-}
-
 func TestTrimmedString(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -935,7 +897,8 @@ func TestParsePortValue(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			port, ok := parsePortValue(tc.value)
+			port, err := parsePortFromAny(tc.value)
+			ok := err == nil
 			if ok != tc.ok {
 				t.Errorf("Expected ok=%v, got ok=%v", tc.ok, ok)
 			}
@@ -1017,7 +980,7 @@ func TestParsePortValueFromString(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			port, err := parsePortValueFromString(tc.value)
+			port, err := parsePortFromAny(tc.value)
 			if tc.expectErr {
 				if err == nil {
 					t.Errorf("Expected error, got nil")

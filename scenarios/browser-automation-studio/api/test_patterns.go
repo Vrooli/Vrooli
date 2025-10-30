@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -17,7 +18,7 @@ type ErrorTestPattern struct {
 	ExpectedStatus int
 	URLPath        string
 	Method         string
-	Body           interface{}
+	Body           any
 	URLVars        map[string]string
 }
 
@@ -81,7 +82,7 @@ func (b *TestScenarioBuilder) AddMissingRequiredField(urlPath, method, fieldName
 		ExpectedStatus: http.StatusBadRequest,
 		URLPath:        urlPath,
 		Method:         method,
-		Body:           map[string]interface{}{},
+		Body:           map[string]any{},
 	})
 	return b
 }
@@ -174,7 +175,7 @@ func ExecutionErrorPatterns() []ErrorTestPattern {
 }
 
 // ValidateResponse is a helper function to validate HTTP responses in tests
-func ValidateResponse(t *testing.T, w interface{}, expectedStatus int, expectedBodyContains string) {
+func ValidateResponse(t *testing.T, w any, expectedStatus int, expectedBodyContains string) {
 	t.Helper()
 
 	// This is a placeholder - actual implementation depends on the HTTP framework

@@ -34,7 +34,7 @@ func (m *mockRepository) DeleteProject(ctx context.Context, id uuid.UUID) error 
 func (m *mockRepository) ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error) {
 	return nil, nil
 }
-func (m *mockRepository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error) {
+func (m *mockRepository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
 	return nil, nil
 }
 func (m *mockRepository) CreateWorkflow(ctx context.Context, workflow *database.Workflow) error {

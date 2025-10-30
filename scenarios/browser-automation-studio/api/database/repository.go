@@ -20,7 +20,7 @@ type Repository interface {
 	UpdateProject(ctx context.Context, project *Project) error
 	DeleteProject(ctx context.Context, id uuid.UUID) error
 	ListProjects(ctx context.Context, limit, offset int) ([]*Project, error)
-	GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error)
+	GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error)
 
 	// Workflow operations
 	CreateWorkflow(ctx context.Context, workflow *Workflow) error
@@ -194,8 +194,8 @@ func (r *repository) ListProjects(ctx context.Context, limit, offset int) ([]*Pr
 	return projects, nil
 }
 
-func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
+func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
+	stats := make(map[string]any)
 
 	// Get workflow count
 	var workflowCount int
@@ -350,14 +350,14 @@ func (r *repository) DeleteProjectWorkflows(ctx context.Context, projectID uuid.
 
 func (r *repository) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*Workflow, error) {
 	var query string
-	var args []interface{}
+	var args []any
 
 	if folderPath != "" {
 		query = `SELECT * FROM workflows WHERE folder_path = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
-		args = []interface{}{folderPath, limit, offset}
+		args = []any{folderPath, limit, offset}
 	} else {
 		query = `SELECT * FROM workflows ORDER BY created_at DESC LIMIT $1 OFFSET $2`
-		args = []interface{}{limit, offset}
+		args = []any{limit, offset}
 	}
 
 	var workflows []*Workflow
@@ -424,14 +424,14 @@ func (r *repository) UpdateExecution(ctx context.Context, execution *Execution) 
 
 func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*Execution, error) {
 	var query string
-	var args []interface{}
+	var args []any
 
 	if workflowID != nil {
 		query = `SELECT * FROM executions WHERE workflow_id = $1 ORDER BY started_at DESC LIMIT $2 OFFSET $3`
-		args = []interface{}{*workflowID, limit, offset}
+		args = []any{*workflowID, limit, offset}
 	} else {
 		query = `SELECT * FROM executions ORDER BY started_at DESC LIMIT $1 OFFSET $2`
-		args = []interface{}{limit, offset}
+		args = []any{limit, offset}
 	}
 
 	var executions []*Execution

@@ -271,7 +271,7 @@ func (s *AppService) CheckAppHealth(ctx context.Context, appID string) (*AppHeal
 	var diagnosticsNotes []string
 
 	if apiPort > 0 {
-		endpoint := fmt.Sprintf("http://localhost:%d/health", apiPort)
+		endpoint := buildLocalAPIURL(apiPort, "/health")
 		entry, notes := s.executeScenarioHealthCheck(ctx, "api", fmt.Sprintf("%s API", displayName), endpoint)
 		checks = append(checks, entry)
 		diagnosticsNotes = append(diagnosticsNotes, notes...)
@@ -289,7 +289,7 @@ func (s *AppService) CheckAppHealth(ctx context.Context, appID string) (*AppHeal
 	}
 
 	if uiPort > 0 {
-		endpoint := fmt.Sprintf("http://localhost:%d/health", uiPort)
+		endpoint := buildLocalAPIURL(uiPort, "/health")
 		entry, notes := s.executeScenarioHealthCheck(ctx, "ui", fmt.Sprintf("%s UI", displayName), endpoint)
 		checks = append(checks, entry)
 		diagnosticsNotes = append(diagnosticsNotes, notes...)
@@ -418,7 +418,7 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 			return nil, err
 		}
 
-		endpoint := fmt.Sprintf("http://localhost:%d/api/v1/rules/%s/scenario-test", port, rule.ID)
+		endpoint := buildLocalAPIURL(port, fmt.Sprintf("/api/v1/rules/%s/scenario-test", rule.ID))
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 		if err != nil {
 			return nil, err
@@ -868,7 +868,7 @@ func (s *AppService) executeScenarioHealthCheck(ctx context.Context, checkID, na
 }
 
 func normalizeHealthStatus(value string) string {
-	switch strings.ToLower(strings.TrimSpace(value)) {
+	switch normalizeLower(value) {
 	case "", "unknown":
 		return ""
 	case "pass", "ok", "healthy", "ready", "up", "online":

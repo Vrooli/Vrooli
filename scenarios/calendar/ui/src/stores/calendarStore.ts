@@ -24,6 +24,11 @@ interface CalendarState {
   setSidebarCollapsed: (collapsed: boolean) => void
   toggleSidebar: () => void
 
+  // Auth
+  authRequired: boolean
+  authLoginUrl: string | null
+  setAuthRequired: (required: boolean, loginUrl?: string | null) => void
+
   // Actions
   setEvents: (events: Event[]) => void
   addEvent: (event: Event) => void
@@ -60,9 +65,17 @@ export const useCalendarStore = create<CalendarState>()(
       currentDate: new Date(),
       filters: {},
       sidebarCollapsed: false,
+      authRequired: false,
+      authLoginUrl: null,
 
       // User actions
       setUser: (user) => set({ user }),
+
+      setAuthRequired: (required, loginUrl) =>
+        set({
+          authRequired: required,
+          authLoginUrl: loginUrl ?? null
+        }),
 
       // UI State actions
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),

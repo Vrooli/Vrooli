@@ -1,3 +1,4 @@
+//go:build !short
 // +build !short
 
 package main
@@ -299,12 +300,12 @@ func TestMemoryUsage(t *testing.T) {
 	projects := make([]*database.Project, numProjects)
 	for i := 0; i < numProjects; i++ {
 		projects[i] = &database.Project{
-			ID:         uuid.New(),
-			Name:       fmt.Sprintf("Memory Test Project %d", i),
-			FolderPath: fmt.Sprintf("/memtest/project-%d", i),
+			ID:          uuid.New(),
+			Name:        fmt.Sprintf("Memory Test Project %d", i),
+			FolderPath:  fmt.Sprintf("/memtest/project-%d", i),
 			Description: "A test project for memory usage testing with a reasonably long description",
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		}
 	}
 

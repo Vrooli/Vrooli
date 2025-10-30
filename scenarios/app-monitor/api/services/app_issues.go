@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -255,9 +254,9 @@ func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error)
 	}
 
 	for _, candidate := range apps {
-		name := strings.ToLower(strings.TrimSpace(candidate.ScenarioName))
+		name := normalizeLower(candidate.ScenarioName)
 		if name == "" {
-			name = strings.ToLower(strings.TrimSpace(candidate.ID))
+			name = normalizeLower(candidate.ID)
 		}
 		if name != issueTrackerScenarioID {
 			continue
@@ -269,7 +268,7 @@ func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error)
 		}
 	}
 
-	return 0, errors.New("app-issue-tracker is not running or no API port was found")
+	return 0, fmt.Errorf("app-issue-tracker is not running or API port not found (checked %d scenarios)", len(apps))
 }
 
 func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, error) {
@@ -285,9 +284,9 @@ func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, err
 	}
 
 	for _, candidate := range apps {
-		name := strings.ToLower(strings.TrimSpace(candidate.ScenarioName))
+		name := normalizeLower(candidate.ScenarioName)
 		if name == "" {
-			name = strings.ToLower(strings.TrimSpace(candidate.ID))
+			name = normalizeLower(candidate.ID)
 		}
 		if name != "scenario-auditor" {
 			continue
@@ -299,7 +298,7 @@ func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, err
 		}
 	}
 
-	return 0, errors.New("scenario-auditor is not running or no API port was found")
+	return 0, fmt.Errorf("scenario-auditor is not running or API port not found (checked %d scenarios)", len(apps))
 }
 
 func resolveScenarioPortViaCLI(ctx context.Context, scenarioName, portLabel string) (int, error) {
@@ -324,34 +323,26 @@ func resolveScenarioPortViaCLI(ctx context.Context, scenarioName, portLabel stri
 }
 
 func executeScenarioPortCommand(ctx context.Context, scenarioName, portLabel string) (int, error) {
-	if strings.TrimSpace(scenarioName) == "" || strings.TrimSpace(portLabel) == "" {
+	if isEmptyOrWhitespace(scenarioName) || isEmptyOrWhitespace(portLabel) {
 		return 0, errors.New("scenario and port labels are required")
 	}
 
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "port", scenarioName, portLabel)
-	output, err := cmd.CombinedOutput()
+	output, err := executeVrooliCommand(ctx, 10*time.Second, "scenario", "port", scenarioName, portLabel)
 	if err != nil {
-		return 0, fmt.Errorf("vrooli scenario port %s %s failed: %s", scenarioName, portLabel, strings.TrimSpace(string(output)))
+		return 0, fmt.Errorf("failed to resolve %s port for %s: %w", portLabel, scenarioName, err)
 	}
 
-	return parsePortValueFromString(strings.TrimSpace(string(output)))
+	return parsePortFromAny(strings.TrimSpace(string(output)))
 }
 
 func executeScenarioPortList(ctx context.Context, scenarioName string) (map[string]int, error) {
-	if strings.TrimSpace(scenarioName) == "" {
+	if isEmptyOrWhitespace(scenarioName) {
 		return nil, errors.New("scenario name is required")
 	}
 
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "port", scenarioName)
-	output, err := cmd.CombinedOutput()
+	output, err := executeVrooliCommand(ctx, 10*time.Second, "scenario", "port", scenarioName)
 	if err != nil {
-		return nil, fmt.Errorf("vrooli scenario port %s failed: %s", scenarioName, strings.TrimSpace(string(output)))
+		return nil, fmt.Errorf("failed to list ports for %s: %w", scenarioName, err)
 	}
 
 	ports := make(map[string]int)
@@ -369,7 +360,7 @@ func executeScenarioPortList(ctx context.Context, scenarioName string) (map[stri
 
 		key := strings.ToUpper(strings.TrimSpace(parts[0]))
 		value := strings.TrimSpace(parts[1])
-		port, err := parsePortValueFromString(value)
+		port, err := parsePortFromAny(value)
 		if err != nil {
 			continue
 		}

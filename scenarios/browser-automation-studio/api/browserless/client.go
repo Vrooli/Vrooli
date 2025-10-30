@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/browserless/compiler"
 	"github.com/vrooli/browser-automation-studio/browserless/events"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
+	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
@@ -43,6 +45,34 @@ const (
 	heartbeatIntervalEnvVar     = "BROWSERLESS_HEARTBEAT_INTERVAL"
 	domSnapshotPreviewRuneLimit = 2000
 )
+
+func decodeDataHTML(raw string) (string, error) {
+	if raw == "" {
+		return "", nil
+	}
+	lower := strings.ToLower(raw)
+	if !strings.HasPrefix(lower, "data:text/html") {
+		return "", nil
+	}
+	comma := strings.Index(raw, ",")
+	if comma == -1 {
+		return "", fmt.Errorf("invalid data URL: missing comma")
+	}
+	meta := raw[:comma]
+	data := raw[comma+1:]
+	if strings.Contains(strings.ToLower(meta), ";base64") {
+		decoded, err := base64.StdEncoding.DecodeString(data)
+		if err != nil {
+			return "", fmt.Errorf("base64 decode failed: %w", err)
+		}
+		return string(decoded), nil
+	}
+	decoded, err := url.QueryUnescape(data)
+	if err != nil {
+		return data, nil
+	}
+	return decoded, nil
+}
 
 // NewClient creates a browserless client.
 func NewClient(log *logrus.Logger, repo database.Repository) *Client {
@@ -170,6 +200,12 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 			retryBackoffFactor = 1
 		} else if retryBackoffFactor < 1 {
 			retryBackoffFactor = 1
+		}
+
+		if instruction.Type != "navigate" {
+			instruction.PreloadHTML = session.LastHTML()
+		} else {
+			instruction.PreloadHTML = ""
 		}
 
 		stepRecord := &database.ExecutionStep{
@@ -304,6 +340,15 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 			step = attemptStep
 
 			if step.Success {
+				if instruction.Type == "navigate" {
+					html, decodeErr := decodeDataHTML(instruction.Params.URL)
+					if decodeErr != nil {
+						c.log.WithError(decodeErr).Debug("Failed to decode data URL for preload")
+						session.SetLastHTML("")
+					} else {
+						session.SetLastHTML(html)
+					}
+				}
 				lastErr = nil
 				break
 			}
@@ -1551,7 +1596,7 @@ func timestampFromOffset(start time.Time, offsetMs int64) time.Time {
 
 // CheckBrowserlessHealth verifies the Browserless /pressure endpoint responds.
 func (c *Client) CheckBrowserlessHealth() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.BrowserlessHealthTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.browserless+"/pressure", nil)

@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/browserless"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/services"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -28,29 +29,35 @@ type Handler struct {
 	recordingsRoot   string
 	log              *logrus.Logger
 	upgrader         websocket.Upgrader
+
+	// AI subhandlers
+	screenshotHandler      *ai.ScreenshotHandler
+	domHandler             *ai.DOMHandler
+	elementAnalysisHandler *ai.ElementAnalysisHandler
+	aiAnalysisHandler      *ai.AIAnalysisHandler
 }
 
 const (
 	recordingUploadLimitBytes = 200 * 1024 * 1024 // 200MB
-	recordingImportTimeout    = 2 * 60 * 1000      // 2 minutes in milliseconds
+	recordingImportTimeout    = 2 * 60 * 1000     // 2 minutes in milliseconds
 )
 
 type workflowResponse struct {
 	*database.Workflow
-	WorkflowID uuid.UUID     `json:"workflow_id"`
-	Nodes      []interface{} `json:"nodes"`
-	Edges      []interface{} `json:"edges"`
+	WorkflowID uuid.UUID `json:"workflow_id"`
+	Nodes      []any     `json:"nodes"`
+	Edges      []any     `json:"edges"`
 }
 
 // HealthResponse represents the health check response following Vrooli standards
 type HealthResponse struct {
-	Status       string                 `json:"status"`
-	Service      string                 `json:"service"`
-	Timestamp    string                 `json:"timestamp"`
-	Readiness    bool                   `json:"readiness"`
-	Version      string                 `json:"version,omitempty"`
-	Dependencies map[string]interface{} `json:"dependencies,omitempty"`
-	Metrics      map[string]interface{} `json:"metrics,omitempty"`
+	Status       string         `json:"status"`
+	Service      string         `json:"service"`
+	Timestamp    string         `json:"timestamp"`
+	Readiness    bool           `json:"readiness"`
+	Version      string         `json:"version,omitempty"`
+	Dependencies map[string]any `json:"dependencies,omitempty"`
+	Metrics      map[string]any `json:"metrics,omitempty"`
 }
 
 // NewHandler creates a new handler instance
@@ -64,7 +71,7 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 	recordingsRoot := resolveRecordingsRoot(log)
 	recordingService := services.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
 
-	return &Handler{
+	handler := &Handler{
 		workflowService:  services.NewWorkflowService(repo, browserless, wsHub, log),
 		repo:             repo,
 		browserless:      browserless,
@@ -80,6 +87,14 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 			},
 		},
 	}
+
+	// Initialize AI subhandlers with dependencies
+	handler.domHandler = ai.NewDOMHandler(log)
+	handler.screenshotHandler = ai.NewScreenshotHandler(log)
+	handler.elementAnalysisHandler = ai.NewElementAnalysisHandler(log)
+	handler.aiAnalysisHandler = ai.NewAIAnalysisHandler(log, handler.domHandler)
+
+	return handler
 }
 
 func newWorkflowResponse(workflow *database.Workflow) workflowResponse {
@@ -101,9 +116,9 @@ func newWorkflowResponse(workflow *database.Workflow) workflowResponse {
 	}
 }
 
-func normalizeWorkflowFlowDefinition(workflow *database.Workflow) ([]interface{}, []interface{}) {
+func normalizeWorkflowFlowDefinition(workflow *database.Workflow) ([]any, []any) {
 	if workflow == nil {
-		return []interface{}{}, []interface{}{}
+		return []any{}, []any{}
 	}
 
 	if workflow.FlowDefinition == nil {
@@ -145,20 +160,20 @@ func resolveRecordingsRoot(log *logrus.Logger) string {
 	return root
 }
 
-func toInterfaceSlice(value interface{}) []interface{} {
+func toInterfaceSlice(value any) []any {
 	switch v := value.(type) {
 	case nil:
-		return []interface{}{}
-	case []interface{}:
+		return []any{}
+	case []any:
 		return v
-	case []map[string]interface{}:
-		result := make([]interface{}, len(v))
+	case []map[string]any:
+		result := make([]any, len(v))
 		for i := range v {
 			result[i] = v[i]
 		}
 		return result
 	case []database.JSONMap:
-		result := make([]interface{}, len(v))
+		result := make([]any, len(v))
 		for i := range v {
 			result[i] = v[i]
 		}
@@ -166,12 +181,39 @@ func toInterfaceSlice(value interface{}) []interface{} {
 	default:
 		bytes, err := json.Marshal(v)
 		if err != nil {
-			return []interface{}{}
+			return []any{}
 		}
-		var result []interface{}
+		var result []any
 		if err := json.Unmarshal(bytes, &result); err != nil {
-			return []interface{}{}
+			return []any{}
 		}
 		return result
 	}
+}
+
+// AI handler delegation methods
+
+// TakePreviewScreenshot delegates to the AI screenshot handler
+func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) {
+	h.screenshotHandler.TakePreviewScreenshot(w, r)
+}
+
+// GetDOMTree delegates to the AI DOM handler
+func (h *Handler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
+	h.domHandler.GetDOMTree(w, r)
+}
+
+// AnalyzeElements delegates to the AI element analysis handler
+func (h *Handler) AnalyzeElements(w http.ResponseWriter, r *http.Request) {
+	h.elementAnalysisHandler.AnalyzeElements(w, r)
+}
+
+// GetElementAtCoordinate delegates to the AI element analysis handler
+func (h *Handler) GetElementAtCoordinate(w http.ResponseWriter, r *http.Request) {
+	h.elementAnalysisHandler.GetElementAtCoordinate(w, r)
+}
+
+// AIAnalyzeElements delegates to the AI analysis handler
+func (h *Handler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
+	h.aiAnalysisHandler.AIAnalyzeElements(w, r)
 }

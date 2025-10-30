@@ -11,22 +11,22 @@ import (
 
 // ExecutionUpdate represents a real-time update for workflow execution
 type ExecutionUpdate struct {
-	Type        string      `json:"type"`        // "progress", "log", "screenshot", "completed", "failed"
-	ExecutionID uuid.UUID   `json:"execution_id"`
-	Progress    int         `json:"progress,omitempty"`
-	CurrentStep string      `json:"current_step,omitempty"`
-	Status      string      `json:"status,omitempty"`
-	Message     string      `json:"message,omitempty"`
-	Data        interface{} `json:"data,omitempty"`
-	Timestamp   string      `json:"timestamp"`
+	Type        string    `json:"type"` // "progress", "log", "screenshot", "completed", "failed"
+	ExecutionID uuid.UUID `json:"execution_id"`
+	Progress    int       `json:"progress,omitempty"`
+	CurrentStep string    `json:"current_step,omitempty"`
+	Status      string    `json:"status,omitempty"`
+	Message     string    `json:"message,omitempty"`
+	Data        any       `json:"data,omitempty"`
+	Timestamp   string    `json:"timestamp"`
 }
 
 // Client represents a WebSocket client
 type Client struct {
-	ID         uuid.UUID
-	Conn       *websocket.Conn
-	Send       chan ExecutionUpdate
-	Hub        *Hub
+	ID          uuid.UUID
+	Conn        *websocket.Conn
+	Send        chan ExecutionUpdate
+	Hub         *Hub
 	ExecutionID *uuid.UUID // Optional: client can subscribe to specific execution
 }
 
@@ -59,9 +59,9 @@ func (h *Hub) Run() {
 			h.mu.Lock()
 			h.clients[client] = true
 			h.mu.Unlock()
-			
+
 			h.log.WithField("client_id", client.ID).Info("Client connected to WebSocket hub")
-			
+
 			// Send a welcome message
 			select {
 			case client.Send <- ExecutionUpdate{
@@ -151,7 +151,7 @@ func (c *Client) readPump() {
 
 	for {
 		// Read message from client
-		var msg map[string]interface{}
+		var msg map[string]any
 		if err := c.Conn.ReadJSON(&msg); err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				c.Hub.log.WithError(err).Error("WebSocket error")

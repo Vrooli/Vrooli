@@ -27,6 +27,7 @@ type Session struct {
 	httpClient *http.Client
 	log        *logrus.Logger
 	sessionID  string
+	lastHTML   string
 }
 
 // NewSession creates a Browserless session wrapper.
@@ -41,6 +42,14 @@ func NewSession(baseURL string, httpClient *http.Client, log *logrus.Logger) *Se
 		log:        log,
 		sessionID:  uuid.New().String(),
 	}
+}
+
+func (s *Session) LastHTML() string {
+	return s.lastHTML
+}
+
+func (s *Session) SetLastHTML(html string) {
+	s.lastHTML = html
 }
 
 // ExecuteInstruction runs a single instruction within a persistent Browserless session.

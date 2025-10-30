@@ -6,7 +6,7 @@ import (
 )
 
 func TestExtractAIErrorMessage(t *testing.T) {
-	msg := extractAIErrorMessage(map[string]interface{}{
+	msg := extractAIErrorMessage(map[string]any{
 		"error": "Cannot generate workflow using placeholder domain",
 	})
 
@@ -14,8 +14,8 @@ func TestExtractAIErrorMessage(t *testing.T) {
 		t.Fatalf("expected message to be preserved, got %q", msg)
 	}
 
-	nested := extractAIErrorMessage(map[string]interface{}{
-		"workflow": map[string]interface{}{
+	nested := extractAIErrorMessage(map[string]any{
+		"workflow": map[string]any{
 			"error": "Nested error detected",
 		},
 	})
@@ -26,7 +26,7 @@ func TestExtractAIErrorMessage(t *testing.T) {
 }
 
 func TestNormalizeFlowDefinitionReturnsAIWorkflowError(t *testing.T) {
-	definition := map[string]interface{}{
+	definition := map[string]any{
 		"error": "Cannot generate workflow using placeholder domain",
 	}
 

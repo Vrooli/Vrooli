@@ -9,6 +9,7 @@ import (
 )
 
 func TestCORSMiddlewareAllowsAppMonitorByDefault(t *testing.T) {
+	resetCorsConfigForTesting()
 	t.Setenv("CORS_ALLOWED_ORIGINS", "")
 	t.Setenv("ALLOWED_ORIGINS", "")
 	t.Setenv("CORS_ALLOWED_ORIGIN", "")
@@ -47,6 +48,7 @@ func TestCORSMiddlewareAllowsAppMonitorByDefault(t *testing.T) {
 }
 
 func TestCORSMiddlewareRejectsUnauthorizedOrigin(t *testing.T) {
+	resetCorsConfigForTesting()
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://allowed.example")
 	t.Setenv("ALLOWED_ORIGINS", "")
 	t.Setenv("CORS_ALLOWED_ORIGIN", "")
@@ -74,6 +76,7 @@ func TestCORSMiddlewareRejectsUnauthorizedOrigin(t *testing.T) {
 }
 
 func TestCORSMiddlewareWildcardAllowsAll(t *testing.T) {
+	resetCorsConfigForTesting()
 	t.Setenv("CORS_ALLOWED_ORIGINS", "*")
 
 	log := logrus.New()

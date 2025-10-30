@@ -378,6 +378,8 @@ const useReportIssueState = ({
   const reportHealthChecksFetchedForRef = useRef<string | null>(null);
   const reportAppStatusFetchedForRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const diagnosticsDescriptionRef = useRef('');
+  const diagnosticsSummaryIncludedRef = useRef(false);
   const [shouldResetOnNextOpen, setShouldResetOnNextOpen] = useState(true);
   const lastResolvedAppIdRef = useRef<string | null>(null);
   const resolvedAppId = useMemo(() => {
@@ -1025,7 +1027,8 @@ const useReportIssueState = ({
       .filter((entry): entry is string => Boolean(entry));
 
     const hasPrimaryDescription = trimmed.length > 0;
-    const includeDiagnosticsSummary = diagnosticsSummaryIncluded;
+    const includeDiagnosticsSummary = diagnosticsSummaryIncludedRef.current;
+    const diagnosticsDescriptionSnapshot = diagnosticsDescriptionRef.current;
     const hasCaptureNotes = captureNotes.length > 0;
 
     if (!hasPrimaryDescription && !hasCaptureNotes && !includeDiagnosticsSummary) {
@@ -1066,8 +1069,8 @@ const useReportIssueState = ({
         sections.push(trimmed);
       }
 
-      if (includeDiagnosticsSummary && diagnosticsDescription) {
-        sections.push(['### Diagnostics Summary', '', diagnosticsDescription].join('\n'));
+      if (includeDiagnosticsSummary && diagnosticsDescriptionSnapshot) {
+        sections.push(['### Diagnostics Summary', '', diagnosticsDescriptionSnapshot].join('\n'));
       }
 
       if (hasCaptureNotes) {
@@ -1391,7 +1394,6 @@ const useReportIssueState = ({
     } finally {
       setReportSubmitting(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- diagnosticsDescription and diagnosticsSummaryIncluded are computed memoized values defined later in the file
   }, [
     app?.id,
     app?.name,
@@ -1691,6 +1693,14 @@ const useReportIssueState = ({
   const diagnosticsSummaryIncluded = useMemo(() => (
     reportIncludeDiagnostics && diagnosticsDescription.trim().length > 0
   ), [reportIncludeDiagnostics, diagnosticsDescription]);
+
+  useEffect(() => {
+    diagnosticsDescriptionRef.current = diagnosticsDescription;
+  }, [diagnosticsDescription]);
+
+  useEffect(() => {
+    diagnosticsSummaryIncludedRef.current = diagnosticsSummaryIncluded;
+  }, [diagnosticsSummaryIncluded]);
 
   useEffect(() => {
     if (!isOpen) {

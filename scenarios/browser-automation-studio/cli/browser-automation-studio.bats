@@ -77,6 +77,50 @@ setup() {
     [[ "$output" =~ "name" ]] || [[ "$output" =~ "required" ]] || [[ "$output" =~ "Usage" ]]
 }
 
+@test "CLI: recording import requires file argument" {
+    run "${CLI_PATH}" recording import
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "required" ]] || [[ "$output" =~ "Usage" ]]
+}
+
+@test "CLI: recording import uploads archive" {
+    temp_dir=$(mktemp -d)
+    manifest_path="${temp_dir}/manifest.json"
+    frames_dir="${temp_dir}/frames"
+    mkdir -p "${frames_dir}"
+
+    cat <<'JSON' > "$manifest_path"
+{
+  "runId": "cli-test",
+  "viewport": { "width": 1280, "height": 720 },
+  "frames": [
+    {
+      "index": 0,
+      "timestamp": 0,
+      "durationMs": 1200,
+      "event": "navigate",
+      "stepType": "navigate",
+      "title": "Open example",
+      "url": "https://example.com",
+      "screenshot": "frames/0001.png"
+    }
+  ]
+}
+JSON
+
+    printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==' | base64 -d > "${frames_dir}/0001.png"
+
+    archive_path="${temp_dir}/recording.zip"
+    (cd "$temp_dir" && zip -qr "$archive_path" manifest.json frames)
+
+    run "${CLI_PATH}" recording import "$archive_path" --project-name "Demo Browser Automations" --json
+    rm -rf "$temp_dir"
+
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.execution_id' > /dev/null
+    echo "$output" | jq -e '.frame_count == 1' > /dev/null
+}
+
 @test "CLI: workflow execute requires workflow argument" {
     run "${CLI_PATH}" workflow execute
     [ "$status" -ne 0 ]

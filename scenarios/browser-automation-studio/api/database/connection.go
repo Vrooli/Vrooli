@@ -13,6 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/constants"
 )
 
 type DB struct {
@@ -67,7 +68,7 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		db, err = sqlx.Connect("postgres", databaseURL)
 		if err == nil {
 			// Test the connection
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseQueryTimeout)
 			err = db.PingContext(ctx)
 			cancel()
 
@@ -128,7 +129,7 @@ func (db *DB) Close() error {
 
 // HealthCheck performs a health check on the database
 func (db *DB) HealthCheck() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DatabasePingTimeout)
 	defer cancel()
 
 	return db.PingContext(ctx)
@@ -391,7 +392,7 @@ DROP TRIGGER IF EXISTS update_execution_artifacts_updated_at ON execution_artifa
 CREATE TRIGGER update_execution_artifacts_updated_at BEFORE UPDATE ON execution_artifacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseMigrationTimeout)
 	defer cancel()
 
 	_, err := db.ExecContext(ctx, schema)

@@ -79,7 +79,7 @@ func (m *mockRepository) DeleteProject(ctx context.Context, id uuid.UUID) error 
 func (m *mockRepository) ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error) {
 	return nil, nil
 }
-func (m *mockRepository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error) {
+func (m *mockRepository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
 	return nil, nil
 }
 
@@ -165,7 +165,7 @@ func (m *mockRepository) CreateExecutionArtifact(ctx context.Context, artifact *
 	return nil
 }
 
-func toIntTest(value interface{}) int {
+func toIntTest(value any) int {
 	switch v := value.(type) {
 	case int:
 		return v
@@ -268,76 +268,76 @@ func TestBuildInstructions(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-1",
 					"type": "navigate",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"url":       "https://example.com",
 						"waitUntil": "domcontentloaded",
 						"timeoutMs": 10000,
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-2",
 					"type": "wait",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"type":     "time",
 						"duration": 1500,
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-3",
 					"type": "click",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"selector":   "#login",
 						"button":     "left",
 						"clickCount": 1,
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-4",
 					"type": "type",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"selector": "input[name=email]",
 						"text":     "user@example.com",
 						"delayMs":  25,
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-5",
 					"type": "extract",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"selector":    "#headline",
 						"extractType": "text",
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-6",
 					"type": "screenshot",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"name":                  "after",
 						"viewportWidth":         1280,
 						"viewportHeight":        720,
 						"waitForMs":             500,
 						"focusSelector":         "#hero",
-						"highlightSelectors":    []interface{}{"#hero", ".cta"},
+						"highlightSelectors":    []any{"#hero", ".cta"},
 						"highlightColor":        "#ff00ff",
 						"highlightPadding":      12,
 						"highlightBorderRadius": 18,
-						"maskSelectors":         []interface{}{".mask"},
+						"maskSelectors":         []any{".mask"},
 						"maskOpacity":           0.55,
 						"background":            "#111111",
 						"zoomFactor":            1.25,
 					},
 				},
 			},
-			"edges": []interface{}{
-				map[string]interface{}{"id": "edge-1", "source": "node-1", "target": "node-2"},
-				map[string]interface{}{"id": "edge-2", "source": "node-2", "target": "node-3"},
-				map[string]interface{}{"id": "edge-3", "source": "node-3", "target": "node-4"},
-				map[string]interface{}{"id": "edge-4", "source": "node-4", "target": "node-5"},
-				map[string]interface{}{"id": "edge-5", "source": "node-5", "target": "node-6"},
+			"edges": []any{
+				map[string]any{"id": "edge-1", "source": "node-1", "target": "node-2"},
+				map[string]any{"id": "edge-2", "source": "node-2", "target": "node-3"},
+				map[string]any{"id": "edge-3", "source": "node-3", "target": "node-4"},
+				map[string]any{"id": "edge-4", "source": "node-4", "target": "node-5"},
+				map[string]any{"id": "edge-5", "source": "node-5", "target": "node-6"},
 			},
 		},
 	}
@@ -410,11 +410,11 @@ func TestBuildInstructionsWorkflowCallNotSupported(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-1",
 					"type": "workflowCall",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"workflowId": "wf-123",
 					},
 				},
@@ -433,11 +433,11 @@ func TestBuildInstructionsAssertStep(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-assert",
 					"type": "assert",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"assertMode":     "text_equals",
 						"selector":       "#status",
 						"expectedValue":  "Ready",
@@ -448,7 +448,7 @@ func TestBuildInstructionsAssertStep(t *testing.T) {
 					},
 				},
 			},
-			"edges": []interface{}{},
+			"edges": []any{},
 		},
 	}
 
@@ -513,25 +513,25 @@ func TestExecuteWorkflowPersistsTelemetry(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-1",
 					"type": "navigate",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"url": "https://example.com",
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-2",
 					"type": "extract",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"selector":    "#headline",
 						"extractType": "text",
 					},
 				},
 			},
-			"edges": []interface{}{
-				map[string]interface{}{"id": "edge-1", "source": "node-1", "target": "node-2"},
+			"edges": []any{
+				map[string]any{"id": "edge-1", "source": "node-1", "target": "node-2"},
 			},
 		},
 	}
@@ -598,18 +598,18 @@ func TestExecuteWorkflowRetriesOnFailure(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-1",
 					"type": "navigate",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"url":           "https://example.com",
 						"retryAttempts": 1,
 						"retryDelayMs":  0,
 					},
 				},
 			},
-			"edges": []interface{}{},
+			"edges": []any{},
 		},
 	}
 
@@ -638,17 +638,17 @@ func TestExecuteWorkflowRetriesOnFailure(t *testing.T) {
 	if maxAttempts := toIntTest(retryMeta["maxAttempts"]); maxAttempts != 2 {
 		t.Fatalf("expected max attempts 2, got %d", maxAttempts)
 	}
-	var retryHistory []map[string]interface{}
+	var retryHistory []map[string]any
 	switch entries := retryMeta["history"].(type) {
-	case []map[string]interface{}:
+	case []map[string]any:
 		retryHistory = entries
 	case []database.JSONMap:
 		for _, item := range entries {
-			retryHistory = append(retryHistory, map[string]interface{}(item))
+			retryHistory = append(retryHistory, map[string]any(item))
 		}
-	case []interface{}:
+	case []any:
 		for _, item := range entries {
-			if entryMap, ok := item.(map[string]interface{}); ok {
+			if entryMap, ok := item.(map[string]any); ok {
 				retryHistory = append(retryHistory, entryMap)
 			}
 		}
@@ -723,11 +723,11 @@ func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-1",
 					"type": "screenshot",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"name":          "marketing",
 						"waitForMs":     250,
 						"focusSelector": "#hero",
@@ -778,11 +778,11 @@ func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.
 				if len(regions) != 1 || regions[0].Selector != "#hero" {
 					t.Fatalf("unexpected highlight regions payload: %+v", regions)
 				}
-			case []interface{}:
+			case []any:
 				if len(regions) != 1 {
 					t.Fatalf("unexpected highlight regions payload: %+v", regions)
 				}
-				region, _ := regions[0].(map[string]interface{})
+				region, _ := regions[0].(map[string]any)
 				if region == nil || region["selector"] != "#hero" {
 					t.Fatalf("unexpected highlight region payload: %+v", region)
 				}
@@ -797,11 +797,11 @@ func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.
 				if len(regions) != 1 || regions[0].Selector != ".mask" {
 					t.Fatalf("unexpected mask regions payload: %+v", regions)
 				}
-			case []interface{}:
+			case []any:
 				if len(regions) != 1 {
 					t.Fatalf("unexpected mask regions payload: %+v", regions)
 				}
-				region, _ := regions[0].(map[string]interface{})
+				region, _ := regions[0].(map[string]any)
 				if region == nil || region["selector"] != ".mask" {
 					t.Fatalf("unexpected mask region payload: %+v", region)
 				}
@@ -835,7 +835,7 @@ func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.
 				if len(regions) == 0 || regions[0].Selector != "#hero" {
 					t.Fatalf("unexpected highlight regions payload: %+v", regions)
 				}
-			case []interface{}:
+			case []any:
 				if len(regions) == 0 {
 					t.Fatalf("unexpected highlight regions payload: %+v", regions)
 				}
@@ -849,7 +849,7 @@ func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.
 				if len(regions) == 0 || regions[0].Selector != ".mask" {
 					t.Fatalf("unexpected mask regions payload: %+v", regions)
 				}
-			case []interface{}:
+			case []any:
 				if len(regions) == 0 {
 					t.Fatalf("unexpected mask regions payload: %+v", regions)
 				}
@@ -863,7 +863,7 @@ func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.
 			if focus == nil || focus.Selector != "#hero" {
 				t.Fatalf("expected focused element metadata: %+v", focus)
 			}
-		case map[string]interface{}:
+		case map[string]any:
 			if focus["selector"] != "#hero" {
 				t.Fatalf("expected focused element selector: %+v", focus)
 			}
@@ -930,11 +930,11 @@ func TestExecuteWorkflowPersistsAssertionArtifacts(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-assert",
 					"type": "assert",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"assertMode":     "exists",
 						"selector":       "#status",
 						"failureMessage": "Status indicator missing",
@@ -1024,17 +1024,17 @@ func TestExecuteWorkflowEmitsHeartbeats(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-1",
 					"type": "wait",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"type":     "time",
 						"duration": 1000,
 					},
 				},
 			},
-			"edges": []interface{}{},
+			"edges": []any{},
 		},
 	}
 
@@ -1127,42 +1127,42 @@ func TestExecuteWorkflowRoutesToFailureBranch(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-start",
 					"type": "navigate",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"url": "https://example.com",
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-assert",
 					"type": "assert",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"assertMode":        "exists",
 						"selector":          "#status",
 						"continueOnFailure": true,
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-success",
 					"type": "screenshot",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"name": "success",
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-failure",
 					"type": "screenshot",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"name": "failure",
 					},
 				},
 			},
-			"edges": []interface{}{
-				map[string]interface{}{"id": "edge-1", "source": "node-start", "target": "node-assert"},
-				map[string]interface{}{"id": "edge-2", "source": "node-assert", "target": "node-success", "data": map[string]interface{}{"condition": "success"}},
-				map[string]interface{}{"id": "edge-3", "source": "node-assert", "target": "node-failure", "data": map[string]interface{}{"condition": "failure"}},
+			"edges": []any{
+				map[string]any{"id": "edge-1", "source": "node-start", "target": "node-assert"},
+				map[string]any{"id": "edge-2", "source": "node-assert", "target": "node-success", "data": map[string]any{"condition": "success"}},
+				map[string]any{"id": "edge-3", "source": "node-assert", "target": "node-failure", "data": map[string]any{"condition": "failure"}},
 			},
 		},
 	}
@@ -1238,35 +1238,35 @@ func TestExecuteWorkflowContinuesWithoutFailureEdge(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-start",
 					"type": "navigate",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"url": "https://example.com",
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-assert",
 					"type": "assert",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"assertMode":        "exists",
 						"selector":          "#status",
 						"continueOnFailure": true,
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-after",
 					"type": "wait",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"type":     "time",
 						"duration": 100,
 					},
 				},
 			},
-			"edges": []interface{}{
-				map[string]interface{}{"id": "edge-1", "source": "node-start", "target": "node-assert"},
-				map[string]interface{}{"id": "edge-2", "source": "node-assert", "target": "node-after"},
+			"edges": []any{
+				map[string]any{"id": "edge-1", "source": "node-start", "target": "node-assert"},
+				map[string]any{"id": "edge-2", "source": "node-assert", "target": "node-after"},
 			},
 		},
 	}
@@ -1333,24 +1333,24 @@ func TestExecuteWorkflowStopsOnFatalFailure(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-start",
 					"type": "navigate",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"url": "https://example.com",
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "node-extract",
 					"type": "extract",
-					"data": map[string]interface{}{
+					"data": map[string]any{
 						"selector": "#headline",
 					},
 				},
 			},
-			"edges": []interface{}{
-				map[string]interface{}{"id": "edge-1", "source": "node-start", "target": "node-extract"},
+			"edges": []any{
+				map[string]any{"id": "edge-1", "source": "node-start", "target": "node-extract"},
 			},
 		},
 	}
@@ -1426,11 +1426,11 @@ func TestBuildInstructionsUnsupportedNode(t *testing.T) {
 	workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
-			"nodes": []interface{}{
-				map[string]interface{}{
+			"nodes": []any{
+				map[string]any{
 					"id":   "node-1",
 					"type": "custom",
-					"data": map[string]interface{}{},
+					"data": map[string]any{},
 				},
 			},
 		},

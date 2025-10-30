@@ -16,7 +16,7 @@ var (
 )
 
 // JSONMap represents a JSON object stored in the database
-type JSONMap map[string]interface{}
+type JSONMap map[string]any
 
 func (j JSONMap) Value() (driver.Value, error) {
 	if j == nil {
@@ -25,7 +25,7 @@ func (j JSONMap) Value() (driver.Value, error) {
 	return json.Marshal(j)
 }
 
-func (j *JSONMap) Scan(value interface{}) error {
+func (j *JSONMap) Scan(value any) error {
 	if value == nil {
 		*j = nil
 		return nil

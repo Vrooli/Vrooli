@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"app-monitor-api/repository"
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
@@ -27,95 +28,44 @@ func NewAppHandler(appService *services.AppService) *AppHandler {
 
 // GetAppsSummary returns a fast-loading set of applications using cached CLI metadata
 func (h *AppHandler) GetAppsSummary(c *gin.Context) {
-	apps, err := h.appService.GetAppsSummary(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch apps summary",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, apps)
+	HandleServiceCallRaw(c, h.appService.GetAppsSummary, "Failed to fetch apps summary")
 }
 
 // GetApps returns all applications
 func (h *AppHandler) GetApps(c *gin.Context) {
-	apps, err := h.appService.GetApps(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch apps",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, apps)
+	HandleServiceCallRaw(c, h.appService.GetApps, "Failed to fetch apps")
 }
 
 // GetApp returns a single application by ID
 func (h *AppHandler) GetApp(c *gin.Context) {
 	id := c.Param("id")
-
-	app, err := h.appService.GetApp(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "App not found",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    app,
-	})
+	HandleServiceCall(c, func(ctx context.Context) (*repository.App, error) {
+		return h.appService.GetApp(ctx, id)
+	}, "App not found")
 }
 
 // StartApp starts an application
 func (h *AppHandler) StartApp(c *gin.Context) {
 	id := c.Param("id")
-
-	if err := h.appService.StartApp(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to start app",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "App started successfully",
-	})
+	HandleServiceAction(c, func(ctx context.Context) error {
+		return h.appService.StartApp(ctx, id)
+	}, "App started successfully", "Failed to start app")
 }
 
 // StopApp stops an application
 func (h *AppHandler) StopApp(c *gin.Context) {
 	id := c.Param("id")
-
-	if err := h.appService.StopApp(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to stop app",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "App stopped successfully",
-	})
+	HandleServiceAction(c, func(ctx context.Context) error {
+		return h.appService.StopApp(ctx, id)
+	}, "App stopped successfully", "Failed to stop app")
 }
 
 // RestartApp restarts an application
 func (h *AppHandler) RestartApp(c *gin.Context) {
 	id := c.Param("id")
-
-	if err := h.appService.RestartApp(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to restart app",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "App restarted successfully",
-	})
+	HandleServiceAction(c, func(ctx context.Context) error {
+		return h.appService.RestartApp(ctx, id)
+	}, "App restarted successfully", "Failed to restart app")
 }
 
 // RecordAppView increments view counters for an application preview
@@ -124,19 +74,13 @@ func (h *AppHandler) RecordAppView(c *gin.Context) {
 
 	stats, err := h.appService.RecordAppView(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to record app view",
-		})
+		c.JSON(http.StatusInternalServerError, errorResponse("Failed to record app view"))
 		return
 	}
 
-	response := gin.H{
-		"success": true,
-	}
-
+	var data interface{}
 	if stats != nil {
-		response["data"] = gin.H{
+		data = gin.H{
 			"scenario_name":   stats.ScenarioName,
 			"view_count":      stats.ViewCount,
 			"first_viewed_at": stats.FirstViewed,
@@ -144,7 +88,7 @@ func (h *AppHandler) RecordAppView(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, successResponse(data))
 }
 
 // GetAppLogs returns logs for an application
@@ -154,10 +98,7 @@ func (h *AppHandler) GetAppLogs(c *gin.Context) {
 
 	logsResult, err := h.appService.GetAppLogs(c.Request.Context(), appName, logType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"logs":  []string{},
-			"error": "Failed to fetch logs",
-		})
+		c.JSON(http.StatusInternalServerError, errorResponse("Failed to fetch logs"))
 		return
 	}
 
@@ -234,9 +175,7 @@ func (h *AppHandler) GetAppMetrics(c *gin.Context) {
 
 	metrics, err := h.appService.GetAppStatusHistory(c.Request.Context(), id, hours)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch metrics",
-		})
+		c.JSON(http.StatusInternalServerError, errorResponse("Failed to fetch metrics"))
 		return
 	}
 
@@ -316,10 +255,7 @@ func (h *AppHandler) GetAppIssues(c *gin.Context) {
 			status = http.StatusServiceUnavailable
 		}
 
-		c.JSON(status, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(status, errorResponse(err.Error()))
 		return
 	}
 
@@ -335,10 +271,7 @@ func (h *AppHandler) ReportAppIssue(c *gin.Context) {
 
 	var payload services.IssueReportRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid issue report payload",
-		})
+		c.JSON(http.StatusBadRequest, errorResponse("Invalid issue report payload"))
 		return
 	}
 
@@ -346,30 +279,19 @@ func (h *AppHandler) ReportAppIssue(c *gin.Context) {
 
 	result, err := h.appService.ReportAppIssue(c.Request.Context(), &payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
 		return
 	}
 
-	response := gin.H{
-		"success": true,
-		"message": result.Message,
-	}
-
-	data := gin.H{}
+	data := gin.H{"message": result.Message}
 	if result.IssueID != "" {
 		data["issue_id"] = result.IssueID
 	}
 	if result.IssueURL != "" {
 		data["issue_url"] = result.IssueURL
 	}
-	if len(data) > 0 {
-		response["data"] = data
-	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, successResponse(data))
 }
 
 // CheckAppIframeBridge evaluates iframe bridge diagnostics via scenario-auditor.
@@ -388,10 +310,7 @@ func (h *AppHandler) CheckAppIframeBridge(c *gin.Context) {
 			status = http.StatusServiceUnavailable
 		}
 
-		c.JSON(status, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(status, errorResponse(err.Error()))
 		return
 	}
 
@@ -415,10 +334,7 @@ func (h *AppHandler) GetAppScenarioStatus(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 
-		c.JSON(status, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(status, errorResponse(err.Error()))
 		return
 	}
 
@@ -442,10 +358,7 @@ func (h *AppHandler) CheckAppHealth(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 
-		c.JSON(status, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(status, errorResponse(err.Error()))
 		return
 	}
 
@@ -471,10 +384,7 @@ func (h *AppHandler) CheckAppLocalhostUsage(c *gin.Context) {
 			status = http.StatusRequestTimeout
 		}
 
-		c.JSON(status, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(status, errorResponse(err.Error()))
 		return
 	}
 

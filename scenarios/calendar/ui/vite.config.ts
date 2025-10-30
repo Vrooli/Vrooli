@@ -45,6 +45,65 @@ const resolveProxyTarget = () => {
 
 const PROXY_TARGET = resolveProxyTarget()
 
+const HOST_ENV_KEYS = [
+  'APP_MONITOR_ALLOWED_HOSTS',
+  'CALENDAR_ALLOWED_HOSTS',
+  'VITE_ALLOWED_HOSTS'
+]
+
+const ORIGIN_ENV_KEYS = [
+  'APP_MONITOR_ALLOWED_ORIGINS',
+  'CALENDAR_ALLOWED_ORIGINS',
+  'VITE_ALLOWED_ORIGINS',
+  'ALLOWED_ORIGINS'
+]
+
+const DEFAULT_LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1']
+
+const readEnvList = (keys: string[]): string[] => {
+  const values: string[] = []
+  for (const key of keys) {
+    const raw = process.env[key]
+    if (typeof raw === 'string') {
+      raw
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .forEach((entry) => values.push(entry))
+    }
+  }
+  return values
+}
+
+const extractHostsFromOrigins = (origins: string[]): string[] => {
+  const hosts: string[] = []
+  origins.forEach((origin) => {
+    try {
+      const parsed = new URL(origin)
+      if (parsed.hostname) {
+        hosts.push(parsed.hostname)
+      }
+    } catch {
+      // Ignore malformed entries so a single bad origin does not prevent startup
+    }
+  })
+  return hosts
+}
+
+const resolveAllowedHosts = (): string[] | true => {
+  const explicitHosts = readEnvList(HOST_ENV_KEYS)
+  const originHosts = extractHostsFromOrigins(readEnvList(ORIGIN_ENV_KEYS))
+  const hosts = new Set<string>([...explicitHosts, ...originHosts])
+
+  if (hosts.size > 0) {
+    DEFAULT_LOCAL_HOSTS.forEach((host) => hosts.add(host))
+    return Array.from(hosts)
+  }
+
+  // Returning true disables host checking so App Monitor preview domains can connect
+  return true
+}
+
 // Plugin to add health endpoint
 function healthCheckPlugin() {
   return {
@@ -88,6 +147,8 @@ const validateEnv = () => {
 // Run validation immediately
 validateEnv();
 
+const allowedHosts = resolveAllowedHosts()
+
 export default defineConfig({
   plugins: [react(), healthCheckPlugin()],
   resolve: {
@@ -98,6 +159,7 @@ export default defineConfig({
   server: {
     port: parseInt(process.env.UI_PORT!),
     host: true,
+    allowedHosts,
     proxy: {
       '/api': {
         target: PROXY_TARGET,

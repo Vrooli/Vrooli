@@ -79,27 +79,13 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		}
 	}
 
-	const (
-		maxReportLogs           = 300
-		maxConsoleLogs          = 200
-		maxNetworkEntries       = 150
-		maxConsoleTextLength    = 2000
-		maxNetworkURLLength     = 2048
-		maxNetworkErrLength     = 1500
-		maxRequestIDLength      = 128
-		maxHealthEntries        = 20
-		maxHealthNameLength     = 120
-		maxHealthEndpointLength = 512
-		maxHealthMessageLength  = 400
-		maxHealthCodeLength     = 120
-		maxHealthResponseLength = 4000
-		maxStatusLines          = 120
-		maxCaptureEntries       = 12
-		maxCaptureNoteLength    = 600
-		maxCaptureLabelLength   = 160
-		maxCaptureTextLength    = 900
+	captures := sanitizeIssueCaptures(
+		req.Captures,
+		MaxCaptureEntries,
+		MaxCaptureNoteLength,
+		MaxCaptureLabelLength,
+		MaxCaptureTextLength,
 	)
-	captures := sanitizeIssueCaptures(req.Captures, maxCaptureEntries, maxCaptureNoteLength, maxCaptureLabelLength, maxCaptureTextLength)
 	elementCaptureCount := 0
 	pageCaptureCount := 0
 	for _, capture := range captures {
@@ -114,8 +100,8 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		trimmed := strings.TrimRight(line, "\r\n")
 		sanitizedLogs = append(sanitizedLogs, trimmed)
 	}
-	if len(sanitizedLogs) > maxReportLogs {
-		sanitizedLogs = sanitizedLogs[len(sanitizedLogs)-maxReportLogs:]
+	if len(sanitizedLogs) > MaxReportLogs {
+		sanitizedLogs = sanitizedLogs[len(sanitizedLogs)-MaxReportLogs:]
 	}
 
 	logsTotal := valueOrDefault(req.LogsTotal, len(req.Logs))
@@ -127,13 +113,23 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	consoleCapturedAt := trimmedStringPtr(req.ConsoleCapturedAt)
 	networkCapturedAt := trimmedStringPtr(req.NetworkCapturedAt)
 
-	consoleLogs := sanitizeConsoleLogs(req.ConsoleLogs, maxConsoleLogs, maxConsoleTextLength)
+	consoleLogs := sanitizeConsoleLogs(
+		req.ConsoleLogs,
+		MaxConsoleLogEntries,
+		MaxConsoleTextLength,
+	)
 	consoleTotal := valueOrDefault(req.ConsoleLogsTotal, len(req.ConsoleLogs))
 	if consoleTotal <= 0 {
 		consoleTotal = len(req.ConsoleLogs)
 	}
 
-	networkEntries := sanitizeNetworkRequests(req.NetworkRequests, maxNetworkEntries, maxNetworkURLLength, maxNetworkErrLength, maxRequestIDLength)
+	networkEntries := sanitizeNetworkRequests(
+		req.NetworkRequests,
+		MaxNetworkEntries,
+		MaxNetworkURLLength,
+		MaxNetworkErrorLength,
+		MaxRequestIDLength,
+	)
 	networkTotal := valueOrDefault(req.NetworkTotal, len(req.NetworkRequests))
 	if networkTotal <= 0 {
 		networkTotal = len(req.NetworkRequests)
@@ -141,12 +137,12 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 
 	healthEntries := sanitizeHealthChecks(
 		req.HealthChecks,
-		maxHealthEntries,
-		maxHealthNameLength,
-		maxHealthEndpointLength,
-		maxHealthMessageLength,
-		maxHealthCodeLength,
-		maxHealthResponseLength,
+		MaxHealthCheckEntries,
+		MaxHealthNameLength,
+		MaxHealthEndpointLength,
+		MaxHealthMessageLength,
+		MaxHealthCodeLength,
+		MaxHealthResponseLength,
 	)
 	healthTotal := valueOrDefault(req.HealthChecksTotal, len(req.HealthChecks))
 	if healthTotal <= 0 {
@@ -155,8 +151,8 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	healthCapturedAt := trimmedStringPtr(req.HealthChecksCapturedAt)
 
 	statusLines := filterNonEmptyStrings(req.AppStatusLines)
-	if len(statusLines) > maxStatusLines {
-		statusLines = statusLines[len(statusLines)-maxStatusLines:]
+	if len(statusLines) > MaxStatusLines {
+		statusLines = statusLines[len(statusLines)-MaxStatusLines:]
 	}
 	statusLabel := trimmedStringPtr(req.AppStatusLabel)
 	statusSeverity := strings.ToLower(trimmedStringPtr(req.AppStatusSeverity))
@@ -527,16 +523,17 @@ func (s *AppService) submitIssueToTracker(ctx context.Context, port int, payload
 }
 
 // =============================================================================
-// Sanitization Functions
+// Issue Data Sanitization Functions
 // =============================================================================
 
+// sanitizeConsoleLogs validates and normalizes console log entries
 func sanitizeConsoleLogs(entries []IssueConsoleLogEntry, maxEntries, maxText int) []IssueConsoleLogEntry {
 	if len(entries) == 0 {
 		return nil
 	}
 	sanitized := make([]IssueConsoleLogEntry, 0, len(entries))
 	for _, entry := range entries {
-		level := strings.ToLower(strings.TrimSpace(entry.Level))
+		level := normalizeLower(entry.Level)
 		switch level {
 		case "log", "info", "warn", "error", "debug":
 			// keep as-is
@@ -544,7 +541,7 @@ func sanitizeConsoleLogs(entries []IssueConsoleLogEntry, maxEntries, maxText int
 			level = "log"
 		}
 
-		source := strings.ToLower(strings.TrimSpace(entry.Source))
+		source := normalizeLower(entry.Source)
 		if source != "console" && source != "runtime" {
 			source = "console"
 		}
@@ -569,6 +566,7 @@ func sanitizeConsoleLogs(entries []IssueConsoleLogEntry, maxEntries, maxText int
 	return sanitized
 }
 
+// sanitizeNetworkRequests validates and normalizes network request entries
 func sanitizeNetworkRequests(entries []IssueNetworkEntry, maxEntries, maxURLLength, maxErrLength, maxIDLength int) []IssueNetworkEntry {
 	if len(entries) == 0 {
 		return nil
@@ -576,7 +574,7 @@ func sanitizeNetworkRequests(entries []IssueNetworkEntry, maxEntries, maxURLLeng
 
 	sanitized := make([]IssueNetworkEntry, 0, len(entries))
 	for _, entry := range entries {
-		kind := strings.ToLower(strings.TrimSpace(entry.Kind))
+		kind := normalizeLower(entry.Kind)
 		if kind != "fetch" && kind != "xhr" {
 			kind = "fetch"
 		}
@@ -638,6 +636,7 @@ func sanitizeNetworkRequests(entries []IssueNetworkEntry, maxEntries, maxURLLeng
 	return sanitized
 }
 
+// sanitizeHealthChecks validates and normalizes health check entries
 func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLength, maxEndpointLength, maxMessageLength, maxCodeLength, maxResponseLength int) []IssueHealthCheckEntry {
 	if len(entries) == 0 {
 		return nil
@@ -662,7 +661,7 @@ func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLe
 			name = truncateString(name, maxNameLength)
 		}
 
-		status := strings.ToLower(strings.TrimSpace(entry.Status))
+		status := normalizeLower(entry.Status)
 		switch status {
 		case "pass", "ok", "healthy":
 			status = "pass"
@@ -719,6 +718,7 @@ func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLe
 	return sanitized
 }
 
+// sanitizeIssueCaptures validates and normalizes screenshot/element captures
 func sanitizeIssueCaptures(entries []IssueCapture, maxEntries, maxNoteLength, maxLabelLength, maxTextLength int) []IssueCapture {
 	if len(entries) == 0 {
 		return nil
@@ -767,7 +767,7 @@ func sanitizeIssueCaptures(entries []IssueCapture, maxEntries, maxNoteLength, ma
 		seen[captureID] = struct{}{}
 
 		mode := strings.TrimSpace(entry.Mode)
-		kind := strings.ToLower(strings.TrimSpace(entry.Type))
+		kind := normalizeLower(entry.Type)
 		if kind != "element" && kind != "page" {
 			kind = "element"
 		}
@@ -804,6 +804,7 @@ func sanitizeIssueCaptures(entries []IssueCapture, maxEntries, maxNoteLength, ma
 	return sanitized
 }
 
+// sanitizeCaptureBox validates and normalizes bounding box coordinates
 func sanitizeCaptureBox(box *IssueCaptureBox) *IssueCaptureBox {
 	if box == nil {
 		return nil
@@ -826,6 +827,7 @@ func sanitizeCaptureBox(box *IssueCaptureBox) *IssueCaptureBox {
 	return sanitized
 }
 
+// sanitizeCaptureTimestamp validates and normalizes capture timestamps
 func sanitizeCaptureTimestamp(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -837,6 +839,7 @@ func sanitizeCaptureTimestamp(value string) string {
 	return trimmed
 }
 
+// clampCaptureDimension ensures capture dimensions are within reasonable bounds
 func clampCaptureDimension(value int) int {
 	if value < 0 {
 		return 0
@@ -847,6 +850,7 @@ func clampCaptureDimension(value int) int {
 	return value
 }
 
+// roundFloat rounds a float to the specified precision
 func roundFloat(value float64, precision int) float64 {
 	if precision <= 0 {
 		return math.Round(value)
@@ -865,10 +869,10 @@ func deriveIssueTitle(primaryDescription, message string, captures []IssueCaptur
 
 	notedCaptures := make([]IssueCapture, 0, len(captures))
 	for _, capture := range captures {
-		if strings.ToLower(strings.TrimSpace(capture.Type)) != "element" {
+		if normalizeLower(capture.Type) != "element" {
 			continue
 		}
-		if strings.TrimSpace(capture.Note) == "" {
+		if isEmptyOrWhitespace(capture.Note) {
 			continue
 		}
 		notedCaptures = append(notedCaptures, capture)
@@ -1302,7 +1306,7 @@ func formatCaptureSummary(capture IssueCapture, index int) string {
 func countConsoleErrors(logs []IssueConsoleLogEntry) int {
 	count := 0
 	for _, log := range logs {
-		if strings.ToLower(strings.TrimSpace(log.Level)) == "error" {
+		if normalizeLower(log.Level) == "error" {
 			count++
 		}
 	}
@@ -1332,7 +1336,7 @@ func getFirstFailedRequest(requests []IssueNetworkEntry) *IssueNetworkEntry {
 func countPassingHealthChecks(checks []IssueHealthCheckEntry) int {
 	count := 0
 	for _, check := range checks {
-		if strings.ToLower(strings.TrimSpace(check.Status)) == "pass" {
+		if normalizeLower(check.Status) == "pass" {
 			count++
 		}
 	}

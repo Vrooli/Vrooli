@@ -164,7 +164,8 @@
       "endpoints": {
         "api": "/health",
         "metrics": "/api/metrics/current",
-        "investigations": "/api/investigations/latest"
+        "investigations": "/api/investigations/latest",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -174,6 +175,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -192,7 +201,9 @@
           },
           {
             "type": "cli",
-            "targets": ["system-monitor"]
+            "targets": [
+              "system-monitor"
+            ]
           },
           {
             "type": "resources",
@@ -217,7 +228,7 @@
           "description": "Install CLI command"
         },
         {
-          "name": "build-api", 
+          "name": "build-api",
           "run": "cd api && go mod download && go build -o system-monitor-api .",
           "description": "Build Go API binary"
         },

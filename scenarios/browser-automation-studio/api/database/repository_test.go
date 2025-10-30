@@ -249,8 +249,8 @@ func TestExecutionStepAndArtifactPersistence(t *testing.T) {
 		Name:       "Step Test Workflow",
 		FolderPath: "/test/steps",
 		FlowDefinition: JSONMap{
-			"nodes": []interface{}{},
-			"edges": []interface{}{},
+			"nodes": []any{},
+			"edges": []any{},
 		},
 	}
 	if err := repo.CreateWorkflow(ctx, workflow); err != nil {
@@ -464,8 +464,8 @@ func TestWorkflowOperations(t *testing.T) {
 			Name:       "Test Workflow",
 			FolderPath: "/test/workflows",
 			FlowDefinition: JSONMap{
-				"nodes": []interface{}{},
-				"edges": []interface{}{},
+				"nodes": []any{},
+				"edges": []any{},
 			},
 			Tags:      []string{"test"},
 			Version:   1,
@@ -495,7 +495,7 @@ func TestWorkflowOperations(t *testing.T) {
 			Name:       "Named Workflow",
 			FolderPath: "/test/named-workflow",
 			FlowDefinition: JSONMap{
-				"nodes": []interface{}{},
+				"nodes": []any{},
 			},
 			Tags:    []string{},
 			Version: 1,
@@ -532,7 +532,7 @@ func TestExecutionOperations(t *testing.T) {
 		Name:       "Execution Test Workflow",
 		FolderPath: "/test/execution-workflow",
 		FlowDefinition: JSONMap{
-			"nodes": []interface{}{},
+			"nodes": []any{},
 		},
 		Tags:    []string{},
 		Version: 1,

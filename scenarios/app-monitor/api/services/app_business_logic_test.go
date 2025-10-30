@@ -386,28 +386,28 @@ func TestIssueTrackerIntegration(t *testing.T) {
 
 	t.Run("ParseNestedIssueIDFormats", func(t *testing.T) {
 		testCases := []struct {
-			name           string
-			responseBody   string
+			name            string
+			responseBody    string
 			expectedIssueID string
 		}{
 			{
-				name:           "issue_id in data",
-				responseBody:   `{"success": true, "data": {"issue_id": "DIRECT-123"}}`,
+				name:            "issue_id in data",
+				responseBody:    `{"success": true, "data": {"issue_id": "DIRECT-123"}}`,
 				expectedIssueID: "DIRECT-123",
 			},
 			{
-				name:           "issueId in data",
-				responseBody:   `{"success": true, "data": {"issueId": "CAMEL-456"}}`,
+				name:            "issueId in data",
+				responseBody:    `{"success": true, "data": {"issueId": "CAMEL-456"}}`,
 				expectedIssueID: "CAMEL-456",
 			},
 			{
-				name:           "nested issue.id",
-				responseBody:   `{"success": true, "data": {"issue": {"id": "NESTED-789"}}}`,
+				name:            "nested issue.id",
+				responseBody:    `{"success": true, "data": {"issue": {"id": "NESTED-789"}}}`,
 				expectedIssueID: "NESTED-789",
 			},
 			{
-				name:           "no issue ID",
-				responseBody:   `{"success": true, "data": {}}`,
+				name:            "no issue ID",
+				responseBody:    `{"success": true, "data": {}}`,
 				expectedIssueID: "",
 			},
 		}

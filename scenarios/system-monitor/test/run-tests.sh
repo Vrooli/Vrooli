@@ -1,16 +1,27 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "Running comprehensive tests for System Monitor"
 
-# Run all phases
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PHASE_DIR="${SCRIPT_DIR}/phases"
+
+if [[ ! -d "${PHASE_DIR}" ]]; then
+  echo "Missing test phases directory: ${PHASE_DIR}" >&2
+  exit 1
+fi
+
+run_phase() {
+  local script_name="$1"
+  bash "${PHASE_DIR}/${script_name}"
+}
+
 echo "=== Running test phases ==="
-cd phases && ./test-unit.sh
-./test-business.sh
-./test-dependencies.sh
-./test-integration.sh
-./test-performance.sh
-./test-structure.sh
-cd ..
+run_phase "test-unit.sh"
+run_phase "test-business.sh"
+run_phase "test-dependencies.sh"
+run_phase "test-integration.sh"
+run_phase "test-performance.sh"
+run_phase "test-structure.sh"
 
 echo "All tests completed successfully!"

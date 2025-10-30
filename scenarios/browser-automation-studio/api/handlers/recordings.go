@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +18,7 @@ import (
 // ImportRecording handles POST /api/v1/recordings/import
 func (h *Handler) ImportRecording(w http.ResponseWriter, r *http.Request) {
 	if h.recordingService == nil {
-		http.Error(w, "Recording ingestion is not available", http.StatusServiceUnavailable)
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Recording ingestion is not available"))
 		return
 	}
 
@@ -29,34 +28,36 @@ func (h *Handler) ImportRecording(w http.ResponseWriter, r *http.Request) {
 	archivePath, cleanup, err := h.persistRecordingArchive(r)
 	if err != nil {
 		h.log.WithError(err).Warn("Failed to persist recording archive")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
 	defer cleanup()
 
 	opts, err := parseRecordingOptions(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
 
 	result, err := h.recordingService.ImportArchive(ctx, archivePath, opts)
 	if err != nil {
-		status := http.StatusInternalServerError
+		var apiErr *APIError
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
-			status = http.StatusRequestTimeout
+			apiErr = ErrRequestTimeout.WithDetails(map[string]string{"error": err.Error()})
 		case errors.Is(err, services.ErrRecordingArchiveTooLarge):
-			status = http.StatusRequestEntityTooLarge
+			apiErr = ErrRequestTooLarge.WithMessage("Recording archive exceeds maximum allowed size")
 		case errors.Is(err, services.ErrRecordingManifestMissingFrames), errors.Is(err, services.ErrRecordingTooManyFrames):
-			status = http.StatusBadRequest
+			apiErr = ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()})
+		default:
+			apiErr = ErrInternalServer.WithDetails(map[string]string{"operation": "import_recording", "error": err.Error()})
 		}
 		h.log.WithError(err).Warn("Recording import failed")
-		http.Error(w, err.Error(), status)
+		h.respondError(w, apiErr)
 		return
 	}
 
-	response := map[string]any{
+	h.respondSuccess(w, http.StatusCreated, map[string]any{
 		"execution_id":  result.Execution.ID,
 		"workflow_id":   result.Workflow.ID,
 		"workflow_name": result.Workflow.Name,
@@ -67,11 +68,7 @@ func (h *Handler) ImportRecording(w http.ResponseWriter, r *http.Request) {
 		"duration_ms":   result.DurationMs,
 		"message":       "Recording imported",
 		"trigger_type":  result.Execution.TriggerType,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
 func (h *Handler) persistRecordingArchive(r *http.Request) (string, func(), error) {
@@ -182,58 +179,63 @@ func firstNonEmpty(values ...string) string {
 // Streams stored recording assets from disk.
 func (h *Handler) ServeRecordingAsset(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(h.recordingsRoot) == "" {
-		http.Error(w, "Recording storage unavailable", http.StatusServiceUnavailable)
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Recording storage unavailable"))
 		return
 	}
 
 	execIDStr := chi.URLParam(r, "executionID")
 	execID, err := uuid.Parse(execIDStr)
 	if err != nil {
-		http.Error(w, "Invalid execution ID", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidExecutionID)
 		return
 	}
 
 	remainder := chi.URLParam(r, "*")
 	if strings.TrimSpace(remainder) == "" {
-		http.Error(w, "Asset path required", http.StatusBadRequest)
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "asset_path"}))
 		return
 	}
 
 	cleaned := filepath.Clean(remainder)
 	if cleaned == "." || strings.HasPrefix(cleaned, "..") {
-		http.Error(w, "Invalid asset path", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "asset_path", "error": "invalid path"}))
 		return
 	}
 
 	baseDir := filepath.Join(h.recordingsRoot, execID.String())
 	assetPath := filepath.Join(baseDir, cleaned)
 	if !strings.HasPrefix(assetPath, baseDir) {
-		http.Error(w, "Asset path escapes execution directory", http.StatusBadRequest)
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "asset_path", "error": "path traversal attempt"}))
 		return
 	}
 
 	file, err := os.Open(assetPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.Error(w, "Asset not found", http.StatusNotFound)
+			h.respondError(w, &APIError{
+				Status:  http.StatusNotFound,
+				Code:    "ASSET_NOT_FOUND",
+				Message: "Asset not found",
+				Details: map[string]string{"asset": filepath.Base(assetPath)},
+			})
 			return
 		}
 		h.log.WithError(err).WithField("asset", assetPath).Error("Failed to open recording asset")
-		http.Error(w, "Unable to read asset", http.StatusInternalServerError)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "read_asset"}))
 		return
 	}
 	defer file.Close()
 
 	info, err := file.Stat()
 	if err != nil {
-		http.Error(w, "Unable to read asset", http.StatusInternalServerError)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "stat_asset"}))
 		return
 	}
 
 	header := make([]byte, 512)
 	n, _ := file.Read(header)
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		http.Error(w, "Unable to read asset", http.StatusInternalServerError)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "seek_asset"}))
 		return
 	}
 

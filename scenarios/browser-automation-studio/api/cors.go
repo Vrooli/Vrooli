@@ -15,7 +15,26 @@ type corsConfig struct {
 	allowAll       bool
 }
 
-var wildcardWarningOnce sync.Once
+var (
+	corsConfigCache     corsConfig
+	corsConfigCacheOnce sync.Once
+	wildcardWarningOnce sync.Once
+)
+
+func getCachedCorsConfig() corsConfig {
+	corsConfigCacheOnce.Do(func() {
+		corsConfigCache = resolveAllowedOrigins()
+	})
+	return corsConfigCache
+}
+
+// resetCorsConfigForTesting resets the CORS config cache for testing purposes
+// This function should ONLY be called from tests
+func resetCorsConfigForTesting() {
+	corsConfigCacheOnce = sync.Once{}
+	wildcardWarningOnce = sync.Once{}
+	corsConfigCache = corsConfig{}
+}
 
 func resolveAllowedOrigins() corsConfig {
 	envSources := []string{
@@ -72,7 +91,7 @@ func resolveAllowedOrigins() corsConfig {
 func corsMiddleware(log *logrus.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cfg := resolveAllowedOrigins()
+			cfg := getCachedCorsConfig()
 			origin := strings.TrimSpace(r.Header.Get("Origin"))
 
 			// Always vary on origin unless wildcard is enabled for transparency

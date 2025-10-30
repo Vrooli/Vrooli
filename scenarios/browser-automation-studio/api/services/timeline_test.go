@@ -41,8 +41,8 @@ func (m *timelineRepositoryMock) DeleteProjectWorkflows(ctx context.Context, pro
 func (m *timelineRepositoryMock) ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error) {
 	return nil, nil
 }
-func (m *timelineRepositoryMock) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+func (m *timelineRepositoryMock) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
+	return map[string]any{}, nil
 }
 
 // Workflow operations

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -100,11 +99,16 @@ func (s *AppService) hydrateOrchestratorCacheAsync() {
 		return
 	}
 
-	go func() {
-		if _, err := s.GetAppsFromOrchestrator(context.Background()); err != nil {
-			logger.Warn("background hydration during app lookup failed", err)
-		}
-	}()
+	// Set loading flag to prevent concurrent hydration attempts
+	s.cache.mu.Lock()
+	if s.cache.loading {
+		s.cache.mu.Unlock()
+		return
+	}
+	s.cache.loading = true
+	s.cache.mu.Unlock()
+
+	s.hydrateOrchestratorInBackground("background hydration during app lookup failed")
 }
 
 // =============================================================================
@@ -115,8 +119,7 @@ func (s *AppService) hydrateOrchestratorCacheAsync() {
 func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.App, error) {
 	// Check cache first (cache valid for 90 seconds)
 	s.cache.mu.RLock()
-	cacheFresh := time.Since(s.cache.timestamp) < orchestratorCacheTTL
-	if cacheFresh && len(s.cache.data) > 0 && !s.cache.isPartial {
+	if s.cache.isFresh() {
 		cachedData := s.cache.data
 		s.cache.mu.RUnlock()
 		return cachedData, nil
@@ -126,9 +129,8 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	// Prevent concurrent fetches - acquire lock only to set loading flag
 	s.cache.mu.Lock()
 
-	// Check cache again after acquiring lock
-	cacheFresh = time.Since(s.cache.timestamp) < orchestratorCacheTTL
-	if cacheFresh && len(s.cache.data) > 0 && !s.cache.isPartial {
+	// Check cache again after acquiring lock (double-check locking pattern)
+	if s.cache.isFresh() {
 		cachedData := s.cache.data
 		s.cache.mu.Unlock()
 		return cachedData, nil
@@ -160,11 +162,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	// Use vrooli scenario status CLI for runtime data (includes running/stopped status, health, processes, runtime)
 	// This is the canonical way to get scenario status without hard-coded ports or API dependencies
 	// IMPORTANT: Execute this WITHOUT holding the cache lock to prevent blocking other requests
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 45*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", "--json")
-	output, err := cmd.Output()
+	output, err := executeVrooliCommand(ctx, 45*time.Second, "scenario", "status", "--json")
 	if err != nil {
 		// On error, try to return stale cache if available
 		s.cache.mu.RLock()
@@ -194,10 +192,10 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	for _, orchApp := range orchestratorResp.Scenarios {
 		health := ""
 		if orchApp.HealthStatus != nil {
-			health = strings.ToLower(strings.TrimSpace(*orchApp.HealthStatus))
+			health = normalizeLower(*orchApp.HealthStatus)
 		}
 
-		status := strings.ToLower(strings.TrimSpace(orchApp.Status))
+		status := normalizeLower(orchApp.Status)
 		if status == "" {
 			status = "unknown"
 		}
@@ -300,11 +298,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 
 // fetchScenarioList retrieves scenario metadata from the Vrooli CLI
 func (s *AppService) fetchScenarioList(ctx context.Context) ([]scenarioMetadata, error) {
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "list", "--json", "--include-ports")
-	output, err := cmd.Output()
+	output, err := executeVrooliCommand(ctx, 20*time.Second, "scenario", "list", "--json", "--include-ports")
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +335,7 @@ func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.A
 	apps := make([]repository.App, 0, len(scenarios))
 
 	for _, scenario := range scenarios {
-		status := strings.ToLower(strings.TrimSpace(scenario.Status))
+		status := normalizeLower(scenario.Status)
 		if status == "" {
 			status = "unknown"
 		}
@@ -531,4 +525,27 @@ func (s *AppService) mergeViewStats(ctx context.Context, apps []repository.App) 
 	}
 
 	s.mergeInMemoryViewStats(apps)
+}
+
+// hydrateOrchestratorInBackground spawns a goroutine to refresh orchestrator cache
+// and clears the loading flag when complete.
+//
+// Note: Uses a detached context with timeout rather than parent context to ensure
+// the background hydration completes even if the originating request is cancelled.
+// This is intentional - we want the cache to be updated for future requests.
+func (s *AppService) hydrateOrchestratorInBackground(logContext string) {
+	go func() {
+		// Create a detached context with reasonable timeout for background work
+		// This ensures the hydration isn't cancelled if parent request completes
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		if _, err := s.GetAppsFromOrchestrator(ctx); err != nil {
+			logger.Warn(logContext, err)
+		}
+
+		s.cache.mu.Lock()
+		s.cache.loading = false
+		s.cache.mu.Unlock()
+	}()
 }

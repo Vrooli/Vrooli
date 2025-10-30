@@ -24,6 +24,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
   const params = step.params || {};
   const stepName = params.name || '';
   const runStart = Date.now();
+  const preloadHTML = typeof step.preloadHtml === 'string' ? step.preloadHtml : '';
 
   if (!page.__basSetup) {
     await page.setViewport({ width: __VIEWPORT_WIDTH__, height: __VIEWPORT_HEIGHT__ });
@@ -93,6 +94,62 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
 
   const telemetry = page.__basSetup;
 
+  const waitForTime = async (durationMs) => {
+    const duration = Number.isFinite(durationMs) ? Math.max(durationMs, 0) : 0;
+    if (typeof page.waitForTimeout === 'function') {
+      await page.waitForTimeout(duration);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, duration));
+  };
+
+  const rehydrateFromPreload = () => {
+    if (!preloadHTML) {
+      return;
+    }
+    try {
+      const parser = typeof DOMParser === 'function' ? new DOMParser() : null;
+      if (!parser) {
+        if (document && document.body && (!document.body.children || document.body.children.length === 0)) {
+          document.body.innerHTML = preloadHTML;
+        }
+        return;
+      }
+      const parsed = parser.parseFromString(preloadHTML, 'text/html');
+      if (!parsed || !parsed.documentElement) {
+        if (document && document.body && (!document.body.children || document.body.children.length === 0)) {
+          document.body.innerHTML = preloadHTML;
+        }
+        return;
+      }
+      if (!document || !document.documentElement) {
+        return;
+      }
+      const newDoc = parsed.documentElement;
+      const current = document.documentElement;
+      if (current.innerHTML && current.innerHTML.trim().length > 0) {
+        return;
+      }
+      const attrs = current.getAttributeNames();
+      for (const name of attrs) {
+        if (!newDoc.hasAttribute(name)) {
+          current.removeAttribute(name);
+        }
+      }
+      for (const attr of Array.from(newDoc.attributes || [])) {
+        current.setAttribute(attr.name, attr.value);
+      }
+      current.innerHTML = newDoc.innerHTML;
+    } catch {}
+  };
+
+  rehydrateFromPreload();
+
+  try {
+    const currentUrl = typeof page.url === 'function' ? page.url() : 'unknown';
+    console.log('[BAS][debug] step start url:', currentUrl);
+  } catch {}
+
   const flushTelemetry = () => {
     const consoleLogs = telemetry.consoleLogs.slice(telemetry.consoleCursor);
     const networkEvents = telemetry.networkEvents.slice(telemetry.networkCursor);
@@ -113,11 +170,118 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
         }
         const waitUntil = params.waitUntil || 'networkidle2';
         const timeout = Number.isFinite(params.timeoutMs) ? params.timeoutMs : __DEFAULT_TIMEOUT__;
-        await page.goto(params.url, { waitUntil, timeout });
-        if (params.waitForMs) {
-          await page.waitForTimeout(params.waitForMs);
+        const rawUrl = params.url;
+        const lowerUrl = typeof rawUrl === 'string' ? rawUrl.toLowerCase() : '';
+        let navigated = false;
+        let finalUrl = '';
+
+        if (lowerUrl.startsWith('data:text/html')) {
+          const extractDataUrlPayload = (value) => {
+            try {
+              const commaIndex = value.indexOf(',');
+              if (commaIndex === -1) {
+                return null;
+              }
+              const meta = value.slice(0, commaIndex);
+              const dataPart = value.slice(commaIndex + 1);
+              const isBase64 = /;base64/i.test(meta);
+              if (isBase64) {
+                if (typeof Buffer !== 'undefined' && typeof Buffer.from === 'function') {
+                  return Buffer.from(dataPart, 'base64').toString('utf8');
+                }
+                if (typeof atob === 'function') {
+                  const binary = atob(dataPart);
+                  let decoded = '';
+                  for (let i = 0; i < binary.length; i += 1) {
+                    decoded += String.fromCharCode(binary.charCodeAt(i));
+                  }
+                  return decoded;
+                }
+                return null;
+              }
+              try {
+                return decodeURIComponent(dataPart);
+              } catch {
+                return dataPart;
+              }
+            } catch {
+              return null;
+            }
+          };
+
+          const htmlPayload = extractDataUrlPayload(rawUrl);
+          if (htmlPayload && htmlPayload.trim().length > 0) {
+            try {
+              await page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout });
+              await page.evaluate((html) => {
+                const parser = typeof DOMParser === 'function' ? new DOMParser() : null;
+                if (!parser) {
+                  document.body.innerHTML = html;
+                  return;
+                }
+                const parsed = parser.parseFromString(html, 'text/html');
+                if (!parsed || !parsed.documentElement) {
+                  document.body.innerHTML = html;
+                  return;
+                }
+                const newDocumentElement = parsed.documentElement;
+                const currentDocumentElement = document.documentElement;
+                const currentAttributes = currentDocumentElement.getAttributeNames();
+                for (const name of currentAttributes) {
+                  if (!newDocumentElement.hasAttribute(name)) {
+                    currentDocumentElement.removeAttribute(name);
+                  }
+                }
+                for (const attr of Array.from(newDocumentElement.attributes || [])) {
+                  currentDocumentElement.setAttribute(attr.name, attr.value);
+                }
+                currentDocumentElement.innerHTML = newDocumentElement.innerHTML;
+              }, htmlPayload);
+              await page.evaluate((html, url) => {
+                try {
+                  window.__BAS_LAST_NAV_HTML__ = html;
+                  window.__BAS_LAST_NAV_URL__ = url;
+                } catch {}
+              }, htmlPayload, rawUrl);
+              navigated = true;
+              finalUrl = rawUrl;
+            } catch (setContentError) {
+              navigated = false;
+            }
+          }
         }
-        extras = { finalUrl: page.url() };
+
+        if (!navigated) {
+          await page.goto(rawUrl, { waitUntil, timeout });
+          navigated = true;
+          finalUrl = page.url();
+          await page.evaluate((url) => {
+            try {
+              window.__BAS_LAST_NAV_HTML__ = null;
+              window.__BAS_LAST_NAV_URL__ = url;
+            } catch {}
+          }, rawUrl);
+        }
+
+        if (params.waitForMs) {
+          await waitForTime(params.waitForMs);
+        }
+        if (navigated) {
+          try {
+            const bodyPreview = await page.evaluate(() => {
+              if (!document || !document.body) {
+                return null;
+              }
+              const html = document.body.innerHTML || '';
+              return html.length > 200 ? html.slice(0, 200) : html;
+            });
+            extras = { finalUrl: finalUrl || page.url() || rawUrl, bodyPreview };
+          } catch {
+            extras = { finalUrl: finalUrl || page.url() || rawUrl };
+          }
+        } else {
+          extras = { finalUrl: finalUrl || page.url() || rawUrl };
+        }
         break;
       }
       case 'wait': {
@@ -127,13 +291,58 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
             throw new Error('wait element step missing selector');
           }
           const timeout = Number.isFinite(params.timeoutMs) ? params.timeoutMs : __DEFAULT_TIMEOUT__;
-          await page.waitForSelector(params.selector, { timeout });
+          await page.evaluate((selector) => {
+            try {
+              const exists = document && typeof document.querySelector === 'function' && document.querySelector(selector);
+              if (!exists && typeof window !== 'undefined') {
+                const html = typeof window.__BAS_LAST_NAV_HTML__ === 'string' ? window.__BAS_LAST_NAV_HTML__ : null;
+                if (html && html.length > 0) {
+                  const parser = typeof DOMParser === 'function' ? new DOMParser() : null;
+                  if (parser) {
+                    const parsed = parser.parseFromString(html, 'text/html');
+                    if (parsed && parsed.documentElement) {
+                      document.documentElement.innerHTML = parsed.documentElement.innerHTML;
+                    }
+                  } else if (document && document.body) {
+                    document.body.innerHTML = html;
+                  }
+                }
+              }
+            } catch {}
+          }, params.selector);
+          let elementHandle = null;
+          let primaryError = null;
+          try {
+            elementHandle = await page.waitForSelector(params.selector, { timeout });
+          } catch (error) {
+            primaryError = error;
+            const startedAt = Date.now();
+            const pollDelay = Math.min(Math.max(Math.floor(timeout / 20), 50), 500);
+            while ((Date.now() - startedAt) < timeout) {
+              try {
+                const exists = await page.evaluate((selector) => !!document.querySelector(selector), params.selector);
+                if (exists) {
+                  primaryError = null;
+                  break;
+                }
+              } catch (evalError) {
+                primaryError = evalError;
+              }
+              await waitForTime(pollDelay);
+            }
+            if (primaryError) {
+              throw primaryError;
+            }
+          }
+          if (elementHandle && typeof elementHandle.dispose === 'function') {
+            await elementHandle.dispose();
+          }
         } else if (waitType === 'navigation') {
           const timeout = Number.isFinite(params.timeoutMs) ? params.timeoutMs : __DEFAULT_TIMEOUT__;
           await page.waitForNavigation({ timeout });
         } else {
           const duration = Number.isFinite(params.durationMs) ? Math.max(params.durationMs, 0) : 1000;
-          await page.waitForTimeout(duration);
+          await waitForTime(duration);
         }
         break;
       }
@@ -156,7 +365,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
         }
         await element.click(clickOptions);
         if (params.waitForMs) {
-          await page.waitForTimeout(params.waitForMs);
+          await waitForTime(params.waitForMs);
         }
         if (params.waitForSelector) {
           await page.waitForSelector(params.waitForSelector, { timeout });
@@ -288,7 +497,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
           await page.setViewport({ width: params.viewportWidth, height: params.viewportHeight });
         }
         if (params.waitForMs) {
-          await page.waitForTimeout(params.waitForMs);
+          await waitForTime(params.waitForMs);
         }
         const fullPage = (typeof params.fullPage === 'boolean') ? params.fullPage : true;
 
@@ -606,7 +815,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
               satisfied = true;
               break;
             }
-            await page.waitForTimeout(pollDelay);
+            await waitForTime(pollDelay);
           }
           actualValue = mode === 'exists' ? Boolean(elementBoundingBox) : lastExists;
           passed = satisfied;
@@ -637,7 +846,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
               failureDetail = String(err);
               break;
             }
-            await page.waitForTimeout(pollDelay);
+            await waitForTime(pollDelay);
           }
           actualValue = textValue;
           if (!passed && !failureDetail) {
@@ -681,7 +890,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
               failureDetail = String(err);
               break;
             }
-            await page.waitForTimeout(pollDelay);
+            await waitForTime(pollDelay);
           }
           actualValue = attributeValue;
           if (!passed && !failureDetail) {
