@@ -11,6 +11,16 @@ import ProjectModal from './components/ProjectModal';
 import { useExecutionStore } from './stores/executionStore';
 import { useProjectStore, Project } from './stores/projectStore';
 import { useWorkflowStore } from './stores/workflowStore';
+import type { Workflow } from './stores/workflowStore';
+
+interface NormalizedWorkflow extends Partial<Workflow> {
+  id: string;
+  name: string;
+  folderPath: string;
+  createdAt: Date;
+  updatedAt: Date;
+  projectId?: string;
+}
 import { logger } from './utils/logger';
 import 'reactflow/dist/style.css';
 
@@ -18,20 +28,36 @@ import 'reactflow/dist/style.css';
 type AppView = 'dashboard' | 'project-detail' | 'project-workflow';
 
 function App() {
-  const [currentView, setCurrentView] = useState<AppView>('dashboard');
+  const [currentView, setCurrentView] = useState<AppView | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string>('/');
-  const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null);
-  
+  const [selectedWorkflow, setSelectedWorkflow] = useState<NormalizedWorkflow | null>(null);
+
   const { currentProject, setCurrentProject } = useProjectStore();
   const { loadWorkflow } = useWorkflowStore();
   const currentExecution = useExecutionStore((state) => state.currentExecution);
 
-  const transformWorkflow = useCallback((workflow: any) => {
-    if (!workflow) return null;
+  interface RawWorkflow {
+    id?: string;
+    name?: string;
+    folder_path?: string;
+    folderPath?: string;
+    created_at?: string;
+    createdAt?: Date;
+    updated_at?: string;
+    updatedAt?: Date;
+    project_id?: string;
+    projectId?: string;
+    [key: string]: unknown;
+  }
+
+  const transformWorkflow = useCallback((workflow: RawWorkflow | null | undefined): NormalizedWorkflow | null => {
+    if (!workflow || !workflow.id || !workflow.name) return null;
     return {
       ...workflow,
+      id: workflow.id,
+      name: workflow.name,
       folderPath: workflow.folder_path ?? workflow.folderPath ?? '/',
       createdAt: workflow.created_at ? new Date(workflow.created_at) : workflow.createdAt ? new Date(workflow.createdAt) : new Date(),
       updatedAt: workflow.updated_at ? new Date(workflow.updated_at) : workflow.updatedAt ? new Date(workflow.updatedAt) : new Date(),
@@ -84,8 +110,8 @@ function App() {
 
   const openWorkflow = useCallback(async (
     project: Project,
-    workflowId: string,
-    options?: { replace?: boolean; workflowData?: any }
+    workflowId: string | undefined,
+    options?: { replace?: boolean; workflowData?: Record<string, unknown> }
   ) => {
     if (!project || !workflowId) {
       navigateToDashboard(options?.replace ?? false);
@@ -119,15 +145,15 @@ function App() {
       }
     }
     setCurrentView('project-workflow');
-  }, [loadWorkflow, navigateToDashboard, setCurrentProject, transformWorkflow]);
+  }, [loadWorkflow, navigateToDashboard, safeNavigate, setCurrentProject, transformWorkflow]);
 
   const handleProjectSelect = (project: Project) => {
     openProject(project);
   };
 
-  const handleWorkflowSelect = async (workflow: any) => {
+  const handleWorkflowSelect = async (workflow: Workflow) => {
     if (!currentProject) return;
-    await openWorkflow(currentProject, workflow.id, { workflowData: workflow });
+    await openWorkflow(currentProject, workflow.id, { workflowData: workflow as Record<string, unknown> });
   };
 
   const handleBackToDashboard = () => {
@@ -167,20 +193,20 @@ function App() {
         currentProject?.id
       );
       if (currentProject && workflow?.id) {
-        await openWorkflow(currentProject, workflow.id, { workflowData: workflow });
+        await openWorkflow(currentProject, workflow.id, { workflowData: workflow as Record<string, unknown> });
       }
     } catch (error) {
       logger.error('Failed to create workflow', { component: 'App', action: 'handleCreateWorkflow', projectId: currentProject?.id }, error);
     }
   };
 
-  const handleWorkflowGenerated = async (workflow: any) => {
+  const handleWorkflowGenerated = async (workflow: Workflow) => {
     if (!workflow?.id || !currentProject) {
       return;
     }
 
     try {
-      await openWorkflow(currentProject, workflow.id, { workflowData: workflow });
+      await openWorkflow(currentProject, workflow.id, { workflowData: workflow as Record<string, unknown> });
     } catch (error) {
       logger.error('Failed to open generated workflow', { component: 'App', action: 'handleWorkflowGenerated', workflowId: workflow.id, projectId: currentProject.id }, error);
     }
@@ -243,15 +269,24 @@ function App() {
     return () => window.removeEventListener('popstate', popHandler);
   }, [navigateToDashboard, openProject, openWorkflow]);
 
+  // Show loading while determining initial route
+  if (currentView === null) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-flow-bg">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
   // Dashboard View
   if (currentView === 'dashboard') {
     return (
       <div className="h-screen flex flex-col bg-flow-bg">
-        <Dashboard 
+        <Dashboard
           onProjectSelect={handleProjectSelect}
           onCreateProject={handleCreateProject}
         />
-        
+
         {showProjectModal && (
           <ProjectModal
             onClose={() => setShowProjectModal(false)}

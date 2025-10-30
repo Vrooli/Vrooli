@@ -1,5 +1,7 @@
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '../utils/logger';
+import { Eye, Code } from 'lucide-react';
+import Editor from '@monaco-editor/react';
 import ReactFlow, {
   Node,
   Edge,
@@ -14,8 +16,11 @@ import ReactFlow, {
   MarkerType,
   NodeTypes,
   ReactFlowProvider,
+  NodeChange,
+  EdgeChange,
 } from 'reactflow';
 import { useWorkflowStore } from '../stores/workflowStore';
+import { normalizeNodes, normalizeEdges } from '../utils/workflowNormalizers';
 import BrowserActionNode from './nodes/BrowserActionNode';
 import NavigateNode from './nodes/NavigateNode';
 import ClickNode from './nodes/ClickNode';
@@ -56,9 +61,12 @@ interface WorkflowBuilderProps {
 }
 
 function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
-  // TODO: Implement project-specific workflow features
-  logger.debug('Project ID loaded', { component: 'WorkflowBuilder', projectId });
-  
+  // Project ID is used for workflow scoping - workflows are associated with projects
+  // via the database schema and filtered in the ProjectDetail component
+  if (projectId) {
+    logger.debug('Project ID loaded', { component: 'WorkflowBuilder', projectId });
+  }
+
   const { nodes: storeNodes, edges: storeEdges, updateWorkflow } = useWorkflowStore();
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);
@@ -81,7 +89,11 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   const [locked, setLocked] = useState(false);
   
   // Undo/Redo state
-  const [history, setHistory] = useState<Array<{nodes: any[], edges: any[]}>>([]);
+  interface WorkflowState {
+    nodes: Node[];
+    edges: Edge[];
+  }
+  const [history, setHistory] = useState<WorkflowState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [viewMode, setViewMode] = useState<'visual' | 'code'>('visual');
   const [codeValue, setCodeValue] = useState('');
@@ -114,48 +126,6 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     }
   }, [buildJsonFromState, codeDirty, viewMode]);
 
-  const normalizeNodesFromCode = useCallback((rawNodes: any): Node[] => {
-    if (!Array.isArray(rawNodes)) {
-      return [];
-    }
-    return rawNodes.map((node: any, index: number) => {
-      const id = node?.id ? String(node.id) : `node-${index + 1}`;
-      const type = node?.type ? String(node.type) : 'navigate';
-      const position = {
-        x: Number(node?.position?.x ?? 100 + index * 200) || 0,
-        y: Number(node?.position?.y ?? 100 + index * 120) || 0,
-      };
-      const data = node?.data && typeof node.data === 'object' ? node.data : {};
-      return {
-        ...node,
-        id,
-        type,
-        position,
-        data,
-      } as Node;
-    });
-  }, []);
-
-  const normalizeEdgesFromCode = useCallback((rawEdges: any): Edge[] => {
-    if (!Array.isArray(rawEdges)) {
-      return [];
-    }
-    return rawEdges
-      .map((edge: any, index: number) => {
-        const id = edge?.id ? String(edge.id) : `edge-${index + 1}`;
-        const source = edge?.source ? String(edge.source) : '';
-        const target = edge?.target ? String(edge.target) : '';
-        if (!source || !target) return null;
-        return {
-          ...edge,
-          id,
-          source,
-          target,
-        } as Edge;
-      })
-      .filter(Boolean) as Edge[];
-  }, []);
-
   // Save current state to history
   const saveToHistory = useCallback(() => {
     const currentState = { nodes: [...nodes], edges: [...edges] };
@@ -174,8 +144,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   const applyCodeChanges = useCallback((options?: { silent?: boolean }) => {
     try {
       const parsed = JSON.parse(codeValue || '{}');
-      const parsedNodes = normalizeNodesFromCode(parsed?.nodes ?? []);
-      const parsedEdges = normalizeEdgesFromCode(parsed?.edges ?? []);
+      const parsedNodes = normalizeNodes(parsed?.nodes ?? []);
+      const parsedEdges = normalizeEdges(parsed?.edges ?? []);
 
       saveToHistory();
       setNodes(parsedNodes);
@@ -193,7 +163,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       toast.error(`Invalid workflow JSON: ${message}`);
       return false;
     }
-  }, [codeValue, normalizeEdgesFromCode, normalizeNodesFromCode, saveToHistory, setEdges, setNodes, updateWorkflow]);
+  }, [codeValue, saveToHistory, setEdges, setNodes, updateWorkflow]);
 
   const handleViewModeChange = useCallback((mode: 'visual' | 'code') => {
     if (mode === viewMode) {
@@ -215,8 +185,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     }
   }, [applyCodeChanges, buildJsonFromState, codeDirty, viewMode]);
 
-  const handleCodeChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setCodeValue(event.target.value);
+  const handleCodeChange = (value: string | undefined) => {
+    setCodeValue(value || '');
     setCodeDirty(true);
     setCodeError(null);
   };
@@ -308,7 +278,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   );
 
   // Track when connection starts
-  const onConnectStart = useCallback((_: any, { nodeId }: any) => {
+  const onConnectStart = useCallback((_: React.MouseEvent | React.TouchEvent, { nodeId }: { nodeId: string | null }) => {
     connectingNodeId.current = nodeId;
   }, []);
 
@@ -318,17 +288,17 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   }, []);
 
   const onNodesChangeHandler = useCallback(
-    (changes: any) => {
+    (changes: NodeChange[]) => {
       // Check if this is a significant change that should be saved to history
-      const hasSignificantChange = changes.some((change: any) => 
-        change.type === 'add' || change.type === 'remove' || 
-        (change.type === 'position' && change.positionAbsolute)
+      const hasSignificantChange = changes.some((change) =>
+        change.type === 'add' || change.type === 'remove' ||
+        (change.type === 'position' && 'positionAbsolute' in change)
       );
-      
+
       if (hasSignificantChange) {
         saveToHistory();
       }
-      
+
       onNodesChange(changes);
       updateWorkflow({ nodes, edges });
     },
@@ -336,16 +306,16 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   );
 
   const onEdgesChangeHandler = useCallback(
-    (changes: any) => {
+    (changes: EdgeChange[]) => {
       // Check if this is a significant change that should be saved to history
-      const hasSignificantChange = changes.some((change: any) => 
+      const hasSignificantChange = changes.some((change) =>
         change.type === 'add' || change.type === 'remove'
       );
-      
+
       if (hasSignificantChange) {
         saveToHistory();
       }
-      
+
       onEdgesChange(changes);
       updateWorkflow({ nodes, edges });
     },
@@ -403,15 +373,17 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
         <button
           onClick={() => handleViewModeChange('visual')}
-          className={`toolbar-button px-3 ${viewMode === 'visual' ? 'active' : ''}`}
+          className={`toolbar-button ${viewMode === 'visual' ? 'active' : ''}`}
+          title="Visual Builder"
         >
-          Visual Builder
+          <Eye size={18} />
         </button>
         <button
           onClick={() => handleViewModeChange('code')}
-          className={`toolbar-button px-3 ${viewMode === 'code' ? 'active' : ''}`}
+          className={`toolbar-button ${viewMode === 'code' ? 'active' : ''}`}
+          title="JSON Editor"
         >
-          JSON Editor
+          <Code size={18} />
         </button>
       </div>
 
@@ -470,16 +442,46 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           {showGrid && <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#1a1d29" />}
         </ReactFlow>
       ) : (
-        <div className="absolute inset-0 flex flex-col bg-[#0f172a] border border-gray-800 rounded-lg">
-          <textarea
-            className="flex-1 bg-transparent text-gray-200 font-mono text-xs p-4 focus:outline-none resize-none"
-            value={codeValue}
-            onChange={handleCodeChange}
-            spellCheck={false}
-          />
-          <div className="flex items-center justify-between border-t border-gray-800 bg-[#111827] px-4 py-3">
-            <div className="text-xs h-4 text-red-400">
-              {codeError}
+        <div className="absolute inset-0 flex flex-col bg-[#1e1e1e] border border-gray-800 rounded-lg overflow-hidden">
+          <div className="flex-1 overflow-hidden">
+            <Editor
+              height="100%"
+              defaultLanguage="json"
+              value={codeValue}
+              onChange={handleCodeChange}
+              theme="vs-dark"
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                tabSize: 2,
+                insertSpaces: true,
+                wordWrap: 'on',
+                formatOnPaste: true,
+                formatOnType: true,
+                renderWhitespace: 'selection',
+                scrollbar: {
+                  verticalScrollbarSize: 10,
+                  horizontalScrollbarSize: 10,
+                },
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between border-t border-gray-800 bg-[#252526] px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-gray-400">
+                {codeValue.split('\n').length} lines
+              </div>
+              {codeError && (
+                <>
+                  <div className="w-px h-4 bg-gray-700" />
+                  <div className="text-xs text-red-400">
+                    {codeError}
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button

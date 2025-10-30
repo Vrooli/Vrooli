@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { logger } from '../utils/logger';
 import { X, FolderOpen, AlertCircle } from 'lucide-react';
 import { useProjectStore, Project } from '../stores/projectStore';
+import ResponsiveDialog from './ResponsiveDialog';
 
 interface ProjectModalProps {
   onClose: () => void;
@@ -18,6 +19,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const titleId = useId();
 
   const isEditing = !!project;
 
@@ -89,28 +91,34 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-flow-node border border-gray-700 rounded-lg w-full max-w-md mx-4">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-flow-accent/20 rounded-lg flex items-center justify-center">
-              <FolderOpen size={16} className="text-flow-accent" />
-            </div>
-            <h2 className="text-xl font-bold text-white">
-              {isEditing ? 'Edit Project' : 'Create New Project'}
-            </h2>
+    <ResponsiveDialog
+      isOpen
+      onDismiss={onClose}
+      ariaLabelledBy={titleId}
+      size="default"
+      className="bg-flow-node border border-gray-700 shadow-2xl"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-gray-700">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-flow-accent/20 rounded-lg flex items-center justify-center">
+            <FolderOpen size={16} className="text-flow-accent" />
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <h2 id={titleId} className="text-xl font-bold text-white">
+            {isEditing ? 'Edit Project' : 'Create New Project'}
+          </h2>
         </div>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-white transition-colors"
+          aria-label="Close project modal"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="p-6">
           {/* Error Message */}
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2">
@@ -214,8 +222,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ResponsiveDialog>
   );
 }
 

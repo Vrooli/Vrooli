@@ -475,6 +475,8 @@ function buildHtmlDocument(payload) {
       const img = document.getElementById('frame-image');
       const highlightLayer = document.getElementById('highlight-layer');
       const cursor = document.getElementById('cursor');
+      let cursorAnimationHandle = null;
+      let cursorPulseAnimation = null;
       const titleEl = document.getElementById('step-title');
       const descEl = document.getElementById('step-description');
       const statusEl = document.getElementById('step-status');
@@ -490,6 +492,81 @@ function buildHtmlDocument(payload) {
       const defaultHold = 900;
       let playhead = 0;
       let timer = null;
+
+      function clamp(value) {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+          return 0;
+        }
+        if (value < 0) return 0;
+        if (value > 1) return 1;
+        return value;
+      }
+
+      function stopCursorAnimations() {
+        if (cursorAnimationHandle !== null) {
+          cancelAnimationFrame(cursorAnimationHandle);
+          cursorAnimationHandle = null;
+        }
+        if (cursorPulseAnimation && typeof cursorPulseAnimation.cancel === 'function') {
+          cursorPulseAnimation.cancel();
+        }
+        cursorPulseAnimation = null;
+      }
+
+      function setCursorPosition(point) {
+        if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
+          return;
+        }
+        const clampedX = clamp(point.x);
+        const clampedY = clamp(point.y);
+        cursor.style.left = (clampedX * 100) + '%';
+        cursor.style.top = (clampedY * 100) + '%';
+      }
+
+      function animateCursorTrail(trail, duration) {
+        if (!Array.isArray(trail) || trail.length === 0) {
+          return;
+        }
+
+        const sanitizedTrail = trail.map((point) => ({
+          x: clamp(point.x),
+          y: clamp(point.y),
+        }));
+
+        if (sanitizedTrail.length === 1) {
+          setCursorPosition(sanitizedTrail[0]);
+          return;
+        }
+
+        const totalSegments = sanitizedTrail.length - 1;
+        const effectiveDuration = Math.max(duration - 250, 400);
+        const start = performance.now();
+
+        function step(now) {
+          const elapsed = now - start;
+          const ratio = totalSegments > 0 ? Math.min(elapsed / effectiveDuration, 1) : 1;
+          const scaled = ratio * totalSegments;
+          const index = Math.min(Math.floor(scaled), totalSegments - 1);
+          const segmentT = scaled - index;
+          const from = sanitizedTrail[index];
+          const to = sanitizedTrail[index + 1];
+          setCursorPosition({
+            x: from.x + ((to.x - from.x) * segmentT),
+            y: from.y + ((to.y - from.y) * segmentT),
+          });
+
+          if (ratio < 1) {
+            cursorAnimationHandle = requestAnimationFrame(step);
+          } else {
+            cursorAnimationHandle = null;
+            setCursorPosition(sanitizedTrail[sanitizedTrail.length - 1]);
+          }
+        }
+
+        stopCursorAnimations();
+        setCursorPosition(sanitizedTrail[0]);
+        cursorAnimationHandle = requestAnimationFrame(step);
+      }
 
       function renderMeta(frame) {
         metaGrid.innerHTML = '';
@@ -560,13 +637,24 @@ function buildHtmlDocument(payload) {
           });
         }
 
-        if (frame.cursor && typeof frame.cursor.x === 'number' && typeof frame.cursor.y === 'number') {
+        stopCursorAnimations();
+        const trail = Array.isArray(frame.cursorTrail) ? frame.cursorTrail : [];
+        const hasTrail = trail.length > 0;
+        const hasCursor = frame.cursor && typeof frame.cursor.x === 'number' && typeof frame.cursor.y === 'number';
+
+        if (hasTrail || hasCursor) {
           cursor.classList.add('visible');
-          cursor.style.left = (frame.cursor.x * 100) + '%';
-          cursor.style.top = (frame.cursor.y * 100) + '%';
           cursor.style.transform = 'translate(-50%, -50%) scale(1)';
-          if (frame.cursor.pulse) {
-            cursor.animate([
+
+          if (hasTrail) {
+            animateCursorTrail(trail, frame.playDuration || defaultHold);
+          } else if (hasCursor) {
+            setCursorPosition(frame.cursor);
+          }
+
+          const shouldPulse = frame.cursor && frame.cursor.pulse;
+          if (shouldPulse) {
+            cursorPulseAnimation = cursor.animate([
               { transform: 'translate(-50%, -50%) scale(0.85)', opacity: 0.9 },
               { transform: 'translate(-50%, -50%) scale(1.1)', opacity: 1 },
               { transform: 'translate(-50%, -50%) scale(0.9)', opacity: 0.9 }
@@ -687,9 +775,19 @@ async function main() {
         .filter(Boolean)
       : [];
 
-    const cursorPoint = frame.normalizedClickPosition
+    const cursorTrail = Array.isArray(frame.cursorTrail)
+      ? frame.cursorTrail
+        .map((point) => normalizePoint(point, viewport))
+        .filter(Boolean)
+      : [];
+
+    let cursorPoint = frame.normalizedClickPosition
       ? { x: frame.normalizedClickPosition.x, y: frame.normalizedClickPosition.y }
       : normalizePoint(frame.clickPosition, viewport);
+
+    if (!cursorPoint && cursorTrail.length > 0) {
+      cursorPoint = cursorTrail[cursorTrail.length - 1];
+    }
 
     const resilience = frame.resilience || {};
     const assertion = frame.assertion || null;
@@ -722,6 +820,7 @@ async function main() {
       zoomFactor: frame.zoomFactor && frame.zoomFactor > 0 ? frame.zoomFactor : 1,
       highlightRegions,
       cursor: cursorPoint ? { ...cursorPoint, pulse: frame.status !== 'failure' } : null,
+      cursorTrail,
       addressBar: frame.finalUrl || exportPackage.execution?.workflow_name || 'automation replay',
       finalUrl: frame.finalUrl || '',
       assertionMessage,

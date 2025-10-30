@@ -63,7 +63,12 @@ require_command jq
 vrooli scenario stop "$SCENARIO_NAME" >/dev/null 2>&1 || true
 vrooli scenario start "$SCENARIO_NAME" --clean-stale >/dev/null
 
-API_PORT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT | awk -F= '/API_PORT/ {print $2}' | tr -d ' ')
+API_PORT_OUTPUT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || true)
+API_PORT=$(echo "$API_PORT_OUTPUT" | awk -F= '/=/{print $2}' | tr -d ' ')
+if [[ -z "$API_PORT" ]]; then
+  API_PORT=$(echo "$API_PORT_OUTPUT" | tr -d '[:space:]')
+fi
+
 if [[ -z "$API_PORT" ]]; then
   echo "❌ Unable to resolve API_PORT for scenario" >&2
   exit 1

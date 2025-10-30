@@ -6,12 +6,13 @@ Visual browser automation workflow builder with AI-powered generation and debugg
 
 Browser Automation Studio transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
 
-## ⚠️ Current Implementation Status (2025-11-03)
+## ⚠️ Current Implementation Status (2025-11-14)
 - The Go executor (`api/browserless/client.go`) maintains a persistent Browserless session and executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` nodes in sequence. Step results capture console logs, network events, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata; artifacts persist via `execution_steps` and `execution_artifacts` (including timeline frames). Success/failure/else branching now routes executions conditionally (respecting `continueOnFailure`), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry. Loop constructs and richer conditional expressions remain on the roadmap.
 - Assertion nodes now evaluate selector existence/text/attributes directly in Browserless, emitting structured assertion artifacts, timeline metadata, and CLI/UI logs that short-circuit executions on failure.
 - Structured WebSocket events (`execution.*`, `step.*`) now include mid-step `step.heartbeat` telemetry. The UI panel surfaces the latest heartbeat with elapsed timing while console/network payloads continue streaming via `step.telemetry` events.
 - The CLI watcher attaches to the WebSocket stream when Node.js is available, echoing heartbeats alongside step events and retaining HTTP polling + timeline summary fallbacks. The `execution export` command now streams replay-export packages and can write the JSON payload to disk for automation tooling.
-- Replay tooling offers a Replay tab with highlight/mask overlays, zoom anchoring, cursor trails, and storyboard navigation, and the API now serves structured `/executions/{id}/export` packages with transition hints, theme presets, and asset references. DOM snapshots are captured alongside screenshots, surface in the UI replay inspector, and ship as embedded HTML in export bundles so downstream renderers can animate DOM-aware transitions. Automated video rendering remains on the roadmap.
+- Replay tooling offers a Replay tab with highlight/mask overlays, zoom anchoring, animated cursor trails, and storyboard navigation, and the API now serves structured `/executions/{id}/export` packages with transition hints, theme presets, and asset references. DOM snapshots are captured alongside screenshots, surface in the UI replay inspector, and ship as embedded HTML in export bundles. The CLI now includes `execution render-video` (ffmpeg-backed) which replays cursor trails frame-by-frame when generating MP4/WEBM bundles, while richer motion presets remain roadmap work.
+- Chrome extension recordings can be ingested via `POST /api/v1/recordings/import`, which normalises manifest + frame archives into executions, timeline artifacts, and replay assets served from `/api/v1/recordings/assets/{executionID}/…`. Automated extension packaging remains to be productised, but imported runs now appear alongside Browserless executions.
 - Requirements tracking continues through `docs/requirements.yaml` (v0.1.1) and `scripts/requirements/report.js`, now reflecting telemetry/replay progress; automated CI hooks remain pending.
 - Automated coverage exercises the compiler/runtime helpers and executor telemetry persistence; WebSocket contract, handler integration, and end-to-end Browserless tests remain gaps.
 - Documentation across README/PRD/action-plan matches the current executor and replay capabilities while calling out remaining milestones.
@@ -20,13 +21,13 @@ Browser Automation Studio transforms browser automation from code-based scripts 
 
 ### Current Limitations
 - Looping, expression-based branching, and workflow sub-calls are not yet available; complex flows still rely on duplicated node paths.
-- The replay pipeline exports interactive HTML packages (`execution render`) but cannot yet render MP4/GIF assets or advanced cursor animations.
-- Chrome extension capture remains unintegrated, so real-user recordings cannot be replayed inside the studio.
-- Requirements coverage is status-only—the report script does not ingest automated test outcomes yet.
+- The replay pipeline exports interactive HTML packages (`execution render`) and experimental MP4/WEBM bundles (`execution render-video`), but advanced cursor animations, zoom keyframes, and GIF export still require future polish.
+- Chrome extension capture requires the import API—the extension packaging/publishing flow still needs to be integrated into the lifecycle UI/CLI.
+- Requirements coverage now consumes phase result JSON for live pass/fail state, but automation outputs still need to be integrated.
 - AI workflow generation/debugging endpoints exist but still require manual validation before they can be considered production-ready.
 
 ## 📊 Status Dashboard
-- Requirement coverage (`docs/requirements.yaml` v0.1.4): total 4 • complete 0 • in progress 3 • pending 1 • critical gap (P0/P1 incomplete) 4.
+- Requirement coverage (`docs/requirements.yaml` v0.1.4): total 4 • complete 0 • in progress 3 • pending 1 • critical gap (P0/P1 incomplete) 4. Running `test/phases/*` now emits JSON to `coverage/phase-results/` so the requirements reporter reflects live phase pass/fail states instead of static bookkeeping.
 - Generate a fresh snapshot with `node ../../scripts/requirements/report.js --scenario browser-automation-studio --format markdown` from the scenario root.
 
 ## ✨ Features
@@ -35,11 +36,12 @@ Status legend: ✅ scaffolding exists • 🚧 active development • 🌀 plann
 
 - ✅ **Visual Workflow Builder**: React Flow UI stores node/edge JSON and project folders in Postgres.
 - ✅ **API/CLI Scaffolding**: REST handlers and CLI commands exist for workflows/executions; the API executes sequential Browserless steps with per-step telemetry while the CLI opens a live WebSocket stream (when Node.js is available) and prints execution timeline summaries after runs.
+- ✅ **Execution History Viewer**: Full-featured execution history viewer in the UI (Project Detail → Executions tab) with filtering by status (all/completed/failed/running), execution details, timeline replay, and refresh functionality. CLI provides `execution list` command for programmatic access.
 - ✅ **Execution Timeline API**: `/api/v1/executions/{id}/timeline` now assembles per-step `timeline_frame` artifacts with screenshot metadata, highlights, masks, and console/network references for replay consumers.
 - 🚧 **Real-time Execution Stream**: Structured WebSocket events deliver per-step logs, mid-step heartbeats, telemetry, and screenshots; the execution viewer now surfaces last-heartbeat timing while rendering `step.telemetry` console/network output. Tune heartbeat cadence with `BROWSERLESS_HEARTBEAT_INTERVAL` (Go duration, `0` disables). Cursor trails render inside the Replay tab; richer CLI overlays remain on the roadmap.
 - 🚧 **AI Workflow Generation**: Prompt pipeline calls OpenRouter but lacks validation against a runnable executor.
 - 🚧 **AI Debugging Loop**: Endpoint stubs exist; needs real telemetry + replay artifacts to be effective.
-- 🚧 **Replay & Marketing Renderer**: Timeline artifacts feed the replay UI, `/executions/{id}/export` packages expose animation/transition hints (including DOM snapshot HTML), and the CLI `execution render` command now materialises a stylised HTML replay with downloaded assets; automated MP4/GIF exporters remain future work.
+- 🚧 **Replay & Marketing Renderer**: Timeline artifacts feed the replay UI, `/executions/{id}/export` packages expose animation/transition hints (including DOM snapshot HTML), and the CLI offers `execution render` (HTML bundle) plus `execution render-video` (MP4/WEBM prototype powered by ffmpeg). Advanced motion presets and GIF exporters remain on the roadmap.
 
 ## 🚀 Quick Start
 
@@ -107,6 +109,20 @@ browser-automation-studio execution export <execution-id> --output bas-export.js
 # Produce a stylised HTML replay package (screenshots downloaded automatically)
 browser-automation-studio execution render <execution-id> --output ./replays/demo-run
 ```
+
+### Importing Chrome Extension Recordings
+
+Browser extension captures (zip archive containing `manifest.json` plus frame assets) can be normalised into Browser Automation Studio via the new import endpoint.
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/api/v1/recordings/import" \
+  -F "file=@/path/to/extension-recording.zip" \
+  -F "project_name=Demo Browser Automations"
+```
+
+- If no project is supplied, the importer tries `project_id`, then `project_name`, falling back to the seeded **Demo Browser Automations** project or creating **Extension Recordings** on demand.
+- Assets are stored under `scenarios/browser-automation-studio/data/recordings/<execution-id>/frames/` and exposed via `/api/v1/recordings/assets/{executionID}/frames/{filename}` so the UI Replay tab and CLI renderer can fetch frames without touching MinIO.
+- Imported runs appear in the dashboard alongside Browserless executions with `trigger_type = extension`, complete with replay timeline, console/network artifacts, and export support.
 
 ### Demo Workflow
 
@@ -259,7 +275,7 @@ Planned controls:
 
 - Loop constructs, sub-workflows, and richer conditional expressions are still on the execution roadmap.
 - Telemetry exports (webhook routing, analytics packages) are not wired; monitoring remains console/CLI only.
-- Replay pipeline outputs interactive HTML packages (including DOM snapshots) but cannot yet render MP4/GIF video assets or automate cinematic cursor choreography.
+- Replay pipeline outputs interactive HTML packages (including DOM snapshots and animated cursor trails) but MP4/GIF exporters still require advanced motion choreography.
 - Chrome extension capture path is not integrated with the replay/automation pipeline.
 
 ## 🔮 Future Enhancements

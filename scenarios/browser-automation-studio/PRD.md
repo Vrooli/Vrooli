@@ -18,13 +18,15 @@ This capability transforms browser automation from code-based scripts to visual,
 - **Web Content Aggregator**: Collect and synthesize information from multiple sources
 - **Accessibility Auditor**: Automatically test scenarios for WCAG compliance with visual proof
 
-## ⚠️ Implementation Status (2025-11-03)
+## ⚠️ Implementation Status (2025-11-14)
 - **Executor**: `api/browserless/client.go` keeps a persistent Browserless session alive while executing `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` nodes sequentially. Step results include console logs, network events, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata persisted to Postgres/MinIO as normalized `execution_steps` and `execution_artifacts` (timeline frames included). Success/failure/else branching now routes executions conditionally (including continue-on-failure assertions), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry; loop constructs remain pending.
 - **Assertions**: `assert` nodes validate selector existence/text/attribute conditions in Browserless, emit dedicated assertion artifacts, and broadcast assertion summaries through WebSocket/CLI/UI logs so failures short-circuit executions with actionable messaging.
 - **Telemetry**: The gorilla hub emitter broadcasts structured `execution.*` and `step.*` events, including mid-step `step.heartbeat` payloads. The UI surfaces live heartbeat timing alongside console/network telemetry, and the CLI attaches to the WebSocket stream (when Node.js is available) to print heartbeats and step events while retaining HTTP polling fallbacks.
+- **Execution History**: The UI provides a full-featured execution history viewer in the Project Detail → Executions tab with filtering by status (all/completed/failed/running), timeline replay integration, execution details, and refresh functionality. The API exposes `/api/v1/executions?workflow_id={id}` for programmatic access, and the CLI provides `execution list` commands.
 - **Replay & Annotation**: The Replay tab consumes timeline artifacts to render highlight/mask overlays, zoom anchoring, cursor trails, and storyboard navigation, now including DOM snapshot previews for each frame. CLI `execution render` complements `/executions/{id}/export` by downloading screenshots and materialising a stylised HTML replay package. Stitched MP4/GIF exports and automation-facing replay checks remain roadmap work.
 - **Demo Workflow**: Fresh databases automatically seed a ready-to-run workflow (`Demo: Capture Example.com Hero`) that navigates to example.com, asserts the hero headline, and captures an annotated screenshot so UI/CLI validation is possible without manual authoring. The seed run provisions a project named **Demo Browser Automations** and creates a filesystem workspace at `scenarios/browser-automation-studio/data/projects/demo` (configurable with `BAS_DEMO_PROJECT_PATH`) so replay exports and renderer artifacts have a dedicated home.
 - **Replay Exporter**: `/api/v1/executions/{id}/export` returns replay packages with frame metadata, theme presets, and asset manifests. `browser-automation-studio execution export` surfaces the JSON payload, while `execution render` converts it into a self-contained marketing replay.
+- **Chrome Extension Imports**: `POST /api/v1/recordings/import` normalises zipped extension captures into executions, timeline artifacts, and replay assets served from `/api/v1/recordings/assets/{executionID}/…`, allowing real-user recordings to appear beside Browserless runs.
 - **Requirements Tracking**: `docs/requirements.yaml` (v0.1.1) plus `scripts/requirements/report.js` reflect telemetry/replay progress. Automated integration with CI dashboards is still pending.
 - **Testing**: Compiler/runtime/executor telemetry have targeted unit coverage; WebSocket contract, handler integration, and end-to-end Browserless tests remain gaps.
 - **Docs & Positioning**: README/PRD/action-plan document the delivered executor/replay layers and call out remaining milestones (branching planner, CLI parity, testing ramp).
@@ -34,7 +36,7 @@ This capability transforms browser automation from code-based scripts to visual,
 ### Known Limitations
 - Loop constructs, expression-based branching, and workflow sub-calls are still future work; compiled plans remain strictly acyclic.
 - Replay HTML packages do not yet include video renders or advanced cursor animation—the current output is an interactive slideshow enriched with DOM snapshots.
-- Chrome extension ingestion is not wired into the executor/replay pipeline.
+- Chrome extension imports exist as an API workflow; extension packaging/UX remains to be integrated into the lifecycle system.
 - Requirement coverage reporting remains status-based; automated validation links are pending.
 - AI-assisted workflow generation/debugging is scaffolded but not integrated with the production executor.
 
@@ -537,7 +539,7 @@ discovery:
 ### Declarative Test Specification
 - **Phased testing:** `test/phases/*.sh` owns the scenario-quality entry point. Structure + unit phases run today; integration/business phases will add Browserless end-to-end coverage once the executor matures.
 - **Lifecycle health:** `.vrooli/service.json` supersedes the legacy `scenario-test.yaml`, wiring health probes, CLI smoke tests, and API curls into the lifecycle `make test` path.
-- **Requirements linkage:** `scripts/requirements/report.js --scenario browser-automation-studio` emits JSON/Markdown coverage that backs the README dashboard. The reporter currently tallies requirement status only; upcoming work will feed in automation results.
+- **Requirements linkage:** `scripts/requirements/report.js --scenario browser-automation-studio` emits JSON/Markdown coverage that backs the README dashboard and now ingests `coverage/phase-results/*.json` from the test phases so live pass/fail state shows up alongside static requirement status (automation hooks still pending).
 
 ```bash
 # Example local run

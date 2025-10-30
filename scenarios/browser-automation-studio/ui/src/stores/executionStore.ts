@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import axios from 'axios';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import {
@@ -139,6 +138,7 @@ interface ExecutionStore {
   executions: Execution[];
   currentExecution: Execution | null;
   socket: WebSocket | null;
+  socketListeners: Map<string, EventListener>;
 
   startExecution: (workflowId: string) => Promise<void>;
   stopExecution: (executionId: string) => Promise<void>;
@@ -177,16 +177,29 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   executions: [],
   currentExecution: null,
   socket: null,
+  socketListeners: new Map(),
 
   startExecution: async (workflowId: string) => {
     try {
       const config = await getConfig();
-      const response = await axios.post(`${config.API_URL}/workflows/${workflowId}/execute`, {
-        wait_for_completion: false,
+      const response = await fetch(`${config.API_URL}/workflows/${workflowId}/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          wait_for_completion: false,
+        }),
       });
 
+      if (!response.ok) {
+        throw new Error(`Failed to start execution: ${response.status}`);
+      }
+
+      const data = await response.json();
+
       const execution: Execution = {
-        id: response.data.execution_id,
+        id: data.execution_id,
         workflowId,
         status: 'running',
         startedAt: new Date(),
@@ -209,7 +222,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   stopExecution: async (executionId: string) => {
     try {
       const config = await getConfig();
-      await axios.post(`${config.API_URL}/executions/${executionId}/stop`);
+      const response = await fetch(`${config.API_URL}/executions/${executionId}/stop`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to stop execution: ${response.status}`);
+      }
+
       get().disconnectWebSocket();
       set((state) => ({
         currentExecution:
@@ -228,8 +248,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       const url = workflowId
         ? `${config.API_URL}/workflows/${workflowId}/executions`
         : `${config.API_URL}/executions`;
-      const response = await axios.get(url);
-      set({ executions: response.data.executions });
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load executions: ${response.status}`);
+      }
+
+      const data = await response.json();
+      set({ executions: data.executions });
     } catch (error) {
       logger.error('Failed to load executions', { component: 'ExecutionStore', action: 'loadExecutions', workflowId }, error);
     }
@@ -238,8 +264,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   loadExecution: async (executionId: string) => {
     try {
       const config = await getConfig();
-      const response = await axios.get(`${config.API_URL}/executions/${executionId}`);
-      const execution = normalizeExecution(response.data);
+      const response = await fetch(`${config.API_URL}/executions/${executionId}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load execution: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const execution = normalizeExecution(data);
       set({ currentExecution: execution });
       void get().refreshTimeline(executionId);
     } catch (error) {
@@ -250,9 +282,15 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   refreshTimeline: async (executionId: string) => {
     try {
       const config = await getConfig();
-      const response = await axios.get(`${config.API_URL}/executions/${executionId}/timeline`);
-      const frames = Array.isArray(response.data?.frames)
-        ? (response.data.frames as TimelineFrame[])
+      const response = await fetch(`${config.API_URL}/executions/${executionId}/timeline`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load execution timeline: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const frames = Array.isArray(data?.frames)
+        ? (data.frames as TimelineFrame[])
         : [];
 
       set((state) => ({
@@ -267,6 +305,9 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   },
 
   connectWebSocket: async (executionId: string) => {
+    // Cleanup any existing connection first
+    get().disconnectWebSocket();
+
     const config = await getConfig();
     if (!config.WS_URL) {
       logger.error('WebSocket base URL not configured', { component: 'ExecutionStore', action: 'connectWebSocket', executionId });
@@ -278,6 +319,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     wsUrl.searchParams.set('execution_id', executionId);
 
     const socket = new WebSocket(wsUrl.toString());
+    const listeners = new Map<string, EventListener>();
 
     const handleEvent = (event: ExecutionEventMessage, fallbackTimestamp?: string, fallbackProgress?: number) => {
       const handlers: ExecutionEventHandlers = {
@@ -335,32 +377,56 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
     };
 
-    socket.addEventListener('message', (event) => {
+    const messageListener: EventListener = (event) => {
       try {
-        const data = JSON.parse(event.data) as ExecutionUpdateMessage;
+        const data = JSON.parse((event as MessageEvent).data) as ExecutionUpdateMessage;
         handleUpdate(data);
       } catch (err) {
         logger.error('Failed to parse execution update', { component: 'ExecutionStore', action: 'handleWebSocketMessage', executionId }, err);
       }
-    });
+    };
 
-    socket.addEventListener('error', (event) => {
+    const errorListener: EventListener = (event) => {
       logger.error('WebSocket error', { component: 'ExecutionStore', action: 'handleWebSocketError', executionId }, event);
       get().updateExecutionStatus('failed', 'WebSocket error');
-    });
+    };
 
-    socket.addEventListener('close', () => {
-      set({ socket: null });
-    });
+    const closeListener: EventListener = () => {
+      // Clean up listeners before clearing state
+      listeners.forEach((listener, eventType) => {
+        socket.removeEventListener(eventType, listener);
+      });
+      listeners.clear();
+      set({ socket: null, socketListeners: new Map() });
+    };
 
-    set({ socket });
+    // Track listeners for cleanup
+    listeners.set('message', messageListener);
+    listeners.set('error', errorListener);
+    listeners.set('close', closeListener);
+
+    // Add event listeners
+    socket.addEventListener('message', messageListener);
+    socket.addEventListener('error', errorListener);
+    socket.addEventListener('close', closeListener);
+
+    set({ socket, socketListeners: listeners });
   },
 
   disconnectWebSocket: () => {
-    const { socket } = get();
+    const { socket, socketListeners } = get();
     if (socket) {
+      // Remove all event listeners before closing to prevent memory leaks
+      socketListeners.forEach((listener, eventType) => {
+        socket.removeEventListener(eventType, listener);
+      });
+      socketListeners.clear();
+
+      // Close the socket
       socket.close();
-      set({ socket: null });
+
+      // Clear state
+      set({ socket: null, socketListeners: new Map() });
     }
   },
 

@@ -184,7 +184,16 @@ Screenshot customization pipeline:
 **Goal:** Let the forthcoming Chrome extension submit user-driven recordings that can be replayed with the same renderer as automated executions.
 
 **Capture contract (extension side):**
-- Background script records a sequence of `frame` objects:
+- Manifest (`manifest.json`) is required and must include:
+  - `runId`: stable identifier for the capture session (string)
+  - `recordedAt`: ISO-8601 timestamp for the first frame (optional)
+  - `viewport`: `{ "width": <number>, "height": <number> }`
+  - `frames`: ordered array of frame objects (minimum length = 1)
+- Each frame object supports:
+  - `index`, `timestamp`/`durationMs`, `event`, `stepType`, `title`, `url`
+  - `screenshot`: relative path inside the archive (PNG/JPEG/WebP)
+  - Optional telemetry: `cursorTrail`, `cursor.path`, `clickPosition`, `focusedElement`, `highlightRegions`, `maskRegions`, `consoleLogs`, `network`, `assertion`, `domSnapshotHtml`
+- Example frame payload:
   ```json
   {
     "runId": "uuid",
@@ -205,13 +214,14 @@ Screenshot customization pipeline:
     ]
   }
   ```
-- Assets (PNG frames, optional HAR snippets) are bundled with the manifest in a zip archive using deterministic filenames.
-- Extension posts the archive to the scenario API once capture stops; retries handled client-side.
+- Assets (PNG frames, optional HAR snippets) must be bundled with the manifest in a zip archive using deterministic filenames (`frames/0001.png`, `frames/0002.png`, ...).
+- The capture client POSTs the archive to the scenario API once recording stops; client-side retries are recommended.
+- Operators can trigger imports manually via `browser-automation-studio recording import <archive.zip>` or through the UI **Import Recording** button on the project dashboard.
 
 **API ingestion flow:**
 1. New endpoint `POST /api/v1/recordings/import` accepts multipart or raw zip payloads.
 2. `RecordingService` validates manifest schema, normalises timestamps, and assigns an internal `execution_id`/`project_id` (either supplied or defaulted to the demo project).
-3. Assets are streamed to MinIO under `recordings/<execution-id>/frames/####.png` and mirrored to `execution_artifacts` with `artifact_type = 'timeline_frame'` + `origin = 'extension'` metadata.
+3. Assets are persisted under `data/recordings/<execution-id>/frames/####.png` (and uploaded to MinIO when configured) and referenced in `execution_artifacts` with `artifact_type = 'screenshot'` while timeline frames embed the same metadata with `origin = 'extension'`.
 4. Each manifest frame becomes an `execution_step` with `step_type = 'recording_frame'` and `output.retry.history = []`, ensuring replay tooling can reuse cursor trails, highlight regions, and viewport data without special cases.
 5. Optional console/network attachments are persisted as dedicated artifacts when present so the UI telemetry tab mirrors automated runs.
 6. Once ingest completes, the API emits `execution.imported` over WebSocket so the UI can surface the new recording instantly.
@@ -225,6 +235,86 @@ Screenshot customization pipeline:
 - Enforce `maxFrames`, `maxTotalBytes`, and per-frame resolution limits before accepting the archive.
 - Validate that all referenced asset paths exist inside the archive to avoid directory traversal.
 - Optionally scan PNG payloads for metadata stripping to prevent leaking user PII.
+- UI/CLI validation surfaces API errors (HTTP 4xx/5xx) so operators receive actionable feedback when uploads fail.
+
+## Loop-Aware Execution & Branch Semantics (Design Draft)
+
+### Drivers
+- Workflow authors need to express repetition (paginate, poll, iterate over selector matches) without copy/pasting node chains.
+- Conditional flows already exist via success/failure edges, but complex branching (multi-way conditions, loop guards, break/continue) remains manual and error-prone.
+- Telemetry/replay consumers must understand control-flow context to provide accurate analytics and marketing visuals (group iterations, show loop progress, etc.).
+
+### Step & Graph Extensions
+- Introduce `loop` node type with labelled ports:
+  - `body` (required) → first node executed each iteration.
+  - `after` (optional) → node executed after loop completion.
+  - `empty` (optional) → node executed if the loop never runs (collection empty / condition false).
+- Loop node data payload:
+  ```json
+  {
+    "mode": "times" | "while" | "doWhile" | "forEach",
+    "maxIterations": 20,
+    "condition": "await page.$('#ready') !== null",
+    "initial": "let index = 0;",
+    "afterEach": "index++",
+    "collection": "return Array.from(await page.$$('.product')).map(e => e.textContent.trim());",
+    "iterationAlias": "product"
+  }
+  ```
+- UI enforces scoping by drawing a container around nodes reachable from `body` before a `loop-end` virtual node. Edges leaving the scope must terminate on `after`, `empty`, or `loop-end` handles. `break` and `continue` palette entries create explicit control handles inside the scope.
+
+### Compiler Representation
+- Extend `ExecutionStep` with optional `LoopSpec`:
+  ```go
+  type LoopSpec struct {
+      Mode           string
+      Condition      string
+      CollectionExpr string
+      MaxIterations  int
+      IterationAlias string
+      BodyPlan       *ExecutionPlan
+      EmptyEdge      *EdgeRef
+  }
+  ```
+- The planner recognises loop nodes, extracts the scoped subgraph, and recursively compiles it into `BodyPlan` while maintaining global DAG ordering (loops remain single steps in the top-level plan).
+- Add compile-time validations: `body` edge required, `maxIterations` > 0 (unless explicit), detect illegal edges (escaping the scope), ensure nested loops don’t exceed configured depth, and statically reject recursion into the same workflow.
+- Condition nodes remain normal `ExecutionStep`s; branch conditions are expressed via `edge.Condition` (`equals:true`, `equals:false`, `case:A`, ...).
+
+### Runtime Semantics
+1. Resolve iteration source:
+   - `times`: iterate `0..maxIterations-1` (optionally parameterised by expression).
+   - `forEach`: evaluate `CollectionExpr` inside Browserless; collection items become iteration context (`ctx.loop.item`).
+   - `while` / `doWhile`: run `Condition` JS between iterations. Condition scripts execute in a sandbox with whitelisted globals (`page`, `frame`, `iteration`, `contextData`).
+2. For each iteration:
+   - Emit `step.loop_iteration_started` with iteration index, max, and optional item preview (first 256 chars of stringified item).
+   - Execute `BodyPlan` using the existing executor (`Client.ExecutePlan` refactoring) so body steps reuse session + telemetry plumbing. Loop metadata travels via context to tag logs/artifacts (e.g., `artifact.Metadata["loopIteration"] = n`).
+   - Support `break` / `continue` by watching for special `runtime.StepResult.Control` values bubbled from body steps.
+   - Honour `maxIterations`: if exceeded without satisfying guard, mark loop step failed with `error = "loop_guard_exceeded"` unless `AllowOverflow` flag true.
+3. After completion, emit `step.loop_completed` summarising iteration count, exit reason, last condition value. If zero iterations and `EmptyEdge` is defined, continue via that edge.
+
+### Telemetry & Replay Enhancements
+- `timeline_frame.loop` payload (new optional object):
+  ```json
+  {
+    "nodeId": "loop-products",
+    "iteration": 2,
+    "total": 5,
+    "mode": "forEach",
+    "itemPreview": { "name": "Premium Plan" }
+  }
+  ```
+- CLI: group output by loop (indent body steps, display iteration progress, highlight guard trips).
+- UI Replay: collapsible sections per loop with chips for iteration numbers, gracefully skipping repeated screenshots when unchanged (diff heuristics optional).
+- Exporter: extend `ExportFrame` with `LoopContext` (iteration, total, mode, alias preview). Renderer adds timeline pills and iteration counters.
+
+### Incremental Delivery
+1. **Compiler foundations**: extend schema, add AST validation, migrate DB (`execution_steps.loop_mode`, `loop_iteration` columns, JSONB metadata).
+2. **Runtime skeleton**: implement `times` mode (deterministic), including telemetry + exporter adjustments. Ship behind feature flag (`BAS_LOOP_EXECUTION=1`).
+3. **forEach & condition evaluation**: sandbox JS evaluation (same environment as screenshot overlays) and stream item previews.
+4. **UI/CLI updates**: scoped editing UI, iteration-aware execution viewer, replay adjustments, CLI indentation.
+5. **Advanced controls**: nested loops, `break`/`continue` nodes, `doWhile`, analytics aggregation (average duration per iteration, guard usage).
+
+Adopting hierarchical plans preserves our acyclic compiler guarantees, keeps telemetry consistent, and unlocks richer validation/testing (AI agents can assert iteration counts). This structure also dovetails with the replay/video export roadmap—loop context feeds directly into captions and motion design.
 
 ## Next Actions
 - Break down `browserless.Client` refactor into incremental PRs (compiler, runtime/session manager, executors, telemetry).

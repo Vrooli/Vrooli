@@ -14,8 +14,18 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import ReplayPlayer, { ReplayFrame, ReplayPoint, ReplayRetryHistoryEntry } from './ReplayPlayer';
+import ReplayPlayer, { ReplayFrame } from './ReplayPlayer';
 import { useExecutionStore } from '../stores/executionStore';
+import {
+  toNumber,
+  toBoundingBox,
+  toPoint,
+  mapTrail,
+  mapRegions,
+  mapRetryHistory,
+  mapAssertion,
+  resolveUrl,
+} from '../utils/executionTypeMappers';
 
 interface Screenshot {
   id: string;
@@ -31,6 +41,75 @@ interface LogEntry {
   message: string;
 }
 
+interface TimelineArtifact {
+  id: string;
+  type: string;
+  label?: string;
+  storage_url?: string;
+  thumbnail_url?: string;
+  content_type?: string;
+  size_bytes?: number;
+  step_index?: number;
+  payload?: Record<string, unknown> | null;
+}
+
+interface TimelineFrame {
+  screenshot?: { url?: string; artifact_id?: string; thumbnail_url?: string; width?: number; height?: number; content_type?: string; size_bytes?: number } | null;
+  step_index?: number;
+  node_id?: string;
+  step_type?: string;
+  started_at?: string | Date;
+  focused_element?: { selector?: string; bounding_box?: unknown; boundingBox?: unknown };
+  focusedElement?: { selector?: string; bounding_box?: unknown; boundingBox?: unknown };
+  element_bounding_box?: unknown;
+  elementBoundingBox?: unknown;
+  click_position?: unknown;
+  clickPosition?: unknown;
+  cursor_trail?: unknown;
+  cursorTrail?: unknown;
+  highlight_regions?: unknown;
+  highlightRegions?: unknown;
+  mask_regions?: unknown;
+  maskRegions?: unknown;
+  status?: string;
+  success?: boolean;
+  duration_ms?: number;
+  durationMs?: number;
+  total_duration_ms?: number;
+  totalDurationMs?: number;
+  progress?: number;
+  final_url?: string;
+  finalUrl?: string;
+  error?: string;
+  extracted_data_preview?: unknown;
+  extractedDataPreview?: unknown;
+  console_log_count?: number;
+  consoleLogCount?: number;
+  network_event_count?: number;
+  networkEventCount?: number;
+  timeline_artifact_id?: string;
+  zoom_factor?: number;
+  zoomFactor?: number;
+  retry_attempt?: number;
+  retryAttempt?: number;
+  retry_max_attempts?: number;
+  retryMaxAttempts?: number;
+  retry_configured?: number;
+  retryConfigured?: number;
+  retry_delay_ms?: number;
+  retryDelayMs?: number;
+  retry_backoff_factor?: number;
+  retryBackoffFactor?: number;
+  retry_history?: unknown;
+  retryHistory?: unknown;
+  dom_snapshot_preview?: string;
+  domSnapshotPreview?: string;
+  dom_snapshot_artifact_id?: string;
+  domSnapshotArtifactId?: string;
+  assertion?: unknown;
+  artifacts?: TimelineArtifact[];
+}
+
 interface ExecutionProps {
   execution: {
     id: string;
@@ -39,7 +118,7 @@ interface ExecutionProps {
     startedAt: Date;
     completedAt?: Date;
     screenshots: Screenshot[];
-    timeline?: any[];
+    timeline?: TimelineFrame[];
     logs: LogEntry[];
     currentStep?: string;
     progress: number;
@@ -60,120 +139,7 @@ function ExecutionViewer({ execution }: ExecutionProps) {
     execution.timeline && execution.timeline.length > 0 ? 'replay' : 'screenshots'
   );
   const [selectedScreenshot, setSelectedScreenshot] = useState<Screenshot | null>(null);
-  const [heartbeatTick, setHeartbeatTick] = useState(0);
-
-  const resolveUrl = (url?: string | null) => {
-    if (!url) {
-      return undefined;
-    }
-    try {
-      return new URL(url, window.location.origin).toString();
-    } catch {
-      return url;
-    }
-  };
-
-  const toNumber = (value: unknown) => (typeof value === 'number' ? value : undefined);
-
-  const toBoundingBox = (value: any) => {
-    if (!value || typeof value !== 'object') {
-      return undefined;
-    }
-    const x = toNumber(value.x);
-    const y = toNumber(value.y);
-    const width = toNumber(value.width);
-    const height = toNumber(value.height);
-    if (x == null && y == null && width == null && height == null) {
-      return undefined;
-    }
-    return { x, y, width, height };
-  };
-
-  const toPoint = (value: any) => {
-    if (!value || typeof value !== 'object') {
-      return undefined;
-    }
-    const x = toNumber(value.x);
-    const y = toNumber(value.y);
-    if (x == null || y == null) {
-      return undefined;
-    }
-    return { x, y };
-  };
-
-  const mapTrail = (value: any) => {
-    if (!Array.isArray(value)) {
-      return [] as ReplayPoint[];
-    }
-    const points: ReplayPoint[] = [];
-    for (const entry of value) {
-      const point = toPoint(entry);
-      if (point) {
-        points.push(point);
-      }
-    }
-    return points;
-  };
-
-  const mapRegion = (value: any) => {
-    if (!value || typeof value !== 'object') {
-      return undefined;
-    }
-    const boundingBox = toBoundingBox(value.bounding_box ?? value.boundingBox);
-    const selector = typeof value.selector === 'string' ? value.selector : undefined;
-    if (!selector && !boundingBox) {
-      return undefined;
-    }
-    return {
-      selector,
-      boundingBox,
-      padding: toNumber(value.padding),
-      color: typeof value.color === 'string' ? value.color : undefined,
-      opacity: toNumber(value.opacity),
-    };
-  };
-
-  const mapRegions = (value: any) => {
-    if (!Array.isArray(value)) {
-      return [] as NonNullable<ReplayFrame['highlightRegions']>;
-    }
-    return value.map(mapRegion).filter(Boolean) as NonNullable<ReplayFrame['highlightRegions']>;
-  };
-
-  const mapRetryHistory = (value: any): ReplayRetryHistoryEntry[] | undefined => {
-    if (!Array.isArray(value)) {
-      return undefined;
-    }
-    const entries: ReplayRetryHistoryEntry[] = [];
-    for (const item of value) {
-      if (!item || typeof item !== 'object') {
-        continue;
-      }
-      const attempt = toNumber((item as any).attempt ?? (item as any).attempt_number);
-      const success = typeof (item as any).success === 'boolean' ? (item as any).success : undefined;
-      const durationMs = toNumber((item as any).duration_ms ?? (item as any).durationMs);
-      const callDurationMs = toNumber((item as any).call_duration_ms ?? (item as any).callDurationMs);
-      const error = typeof (item as any).error === 'string' ? (item as any).error : undefined;
-      entries.push({ attempt, success, durationMs, callDurationMs, error });
-    }
-    return entries.length > 0 ? entries : undefined;
-  };
-
-  const mapAssertion = (value: any) => {
-    if (!value || typeof value !== 'object') {
-      return undefined;
-    }
-    return {
-      mode: typeof value.mode === 'string' ? value.mode : undefined,
-      selector: typeof value.selector === 'string' ? value.selector : undefined,
-      expected: value.expected,
-      actual: value.actual,
-      success: typeof value.success === 'boolean' ? value.success : undefined,
-      message: typeof value.message === 'string' ? value.message : undefined,
-      negated: typeof value.negated === 'boolean' ? value.negated : undefined,
-      caseSensitive: typeof value.caseSensitive === 'boolean' ? value.caseSensitive : undefined,
-    };
-  };
+  const [, setHeartbeatTick] = useState(0);
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
 
@@ -195,7 +161,7 @@ function ExecutionViewer({ execution }: ExecutionProps) {
     }
     const age = (Date.now() - execution.lastHeartbeat.timestamp.getTime()) / 1000;
     return age < 0 ? 0 : age;
-  }, [heartbeatTick, execution.lastHeartbeat]);
+  }, [execution.lastHeartbeat]);
 
   const inStepSeconds = execution.lastHeartbeat?.elapsedMs != null
     ? Math.max(0, execution.lastHeartbeat.elapsedMs / 1000)
@@ -278,7 +244,7 @@ function ExecutionViewer({ execution }: ExecutionProps) {
   }, [heartbeatState, heartbeatAgeLabel, heartbeatAgeSeconds]);
 
   const replayFrames = useMemo<ReplayFrame[]>(() => {
-    return (execution.timeline ?? []).map((frame: any, index: number) => {
+    return (execution.timeline ?? []).map((frame: TimelineFrame, index: number) => {
       const screenshotData = frame?.screenshot ?? undefined;
       const screenshotUrl = resolveUrl(screenshotData?.url);
       const thumbnailUrl = resolveUrl(screenshotData?.thumbnail_url);
@@ -293,7 +259,7 @@ function ExecutionViewer({ execution }: ExecutionProps) {
       const retryBackoffFactor = toNumber(frame?.retry_backoff_factor ?? frame?.retryBackoffFactor);
       const retryHistory = mapRetryHistory(frame?.retry_history ?? frame?.retryHistory);
       const domSnapshotArtifact = Array.isArray(frame?.artifacts)
-        ? (frame.artifacts as any[]).find((artifact) => artifact?.type === 'dom_snapshot')
+        ? frame.artifacts.find((artifact: TimelineArtifact) => artifact?.type === 'dom_snapshot')
         : undefined;
       const domSnapshotHtml = domSnapshotArtifact?.payload && typeof domSnapshotArtifact.payload === 'object'
         ? (() => {
@@ -372,7 +338,7 @@ function ExecutionViewer({ execution }: ExecutionProps) {
   const timelineScreenshots = useMemo(() => {
     const frames = execution.timeline ?? [];
     const items: Screenshot[] = [];
-    frames.forEach((frame: any, index: number) => {
+    frames.forEach((frame: TimelineFrame, index: number) => {
       const resolved = resolveUrl(frame?.screenshot?.url);
       if (!resolved) {
         return;

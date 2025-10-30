@@ -31,31 +31,7 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
     setMaskInput(Array.isArray(data.maskSelectors) ? data.maskSelectors.join(', ') : '');
   }, [data.maskSelectors]);
 
-  const advancedActive = useMemo(
-    () =>
-      Boolean(
-        data.focusSelector ||
-          (Array.isArray(data.highlightSelectors) && data.highlightSelectors.length > 0) ||
-          (Array.isArray(data.maskSelectors) && data.maskSelectors.length > 0) ||
-          data.zoomFactor ||
-          data.background ||
-          data.viewportWidth ||
-          data.viewportHeight ||
-          data.waitForMs ||
-          data.highlightColor ||
-          data.highlightPadding ||
-          typeof data.maskOpacity === 'number'
-      ),
-    [data]
-  );
-
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(advancedActive);
-
-  useEffect(() => {
-    if (advancedActive) {
-      setShowAdvanced(true);
-    }
-  }, [advancedActive]);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
   const updateNodeData = useCallback(
     (updates: Record<string, any>) => {

@@ -6,6 +6,10 @@ echo "=== Test Integration ==="
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCENARIO_DIR="${ROOT_DIR}/scenarios/browser-automation-studio"
 
+if [[ ! -d "$SCENARIO_DIR" ]]; then
+  SCENARIO_DIR="$ROOT_DIR"
+fi
+
 cd "$SCENARIO_DIR"
 
 AUTOMATION_SCRIPT="automation/executions/telemetry-smoke.sh"

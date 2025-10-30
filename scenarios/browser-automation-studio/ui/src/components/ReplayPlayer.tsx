@@ -270,7 +270,40 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
     };
   }, []);
 
-  if (normalizedFrames.length === 0) {
+  // Compute current frame safely (use index 0 as fallback for empty arrays to satisfy hooks)
+  const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
+
+  // Hooks must run unconditionally - compute with safe fallbacks when no frames exist
+  const extractedPreview = useMemo(() => {
+    if (!currentFrame || currentFrame.extractedDataPreview == null) {
+      return undefined;
+    }
+    if (typeof currentFrame.extractedDataPreview === 'string') {
+      return currentFrame.extractedDataPreview;
+    }
+    try {
+      return JSON.stringify(currentFrame.extractedDataPreview, null, 2);
+    } catch (error) {
+      return String(currentFrame.extractedDataPreview);
+    }
+  }, [currentFrame]);
+
+  const domSnapshotDisplay = useMemo(() => {
+    if (!currentFrame) {
+      return undefined;
+    }
+    if (typeof currentFrame.domSnapshotPreview === 'string' && currentFrame.domSnapshotPreview.trim().length > 0) {
+      return currentFrame.domSnapshotPreview.trim();
+    }
+    if (typeof currentFrame.domSnapshotHtml === 'string' && currentFrame.domSnapshotHtml.trim().length > 0) {
+      const raw = currentFrame.domSnapshotHtml.trim();
+      return raw.length > 1200 ? `${raw.slice(0, 1200)}...` : raw;
+    }
+    return undefined;
+  }, [currentFrame]);
+
+  // Early return AFTER all hooks
+  if (normalizedFrames.length === 0 || !currentFrame) {
     return (
       <div className="flex h-64 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-900 via-slate-950 to-black border border-white/10 text-sm text-gray-400">
         Replay timeline will appear once executions capture timeline artifacts.
@@ -278,7 +311,7 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
     );
   }
 
-  const currentFrame = normalizedFrames[currentIndex];
+  // All remaining code can safely use currentFrame (guaranteed non-null here)
   const screenshot = currentFrame.screenshot;
   const displayDurationMs = currentFrame.totalDurationMs ?? currentFrame.durationMs;
   const hasResiliencyInfo = Boolean(
@@ -352,31 +385,6 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
 
   const pointerStyle = toPointStyle(currentFrame.clickPosition, dimensions);
   const cursorTrailPoints = toTrailPoints(currentFrame.cursorTrail, dimensions);
-
-  const extractedPreview = useMemo(() => {
-    if (currentFrame.extractedDataPreview == null) {
-      return undefined;
-    }
-    if (typeof currentFrame.extractedDataPreview === 'string') {
-      return currentFrame.extractedDataPreview;
-    }
-    try {
-      return JSON.stringify(currentFrame.extractedDataPreview, null, 2);
-    } catch (error) {
-      return String(currentFrame.extractedDataPreview);
-    }
-  }, [currentFrame.extractedDataPreview]);
-
-  const domSnapshotDisplay = useMemo(() => {
-    if (typeof currentFrame.domSnapshotPreview === 'string' && currentFrame.domSnapshotPreview.trim().length > 0) {
-      return currentFrame.domSnapshotPreview.trim();
-    }
-    if (typeof currentFrame.domSnapshotHtml === 'string' && currentFrame.domSnapshotHtml.trim().length > 0) {
-      const raw = currentFrame.domSnapshotHtml.trim();
-      return raw.length > 1200 ? `${raw.slice(0, 1200)}...` : raw;
-    }
-    return undefined;
-  }, [currentFrame.domSnapshotPreview, currentFrame.domSnapshotHtml]);
 
   const changeFrame = (index: number) => {
     if (index < 0 || index >= normalizedFrames.length) {

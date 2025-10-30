@@ -59,8 +59,8 @@ requirements:
         notes: Exercises telemetry persistence, heartbeat emission, retry/backoff attempt metadata, assert artifact storage, and per-step highlight metadata; extend with WebSocket contract tests.
       - type: test
         ref: api/browserless/runtime/session_test.go
-        status: not_implemented
-        notes: Session manager unit tests emitting mock telemetry.
+        status: implemented
+        notes: Validates Browserless session payloads, success responses, and error handling without a live Browserless dependency.
       - type: test
         ref: ui/tests/executionEventProcessor.heartbeat.test.mjs
         status: implemented
@@ -113,6 +113,10 @@ requirements:
         ref: api/services/timeline_test.go
         status: implemented
         notes: Ensures execution timeline aggregation surfaces screenshot/highlight metadata, DOM snapshot previews, and artifact references for replay consumers.
+      - type: test
+        ref: api/services/recording_service_test.go
+        status: implemented
+        notes: Validates Chrome extension recording ingestion (execution records, timeline artifacts, and stored assets served via recordings endpoint).
       - type: automation
         ref: automation/replay/render-check.yaml
         status: implemented
@@ -149,6 +153,9 @@ reporting:
       description: Machine-readable coverage report for CI dashboards
     - format: markdown
       description: README badge/table generation
+  artifacts:
+    - path: coverage/phase-results/<phase>.json
+      description: Live phase summaries written by test/phases via testing::phase::end_with_summary
   cli_options:
     --scenario: browser-automation-studio
     --format: json|markdown

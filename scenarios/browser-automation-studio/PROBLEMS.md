@@ -130,6 +130,38 @@ Added missing closing `</div>` tag after line 890 (ui/src/components/ProjectDeta
 
 ---
 
+## Clarifications
+
+### ✅ Execution History Viewing (IMPLEMENTED)
+
+**Status**: Feature Complete
+**Note**: Added 2025-10-29
+
+**Feature**: The system includes a full-featured execution history viewer.
+
+**Location**: UI → Project Detail → Executions tab
+
+**Capabilities**:
+- View all past executions for workflows in a project
+- Filter by status (all/completed/failed/running)
+- View execution details including duration, timestamps, errors
+- Navigate to timeline replay for any execution
+- Refresh to see latest executions
+- Progress indicators for running executions
+
+**API Access**: `/api/v1/executions?workflow_id={id}` for programmatic queries
+
+**CLI Access**: `browser-automation-studio execution list` (when implemented)
+
+**Components**:
+- `ui/src/components/ExecutionHistory.tsx` - Full history component
+- `ui/src/components/ExecutionViewer.tsx` - Individual execution replay viewer
+- `ui/src/stores/executionStore.ts` - State management for executions
+
+**Why This Note Exists**: During investigation, there was confusion about whether this feature existed. It does, and it's fully functional. Users can access it by opening any project and clicking the "Executions" tab.
+
+---
+
 ## Documentation
 
 All critical security issues have been resolved. The UI rendering issue remains the primary blocker for full scenario functionality.

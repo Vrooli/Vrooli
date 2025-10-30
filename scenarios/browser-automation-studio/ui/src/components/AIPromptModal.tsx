@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { X, Sparkles, Wand2, FileCode, Loader, Wrench } from 'lucide-react';
 import { useWorkflowStore } from '../stores/workflowStore';
 import toast from 'react-hot-toast';
+import ResponsiveDialog from './ResponsiveDialog';
 
 interface AIPromptModalProps {
   onClose: () => void;
@@ -24,6 +25,7 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
   const [workflowName, setWorkflowName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const { generateWorkflow } = useWorkflowStore();
+  const titleId = useId();
 
   const formatErrorMessage = (message: string) => {
     if (!message) return 'Failed to generate workflow';
@@ -73,27 +75,33 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-flow-node border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-              <Sparkles size={20} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">AI Workflow Generator</h2>
-              <p className="text-xs text-gray-400">Describe what you want to automate</p>
-            </div>
+    <ResponsiveDialog
+      isOpen
+      onDismiss={onClose}
+      ariaLabelledBy={titleId}
+      size="wide"
+      className="bg-flow-node border border-gray-700 shadow-2xl"
+    >
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+            <Sparkles size={20} className="text-white" />
           </div>
-          <button
-            onClick={onClose}
-            className="toolbar-button p-2"
-          >
-            <X size={18} />
-          </button>
+          <div>
+            <h2 id={titleId} className="text-lg font-semibold text-white">AI Workflow Generator</h2>
+            <p className="text-xs text-gray-400">Describe what you want to automate</p>
+          </div>
         </div>
-        
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <button
+          onClick={onClose}
+          className="toolbar-button p-2"
+          aria-label="Close AI Workflow Generator"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Manual Builder Option */}
           <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-4">
             <div className="flex items-center justify-between">
@@ -176,9 +184,9 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
               </div>
             </div>
           </div>
-        </div>
-        
-        <div className="flex items-center justify-between p-4 border-t border-gray-700">
+      </div>
+
+      <div className="flex items-center justify-between p-4 border-t border-gray-700">
           <div className="text-xs text-gray-500">
             Saving to: <span className="text-gray-400 font-medium">{folder}</span>
           </div>
@@ -207,9 +215,8 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
               )}
             </button>
           </div>
-        </div>
       </div>
-    </div>
+    </ResponsiveDialog>
   );
 }
 

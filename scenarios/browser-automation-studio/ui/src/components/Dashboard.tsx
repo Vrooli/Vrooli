@@ -254,22 +254,6 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                   </p>
                 )}
 
-                {/* Project Stats */}
-                <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-4">
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-white">
-                      {project.stats?.workflow_count || 0}
-                    </div>
-                    <div className="text-xs text-gray-500">Workflows</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-white">
-                      {project.stats?.execution_count || 0}
-                    </div>
-                    <div className="text-xs text-gray-500">Executions</div>
-                  </div>
-                </div>
-
                 {/* Last Activity */}
                 <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-700">
                   <div className="flex items-center gap-1">

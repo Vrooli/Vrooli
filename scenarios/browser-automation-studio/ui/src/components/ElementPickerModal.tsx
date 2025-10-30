@@ -1,32 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import { logger } from '../utils/logger';
 import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle, Brain } from 'lucide-react';
 import { getConfig } from '../config';
 import toast from 'react-hot-toast';
 import BrowserInspectorTab from './BrowserInspectorTab';
-
-interface SelectorOption {
-  selector: string;
-  type: string;
-  robustness: number;
-  fallback: boolean;
-}
-
-interface ElementInfo {
-  text: string;
-  tagName: string;
-  type: string;
-  selectors: SelectorOption[];
-  boundingBox: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  confidence: number;
-  category: string;
-  attributes: Record<string, string>;
-}
+import type { ElementInfo } from '../types/elements';
+import ResponsiveDialog from './ResponsiveDialog';
 
 
 
@@ -58,15 +37,9 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
   const [aiSuggestions, setAiSuggestions] = useState<ElementInfo[]>([]);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [userIntent, setUserIntent] = useState('');
+  const titleId = useId();
 
-  // Take screenshot when modal opens
-  useEffect(() => {
-    if (isOpen && url && !screenshot) {
-      takeScreenshot();
-    }
-  }, [isOpen, url]);
-
-  const takeScreenshot = async () => {
+  const takeScreenshot = useCallback(async () => {
     if (!url) return;
 
     setIsLoading(true);
@@ -94,9 +67,16 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [url]);
 
-  const getElementAtCoordinate = async (x: number, y: number) => {
+  // Take screenshot when modal opens
+  useEffect(() => {
+    if (isOpen && url && !screenshot) {
+      takeScreenshot();
+    }
+  }, [isOpen, url, screenshot, takeScreenshot]);
+
+  const getElementAtCoordinate = useCallback(async (x: number, y: number) => {
     if (!url) return;
 
     setIsLoading(true);
@@ -126,7 +106,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [url]);
 
   const handleScreenshotClick = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
     const img = e.target as HTMLImageElement;
@@ -147,7 +127,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
 
     setClickPosition({ x, y });
     getElementAtCoordinate(x, y);
-  }, [url]);
+  }, [getElementAtCoordinate]);
 
   const handleScreenshotMouseMove = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
     const img = e.target as HTMLImageElement;
@@ -225,27 +205,33 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-flow-node border border-gray-700 rounded-xl shadow-2xl w-[95vw] max-w-none max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <div className="flex items-center gap-3">
-            <Target size={20} className="text-blue-400" />
-            <div>
-              <h2 className="text-lg font-semibold text-white">Element Picker</h2>
-              <p className="text-xs text-gray-400">{url}</p>
-            </div>
+    <ResponsiveDialog
+      isOpen
+      onDismiss={onClose}
+      ariaLabelledBy={titleId}
+      size="xl"
+      className="bg-flow-node border border-gray-700 shadow-2xl"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="flex items-center gap-3">
+          <Target size={20} className="text-blue-400" />
+          <div>
+            <h2 id={titleId} className="text-lg font-semibold text-white">Element Picker</h2>
+            <p className="text-xs text-gray-400">{url}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <X size={18} />
-          </button>
         </div>
+        <button
+          onClick={onClose}
+          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+          aria-label="Close element picker"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-gray-700 overflow-x-auto scrollbar-hide min-h-[3rem]">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-gray-700 overflow-x-auto scrollbar-hide min-h-[3rem]">
           <button
             onClick={() => setActiveTab('visual')}
             className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors flex-shrink-0 ${
@@ -295,22 +281,22 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
               </span>
             )}
           </button>
-        </div>
+      </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-hidden">
-          {isLoading ? (
-            <div className="flex-1 flex flex-col items-center justify-center h-64">
-              <Loader size={32} className="text-blue-400 animate-spin mb-4" />
-              <p className="text-gray-400 text-sm">Analyzing page elements...</p>
-              <p className="text-gray-500 text-xs mt-2">This may take a moment</p>
-            </div>
-          ) : (
-            <div className="overflow-auto">
-              {activeTab === 'visual' && (
-                <div className="p-4">
-                  {screenshot ? (
-                    <div className="space-y-4">
+      {/* Content Area */}
+      <div className="flex-1 overflow-hidden">
+        {isLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center h-64">
+            <Loader size={32} className="text-blue-400 animate-spin mb-4" />
+            <p className="text-gray-400 text-sm">Analyzing page elements...</p>
+            <p className="text-gray-500 text-xs mt-2">This may take a moment</p>
+          </div>
+        ) : (
+          <div className="overflow-auto">
+            {activeTab === 'visual' && (
+              <div className="p-4">
+                {screenshot ? (
+                  <div className="space-y-4">
                       <div className="p-3 bg-flow-bg border border-gray-700 rounded-lg">
                         <p className="text-sm text-gray-300">
                           Click anywhere on the screenshot to select an element at that position.
@@ -578,39 +564,38 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
                   </div>
                 </div>
               )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* Footer */}
-        <div className="border-t border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-gray-500">
-              <p>
-                Page: {url}
-                {selectedElement && ' • Element selected'}
-                {clickPosition && ` • Click: (${clickPosition.x}, ${clickPosition.y})`}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSelectorConfirm}
-                disabled={!customSelector}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Use Selector
-              </button>
-            </div>
+      {/* Footer */}
+      <div className="border-t border-gray-700 p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-500">
+            <p>
+              Page: {url}
+              {selectedElement && ' • Element selected'}
+              {clickPosition && ` • Click: (${clickPosition.x}, ${clickPosition.y})`}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSelectorConfirm}
+              disabled={!customSelector}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Use Selector
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </ResponsiveDialog>
   );
 };
 

@@ -15,13 +15,13 @@
 
 ## 3. Current Findings Snapshot
 - **Browserless Resource:** CLI + workflow interpreter cover navigation, element actions, screenshots (page/element/full) and console capture with page/network/dialog telemetry. Generic workflows still expose `browser::get_console_logs` as a stub, so rich logging only exists when we call the console helper directly. No native utilities for overlays, highlights, cursor animation, or stitched replays.
-- **Scenario Implementation:** `api/browserless/client.go` now drives a persistent Browserless session, executes `navigate`/`wait`/`click`/`type`/`extract`/`screenshot` nodes sequentially, and persists screenshots, extracted payloads, console logs, and network events. React Flow edges now honour success/failure/else branching (including `continueOnFailure` assertions); loop constructs and advanced resiliency controls (retries/backoff) remain absent, and CLI telemetry is still limited.
+- **Scenario Implementation:** `api/browserless/client.go` now drives a persistent Browserless session, executes `navigate`/`wait`/`click`/`type`/`extract`/`screenshot` nodes sequentially, and persists screenshots, extracted payloads, console logs, and network events. React Flow edges honour success/failure/else branching (including `continueOnFailure` assertions) and per-node retry/backoff instrumentation; loop constructs and richer expression-based branching remain on the roadmap.
 - **Testing:** Phase scripts live under `test/phases/`, but coverage stalls around 5–8%; handlers, storage, websocket, and end-to-end execution paths have no tests. The legacy `scenario-test.yaml` was retired (2025-10-20) so the phased suite is now the single source of truth.
 - **Documentation & Tracking:** README/PRD continue to market finished capabilities (live execution, replay, AI debugging) without highlighting gaps. Requirements are not traceable to tests or automations, so completion scoring is subjective.
 
 ## 4. Key Gaps & Risks
-- **Execution Engine Gap:** Success/failure branching now executes conditionally, yet the engine still lacks loop constructs, richer conditional expressions, and resiliency controls (retries/backoff, circuit breakers).
-- **Replay Artifact Gap:** Timeline artifacts capture highlight/mask/zoom metadata and cursor trails, `/executions/{id}/export` returns themed replay packages, and `execution render` assembles an HTML replay. DOM snapshots, audio, and automated video rendering remain outstanding for marketing-quality animations.
+- **Execution Engine Gap:** Success/failure branching and retry/backoff landed, yet the engine still lacks loop constructs, richer conditional expressions, and circuit-breaker style resiliency controls.
+- **Replay Artifact Gap:** Timeline artifacts capture highlight/mask/zoom metadata, cursor trails, and DOM snapshots while `/executions/{id}/export` plus `execution render` provide branded HTML replays. Audio capture and automated video rendering remain outstanding for marketing-quality animations.
 - **Screenshot Customization Gap:** Highlight/zoom/mask controls ship and HTML replays provide a basic stylised chrome, yet we still need configurable cursor overlays, multi-theme presets, and deeper animation primitives to satisfy high-end marketing output.
 - **Real-time Telemetry Gap:** Mid-step heartbeats stream to UI/CLI with stall detection, yet we still need persistent alert routing (webhooks/Slack), richer anomaly analytics, and end-to-end telemetry exports.
 - **Requirements Traceability Gap:** PRD checkboxes are the only completion signal. No structured mapping to design-level requirements, tests, or automations.
@@ -273,3 +273,46 @@
 - README, PRD, and this action plan were refreshed to document the DOM snapshot milestone and narrow remaining replay gaps to video rendering and advanced animations.
 
 *Last updated: 2025-11-13*
+
+## 31. Progress Update (2025-11-14)
+- Implemented `POST /api/v1/recordings/import`, allowing Chrome extension captures (zip + manifest) to be ingested into the normalized execution/timeline schema with automatic project/workflow resolution and trigger metadata.
+- Stored recording assets under `data/recordings/<execution-id>/frames/` with a new `/api/v1/recordings/assets/{executionID}/*` handler so the UI, CLI renderer, and downstream automations can fetch frames without touching MinIO.
+- Added Go unit coverage (`services/recording_service_test.go`) that generates a synthetic recording archive, imports it, and verifies execution steps, timeline artifacts, and asset persistence to guard the ingestion pipeline against regressions.
+- README/PRD updated with a "Chrome Extension Recording Imports" section detailing API usage, storage paths, and workflow/project seeding expectations; requirements registry now links replay coverage to the new ingestion test.
+
+*Last updated: 2025-11-14*
+
+## 32. Progress Update (2025-11-15)
+- Added `api/browserless/runtime/session_test.go` to exercise the Browserless session wrapper, asserting request payloads include the persistent `sessionId`, validating success responses, and covering HTTP/error decoding paths without a live Browserless dependency.
+- Updated `docs/requirements.yaml` (runtime session validation now **implemented**) so requirement coverage reflects the new unit tests alongside existing telemetry automations.
+- Executed `automation/projects/demo-sanity.sh` to verify lifecycle-managed seeding still provisions the **Demo Browser Automations** project and "Demo: Capture Example.com Hero" workflow, reaffirming the UI has a runnable journey immediately after startup.
+
+*Last updated: 2025-11-15*
+
+## 33. Progress Update (2025-11-15)
+- Published the loop-aware execution blueprint in `docs/architecture/execution.md`, defining the `LoopSpec` compiler representation, runtime semantics (iteration events, guard rails, break/continue controls), telemetry schema, and phased rollout plan so the engine can add iterative flows without breaking DAG guarantees.
+- Added an experimental replay video renderer: `cli/render-video.js` (Node + ffmpeg) consumes `/executions/{id}/export` metadata, composites highlight/mask overlays, cursor trails, and click markers onto screenshots, and assembles MP4/WEBM slideshows via `execution render-video`. Temporary assets clean up automatically unless `--work-dir` is provided for debugging.
+- Updated the CLI help/README to surface the new command and clarified that MP4/WEBM exports are now available (while animated cursor/zoom motions remain on the backlog).
+
+*Last updated: 2025-11-15*
+
+## 34. Progress Update (2025-11-16)
+- Revalidated demo seeding by walking `api/database/connection.go::seedDemoWorkflow` and the `automation/projects/demo-sanity.(sh|yaml)` harness, confirming every clean database still provisions the **Demo Browser Automations** project and "Demo: Capture Example.com Hero" workflow so the UI/CLI always have a runnable journey.
+- Enhanced the replay export renderer (`cli/render-export.js`) to embed normalized cursor trails alongside existing highlight/zoom metadata and animate them inside generated HTML packages, delivering smooth pointer motion and reducing the gap between static screenshots and marketing-grade replays.
+- Updated README and this plan to flag the animated cursor capability while keeping advanced motion presets on the radar, ensuring documentation mirrors the current replay experience.
+
+*Last updated: 2025-11-16*
+
+## 35. Progress Update (2025-11-16)
+- Upgraded `cli/render-video.js` so MP4/WEBM exports reuse timeline cursor trails, interpolating pointer positions across each frame segment to mirror the HTML replay experience (while keeping highlight/mask overlays aligned).
+- Introduced per-phase result snapshots via `coverage/phase-results/*.json` (written automatically by `testing::phase::end_with_summary`), and extended `scripts/requirements/report.js` to consume them so requirement reports surface live pass/fail data alongside static status fields.
+- README and PRD now call out the live requirements linkage, closing the documentation gap noted in earlier backlog items.
+
+*Last updated: 2025-11-16*
+
+## 36. Progress Update (2025-11-17)
+- Re-ran `automation/projects/demo-sanity.sh` to reconfirm the lifecycle seed exposes **Demo Browser Automations** and "Demo: Capture Example.com Hero" via the public API, so the UI still ships with a runnable workflow after every clean start.
+- Exercised `node scripts/requirements/report.js --scenario browser-automation-studio` against `docs/requirements.yaml`; the reporter parses successfully but shows `liveStatus: not_run` for every validator because phase outputs are not yet writing JSON under `coverage/phase-results/`.
+- Follow-up: wire `test/phases/*` to emit the expected phase result snapshots, surface them in CI so the reporter gains real pass/fail data, and schedule the demo sanity automation alongside integration checks to catch regressions automatically.
+
+*Last updated: 2025-11-17*

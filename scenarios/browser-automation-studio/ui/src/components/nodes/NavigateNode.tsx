@@ -17,13 +17,7 @@ const NavigateNode: FC<NodeProps> = ({ data, selected, id }) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [consoleLogs, setConsoleLogs] = useState<ConsoleLog[]>([]);
   const [activeTab, setActiveTab] = useState<'screenshot' | 'console'>('screenshot');
-  const [inputValue, setInputValue] = useState(data.url || '');
   const { getNodes, setNodes } = useReactFlow();
-
-  // Sync input value when data.url changes (e.g., from external updates)
-  useEffect(() => {
-    setInputValue(data.url || '');
-  }, [data.url]);
 
   const handlePreview = async () => {
     const url = data.url;
@@ -100,10 +94,9 @@ const NavigateNode: FC<NodeProps> = ({ data, selected, id }) => {
             type="text"
             placeholder="Enter URL..."
             className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={inputValue}
+            defaultValue={data.url || ''}
             onChange={(e) => {
               const newUrl = e.target.value;
-              setInputValue(newUrl);
               const nodes = getNodes();
               const updatedNodes = nodes.map(node => {
                 if (node.id === id) {

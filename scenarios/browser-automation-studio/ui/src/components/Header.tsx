@@ -129,9 +129,6 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
               )}
               
               <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                <div className="w-8 h-8 bg-flow-accent rounded-lg flex items-center justify-center">
-                  <Brain size={20} />
-                </div>
                 {displayWorkflow ? (
                   <div className="flex items-center gap-2">
                     {isEditingTitle ? (
@@ -228,23 +225,6 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
           </div>
           
           <div className="flex items-center gap-2">
-            {/* API Status Indicator */}
-            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-flow-node border border-gray-700">
-              {isConnected ? (
-                <>
-                  <Wifi size={14} className="text-green-400" />
-                  <span className="text-xs text-green-400">Connected</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff size={14} className="text-red-400" />
-                  <span className="text-xs text-red-400" title={error || 'Connection failed'}>
-                    Disconnected
-                  </span>
-                </>
-              )}
-            </div>
-            
             <button
               onClick={handleExecute}
               className="bg-flow-accent hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"

@@ -3,13 +3,14 @@ import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Database, Globe, Target } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
 import ElementPickerModal from '../ElementPickerModal';
+import type { ElementInfo } from '../../types/elements';
 
 const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
   const [showElementPicker, setShowElementPicker] = useState(false);
   const { getNodes, setNodes } = useReactFlow();
 
-  const handleElementSelection = (selector: string, elementInfo: any) => {
+  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
     const nodes = getNodes();
     const updatedNodes = nodes.map(node => {
       if (node.id === id) {

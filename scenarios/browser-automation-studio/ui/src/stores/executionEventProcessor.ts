@@ -150,11 +150,12 @@ export const processExecutionEvent = (
 
       const assertion = event.payload && typeof event.payload === 'object' ? (event.payload as Record<string, unknown>)?.assertion : undefined;
       if (assertion && typeof assertion === 'object') {
-        const selector = typeof (assertion as any).selector === 'string' ? (assertion as any).selector : undefined;
-        const mode = typeof (assertion as any).mode === 'string' ? (assertion as any).mode : undefined;
+        const assertionData = assertion as Record<string, unknown>;
+        const selector = typeof assertionData.selector === 'string' ? assertionData.selector : undefined;
+        const mode = typeof assertionData.mode === 'string' ? assertionData.mode : undefined;
         const assertionLabel = selector || mode || stepLabel(event);
-        const success = (assertion as any).success !== false;
-        const assertionMessage = (assertion as any).message;
+        const success = assertionData.success !== false;
+        const assertionMessage = assertionData.message;
         const detail = success
           ? `Assertion ${assertionLabel} passed`
           : `Assertion ${assertionLabel} failed${assertionMessage ? `: ${assertionMessage}` : ''}`;
@@ -172,8 +173,9 @@ export const processExecutionEvent = (
 
       const domPreview = (() => {
         const payload = event.payload ?? {};
-        const direct = typeof (payload as any).dom_snapshot_preview === 'string' ? (payload as any).dom_snapshot_preview : undefined;
-        const camel = typeof (payload as any).domSnapshotPreview === 'string' ? (payload as any).domSnapshotPreview : undefined;
+        const payloadObj = payload as Record<string, unknown>;
+        const direct = typeof payloadObj.dom_snapshot_preview === 'string' ? payloadObj.dom_snapshot_preview : undefined;
+        const camel = typeof payloadObj.domSnapshotPreview === 'string' ? payloadObj.domSnapshotPreview : undefined;
         return direct ?? camel;
       })();
       if (domPreview) {
@@ -224,11 +226,12 @@ export const processExecutionEvent = (
     }
     case 'step.telemetry': {
       const payload = event.payload ?? {};
-      const consoleEntries = Array.isArray((payload as any).console_logs)
-        ? ((payload as any).console_logs as Array<Record<string, unknown>>)
+      const payloadObj = payload as Record<string, unknown>;
+      const consoleEntries = Array.isArray(payloadObj.console_logs)
+        ? (payloadObj.console_logs as Array<Record<string, unknown>>)
         : [];
-      const networkEntries = Array.isArray((payload as any).network_events)
-        ? ((payload as any).network_events as Array<Record<string, unknown>>)
+      const networkEntries = Array.isArray(payloadObj.network_events)
+        ? (payloadObj.network_events as Array<Record<string, unknown>>)
         : [];
 
       const label = stepLabel(event);
