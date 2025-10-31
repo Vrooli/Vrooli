@@ -74,7 +74,7 @@
             Test Agent
         </button>
         <button class="nav-tab" data-tab="library">
-            <i class="fas fa-books"></i>
+            <i class="fas fa-flask"></i>
             Injection Library
         </button>
         <button class="nav-tab" data-tab="leaderboards">
@@ -244,7 +244,10 @@
         <div class="tab-content" id="library-tab">
             <div class="library-container">
                 <div class="library-header">
-                    <h2><i class="fas fa-books"></i> Injection Technique Library</h2>
+                    <div class="library-title">
+                        <h2><i class="fas fa-flask"></i> Injection Technique Library</h2>
+                        <p class="library-subtitle">High-signal prompt attack patterns curated for rapid agent hardening.</p>
+                    </div>
                     <div class="library-controls">
                         <div class="filter-group">
                             <select id="category-filter">
@@ -261,6 +264,65 @@
                 
                 <div class="library-grid" id="injection-library">
                     <div class="loading">Loading injection library...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Injection Detail Modal -->
+        <div class="modal modal-detail" id="injection-detail-modal" role="dialog" aria-modal="true" aria-labelledby="injection-detail-title">
+            <div class="modal-content detail-content">
+                <div class="modal-header detail-header">
+                    <div class="detail-heading">
+                        <span class="status-chip active" data-detail="status">Active</span>
+                        <h3 id="injection-detail-title"><i class="fas fa-crosshairs"></i> <span data-detail="title">Injection Detail</span></h3>
+                    </div>
+                    <button class="modal-close" id="detail-close" aria-label="Close injection details">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body detail-body">
+                    <div class="detail-meta">
+                        <span class="category-chip" data-detail="category">CATEGORY</span>
+                        <span class="detail-id" data-detail="id">ID</span>
+                    </div>
+                    <div class="detail-metrics">
+                        <div class="detail-metric">
+                            <span class="metric-label">Success Rate</span>
+                            <span class="metric-value" data-detail="success">-</span>
+                        </div>
+                        <div class="detail-metric">
+                            <span class="metric-label">Difficulty</span>
+                            <span class="metric-value" data-detail="difficulty">-</span>
+                        </div>
+                        <div class="detail-metric">
+                            <span class="metric-label">Signal Source</span>
+                            <span class="metric-value" data-detail="source">-</span>
+                        </div>
+                    </div>
+
+                    <section class="detail-section">
+                        <h4>Description</h4>
+                        <p data-detail="description">No description provided.</p>
+                    </section>
+
+                    <section class="detail-section">
+                        <h4>Example Prompt</h4>
+                        <pre class="detail-example" aria-label="Injection example prompt"><code data-detail="example"></code></pre>
+                    </section>
+
+                    <section class="detail-section detail-footer-grid">
+                        <div>
+                            <h5>Created By</h5>
+                            <p data-detail="created-by">Security Lab</p>
+                        </div>
+                        <div>
+                            <h5>Created</h5>
+                            <p data-detail="created">Unknown</p>
+                        </div>
+                    </section>
+                </div>
+                <div class="modal-footer detail-modal-footer">
+                    <button class="btn btn-secondary" id="detail-close-footer">Close</button>
                 </div>
             </div>
         </div>

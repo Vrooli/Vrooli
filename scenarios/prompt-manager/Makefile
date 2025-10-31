@@ -4,13 +4,12 @@
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make       - Show help
-#   make start - Start this scenario (ALWAYS use this, never run binaries directly)
-#   make run   - Start this scenario (alias for 'start')
-#   make stop  - Stop this scenario
-#   make test  - Run scenario tests
-#   make logs  - Show scenario logs
-#   make clean - Clean build artifacts
+#   make        - Show help
+#   make start  - Start this scenario (ALWAYS use this, never run binaries directly)
+#   make stop   - Stop this scenario
+#   make test   - Run scenario tests
+#   make logs   - Show scenario logs
+#   make clean  - Clean build artifacts
 
 .PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
@@ -55,11 +54,11 @@ test: ## Run scenario tests
 	@vrooli scenario test $(SCENARIO_NAME)
 
 logs: ## Show scenario logs
-	@echo "$(BLUE)📋 Showing $(SCENARIO_NAME) logs...$(RESET)"
-	@vrooli scenario logs $(SCENARIO_NAME)
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 status: ## Check scenario status
-	@echo "$(BLUE)📊 Checking $(SCENARIO_NAME) status...$(RESET)"
+	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 
 clean: ## Clean build artifacts
@@ -82,8 +81,12 @@ fmt: fmt-go fmt-ui ## Format all code
 
 fmt-go: ## Format Go code
 	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
-	@cd api && gofumpt -w . 2>/dev/null || go fmt ./...
-	@echo "$(GREEN)✅ Go code formatted$(RESET)"
+	@if [ -d "api" ] && find api -name "*.go" -type f | grep -q .; then \
+		cd api && gofumpt -w . 2>/dev/null || go fmt ./...; \
+		echo "$(GREEN)✅ Go code formatted$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️  No Go sources found$(RESET)"; \
+	fi
 
 fmt-ui: ## Format UI code
 	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
@@ -94,15 +97,19 @@ lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
 	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
-	@cd api && golangci-lint run 2>/dev/null || go vet ./...
-	@echo "$(GREEN)✅ Go code linted$(RESET)"
+	@if [ -d "api" ] && find api -name "*.go" -type f | grep -q .; then \
+		cd api && golangci-lint run 2>/dev/null || go vet ./...; \
+		echo "$(GREEN)✅ Go code linted$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️  No Go sources found$(RESET)"; \
+	fi
 
 lint-ui: ## Lint UI code
 	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
 	@cd ui && npm run lint 2>/dev/null || echo "$(YELLOW)⚠️  No lint script$(RESET)"
 	@echo "$(GREEN)✅ UI code linted$(RESET)"
 
-check: lint test ## Run all checks (lint + test)
+check: fmt lint test ## Run all checks (format + lint + test)
 
 # Scenario-specific targets
 .PHONY: health db-status cli-test quick-test

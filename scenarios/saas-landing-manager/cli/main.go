@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	Version = "1.0.0"
+	Version           = "1.0.0"
 	DefaultAPIBaseURL = "http://localhost:8080/api/v1"
 )
 
@@ -23,6 +23,30 @@ const (
 type Config struct {
 	APIBaseURL string `json:"api_base_url"`
 	APIKey     string `json:"api_key"`
+}
+
+func resolveAPIBaseURL() string {
+	candidates := []string{
+		os.Getenv("SAAS_LANDING_API_URL"),
+		os.Getenv("API_BASE_URL"),
+		os.Getenv("API_URL"),
+	}
+
+	for _, candidate := range candidates {
+		if candidate != "" {
+			return strings.TrimRight(candidate, "/")
+		}
+	}
+
+	if port := os.Getenv("API_PORT"); port != "" {
+		return fmt.Sprintf("http://127.0.0.1:%s/api/v1", port)
+	}
+
+	if port := os.Getenv("SAAS_LANDING_API_PORT"); port != "" {
+		return fmt.Sprintf("http://127.0.0.1:%s/api/v1", port)
+	}
+
+	return DefaultAPIBaseURL
 }
 
 // API Response types (matching the API)
@@ -65,10 +89,10 @@ type CLI struct {
 
 func NewCLI() *CLI {
 	config := &Config{
-		APIBaseURL: getEnvOrDefault("SAAS_LANDING_API_URL", DefaultAPIBaseURL),
+		APIBaseURL: resolveAPIBaseURL(),
 		APIKey:     os.Getenv("SAAS_LANDING_API_KEY"),
 	}
-	
+
 	return &CLI{config: config}
 }
 
@@ -88,57 +112,58 @@ func (cli *CLI) makeRequest(method, endpoint string, body interface{}) ([]byte, 
 			return nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
 	}
-	
+
 	url := cli.config.APIBaseURL + endpoint
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Request-ID", uuid.NewString())
 	if cli.config.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+cli.config.APIKey)
 	}
-	
+
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	
+
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(respBody))
 	}
-	
+
 	return respBody, nil
 }
 
 func (cli *CLI) checkHealth() error {
 	healthURL := strings.Replace(cli.config.APIBaseURL, "/api/v1", "/health", 1)
-	
+
 	resp, err := http.Get(healthURL)
 	if err != nil {
 		return fmt.Errorf("health check failed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("API unhealthy: status %d", resp.StatusCode)
 	}
-	
+
 	return nil
 }
 
 // Command implementations
 func (cli *CLI) cmdStatus(args []string) error {
 	var jsonOutput, verbose bool
-	
+
 	for _, arg := range args {
 		switch arg {
 		case "--json":
@@ -147,7 +172,7 @@ func (cli *CLI) cmdStatus(args []string) error {
 			verbose = true
 		}
 	}
-	
+
 	err := cli.checkHealth()
 	status := map[string]interface{}{
 		"status":  "healthy",
@@ -155,17 +180,17 @@ func (cli *CLI) cmdStatus(args []string) error {
 		"version": Version,
 		"api_url": cli.config.APIBaseURL,
 	}
-	
+
 	if err != nil {
 		status["status"] = "unhealthy"
 		status["error"] = err.Error()
 	}
-	
+
 	if verbose {
 		status["timestamp"] = time.Now().Format(time.RFC3339)
 		status["has_api_key"] = cli.config.APIKey != ""
 	}
-	
+
 	if jsonOutput {
 		output, _ := json.MarshalIndent(status, "", "  ")
 		fmt.Println(string(output))
@@ -178,14 +203,14 @@ func (cli *CLI) cmdStatus(args []string) error {
 			fmt.Printf("Timestamp: %s\n", status["timestamp"])
 		}
 	}
-	
+
 	return err
 }
 
 func (cli *CLI) cmdScan(args []string) error {
 	var forceRescan, dryRun, jsonOutput bool
 	var scenarioFilter string
-	
+
 	for i, arg := range args {
 		switch arg {
 		case "--force":
@@ -200,26 +225,26 @@ func (cli *CLI) cmdScan(args []string) error {
 			}
 		}
 	}
-	
+
 	if dryRun && !jsonOutput {
 		fmt.Println("Scanning scenarios (dry run mode)...")
 	}
-	
+
 	requestBody := map[string]interface{}{
-		"force_rescan":     forceRescan,
-		"scenario_filter":  scenarioFilter,
+		"force_rescan":    forceRescan,
+		"scenario_filter": scenarioFilter,
 	}
-	
+
 	respBody, err := cli.makeRequest("POST", "/scenarios/scan", requestBody)
 	if err != nil {
 		return err
 	}
-	
+
 	var scanResp ScanResponse
 	if err := json.Unmarshal(respBody, &scanResp); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	if jsonOutput {
 		fmt.Println(string(respBody))
 	} else {
@@ -227,7 +252,7 @@ func (cli *CLI) cmdScan(args []string) error {
 		fmt.Printf("  Total scenarios: %d\n", scanResp.TotalScenarios)
 		fmt.Printf("  SaaS scenarios: %d\n", scanResp.SaaSScenarios)
 		fmt.Printf("  Newly detected: %d\n", scanResp.NewlyDetected)
-		
+
 		if len(scanResp.Scenarios) > 0 {
 			fmt.Printf("\nDetected SaaS scenarios:\n")
 			for i, scenario := range scanResp.Scenarios {
@@ -239,7 +264,7 @@ func (cli *CLI) cmdScan(args []string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -247,11 +272,11 @@ func (cli *CLI) cmdGenerate(args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("scenario name required")
 	}
-	
+
 	var templateID string
 	var enableABTesting, previewOnly bool
 	scenarioName := args[0]
-	
+
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
 		case "--template":
@@ -265,45 +290,45 @@ func (cli *CLI) cmdGenerate(args []string) error {
 			previewOnly = true
 		}
 	}
-	
+
 	requestBody := map[string]interface{}{
-		"scenario_id":        scenarioName,
-		"enable_ab_testing":  enableABTesting,
+		"scenario_id":       scenarioName,
+		"enable_ab_testing": enableABTesting,
 	}
-	
+
 	if templateID != "" {
 		requestBody["template_id"] = templateID
 	}
-	
+
 	fmt.Printf("Generating landing page for scenario: %s\n", scenarioName)
 	if enableABTesting {
 		fmt.Println("A/B testing enabled")
 	}
-	
+
 	respBody, err := cli.makeRequest("POST", "/landing-pages/generate", requestBody)
 	if err != nil {
 		return err
 	}
-	
+
 	var genResp GenerateResponse
 	if err := json.Unmarshal(respBody, &genResp); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	fmt.Printf("✓ Landing page generated successfully!\n")
 	fmt.Printf("  Landing Page ID: %s\n", genResp.LandingPageID)
 	fmt.Printf("  Preview URL: %s\n", genResp.PreviewURL)
 	fmt.Printf("  Status: %s\n", genResp.DeploymentStatus)
-	
+
 	if len(genResp.ABTestVariants) > 0 {
 		fmt.Printf("  A/B Test Variants: %s\n", strings.Join(genResp.ABTestVariants, ", "))
 	}
-	
+
 	if !previewOnly {
 		fmt.Printf("\nTo deploy this landing page, run:\n")
 		fmt.Printf("  saas-landing-manager deploy %s %s\n", genResp.LandingPageID, scenarioName)
 	}
-	
+
 	return nil
 }
 
@@ -311,13 +336,13 @@ func (cli *CLI) cmdDeploy(args []string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("usage: deploy <landing_page_id> <target_scenario> [--method direct|claude-agent] [--backup]")
 	}
-	
+
 	landingPageID := args[0]
 	targetScenario := args[1]
-	
+
 	var deploymentMethod = "claude_agent"
 	var backupExisting = true
-	
+
 	for i := 2; i < len(args); i++ {
 		switch args[i] {
 		case "--method":
@@ -338,44 +363,44 @@ func (cli *CLI) cmdDeploy(args []string) error {
 			backupExisting = false
 		}
 	}
-	
+
 	requestBody := map[string]interface{}{
 		"target_scenario":   targetScenario,
 		"deployment_method": deploymentMethod,
 		"backup_existing":   backupExisting,
 	}
-	
+
 	fmt.Printf("Deploying landing page %s to scenario %s\n", landingPageID, targetScenario)
 	fmt.Printf("Method: %s\n", deploymentMethod)
-	
+
 	respBody, err := cli.makeRequest("POST", fmt.Sprintf("/landing-pages/%s/deploy", landingPageID), requestBody)
 	if err != nil {
 		return err
 	}
-	
+
 	var deployResp DeployResponse
 	if err := json.Unmarshal(respBody, &deployResp); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	fmt.Printf("✓ Deployment initiated!\n")
 	fmt.Printf("  Deployment ID: %s\n", deployResp.DeploymentID)
 	fmt.Printf("  Status: %s\n", deployResp.Status)
-	
+
 	if deployResp.AgentSessionID != "" {
 		fmt.Printf("  Claude Agent Session: %s\n", deployResp.AgentSessionID)
 	}
-	
+
 	if deployResp.EstimatedCompletion != "" {
 		fmt.Printf("  Estimated completion: %s\n", deployResp.EstimatedCompletion)
 	}
-	
+
 	return nil
 }
 
 func (cli *CLI) cmdTemplateList(args []string) error {
 	var category, saasType string
-	
+
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--category":
@@ -390,7 +415,7 @@ func (cli *CLI) cmdTemplateList(args []string) error {
 			}
 		}
 	}
-	
+
 	endpoint := "/templates"
 	params := make([]string, 0)
 	if category != "" {
@@ -399,39 +424,39 @@ func (cli *CLI) cmdTemplateList(args []string) error {
 	if saasType != "" {
 		params = append(params, "saas_type="+saasType)
 	}
-	
+
 	if len(params) > 0 {
 		endpoint += "?" + strings.Join(params, "&")
 	}
-	
+
 	respBody, err := cli.makeRequest("GET", endpoint, nil)
 	if err != nil {
 		return err
 	}
-	
+
 	var response struct {
 		Templates []Template `json:"templates"`
 	}
-	
+
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	fmt.Printf("Available templates:\n\n")
 	for i, template := range response.Templates {
 		fmt.Printf("%d. %s (%s)\n", i+1, template.Name, template.ID)
-		fmt.Printf("   Category: %s | SaaS Type: %s | Industry: %s\n", 
+		fmt.Printf("   Category: %s | SaaS Type: %s | Industry: %s\n",
 			template.Category, template.SaaSType, template.Industry)
 		fmt.Printf("   Usage: %d | Rating: %.1f/5.0\n", template.UsageCount, template.Rating)
 		fmt.Println()
 	}
-	
+
 	return nil
 }
 
 func (cli *CLI) cmdAnalytics(args []string) error {
 	var scenario, timeframe, format string
-	
+
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--scenario":
@@ -451,44 +476,60 @@ func (cli *CLI) cmdAnalytics(args []string) error {
 			}
 		}
 	}
-	
-	respBody, err := cli.makeRequest("GET", "/analytics/dashboard", nil)
+
+	params := url.Values{}
+	if scenario != "" {
+		params.Set("scenario", scenario)
+	}
+	if timeframe != "" {
+		params.Set("timeframe", timeframe)
+	}
+	if format != "" {
+		params.Set("format", format)
+	}
+
+	endpoint := "/analytics/dashboard"
+	if encoded := params.Encode(); encoded != "" {
+		endpoint += "?" + encoded
+	}
+
+	respBody, err := cli.makeRequest("GET", endpoint, nil)
 	if err != nil {
 		return err
 	}
-	
+
 	var dashboard map[string]interface{}
 	if err := json.Unmarshal(respBody, &dashboard); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	if format == "json" {
 		fmt.Println(string(respBody))
 		return nil
 	}
-	
+
 	fmt.Printf("Landing Page Analytics\n")
 	fmt.Printf("======================\n")
-	
+
 	if totalPages, ok := dashboard["total_pages"].(float64); ok {
 		fmt.Printf("Total landing pages: %.0f\n", totalPages)
 	}
-	
+
 	if activeTests, ok := dashboard["active_ab_tests"].(float64); ok {
 		fmt.Printf("Active A/B tests: %.0f\n", activeTests)
 	}
-	
+
 	if conversionRate, ok := dashboard["average_conversion_rate"].(float64); ok {
 		fmt.Printf("Average conversion rate: %.2f%%\n", conversionRate*100)
 	}
-	
+
 	return nil
 }
 
 func (cli *CLI) cmdHelp(args []string) error {
 	var showAll bool
 	var command string
-	
+
 	for _, arg := range args {
 		switch arg {
 		case "--all":
@@ -499,16 +540,16 @@ func (cli *CLI) cmdHelp(args []string) error {
 			}
 		}
 	}
-	
+
 	if command != "" {
 		// Show specific command help
 		return cli.showCommandHelp(command)
 	}
-	
+
 	fmt.Printf("SaaS Landing Manager CLI v%s\n\n", Version)
 	fmt.Printf("USAGE:\n")
 	fmt.Printf("  saas-landing-manager <command> [options]\n\n")
-	
+
 	fmt.Printf("COMMANDS:\n")
 	fmt.Printf("  status          Show service health and status\n")
 	fmt.Printf("  scan           Scan scenarios for SaaS opportunities\n")
@@ -518,25 +559,25 @@ func (cli *CLI) cmdHelp(args []string) error {
 	fmt.Printf("  analytics      View performance analytics\n")
 	fmt.Printf("  help           Show this help message\n")
 	fmt.Printf("  version        Show version information\n\n")
-	
+
 	if showAll {
 		fmt.Printf("GLOBAL OPTIONS:\n")
 		fmt.Printf("  --json         Output in JSON format\n")
 		fmt.Printf("  --verbose      Show verbose output\n\n")
-		
+
 		fmt.Printf("ENVIRONMENT VARIABLES:\n")
 		fmt.Printf("  SAAS_LANDING_API_URL    API base URL (default: %s)\n", DefaultAPIBaseURL)
 		fmt.Printf("  SAAS_LANDING_API_KEY    API authentication key\n\n")
 	}
-	
+
 	fmt.Printf("Examples:\n")
 	fmt.Printf("  saas-landing-manager scan --force\n")
 	fmt.Printf("  saas-landing-manager generate funnel-builder --ab-test\n")
 	fmt.Printf("  saas-landing-manager deploy abc123 funnel-builder --method claude-agent\n")
 	fmt.Printf("  saas-landing-manager template list --category base\n\n")
-	
+
 	fmt.Printf("For more details: saas-landing-manager help <command>\n")
-	
+
 	return nil
 }
 
@@ -550,7 +591,7 @@ func (cli *CLI) showCommandHelp(command string) error {
 		fmt.Printf("  --dry-run        Show what would be detected without saving\n")
 		fmt.Printf("  --scenario NAME  Filter to specific scenario\n")
 		fmt.Printf("  --json           Output results in JSON format\n")
-		
+
 	case "generate":
 		fmt.Printf("USAGE: saas-landing-manager generate <scenario> [options]\n\n")
 		fmt.Printf("Generate landing page for a SaaS scenario\n\n")
@@ -558,7 +599,7 @@ func (cli *CLI) showCommandHelp(command string) error {
 		fmt.Printf("  --template ID    Use specific template ID\n")
 		fmt.Printf("  --ab-test        Enable A/B testing with variants\n")
 		fmt.Printf("  --preview-only   Generate preview without deploying\n")
-		
+
 	case "deploy":
 		fmt.Printf("USAGE: saas-landing-manager deploy <landing_page_id> <target_scenario> [options]\n\n")
 		fmt.Printf("Deploy landing page to target scenario\n\n")
@@ -566,11 +607,11 @@ func (cli *CLI) showCommandHelp(command string) error {
 		fmt.Printf("  --method TYPE    Deployment method (direct, claude-agent)\n")
 		fmt.Printf("  --backup         Backup existing landing page (default)\n")
 		fmt.Printf("  --no-backup      Skip backing up existing files\n")
-		
+
 	default:
 		return fmt.Errorf("no help available for command: %s", command)
 	}
-	
+
 	return nil
 }
 
@@ -581,7 +622,7 @@ func (cli *CLI) cmdVersion(args []string) error {
 			jsonOutput = true
 		}
 	}
-	
+
 	if jsonOutput {
 		version := map[string]string{
 			"version": Version,
@@ -592,7 +633,7 @@ func (cli *CLI) cmdVersion(args []string) error {
 	} else {
 		fmt.Printf("SaaS Landing Manager CLI v%s\n", Version)
 	}
-	
+
 	return nil
 }
 
@@ -601,10 +642,10 @@ func (cli *CLI) Run(args []string) error {
 	if len(args) < 2 {
 		return cli.cmdHelp(nil)
 	}
-	
+
 	command := args[1]
 	commandArgs := args[2:]
-	
+
 	switch command {
 	case "status":
 		return cli.cmdStatus(commandArgs)
@@ -650,7 +691,7 @@ func main() {
 	}
 
 	cli := NewCLI()
-	
+
 	if err := cli.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

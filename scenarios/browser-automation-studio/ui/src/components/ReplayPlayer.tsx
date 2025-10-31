@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pause, Play } from 'lucide-react';
 
 export interface ReplayBoundingBox {
   x?: number;
@@ -87,12 +87,26 @@ export interface ReplayFrame {
   domSnapshotArtifactId?: string;
 }
 
+export type ReplayChromeTheme = 'aurora' | 'chromium' | 'midnight' | 'minimal';
+export type ReplayBackgroundTheme =
+  | 'aurora'
+  | 'sunset'
+  | 'ocean'
+  | 'nebula'
+  | 'grid'
+  | 'charcoal'
+  | 'steel'
+  | 'emerald'
+  | 'none';
+
 interface ReplayPlayerProps {
   frames: ReplayFrame[];
   autoPlay?: boolean;
   loop?: boolean;
   onFrameChange?: (frame: ReplayFrame, index: number) => void;
   executionStatus?: 'pending' | 'running' | 'completed' | 'failed';
+  chromeTheme?: ReplayChromeTheme;
+  backgroundTheme?: ReplayBackgroundTheme;
 }
 
 const DEFAULT_DURATION = 1600;
@@ -104,6 +118,14 @@ const clampDuration = (value?: number) => {
     return DEFAULT_DURATION;
   }
   return Math.min(MAX_DURATION, Math.max(MIN_DURATION, value));
+};
+
+const formatDurationSeconds = (value?: number | null) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return '0.0s';
+  }
+  const seconds = Math.max(0, value) / 1000;
+  return `${seconds.toFixed(1)}s`;
 };
 
 type Dimensions = { width: number; height: number };
@@ -187,7 +209,219 @@ const pickZoomAnchor = (frame: ReplayFrame): ReplayBoundingBox | undefined => {
   return undefined;
 };
 
-export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChange, executionStatus }: ReplayPlayerProps) {
+type BackgroundDecor = {
+  containerClass: string;
+  contentClass: string;
+  overlay?: ReactNode;
+};
+
+const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => {
+  switch (theme) {
+    case 'sunset':
+      return {
+        containerClass:
+          'border border-rose-200/40 bg-gradient-to-br from-fuchsia-700/95 via-rose-600/85 to-amber-400/80 shadow-[0_26px_70px_rgba(236,72,153,0.38)]',
+        contentClass: 'p-6 sm:p-7 backdrop-blur-[1.5px]',
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0 opacity-55 mix-blend-screen"
+            style={{
+              background:
+                'radial-gradient(140% 120% at 0% 0%, rgba(254,226,226,0.28), transparent 65%), radial-gradient(120% 120% at 100% 100%, rgba(254,249,195,0.28), transparent 60%)',
+            }}
+          />
+        ),
+      };
+    case 'ocean':
+      return {
+        containerClass:
+          'border border-sky-300/25 bg-gradient-to-br from-sky-900 via-slate-950 to-slate-900 shadow-[0_24px_65px_rgba(14,165,233,0.38)]',
+        contentClass: 'p-6 sm:p-7 backdrop-blur-[1px]',
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0 opacity-45"
+            style={{
+              background:
+                'radial-gradient(130% 150% at 10% 10%, rgba(125,211,252,0.25), transparent 60%), radial-gradient(140% 160% at 90% 90%, rgba(14,116,144,0.28), transparent 65%)',
+            }}
+          />
+        ),
+      };
+    case 'nebula':
+      return {
+        containerClass:
+          'border border-purple-300/30 bg-gradient-to-br from-violet-800 via-indigo-950 to-slate-950 shadow-[0_26px_70px_rgba(124,58,237,0.36)]',
+        contentClass: 'p-6 sm:p-7 backdrop-blur-[1.5px]',
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0 opacity-55 mix-blend-screen"
+            style={{
+              background:
+                'radial-gradient(140% 140% at 0% 0%, rgba(196,181,253,0.32), transparent 65%), radial-gradient(120% 130% at 100% 90%, rgba(167,139,250,0.28), transparent 60%)',
+            }}
+          />
+        ),
+      };
+    case 'grid':
+      return {
+        containerClass:
+          'border border-cyan-300/25 bg-slate-950 shadow-[0_24px_60px_rgba(8,47,73,0.5)]',
+        contentClass: 'p-6 sm:p-7 backdrop-blur-[1.5px]',
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0 opacity-60"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(148,163,184,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.14) 1px, transparent 1px)',
+              backgroundSize: '32px 32px',
+              backgroundPosition: 'center',
+            }}
+          />
+        ),
+      };
+    case 'charcoal':
+      return {
+        containerClass: 'border border-slate-700/60 bg-slate-950 shadow-[0_18px_55px_rgba(15,23,42,0.55)]',
+        contentClass: 'p-6 sm:p-7',
+      };
+    case 'steel':
+      return {
+        containerClass: 'border border-slate-600/60 bg-slate-800 shadow-[0_18px_52px_rgba(30,41,59,0.52)]',
+        contentClass: 'p-6 sm:p-7',
+      };
+    case 'emerald':
+      return {
+        containerClass:
+          'border border-emerald-300/30 bg-gradient-to-br from-emerald-900 via-emerald-950 to-slate-950 shadow-[0_22px_60px_rgba(16,185,129,0.35)]',
+        contentClass: 'p-6 sm:p-7 backdrop-blur-[1px]',
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0 opacity-45"
+            style={{
+              background:
+                'radial-gradient(140% 140% at 10% 15%, rgba(167,243,208,0.28), transparent 65%), radial-gradient(120% 130% at 90% 90%, rgba(45,197,253,0.22), transparent 60%)',
+            }}
+          />
+        ),
+      };
+    case 'none':
+      return {
+        containerClass: 'border border-transparent bg-transparent shadow-none',
+        contentClass: 'p-0',
+      };
+    case 'aurora':
+    default:
+      return {
+        containerClass:
+          'border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-black shadow-[0_20px_60px_rgba(15,23,42,0.4)]',
+        contentClass: 'p-6 sm:p-7',
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0 opacity-55"
+            style={{
+              background:
+                'radial-gradient(130% 140% at 10% 10%, rgba(56,189,248,0.25), transparent 60%), radial-gradient(120% 140% at 90% 90%, rgba(129,140,248,0.23), transparent 60%)',
+            }}
+          />
+        ),
+      };
+  }
+};
+
+type ChromeDecor = {
+  frameClass: string;
+  contentClass?: string;
+  header: ReactNode | null;
+};
+
+const buildChromeDecor = (theme: ReplayChromeTheme, title: string): ChromeDecor => {
+  switch (theme) {
+    case 'chromium':
+      return {
+        frameClass: 'border border-[#d0d4dc] bg-[#e9ecef] shadow-[0_24px_70px_rgba(15,23,42,0.4)]',
+        contentClass: 'bg-white',
+        header: (
+          <div className="bg-[#dee1e6] border-b border-[#c4c8ce]">
+            <div className="flex items-end gap-2 px-4 pt-3">
+              <div className="h-7 w-32 rounded-t-lg border border-[#c4c8ce] bg-white px-3 text-[11px] font-medium text-slate-700 shadow-sm">
+                New Tab
+              </div>
+              <div className="ml-auto flex gap-2 pb-1 text-slate-500/70">
+                <span className="h-2 w-2 rounded-full bg-slate-500/50" />
+                <span className="h-2 w-2 rounded-full bg-slate-500/50" />
+                <span className="h-2 w-2 rounded-full bg-slate-500/50" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 px-4 pb-3">
+              <div className="flex items-center gap-1 text-slate-600">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-lg leading-none">‹</span>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-lg leading-none">›</span>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-base leading-none">↻</span>
+              </div>
+              <div className="flex-1 ml-2 rounded-full border border-[#c4c8ce] bg-white px-4 py-1 text-[11px] text-slate-600 shadow-inner">
+                {title}
+              </div>
+              <div className="flex items-center gap-3 text-slate-600">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-base leading-none">☆</span>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-sm leading-none font-medium">•••</span>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-slate-100 text-[10px] font-semibold text-slate-700">J</span>
+              </div>
+            </div>
+          </div>
+        ),
+      };
+    case 'midnight':
+      return {
+        frameClass: 'border border-indigo-500/15 bg-gradient-to-br from-indigo-950/85 via-slate-950/80 to-black/75 shadow-[0_32px_90px_rgba(79,70,229,0.35)]',
+        contentClass: 'bg-slate-950/25',
+        header: (
+          <div className="flex items-center justify-between border-b border-indigo-400/15 bg-gradient-to-r from-indigo-950/50 via-slate-950/35 to-indigo-900/35 px-5 py-3 text-[11px] uppercase tracking-[0.22em] text-indigo-200/80">
+            <div className="flex items-center gap-3 text-indigo-300/70">
+              <span className="h-2 w-8 rounded-full bg-indigo-400/70" />
+              <span className="h-2 w-4 rounded-full bg-indigo-400/40" />
+            </div>
+            <div className="max-w-sm truncate text-indigo-100/90">{title}</div>
+            <div className="flex items-center gap-2 text-indigo-300/60">
+              <span className="h-2 w-2 rounded-full bg-indigo-400/70" />
+              <span className="h-2 w-2 rounded-full bg-indigo-400/70" />
+            </div>
+          </div>
+        ),
+      };
+    case 'minimal':
+      return {
+        frameClass: 'border border-transparent bg-transparent shadow-none',
+        contentClass: 'bg-transparent',
+        header: null,
+      };
+    case 'aurora':
+    default:
+      return {
+        frameClass: 'border border-white/10 bg-slate-950/60 backdrop-blur-sm shadow-[0_20px_60px_rgba(15,23,42,0.4)]',
+        contentClass: 'bg-slate-950/35',
+        header: (
+          <div className="flex items-center gap-3 border-b border-white/5 bg-slate-950/40 px-5 py-3 text-xs text-slate-300">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            </div>
+            <div className="truncate text-slate-200">{title}</div>
+          </div>
+        ),
+      };
+  }
+};
+
+export function ReplayPlayer({
+  frames,
+  autoPlay = true,
+  loop = true,
+  onFrameChange,
+  executionStatus,
+  chromeTheme = 'aurora',
+  backgroundTheme = 'aurora',
+}: ReplayPlayerProps) {
   const normalizedFrames = useMemo(() => {
     return frames
       .filter((frame): frame is ReplayFrame => Boolean(frame))
@@ -200,8 +434,13 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay && normalizedFrames.length > 1);
   const [frameProgress, setFrameProgress] = useState(0);
+  const [isMetadataCollapsed, setIsMetadataCollapsed] = useState(true);
   const rafRef = useRef<number | null>(null);
   const durationRef = useRef<number>(DEFAULT_DURATION);
+  const backgroundDecor = useMemo(
+    () => buildBackgroundDecor(backgroundTheme ?? 'aurora'),
+    [backgroundTheme],
+  );
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -274,6 +513,15 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
   // Compute current frame safely (use index 0 as fallback for empty arrays to satisfy hooks)
   const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
 
+  const headerTitle = currentFrame
+    ? currentFrame.finalUrl || currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`
+    : 'Replay';
+  const chromeVariant = chromeTheme ?? 'aurora';
+  const chromeDecor = useMemo(
+    () => buildChromeDecor(chromeVariant, headerTitle),
+    [chromeVariant, headerTitle],
+  );
+
   // Hooks must run unconditionally - compute with safe fallbacks when no frames exist
   const extractedPreview = useMemo(() => {
     if (!currentFrame || currentFrame.extractedDataPreview == null) {
@@ -306,8 +554,23 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
   // Early return AFTER all hooks
   if (normalizedFrames.length === 0 || !currentFrame) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-900 via-slate-950 to-black border border-white/10 text-sm text-gray-400">
-        Replay timeline will appear once executions capture timeline artifacts.
+      <div
+        className={clsx(
+          'relative flex h-64 items-center justify-center overflow-hidden rounded-3xl text-sm text-slate-200/80 transition-all duration-500',
+          backgroundDecor.containerClass,
+        )}
+      >
+        {backgroundDecor.overlay}
+        <div
+          className={clsx(
+            'relative z-[1] flex h-full w-full items-center justify-center text-center',
+            backgroundDecor.contentClass,
+          )}
+        >
+          <span className="max-w-sm text-xs text-slate-200/80 sm:text-sm">
+            Replay timeline will appear once executions capture timeline artifacts.
+          </span>
+        </div>
       </div>
     );
   }
@@ -417,28 +680,26 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-black p-6 shadow-2xl">
-        <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-400">
-          <span>Replay</span>
-          <span>
-            Step {currentIndex + 1} / {normalizedFrames.length}
-          </span>
-        </div>
+      <div
+        className={clsx(
+          'relative overflow-hidden rounded-3xl transition-all duration-500',
+          backgroundDecor.containerClass,
+        )}
+      >
+        {backgroundDecor.overlay}
+        <div className={clsx('relative z-[1]', backgroundDecor.contentClass)}>
+          <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
+            <span>Replay</span>
+            <span>
+              Step {currentIndex + 1} / {normalizedFrames.length}
+            </span>
+          </div>
 
-        <div className="mt-4 space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-slate-950/60 backdrop-blur-sm">
-            <div className="flex items-center gap-3 border-b border-white/5 px-5 py-3 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-              </div>
-              <div className="truncate text-slate-300">
-                {currentFrame.finalUrl || currentFrame.nodeId || 'Captured frame'}
-              </div>
-            </div>
+          <div className="mt-4 space-y-3">
+            <div className={clsx('overflow-hidden rounded-2xl transition-all duration-300', chromeDecor.frameClass)}>
+            {chromeDecor.header}
 
-            <div className="relative overflow-hidden">
+            <div className={clsx('relative overflow-hidden', chromeDecor.contentClass)}>
               <div
                 className="relative"
                 style={{
@@ -511,12 +772,12 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
-              onClick={handlePrevious}
-              aria-label="Previous frame"
-            >
+            <div className="flex items-center gap-4">
+              <button
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                onClick={handlePrevious}
+                aria-label="Previous frame"
+              >
               <ChevronLeft size={16} />
             </button>
 
@@ -536,43 +797,63 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
               <ChevronRight size={16} />
             </button>
 
-            <div className="flex-1">
-              <div className="relative h-1 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-flow-accent transition-[width] duration-75"
-                  style={{ width: `${frameProgress * 100}%` }}
-                />
+              <div className="flex-1">
+                <div className="relative h-1 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-flow-accent transition-[width] duration-75"
+                    style={{ width: `${frameProgress * 100}%` }}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">
-              {displayDurationMs ? `${Math.round(displayDurationMs)}ms` : 'Auto'}
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-200/80">
+                {displayDurationMs ? formatDurationSeconds(displayDurationMs) : 'Auto'}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-          <span className="uppercase tracking-[0.18em] text-slate-500">Frame Metadata</span>
-          {currentFrame.stepType && (
-            <span className="inline-flex items-center rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-blue-200">
-              {currentFrame.stepType}
-            </span>
-          )}
-          {currentFrame.status && (
-            <span className={clsx('inline-flex items-center rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em]', {
-              'border border-emerald-400/40 bg-emerald-500/10 text-emerald-200': currentFrame.status === 'completed',
-              'border border-amber-400/40 bg-amber-500/10 text-amber-200': currentFrame.status === 'running',
-              'border border-rose-400/40 bg-rose-500/10 text-rose-200': currentFrame.status === 'failed',
-            })}
-            >
-              {currentFrame.status}
-            </span>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="uppercase tracking-[0.18em] text-slate-500">Frame Metadata</span>
+            {currentFrame.stepType && (
+              <span className="inline-flex items-center rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-blue-200">
+                {currentFrame.stepType}
+              </span>
+            )}
+            {currentFrame.status && (
+              <span
+                className={clsx('inline-flex items-center rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em]', {
+                  'border border-emerald-400/40 bg-emerald-500/10 text-emerald-200': currentFrame.status === 'completed',
+                  'border border-amber-400/40 bg-amber-500/10 text-amber-200': currentFrame.status === 'running',
+                  'border border-rose-400/40 bg-rose-500/10 text-rose-200': currentFrame.status === 'failed',
+                })}
+              >
+                {currentFrame.status}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsMetadataCollapsed((prev) => !prev)}
+            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] text-slate-200 hover:bg-white/10"
+            aria-expanded={!isMetadataCollapsed}
+          >
+            {isMetadataCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+            {isMetadataCollapsed ? 'Expand' : 'Collapse'}
+          </button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div
+          className={clsx(
+            'grid gap-4 transition-all duration-300 md:grid-cols-2',
+            isMetadataCollapsed
+              ? 'pointer-events-none max-h-0 overflow-hidden opacity-0'
+              : 'mt-3 max-h-[1200px] opacity-100',
+          )}
+        >
           <div className="space-y-2 text-sm text-slate-300">
             <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
               <span>Node</span>
@@ -664,10 +945,10 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
                 <div className="uppercase tracking-[0.2em] text-amber-300">Resiliency</div>
                 <div className="mt-2 space-y-1 text-[11px] text-amber-100/90">
                   {displayDurationMs ? (
-                    <div>Total duration: {Math.round(displayDurationMs)}ms</div>
+                    <div>Total duration: {formatDurationSeconds(displayDurationMs)}</div>
                   ) : null}
                   {currentFrame.durationMs && displayDurationMs && Math.round(displayDurationMs) !== Math.round(currentFrame.durationMs) && (
-                    <div>Final attempt: {Math.round(currentFrame.durationMs)}ms</div>
+                    <div>Final attempt: {formatDurationSeconds(currentFrame.durationMs)}</div>
                   )}
                   {typeof currentFrame.retryAttempt === 'number' && currentFrame.retryAttempt > 0 && (
                     <div>
@@ -681,7 +962,7 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
                     <div>Configured retries: {currentFrame.retryConfigured}</div>
                   )}
                   {typeof currentFrame.retryDelayMs === 'number' && currentFrame.retryDelayMs > 0 && (
-                    <div>Initial delay: {currentFrame.retryDelayMs}ms</div>
+                    <div>Initial delay: {formatDurationSeconds(currentFrame.retryDelayMs)}</div>
                   )}
                   {typeof currentFrame.retryBackoffFactor === 'number' && currentFrame.retryBackoffFactor !== 1 && currentFrame.retryBackoffFactor !== 0 && (
                     <div>Backoff factor: ×{currentFrame.retryBackoffFactor.toFixed(2)}</div>
@@ -699,9 +980,11 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
                         >
                           <span>
                             Attempt {entry.attempt ?? index + 1}
-                            {entry.durationMs ? ` • ${Math.round(entry.durationMs)}ms` : ''}
-                            {entry.callDurationMs && entry.callDurationMs !== entry.durationMs
-                              ? ` (call ${Math.round(entry.callDurationMs)}ms)`
+                            {typeof entry.durationMs === 'number'
+                              ? ` • ${formatDurationSeconds(entry.durationMs)}`
+                              : ''}
+                            {typeof entry.callDurationMs === 'number' && entry.callDurationMs !== entry.durationMs
+                              ? ` (call ${formatDurationSeconds(entry.callDurationMs)})`
                               : ''}
                           </span>
                           <span className="ml-3 text-right text-[10px] uppercase tracking-[0.2em]">
@@ -755,7 +1038,7 @@ export function ReplayPlayer({ frames, autoPlay = true, loop = true, onFrameChan
                     {frame.nodeId || frame.stepType || `Step ${frame.stepIndex + 1}`}
                   </div>
                   <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                    {Math.round(clampDuration(frame.durationMs))} ms
+                    {formatDurationSeconds(clampDuration(frame.durationMs))}
                   </div>
                 </div>
               </button>

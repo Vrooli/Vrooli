@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
 import {
   Activity,
   Pause,
@@ -15,7 +15,12 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import ReplayPlayer, { ReplayFrame } from './ReplayPlayer';
+import clsx from 'clsx';
+import ReplayPlayer, {
+  ReplayFrame,
+  type ReplayChromeTheme,
+  type ReplayBackgroundTheme,
+} from './ReplayPlayer';
 import { useExecutionStore } from '../stores/executionStore';
 import type {
   Execution,
@@ -43,13 +48,122 @@ interface ExecutionProps {
 const HEARTBEAT_WARN_SECONDS = 8;
 const HEARTBEAT_STALL_SECONDS = 15;
 
+const REPLAY_CHROME_OPTIONS: Array<{ id: ReplayChromeTheme; label: string; subtitle: string }> = [
+  { id: 'aurora', label: 'Aurora', subtitle: 'macOS-inspired chrome' },
+  { id: 'chromium', label: 'Chromium', subtitle: 'Modern minimal controls' },
+  { id: 'midnight', label: 'Midnight', subtitle: 'Gradient showcase frame' },
+  { id: 'minimal', label: 'Minimal', subtitle: 'Hide browser chrome' },
+];
+
+const REPLAY_BACKGROUND_OPTIONS: Array<{
+  id: ReplayBackgroundTheme;
+  label: string;
+  subtitle: string;
+  previewStyle: CSSProperties;
+  kind: 'abstract' | 'solid' | 'minimal';
+}> = [
+  {
+    id: 'aurora',
+    label: 'Aurora Glow',
+    subtitle: 'Iridescent gradient wash',
+    previewStyle: {
+      backgroundImage: 'linear-gradient(135deg, rgba(56,189,248,0.7), rgba(129,140,248,0.7))',
+    },
+    kind: 'abstract',
+  },
+  {
+    id: 'sunset',
+    label: 'Sunset Bloom',
+    subtitle: 'Fuchsia → amber ambience',
+    previewStyle: {
+      backgroundImage: 'linear-gradient(135deg, rgba(244,114,182,0.75), rgba(251,191,36,0.7))',
+    },
+    kind: 'abstract',
+  },
+  {
+    id: 'ocean',
+    label: 'Ocean Depths',
+    subtitle: 'Cerulean blue gradient',
+    previewStyle: {
+      backgroundImage: 'linear-gradient(135deg, rgba(14,165,233,0.78), rgba(30,64,175,0.82))',
+    },
+    kind: 'abstract',
+  },
+  {
+    id: 'nebula',
+    label: 'Nebula Drift',
+    subtitle: 'Cosmic violet haze',
+    previewStyle: {
+      backgroundImage: 'linear-gradient(135deg, rgba(147,51,234,0.78), rgba(99,102,241,0.78))',
+    },
+    kind: 'abstract',
+  },
+  {
+    id: 'grid',
+    label: 'Tech Grid',
+    subtitle: 'Futuristic lattice backdrop',
+    previewStyle: {
+      backgroundColor: '#0f172a',
+      backgroundImage:
+        'linear-gradient(rgba(96,165,250,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,0.18) 1px, transparent 1px)',
+      backgroundSize: '12px 12px',
+    },
+    kind: 'abstract',
+  },
+  {
+    id: 'charcoal',
+    label: 'Charcoal',
+    subtitle: 'Deep neutral tone',
+    previewStyle: {
+      backgroundColor: '#0f172a',
+    },
+    kind: 'solid',
+  },
+  {
+    id: 'steel',
+    label: 'Steel Slate',
+    subtitle: 'Cool slate finish',
+    previewStyle: {
+      backgroundColor: '#1f2937',
+    },
+    kind: 'solid',
+  },
+  {
+    id: 'emerald',
+    label: 'Evergreen',
+    subtitle: 'Saturated green solid',
+    previewStyle: {
+      backgroundColor: '#064e3b',
+    },
+    kind: 'solid',
+  },
+  {
+    id: 'none',
+    label: 'No Background',
+    subtitle: 'Edge-to-edge browser',
+    previewStyle: {
+      backgroundColor: 'transparent',
+      backgroundImage:
+        'linear-gradient(45deg, rgba(148,163,184,0.35) 25%, transparent 25%, transparent 50%, rgba(148,163,184,0.35) 50%, rgba(148,163,184,0.35) 75%, transparent 75%, transparent)',
+      backgroundSize: '10px 10px',
+    },
+    kind: 'minimal',
+  },
+];
+
+const isReplayChromeTheme = (value: string | null | undefined): value is ReplayChromeTheme =>
+  Boolean(value && REPLAY_CHROME_OPTIONS.some((option) => option.id === value));
+
+const isReplayBackgroundTheme = (
+  value: string | null | undefined,
+): value is ReplayBackgroundTheme =>
+  Boolean(value && REPLAY_BACKGROUND_OPTIONS.some((option) => option.id === value));
+
 function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
   const stopExecution = useExecutionStore((state) => state.stopExecution);
   const startExecution = useExecutionStore((state) => state.startExecution);
-  const [activeTab, setActiveTab] = useState<'replay' | 'screenshots' | 'logs'>(
-    execution.timeline && execution.timeline.length > 0 ? 'replay' : 'screenshots'
-  );
+  const [activeTab, setActiveTab] = useState<'replay' | 'screenshots' | 'logs'>('replay');
   const [hasAutoSwitchedToReplay, setHasAutoSwitchedToReplay] = useState<boolean>(
     Boolean(execution.timeline && execution.timeline.length > 0)
   );
@@ -57,6 +171,21 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   const [, setHeartbeatTick] = useState(0);
   const [isStopping, setIsStopping] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [replayChromeTheme, setReplayChromeTheme] = useState<ReplayChromeTheme>(() => {
+    if (typeof window === 'undefined') {
+      return 'aurora';
+    }
+    const stored = window.localStorage.getItem('browserAutomation.replayChromeTheme');
+    return isReplayChromeTheme(stored) ? stored : 'aurora';
+  });
+  const [replayBackgroundTheme, setReplayBackgroundTheme] = useState<ReplayBackgroundTheme>(() => {
+    if (typeof window === 'undefined') {
+      return 'aurora';
+    }
+    const stored = window.localStorage.getItem('browserAutomation.replayBackgroundTheme');
+    return isReplayBackgroundTheme(stored) ? stored : 'aurora';
+  });
+  const screenshotRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
   const executionError = execution.error ?? undefined;
@@ -75,9 +204,31 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
 
   useEffect(() => {
     setHasAutoSwitchedToReplay(Boolean(execution.timeline && execution.timeline.length > 0));
-    setActiveTab(execution.timeline && execution.timeline.length > 0 ? 'replay' : 'screenshots');
+    setActiveTab('replay');
     setSelectedScreenshot(null);
   }, [execution.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem('browserAutomation.replayChromeTheme', replayChromeTheme);
+    } catch (err) {
+      console.warn('Failed to persist replay chrome theme', err);
+    }
+  }, [replayChromeTheme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem('browserAutomation.replayBackgroundTheme', replayBackgroundTheme);
+    } catch (err) {
+      console.warn('Failed to persist replay background theme', err);
+    }
+  }, [replayBackgroundTheme]);
 
   useEffect(() => {
     if (!hasAutoSwitchedToReplay && execution.timeline && execution.timeline.length > 0) {
@@ -300,7 +451,7 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
 
       const hasScreenshot = Boolean(mappedFrame.screenshot?.url || mappedFrame.screenshot?.thumbnailUrl);
       return hasScreenshot ? mappedFrame : { ...mappedFrame, screenshot: undefined };
-    }).filter((frame) => Boolean(frame.screenshot));
+    });
   }, [timelineForReplay]);
 
   const hasTimeline = replayFrames.length > 0;
@@ -326,6 +477,36 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
     return items;
   }, [execution.timeline]);
 
+  const backgroundOptionGroups = useMemo(
+    () => ({
+      abstract: REPLAY_BACKGROUND_OPTIONS.filter((option) => option.kind === 'abstract'),
+      solid: REPLAY_BACKGROUND_OPTIONS.filter((option) => option.kind === 'solid'),
+      minimal: REPLAY_BACKGROUND_OPTIONS.filter((option) => option.kind === 'minimal'),
+    }),
+    [],
+  );
+
+  const renderBackgroundOption = (option: (typeof REPLAY_BACKGROUND_OPTIONS)[number]) => (
+    <button
+      key={option.id}
+      type="button"
+      onClick={() => setReplayBackgroundTheme(option.id)}
+      title={option.subtitle}
+      className={clsx(
+        'group flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+        replayBackgroundTheme === option.id
+          ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
+          : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-flow-accent/50 hover:text-white',
+      )}
+    >
+      <span
+        className="h-6 w-12 rounded-full border border-white/10 shadow-inner transition-transform duration-200 group-hover:scale-[1.03]"
+        style={option.previewStyle}
+      />
+      <span>{option.label}</span>
+    </button>
+  );
+
   const screenshots = timelineScreenshots.length > 0 ? timelineScreenshots : execution.screenshots;
 
   useEffect(() => {
@@ -339,14 +520,20 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   }, [screenshots, selectedScreenshot]);
 
   useEffect(() => {
-    if (hasTimeline) {
-      if (activeTab === 'screenshots' && screenshots.length === 0) {
-        setActiveTab('replay');
-      }
-    } else if (activeTab === 'replay') {
-      setActiveTab(screenshots.length > 0 ? 'screenshots' : 'logs');
+    if (!selectedScreenshot) {
+      return;
     }
-  }, [hasTimeline, activeTab, screenshots.length]);
+    const element = screenshotRefs.current[selectedScreenshot.id];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+    }
+  }, [selectedScreenshot]);
+
+  useEffect(() => {
+    if (activeTab === 'screenshots' && screenshots.length === 0 && replayFrames.length > 0) {
+      setActiveTab('replay');
+    }
+  }, [activeTab, screenshots.length, replayFrames.length]);
 
   useEffect(() => {
     let interval: number | undefined;
@@ -507,10 +694,11 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === 'replay'
               ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
-              : 'text-gray-400 hover:text-white'
-          } ${hasTimeline ? '' : 'opacity-50 cursor-not-allowed'}`}
-          onClick={() => hasTimeline && setActiveTab('replay')}
-          disabled={!hasTimeline}
+              : hasTimeline
+                ? 'text-gray-400 hover:text-white'
+                : 'text-gray-500 hover:text-white/80'
+          }`}
+          onClick={() => setActiveTab('replay')}
         >
           <PlayCircle size={14} />
           Replay ({replayFrames.length})
@@ -541,34 +729,97 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
 
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         {activeTab === 'replay' ? (
-          hasTimeline ? (
-            <div className="flex-1 overflow-auto p-3 space-y-3">
-              {execution.status === 'failed' && execution.progress < 100 && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 flex items-start gap-3">
-                  <AlertTriangle size={18} className="text-rose-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 text-sm">
-                    <div className="font-medium text-rose-200 mb-1">
-                      Execution Failed - Replay Incomplete
-                    </div>
-                    <div className="text-rose-100/80">
-                      This replay shows only {replayFrames.length} of the workflow's steps.
-                      Execution failed at: {execution.currentStep || 'unknown step'}
-                    </div>
-                    {executionError && (
-                      <div className="mt-2 text-xs font-mono text-rose-100/70 bg-rose-950/30 px-2 py-1 rounded">
-                        {executionError}
-                      </div>
-                    )}
+          <div className="flex-1 overflow-auto p-3 space-y-3">
+            {!hasTimeline && (
+              <div className="rounded-lg border border-dashed border-slate-700/60 bg-slate-900/60 px-4 py-3 text-sm text-slate-200/80">
+                Replay frames stream in as each action runs. Leave this tab open to tailor the final cut in real time.
+              </div>
+            )}
+            {execution.status === 'failed' && execution.progress < 100 && (
+              <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 flex items-start gap-3">
+                <AlertTriangle size={18} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 text-sm">
+                  <div className="font-medium text-rose-200 mb-1">
+                    Execution Failed - Replay Incomplete
                   </div>
+                  <div className="text-rose-100/80">
+                    This replay shows only {replayFrames.length} of the workflow's steps.
+                    Execution failed at: {execution.currentStep || 'unknown step'}
+                  </div>
+                  {executionError && (
+                    <div className="mt-2 text-xs font-mono text-rose-100/70 bg-rose-950/30 px-2 py-1 rounded">
+                      {executionError}
+                    </div>
+                  )}
                 </div>
-              )}
-              <ReplayPlayer frames={replayFrames} executionStatus={execution.status} />
+              </div>
+            )}
+            <div className="rounded-2xl border border-white/5 bg-slate-950/40 px-4 py-3 shadow-inner space-y-4">
+              <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Browser frame</span>
+                  <span className="text-[11px] text-slate-500">Customize the replay window</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {REPLAY_CHROME_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setReplayChromeTheme(option.id)}
+                      title={option.subtitle}
+                      className={clsx(
+                        'rounded-full px-3 py-1.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                        replayChromeTheme === option.id
+                          ? 'bg-flow-accent text-white shadow-[0_12px_35px_rgba(59,130,246,0.45)]'
+                          : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900/80',
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 pt-3 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Background</span>
+                  <span className="text-[11px] text-slate-500">Set the stage behind the browser</span>
+                </div>
+                <div className="space-y-3">
+                  {backgroundOptionGroups.abstract.length > 0 && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Abstract</span>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {backgroundOptionGroups.abstract.map(renderBackgroundOption)}
+                      </div>
+                    </div>
+                  )}
+                  {backgroundOptionGroups.solid.length > 0 && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Solid</span>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {backgroundOptionGroups.solid.map(renderBackgroundOption)}
+                      </div>
+                    </div>
+                  )}
+                  {backgroundOptionGroups.minimal.length > 0 && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Minimal</span>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {backgroundOptionGroups.minimal.map(renderBackgroundOption)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-6 text-sm text-gray-400">
-              Timeline data will appear once replay artifacts are captured for this execution.
-            </div>
-          )
+            <ReplayPlayer
+              frames={replayFrames}
+              executionStatus={execution.status}
+              chromeTheme={replayChromeTheme}
+              backgroundTheme={replayBackgroundTheme}
+            />
+          </div>
         ) : activeTab === 'screenshots' ? (
           screenshots.length === 0 ? (
             <div className="flex flex-1 items-center justify-center p-6 text-center">
@@ -589,23 +840,39 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
             </div>
           ) : (
             <>
-              {selectedScreenshot && (
-                <div className="flex-1 p-3 overflow-auto">
-                  <div className="screenshot-viewer">
-                    <div className="bg-gray-800 px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs text-gray-400">{selectedScreenshot.stepName}</span>
-                      <span className="text-xs text-gray-500">
-                        {format(selectedScreenshot.timestamp, 'HH:mm:ss.SSS')}
-                      </span>
+              <div className="flex-1 p-3 overflow-auto">
+                <div className="space-y-4">
+                  {screenshots.map((screenshot) => (
+                    <div
+                      key={screenshot.id}
+                      ref={(node) => {
+                        if (node) {
+                          screenshotRefs.current[screenshot.id] = node;
+                        } else {
+                          delete screenshotRefs.current[screenshot.id];
+                        }
+                      }}
+                      onClick={() => setSelectedScreenshot(screenshot)}
+                      className={clsx(
+                        'cursor-pointer overflow-hidden rounded-xl border transition-all duration-200',
+                        selectedScreenshot?.id === screenshot.id
+                          ? 'border-flow-accent/80 shadow-[0_22px_50px_rgba(59,130,246,0.35)]'
+                          : 'border-gray-800 hover:border-flow-accent/50 hover:shadow-[0_15px_40px_rgba(59,130,246,0.2)]',
+                      )}
+                    >
+                      <div className="bg-slate-900/80 px-3 py-2 flex items-center justify-between text-xs text-slate-300">
+                        <span className="truncate font-medium">{screenshot.stepName}</span>
+                        <span className="text-slate-400">{format(screenshot.timestamp, 'HH:mm:ss.SSS')}</span>
+                      </div>
+                      <img
+                        src={screenshot.url}
+                        alt={screenshot.stepName}
+                        className="block w-full"
+                      />
                     </div>
-                    <img
-                      src={selectedScreenshot.url}
-                      alt={selectedScreenshot.stepName}
-                      className="w-full"
-                    />
-                  </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
               <div className="border-t border-gray-800 p-2 overflow-x-auto">
                 <div className="flex gap-2">
@@ -613,11 +880,12 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
                     <div
                       key={screenshot.id}
                       onClick={() => setSelectedScreenshot(screenshot)}
-                      className={`flex-shrink-0 w-20 h-20 rounded overflow-hidden cursor-pointer border-2 transition-all ${
+                      className={clsx(
+                        'flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-150',
                         selectedScreenshot?.id === screenshot.id
-                          ? 'border-flow-accent'
-                          : 'border-gray-700 hover:border-gray-600'
-                      }`}
+                          ? 'border-flow-accent shadow-[0_12px_30px_rgba(59,130,246,0.35)]'
+                          : 'border-gray-700 hover:border-flow-accent/60',
+                      )}
                     >
                       <img
                         src={screenshot.url}

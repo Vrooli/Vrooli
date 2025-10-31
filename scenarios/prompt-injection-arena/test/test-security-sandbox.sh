@@ -168,16 +168,7 @@ echo "Test 7: API Security Validation"
 api_file="${SCENARIO_ROOT}/api/main.go"
 if [[ -f "$api_file" ]]; then
     test_passed "API implementation file exists"
-    
-    # Check for security-related code
-    security_patterns=(
-        "CORS"
-        "validation"
-        "sanitize"
-        "timeout"
-        "error handling"
-    )
-    
+
     # This is a simplified check - in practice would need more thorough analysis
     if grep -i "cors\|validation\|sanitize\|timeout" "$api_file" >/dev/null; then
         test_passed "API includes security measures"

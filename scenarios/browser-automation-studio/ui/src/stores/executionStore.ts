@@ -81,6 +81,15 @@ export interface TimelineArtifact {
   payload?: Record<string, unknown> | null;
 }
 
+export interface TimelineLog {
+  id?: string;
+  level?: string;
+  message?: string;
+  step_name?: string;
+  stepName?: string;
+  timestamp?: string;
+}
+
 export interface TimelineFrame {
   step_index: number;
   stepIndex?: number;
@@ -340,6 +349,53 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       const frames = Array.isArray(data?.frames)
         ? (data.frames as TimelineFrame[])
         : [];
+      const rawLogs = Array.isArray(data?.logs)
+        ? (data.logs as TimelineLog[])
+        : [];
+
+      const normalizeLogLevel = (value?: string): LogEntry['level'] => {
+        switch ((value ?? '').toLowerCase()) {
+          case 'error':
+          case 'err':
+            return 'error';
+          case 'warning':
+          case 'warn':
+            return 'warning';
+          case 'success':
+          case 'ok':
+          case 'passed':
+            return 'success';
+          default:
+            return 'info';
+        }
+      };
+
+      const normalizedLogs: LogEntry[] = rawLogs
+        .map((log) => {
+          const baseMessage = typeof log?.message === 'string' ? log.message.trim() : '';
+          const stepName = typeof log?.step_name === 'string' ? log.step_name : typeof log?.stepName === 'string' ? log.stepName : '';
+          const composedMessage = stepName && baseMessage
+            ? `${stepName}: ${baseMessage}`
+            : baseMessage || stepName;
+          if (!composedMessage) {
+            return null;
+          }
+          const rawTimestamp = typeof log?.timestamp === 'string' || typeof log?.timestamp === 'number'
+            ? String(log.timestamp)
+            : '';
+          const timestamp = parseTimestamp(log?.timestamp);
+          const fallbackId = `${stepName}|${composedMessage}|${rawTimestamp}`;
+          const id = typeof log?.id === 'string' && log.id.trim().length > 0
+            ? log.id.trim()
+            : fallbackId || createId();
+          return {
+            id,
+            level: normalizeLogLevel(log?.level),
+            message: composedMessage,
+            timestamp,
+          } satisfies LogEntry;
+        })
+        .filter((entry): entry is LogEntry => Boolean(entry));
 
       const normalizeStatus = (value?: string): Execution['status'] | undefined => {
         switch ((value ?? '').toLowerCase()) {
@@ -375,7 +431,21 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         const updated: Execution = {
           ...state.currentExecution,
           timeline: frames,
+          logs: [...(state.currentExecution.logs ?? [])],
         };
+
+        if (normalizedLogs.length > 0) {
+          const merged = new Map<string, LogEntry>();
+          for (const existingLog of updated.logs) {
+            merged.set(existingLog.id, existingLog);
+          }
+          for (const newLog of normalizedLogs) {
+            merged.set(newLog.id, newLog);
+          }
+          updated.logs = Array.from(merged.values()).sort(
+            (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+          );
+        }
 
         if (mappedStatus && updated.status !== mappedStatus) {
           updated.status = mappedStatus;

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ type ExecutionTimeline struct {
 	StartedAt   time.Time       `json:"started_at"`
 	CompletedAt *time.Time      `json:"completed_at,omitempty"`
 	Frames      []TimelineFrame `json:"frames"`
+	Logs        []TimelineLog   `json:"logs"`
 }
 
 // TimelineFrame captures a single step in the execution timeline.
@@ -94,6 +96,15 @@ type TimelineArtifact struct {
 	Payload      map[string]any `json:"payload,omitempty"`
 }
 
+// TimelineLog captures execution log output for replay consumers.
+type TimelineLog struct {
+	ID        string    `json:"id"`
+	Level     string    `json:"level"`
+	Message   string    `json:"message"`
+	StepName  string    `json:"step_name,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
 // GetExecutionTimeline assembles replay-ready artifacts for a given execution.
 func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*ExecutionTimeline, error) {
 	execution, err := s.repo.GetExecution(ctx, executionID)
@@ -151,6 +162,29 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 		return frames[i].NodeID < frames[j].NodeID
 	})
 
+	logs, err := s.repo.GetExecutionLogs(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+
+	timelineLogs := make([]TimelineLog, 0, len(logs))
+	for _, log := range logs {
+		if log == nil {
+			continue
+		}
+		level := strings.ToLower(strings.TrimSpace(log.Level))
+		if level == "" {
+			level = "info"
+		}
+		timelineLogs = append(timelineLogs, TimelineLog{
+			ID:        log.ID.String(),
+			Level:     level,
+			Message:   log.Message,
+			StepName:  log.StepName,
+			Timestamp: log.Timestamp,
+		})
+	}
+
 	return &ExecutionTimeline{
 		ExecutionID: execution.ID,
 		WorkflowID:  execution.WorkflowID,
@@ -159,6 +193,7 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 		StartedAt:   execution.StartedAt,
 		CompletedAt: execution.CompletedAt,
 		Frames:      frames,
+		Logs:        timelineLogs,
 	}, nil
 }
 

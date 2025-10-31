@@ -17,7 +17,7 @@ log::info "Checking dependencies for prompt-manager..."
 
 # Check Go dependencies
 log::info "Checking Go dependencies..."
-if cd api && go mod verify 2>&1; then
+if (cd api && go mod verify) 2>&1; then
     log::success "Go dependencies verified"
 else
     testing::phase::add_error "Go dependency verification failed"
@@ -25,7 +25,7 @@ fi
 
 # Check if binaries can be built
 log::info "Checking Go build..."
-if cd api && go build -o /tmp/prompt-manager-test . 2>&1; then
+if (cd api && go build -o /tmp/prompt-manager-test .) 2>&1; then
     log::success "Go build successful"
     rm -f /tmp/prompt-manager-test
 else
@@ -42,18 +42,18 @@ fi
 
 # Check required resources
 log::info "Checking required resources..."
-if testing::phase::require_resource postgres "PostgreSQL database"; then
+if vrooli resource status postgres &>/dev/null; then
     log::success "PostgreSQL available"
 else
     testing::phase::add_error "PostgreSQL not available"
 fi
 
 # Check optional resources
-if testing::phase::check_resource qdrant; then
+if vrooli resource status qdrant &>/dev/null; then
     log::info "Qdrant vector database available (optional)"
 fi
 
-if testing::phase::check_resource ollama; then
+if vrooli resource status ollama &>/dev/null; then
     log::info "Ollama LLM available (optional)"
 fi
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # SaaS Landing Manager CLI Install Script
-set -e
+set -euo pipefail
 
 # Configuration
 CLI_NAME="saas-landing-manager"
@@ -24,11 +24,12 @@ fi
 go mod download
 go build -o "$CLI_BINARY" .
 
-# Move binary to install directory
-echo "Installing to $INSTALL_DIR/$CLI_BINARY..."
-mv "$CLI_BINARY" "$INSTALL_DIR/$CLI_BINARY"
+# Ensure the local binary is executable for scenario tests
+chmod +x "$CLI_BINARY"
 
-# Make it executable
+# Copy binary to install directory (preserve local copy for tests)
+echo "Installing to $INSTALL_DIR/$CLI_BINARY..."
+cp "$CLI_BINARY" "$INSTALL_DIR/$CLI_BINARY"
 chmod +x "$INSTALL_DIR/$CLI_BINARY"
 
 # Add to PATH if not already there

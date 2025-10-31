@@ -60,9 +60,25 @@ app.get('/config.js', (req, res) => {
 
 const apiPortNumber = Number(apiPort);
 
-const proxyToApi = (req, res) => {
-    const suffix = req.originalUrl.replace(/^\/(_ui\/)?api/, '');
-    const targetPath = suffix ? (suffix.startsWith('/') ? suffix : `/${suffix}`) : '/';
+// Normalize API requests so the UI can talk to the API safely through the tunnel layer
+const normalizeTargetPath = (rawPath) => {
+    const [pathPart = '/', queryPart] = (rawPath || '/').split('?');
+    let normalizedPath = pathPart.startsWith('/') ? pathPart : `/${pathPart}`;
+
+    // Strip UI proxy prefix if present so downstream API receives original route
+    normalizedPath = normalizedPath.replace(/^\/_ui\/api/, '/');
+
+    if (normalizedPath === '') {
+        normalizedPath = '/';
+    }
+
+    normalizedPath = normalizedPath.replace(/\/{2,}/g, '/');
+
+    return queryPart ? `${normalizedPath}?${queryPart}` : normalizedPath;
+};
+
+const proxyToApi = (req, res, upstreamPath) => {
+    const targetPath = normalizeTargetPath(upstreamPath || req.originalUrl || req.url);
 
     const options = {
         hostname: '127.0.0.1',
@@ -105,17 +121,68 @@ const proxyToApi = (req, res) => {
     }
 };
 
-app.use('/_ui/api', proxyToApi);
-app.use('/api', proxyToApi);
+app.use('/_ui/api', (req, res) => {
+    const downstreamPath = normalizeTargetPath(req.originalUrl);
+    proxyToApi(req, res, downstreamPath);
+});
+
+app.use('/api', (req, res) => {
+    const downstreamPath = normalizeTargetPath(req.originalUrl);
+    proxyToApi(req, res, downstreamPath);
+});
 
 app.use(express.static(__dirname));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Health check endpoint with API connectivity validation
+app.get('/health', async (req, res) => {
+    const apiHealthUrl = `http://localhost:${apiPort}/health`;
+    const checkStart = Date.now();
+    let apiConnectivity = {
+        connected: false,
+        api_url: apiHealthUrl,
+        last_check: new Date().toISOString(),
+        error: null,
+        latency_ms: null
+    };
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+        const response = await fetch(apiHealthUrl, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
+        });
+        clearTimeout(timeoutId);
+
+        const latency = Date.now() - checkStart;
+
+        if (response.ok) {
+            apiConnectivity.connected = true;
+            apiConnectivity.latency_ms = latency;
+        } else {
+            apiConnectivity.error = {
+                code: `HTTP_${response.status}`,
+                message: `API returned status ${response.status}`,
+                category: 'network',
+                retryable: true
+            };
+        }
+    } catch (error) {
+        apiConnectivity.error = {
+            code: error.name === 'AbortError' ? 'TIMEOUT' : 'CONNECTION_REFUSED',
+            message: error.message,
+            category: 'network',
+            retryable: true
+        };
+    }
+
     res.json({
-        status: 'healthy',
+        status: apiConnectivity.connected ? 'healthy' : 'degraded',
         service: 'prompt-injection-arena-ui',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        readiness: true,
+        api_connectivity: apiConnectivity
     });
 });
 

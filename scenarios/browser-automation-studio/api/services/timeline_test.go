@@ -16,6 +16,7 @@ type timelineRepositoryMock struct {
 	execution *database.Execution
 	steps     []*database.ExecutionStep
 	artifacts []*database.ExecutionArtifact
+	logs      []*database.ExecutionLog
 }
 
 // Project operations
@@ -120,7 +121,7 @@ func (m *timelineRepositoryMock) CreateExecutionLog(ctx context.Context, log *da
 	return nil
 }
 func (m *timelineRepositoryMock) GetExecutionLogs(ctx context.Context, executionID uuid.UUID) ([]*database.ExecutionLog, error) {
-	return nil, nil
+	return m.logs, nil
 }
 
 // Extracted data operations
@@ -259,10 +260,21 @@ func TestGetExecutionTimeline(t *testing.T) {
 		},
 	}
 
+	logID := uuid.New()
+	executionLog := &database.ExecutionLog{
+		ID:          logID,
+		ExecutionID: executionID,
+		Timestamp:   startedAt.Add(250 * time.Millisecond),
+		Level:       "INFO",
+		StepName:    "navigate",
+		Message:     "navigate started",
+	}
+
 	repo := &timelineRepositoryMock{
 		execution: execution,
 		steps:     []*database.ExecutionStep{step},
 		artifacts: []*database.ExecutionArtifact{consoleArtifact, screenshotArtifact, domArtifact, timelineArtifact},
+		logs:      []*database.ExecutionLog{executionLog},
 	}
 
 	log := logrus.New()
@@ -289,6 +301,23 @@ func TestGetExecutionTimeline(t *testing.T) {
 
 	if len(timeline.Frames) != 1 {
 		t.Fatalf("expected 1 frame, got %d", len(timeline.Frames))
+	}
+
+	if len(timeline.Logs) != 1 {
+		t.Fatalf("expected 1 log entry, got %d", len(timeline.Logs))
+	}
+
+	if timeline.Logs[0].ID != logID.String() {
+		t.Fatalf("unexpected log id: %s", timeline.Logs[0].ID)
+	}
+	if timeline.Logs[0].Level != "info" {
+		t.Fatalf("expected log level info, got %s", timeline.Logs[0].Level)
+	}
+	if timeline.Logs[0].StepName != "navigate" {
+		t.Fatalf("unexpected log step name: %s", timeline.Logs[0].StepName)
+	}
+	if timeline.Logs[0].Message != "navigate started" {
+		t.Fatalf("unexpected log message: %s", timeline.Logs[0].Message)
 	}
 
 	frame := timeline.Frames[0]

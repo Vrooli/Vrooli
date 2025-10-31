@@ -27,6 +27,8 @@ class PromptInjectionArena {
         this.apiBase = this.resolveApiBase();
         this.currentTab = 'dashboard';
         this.refreshInterval = null;
+        this.libraryData = [];
+        this.libraryIndex = new Map();
 
         console.info('[PromptInjectionArena] API base:', this.apiBase);
         this.init();
@@ -79,7 +81,10 @@ class PromptInjectionArena {
         // Navigation
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
+                const targetTab = e.currentTarget?.dataset?.tab;
+                if (targetTab) {
+                    this.switchTab(targetTab);
+                }
             });
         });
         
@@ -113,7 +118,27 @@ class PromptInjectionArena {
         document.getElementById('save-injection').addEventListener('click', () => {
             this.saveNewInjection();
         });
-        
+
+        // Injection detail modal
+        const detailModal = document.getElementById('injection-detail-modal');
+        if (detailModal) {
+            detailModal.addEventListener('click', (event) => {
+                if (event.target === event.currentTarget) {
+                    this.hideInjectionDetail();
+                }
+            });
+        }
+
+        const detailCloseButton = document.getElementById('detail-close');
+        if (detailCloseButton) {
+            detailCloseButton.addEventListener('click', () => this.hideInjectionDetail());
+        }
+
+        const detailCloseFooter = document.getElementById('detail-close-footer');
+        if (detailCloseFooter) {
+            detailCloseFooter.addEventListener('click', () => this.hideInjectionDetail());
+        }
+
         // Form sliders
         document.getElementById('temperature-slider').addEventListener('input', (e) => {
             document.getElementById('temperature-value').textContent = e.target.value;
@@ -138,6 +163,26 @@ class PromptInjectionArena {
                 this.hideAddInjectionModal();
             }
         });
+
+        this.handleEscapeKey = (event) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            const addModal = document.getElementById('add-injection-modal');
+            const detailModalEl = document.getElementById('injection-detail-modal');
+
+            if (detailModalEl?.classList.contains('active')) {
+                this.hideInjectionDetail();
+                return;
+            }
+
+            if (addModal?.classList.contains('active')) {
+                this.hideAddInjectionModal();
+            }
+        };
+
+        document.addEventListener('keydown', this.handleEscapeKey);
     }
     
     switchTab(tabName) {
@@ -358,37 +403,242 @@ class PromptInjectionArena {
     
     displayInjectionLibrary(data) {
         const container = document.getElementById('injection-library');
-        
-        if (!data || !data.techniques || data.techniques.length === 0) {
-            container.innerHTML = '<div class="loading">No injection techniques found</div>';
+        if (!container) {
             return;
         }
-        
-        container.innerHTML = data.techniques.map(injection => `
-            <div class="injection-card">
-                <div class="injection-header">
+
+        if (!data || !Array.isArray(data.techniques) || data.techniques.length === 0) {
+            this.libraryData = [];
+            this.libraryIndex.clear();
+            container.innerHTML = '<div class="empty-state">No injection techniques found. Refine your filters or add a new one.</div>';
+            return;
+        }
+
+        this.libraryData = data.techniques;
+        this.libraryIndex = new Map(this.libraryData.map((technique) => [technique.id, technique]));
+
+        container.innerHTML = this.libraryData.map((technique) => this.renderInjectionCard(technique)).join('');
+
+        container.querySelectorAll('.injection-card').forEach((card) => {
+            const id = card.dataset.id;
+            if (!id) {
+                return;
+            }
+
+            card.addEventListener('click', () => this.showInjectionDetail(id));
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    this.showInjectionDetail(id);
+                }
+            });
+        });
+    }
+
+    renderInjectionCard(technique) {
+        const safeName = this.escapeHtml(technique.name || 'Unnamed Technique');
+        const categoryLabel = this.escapeHtml(this.formatCategory(technique.category));
+        const description = technique.description || technique.example_prompt || 'No additional context recorded yet.';
+        const summary = this.escapeHtml(this.truncate(description, 180));
+        const successRate = this.formatPercentage(technique.success_rate);
+        const difficulty = typeof technique.difficulty_score === 'number' ? technique.difficulty_score.toFixed(1) : '—';
+        const createdHuman = technique.created_at ? this.escapeHtml(this.formatRelativeDate(technique.created_at)) : '';
+        const contributor = this.escapeHtml(technique.created_by || 'Security Lab');
+        const statusClass = technique.is_active ? 'active' : 'inactive';
+        const statusLabel = technique.is_active ? 'Active' : 'Archived';
+
+        return `
+            <article class="injection-card" data-id="${this.escapeHtml(technique.id)}" role="button" tabindex="0" aria-label="View details for ${safeName}">
+                <div class="injection-card-header">
                     <div>
-                        <div class="injection-name">${injection.name}</div>
-                        <div class="injection-category">${injection.category.replace('_', ' ')}</div>
+                        <h3 class="injection-name">${safeName}</h3>
+                        <div class="injection-meta">
+                            <span class="category-chip">${categoryLabel}</span>
+                            <span class="status-chip ${statusClass}" aria-label="${statusLabel} injection">${statusLabel}</span>
+                        </div>
+                    </div>
+                    <div class="detail-hint">
+                        <span>Details</span>
+                        <i class="fas fa-arrow-right"></i>
                     </div>
                 </div>
-                <div class="injection-stats">
-                    <div class="stat">
+                <p class="injection-description">${summary}</p>
+                <div class="injection-stat-row">
+                    <div class="injection-stat">
                         <i class="fas fa-chart-line"></i>
-                        <span class="stat-value">${(injection.success_rate * 100).toFixed(1)}%</span>
-                        <span>Success Rate</span>
+                        <div>
+                            <div class="stat-value">${successRate}</div>
+                            <div class="stat-label">Success Rate</div>
+                        </div>
                     </div>
-                    <div class="stat">
+                    <div class="injection-stat">
                         <i class="fas fa-star"></i>
-                        <span class="stat-value">${injection.difficulty_score.toFixed(1)}</span>
-                        <span>Difficulty</span>
+                        <div>
+                            <div class="stat-value">${difficulty}</div>
+                            <div class="stat-label">Difficulty</div>
+                        </div>
+                    </div>
+                    <div class="injection-stat">
+                        <i class="fas fa-user-astronaut"></i>
+                        <div>
+                            <div class="stat-value">${contributor}</div>
+                            <div class="stat-label">${createdHuman ? `Added ${createdHuman}` : 'Contributor'}</div>
+                        </div>
                     </div>
                 </div>
-                <div class="injection-example">
-                    ${injection.example_prompt.substring(0, 120)}${injection.example_prompt.length > 120 ? '...' : ''}
-                </div>
-            </div>
-        `).join('');
+            </article>
+        `;
+    }
+
+    showInjectionDetail(techniqueId) {
+        const technique = this.libraryIndex.get(techniqueId);
+        if (!technique) {
+            console.warn('[PromptInjectionArena] Unable to resolve technique for detail view', techniqueId);
+            return;
+        }
+
+        const modal = document.getElementById('injection-detail-modal');
+        if (!modal) {
+            return;
+        }
+
+        const statusChip = modal.querySelector('[data-detail="status"]');
+        if (statusChip) {
+            statusChip.textContent = technique.is_active ? 'Active' : 'Archived';
+            statusChip.classList.toggle('active', Boolean(technique.is_active));
+            statusChip.classList.toggle('inactive', !technique.is_active);
+        }
+
+        const titleEl = modal.querySelector('[data-detail="title"]');
+        if (titleEl) {
+            titleEl.textContent = technique.name || 'Injection Detail';
+        }
+
+        const categoryEl = modal.querySelector('[data-detail="category"]');
+        if (categoryEl) {
+            categoryEl.textContent = this.formatCategory(technique.category);
+        }
+
+        const idEl = modal.querySelector('[data-detail="id"]');
+        if (idEl) {
+            idEl.textContent = technique.id;
+        }
+
+        const successEl = modal.querySelector('[data-detail="success"]');
+        if (successEl) {
+            successEl.textContent = this.formatPercentage(technique.success_rate);
+        }
+
+        const difficultyEl = modal.querySelector('[data-detail="difficulty"]');
+        if (difficultyEl) {
+            difficultyEl.textContent = typeof technique.difficulty_score === 'number' ? technique.difficulty_score.toFixed(1) : '—';
+        }
+
+        const sourceEl = modal.querySelector('[data-detail="source"]');
+        if (sourceEl) {
+            sourceEl.textContent = technique.source_attribution || 'Internal Research';
+        }
+
+        const descriptionEl = modal.querySelector('[data-detail="description"]');
+        if (descriptionEl) {
+            descriptionEl.textContent = technique.description || 'No description provided yet.';
+        }
+
+        const exampleEl = modal.querySelector('[data-detail="example"]');
+        if (exampleEl) {
+            exampleEl.textContent = technique.example_prompt || 'No example prompt available.';
+        }
+
+        const createdByEl = modal.querySelector('[data-detail="created-by"]');
+        if (createdByEl) {
+            createdByEl.textContent = technique.created_by || 'Security Lab';
+        }
+
+        const createdEl = modal.querySelector('[data-detail="created"]');
+        if (createdEl) {
+            createdEl.textContent = technique.created_at ? this.formatAbsoluteDate(technique.created_at) : 'Unknown';
+        }
+
+        modal.classList.add('active');
+        document.body.classList.add('modal-open');
+    }
+
+    hideInjectionDetail() {
+        const modal = document.getElementById('injection-detail-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+
+        this.updateBodyModalState();
+    }
+
+    formatPercentage(value) {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+            return '—';
+        }
+        return `${(value * 100).toFixed(1)}%`;
+    }
+
+    formatCategory(category) {
+        if (!category) {
+            return 'Uncategorized';
+        }
+        return String(category).replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+
+    formatRelativeDate(dateString) {
+        const date = new Date(dateString);
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+        return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+    }
+
+    formatAbsoluteDate(dateString) {
+        const date = new Date(dateString);
+        if (Number.isNaN(date.getTime())) {
+            return 'Unknown';
+        }
+        return new Intl.DateTimeFormat(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+    }
+
+    truncate(value, maxLength = 160) {
+        if (typeof value !== 'string') {
+            return '';
+        }
+        if (value.length <= maxLength) {
+            return value;
+        }
+        return `${value.substring(0, maxLength - 3).trim()}...`;
+    }
+
+    escapeHtml(value) {
+        if (typeof value !== 'string') {
+            return value == null ? '' : String(value);
+        }
+
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+
+        return value.replace(/[&<>"']/g, (char) => map[char]);
+    }
+
+    updateBodyModalState() {
+        const hasActiveModal = document.querySelector('.modal.active');
+        if (!hasActiveModal) {
+            document.body.classList.remove('modal-open');
+        }
     }
     
     async loadInjectionCategories() {
@@ -623,6 +873,7 @@ class PromptInjectionArena {
     
     showAddInjectionModal() {
         document.getElementById('add-injection-modal').classList.add('active');
+        document.body.classList.add('modal-open');
     }
     
     hideAddInjectionModal() {
@@ -635,6 +886,8 @@ class PromptInjectionArena {
         document.getElementById('injection-description').value = '';
         document.getElementById('difficulty-slider').value = '0.5';
         document.getElementById('difficulty-value').textContent = '0.5';
+
+        this.updateBodyModalState();
     }
     
     async saveNewInjection() {

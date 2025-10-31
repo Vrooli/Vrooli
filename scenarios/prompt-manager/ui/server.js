@@ -138,8 +138,10 @@ app.get('/health', async (req, res) => {
 
     // Check API connectivity
     let apiConnectivity = {
-        status: 'unknown',
-        last_check: timestamp
+        connected: false,
+        api_url: parsedApiBaseUrl ? parsedApiBaseUrl.href : 'not_configured',
+        last_check: timestamp,
+        error: null
     };
 
     if (parsedApiBaseUrl) {
@@ -147,60 +149,62 @@ app.get('/health', async (req, res) => {
             const healthUrl = new URL('/health', parsedApiBaseUrl);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const startTime = Date.now();
 
             const response = await fetch(healthUrl.href, {
                 signal: controller.signal,
                 headers: { 'User-Agent': 'prompt-manager-ui/health-check' }
             });
             clearTimeout(timeoutId);
+            const latency = Date.now() - startTime;
 
             if (response.ok) {
                 apiConnectivity = {
-                    status: 'connected',
-                    endpoint: healthUrl.href,
-                    response_code: response.status,
-                    last_check: timestamp
+                    connected: true,
+                    api_url: healthUrl.href,
+                    last_check: timestamp,
+                    latency_ms: latency,
+                    error: null
                 };
             } else {
                 apiConnectivity = {
-                    status: 'error',
-                    endpoint: healthUrl.href,
-                    response_code: response.status,
+                    connected: false,
+                    api_url: healthUrl.href,
+                    last_check: timestamp,
+                    latency_ms: null,
                     error: {
                         code: 'API_ERROR',
                         message: `API returned ${response.status}`,
                         category: 'network',
                         retryable: true
-                    },
-                    last_check: timestamp
+                    }
                 };
             }
         } catch (error) {
             apiConnectivity = {
-                status: 'disconnected',
-                endpoint: parsedApiBaseUrl.href,
+                connected: false,
+                api_url: parsedApiBaseUrl.href,
+                last_check: timestamp,
+                latency_ms: null,
                 error: {
                     code: error.name === 'AbortError' ? 'TIMEOUT' : 'CONNECTION_FAILED',
                     message: error.message,
                     category: 'network',
                     retryable: true
-                },
-                last_check: timestamp
+                }
             };
         }
     }
 
+    const isReady = fs.existsSync(path.join(__dirname, 'dist')) &&
+                    parsedApiBaseUrl !== null &&
+                    apiConnectivity.connected;
+
     res.json({
-        status: 'healthy',
+        status: apiConnectivity.connected ? 'healthy' : 'degraded',
         service: 'prompt-manager-ui',
         timestamp,
-        readiness: {
-            ready: true,
-            checks: {
-                static_files: fs.existsSync(path.join(__dirname, 'dist')),
-                api_config: parsedApiBaseUrl !== null
-            }
-        },
+        readiness: isReady,
         api_connectivity: apiConnectivity,
         metadata: {
             port: PORT,

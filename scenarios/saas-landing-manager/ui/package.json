@@ -1,26 +1,48 @@
 {
   "name": "saas-landing-manager-ui",
-  "version": "1.0.0",
-  "description": "Web dashboard for SaaS Landing Page Manager",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "Modern React UI for the SaaS Landing Page Manager scenario",
+  "type": "module",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'"
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port ${UI_PORT:-4173}",
+    "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "@radix-ui/react-dialog": "^1.1.1",
+    "@radix-ui/react-tabs": "^1.0.5",
+    "@radix-ui/react-toast": "^1.1.5",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
     "cors": "^2.8.5",
-    "path": "^0.12.7",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "express": "^4.19.2",
+    "lucide-react": "^0.441.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.12.12",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.10"
   },
   "keywords": [
     "saas",
     "landing-pages",
-    "marketing",
-    "dashboard"
+    "dashboard",
+    "react",
+    "vite"
   ],
   "author": "Vrooli AI",
   "license": "MIT"
