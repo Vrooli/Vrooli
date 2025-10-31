@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import Catalog from './pages/Catalog'
 import PRDViewer from './pages/PRDViewer'
@@ -29,12 +29,14 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__prdCo
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Catalog />} />
         <Route path="/prd/:type/:name" element={<PRDViewer />} />
         <Route path="/drafts" element={<Drafts />} />
+        <Route path="/draft/:entityType/:entityName" element={<Drafts />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>,
 )

@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,12 +47,20 @@ type DraftListResponse struct {
 	Total  int     `json:"total"`
 }
 
+type draftExec interface {
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
 func handleListDrafts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if db == nil {
 		http.Error(w, "Database not available", http.StatusServiceUnavailable)
 		return
+	}
+
+	if err := syncDraftFilesystemWithDatabase(db); err != nil {
+		log.Printf("[Drafts] failed to sync filesystem drafts: %v", err)
 	}
 
 	rows, err := db.Query(`
@@ -331,6 +342,73 @@ func handleDeleteDraft(w http.ResponseWriter, r *http.Request) {
 }
 
 // Helper functions
+
+func syncDraftFilesystemWithDatabase(exec draftExec) error {
+	if exec == nil {
+		return fmt.Errorf("draft executor is nil")
+	}
+
+	draftRoot := filepath.Join("..", "data", "prd-drafts")
+	info, err := os.Stat(draftRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to stat draft directory: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("draft path is not a directory: %s", draftRoot)
+	}
+
+	return filepath.WalkDir(draftRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) != ".md" {
+			return nil
+		}
+
+		rel, err := filepath.Rel(draftRoot, path)
+		if err != nil {
+			return fmt.Errorf("failed to compute relative path for %s: %w", path, err)
+		}
+		parts := strings.Split(rel, string(filepath.Separator))
+		if len(parts) != 2 {
+			return nil
+		}
+
+		entityType := parts[0]
+		if entityType != "scenario" && entityType != "resource" {
+			return nil
+		}
+
+		entityName := strings.TrimSuffix(parts[1], filepath.Ext(parts[1]))
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read draft file %s: %w", path, err)
+		}
+
+		modTime := time.Now()
+		if fileInfo, err := entry.Info(); err == nil {
+			if !fileInfo.ModTime().IsZero() {
+				modTime = fileInfo.ModTime()
+			}
+		}
+
+		if _, err := exec.Exec(`
+			INSERT INTO drafts (entity_type, entity_name, content, created_at, updated_at, status)
+			VALUES ($1, $2, $3, $4, $4, 'draft')
+			ON CONFLICT (entity_type, entity_name) DO NOTHING
+		`, entityType, entityName, string(content), modTime); err != nil {
+			return fmt.Errorf("failed to sync draft %s/%s: %w", entityType, entityName, err)
+		}
+
+		return nil
+	})
+}
 
 func saveDraftToFile(entityType string, entityName string, content string) error {
 	draftPath := getDraftPath(entityType, entityName)

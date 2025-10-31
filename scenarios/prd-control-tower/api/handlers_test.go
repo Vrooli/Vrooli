@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -198,6 +199,12 @@ func TestHandleGetPublishedPRD(t *testing.T) {
 
 				if response.Content != prdContent {
 					t.Errorf("handleGetPublishedPRD() content = %q, want %q", response.Content, prdContent)
+				}
+
+				if response.ContentHTML == "" {
+					t.Errorf("handleGetPublishedPRD() content_html should not be empty")
+				} else if !strings.Contains(response.ContentHTML, "<p>This is test content.</p>") {
+					t.Errorf("handleGetPublishedPRD() content_html missing expected paragraph, got %q", response.ContentHTML)
 				}
 
 				if response.Name != tt.entityName {

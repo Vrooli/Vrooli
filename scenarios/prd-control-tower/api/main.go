@@ -72,6 +72,7 @@ func main() {
 	// Catalog endpoints
 	router.HandleFunc("/api/v1/catalog", handleGetCatalog).Methods("GET")
 	router.HandleFunc("/api/v1/catalog/{type}/{name}", handleGetPublishedPRD).Methods("GET")
+	router.HandleFunc("/api/v1/catalog/{type}/{name}/draft", handleEnsureDraftFromPublishedPRD).Methods("POST")
 
 	// Draft endpoints
 	router.HandleFunc("/api/v1/drafts", handleListDrafts).Methods("GET")

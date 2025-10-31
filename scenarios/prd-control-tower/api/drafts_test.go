@@ -2,8 +2,32 @@ package main
 
 import (
 	"database/sql"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
+
+type execCall struct {
+	query string
+	args  []any
+}
+
+type recordingExec struct {
+	calls []execCall
+}
+
+type noopResult struct{}
+
+func (noopResult) LastInsertId() (int64, error) { return 0, nil }
+
+func (noopResult) RowsAffected() (int64, error) { return 0, nil }
+
+func (r *recordingExec) Exec(query string, args ...any) (sql.Result, error) {
+	r.calls = append(r.calls, execCall{query: query, args: args})
+	return noopResult{}, nil
+}
 
 func TestNullString(t *testing.T) {
 	tests := []struct {
@@ -144,5 +168,74 @@ func TestDraftValidation(t *testing.T) {
 				t.Errorf("Expected entity name %q to be invalid", tt.entityName)
 			}
 		})
+	}
+}
+
+func TestSyncDraftFilesystemWithDatabase(t *testing.T) {
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	apiDir := filepath.Join(tmpDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("failed to create api directory: %v", err)
+	}
+
+	if err := os.Chdir(apiDir); err != nil {
+		t.Fatalf("failed to change working directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	draftDir := filepath.Join("..", "data", "prd-drafts", "scenario")
+	if err := os.MkdirAll(draftDir, 0o755); err != nil {
+		t.Fatalf("failed to create draft directory: %v", err)
+	}
+
+	draftPath := filepath.Join(draftDir, "test-sync.md")
+	draftContent := "# Draft sync test\n"
+	if err := os.WriteFile(draftPath, []byte(draftContent), 0o644); err != nil {
+		t.Fatalf("failed to write draft file: %v", err)
+	}
+
+	modTime := time.Now().Add(-1 * time.Hour).Round(time.Second)
+	if err := os.Chtimes(draftPath, modTime, modTime); err != nil {
+		t.Fatalf("failed to update draft timestamps: %v", err)
+	}
+
+	mockExec := &recordingExec{}
+	if err := syncDraftFilesystemWithDatabase(mockExec); err != nil {
+		t.Fatalf("syncDraftFilesystemWithDatabase() error = %v", err)
+	}
+
+	if len(mockExec.calls) != 1 {
+		t.Fatalf("expected 1 insert call, got %d", len(mockExec.calls))
+	}
+
+	call := mockExec.calls[0]
+	if !strings.Contains(call.query, "INSERT INTO drafts") {
+		t.Fatalf("unexpected query: %s", call.query)
+	}
+
+	if got, want := call.args[0], "scenario"; got != want {
+		t.Fatalf("arg[0] = %v, want %v", got, want)
+	}
+	if got, want := call.args[1], "test-sync"; got != want {
+		t.Fatalf("arg[1] = %v, want %v", got, want)
+	}
+	if got, want := call.args[2], draftContent; got != want {
+		t.Fatalf("arg[2] = %q, want %q", got, want)
+	}
+
+	timestamp, ok := call.args[3].(time.Time)
+	if !ok {
+		t.Fatalf("arg[3] type = %T, want time.Time", call.args[3])
+	}
+
+	if diff := timestamp.Round(time.Second).Sub(modTime); diff > time.Second || diff < -time.Second {
+		t.Fatalf("timestamp diff too large: %v", diff)
 	}
 }

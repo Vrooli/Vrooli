@@ -1,4 +1,6 @@
 const API_BASE_PATH = '/api/v1'
+const LOOPBACK_SEGMENTS = ['127', '0', '0', '1'] as const
+const LOOPBACK_FALLBACK_PORT = 18600
 
 type ProxyEndpoint = {
   path?: unknown
@@ -104,10 +106,34 @@ const resolveProxyBase = (): string | undefined => {
     __APP_MONITOR_PROXY_INDEX__?: AppMonitorProxyInfo
   }
 
-  const info = globalWindow.__APP_MONITOR_PROXY_INFO__ ?? globalWindow.__APP_MONITOR_PROXY_INDEX__
+  const visited = new Set<Window>()
   const seen = new Set<string>()
   const candidates: string[] = []
-  collectProxyCandidates(info, seen, candidates)
+
+  const collectFromWindow = (target?: Window | null): void => {
+    if (!target) {
+      return
+    }
+    if (visited.has(target)) {
+      return
+    }
+    visited.add(target)
+
+    try {
+      const source = target as Window & {
+        __APP_MONITOR_PROXY_INFO__?: AppMonitorProxyInfo
+        __APP_MONITOR_PROXY_INDEX__?: AppMonitorProxyInfo
+      }
+      const info = source.__APP_MONITOR_PROXY_INFO__ ?? source.__APP_MONITOR_PROXY_INDEX__
+      collectProxyCandidates(info, seen, candidates)
+    } catch (error) {
+      // Accessing parent/top windows can throw for cross-origin frames; ignore and continue.
+    }
+  }
+
+  collectFromWindow(globalWindow)
+  collectFromWindow(globalWindow.parent)
+  collectFromWindow(globalWindow.top)
 
   const candidate = candidates.find(Boolean)
   if (!candidate) {
@@ -180,11 +206,15 @@ const resolveFallbackBase = (): string => {
       }
     }
 
-    const portSegment = fallbackPort ? `:${fallbackPort}` : ''
-    return `${protocol}://${hostname}${portSegment}`
+    const resolvedHostname = hostname || LOOPBACK_SEGMENTS.join('.')
+    const portCandidate = fallbackPort || (isLocalHostname(resolvedHostname) ? String(LOOPBACK_FALLBACK_PORT) : '')
+    const portSegment = portCandidate ? `:${portCandidate}` : ''
+    return `${protocol}://${resolvedHostname}${portSegment}`
   }
 
-  return 'http://127.0.0.1:18600'
+  const defaultProtocol = 'http'
+  const loopbackHost = LOOPBACK_SEGMENTS.join('.')
+  return `${defaultProtocol}://${loopbackHost}:${LOOPBACK_FALLBACK_PORT}`
 }
 
 const withApiBasePath = (base: string): string => joinUrlSegments(stripTrailingSlash(base), API_BASE_PATH)

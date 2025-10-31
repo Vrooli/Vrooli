@@ -1,14 +1,23 @@
 package main
 
 import (
+	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	gmhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 // CatalogEntry represents a scenario or resource with its PRD status
@@ -29,10 +38,50 @@ type CatalogResponse struct {
 
 // PublishedPRDResponse represents a published PRD content
 type PublishedPRDResponse struct {
-	Type    string `json:"type"`
-	Name    string `json:"name"`
-	Content string `json:"content"`
-	Path    string `json:"path"`
+	Type        string `json:"type"`
+	Name        string `json:"name"`
+	Content     string `json:"content"`
+	Path        string `json:"path"`
+	ContentHTML string `json:"content_html"`
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+type draftStore interface {
+	QueryRow(query string, args ...any) rowScanner
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
+type sqlDraftStore struct {
+	db *sql.DB
+}
+
+func (s sqlDraftStore) QueryRow(query string, args ...any) rowScanner {
+	return s.db.QueryRow(query, args...)
+}
+
+func (s sqlDraftStore) Exec(query string, args ...any) (sql.Result, error) {
+	return s.db.Exec(query, args...)
+}
+
+var markdownRenderer = goldmark.New(
+	goldmark.WithExtensions(
+		extension.GFM,
+	),
+	goldmark.WithRendererOptions(
+		gmhtml.WithHardWraps(),
+		gmhtml.WithXHTML(),
+	),
+)
+
+func markdownToHTML(markdown []byte) (string, error) {
+	var buf bytes.Buffer
+	if err := markdownRenderer.Convert(markdown, &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
@@ -65,8 +114,12 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 	entries = append(entries, resources...)
 
 	// Check for drafts
+	draftPresence, err := loadDraftPresence()
+	if err != nil {
+		slog.Warn("failed to load draft presence from database", "error", err)
+	}
 	for i := range entries {
-		entries[i].HasDraft = hasDraft(entries[i].Type, entries[i].Name)
+		entries[i].HasDraft = hasDraft(entries[i].Type, entries[i].Name, draftPresence)
 	}
 
 	response := CatalogResponse{
@@ -168,7 +221,17 @@ func extractDescription(prdPath string) string {
 	return ""
 }
 
-func hasDraft(entityType string, entityName string) bool {
+func hasDraft(entityType string, entityName string, dbPresence map[string]struct{}) bool {
+	if len(dbPresence) > 0 {
+		if _, ok := dbPresence[draftPresenceKey(entityType, entityName)]; ok {
+			return true
+		}
+	}
+
+	return hasDraftOnDisk(entityType, entityName)
+}
+
+func hasDraftOnDisk(entityType string, entityName string) bool {
 	draftPath := getDraftPath(entityType, entityName)
 	_, err := os.Stat(draftPath)
 	return err == nil
@@ -176,6 +239,37 @@ func hasDraft(entityType string, entityName string) bool {
 
 func getDraftPath(entityType string, entityName string) string {
 	return filepath.Join("../data/prd-drafts", entityType, entityName+".md")
+}
+
+func loadDraftPresence() (map[string]struct{}, error) {
+	if db == nil {
+		return nil, nil
+	}
+
+	rows, err := db.Query(`SELECT entity_type, entity_name FROM drafts`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	presence := make(map[string]struct{})
+	for rows.Next() {
+		var entityType, entityName string
+		if err := rows.Scan(&entityType, &entityName); err != nil {
+			return nil, err
+		}
+		presence[draftPresenceKey(entityType, entityName)] = struct{}{}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return presence, nil
+}
+
+func draftPresenceKey(entityType, entityName string) string {
+	return fmt.Sprintf("%s/%s", entityType, entityName)
 }
 
 func handleGetPublishedPRD(w http.ResponseWriter, r *http.Request) {
@@ -212,13 +306,141 @@ func handleGetPublishedPRD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	htmlContent, err := markdownToHTML(content)
+	if err != nil {
+		slog.Warn("failed to render markdown", "entityType", entityType, "entityName", entityName, "error", err)
+	}
+
 	response := PublishedPRDResponse{
-		Type:    entityType,
-		Name:    entityName,
-		Content: string(content),
-		Path:    prdPath,
+		Type:        entityType,
+		Name:        entityName,
+		Content:     string(content),
+		Path:        prdPath,
+		ContentHTML: htmlContent,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func handleEnsureDraftFromPublishedPRD(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if db == nil {
+		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	vars := mux.Vars(r)
+	entityType := vars["type"]
+	entityName := vars["name"]
+
+	if entityType != "scenario" && entityType != "resource" {
+		http.Error(w, "Invalid entity type. Must be 'scenario' or 'resource'", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(entityName) == "" {
+		http.Error(w, "Entity name is required", http.StatusBadRequest)
+		return
+	}
+
+	vrooliRoot, err := getVrooliRoot()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	prdPath := filepath.Join(vrooliRoot, entityType+"s", entityName, "PRD.md")
+	content, err := os.ReadFile(prdPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, fmt.Sprintf("PRD not found for %s/%s", entityType, entityName), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to read PRD: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	draft, err := ensureDraftFromPublishedPRD(sqlDraftStore{db: db}, entityType, entityName, string(content))
+	if err != nil {
+		slog.Error("failed to ensure draft from published PRD", "entityType", entityType, "entityName", entityName, "error", err)
+		http.Error(w, fmt.Sprintf("Failed to prepare draft: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if err := saveDraftToFile(entityType, entityName, draft.Content); err != nil {
+		slog.Error("failed to persist draft file", "entityType", entityType, "entityName", entityName, "error", err)
+		http.Error(w, fmt.Sprintf("Failed to save draft file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(draft)
+}
+
+func ensureDraftFromPublishedPRD(store draftStore, entityType string, entityName string, content string) (Draft, error) {
+	var draft Draft
+	var owner sql.NullString
+
+	row := store.QueryRow(`
+		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
+		FROM drafts
+		WHERE entity_type = $1 AND entity_name = $2
+	`, entityType, entityName)
+
+	scanErr := row.Scan(
+		&draft.ID,
+		&draft.EntityType,
+		&draft.EntityName,
+		&draft.Content,
+		&owner,
+		&draft.CreatedAt,
+		&draft.UpdatedAt,
+		&draft.Status,
+	)
+
+	switch {
+	case errors.Is(scanErr, sql.ErrNoRows):
+		now := time.Now()
+		draft = Draft{
+			ID:         uuid.New().String(),
+			EntityType: entityType,
+			EntityName: entityName,
+			Content:    content,
+			CreatedAt:  now,
+			UpdatedAt:  now,
+			Status:     "draft",
+		}
+
+		if _, err := store.Exec(`
+			INSERT INTO drafts (id, entity_type, entity_name, content, owner, created_at, updated_at, status)
+			VALUES ($1, $2, $3, $4, $5, $6, $6, 'draft')
+		`, draft.ID, entityType, entityName, content, nullString(""), now); err != nil {
+			return Draft{}, fmt.Errorf("failed to create draft: %w", err)
+		}
+
+		return draft, nil
+	case scanErr != nil:
+		return Draft{}, fmt.Errorf("failed to query draft: %w", scanErr)
+	default:
+		if owner.Valid {
+			draft.Owner = owner.String
+		}
+
+		if draft.Status != "draft" {
+			now := time.Now()
+			if _, err := store.Exec(`
+				UPDATE drafts
+				SET content = $1, status = 'draft', updated_at = $2
+				WHERE id = $3
+			`, content, now, draft.ID); err != nil {
+				return Draft{}, fmt.Errorf("failed to reset draft: %w", err)
+			}
+			draft.Content = content
+			draft.Status = "draft"
+			draft.UpdatedAt = now
+		}
+
+		return draft, nil
+	}
 }
