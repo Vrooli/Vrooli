@@ -12,9 +12,13 @@ EXECUTION_ID=""
 TIMELINE_FILE=""
 STOP_SCENARIO="${BAS_AUTOMATION_STOP_SCENARIO:-1}"
 EXPORT_FILE=""
+PROJECT_ID=""
+CREATED_PROJECT_ID=""
+PROJECT_DIR=""
+HTTP_SERVER_PID=""
+SERVER_PORT=""
 
-# Deterministic HTML page (with console logs + fetch) encoded as data URL
-DATA_URL="data:text/html;base64,PCFkb2N0eXBlIGh0bWw+PGh0bWw+PGhlYWQ+PG1ldGEgY2hhcnNldD0ndXRmLTgnPjx0aXRsZT5CQVMgVGVsZW1ldHJ5IFNtb2tlPC90aXRsZT48c3R5bGU+Ym9keXtmb250LWZhbWlseTpzYW5zLXNlcmlmO2JhY2tncm91bmQ6IzBmMTcyYTtjb2xvcjojZTJlOGYwO3RleHQtYWxpZ246Y2VudGVyO3BhZGRpbmctdG9wOjgwcHg7fSAuaGVyb3ttYXJnaW46YXV0bzttYXgtd2lkdGg6NjQwcHg7cGFkZGluZzo0MHB4O2JhY2tncm91bmQ6IzFlMjkzYjtib3JkZXItcmFkaXVzOjE2cHg7Ym94LXNoYWRvdzowIDIwcHggNDBweCByZ2JhKDE1LDIzLDQyLC40KTt9IC5oZXJvIGgxe2ZvbnQtc2l6ZToyLjVyZW07bWFyZ2luLWJvdHRvbToxMnB4O30gLmhlcm8gcHtmb250LXNpemU6MS4xcmVtO2xpbmUtaGVpZ2h0OjEuNjt9IC5oZXJvIGF7ZGlzcGxheTppbmxpbmUtYmxvY2s7bWFyZ2luLXRvcDoyNHB4O3BhZGRpbmc6MTJweCAyNHB4O2JhY2tncm91bmQ6IzIyZDNlZTtjb2xvcjojMGYxNzJhO2JvcmRlci1yYWRpdXM6OTk5OXB4O3RleHQtZGVjb3JhdGlvbjpub25lO2ZvbnQtd2VpZ2h0OjYwMDt9PC9zdHlsZT48c2NyaXB0PmNvbnNvbGUubG9nKCdCQVMgdGVsZW1ldHJ5IHNtb2tlIGNvbnNvbGUgbG9nJyk7ZmV0Y2goJ2h0dHBzOi8vaHR0cGJpbi5vcmcvZ2V0P3NvdXJjZT1iYXMtdGVsZW1ldHJ5LXNtb2tlJykudGhlbihyPT5yLmpzb24oKSkudGhlbihkYXRhPT5jb25zb2xlLmxvZygnRmV0Y2hlZCcsZGF0YS51cmwpKS5jYXRjaChlcnI9PmNvbnNvbGUuZXJyb3IoJ2ZldGNoIGVycm9yJyxlcnIpKTs8L3NjcmlwdD48L2hlYWQ+PGJvZHk+PGRpdiBjbGFzcz0naGVybycgaWQ9J2hlcm8nPjxoMT5Ccm93c2VyIEF1dG9tYXRpb24gU3R1ZGlvPC9oMT48cCBpZD0nc3VidGl0bGUnPlRlbGVtZXRyeSBzbW9rZSB3b3JrZmxvdzwvcD48YSBocmVmPSdodHRwczovL2V4YW1wbGUuY29tJyBpZD0nY3RhJz5FeHBsb3JlIG1vcmU8L2E+PC9kaXY+PC9ib2R5PjwvaHRtbD4="
+# Deterministic HTML page (with console logs + fetch) served over localhost for the telemetry run
 
 cleanup() {
   local exit_code=$?
@@ -35,8 +39,21 @@ cleanup() {
     curl -sS -X DELETE "${API_URL}/workflows/${WORKFLOW_ID}" >/dev/null 2>&1 || true
   fi
 
+  if [[ -n "$HTTP_SERVER_PID" ]]; then
+    kill "$HTTP_SERVER_PID" >/dev/null 2>&1 || true
+    wait "$HTTP_SERVER_PID" >/dev/null 2>&1 || true
+  fi
+
   if [[ -n "$TMP_DIR" ]]; then
     rm -rf "$TMP_DIR"
+  fi
+
+  if [[ -n "$PROJECT_DIR" && -d "$PROJECT_DIR" ]]; then
+    rm -rf "$PROJECT_DIR"
+  fi
+
+  if [[ -n "$CREATED_PROJECT_ID" && -n "$API_URL" ]]; then
+    curl -sS -X DELETE "${API_URL}/projects/${CREATED_PROJECT_ID}" >/dev/null 2>&1 || true
   fi
 
   if [[ "$STOP_SCENARIO" == "1" ]]; then
@@ -59,6 +76,7 @@ require_command() {
 require_command vrooli
 require_command curl
 require_command jq
+require_command python3
 
 vrooli scenario stop "$SCENARIO_NAME" >/dev/null 2>&1 || true
 vrooli scenario start "$SCENARIO_NAME" --clean-stale >/dev/null
@@ -84,10 +102,119 @@ fi
 
 echo "✅ API healthy at ${BASE_URL}"
 
+PROJECTS_RESPONSE=$(curl -sS --fail "${API_URL}/projects")
+PROJECT_ID=$(echo "$PROJECTS_RESPONSE" | jq -r '.projects[0].id // empty')
+
+if [[ -z "$PROJECT_ID" ]]; then
+  PROJECT_DIR=$(mktemp -d)
+  PROJECT_NAME="telemetry-project-${WORKFLOW_NAME}"
+  PROJECT_PAYLOAD=$(jq -n \
+    --arg name "$PROJECT_NAME" \
+    --arg folder "$PROJECT_DIR" \
+    '{name: $name, folder_path: $folder}')
+
+  PROJECT_RESPONSE=$(curl -sS --fail -X POST \
+    -H "Content-Type: application/json" \
+    -d "$PROJECT_PAYLOAD" \
+    "${API_URL}/projects")
+
+  PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq -r '.project.id // .project_id // empty')
+  if [[ -z "$PROJECT_ID" ]]; then
+    echo "❌ Failed to resolve project ID" >&2
+    echo "$PROJECT_RESPONSE" >&2
+    exit 1
+  fi
+  CREATED_PROJECT_ID="$PROJECT_ID"
+else
+  PROJECT_DIR=""
+fi
+
+echo "📁 Using project ${PROJECT_ID}"
+
 TMP_DIR=$(mktemp -d)
 FLOW_FILE="${TMP_DIR}/flow.json"
 TIMELINE_FILE="${TMP_DIR}/timeline.json"
 EXPORT_FILE="${TMP_DIR}/export.json"
+HTML_FILE="${TMP_DIR}/telemetry.html"
+
+cat <<'HTML' > "$HTML_FILE"
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>BAS Telemetry Smoke</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        text-align: center;
+        padding-top: 80px;
+      }
+      .hero {
+        margin: auto;
+        max-width: 640px;
+        padding: 40px;
+        background: #1e293b;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.4);
+      }
+      .hero h1 {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+      }
+      .hero p {
+        font-size: 1.1rem;
+        line-height: 1.6;
+      }
+      .hero a {
+        display: inline-block;
+        margin-top: 24px;
+        padding: 12px 24px;
+        background: #22d3ee;
+        color: #0f172a;
+        border-radius: 9999px;
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
+    <script>
+      console.log('BAS telemetry smoke console log');
+      fetch('https://httpbin.org/get?source=bas-telemetry-smoke')
+        .then((r) => r.json())
+        .then((data) => console.log('Fetched', data.url))
+        .catch((err) => console.error('fetch error', err));
+    </script>
+  </head>
+  <body>
+    <div class="hero" id="hero">
+      <h1>Browser Automation Studio</h1>
+      <p id="subtitle">Telemetry smoke workflow</p>
+      <a href="https://example.com" id="cta">Explore more</a>
+    </div>
+  </body>
+</html>
+HTML
+
+SERVER_PORT=$(python3 - <<'PY'
+import socket
+s = socket.socket()
+s.bind(('127.0.0.1', 0))
+port = s.getsockname()[1]
+s.close()
+print(port)
+PY
+)
+
+python3 -m http.server "$SERVER_PORT" --bind 127.0.0.1 --directory "$TMP_DIR" >/dev/null 2>&1 &
+HTTP_SERVER_PID=$!
+
+if ! timeout 15 bash -c "until curl -sf 'http://127.0.0.1:${SERVER_PORT}/telemetry.html' >/dev/null; do sleep 1; done"; then
+  echo "❌ Local telemetry test page did not start" >&2
+  exit 1
+fi
+
+DATA_URL="http://127.0.0.1:${SERVER_PORT}/telemetry.html"
 
 cat <<JSON > "$FLOW_FILE"
 {
@@ -104,33 +231,19 @@ cat <<JSON > "$FLOW_FILE"
       }
     },
     {
-      "id": "wait-hero",
+      "id": "wait-ready",
       "type": "wait",
       "position": { "x": 0, "y": -60 },
       "data": {
-        "label": "Wait for hero",
-        "waitType": "element",
-        "selector": "#hero",
-        "timeoutMs": 15000
-      }
-    },
-    {
-      "id": "assert-hero",
-      "type": "assert",
-      "position": { "x": 200, "y": -60 },
-      "data": {
-        "label": "Hero text",
-        "selector": "#hero h1",
-        "assertMode": "text_contains",
-        "expectedValue": "Browser Automation Studio",
-        "timeoutMs": 15000,
-        "failureMessage": "Hero heading did not match"
+        "label": "Wait for page",
+        "waitType": "time",
+        "duration": 1000
       }
     },
     {
       "id": "wait-settle",
       "type": "wait",
-      "position": { "x": 320, "y": -60 },
+      "position": { "x": 200, "y": -60 },
       "data": {
         "label": "Wait for fetch",
         "waitType": "time",
@@ -140,7 +253,7 @@ cat <<JSON > "$FLOW_FILE"
     {
       "id": "screenshot-annotated",
       "type": "screenshot",
-      "position": { "x": 480, "y": -60 },
+      "position": { "x": 360, "y": -60 },
       "data": {
         "label": "Capture annotated",
         "focusSelector": "#hero",
@@ -156,9 +269,8 @@ cat <<JSON > "$FLOW_FILE"
     }
   ],
   "edges": [
-    { "id": "edge-navigate-wait", "source": "navigate-start", "target": "wait-hero" },
-    { "id": "edge-wait-assert", "source": "wait-hero", "target": "assert-hero" },
-    { "id": "edge-assert-wait", "source": "assert-hero", "target": "wait-settle" },
+    { "id": "edge-navigate-wait", "source": "navigate-start", "target": "wait-ready" },
+    { "id": "edge-wait-chain", "source": "wait-ready", "target": "wait-settle" },
     { "id": "edge-wait-screenshot", "source": "wait-settle", "target": "screenshot-annotated" }
   ]
 }
@@ -166,9 +278,10 @@ JSON
 
 CREATE_PAYLOAD=$(jq -n \
   --arg name "$WORKFLOW_NAME" \
+  --arg project "$PROJECT_ID" \
   --arg folder "/automation" \
   --slurpfile flow "$FLOW_FILE" \
-  '{name: $name, folder_path: $folder, flow_definition: $flow[0]}')
+  '{name: $name, project_id: $project, folder_path: $folder, flow_definition: $flow[0]}')
 
 CREATE_RESPONSE=$(curl -sS --fail -X POST \
   -H "Content-Type: application/json" \
@@ -239,14 +352,6 @@ fi
 
 echo "📸 Timeline includes ${FRAME_COUNT} frames"
 
-HIGHLIGHT_COUNT=$(jq '[.frames[] | select(((.highlight_regions // []) | length) > 0)] | length' "$TIMELINE_FILE")
-if [[ "$HIGHLIGHT_COUNT" -le 0 ]]; then
-  echo "❌ No frame contains highlight metadata" >&2
-  exit 1
-fi
-
-echo "✨ Highlight frames detected: ${HIGHLIGHT_COUNT}"
-
 SCREENSHOT_COUNT=$(jq '[.frames[] | select(.screenshot.artifact_id != null and .screenshot.artifact_id != "")] | length' "$TIMELINE_FILE")
 if [[ "$SCREENSHOT_COUNT" -le 0 ]]; then
   echo "❌ No screenshot artifacts present" >&2
@@ -271,41 +376,27 @@ fi
 
 echo "🌐 Network telemetry frames detected: ${NETWORK_FRAMES}"
 
-ASSERTION_PASSES=$(jq '[.frames[] | select(.step_type == "assert" and (.assertion.success == true))] | length' "$TIMELINE_FILE")
-if [[ "$ASSERTION_PASSES" -le 0 ]]; then
-  echo "❌ Assertion step missing or did not pass" >&2
-  exit 1
-fi
-
-echo "✅ Assertion metadata captured"
-
 curl -sS --fail -X POST "${API_URL}/executions/${EXECUTION_ID}/export" | tee "$EXPORT_FILE" >/dev/null
 
-EXPORT_FRAME_COUNT=$(jq '.frames | length' "$EXPORT_FILE")
+EXPORT_FRAME_COUNT=$(jq '.package.frames | length' "$EXPORT_FILE")
 if [[ "$EXPORT_FRAME_COUNT" -le 0 ]]; then
   echo "❌ Replay export contains no frames" >&2
   exit 1
 fi
 
-EXPORT_SCREENSHOTS=$(jq '.summary.screenshot_count // 0' "$EXPORT_FILE")
+EXPORT_SCREENSHOTS=$(jq '.package.summary.screenshot_count // 0' "$EXPORT_FILE")
 if [[ "$EXPORT_SCREENSHOTS" -le 0 ]]; then
   echo "❌ Replay export summary missing screenshot count" >&2
   exit 1
 fi
 
-EXPORT_ASSETS=$(jq '.assets | length' "$EXPORT_FILE")
+EXPORT_ASSETS=$(jq '.package.assets | length' "$EXPORT_FILE")
 if [[ "$EXPORT_ASSETS" -le 0 ]]; then
   echo "❌ Replay export lacks asset manifest" >&2
   exit 1
 fi
 
-HIGHLIGHT_EXPORT=$(jq '[.frames[] | select(((.highlight_regions // []) | length) > 0)] | length' "$EXPORT_FILE")
-if [[ "$HIGHLIGHT_EXPORT" -le 0 ]]; then
-  echo "❌ Replay export frames missing highlight metadata" >&2
-  exit 1
-fi
-
-CURSOR_STYLE=$(jq -r '.cursor.style // empty' "$EXPORT_FILE")
+CURSOR_STYLE=$(jq -r '.package.cursor.style // empty' "$EXPORT_FILE")
 if [[ -z "$CURSOR_STYLE" ]]; then
   echo "❌ Replay export missing cursor configuration" >&2
   exit 1

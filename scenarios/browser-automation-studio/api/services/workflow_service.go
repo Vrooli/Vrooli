@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/browserless"
 	"github.com/vrooli/browser-automation-studio/browserless/events"
@@ -22,13 +25,33 @@ const (
 	workflowJSONEndMarker   = "</WORKFLOW_JSON>"
 )
 
+var ErrWorkflowVersionConflict = errors.New("workflow version conflict")
+var ErrWorkflowVersionNotFound = errors.New("workflow version not found")
+var ErrWorkflowRestoreProjectMismatch = errors.New("workflow does not belong to a project")
+
+// WorkflowVersionSummary captures version metadata alongside high-level definition statistics so
+// the UI can render history timelines without rehydrating full workflow payloads on every row.
+type WorkflowVersionSummary struct {
+	Version           int              `json:"version"`
+	WorkflowID        uuid.UUID        `json:"workflow_id"`
+	CreatedAt         time.Time        `json:"created_at"`
+	CreatedBy         string           `json:"created_by"`
+	ChangeDescription string           `json:"change_description"`
+	DefinitionHash    string           `json:"definition_hash"`
+	NodeCount         int              `json:"node_count"`
+	EdgeCount         int              `json:"edge_count"`
+	FlowDefinition    database.JSONMap `json:"flow_definition"`
+}
+
 // WorkflowService handles workflow business logic
 type WorkflowService struct {
-	repo        database.Repository
-	browserless *browserless.Client
-	wsHub       *wsHub.Hub
-	log         *logrus.Logger
-	aiClient    *OpenRouterClient
+	repo          database.Repository
+	browserless   *browserless.Client
+	wsHub         *wsHub.Hub
+	log           *logrus.Logger
+	aiClient      *OpenRouterClient
+	syncLocks     sync.Map
+	filePathCache sync.Map
 }
 
 // AIWorkflowError represents a structured error returned by the AI generator when
@@ -40,6 +63,23 @@ type AIWorkflowError struct {
 // Error implements the error interface.
 func (e *AIWorkflowError) Error() string {
 	return e.Reason
+}
+
+// WorkflowUpdateInput describes the mutable fields for a workflow save operation. The UI and CLI send both the
+// JSON graph definition and an explicit nodes/edges payload; we keep both so agents can hand-edit the file without
+// worrying about schema drift. ExpectedVersion enables optimistic locking so we do not clobber filesystem edits that
+// were synchronized after the client loaded the workflow.
+type WorkflowUpdateInput struct {
+	Name              string
+	Description       string
+	FolderPath        string
+	Tags              []string
+	FlowDefinition    map[string]any
+	Nodes             []any
+	Edges             []any
+	ChangeDescription string
+	Source            string
+	ExpectedVersion   *int
 }
 
 // ExecutionExportPreview summarises the export readiness state for an execution.
@@ -58,6 +98,69 @@ func NewWorkflowService(repo database.Repository, browserless *browserless.Clien
 		wsHub:       wsHub,
 		log:         log,
 		aiClient:    NewOpenRouterClient(log),
+	}
+}
+
+func cloneJSONMap(source database.JSONMap) database.JSONMap {
+	if source == nil {
+		return nil
+	}
+	clone := make(database.JSONMap, len(source))
+	for k, v := range source {
+		clone[k] = deepCloneInterface(v)
+	}
+	return clone
+}
+
+func deepCloneInterface(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		cloned := make(map[string]any, len(typed))
+		for k, v := range typed {
+			cloned[k] = deepCloneInterface(v)
+		}
+		return cloned
+	case database.JSONMap:
+		return cloneJSONMap(typed)
+	case []any:
+		result := make([]any, len(typed))
+		for i := range typed {
+			result[i] = deepCloneInterface(typed[i])
+		}
+		return result
+	case pq.StringArray:
+		return append(pq.StringArray{}, typed...)
+	default:
+		return typed
+	}
+}
+
+func workflowDefinitionStats(def database.JSONMap) (nodeCount, edgeCount int) {
+	if def == nil {
+		return 0, 0
+	}
+	nodes := toInterfaceSlice(def["nodes"])
+	edges := toInterfaceSlice(def["edges"])
+	return len(nodes), len(edges)
+}
+
+func newWorkflowVersionSummary(version *database.WorkflowVersion) *WorkflowVersionSummary {
+	if version == nil {
+		return nil
+	}
+	definition := cloneJSONMap(version.FlowDefinition)
+	hash := hashWorkflowDefinition(definition)
+	nodes, edges := workflowDefinitionStats(definition)
+	return &WorkflowVersionSummary{
+		Version:           version.Version,
+		WorkflowID:        version.WorkflowID,
+		CreatedAt:         version.CreatedAt,
+		CreatedBy:         version.CreatedBy,
+		ChangeDescription: version.ChangeDescription,
+		DefinitionHash:    hash,
+		NodeCount:         nodes,
+		EdgeCount:         edges,
+		FlowDefinition:    definition,
 	}
 }
 
@@ -121,7 +224,149 @@ func (s *WorkflowService) GetProjectStats(ctx context.Context, projectID uuid.UU
 
 // ListWorkflowsByProject lists workflows for a specific project
 func (s *WorkflowService) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
-	return s.repo.ListWorkflowsByProject(ctx, projectID, limit, offset)
+	if err := s.syncProjectWorkflows(ctx, projectID); err != nil {
+		return nil, err
+	}
+	workflows, err := s.repo.ListWorkflowsByProject(ctx, projectID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	for _, wf := range workflows {
+		if wf == nil {
+			continue
+		}
+		if err := s.ensureWorkflowChangeMetadata(ctx, wf); err != nil {
+			s.log.WithError(err).WithField("workflow_id", wf.ID).Warn("Failed to normalize workflow change metadata")
+		}
+	}
+	return workflows, nil
+}
+
+// ListWorkflowVersions returns version metadata for a workflow ordered by newest first.
+func (s *WorkflowService) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*WorkflowVersionSummary, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	workflow, err := s.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows), errors.Is(err, database.ErrNotFound):
+			return nil, database.ErrNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	versions, err := s.repo.ListWorkflowVersions(ctx, workflowID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]*WorkflowVersionSummary, 0, len(versions))
+	for _, version := range versions {
+		if version == nil {
+			continue
+		}
+		summary := newWorkflowVersionSummary(version)
+		if summary == nil {
+			continue
+		}
+		// Carry forward latest metadata in case CreatedBy is blank in older rows.
+		if strings.TrimSpace(summary.CreatedBy) == "" {
+			summary.CreatedBy = firstNonEmpty(workflow.LastChangeSource, fileSourceManual)
+		}
+		results = append(results, summary)
+	}
+
+	return results, nil
+}
+
+// GetWorkflowVersion fetches a specific workflow revision with metadata suitable for diffing.
+func (s *WorkflowService) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*WorkflowVersionSummary, error) {
+	if version <= 0 {
+		return nil, fmt.Errorf("invalid workflow version: %d", version)
+	}
+
+	if _, err := s.repo.GetWorkflow(ctx, workflowID); err != nil {
+		return nil, err
+	}
+
+	workflowVersion, err := s.repo.GetWorkflowVersion(ctx, workflowID, version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows), errors.Is(err, database.ErrNotFound):
+			return nil, ErrWorkflowVersionNotFound
+		default:
+			return nil, fmt.Errorf("%w: %v", ErrWorkflowVersionNotFound, err)
+		}
+	}
+
+	return newWorkflowVersionSummary(workflowVersion), nil
+}
+
+// RestoreWorkflowVersion replays the historical definition into the active workflow and
+// records a new version row while retaining current metadata (name, folder, tags).
+func (s *WorkflowService) RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, description string) (*database.Workflow, error) {
+	if version <= 0 {
+		return nil, fmt.Errorf("invalid workflow version: %d", version)
+	}
+
+	workflow, err := s.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows), errors.Is(err, database.ErrNotFound):
+			return nil, database.ErrNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	if workflow.ProjectID == nil {
+		return nil, ErrWorkflowRestoreProjectMismatch
+	}
+
+	versionRow, err := s.repo.GetWorkflowVersion(ctx, workflowID, version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows), errors.Is(err, database.ErrNotFound):
+			return nil, ErrWorkflowVersionNotFound
+		default:
+			return nil, fmt.Errorf("%w: %v", ErrWorkflowVersionNotFound, err)
+		}
+	}
+
+	restoreDefinition := cloneJSONMap(versionRow.FlowDefinition)
+	definitionMap := map[string]any{}
+	for k, v := range restoreDefinition {
+		definitionMap[k] = v
+	}
+
+	currentVersion := workflow.Version
+	if strings.TrimSpace(description) == "" {
+		description = fmt.Sprintf("Restored from version %d", version)
+	}
+
+	input := WorkflowUpdateInput{
+		Name:              workflow.Name,
+		Description:       workflow.Description,
+		FolderPath:        workflow.FolderPath,
+		Tags:              append([]string(nil), []string(workflow.Tags)...),
+		FlowDefinition:    definitionMap,
+		ChangeDescription: description,
+		Source:            "version-restore",
+		ExpectedVersion:   &currentVersion,
+	}
+
+	updated, err := s.UpdateWorkflow(ctx, workflowID, input)
+	if err != nil {
+		return nil, err
+	}
+
+	return updated, nil
 }
 
 // DeleteProjectWorkflows deletes a set of workflows within a project boundary
@@ -129,56 +374,79 @@ func (s *WorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID 
 	if len(workflowIDs) == 0 {
 		return nil
 	}
-	return s.repo.DeleteProjectWorkflows(ctx, projectID, workflowIDs)
+
+	project, err := s.repo.GetProject(ctx, projectID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.syncProjectWorkflows(ctx, projectID); err != nil {
+		return err
+	}
+
+	workflows := make(map[uuid.UUID]*database.Workflow, len(workflowIDs))
+	for _, workflowID := range workflowIDs {
+		if wf, err := s.repo.GetWorkflow(ctx, workflowID); err == nil {
+			workflows[workflowID] = wf
+		}
+	}
+
+	if err := s.repo.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
+		return err
+	}
+
+	for _, workflowID := range workflowIDs {
+		entry, hasEntry := s.lookupWorkflowPath(workflowID)
+		if hasEntry {
+			if removeErr := os.Remove(entry.AbsolutePath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+				s.log.WithError(removeErr).WithField("path", entry.AbsolutePath).Warn("Failed to remove workflow file during deletion")
+			}
+			s.removeWorkflowPath(workflowID)
+			continue
+		}
+
+		if wf, ok := workflows[workflowID]; ok {
+			desiredAbs, _ := s.desiredWorkflowFilePath(project, wf)
+			if removeErr := os.Remove(desiredAbs); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+				s.log.WithError(removeErr).WithField("path", desiredAbs).Warn("Failed to remove inferred workflow file during deletion")
+			}
+		}
+	}
+
+	return nil
 }
 
 // Workflow methods
 
-// CreateWorkflow creates a new workflow
+// CreateWorkflow creates a new workflow without a project. This now delegates to CreateWorkflowWithProject and will
+// return an error because workflows must belong to a project to ensure filesystem synchronization.
 func (s *WorkflowService) CreateWorkflow(ctx context.Context, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
-	workflow := &database.Workflow{
-		ID:         uuid.New(),
-		Name:       name,
-		FolderPath: folderPath,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-		Tags:       []string{},
-		Version:    1,
-	}
-
-	if aiPrompt != "" {
-		generated, genErr := s.generateWorkflowFromPrompt(ctx, aiPrompt)
-		if genErr != nil {
-			return nil, fmt.Errorf("ai workflow generation failed: %w", genErr)
-		}
-		workflow.FlowDefinition = generated
-	} else if flowDefinition != nil {
-		workflow.FlowDefinition = database.JSONMap(flowDefinition)
-	} else {
-		workflow.FlowDefinition = database.JSONMap{
-			"nodes": []any{},
-			"edges": []any{},
-		}
-	}
-
-	if err := s.repo.CreateWorkflow(ctx, workflow); err != nil {
-		return nil, err
-	}
-
-	return workflow, nil
+	return s.CreateWorkflowWithProject(ctx, nil, name, folderPath, flowDefinition, aiPrompt)
 }
 
 // CreateWorkflowWithProject creates a new workflow with optional project association
 func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
+	if projectID == nil {
+		return nil, fmt.Errorf("workflows must belong to a project so they can be synchronized with the filesystem")
+	}
+
+	project, err := s.repo.GetProject(ctx, *projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve project for workflow creation: %w", err)
+	}
+
+	now := time.Now().UTC()
 	workflow := &database.Workflow{
-		ID:         uuid.New(),
-		ProjectID:  projectID,
-		Name:       name,
-		FolderPath: folderPath,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-		Tags:       []string{},
-		Version:    1,
+		ID:                    uuid.New(),
+		ProjectID:             projectID,
+		Name:                  name,
+		FolderPath:            folderPath,
+		CreatedAt:             now,
+		UpdatedAt:             now,
+		Tags:                  []string{},
+		Version:               1,
+		LastChangeSource:      fileSourceManual,
+		LastChangeDescription: "Initial workflow creation",
 	}
 
 	if aiPrompt != "" {
@@ -199,18 +467,288 @@ func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, project
 	if err := s.repo.CreateWorkflow(ctx, workflow); err != nil {
 		return nil, err
 	}
+
+	version := &database.WorkflowVersion{
+		WorkflowID:        workflow.ID,
+		Version:           workflow.Version,
+		FlowDefinition:    workflow.FlowDefinition,
+		ChangeDescription: "Initial workflow creation",
+		CreatedBy:         fileSourceManual,
+	}
+	if err := s.repo.CreateWorkflowVersion(ctx, version); err != nil {
+		return nil, err
+	}
+
+	nodes := toInterfaceSlice(workflow.FlowDefinition["nodes"])
+	edges := toInterfaceSlice(workflow.FlowDefinition["edges"])
+	absPath, relPath, err := s.writeWorkflowFile(project, workflow, nodes, edges, "")
+	if err != nil {
+		return nil, err
+	}
+	s.cacheWorkflowPath(workflow.ID, absPath, relPath)
 
 	return workflow, nil
 }
 
 // ListWorkflows lists workflows with optional filtering
 func (s *WorkflowService) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
-	return s.repo.ListWorkflows(ctx, folderPath, limit, offset)
+	// When no specific folder is requested we eagerly synchronize every project so filesystem edits are reflected.
+	if strings.TrimSpace(folderPath) == "" {
+		projects, err := s.repo.ListProjects(ctx, 1000, 0)
+		if err != nil {
+			return nil, err
+		}
+		for _, project := range projects {
+			if err := s.syncProjectWorkflows(ctx, project.ID); err != nil {
+				s.log.WithError(err).WithField("project_id", project.ID).Warn("Failed to synchronize workflows before listing")
+			}
+		}
+	}
+	workflows, err := s.repo.ListWorkflows(ctx, folderPath, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	for _, wf := range workflows {
+		if wf == nil {
+			continue
+		}
+		if err := s.ensureWorkflowChangeMetadata(ctx, wf); err != nil {
+			s.log.WithError(err).WithField("workflow_id", wf.ID).Warn("Failed to normalize workflow change metadata")
+		}
+	}
+	return workflows, nil
 }
 
 // GetWorkflow gets a workflow by ID
 func (s *WorkflowService) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
-	return s.repo.GetWorkflow(ctx, id)
+	workflow, err := s.repo.GetWorkflow(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if workflow.ProjectID != nil {
+		if err := s.syncProjectWorkflows(ctx, *workflow.ProjectID); err != nil {
+			return nil, err
+		}
+		// Re-fetch in case synchronization updated the row or removed it.
+		workflow, err = s.repo.GetWorkflow(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := s.ensureWorkflowChangeMetadata(ctx, workflow); err != nil {
+		return nil, err
+	}
+
+	return workflow, nil
+}
+
+// UpdateWorkflow persists workflow edits originating from the UI, CLI, or filesystem-triggered autosave. The
+// filesystem is the source of truth, so we synchronise before applying updates and increment the workflow version so
+// executions can record the lineage they ran against.
+func (s *WorkflowService) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input WorkflowUpdateInput) (*database.Workflow, error) {
+	current, err := s.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	if current.ProjectID == nil {
+		return nil, fmt.Errorf("workflow %s is not associated with a project; cannot update file-backed workflows", workflowID)
+	}
+
+	if err := s.syncProjectWorkflows(ctx, *current.ProjectID); err != nil {
+		return nil, err
+	}
+
+	// Reload after sync in case the filesystem introduced a new revision.
+	current, err = s.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	if input.ExpectedVersion == nil {
+		sourceLabel := strings.TrimSpace(input.Source)
+		if strings.EqualFold(sourceLabel, fileSourceAutosave) {
+			expected := current.Version
+			input.ExpectedVersion = &expected
+			if s.log != nil {
+				s.log.WithFields(logrus.Fields{
+					"workflow_id": workflowID,
+					"version":     current.Version,
+				}).Warn("Autosave update missing expected version; defaulting to current version")
+			}
+		}
+	}
+
+	if input.ExpectedVersion != nil && current.Version != *input.ExpectedVersion {
+		return nil, fmt.Errorf("%w: expected %d, found %d", ErrWorkflowVersionConflict, *input.ExpectedVersion, current.Version)
+	}
+
+	originalName := current.Name
+	originalFolder := current.FolderPath
+	s.coalesceWorkflowChangeMetadata(current)
+	existingFlowHash := hashWorkflowDefinition(current.FlowDefinition)
+
+	metadataChanged := false
+
+	if name := strings.TrimSpace(input.Name); name != "" && name != current.Name {
+		current.Name = name
+		metadataChanged = true
+	}
+
+	trimmedDescription := strings.TrimSpace(input.Description)
+	if trimmedDescription != current.Description {
+		current.Description = trimmedDescription
+		metadataChanged = true
+	}
+
+	if folder := strings.TrimSpace(input.FolderPath); folder != "" {
+		normalizedFolder := normalizeFolderPath(folder)
+		if normalizedFolder != current.FolderPath {
+			current.FolderPath = normalizedFolder
+			metadataChanged = true
+		}
+	}
+
+	if input.Tags != nil {
+		tags := pq.StringArray(input.Tags)
+		if !equalStringArrays(current.Tags, tags) {
+			current.Tags = tags
+			metadataChanged = true
+		}
+	}
+
+	flowPayloadProvided := input.FlowDefinition != nil || len(input.Nodes) > 0 || len(input.Edges) > 0
+	flowChanged := false
+	updatedDefinition := current.FlowDefinition
+
+	if flowPayloadProvided {
+		definitionCandidate := input.FlowDefinition
+		if definitionCandidate == nil {
+			definitionCandidate = map[string]any{}
+		}
+		if _, ok := definitionCandidate["nodes"]; !ok && len(input.Nodes) > 0 {
+			definitionCandidate["nodes"] = input.Nodes
+		}
+		if _, ok := definitionCandidate["edges"]; !ok && len(input.Edges) > 0 {
+			definitionCandidate["edges"] = input.Edges
+		}
+
+		normalized, normErr := normalizeFlowDefinition(definitionCandidate)
+		if normErr != nil {
+			return nil, fmt.Errorf("invalid workflow definition: %w", normErr)
+		}
+
+		updatedDefinition = database.JSONMap(normalized)
+		incomingHash := hashWorkflowDefinition(updatedDefinition)
+		if incomingHash != existingFlowHash {
+			flowChanged = true
+		}
+	}
+
+	if !metadataChanged && !flowChanged {
+		return current, nil
+	}
+
+	if flowPayloadProvided {
+		current.FlowDefinition = updatedDefinition
+	}
+
+	source := firstNonEmpty(strings.TrimSpace(input.Source), fileSourceManual)
+
+	changeDesc := strings.TrimSpace(input.ChangeDescription)
+	if changeDesc == "" {
+		switch {
+		case flowChanged && metadataChanged:
+			changeDesc = "Flow and metadata update"
+		case flowChanged:
+			if strings.EqualFold(source, fileSourceAutosave) {
+				changeDesc = "Autosave"
+			} else {
+				changeDesc = "Workflow updated"
+			}
+		default:
+			changeDesc = "Metadata update"
+		}
+	}
+
+	current.LastChangeSource = source
+	current.LastChangeDescription = changeDesc
+	current.Version++
+	current.UpdatedAt = time.Now().UTC()
+	if current.CreatedAt.IsZero() {
+		current.CreatedAt = current.UpdatedAt
+	}
+
+	if err := s.repo.UpdateWorkflow(ctx, current); err != nil {
+		return nil, err
+	}
+
+	version := &database.WorkflowVersion{
+		WorkflowID:        current.ID,
+		Version:           current.Version,
+		FlowDefinition:    current.FlowDefinition,
+		ChangeDescription: changeDesc,
+		CreatedBy:         source,
+	}
+	if err := s.repo.CreateWorkflowVersion(ctx, version); err != nil {
+		return nil, err
+	}
+
+	project, err := s.repo.GetProject(ctx, *current.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes := toInterfaceSlice(current.FlowDefinition["nodes"])
+	edges := toInterfaceSlice(current.FlowDefinition["edges"])
+
+	cacheEntry, hasEntry := s.lookupWorkflowPath(current.ID)
+	preferredPath := ""
+	if hasEntry && originalName == current.Name && originalFolder == current.FolderPath {
+		preferredPath = cacheEntry.RelativePath
+	}
+
+	absPath, relPath, err := s.writeWorkflowFile(project, current, nodes, edges, preferredPath)
+	if err != nil {
+		return nil, err
+	}
+	s.cacheWorkflowPath(current.ID, absPath, relPath)
+
+	if hasEntry && preferredPath == "" && cacheEntry.RelativePath != "" && cacheEntry.RelativePath != relPath {
+		if removeErr := os.Remove(cacheEntry.AbsolutePath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			s.log.WithError(removeErr).WithField("path", cacheEntry.AbsolutePath).Warn("Failed to remove stale workflow file after rename")
+		}
+	}
+
+	return current, nil
+}
+
+func (s *WorkflowService) ensureWorkflowChangeMetadata(ctx context.Context, workflow *database.Workflow) error {
+	if workflow == nil {
+		return nil
+	}
+	if !s.coalesceWorkflowChangeMetadata(workflow) {
+		return nil
+	}
+	return s.repo.UpdateWorkflow(ctx, workflow)
+}
+
+func (s *WorkflowService) coalesceWorkflowChangeMetadata(workflow *database.Workflow) bool {
+	if workflow == nil {
+		return false
+	}
+	changed := false
+	if strings.TrimSpace(workflow.LastChangeSource) == "" {
+		workflow.LastChangeSource = fileSourceManual
+		changed = true
+	}
+	if strings.TrimSpace(workflow.LastChangeDescription) == "" {
+		workflow.LastChangeDescription = "Manual save"
+		changed = true
+	}
+	return changed
 }
 
 // ExecuteWorkflow executes a workflow
@@ -218,6 +756,20 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	// Verify workflow exists
 	workflow, err := s.repo.GetWorkflow(ctx, workflowID)
 	if err != nil {
+		return nil, err
+	}
+
+	if workflow.ProjectID != nil {
+		if err := s.syncProjectWorkflows(ctx, *workflow.ProjectID); err != nil {
+			return nil, err
+		}
+		workflow, err = s.repo.GetWorkflow(ctx, workflowID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := s.ensureWorkflowChangeMetadata(ctx, workflow); err != nil {
 		return nil, err
 	}
 
@@ -414,6 +966,10 @@ User prompt:
 		return nil, err
 	}
 
+	if len(toInterfaceSlice(definition["nodes"])) == 0 {
+		return nil, &AIWorkflowError{Reason: "AI workflow generation did not return any steps. Specify real URLs, selectors, and actions, then try again."}
+	}
+
 	return definition, nil
 }
 
@@ -459,12 +1015,12 @@ func normalizeFlowDefinition(payload map[string]any) (database.JSONMap, error) {
 		}
 	}
 
-	nodes, ok := rawNodes.([]any)
-	if !ok || len(nodes) == 0 {
-		return nil, &AIWorkflowError{Reason: "AI workflow generation did not return any steps. Specify real URLs, selectors, and actions, then try again."}
-	}
+    nodes, ok := rawNodes.([]any)
+    if !ok || nodes == nil {
+        nodes = []any{}
+    }
 
-	for i, rawNode := range nodes {
+    for i, rawNode := range nodes {
 		node, ok := rawNode.(map[string]any)
 		if !ok {
 			return nil, errors.New("AI node payload is not an object")
@@ -649,6 +1205,10 @@ User requested modifications:
 	definition, err := normalizeFlowDefinition(payload)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(toInterfaceSlice(definition["nodes"])) == 0 {
+		return nil, &AIWorkflowError{Reason: "AI workflow generation did not return any steps. Specify real URLs, selectors, and actions, then try again."}
 	}
 
 	workflow.FlowDefinition = definition

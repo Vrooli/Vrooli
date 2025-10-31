@@ -44,6 +44,9 @@ COMMANDS:
     workflow execute         Execute a workflow by ID or name
     workflow list           List all workflows in tree structure
     workflow delete         Delete a workflow
+    workflow versions list  Show saved versions for a workflow
+    workflow versions get   Inspect a specific workflow version
+    workflow versions restore  Restore a workflow to a saved version
     execution watch         Watch live execution with screenshots
     execution list          List all executions
     execution stop          Stop a running execution
@@ -71,6 +74,15 @@ WORKFLOW COMMANDS:
 
     workflow delete <id>
         Delete a workflow by ID
+
+    workflow versions list <workflow-id> [--limit <n>] [--json]
+        List saved versions for a workflow
+
+    workflow versions get <workflow-id> <version>
+        Show details for a specific workflow version
+
+    workflow versions restore <workflow-id> <version> [--change-description <text>]
+        Restore a workflow to a saved version
 
 EXECUTION COMMANDS:
     execution watch <execution-id>
@@ -563,6 +575,135 @@ list_workflows() {
     fi
 }
 
+list_workflow_versions() {
+    local workflow_id="$1"
+    shift || true
+
+    if [ -z "$workflow_id" ]; then
+        echo -e "${RED}Workflow ID is required${NC}"
+        echo "Usage: browser-automation-studio workflow versions list <workflow-id> [--limit <n>] [--json]"
+        exit 1
+    fi
+
+    local limit=50
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                exit 1
+                ;;
+        esac
+    done
+
+    local response status body
+    response=$(curl -s -w '\n%{http_code}' "${API_URL}/workflows/${workflow_id}/versions?limit=${limit}")
+    status=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | sed '$d')
+
+    if [ "$status" != "200" ]; then
+        echo -e "${RED}Failed to load workflow versions${NC} (status ${status})"
+        echo "$body"
+        exit 1
+    fi
+
+    if [ "$json_output" = true ]; then
+        echo "$body"
+        return
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        echo "$body" | jq -r '"Workflow Versions", "=================", (.versions[] | "v\(.version) • " + (.change_description // ""))' | sed '3,$s/^v/  v/'
+    else
+        echo "$body"
+    fi
+}
+
+get_workflow_version_details() {
+    local workflow_id="$1"
+    local version="$2"
+
+    if [ -z "$workflow_id" ] || [ -z "$version" ]; then
+        echo -e "${RED}Usage:${NC} browser-automation-studio workflow versions get <workflow-id> <version>"
+        exit 1
+    fi
+
+    local response status body
+    response=$(curl -s -w '\n%{http_code}' "${API_URL}/workflows/${workflow_id}/versions/${version}")
+    status=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | sed '$d')
+
+    if [ "$status" != "200" ]; then
+        echo -e "${RED}Failed to load workflow version${NC} (status ${status})"
+        echo "$body"
+        exit 1
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        echo "$body" | jq
+    else
+        echo "$body"
+    fi
+}
+
+restore_workflow_version_cli() {
+    local workflow_id="$1"
+    local version="$2"
+    shift 2 || true
+
+    if [ -z "$workflow_id" ] || [ -z "$version" ]; then
+        echo -e "${RED}Usage:${NC} browser-automation-studio workflow versions restore <workflow-id> <version> [--change-description <text>]"
+        exit 1
+    fi
+
+    local change_description=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --change-description)
+                change_description="$2"
+                shift 2
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                exit 1
+                ;;
+        esac
+    done
+
+    local payload='{}'
+    if [ -n "$change_description" ]; then
+        payload=$(printf '{"change_description":"%s"}' "${change_description//"/\"}")
+    fi
+
+    local response status body
+    response=$(curl -s -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d "$payload" "${API_URL}/workflows/${workflow_id}/versions/${version}/restore")
+    status=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | sed '$d')
+
+    if [ "$status" != "200" ]; then
+        echo -e "${RED}Failed to restore workflow version${NC} (status ${status})"
+        echo "$body"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Workflow restored to version ${version}${NC}"
+    if command -v jq >/dev/null 2>&1; then
+        echo "$body" | jq '.restored_version | {version, change_description, created_by, created_at}'
+    else
+        echo "$body"
+    fi
+}
+
 # Main command router
 case "${1:-}" in
     status)
@@ -587,6 +728,25 @@ case "${1:-}" in
                 echo -e "${YELLOW}Delete workflow: ${3}${NC}"
                 curl -X DELETE "${API_URL}/workflows/${3}"
                 echo -e "${GREEN}✓ Workflow deleted${NC}"
+                ;;
+            versions)
+                check_api_health
+                case "${3:-}" in
+                    list)
+                        list_workflow_versions "${4}" "${@:5}"
+                        ;;
+                    get)
+                        get_workflow_version_details "${4}" "${5}"
+                        ;;
+                    restore)
+                        restore_workflow_version_cli "${4}" "${5}" "${@:6}"
+                        ;;
+                    *)
+                        echo -e "${RED}Unknown workflow versions command: ${3}${NC}"
+                        echo "Available subcommands: list, get, restore"
+                        exit 1
+                        ;;
+                esac
                 ;;
             *)
                 echo -e "${RED}Unknown workflow command: ${2}${NC}"

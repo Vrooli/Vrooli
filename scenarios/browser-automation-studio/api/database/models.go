@@ -62,18 +62,20 @@ type WorkflowFolder struct {
 
 // Workflow represents a browser automation workflow
 type Workflow struct {
-	ID             uuid.UUID      `json:"id" db:"id"`
-	ProjectID      *uuid.UUID     `json:"project_id,omitempty" db:"project_id"`
-	Name           string         `json:"name" db:"name"`
-	FolderPath     string         `json:"folder_path" db:"folder_path"`
-	FlowDefinition JSONMap        `json:"flow_definition" db:"flow_definition"`
-	Description    string         `json:"description,omitempty" db:"description"`
-	Tags           pq.StringArray `json:"tags" db:"tags"`
-	Version        int            `json:"version" db:"version"`
-	IsTemplate     bool           `json:"is_template" db:"is_template"`
-	CreatedBy      string         `json:"created_by,omitempty" db:"created_by"`
-	CreatedAt      time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at" db:"updated_at"`
+	ID                    uuid.UUID      `json:"id" db:"id"`
+	ProjectID             *uuid.UUID     `json:"project_id,omitempty" db:"project_id"`
+	Name                  string         `json:"name" db:"name"`
+	FolderPath            string         `json:"folder_path" db:"folder_path"`
+	FlowDefinition        JSONMap        `json:"flow_definition" db:"flow_definition"`
+	Description           string         `json:"description,omitempty" db:"description"`
+	Tags                  pq.StringArray `json:"tags" db:"tags"`
+	Version               int            `json:"version" db:"version"`
+	IsTemplate            bool           `json:"is_template" db:"is_template"`
+	CreatedBy             string         `json:"created_by,omitempty" db:"created_by"`
+	LastChangeSource      string         `json:"last_change_source,omitempty" db:"last_change_source"`
+	LastChangeDescription string         `json:"last_change_description,omitempty" db:"last_change_description"`
+	CreatedAt             time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time      `json:"updated_at" db:"updated_at"`
 }
 
 // WorkflowVersion represents a version of a workflow

@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS workflows (
     version INTEGER DEFAULT 1,
     is_template BOOLEAN DEFAULT FALSE,
     created_by VARCHAR(255),
+    last_change_source VARCHAR(255) DEFAULT 'manual',
+    last_change_description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_workflow_name_in_folder UNIQUE (name, folder_path)

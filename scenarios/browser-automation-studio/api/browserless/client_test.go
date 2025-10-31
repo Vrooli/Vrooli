@@ -106,6 +106,15 @@ func (m *mockRepository) ListWorkflows(ctx context.Context, folderPath string, l
 func (m *mockRepository) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
 	return nil, nil
 }
+func (m *mockRepository) CreateWorkflowVersion(ctx context.Context, version *database.WorkflowVersion) error {
+	return nil
+}
+func (m *mockRepository) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*database.WorkflowVersion, error) {
+	return nil, nil
+}
+func (m *mockRepository) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*database.WorkflowVersion, error) {
+	return nil, nil
+}
 
 // Execution operations
 func (m *mockRepository) CreateExecution(ctx context.Context, execution *database.Execution) error {

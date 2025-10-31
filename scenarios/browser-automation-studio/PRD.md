@@ -567,6 +567,13 @@ node ../../scripts/requirements/report.js \
 - Decision driver: Bidirectional communication needed for control
 - Trade-offs: More complex infrastructure for better UX
 
+### Autosave & Version History
+- **Goal**: Preserve workflow lineage without manual intervention while keeping collaborators safe from overwrites.
+- **Autosave cadence**: Drafts debounce at 2.5s and only persist when the flow fingerprint changes; conflict flagging halts autosave until the user resolves it.
+- **Version records**: Every save appends a `workflow_versions` row with source (`manual`, `autosave`, `execution-run`, `file-sync`, etc.), change description, definition hash, node/edge counts, and `created_by` attribution.
+- **Conflict handling**: When `UpdateWorkflow` returns 409, the UI fetches the latest server definition, highlights diffs (version, author, node/edge deltas), and offers reload vs. force save so teams coordinate edits.
+- **Restores**: Restoring any revision calls `RestoreWorkflowVersion`, replaying the historic definition into the active workflow while emitting a new version entry for traceability.
+
 ### Known Limitations
 - **Browser Resource Limits**: Browserless can handle ~10 concurrent sessions
   - Workaround: Queue system for execution requests

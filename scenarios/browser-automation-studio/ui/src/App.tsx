@@ -15,6 +15,7 @@ import { useWorkflowStore } from './stores/workflowStore';
 import { useScenarioStore } from './stores/scenarioStore';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import type { Workflow } from './stores/workflowStore';
+import toast from 'react-hot-toast';
 
 interface NormalizedWorkflow extends Partial<Workflow> {
   id: string;
@@ -193,7 +194,11 @@ function App() {
   };
 
   const handleSwitchToManualBuilder = async () => {
-    setShowAIModal(false);
+    if (!currentProject?.id) {
+      toast.error('Select a project before using the manual builder.');
+      return;
+    }
+
     // Create a new empty workflow and switch to the manual builder
     const workflowName = `new-workflow-${Date.now()}`;
     const folderPath = selectedFolder || '/';
@@ -201,13 +206,14 @@ function App() {
       const workflow = await useWorkflowStore.getState().createWorkflow(
         workflowName,
         folderPath,
-        currentProject?.id
+        currentProject.id
       );
       if (currentProject && workflow?.id) {
         await openWorkflow(currentProject, workflow.id, { workflowData: workflow as Record<string, unknown> });
       }
     } catch (error) {
       logger.error('Failed to create workflow', { component: 'App', action: 'handleCreateWorkflow', projectId: currentProject?.id }, error);
+      toast.error('Failed to open the manual builder. Please try again.');
     }
   };
 

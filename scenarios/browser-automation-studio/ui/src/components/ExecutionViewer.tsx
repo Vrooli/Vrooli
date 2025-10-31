@@ -143,6 +143,10 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   const [, setHeartbeatTick] = useState(0);
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
+  const executionError =
+    execution && typeof execution === 'object' && 'error' in execution
+      ? (execution as { error?: string | null }).error
+      : undefined;
 
   useEffect(() => {
     if (execution.status !== 'running' || !heartbeatTimestamp) {
@@ -536,9 +540,9 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
                       This replay shows only {replayFrames.length} of the workflow's steps.
                       Execution failed at: {execution.currentStep || 'unknown step'}
                     </div>
-                    {execution.error && (
+                    {executionError && (
                       <div className="mt-2 text-xs font-mono text-rose-100/70 bg-rose-950/30 px-2 py-1 rounded">
-                        {execution.error}
+                        {executionError}
                       </div>
                     )}
                   </div>

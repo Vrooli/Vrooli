@@ -65,6 +65,15 @@ func (m *timelineRepositoryMock) ListWorkflows(ctx context.Context, folderPath s
 func (m *timelineRepositoryMock) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
 	return nil, nil
 }
+func (m *timelineRepositoryMock) CreateWorkflowVersion(ctx context.Context, version *database.WorkflowVersion) error {
+	return nil
+}
+func (m *timelineRepositoryMock) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*database.WorkflowVersion, error) {
+	return nil, nil
+}
+func (m *timelineRepositoryMock) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*database.WorkflowVersion, error) {
+	return nil, nil
+}
 
 // Execution operations
 func (m *timelineRepositoryMock) CreateExecution(ctx context.Context, execution *database.Execution) error {

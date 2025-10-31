@@ -15,6 +15,7 @@
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npx vite'",
     "build": "tsc && npx vite build",
     "preview": "npx vite preview",
+    "test": "node ./scripts/run-tests.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit"
   },

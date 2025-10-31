@@ -54,13 +54,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
 
       const payload = await response.json();
       const items = Array.isArray(payload?.scenarios) ? payload.scenarios : [];
-      const mapped = items
-        .map((item: any) => ({
+      const mapped: Scenario[] = items
+        .map((item: any): Scenario => ({
           name: typeof item?.name === 'string' ? item.name : '',
           description: typeof item?.description === 'string' ? item.description : '',
           status: typeof item?.status === 'string' ? item.status : '',
         }))
-        .filter(scenario => scenario.name);
+        .filter((scenario: Scenario) => Boolean(scenario.name));
 
       set({
         scenarios: mapped,

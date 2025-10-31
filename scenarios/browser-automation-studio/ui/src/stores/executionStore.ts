@@ -140,7 +140,7 @@ interface ExecutionStore {
   socket: WebSocket | null;
   socketListeners: Map<string, EventListener>;
 
-  startExecution: (workflowId: string) => Promise<void>;
+  startExecution: (workflowId: string, saveWorkflowFn?: () => Promise<void>) => Promise<void>;
   stopExecution: (executionId: string) => Promise<void>;
   loadExecutions: (workflowId?: string) => Promise<void>;
   loadExecution: (executionId: string) => Promise<void>;
@@ -180,8 +180,13 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   socket: null,
   socketListeners: new Map(),
 
-  startExecution: async (workflowId: string) => {
+  startExecution: async (workflowId: string, saveWorkflowFn?: () => Promise<void>) => {
     try {
+      // Save workflow first if save function provided (to ensure latest changes are used)
+      if (saveWorkflowFn) {
+        await saveWorkflowFn();
+      }
+
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/workflows/${workflowId}/execute`, {
         method: 'POST',

@@ -208,6 +208,14 @@ Workflows are organized in a folder structure:
   - invoice-download
 ```
 
+## 💾 Autosave & Version History
+
+- Autosave debounces for roughly 2.5 seconds and only fires when the serialized nodes/edges fingerprint changes, so idle edits do not trigger redundant writes.
+- Every successful save (manual, autosave, execution safety save, filesystem sync) appends a `workflow_versions` record with change description, author/source, and a deterministic hash used for diffing.
+- The UI header surfaces save state, conflict warnings, and a **History** dialog listing the 50 most recent revisions with author, timestamp, node/edge counts, and the definition hash. Restoring any entry creates a brand-new version so lineage remains intact.
+- CLI parity exists through `browser-automation-studio workflow versions list|get|restore`, enabling scripted audits and rollbacks.
+- Version conflicts automatically fetch the latest server snapshot, summarise the differences, and expose **Reload** (keep server copy) or **Force Save** (overwrite) actions so collaborators do not clobber each other.
+
 ## 🔌 Integration with Other Scenarios
 
 > Until richer artifacts (interactions, telemetry, replay schemas) land, treat these APIs as sequential navigation/screenshot scaffolding for future integration experiments.

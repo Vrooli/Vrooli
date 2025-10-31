@@ -579,8 +579,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
     const hasChildren = childFolders.length > 0 || workflowItems.length > 0;
 
     const entries: TreeEntry[] = [
-      ...childFolders.map(child => ({ kind: 'folder', folder: child })),
-      ...workflowItems.map(workflow => ({ kind: 'workflow', workflow })),
+      ...childFolders.map(child => ({ kind: 'folder' as const, folder: child })),
+      ...workflowItems.map(workflow => ({ kind: 'workflow' as const, workflow })),
     ];
 
     return (
@@ -1101,7 +1101,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
             >
               <ExecutionHistory onSelectExecution={handleSelectExecution} />
             </div>
-            {isExecutionViewerOpen && (
+            {isExecutionViewerOpen && currentExecution && (
               <div className="w-full md:w-1/2 flex-1 flex flex-col min-h-0">
                 <ExecutionViewer execution={currentExecution} onClose={handleCloseExecutionViewer} />
               </div>

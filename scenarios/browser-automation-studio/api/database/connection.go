@@ -193,10 +193,31 @@ CREATE TABLE IF NOT EXISTS workflows (
     version INTEGER DEFAULT 1,
     is_template BOOLEAN DEFAULT FALSE,
     created_by VARCHAR(255),
+    last_change_source VARCHAR(255) DEFAULT 'manual',
+    last_change_description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(name, folder_path)
 );
+
+-- Ensure newer workflow metadata columns exist for legacy databases
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS last_change_source VARCHAR(255) DEFAULT 'manual';
+ALTER TABLE workflows
+    ALTER COLUMN last_change_source SET DEFAULT 'manual';
+UPDATE workflows SET last_change_source = 'manual' WHERE last_change_source IS NULL;
+
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS last_change_description TEXT;
+ALTER TABLE workflows
+    ALTER COLUMN last_change_description SET DEFAULT '';
+UPDATE workflows SET last_change_description = '' WHERE last_change_description IS NULL;
+
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS project_id UUID;
 
 -- Create workflow versions table
 CREATE TABLE IF NOT EXISTS workflow_versions (
@@ -632,13 +653,14 @@ func (db *DB) seedDemoWorkflow() error {
 
 	if _, err := db.ExecContext(
 		ctx,
-		`INSERT INTO workflow_versions (id, workflow_id, version, flow_definition, change_description, created_at)
-		 VALUES ($1, $2, 1, $3, $4, CURRENT_TIMESTAMP)
+		`INSERT INTO workflow_versions (id, workflow_id, version, flow_definition, change_description, created_by, created_at)
+		 VALUES ($1, $2, 1, $3, $4, $5, CURRENT_TIMESTAMP)
 		 ON CONFLICT (workflow_id, version) DO NOTHING`,
 		uuid.New(),
 		workflow.ID,
 		flowDefinition,
 		"Initial demo workflow seed",
+		"seed",
 	); err != nil {
 		return fmt.Errorf("failed to seed demo workflow version: %w", err)
 	}

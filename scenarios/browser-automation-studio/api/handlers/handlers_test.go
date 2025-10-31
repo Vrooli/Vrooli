@@ -2,13 +2,20 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/browserless"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/services"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -57,6 +64,15 @@ func (m *mockRepository) ListWorkflows(ctx context.Context, folderPath string, l
 	return nil, nil
 }
 func (m *mockRepository) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
+	return nil, nil
+}
+func (m *mockRepository) CreateWorkflowVersion(ctx context.Context, version *database.WorkflowVersion) error {
+	return nil
+}
+func (m *mockRepository) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*database.WorkflowVersion, error) {
+	return nil, nil
+}
+func (m *mockRepository) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*database.WorkflowVersion, error) {
 	return nil, nil
 }
 func (m *mockRepository) CreateExecution(ctx context.Context, execution *database.Execution) error {
@@ -116,6 +132,121 @@ func (m *mockRepository) ListFolders(ctx context.Context) ([]*database.WorkflowF
 
 // Ensure mockRepository implements the interface at compile time
 var _ database.Repository = (*mockRepository)(nil)
+
+type workflowServiceMock struct {
+	listWorkflowVersionsFn   func(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error)
+	getWorkflowVersionFn     func(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error)
+	restoreWorkflowVersionFn func(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
+}
+
+func (m *workflowServiceMock) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error) {
+	if m.listWorkflowVersionsFn != nil {
+		return m.listWorkflowVersionsFn(ctx, workflowID, limit, offset)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error) {
+	if m.getWorkflowVersionFn != nil {
+		return m.getWorkflowVersionFn(ctx, workflowID, version)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error) {
+	if m.restoreWorkflowVersionFn != nil {
+		return m.restoreWorkflowVersionFn(ctx, workflowID, version, changeDescription)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*services.ExecutionTimeline, error) {
+	return nil, nil
+}
+
+func (m *workflowServiceMock) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) StopExecution(ctx context.Context, executionID uuid.UUID) error {
+	return errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetProjectByName(ctx context.Context, name string) (*database.Project, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetProjectByFolderPath(ctx context.Context, folderPath string) (*database.Project, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) CreateProject(ctx context.Context, project *database.Project) error {
+	return errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) GetProject(ctx context.Context, projectID uuid.UUID) (*database.Project, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) UpdateProject(ctx context.Context, project *database.Project) error {
+	return errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) DeleteProject(ctx context.Context, projectID uuid.UUID) error {
+	return errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
+	return errors.New("not implemented")
+}
 
 // TestNewHandler verifies handler initialization with all dependencies
 func TestNewHandler(t *testing.T) {
@@ -214,5 +345,154 @@ func TestHandlerDependencies(t *testing.T) {
 				t.Error("Expected handler to be created")
 			}
 		})
+	}
+}
+
+func withWorkflowRouteContext(r *http.Request, param, value string) *http.Request {
+	ctx := chi.RouteContext(r.Context())
+	if ctx == nil {
+		ctx = chi.NewRouteContext()
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, ctx))
+	}
+	ctx.URLParams.Add(param, value)
+	return r
+}
+
+func TestListWorkflowVersionsHandlerSuccess(t *testing.T) {
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	handler := &Handler{
+		workflowService: &workflowServiceMock{
+			listWorkflowVersionsFn: func(_ context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error) {
+				if limit != 50 || offset != 0 {
+					t.Fatalf("unexpected pagination: limit=%d offset=%d", limit, offset)
+				}
+				return []*services.WorkflowVersionSummary{
+					{
+						Version:           3,
+						WorkflowID:        workflowID,
+						CreatedAt:         time.Unix(1731540000, 0),
+						CreatedBy:         "autosave",
+						ChangeDescription: "Autosave",
+					},
+				}, nil
+			},
+		},
+		log: logger,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/workflows/id/versions", nil)
+	workflowID := uuid.New()
+	req = withWorkflowRouteContext(req, "id", workflowID.String())
+	resp := httptest.NewRecorder()
+
+	handler.ListWorkflowVersions(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.Code)
+	}
+
+	var body struct {
+		Versions []workflowVersionResponse `json:"versions"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(body.Versions) != 1 || body.Versions[0].Version != 3 {
+		t.Fatalf("unexpected versions payload: %+v", body.Versions)
+	}
+	if body.Versions[0].WorkflowID != workflowID {
+		t.Fatalf("expected workflow id %s, got %s", workflowID, body.Versions[0].WorkflowID)
+	}
+}
+
+func TestListWorkflowVersionsHandlerNotFound(t *testing.T) {
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	handler := &Handler{
+		workflowService: &workflowServiceMock{
+			listWorkflowVersionsFn: func(context.Context, uuid.UUID, int, int) ([]*services.WorkflowVersionSummary, error) {
+				return nil, database.ErrNotFound
+			},
+		},
+		log: logger,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/workflows/id/versions", nil)
+	req = withWorkflowRouteContext(req, "id", uuid.New().String())
+	resp := httptest.NewRecorder()
+
+	handler.ListWorkflowVersions(resp, req)
+
+	if resp.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", resp.Code)
+	}
+}
+
+func TestGetWorkflowVersionHandlerSuccess(t *testing.T) {
+	created := time.Now().UTC()
+	workflowID := uuid.New()
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	handler := &Handler{
+		workflowService: &workflowServiceMock{
+			getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*services.WorkflowVersionSummary, error) {
+				return &services.WorkflowVersionSummary{
+					Version:    2,
+					WorkflowID: workflowID,
+					CreatedAt:  created,
+				}, nil
+			},
+		},
+		log: logger,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/workflows/id/versions/2", nil)
+	req = withWorkflowRouteContext(req, "id", workflowID.String())
+	req = withWorkflowRouteContext(req, "version", "2")
+	resp := httptest.NewRecorder()
+
+	handler.GetWorkflowVersion(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.Code)
+	}
+
+	var response workflowVersionResponse
+	if err := json.Unmarshal(resp.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode workflow version: %v", err)
+	}
+	if response.Version != 2 || response.WorkflowID != workflowID {
+		t.Fatalf("unexpected version payload: %+v", response)
+	}
+	if response.CreatedAt == "" {
+		t.Fatalf("expected created_at to be populated")
+	}
+}
+
+func TestRestoreWorkflowVersionConflict(t *testing.T) {
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	handler := &Handler{
+		workflowService: &workflowServiceMock{
+			getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*services.WorkflowVersionSummary, error) {
+				return &services.WorkflowVersionSummary{Version: 3}, nil
+			},
+			restoreWorkflowVersionFn: func(context.Context, uuid.UUID, int, string) (*database.Workflow, error) {
+				return nil, services.ErrWorkflowVersionConflict
+			},
+		},
+		log: logger,
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/id/versions/3/restore", nil)
+	req = withWorkflowRouteContext(req, "id", uuid.New().String())
+	req = withWorkflowRouteContext(req, "version", "3")
+	resp := httptest.NewRecorder()
+
+	handler.RestoreWorkflowVersion(resp, req)
+
+	if resp.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d", resp.Code)
 	}
 }

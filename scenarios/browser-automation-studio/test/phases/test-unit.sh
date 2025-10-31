@@ -16,7 +16,7 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 # Many functions require Browserless/Postgres integration which are tested separately
 testing::unit::run_all_tests \
     --go-dir "api" \
-    --skip-node \
+    --node-dir "ui" \
     --skip-python \
     --coverage-warn 40 \
     --coverage-error 30 \

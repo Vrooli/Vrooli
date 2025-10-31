@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '../utils/logger';
 import { Eye, Code } from 'lucide-react';
 import Editor from '@monaco-editor/react';
@@ -73,6 +73,11 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   const storeNodes = useWorkflowStore((state) => state.nodes);
   const storeEdges = useWorkflowStore((state) => state.edges);
   const updateWorkflow = useWorkflowStore((state) => state.updateWorkflow);
+  const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
+  const isDirty = useWorkflowStore((state) => state.isDirty);
+  const hasVersionConflict = useWorkflowStore((state) => state.hasVersionConflict);
+  const scheduleAutosave = useWorkflowStore((state) => state.scheduleAutosave);
+  const cancelAutosave = useWorkflowStore((state) => state.cancelAutosave);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);
@@ -104,6 +109,28 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       updateWorkflow({ nodes, edges });
     }
   }, [nodes, edges, updateWorkflow]);
+
+  useEffect(() => {
+    if (!currentWorkflow) {
+      cancelAutosave();
+      return;
+    }
+
+    if (hasVersionConflict) {
+      cancelAutosave();
+      return;
+    }
+
+    if (isDirty) {
+      scheduleAutosave({ source: 'autosave', changeDescription: 'Autosave' });
+    } else {
+      cancelAutosave();
+    }
+
+    return () => {
+      cancelAutosave();
+    };
+  }, [currentWorkflow?.id, isDirty, hasVersionConflict, scheduleAutosave, cancelAutosave]);
   
   // Toolbar state
   const [showGrid, setShowGrid] = useState(true);

@@ -144,6 +144,10 @@ func main() {
 		r.Post("/workflows/create", handler.CreateWorkflow)
 		r.Get("/workflows", handler.ListWorkflows)
 		r.Get("/workflows/{id}", handler.GetWorkflow)
+		r.Put("/workflows/{id}", handler.UpdateWorkflow)
+		r.Get("/workflows/{id}/versions", handler.ListWorkflowVersions)
+		r.Get("/workflows/{id}/versions/{version}", handler.GetWorkflowVersion)
+		r.Post("/workflows/{id}/versions/{version}/restore", handler.RestoreWorkflowVersion)
 		r.Post("/workflows/{id}/execute", handler.ExecuteWorkflow)
 		r.Post("/workflows/{id}/modify", handler.ModifyWorkflow)
 

@@ -91,6 +91,12 @@ var (
 		Message: "Project not found",
 	}
 
+	ErrWorkflowVersionNotFound = &APIError{
+		Status:  http.StatusNotFound,
+		Code:    "WORKFLOW_VERSION_NOT_FOUND",
+		Message: "Workflow version not found",
+	}
+
 	ErrExecutionNotFound = &APIError{
 		Status:  http.StatusNotFound,
 		Code:    "EXECUTION_NOT_FOUND",
@@ -108,6 +114,12 @@ var (
 		Status:  http.StatusConflict,
 		Code:    "PROJECT_ALREADY_EXISTS",
 		Message: "A project with this name or folder path already exists",
+	}
+
+	ErrConflict = &APIError{
+		Status:  http.StatusConflict,
+		Code:    "WORKFLOW_CONFLICT",
+		Message: "The workflow was updated elsewhere. Refresh and retry.",
 	}
 
 	// 500 Internal Server Error

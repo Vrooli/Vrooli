@@ -31,6 +31,9 @@ type Repository interface {
 	DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error
 	ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*Workflow, error)
 	ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*Workflow, error)
+	CreateWorkflowVersion(ctx context.Context, version *WorkflowVersion) error
+	GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*WorkflowVersion, error)
+	ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*WorkflowVersion, error)
 
 	// Execution operations
 	CreateExecution(ctx context.Context, execution *Execution) error
@@ -250,8 +253,8 @@ func (r *repository) ListWorkflowsByProject(ctx context.Context, projectID uuid.
 
 func (r *repository) CreateWorkflow(ctx context.Context, workflow *Workflow) error {
 	query := `
-		INSERT INTO workflows (id, project_id, name, folder_path, flow_definition, description, tags, version, is_template, created_by)
-		VALUES (:id, :project_id, :name, :folder_path, :flow_definition, :description, :tags, :version, :is_template, :created_by)`
+		INSERT INTO workflows (id, project_id, name, folder_path, flow_definition, description, tags, version, is_template, created_by, last_change_source, last_change_description)
+		VALUES (:id, :project_id, :name, :folder_path, :flow_definition, :description, :tags, :version, :is_template, :created_by, :last_change_source, :last_change_description)`
 
 	// Generate ID if not set
 	if workflow.ID == uuid.Nil {
@@ -305,7 +308,8 @@ func (r *repository) UpdateWorkflow(ctx context.Context, workflow *Workflow) err
 	query := `
 		UPDATE workflows 
 		SET project_id = :project_id, name = :name, folder_path = :folder_path, flow_definition = :flow_definition, 
-		    description = :description, tags = :tags, version = :version, updated_at = CURRENT_TIMESTAMP
+		    description = :description, tags = :tags, version = :version, last_change_source = :last_change_source,
+		    last_change_description = :last_change_description, updated_at = CURRENT_TIMESTAMP
 		WHERE id = :id`
 
 	_, err := r.db.NamedExecContext(ctx, query, workflow)
@@ -368,6 +372,63 @@ func (r *repository) ListWorkflows(ctx context.Context, folderPath string, limit
 	}
 
 	return workflows, nil
+}
+
+// Workflow version operations
+
+func (r *repository) CreateWorkflowVersion(ctx context.Context, version *WorkflowVersion) error {
+	query := `
+		INSERT INTO workflow_versions (id, workflow_id, version, flow_definition, change_description, created_by, created_at)
+		VALUES (:id, :workflow_id, :version, :flow_definition, :change_description, :created_by, CURRENT_TIMESTAMP)
+	`
+
+	if version.ID == uuid.Nil {
+		version.ID = uuid.New()
+	}
+
+	_, err := r.db.NamedExecContext(ctx, query, version)
+	if err != nil {
+		r.log.WithError(err).WithFields(logrus.Fields{
+			"workflow_id": version.WorkflowID,
+			"version":     version.Version,
+		}).Error("Failed to create workflow version")
+		return fmt.Errorf("failed to create workflow version: %w", err)
+	}
+
+	return nil
+}
+
+func (r *repository) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*WorkflowVersion, error) {
+	query := `SELECT * FROM workflow_versions WHERE workflow_id = $1 AND version = $2`
+
+	var wfVersion WorkflowVersion
+	err := r.db.GetContext(ctx, &wfVersion, query, workflowID, version)
+	if err != nil {
+		r.log.WithError(err).WithFields(logrus.Fields{
+			"workflow_id": workflowID,
+			"version":     version,
+		}).Error("Failed to get workflow version")
+		return nil, fmt.Errorf("failed to get workflow version: %w", err)
+	}
+
+	return &wfVersion, nil
+}
+
+func (r *repository) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*WorkflowVersion, error) {
+	query := `SELECT * FROM workflow_versions WHERE workflow_id = $1 ORDER BY version DESC LIMIT $2 OFFSET $3`
+
+	var versions []*WorkflowVersion
+	err := r.db.SelectContext(ctx, &versions, query, workflowID, limit, offset)
+	if err != nil {
+		r.log.WithError(err).WithFields(logrus.Fields{
+			"workflow_id": workflowID,
+			"limit":       limit,
+			"offset":      offset,
+		}).Error("Failed to list workflow versions")
+		return nil, fmt.Errorf("failed to list workflow versions: %w", err)
+	}
+
+	return versions, nil
 }
 
 // Execution operations

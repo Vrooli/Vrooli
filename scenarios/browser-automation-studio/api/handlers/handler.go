@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -18,9 +19,37 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
+type WorkflowService interface {
+	CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error)
+	ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error)
+	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error)
+	UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error)
+	ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error)
+	GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error)
+	RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
+	ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
+	ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error)
+	GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error)
+	GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*services.ExecutionTimeline, error)
+	DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error)
+	GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error)
+	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error)
+	StopExecution(ctx context.Context, executionID uuid.UUID) error
+	GetProjectByName(ctx context.Context, name string) (*database.Project, error)
+	GetProjectByFolderPath(ctx context.Context, folderPath string) (*database.Project, error)
+	CreateProject(ctx context.Context, project *database.Project) error
+	ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error)
+	GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error)
+	GetProject(ctx context.Context, projectID uuid.UUID) (*database.Project, error)
+	UpdateProject(ctx context.Context, project *database.Project) error
+	DeleteProject(ctx context.Context, projectID uuid.UUID) error
+	ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error)
+	DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error
+}
+
 // Handler contains all HTTP handlers
 type Handler struct {
-	workflowService  *services.WorkflowService
+	workflowService  WorkflowService
 	repo             database.Repository
 	browserless      *browserless.Client
 	wsHub            *wsHub.Hub
@@ -70,9 +99,10 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 
 	recordingsRoot := resolveRecordingsRoot(log)
 	recordingService := services.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
+	workflowSvc := services.NewWorkflowService(repo, browserless, wsHub, log)
 
 	handler := &Handler{
-		workflowService:  services.NewWorkflowService(repo, browserless, wsHub, log),
+		workflowService:  workflowSvc,
 		repo:             repo,
 		browserless:      browserless,
 		wsHub:            wsHub,
