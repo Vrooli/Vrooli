@@ -23,6 +23,7 @@
             window.__smartNotesBridgeInitialized = true;
         }
     </script>
+    <script src="https://unpkg.com/lucide@0.548.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <!-- Animated background -->
@@ -34,10 +35,10 @@
         <aside class="sidebar-zen">
             <!-- Logo -->
             <div class="zen-logo">
-                <div class="zen-logo-icon">☯</div>
+                <div class="zen-logo-icon"><span class="icon" data-icon="Infinity"></span></div>
                 <div class="zen-logo-text">ZenNotes</div>
                 <button class="zen-exit-btn" title="Exit Zen Mode" onclick="window.location.href='/'">
-                    <span>↩</span>
+                    <span class="icon" data-icon="CornerUpLeft"></span>
                 </button>
             </div>
             
@@ -49,23 +50,23 @@
             <!-- Navigation -->
             <nav class="zen-nav">
                 <button class="zen-nav-item active" data-view="all">
-                    <span>🌸</span>
+                    <span class="icon" data-icon="Flower2"></span>
                     <span>All Notes</span>
                 </button>
                 <button class="zen-nav-item" data-view="today">
-                    <span>☀️</span>
+                    <span class="icon" data-icon="Sun"></span>
                     <span>Today's Flow</span>
                 </button>
                 <button class="zen-nav-item" data-view="insights">
-                    <span>💡</span>
+                    <span class="icon" data-icon="Lightbulb"></span>
                     <span>Insights</span>
                 </button>
                 <button class="zen-nav-item" data-view="connections">
-                    <span>🔗</span>
+                    <span class="icon" data-icon="Link"></span>
                     <span>Connections</span>
                 </button>
                 <button class="zen-nav-item" data-view="archive">
-                    <span>📦</span>
+                    <span class="icon" data-icon="Archive"></span>
                     <span>Archive</span>
                 </button>
             </nav>
@@ -96,9 +97,9 @@
             <div class="editor-header-zen">
                 <input type="text" class="note-title-zen" placeholder="Untitled thought..." id="noteTitle">
                 <div class="editor-actions">
-                    <button class="zen-tool" id="saveBtn" title="Save">💾</button>
-                    <button class="zen-tool" id="shareBtn" title="Share">🔗</button>
-                    <button class="zen-tool" id="zenModeBtn" title="Zen Mode">🧘</button>
+                    <button class="zen-tool" id="saveBtn" title="Save"><span class="icon" data-icon="Save"></span></button>
+                    <button class="zen-tool" id="shareBtn" title="Share"><span class="icon" data-icon="Share2"></span></button>
+                    <button class="zen-tool" id="zenModeBtn" title="Zen Mode"><span class="icon" data-icon="Flower2"></span></button>
                 </div>
             </div>
             
@@ -107,11 +108,11 @@
                 <button class="zen-tool" data-format="heading">H</button>
                 <button class="zen-tool" data-format="bold">B</button>
                 <button class="zen-tool" data-format="italic">I</button>
-                <button class="zen-tool" data-format="list">☰</button>
-                <button class="zen-tool" data-format="checkbox">☑</button>
+                <button class="zen-tool" data-format="list"><span class="icon" data-icon="List"></span></button>
+                <button class="zen-tool" data-format="checkbox"><span class="icon" data-icon="SquareCheck"></span></button>
                 <button class="zen-tool" data-format="quote">"</button>
                 <button class="zen-tool" data-format="code">&lt;&gt;</button>
-                <button class="zen-tool" data-format="link">🔗</button>
+                <button class="zen-tool" data-format="link"><span class="icon" data-icon="Link"></span></button>
             </div>
             
             <!-- Editor -->
@@ -130,7 +131,7 @@
         <!-- Right Panel - AI Insights -->
         <aside class="insights-zen">
             <div class="insights-header-zen">
-                <div class="insights-icon">🧠</div>
+                <div class="insights-icon"><span class="icon" data-icon="Brain"></span></div>
                 <h3 style="font-family: var(--font-accent); font-weight: 300;">AI Insights</h3>
             </div>
             
@@ -172,7 +173,7 @@
                 <div class="insight-title">Mood Analysis</div>
                 <div class="insight-content" id="sentiment">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 1.5rem;">😌</span>
+                        <span class="icon" data-icon="Smile"></span>
                         <span>Focused & Productive</span>
                     </div>
                 </div>
@@ -198,10 +199,10 @@
                 <div class="insight-title">AI Suggestions</div>
                 <div class="insight-content" id="aiSuggestions">
                     <div style="padding: 0.5rem; background: rgba(125, 163, 161, 0.1); border-radius: 8px; margin-bottom: 0.5rem;">
-                        💡 Consider breaking this into smaller, actionable tasks
+                        <span class="icon" data-icon="Lightbulb"></span> Consider breaking this into smaller, actionable tasks
                     </div>
                     <div style="padding: 0.5rem; background: rgba(107, 142, 111, 0.1); border-radius: 8px;">
-                        🌱 This connects well with your quarterly goals
+                        <span class="icon" data-icon="Leaf"></span> This connects well with your quarterly goals
                     </div>
                 </div>
             </div>
@@ -209,7 +210,7 @@
     </div>
     
     <!-- Floating Action Button -->
-    <button class="fab-zen" id="newNoteBtn">+</button>
+    <button class="fab-zen" id="newNoteBtn"><span class="icon" data-icon="Plus"></span></button>
     
     <!-- Notes List Modal (hidden by default) -->
     <div id="notesListModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;">

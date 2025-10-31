@@ -26,6 +26,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.17.0
         version: 5.90.2(react@18.3.1)
+      '@vrooli/api-base':
+        specifier: file:../../../packages/api-base
+        version: file:../../../packages/api-base
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
@@ -798,6 +801,9 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
+
+  '@vrooli/api-base@file:../../../packages/api-base':
+    resolution: {directory: ../../../packages/api-base, type: directory}
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -2993,6 +2999,8 @@ snapshots:
       vite: 5.4.20
     transitivePeerDependencies:
       - supports-color
+
+  '@vrooli/api-base@file:../../../packages/api-base': {}
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

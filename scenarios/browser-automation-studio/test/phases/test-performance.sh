@@ -1,10 +1,13 @@
 #!/bin/bash
-set -e
+# Placeholder performance gate to track pending benchmark coverage.
 
-echo "=== Test Performance ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Placeholder for performance benchmarks
-# Could add lighthouse CI, bundle analysis, etc.
+testing::phase::init --target-time "60s"
 
-echo "No critical performance issues detected"
-echo "✅ Performance tests passed (placeholder)"
+testing::phase::add_warning "Performance benchmarks not yet implemented; add Lighthouse/build metrics here."
+testing::phase::add_test skipped
+
+testing::phase::end_with_summary "Performance phase placeholder"

@@ -126,8 +126,7 @@ CREATE TABLE contacts (
     last_contacted_at TIMESTAMPTZ,
     
     -- Indexes for fast lookups
-    UNIQUE(profile_id, identifier),
-    -- Indexes created below
+    UNIQUE(profile_id, identifier)
 );
 
 -- Contact channels (email, phone, push tokens) for each contact
@@ -155,8 +154,7 @@ CREATE TABLE contact_channels (
     last_used_at TIMESTAMPTZ,
     
     -- Indexes
-    UNIQUE(contact_id, type, value),
-    -- Indexes created below
+    UNIQUE(contact_id, type, value)
 );
 
 -- Unsubscribe management
@@ -212,8 +210,7 @@ CREATE TABLE templates (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     
     -- Constraints
-    UNIQUE(profile_id, slug),
-    -- Indexes created below
+    UNIQUE(profile_id, slug)
 );
 
 -- Template versions for A/B testing and rollbacks
@@ -240,8 +237,7 @@ CREATE TABLE template_versions (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     
     -- Constraints
-    UNIQUE(template_id, version),
-    -- Indexes created below
+    UNIQUE(template_id, version)
 );
 
 -- =============================================================================
@@ -280,10 +276,7 @@ CREATE TABLE notifications (
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    sent_at TIMESTAMPTZ,
-    
-    -- Indexes for fast queries
-    -- Indexes created below
+    sent_at TIMESTAMPTZ
 );
 
 -- Delivery tracking per channel
@@ -316,10 +309,7 @@ CREATE TABLE notification_deliveries (
     
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Indexes
-    -- Indexes created below
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Notification events (opens, clicks, unsubscribes)
@@ -340,10 +330,7 @@ CREATE TABLE notification_events (
     data JSONB DEFAULT '{}',
     
     -- Timestamps
-    timestamp TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Indexes
-    -- Indexes created below
+    timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- =============================================================================
@@ -390,8 +377,7 @@ CREATE TABLE profile_analytics_daily (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     
     -- Unique per profile per date
-    UNIQUE(profile_id, date),
-    -- Indexes created below
+    UNIQUE(profile_id, date)
 );
 
 -- =============================================================================
@@ -494,7 +480,7 @@ CREATE INDEX idx_notification_deliveries_status_delivered ON notification_delive
 CREATE INDEX idx_notification_events_notification_type ON notification_events(notification_id, event_type);
 CREATE INDEX idx_notification_events_type_timestamp_inline ON notification_events(event_type, timestamp);
 CREATE INDEX idx_notification_events_timestamp ON notification_events(timestamp DESC);
-CREATE INDEX idx_notification_analytics_profile_date ON notification_analytics(profile_id, date DESC);
+CREATE INDEX idx_notification_analytics_profile_date ON profile_analytics_daily(profile_id, date DESC);
 
 -- Additional performance indexes
 CREATE INDEX idx_notifications_profile_created ON notifications(profile_id, created_at DESC);

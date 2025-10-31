@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -74,14 +75,14 @@ type ProcessingResponse struct {
 }
 
 type BatchProcessingResponse struct {
-	BatchID     uuid.UUID           `json:"batch_id"`
-	Status      string              `json:"status"`
-	TotalItems  int                 `json:"total_items"`
-	Completed   int                 `json:"completed"`
-	Failed      int                 `json:"failed"`
-	Results     []ProcessingResult  `json:"results,omitempty"`
-	AvgConfidence *float64          `json:"avg_confidence,omitempty"`
-	ProcessingTimeMs int            `json:"processing_time_ms"`
+	BatchID          uuid.UUID          `json:"batch_id"`
+	Status           string             `json:"status"`
+	TotalItems       int                `json:"total_items"`
+	Completed        int                `json:"completed"`
+	Failed           int                `json:"failed"`
+	Results          []ProcessingResult `json:"results,omitempty"`
+	AvgConfidence    *float64           `json:"avg_confidence,omitempty"`
+	ProcessingTimeMs int                `json:"processing_time_ms"`
 }
 
 type ProcessingResult struct {
@@ -630,6 +631,45 @@ func getDataStatistics(database *sql.DB) map[string]interface{} {
 	return stats
 }
 
+func configureUIServing(router *gin.Engine) string {
+	distDir := filepath.Join("..", "ui", "dist")
+	distIndex := filepath.Join(distDir, "index.html")
+
+	if _, err := os.Stat(distIndex); err == nil {
+		assetsDir := filepath.Join(distDir, "assets")
+		if info, err := os.Stat(assetsDir); err == nil && info.IsDir() {
+			router.StaticFS("/assets", gin.Dir(assetsDir, true))
+		}
+		if _, err := os.Stat(filepath.Join(distDir, "favicon.svg")); err == nil {
+			router.StaticFile("/favicon.svg", filepath.Join(distDir, "favicon.svg"))
+		}
+		router.GET("/", func(c *gin.Context) {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File(distIndex)
+		})
+		router.GET("/index.html", func(c *gin.Context) {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File(distIndex)
+		})
+		return distIndex
+	}
+
+	fallback := filepath.Join("..", "ui", "index.html")
+	if _, err := os.Stat(fallback); err == nil {
+		router.GET("/", func(c *gin.Context) {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File(fallback)
+		})
+		if _, err := os.Stat(filepath.Join("..", "ui", "favicon.svg")); err == nil {
+			router.StaticFile("/favicon.svg", filepath.Join("..", "ui", "favicon.svg"))
+		}
+		return fallback
+	}
+
+	log.Printf("⚠️  UI bundle not found at %s or %s", distIndex, fallback)
+	return ""
+}
+
 func main() {
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
@@ -774,25 +814,25 @@ func main() {
 		c.Next()
 	})
 
+	uiIndexPath := configureUIServing(r)
+
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		handleHealthCheck(c, db)
 	})
 
-	// Serve UI at root path
-	r.GET("/", func(c *gin.Context) {
-		// When running from api directory, UI is in sibling directory
-		uiPath := "../ui/index.html"
-		if _, err := os.Stat(uiPath); os.IsNotExist(err) {
-			// Fallback: try from project root
-			uiPath = "ui/index.html"
-			if _, err := os.Stat(uiPath); os.IsNotExist(err) {
-				c.String(http.StatusNotFound, "UI file not found")
-				return
-			}
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/") || path == "/health" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+			return
 		}
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.File(uiPath)
+		if uiIndexPath != "" {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File(uiIndexPath)
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
 	})
 
 	// API routes
@@ -1351,7 +1391,7 @@ func processBatchData(c *gin.Context, req ProcessingRequest) {
 		metadata := map[string]interface{}{
 			"input_type":         req.InputType,
 			"processing_time_ms": itemProcessingTime,
-			"batch_id":          batchID.String(),
+			"batch_id":           batchID.String(),
 		}
 		metadataBytes, _ := json.Marshal(metadata)
 

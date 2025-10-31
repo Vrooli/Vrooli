@@ -1,17 +1,27 @@
 #!/bin/bash
-set -e
+# Business-layer validation: ensure core workflow endpoints remain wired.
 
-echo "=== Test Business Logic ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Business-specific validations for browser automation studio
-# Check workflow schema, API contracts, etc.
+testing::phase::init --target-time "90s"
 
-# Example: Verify API has required endpoints
-required_endpoints=("/api/v1/workflows" "/api/v1/projects" "/health")
+if ! command -v rg >/dev/null 2>&1; then
+  testing::phase::add_warning "ripgrep (rg) not available; skipping endpoint signature checks"
+  testing::phase::add_test skipped
+  testing::phase::end_with_summary "Business logic checks skipped"
+fi
 
-for endpoint in "${required_endpoints[@]}"; do
-  # Would curl if running, but for structure check files
-  echo "Business endpoint $endpoint expected"
+endpoints=(
+  "/api/v1/workflows"
+  "/api/v1/projects"
+  "/health"
+)
+
+for endpoint in "${endpoints[@]}"; do
+  testing::phase::check "API route present: ${endpoint}" rg --fixed-strings --quiet "$endpoint" api
+  # check() already updates test counters
 done
 
-echo "✅ Business logic structure verified"
+testing::phase::end_with_summary "Business logic validation completed"

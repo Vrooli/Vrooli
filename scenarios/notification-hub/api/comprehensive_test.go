@@ -1,4 +1,3 @@
-// +build testing
 
 package main
 
@@ -202,6 +201,7 @@ func TestComprehensiveNotificationWorkflow(t *testing.T) {
 		}
 
 		notificationID := uuid.MustParse(notifications[0].(string))
+		t.Logf("Created notification ID: %s", notificationID)
 
 		// 4. Verify notification status
 		count, err := getNotificationCount(env.DB, env.TestProfile.ID, "pending")

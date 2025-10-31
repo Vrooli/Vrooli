@@ -3,6 +3,7 @@
  * from API responses to strongly-typed frontend structures.
  */
 
+import { resolveApiBase } from '@vrooli/api-base';
 import type { ReplayFrame, ReplayPoint, ReplayRetryHistoryEntry } from '../components/ReplayPlayer';
 
 export const toNumber = (value: unknown): number | undefined => {
@@ -114,13 +115,46 @@ export const mapAssertion = (value: unknown): ReplayFrame['assertion'] => {
   };
 };
 
+const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
+
+const normalizeBase = (value: string): string => value.replace(/\/+$/, '');
+
 export const resolveUrl = (url?: string | null): string | undefined => {
   if (!url) {
     return undefined;
   }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (ABSOLUTE_URL_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('//')) {
+    const protocol = typeof window !== 'undefined' && window.location?.protocol ? window.location.protocol : 'https:';
+    return `${protocol}${trimmed}`;
+  }
+
   try {
-    return new URL(url, window.location.origin).toString();
+    const apiBase = resolveApiBase({ appendSuffix: false });
+    if (apiBase && apiBase.length) {
+      const base = normalizeBase(apiBase);
+      if (trimmed.startsWith('/')) {
+        return `${base}${trimmed}`;
+      }
+      return `${base}/${trimmed}`;
+    }
+  } catch (_) {
+    // fall back to window-based resolution
+  }
+
+  try {
+    const fallbackBase = typeof window !== 'undefined' && window.location ? window.location.href : 'http://localhost';
+    return new URL(trimmed, fallbackBase).toString();
   } catch {
-    return url;
+    return trimmed;
   }
 };

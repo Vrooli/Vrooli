@@ -3,6 +3,9 @@
   "service": "image-tools-ui",
   "timestamp": "2025-09-13T00:00:00Z",
   "readiness": true,
+  "status_notes": [
+    "Static payload published by the UI entrypoint; live API connectivity verified inside the client application."
+  ],
   "api_connectivity": {
     "connected": false,
     "api_url": "http://localhost:8080",
@@ -14,6 +17,18 @@
       "retryable": false
     },
     "latency_ms": null
+  },
+  "dependencies": {
+    "image-processing-api": {
+      "connected": false,
+      "latency_ms": null,
+      "error": {
+        "code": "STATIC_UI_CANNOT_TEST",
+        "message": "Static health snapshot cannot reach the API directly.",
+        "category": "configuration",
+        "retryable": false
+      }
+    }
   },
   "static_files": {
     "available": true,
@@ -37,5 +52,10 @@
     "deployment_mode": "static",
     "server_type": "python_http_server",
     "requires_api": true
+  },
+  "build": {
+    "commit": "static-snapshot-2025-09-13",
+    "version": "1.0.0",
+    "environment": "development"
   }
 }

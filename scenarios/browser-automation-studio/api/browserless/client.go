@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	_ "image/png"
+	"image/png"
 	"io"
 	"math"
 	"net/http"
@@ -256,6 +256,7 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 	fatalFailure := false
 	var lastErr error
 	var lastCursorPosition *runtime.Point
+	var lastReplayScreenshot []byte
 
 	for _, instruction := range instructions {
 		if !activeNodes[instruction.NodeID] {
@@ -746,59 +747,73 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 		var domSnapshotArtifactID string
 		var domSnapshotPreview string
 		if step.ScreenshotBase64 != "" {
-			record, persistErr := c.persistScreenshot(ctx, execution, step)
-			if persistErr != nil {
-				c.log.WithError(persistErr).Warn("Failed to persist screenshot artifact")
+			rawScreenshot, decodeErr := base64.StdEncoding.DecodeString(step.ScreenshotBase64)
+			if decodeErr != nil || len(rawScreenshot) == 0 {
+				c.log.WithError(decodeErr).Warn("Failed to decode screenshot payload; skipping persistence")
 			} else {
-				screenshotRecord = record
-				artifact := &database.ExecutionArtifact{
-					ExecutionID:  execution.ID,
-					ArtifactType: "screenshot",
-					Label:        deriveStepName(step),
-					StorageURL:   record.StorageURL,
-					ThumbnailURL: record.ThumbnailURL,
-					ContentType:  "image/png",
-					Payload: database.JSONMap{
-						"width":     record.Width,
-						"height":    record.Height,
-						"stepType":  step.Type,
-						"publicUrl": record.StorageURL,
-					},
+				if strings.EqualFold(step.Type, "wait") && len(lastReplayScreenshot) > 0 {
+					rawScreenshot = append([]byte(nil), lastReplayScreenshot...)
+					step.ScreenshotBase64 = base64.StdEncoding.EncodeToString(rawScreenshot)
+				} else if c.isLowInformationScreenshot(rawScreenshot) && len(lastReplayScreenshot) > 0 {
+					rawScreenshot = append([]byte(nil), lastReplayScreenshot...)
+					step.ScreenshotBase64 = base64.StdEncoding.EncodeToString(rawScreenshot)
 				}
-				if record.SizeBytes > 0 {
-					size := record.SizeBytes
-					artifact.SizeBytes = &size
-				}
-				artifact.StepIndex = intPointer(step.Index)
-				if stepRecord != nil {
-					artifact.StepID = &stepRecord.ID
-				}
-				if step.ElementBoundingBox != nil {
-					artifact.Payload["elementBoundingBox"] = step.ElementBoundingBox
-				}
-				if step.ClickPosition != nil {
-					artifact.Payload["clickPosition"] = step.ClickPosition
-				}
-				if len(cursorTrail) > 0 {
-					artifact.Payload["cursorTrail"] = cursorTrail
-				}
-				if step.FocusedElement != nil {
-					artifact.Payload["focusedElement"] = step.FocusedElement
-				}
-				if len(step.HighlightRegions) > 0 {
-					artifact.Payload["highlightRegions"] = step.HighlightRegions
-				}
-				if len(step.MaskRegions) > 0 {
-					artifact.Payload["maskRegions"] = step.MaskRegions
-				}
-				if step.ZoomFactor > 0 {
-					artifact.Payload["zoomFactor"] = step.ZoomFactor
-				}
-				if err := c.repo.CreateExecutionArtifact(ctx, artifact); err != nil {
-					c.log.WithError(err).Warn("Failed to persist screenshot artifact record")
+
+				record, persistErr := c.persistScreenshot(ctx, execution, step, rawScreenshot)
+				if persistErr != nil {
+					c.log.WithError(persistErr).Warn("Failed to persist screenshot artifact")
 				} else {
-					screenshotArtifactID = artifact.ID.String()
-					artifactIDs = append(artifactIDs, screenshotArtifactID)
+					screenshotRecord = record
+					artifact := &database.ExecutionArtifact{
+						ExecutionID:  execution.ID,
+						ArtifactType: "screenshot",
+						Label:        deriveStepName(step),
+						StorageURL:   record.StorageURL,
+						ThumbnailURL: record.ThumbnailURL,
+						ContentType:  "image/png",
+						Payload: database.JSONMap{
+							"width":     record.Width,
+							"height":    record.Height,
+							"stepType":  step.Type,
+							"publicUrl": record.StorageURL,
+						},
+					}
+					if record.SizeBytes > 0 {
+						size := record.SizeBytes
+						artifact.SizeBytes = &size
+					}
+					artifact.StepIndex = intPointer(step.Index)
+					if stepRecord != nil {
+						artifact.StepID = &stepRecord.ID
+					}
+					if step.ElementBoundingBox != nil {
+						artifact.Payload["elementBoundingBox"] = step.ElementBoundingBox
+					}
+					if step.ClickPosition != nil {
+						artifact.Payload["clickPosition"] = step.ClickPosition
+					}
+					if len(cursorTrail) > 0 {
+						artifact.Payload["cursorTrail"] = cursorTrail
+					}
+					if step.FocusedElement != nil {
+						artifact.Payload["focusedElement"] = step.FocusedElement
+					}
+					if len(step.HighlightRegions) > 0 {
+						artifact.Payload["highlightRegions"] = step.HighlightRegions
+					}
+					if len(step.MaskRegions) > 0 {
+						artifact.Payload["maskRegions"] = step.MaskRegions
+					}
+					if step.ZoomFactor > 0 {
+						artifact.Payload["zoomFactor"] = step.ZoomFactor
+					}
+					if err := c.repo.CreateExecutionArtifact(ctx, artifact); err != nil {
+						c.log.WithError(err).Warn("Failed to persist screenshot artifact record")
+					} else {
+						screenshotArtifactID = artifact.ID.String()
+						artifactIDs = append(artifactIDs, screenshotArtifactID)
+					}
+					lastReplayScreenshot = append([]byte(nil), rawScreenshot...)
 				}
 			}
 		}
@@ -1451,12 +1466,7 @@ func heartbeatIntervalFromEnv(log *logrus.Logger) (time.Duration, bool) {
 	return dur, true
 }
 
-func (c *Client) persistScreenshot(ctx context.Context, execution *database.Execution, step runtime.StepResult) (*database.Screenshot, error) {
-	data, err := base64.StdEncoding.DecodeString(step.ScreenshotBase64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid screenshot payload: %w", err)
-	}
-
+func (c *Client) persistScreenshot(ctx context.Context, execution *database.Execution, step runtime.StepResult, data []byte) (*database.Screenshot, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("screenshot payload is empty")
 	}
@@ -1499,6 +1509,52 @@ func (c *Client) persistScreenshot(ctx context.Context, execution *database.Exec
 	}
 
 	return record, nil
+}
+
+func (c *Client) isLowInformationScreenshot(data []byte) bool {
+	if len(data) == 0 {
+		return true
+	}
+
+	img, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return false
+	}
+
+	bounds := img.Bounds()
+	if bounds.Empty() {
+		return true
+	}
+
+	width := bounds.Dx()
+	height := bounds.Dy()
+	stepX := width / 64
+	if stepX < 1 {
+		stepX = 1
+	}
+	stepY := height / 64
+	if stepY < 1 {
+		stepY = 1
+	}
+
+	uniqueColors := make(map[[3]uint16]struct{}, 16)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y += stepY {
+		for x := bounds.Min.X; x < bounds.Max.X; x += stepX {
+			r, g, b, _ := img.At(x, y).RGBA()
+			key := [3]uint16{uint16(r >> 8), uint16(g >> 8), uint16(b >> 8)}
+			uniqueColors[key] = struct{}{}
+			if len(uniqueColors) > 1 {
+				return false
+			}
+		}
+	}
+
+	return len(uniqueColors) <= 1
+}
+
+// IsLowInformationScreenshotForTesting exposes low-information detection for unit tests.
+func (c *Client) IsLowInformationScreenshotForTesting(data []byte) bool {
+	return c.isLowInformationScreenshot(data)
 }
 
 func (c *Client) storeScreenshot(ctx context.Context, executionID uuid.UUID, stepIndex int, stepName string, data []byte, width, height int) (*storage.ScreenshotInfo, error) {

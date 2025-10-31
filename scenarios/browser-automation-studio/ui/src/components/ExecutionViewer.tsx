@@ -17,6 +17,12 @@ import {
 import { format } from 'date-fns';
 import ReplayPlayer, { ReplayFrame } from './ReplayPlayer';
 import { useExecutionStore } from '../stores/executionStore';
+import type {
+  Execution,
+  TimelineFrame,
+  TimelineArtifact,
+} from '../stores/executionStore';
+import type { Screenshot, LogEntry } from '../stores/executionEventProcessor';
 import { toast } from 'react-hot-toast';
 import {
   toNumber,
@@ -29,107 +35,8 @@ import {
   resolveUrl,
 } from '../utils/executionTypeMappers';
 
-interface Screenshot {
-  id: string;
-  timestamp: Date;
-  url: string;
-  stepName: string;
-}
-
-interface LogEntry {
-  id: string;
-  timestamp: Date;
-  level: 'info' | 'warning' | 'error' | 'success';
-  message: string;
-}
-
-interface TimelineArtifact {
-  id: string;
-  type: string;
-  label?: string;
-  storage_url?: string;
-  thumbnail_url?: string;
-  content_type?: string;
-  size_bytes?: number;
-  step_index?: number;
-  payload?: Record<string, unknown> | null;
-}
-
-interface TimelineFrame {
-  screenshot?: { url?: string; artifact_id?: string; thumbnail_url?: string; width?: number; height?: number; content_type?: string; size_bytes?: number } | null;
-  step_index?: number;
-  node_id?: string;
-  step_type?: string;
-  started_at?: string | Date;
-  focused_element?: { selector?: string; bounding_box?: unknown; boundingBox?: unknown };
-  focusedElement?: { selector?: string; bounding_box?: unknown; boundingBox?: unknown };
-  element_bounding_box?: unknown;
-  elementBoundingBox?: unknown;
-  click_position?: unknown;
-  clickPosition?: unknown;
-  cursor_trail?: unknown;
-  cursorTrail?: unknown;
-  highlight_regions?: unknown;
-  highlightRegions?: unknown;
-  mask_regions?: unknown;
-  maskRegions?: unknown;
-  status?: string;
-  success?: boolean;
-  duration_ms?: number;
-  durationMs?: number;
-  total_duration_ms?: number;
-  totalDurationMs?: number;
-  progress?: number;
-  final_url?: string;
-  finalUrl?: string;
-  error?: string;
-  extracted_data_preview?: unknown;
-  extractedDataPreview?: unknown;
-  console_log_count?: number;
-  consoleLogCount?: number;
-  network_event_count?: number;
-  networkEventCount?: number;
-  timeline_artifact_id?: string;
-  zoom_factor?: number;
-  zoomFactor?: number;
-  retry_attempt?: number;
-  retryAttempt?: number;
-  retry_max_attempts?: number;
-  retryMaxAttempts?: number;
-  retry_configured?: number;
-  retryConfigured?: number;
-  retry_delay_ms?: number;
-  retryDelayMs?: number;
-  retry_backoff_factor?: number;
-  retryBackoffFactor?: number;
-  retry_history?: unknown;
-  retryHistory?: unknown;
-  dom_snapshot_preview?: string;
-  domSnapshotPreview?: string;
-  dom_snapshot_artifact_id?: string;
-  domSnapshotArtifactId?: string;
-  assertion?: unknown;
-  artifacts?: TimelineArtifact[];
-}
-
 interface ExecutionProps {
-  execution: {
-    id: string;
-    workflowId: string;
-    status: 'pending' | 'running' | 'completed' | 'failed';
-    startedAt: Date;
-    completedAt?: Date;
-    screenshots: Screenshot[];
-    timeline?: TimelineFrame[];
-    logs: LogEntry[];
-    currentStep?: string;
-    progress: number;
-    lastHeartbeat?: {
-      step?: string;
-      elapsedMs?: number;
-      timestamp: Date;
-    };
-  };
+  execution: Execution;
   onClose?: () => void;
 }
 
@@ -143,16 +50,16 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   const [activeTab, setActiveTab] = useState<'replay' | 'screenshots' | 'logs'>(
     execution.timeline && execution.timeline.length > 0 ? 'replay' : 'screenshots'
   );
+  const [hasAutoSwitchedToReplay, setHasAutoSwitchedToReplay] = useState<boolean>(
+    Boolean(execution.timeline && execution.timeline.length > 0)
+  );
   const [selectedScreenshot, setSelectedScreenshot] = useState<Screenshot | null>(null);
   const [, setHeartbeatTick] = useState(0);
   const [isStopping, setIsStopping] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
-  const executionError =
-    execution && typeof execution === 'object' && 'error' in execution
-      ? (execution as { error?: string | null }).error
-      : undefined;
+  const executionError = execution.error ?? undefined;
 
   useEffect(() => {
     if (execution.status !== 'running' || !heartbeatTimestamp) {
@@ -165,6 +72,19 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
       window.clearInterval(interval);
     };
   }, [execution.status, heartbeatTimestamp]);
+
+  useEffect(() => {
+    setHasAutoSwitchedToReplay(Boolean(execution.timeline && execution.timeline.length > 0));
+    setActiveTab(execution.timeline && execution.timeline.length > 0 ? 'replay' : 'screenshots');
+    setSelectedScreenshot(null);
+  }, [execution.id]);
+
+  useEffect(() => {
+    if (!hasAutoSwitchedToReplay && execution.timeline && execution.timeline.length > 0) {
+      setActiveTab('replay');
+      setHasAutoSwitchedToReplay(true);
+    }
+  }, [execution.timeline, hasAutoSwitchedToReplay]);
 
   const heartbeatAgeSeconds = useMemo(() => {
     if (!execution.lastHeartbeat || !execution.lastHeartbeat.timestamp) {
@@ -293,7 +213,11 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
       const thumbnailUrl = resolveUrl(screenshotData?.thumbnail_url);
 
       const focused = frame?.focused_element ?? frame?.focusedElement;
-      const focusedBoundingBox = toBoundingBox(focused?.bounding_box ?? focused?.boundingBox);
+      const focusedRaw = (focused ?? undefined) as (Record<string, unknown> | undefined);
+      const focusedBoundingBox = toBoundingBox(
+        (focusedRaw?.bounding_box as unknown) ?? (focusedRaw?.boundingBox as unknown)
+      );
+      const normalizedFocusedBoundingBox = focusedBoundingBox ?? undefined;
       const totalDuration = toNumber(frame?.total_duration_ms ?? frame?.totalDurationMs);
       const retryAttempt = toNumber(frame?.retry_attempt ?? frame?.retryAttempt);
       const retryMaxAttempts = toNumber(frame?.retry_max_attempts ?? frame?.retryMaxAttempts);
@@ -352,10 +276,10 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
         highlightRegions: mapRegions(frame?.highlight_regions ?? frame?.highlightRegions),
         maskRegions: mapRegions(frame?.mask_regions ?? frame?.maskRegions),
         focusedElement:
-          focused || focusedBoundingBox
+          focused || normalizedFocusedBoundingBox
             ? {
                 selector: typeof focused?.selector === 'string' ? focused.selector : undefined,
-                boundingBox: focusedBoundingBox,
+                boundingBox: normalizedFocusedBoundingBox,
               }
             : null,
         elementBoundingBox: toBoundingBox(frame?.element_bounding_box ?? frame?.elementBoundingBox) ?? null,

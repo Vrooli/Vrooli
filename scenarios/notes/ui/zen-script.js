@@ -1,5 +1,243 @@
 // ZenNotes - Mindful Note Taking App
-const API_URL = window.API_URL || `http://localhost:${window.API_PORT || 8950}`;
+
+const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
+const DEFAULT_API_SUFFIX = '/api';
+const ICON_DEFAULTS = { size: 20, strokeWidth: 1.8 };
+
+let lucideReady = Boolean(window.lucide);
+const API_BASE = resolveApiBase();
+
+window.addEventListener('load', () => {
+    if (window.lucide) {
+        lucideReady = true;
+        refreshStaticIcons();
+    }
+});
+
+
+function stripTrailingSlash(value = '') {
+    return typeof value === 'string' ? value.replace(/\/+$/u, '') : '';
+}
+
+function ensureLeadingSlash(value = '') {
+    if (typeof value !== 'string' || !value) {
+        return '/';
+    }
+    return value.startsWith('/') ? value : `/${value}`;
+}
+
+function normalizePort(value) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        return String(value);
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return /^\d+$/.test(trimmed) ? trimmed : undefined;
+    }
+    return undefined;
+}
+
+function pickProxyEndpoint(info) {
+    if (!info) {
+        return undefined;
+    }
+
+    const candidates = [];
+    const enqueue = (candidate) => {
+        if (!candidate) {
+            return;
+        }
+        if (typeof candidate === 'string') {
+            const trimmed = candidate.trim();
+            if (trimmed) {
+                candidates.push(trimmed);
+            }
+            return;
+        }
+        if (typeof candidate === 'object') {
+            enqueue(candidate.url || candidate.href || candidate.target || candidate.path);
+            if (Array.isArray(candidate.endpoints)) {
+                candidate.endpoints.forEach(enqueue);
+            }
+        }
+    };
+
+    enqueue(info);
+
+    if (typeof info === 'object') {
+        enqueue(info.apiBase || info.api_path || info.apiPath);
+        enqueue(info.api);
+        enqueue(info.baseUrl || info.baseURL);
+        enqueue(info.apiUrl || info.apiURL);
+        enqueue(info.url);
+        enqueue(info.target);
+        if (Array.isArray(info.endpoints)) {
+            info.endpoints.forEach(enqueue);
+        }
+    }
+
+    return candidates.find(Boolean);
+}
+
+function resolveProxyEndpoint() {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+
+    for (const key of PROXY_INFO_KEYS) {
+        const info = window[key];
+        if (!info) {
+            continue;
+        }
+
+        const candidate = pickProxyEndpoint(info);
+        if (candidate) {
+            return candidate;
+        }
+
+        const ports = typeof info === 'object' ? info.ports : undefined;
+        const rawPort = ports && (ports.api?.port ?? ports.api);
+        const normalizedPort = normalizePort(rawPort);
+        if (normalizedPort) {
+            const protocol = window.location?.protocol === 'https:' ? 'https:' : 'http:';
+            const hostname = window.location?.hostname || 'localhost';
+            return `${protocol}//${hostname}:${normalizedPort}`;
+        }
+    }
+
+    return undefined;
+}
+
+function ensureApiSuffix(value) {
+    const trimmed = stripTrailingSlash((value || '').trim());
+    if (!trimmed) {
+        return DEFAULT_API_SUFFIX;
+    }
+    if (trimmed.endsWith(DEFAULT_API_SUFFIX)) {
+        return trimmed;
+    }
+    if (/^https?:\/\//i.test(trimmed)) {
+        return `${trimmed}${DEFAULT_API_SUFFIX}`;
+    }
+    return ensureLeadingSlash(trimmed === '/' ? DEFAULT_API_SUFFIX : `${trimmed}${DEFAULT_API_SUFFIX}`);
+}
+
+function resolveApiBase() {
+    if (typeof window === 'undefined') {
+        return DEFAULT_API_SUFFIX;
+    }
+
+    const proxyBase = resolveProxyEndpoint();
+    if (proxyBase) {
+        if (/^https?:\/\//i.test(proxyBase)) {
+            return ensureApiSuffix(proxyBase);
+        }
+        const origin = window.location?.origin;
+        if (origin) {
+            return ensureApiSuffix(`${stripTrailingSlash(origin)}${ensureLeadingSlash(proxyBase)}`);
+        }
+        return ensureApiSuffix(proxyBase);
+    }
+
+    const envApiUrl = typeof window.API_URL === 'string' ? window.API_URL.trim() : '';
+    if (envApiUrl) {
+        return ensureApiSuffix(envApiUrl);
+    }
+
+    const apiPort = normalizePort(window.API_PORT);
+    if (apiPort) {
+        const protocol = window.location?.protocol === 'https:' ? 'https:' : 'http:';
+        const host = window.location?.hostname || 'localhost';
+        return ensureApiSuffix(`${protocol}//${host}:${apiPort}`);
+    }
+
+    const origin = window.location?.origin;
+    if (origin) {
+        return ensureApiSuffix(origin);
+    }
+
+    return DEFAULT_API_SUFFIX;
+}
+
+function joinApiUrl(path = '/') {
+    const base = stripTrailingSlash(API_BASE);
+    const suffix = ensureLeadingSlash(path);
+    return `${base}${suffix}`;
+}
+
+function apiFetch(path, options = {}) {
+    return fetch(joinApiUrl(path), options);
+}
+
+async function apiFetchJson(path, options = {}) {
+    const response = await apiFetch(path, options);
+    const raw = await response.text();
+
+    if (!response.ok) {
+        const message = raw || `Request failed (${response.status})`;
+        throw new Error(message);
+    }
+
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(raw);
+    } catch (error) {
+        throw new Error(`Failed to parse response JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+function buildJsonRequest(method, payload, headers = {}) {
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+        },
+    };
+
+    if (payload !== undefined) {
+        options.body = JSON.stringify(payload);
+    }
+
+    return options;
+}
+
+function applyIcon(element, iconName, overrides = {}) {
+    if (!element) {
+        return;
+    }
+
+    const resolvedIcon = iconName || element.dataset.icon;
+    if (!resolvedIcon) {
+        element.textContent = overrides.fallback || '';
+        return;
+    }
+
+    element.dataset.icon = resolvedIcon;
+
+    const lucideApi = window.lucide;
+    const iconNode = lucideApi?.icons?.[resolvedIcon];
+    if (lucideReady && iconNode && typeof lucideApi?.createElement === 'function') {
+        const size = Number(overrides.size ?? element.dataset.iconSize ?? ICON_DEFAULTS.size);
+        const strokeWidth = Number(overrides.strokeWidth ?? element.dataset.iconStroke ?? ICON_DEFAULTS.strokeWidth);
+        const svg = lucideApi.createElement(iconNode, { name: resolvedIcon, size, strokeWidth });
+        svg.setAttribute('aria-hidden', 'true');
+        element.replaceChildren(svg);
+    } else if (!element.childElementCount && !element.textContent.trim()) {
+        element.textContent = overrides.fallback || '';
+    }
+}
+
+function refreshStaticIcons(root = document) {
+    if (!root) {
+        return;
+    }
+    const elements = root.querySelectorAll('[data-icon]');
+    elements.forEach((node) => applyIcon(node, node.dataset.icon));
+}
 
 class ZenNotes {
     constructor() {
@@ -15,6 +253,7 @@ class ZenNotes {
         this.loadNotes();
         this.startAutoSave();
         this.applyZenAnimations();
+        refreshStaticIcons();
     }
 
     setupEventListeners() {
@@ -109,17 +348,15 @@ class ZenNotes {
 
     async loadNotes() {
         try {
-            const response = await fetch(`${API_URL}/api/notes`);
-            if (response.ok) {
-                this.notes = await response.json();
-                this.renderNotesList();
-            }
+            const data = await apiFetchJson('/notes');
+            this.notes = Array.isArray(data) ? data : [];
+            this.renderNotesList();
         } catch (error) {
             console.error('Failed to load notes:', error);
         }
     }
 
-    async saveNote() {
+    async saveNote(options = {}) {
         const title = document.getElementById('noteTitle').value || 'Untitled';
         const content = document.getElementById('noteContent').value;
         
@@ -134,23 +371,24 @@ class ZenNotes {
         };
         
         try {
-            const endpoint = noteData.id ? `/api/notes/${noteData.id}` : '/api/notes';
+            const endpoint = noteData.id ? `/notes/${noteData.id}` : '/notes';
             const method = noteData.id ? 'PUT' : 'POST';
-            
-            const response = await fetch(`${API_URL}${endpoint}`, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(noteData)
-            });
-            
-            if (response.ok) {
-                const savedNote = await response.json();
-                this.currentNote = savedNote;
-                this.updateSaveStatus('All changes saved');
+
+            const savedNote = await apiFetchJson(endpoint, buildJsonRequest(method, noteData));
+
+            if (!savedNote) {
+                throw new Error('API did not return saved note');
+            }
+
+            this.currentNote = savedNote;
+            this.updateSaveStatus('All changes saved');
+            if (!options.silent) {
                 this.showZenNotification('Note saved mindfully');
-                
-                // Trigger AI analysis
-                this.analyzeNote();
+            }
+
+            this.analyzeNote();
+            if (!options.skipReload) {
+                this.loadNotes();
             }
         } catch (error) {
             console.error('Failed to save note:', error);
@@ -170,20 +408,15 @@ class ZenNotes {
         this.showAnalysisLoading();
         
         try {
-            const response = await fetch(`${API_URL}/api/notes/analyze`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    note_id: this.currentNote.id,
-                    title,
-                    content,
-                    user_id: 'default-user',
-                    analysis_depth: 'comprehensive'
-                })
-            });
-            
-            if (response.ok) {
-                const analysis = await response.json();
+            const analysis = await apiFetchJson('/notes/analyze', buildJsonRequest('POST', {
+                note_id: this.currentNote.id,
+                title,
+                content,
+                user_id: 'default-user',
+                analysis_depth: 'comprehensive'
+            }));
+
+            if (analysis) {
                 this.renderAnalysis(analysis);
             }
         } catch (error) {
@@ -229,14 +462,15 @@ class ZenNotes {
         // Sentiment
         const sentimentEl = document.getElementById('sentiment');
         if (analysis.sentiment) {
-            const moodEmoji = this.getSentimentEmoji(analysis.sentiment);
+            const iconName = this.getSentimentIcon(analysis.sentiment);
             const moodText = this.getSentimentText(analysis.sentiment);
             sentimentEl.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 1.5rem;">${moodEmoji}</span>
+                    <span class="icon" data-icon="${iconName}"></span>
                     <span>${moodText}</span>
                 </div>
             `;
+            refreshStaticIcons(sentimentEl);
             this.fadeIn(sentimentEl.parentElement);
         }
         
@@ -263,7 +497,7 @@ class ZenNotes {
             if (analysis.deep_insights.opportunities?.length) {
                 suggestions.push(...analysis.deep_insights.opportunities.map(o => 
                     `<div style="padding: 0.5rem; background: rgba(125, 163, 161, 0.1); border-radius: 8px; margin-bottom: 0.5rem;">
-                        💡 ${o}
+                        <span class="icon" data-icon="Lightbulb"></span> ${o}
                     </div>`
                 ));
             }
@@ -271,7 +505,7 @@ class ZenNotes {
             if (analysis.deep_insights.risks?.length) {
                 suggestions.push(...analysis.deep_insights.risks.map(r => 
                     `<div style="padding: 0.5rem; background: rgba(212, 165, 116, 0.1); border-radius: 8px; margin-bottom: 0.5rem;">
-                        ⚠️ ${r}
+                        <span class="icon" data-icon="AlertTriangle"></span> ${r}
                     </div>`
                 ));
             }
@@ -279,13 +513,14 @@ class ZenNotes {
             if (analysis.deep_insights.creative_suggestions?.length) {
                 suggestions.push(...analysis.deep_insights.creative_suggestions.map(s => 
                     `<div style="padding: 0.5rem; background: rgba(107, 142, 111, 0.1); border-radius: 8px; margin-bottom: 0.5rem;">
-                        🌱 ${s}
+                        <span class="icon" data-icon="Leaf"></span> ${s}
                     </div>`
                 ));
             }
             
             if (suggestions.length) {
                 suggestionsEl.innerHTML = suggestions.join('');
+                refreshStaticIcons(suggestionsEl);
                 this.fadeIn(suggestionsEl.parentElement);
             }
         }
@@ -329,16 +564,16 @@ class ZenNotes {
         });
     }
 
-    getSentimentEmoji(sentiment) {
-        const emojis = {
-            positive: '😊',
-            negative: '😔',
-            neutral: '😌',
-            focused: '🎯',
-            creative: '🎨',
-            analytical: '🔍'
+    getSentimentIcon(sentiment = '') {
+        const icons = {
+            positive: 'Smile',
+            negative: 'Frown',
+            neutral: 'Meh',
+            focused: 'Target',
+            creative: 'Palette',
+            analytical: 'Search'
         };
-        return emojis[sentiment.toLowerCase()] || '😌';
+        return icons[sentiment.toLowerCase()] || 'Smile';
     }
 
     getSentimentText(sentiment) {
@@ -434,10 +669,11 @@ class ZenNotes {
         }
         
         try {
-            const response = await fetch(`${API_URL}/api/notes/search?q=${encodeURIComponent(query)}`);
-            if (response.ok) {
-                const results = await response.json();
+            const results = await apiFetchJson(`/notes/search?q=${encodeURIComponent(query)}`);
+            if (Array.isArray(results)) {
                 this.renderNotesList(results);
+            } else if (Array.isArray(results?.results)) {
+                this.renderNotesList(results.results);
             }
         } catch (error) {
             console.error('Search failed:', error);
@@ -469,20 +705,18 @@ class ZenNotes {
 
     async loadNote(noteId) {
         try {
-            const response = await fetch(`${API_URL}/api/notes/${noteId}`);
-            if (response.ok) {
-                const note = await response.json();
-                this.currentNote = note;
-                document.getElementById('noteTitle').value = note.title || '';
-                document.getElementById('noteContent').value = note.content || '';
-                this.updateWordCount();
-                
-                // Close modal if open
-                document.getElementById('notesListModal').style.display = 'none';
-                
-                // Analyze the loaded note
-                this.analyzeNote();
+            const note = await apiFetchJson(`/notes/${noteId}`);
+            if (!note) {
+                throw new Error('Note not found');
             }
+
+            this.currentNote = note;
+            document.getElementById('noteTitle').value = note.title || '';
+            document.getElementById('noteContent').value = note.content || '';
+            this.updateWordCount();
+
+            document.getElementById('notesListModal').style.display = 'none';
+            this.analyzeNote();
         } catch (error) {
             console.error('Failed to load note:', error);
         }
@@ -547,14 +781,14 @@ class ZenNotes {
     startAutoSave() {
         setInterval(() => {
             if (this.currentNote && document.getElementById('noteContent').value) {
-                this.saveNote();
+                this.saveNote({ skipReload: true, silent: true });
             }
         }, 30000); // Auto-save every 30 seconds
     }
 
     scheduleAutoSave() {
         clearTimeout(this.autoSaveTimer);
-        this.autoSaveTimer = setTimeout(() => this.saveNote(), 2000);
+        this.autoSaveTimer = setTimeout(() => this.saveNote({ skipReload: true, silent: true }), 2000);
     }
 
     scheduleAnalysis() {

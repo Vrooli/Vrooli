@@ -162,6 +162,297 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
   const baseResult = { index: step.index, nodeId: step.nodeId, type: step.type, stepName };
   let extras = {};
 
+  async function ensureDocumentHydrated() {
+    const maxAttempts = 4;
+    let hydrationSucceeded = false;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      let result = null;
+      try {
+        result = await page.evaluate((state) => {
+          const serializeError = (error) => {
+            if (!error) {
+              return undefined;
+            }
+            if (typeof error === 'string') {
+              return error;
+            }
+            if (error && typeof error.message === 'string') {
+              return error.message;
+            }
+            try {
+              return String(error);
+            } catch (_) {
+              return 'Unknown error';
+            }
+          };
+
+          try {
+            const doc = document;
+            const body = doc && doc.body ? doc.body : null;
+            const parseColor = (value) => {
+              if (!value || typeof value !== 'string') {
+                return null;
+              }
+              if (value.toLowerCase() === 'transparent') {
+                return { r: 0, g: 0, b: 0, a: 0 };
+              }
+              const rgbaMatch = value.match(/rgba?\(([^)]+)\)/i);
+              if (rgbaMatch) {
+                const parts = rgbaMatch[1].split(',').map((part) => part.trim());
+                const r = Number.parseFloat(parts[0]);
+                const g = Number.parseFloat(parts[1]);
+                const b = Number.parseFloat(parts[2]);
+                const a = parts[3] != null ? Number.parseFloat(parts[3]) : 1;
+                if ([r, g, b].some((component) => Number.isNaN(component))) {
+                  return null;
+                }
+                return { r, g, b, a: Number.isNaN(a) ? 1 : a };
+              }
+              if (value.startsWith('#')) {
+                let hex = value.slice(1);
+                if (hex.length === 3 || hex.length === 4) {
+                  hex = hex.split('').map((ch) => ch + ch).join('');
+                }
+                if (hex.length === 6 || hex.length === 8) {
+                  const r = Number.parseInt(hex.slice(0, 2), 16);
+                  const g = Number.parseInt(hex.slice(2, 4), 16);
+                  const b = Number.parseInt(hex.slice(4, 6), 16);
+                  const a = hex.length === 8 ? Number.parseInt(hex.slice(6, 8), 16) / 255 : 1;
+                  if ([r, g, b].some((component) => Number.isNaN(component))) {
+                    return null;
+                  }
+                  return { r, g, b, a };
+                }
+              }
+              return null;
+            };
+
+            const hasMeaningfulContent = () => {
+              if (!body) {
+                return false;
+              }
+
+              const globalStyle = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function')
+                ? window.getComputedStyle(body)
+                : null;
+              if (globalStyle) {
+                const bgColor = parseColor(globalStyle.backgroundColor);
+                if (bgColor && bgColor.a > 0.05 && (bgColor.r < 245 || bgColor.g < 245 || bgColor.b < 245)) {
+                  return true;
+                }
+              }
+
+              const text = typeof body.innerText === 'string' ? body.innerText.trim() : '';
+              if (text.length > 0) {
+                return true;
+              }
+
+              const elements = Array.from(body.querySelectorAll('*'));
+              for (const element of elements) {
+                if (!element || typeof element.tagName !== 'string') {
+                  continue;
+                }
+                const tag = element.tagName.toLowerCase();
+                if (['script', 'style', 'meta', 'link', 'head', 'title', 'noscript', 'template'].includes(tag)) {
+                  continue;
+                }
+
+                if (['img', 'svg', 'video', 'canvas', 'iframe', 'picture'].includes(tag)) {
+                  const mediaRect = typeof element.getBoundingClientRect === 'function'
+                    ? element.getBoundingClientRect()
+                    : null;
+                  if (mediaRect && mediaRect.width >= 3 && mediaRect.height >= 3) {
+                    return true;
+                  }
+                }
+
+                const rect = typeof element.getBoundingClientRect === 'function'
+                  ? element.getBoundingClientRect()
+                  : null;
+                if (!rect || rect.width < 6 || rect.height < 6) {
+                  continue;
+                }
+
+                if (typeof element.innerText === 'string' && element.innerText.trim().length > 0) {
+                  return true;
+                }
+
+                const style = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function')
+                  ? window.getComputedStyle(element)
+                  : null;
+                if (!style) {
+                  continue;
+                }
+
+                if (style.backgroundImage && style.backgroundImage !== 'none') {
+                  return true;
+                }
+                if (style.boxShadow && style.boxShadow !== 'none') {
+                  return true;
+                }
+
+                const candidateColors = [
+                  parseColor(style.backgroundColor),
+                  parseColor(style.borderTopColor),
+                  parseColor(style.borderRightColor),
+                  parseColor(style.borderBottomColor),
+                  parseColor(style.borderLeftColor),
+                  parseColor(style.color),
+                ].filter(Boolean);
+
+                if (candidateColors.some((color) => color.a > 0.05 && (color.r < 245 || color.g < 245 || color.b < 245))) {
+                  return true;
+                }
+              }
+
+              return false;
+            };
+
+            if (hasMeaningfulContent()) {
+              return { hasVisualContent: true, rehydrated: false };
+            }
+
+            const htmlCandidates = [];
+            const pushCandidate = (value) => {
+              if (!value || typeof value !== 'string' || value.length === 0) {
+                return;
+              }
+              if (!htmlCandidates.includes(value)) {
+                htmlCandidates.push(value);
+              }
+            };
+
+            if (state && typeof state.lastHtml === 'string' && state.lastHtml.length > 0) {
+              pushCandidate(state.lastHtml);
+            }
+            if (state && typeof state.lastNavHtml === 'string' && state.lastNavHtml.length > 0) {
+              pushCandidate(state.lastNavHtml);
+            }
+
+            if (typeof window !== 'undefined') {
+              if (typeof window.__BAS_LAST_REPLAY_HTML__ === 'string' && window.__BAS_LAST_REPLAY_HTML__.length > 0) {
+                pushCandidate(window.__BAS_LAST_REPLAY_HTML__);
+              }
+              if (typeof window.__BAS_LAST_NAV_HTML__ === 'string' && window.__BAS_LAST_NAV_HTML__.length > 0) {
+                pushCandidate(window.__BAS_LAST_NAV_HTML__);
+              }
+            }
+
+            for (const html of htmlCandidates) {
+              try {
+                if (!html || html.length === 0) {
+                  continue;
+                }
+                const parser = typeof DOMParser === 'function' ? new DOMParser() : null;
+                if (parser) {
+                  const parsed = parser.parseFromString(html, 'text/html');
+                  if (parsed && parsed.documentElement) {
+                    doc.documentElement.innerHTML = parsed.documentElement.innerHTML;
+                  } else {
+                    doc.documentElement.innerHTML = html;
+                  }
+                } else {
+                  doc.documentElement.innerHTML = html;
+                }
+
+                if (hasMeaningfulContent()) {
+                  return { hasVisualContent: true, rehydrated: true };
+                }
+              } catch (rehydrateErr) {
+                return { hasVisualContent: false, rehydrated: false, error: serializeError(rehydrateErr) };
+              }
+            }
+
+            return { hasVisualContent: false, rehydrated: false };
+          } catch (err) {
+            return { hasVisualContent: false, rehydrated: false, error: serializeError(err) };
+          }
+        }, {
+          lastHtml: page.__basLastReplayHTML || '',
+          lastNavHtml: page.__basLastNavHTML || '',
+        });
+      } catch (executionError) {
+        result = {
+          hasVisualContent: false,
+          rehydrated: false,
+          error: (executionError && executionError.message) ? executionError.message : String(executionError),
+        };
+      }
+
+      if (result && result.error) {
+        try {
+          console.warn('[BAS][replay] hydration probe warning:', result.error);
+        } catch (_) {}
+      }
+
+      if (result && result.hasVisualContent) {
+        hydrationSucceeded = true;
+        break;
+      }
+
+      const delayBase = result && result.rehydrated ? 160 : 110;
+      const attemptDelay = delayBase + (attempt * 70);
+      await waitForTime(attemptDelay);
+    }
+
+    try {
+      await page.evaluate(() => {
+        if (typeof requestAnimationFrame !== 'function') {
+          return null;
+        }
+        return new Promise((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => resolve(null));
+          });
+        });
+      });
+    } catch (_) {}
+
+    if (hydrationSucceeded) {
+      return { hasVisualContent: true };
+    }
+
+    const fallbackScreenshot = typeof page.__basLastReplayScreenshotBase64 === 'string'
+      && page.__basLastReplayScreenshotBase64.length > 0
+      ? page.__basLastReplayScreenshotBase64
+      : null;
+
+    return { hasVisualContent: false, fallbackScreenshot };
+  }
+
+  async function storeReplaySnapshot(sourceTag = '') {
+    try {
+      const captureHtml = await page.content();
+      const captureUrl = typeof page.url === 'function' ? page.url() : '';
+
+      if (!captureHtml || typeof captureHtml !== 'string' || captureHtml.trim().length === 0) {
+        return;
+      }
+
+      page.__basLastReplayHTML = captureHtml;
+      page.__basLastReplayURL = captureUrl;
+      if (sourceTag === 'navigate') {
+        page.__basLastNavHTML = captureHtml;
+        page.__basLastNavURL = captureUrl;
+      }
+
+      try {
+        await page.evaluate((state) => {
+          try {
+            if (typeof window !== 'undefined') {
+              window.__BAS_LAST_REPLAY_HTML__ = state.html;
+              window.__BAS_LAST_REPLAY_URL__ = state.url;
+              if (state.source === 'navigate') {
+                window.__BAS_LAST_NAV_HTML__ = state.html;
+                window.__BAS_LAST_NAV_URL__ = state.url;
+              }
+            }
+          } catch (_) {}
+        }, { html: captureHtml, url: captureUrl, source: sourceTag });
+      } catch (_) {}
+    } catch (_) {}
+  }
+
   const shouldCaptureReplay = () => {
     const type = (step && typeof step.type === 'string') ? step.type.toLowerCase() : '';
     if (!type) {
@@ -176,24 +467,96 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
     return true;
   };
 
+  if (!Array.isArray(page.__basReplayHistory)) {
+    page.__basReplayHistory = [];
+  }
+
+  const calculateByteEntropy = (buffer) => {
+    if (!buffer || typeof buffer.length !== 'number' || buffer.length === 0) {
+      return 0;
+    }
+    const counts = new Array(256).fill(0);
+    for (let i = 0; i < buffer.length; i += 1) {
+      counts[buffer[i]] += 1;
+    }
+    const total = buffer.length;
+    let entropy = 0;
+    for (let i = 0; i < counts.length; i += 1) {
+      const count = counts[i];
+      if (count === 0) {
+        continue;
+      }
+      const probability = count / total;
+      entropy -= probability * Math.log2(probability);
+    }
+    return entropy;
+  };
+
+  const LOW_ENTROPY_THRESHOLD = 3.2;
+
   const ensureReplayScreenshot = async () => {
     if (!shouldCaptureReplay()) {
       return null;
     }
     if (extras && typeof extras === 'object' && Object.prototype.hasOwnProperty.call(extras, 'screenshotBase64') && extras.screenshotBase64) {
+      page.__basLastReplayScreenshotBase64 = extras.screenshotBase64;
+      try {
+        await storeReplaySnapshot();
+      } catch (_) {}
       return extras.screenshotBase64;
     }
+
+    let usingFallback = false;
+    const hydration = await ensureDocumentHydrated();
+    const screenshotHistory = Array.isArray(page.__basReplayHistory) ? page.__basReplayHistory : [];
+    const lastScreenshotBase64 = screenshotHistory.length > 0
+      ? screenshotHistory[screenshotHistory.length - 1]
+      : null;
+    if (hydration && hydration.hasVisualContent === false && hydration.fallbackScreenshot) {
+      extras = { ...extras, screenshotBase64: hydration.fallbackScreenshot };
+      return hydration.fallbackScreenshot;
+    }
+
+    let capture = null;
     try {
-      const capture = await page.screenshot({ encoding: 'base64', fullPage: true });
-      if (capture && capture.length) {
-        extras = { ...extras, screenshotBase64: capture };
-        return capture;
-      }
+      capture = await page.screenshot({ encoding: 'base64', fullPage: true });
     } catch (captureError) {
       try {
         console.warn('[BAS][replay] failed to capture replay screenshot:', captureError);
       } catch (_) {}
     }
+
+    if (capture && capture.length) {
+      try {
+        const entropy = calculateByteEntropy(Buffer.from(capture, 'base64'));
+        if (!Number.isNaN(entropy) && entropy > 0 && entropy < LOW_ENTROPY_THRESHOLD && lastScreenshotBase64) {
+          capture = lastScreenshotBase64;
+          usingFallback = true;
+        }
+      } catch (_) {}
+    }
+
+    if ((!capture || !capture.length) && lastScreenshotBase64) {
+      capture = lastScreenshotBase64;
+      usingFallback = true;
+    }
+
+    if (capture && capture.length) {
+      extras = { ...extras, screenshotBase64: capture };
+      if (usingFallback) {
+        if (lastScreenshotBase64) {
+          screenshotHistory.push(lastScreenshotBase64);
+        }
+      } else {
+        page.__basLastReplayScreenshotBase64 = capture;
+        screenshotHistory.push(capture);
+        try {
+          await storeReplaySnapshot();
+        } catch (_) {}
+      }
+      return capture;
+    }
+
     return null;
   };
 
@@ -241,8 +604,8 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
               }
             } catch {
               return null;
-            }
-          };
+    }
+  };
 
           const htmlPayload = extractDataUrlPayload(rawUrl);
           if (htmlPayload && htmlPayload.trim().length > 0) {
@@ -317,6 +680,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
         } else {
           extras = { finalUrl: finalUrl || page.url() || rawUrl };
         }
+        await storeReplaySnapshot('navigate');
         break;
       }
       case 'wait': {
@@ -763,6 +1127,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
           extras.domSnapshot = domSnapshotContent;
         }
 
+        await storeReplaySnapshot();
         break;
       }
       case 'assert': {

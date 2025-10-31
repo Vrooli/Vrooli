@@ -16,6 +16,7 @@ import {
 import { useState, useRef, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useWorkflowStore } from '../stores/workflowStore';
+import type { Workflow } from '../stores/workflowStore';
 import { useExecutionStore } from '../stores/executionStore';
 import { Project, useProjectStore } from '../stores/projectStore';
 import AIEditModal from './AIEditModal';
@@ -23,21 +24,18 @@ import toast from 'react-hot-toast';
 import { usePopoverPosition } from '../hooks/usePopoverPosition';
 import ResponsiveDialog from './ResponsiveDialog';
 
-interface Workflow {
-  id: string;
-  name: string;
-  description?: string;
-  folderPath: string;
-  createdAt: Date;
-  updatedAt: Date;
-  projectId?: string;
-}
+type HeaderWorkflow = Pick<Workflow, 'id' | 'name' | 'description' | 'folderPath' | 'createdAt' | 'updatedAt' | 'projectId'> & {
+  version?: Workflow['version'];
+  lastChangeDescription?: Workflow['lastChangeDescription'];
+  nodes?: Workflow['nodes'];
+  edges?: Workflow['edges'];
+};
 
 interface HeaderProps {
   onNewWorkflow: () => void;
   onBackToDashboard?: () => void;
   currentProject?: Project | null;
-  currentWorkflow?: Workflow | null;
+  currentWorkflow?: HeaderWorkflow | null;
   showBackToProject?: boolean;
 }
 
@@ -74,6 +72,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
   const [showWorkflowInfo, setShowWorkflowInfo] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showConflictDetails, setShowConflictDetails] = useState(false);
+  const [showSaveErrorDetails, setShowSaveErrorDetails] = useState(false);
 
   const { floatingStyles: workflowInfoStyles } = usePopoverPosition(infoButtonRef, infoPopoverRef, {
     isOpen: showWorkflowInfo,
@@ -89,6 +88,12 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
       setShowConflictDetails(false);
     }
   }, [hasVersionConflict, conflictMetadata, currentWorkflow?.id, refreshConflictWorkflow, showConflictDetails]);
+
+  useEffect(() => {
+    if (!lastSaveError && showSaveErrorDetails) {
+      setShowSaveErrorDetails(false);
+    }
+  }, [lastSaveError, showSaveErrorDetails]);
   
   // Use the workflow from props if provided, otherwise use the one from store
   const displayWorkflow = selectedWorkflow || currentWorkflow;
@@ -138,6 +143,23 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
     await openVersionHistory();
   };
 
+  const openHistoryFromIndicator = () => {
+    void handleHistoryButtonClick();
+  };
+
+  const handleAutosaveIndicatorClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    openHistoryFromIndicator();
+  };
+
+  const handleAutosaveIndicatorKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      event.stopPropagation();
+      openHistoryFromIndicator();
+    }
+  };
+
   const handleRestoreVersion = async (versionNumber: number) => {
     if (!currentWorkflow) {
       toast.error('No workflow loaded');
@@ -182,6 +204,20 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
       toast.success('Local changes saved');
     } catch (error) {
       toast.error('Failed to force save workflow');
+    }
+  };
+
+  const handleRetrySave = async () => {
+    if (!currentWorkflow) {
+      toast.error('No workflow to save');
+      return;
+    }
+    try {
+      await saveWorkflow({ source: 'manual-retry', changeDescription: 'Retry after failed autosave' });
+      acknowledgeSaveError();
+      toast.success('Workflow saved');
+    } catch (error) {
+      toast.error('Retry failed');
     }
   };
 
@@ -231,35 +267,50 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
         <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           <button
             type="button"
-            onClick={() => setShowConflictDetails(true)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowConflictDetails(true);
+            }}
             className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 hover:bg-amber-500/20"
           >
             Details
           </button>
           <button
             type="button"
-            onClick={handleRefreshConflict}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleRefreshConflict();
+            }}
             className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 hover:bg-amber-500/20"
           >
             Refresh
           </button>
           <button
             type="button"
-            onClick={handleReloadWorkflow}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleReloadWorkflow();
+            }}
             className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 hover:bg-amber-500/20"
           >
             Reload
           </button>
           <button
             type="button"
-            onClick={openVersionHistory}
+            onClick={(event) => {
+              event.stopPropagation();
+              void openVersionHistory();
+            }}
             className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 hover:bg-amber-500/20"
           >
             History
           </button>
           <button
             type="button"
-            onClick={handleForceSave}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleForceSave();
+            }}
             className="rounded border border-amber-400/40 bg-amber-500/20 px-2 py-1 font-medium text-amber-50 hover:bg-amber-500/30"
           >
             Force save
@@ -269,24 +320,46 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
     );
   } else if (lastSaveError) {
     saveStatusNode = (
-      <div className={`${baseIndicatorClass} border-rose-500/50 bg-rose-500/10 text-rose-100`}>
+      <div className={`${baseIndicatorClass} border-rose-500/60 bg-rose-500/10 text-rose-100`}>
         <AlertTriangle size={14} className="text-rose-200" />
-        <span className="font-medium">{lastSaveError.message}</span>
-        <button
-          type="button"
-          onClick={acknowledgeSaveError}
-          className="rounded border border-rose-400/50 bg-rose-500/20 px-2 py-1 text-rose-100 hover:bg-rose-500/30"
-        >
-          Dismiss
-        </button>
-        <button
-          type="button"
-          onClick={openVersionHistory}
-          disabled={historyButtonDisabled}
-          className="rounded border border-rose-400/50 bg-rose-500/20 px-2 py-1 text-rose-100 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          History
-        </button>
+        <span className="font-medium">Failed to save</span>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowSaveErrorDetails(true);
+            }}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/20 text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900"
+            title="View autosave error details"
+            aria-label="View autosave error details"
+          >
+            <Info size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleRetrySave();
+            }}
+            disabled={isSaving}
+            className="rounded border border-rose-400/40 bg-rose-500/20 px-2 py-1 text-xs font-medium text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              acknowledgeSaveError();
+            }}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/20 text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900"
+            title="Dismiss autosave error"
+            aria-label="Dismiss autosave error"
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
     );
   } else if (isSaving) {
@@ -302,7 +375,10 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
         <span className="font-medium">Unsaved changes</span>
         <button
           type="button"
-          onClick={handleHistoryButtonClick}
+          onClick={(event) => {
+            event.stopPropagation();
+            void handleHistoryButtonClick();
+          }}
           disabled={historyButtonDisabled}
           className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-yellow-400/60 bg-yellow-500/20 text-yellow-50 transition-colors hover:bg-yellow-500/30 focus:outline-none focus:ring-2 focus:ring-yellow-300/60 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
           title="Save now and open history"
@@ -319,7 +395,10 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
         <span>Saved {lastSavedLabel}</span>
         <button
           type="button"
-          onClick={handleHistoryButtonClick}
+          onClick={(event) => {
+            event.stopPropagation();
+            void handleHistoryButtonClick();
+          }}
           disabled={historyButtonDisabled}
           className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-emerald-400/60 bg-emerald-500/20 text-emerald-50 transition-colors hover:bg-emerald-500/30 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
           title="Open version history"
@@ -336,7 +415,10 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
         <span>Not saved yet</span>
         <button
           type="button"
-          onClick={handleHistoryButtonClick}
+          onClick={(event) => {
+            event.stopPropagation();
+            void handleHistoryButtonClick();
+          }}
           disabled={historyButtonDisabled}
           className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-600 bg-gray-800/80 text-gray-200 transition-colors hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400/60 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
           title="Open version history"
@@ -347,6 +429,19 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
       </div>
     );
   }
+
+  const autosaveIndicator = (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label="Open version history"
+      onClick={handleAutosaveIndicatorClick}
+      onKeyDown={handleAutosaveIndicatorKeyDown}
+      className="inline-flex rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 cursor-pointer"
+    >
+      {saveStatusNode}
+    </div>
+  );
 
   const handleExecute = async () => {
     if (!currentWorkflow) {
@@ -618,7 +713,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
             <div className="mt-1 sm:mt-0 flex items-center gap-2">
-              {saveStatusNode}
+              {autosaveIndicator}
             </div>
           </div>
           </div>
@@ -722,6 +817,32 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
           >
             Force save local
           </button>
+        </div>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        isOpen={showSaveErrorDetails && Boolean(lastSaveError)}
+        onDismiss={() => setShowSaveErrorDetails(false)}
+        ariaLabel="Autosave error details"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">Autosave error</h2>
+          <button
+            type="button"
+            onClick={() => setShowSaveErrorDetails(false)}
+            className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="space-y-3 text-sm text-gray-200">
+          <p>{lastSaveError?.message ?? 'Unknown error occurred while saving.'}</p>
+          {typeof lastSaveError?.status === 'number' && (
+            <p className="text-xs text-gray-400">HTTP status: {lastSaveError.status}</p>
+          )}
+          <p className="text-xs text-gray-400">
+            Retry the save or dismiss the error once resolved. Autosave will resume automatically once the issue clears.
+          </p>
         </div>
       </ResponsiveDialog>
 

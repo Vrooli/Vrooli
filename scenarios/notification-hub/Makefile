@@ -4,13 +4,12 @@
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make        - Show help
-#   make start  - Start this scenario
-#   make run    - Start this scenario (alias)
-#   make stop   - Stop this scenario
-#   make test   - Run scenario tests
-#   make logs   - Show scenario logs
-#   make clean  - Clean build artifacts
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
 .PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 

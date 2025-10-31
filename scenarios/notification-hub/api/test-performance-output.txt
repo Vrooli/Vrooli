@@ -1,0 +1,9 @@
+goos: linux
+goarch: amd64
+pkg: notification-hub-api
+cpu: AMD Ryzen 9 7950X 16-Core Processor            
+BenchmarkHealthCheck-32            	       0	               NaN ns/op	       0 B/op	       0 allocs/op
+BenchmarkProfileCreation-32        	       0	               NaN ns/op	       0 B/op	       0 allocs/op
+BenchmarkNotificationSending-32    	       0	               NaN ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	notification-hub-api	0.014s

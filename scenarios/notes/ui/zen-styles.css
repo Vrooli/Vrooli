@@ -41,6 +41,19 @@
   box-sizing: border-box;
 }
 
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke-width: 1.8;
+}
+
 body {
   font-family: var(--font-main);
   background: var(--bg-primary);
@@ -145,9 +158,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
   color: white;
   animation: ripple 3s ease-in-out infinite;
+}
+
+.zen-logo-icon .icon svg {
+  width: 24px;
+  height: 24px;
 }
 
 @keyframes ripple {
@@ -206,6 +223,11 @@ body {
   font-size: 0.95rem;
   position: relative;
   overflow: hidden;
+}
+
+.zen-nav-item .icon svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .zen-nav-item::before {
@@ -390,6 +412,11 @@ body {
   animation: pulse 2s ease-in-out infinite;
 }
 
+.insights-icon .icon svg {
+  width: 18px;
+  height: 18px;
+}
+
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
@@ -513,11 +540,16 @@ body {
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 1.5rem;
+  font-size: 1rem;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(125, 163, 161, 0.3);
   transition: all 0.3s ease;
   z-index: 100;
+}
+
+.fab-zen .icon svg {
+  width: 24px;
+  height: 24px;
 }
 
 .fab-zen:hover {

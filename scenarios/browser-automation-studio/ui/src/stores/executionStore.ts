@@ -25,14 +25,14 @@ interface ExecutionUpdateMessage {
   timestamp?: string;
 }
 
-interface TimelineBoundingBox {
+export interface TimelineBoundingBox {
   x?: number;
   y?: number;
   width?: number;
   height?: number;
 }
 
-interface TimelineRegion {
+export interface TimelineRegion {
   selector?: string;
   bounding_box?: TimelineBoundingBox;
   padding?: number;
@@ -40,7 +40,7 @@ interface TimelineRegion {
   opacity?: number;
 }
 
-interface TimelineRetryHistoryEntry {
+export interface TimelineRetryHistoryEntry {
   attempt?: number;
   success?: boolean;
   duration_ms?: number;
@@ -48,7 +48,7 @@ interface TimelineRetryHistoryEntry {
   error?: string;
 }
 
-interface TimelineScreenshot {
+export interface TimelineScreenshot {
   artifact_id: string;
   url?: string;
   thumbnail_url?: string;
@@ -58,7 +58,7 @@ interface TimelineScreenshot {
   size_bytes?: number;
 }
 
-interface TimelineAssertion {
+export interface TimelineAssertion {
   mode?: string;
   selector?: string;
   expected?: unknown;
@@ -69,7 +69,7 @@ interface TimelineAssertion {
   caseSensitive?: boolean;
 }
 
-interface TimelineArtifact {
+export interface TimelineArtifact {
   id: string;
   type: string;
   label?: string;
@@ -81,44 +81,72 @@ interface TimelineArtifact {
   payload?: Record<string, unknown> | null;
 }
 
-interface TimelineFrame {
+export interface TimelineFrame {
   step_index: number;
+  stepIndex?: number;
   node_id?: string;
+  nodeId?: string;
   step_type?: string;
+  stepType?: string;
   status?: string;
   success: boolean;
   duration_ms?: number;
+  durationMs?: number;
   total_duration_ms?: number;
+  totalDurationMs?: number;
   progress?: number;
   started_at?: string;
+  startedAt?: string;
   completed_at?: string;
+  completedAt?: string;
   final_url?: string;
+  finalUrl?: string;
   error?: string;
   console_log_count?: number;
+  consoleLogCount?: number;
   network_event_count?: number;
+  networkEventCount?: number;
   extracted_data_preview?: unknown;
+  extractedDataPreview?: unknown;
   highlight_regions?: TimelineRegion[];
+  highlightRegions?: TimelineRegion[];
   mask_regions?: TimelineRegion[];
+  maskRegions?: TimelineRegion[];
   focused_element?: { selector?: string; bounding_box?: TimelineBoundingBox };
+  focusedElement?: { selector?: string; boundingBox?: TimelineBoundingBox };
   element_bounding_box?: TimelineBoundingBox;
+  elementBoundingBox?: TimelineBoundingBox;
   click_position?: { x?: number; y?: number };
+  clickPosition?: { x?: number; y?: number };
   cursor_trail?: Array<{ x?: number; y?: number }>;
+  cursorTrail?: Array<{ x?: number; y?: number }>;
   zoom_factor?: number;
+  zoomFactor?: number;
   screenshot?: TimelineScreenshot | null;
   artifacts?: TimelineArtifact[];
   assertion?: TimelineAssertion | null;
   retry_attempt?: number;
+  retryAttempt?: number;
   retry_max_attempts?: number;
+  retryMaxAttempts?: number;
   retry_configured?: number;
+  retryConfigured?: number;
   retry_delay_ms?: number;
+  retryDelayMs?: number;
   retry_backoff_factor?: number;
+  retryBackoffFactor?: number;
   retry_history?: TimelineRetryHistoryEntry[];
+  retryHistory?: TimelineRetryHistoryEntry[];
   dom_snapshot_preview?: string;
+  domSnapshotPreview?: string;
   dom_snapshot_artifact_id?: string;
+  domSnapshotArtifactId?: string;
   dom_snapshot?: TimelineArtifact | null;
+  timeline_artifact_id?: string;
+  timelineArtifactId?: string;
 }
 
-interface Execution {
+export interface Execution {
   id: string;
   workflowId: string;
   status: 'pending' | 'running' | 'completed' | 'failed';

@@ -1,10 +1,14 @@
 package browserless
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"math"
 	"net/http"
@@ -1481,7 +1485,11 @@ func TestStoreScreenshotFallback(t *testing.T) {
 	encoded := base64.StdEncoding.EncodeToString([]byte{137, 80, 78, 71, 13, 10, 26, 10})
 	step.ScreenshotBase64 = encoded
 
-	record, err := client.persistScreenshot(context.Background(), exec, step)
+	rawScreenshot, decodeErr := base64.StdEncoding.DecodeString(encoded)
+	if decodeErr != nil {
+		t.Fatalf("failed to decode test screenshot payload: %v", decodeErr)
+	}
+	record, err := client.persistScreenshot(context.Background(), exec, step, rawScreenshot)
 	if err != nil {
 		t.Fatalf("persistScreenshot failed: %v", err)
 	}
@@ -1510,6 +1518,44 @@ func TestStoreScreenshotFallback(t *testing.T) {
 	savedPath := filepath.Join(framesDir, entries[0].Name())
 	if _, err := os.Stat(savedPath); err != nil {
 		t.Fatalf("replay frame not persisted: %v", err)
+	}
+}
+
+func TestIsLowInformationScreenshot(t *testing.T) {
+	client, _ := newTestClient()
+
+	whiteImg := image.NewNRGBA(image.Rect(0, 0, 32, 32))
+	for y := 0; y < 32; y++ {
+		for x := 0; x < 32; x++ {
+			whiteImg.Set(x, y, color.White)
+		}
+	}
+	var whiteBuf bytes.Buffer
+	if err := png.Encode(&whiteBuf, whiteImg); err != nil {
+		t.Fatalf("failed to encode white image: %v", err)
+	}
+
+	if !client.IsLowInformationScreenshotForTesting(whiteBuf.Bytes()) {
+		t.Fatal("expected white image to be low-information")
+	}
+
+	multiImg := image.NewNRGBA(image.Rect(0, 0, 32, 32))
+	for y := 0; y < 32; y++ {
+		for x := 0; x < 32; x++ {
+			if (x+y)%2 == 0 {
+				multiImg.Set(x, y, color.Black)
+			} else {
+				multiImg.Set(x, y, color.RGBA{R: 120, G: 200, B: 150, A: 255})
+			}
+		}
+	}
+	var multiBuf bytes.Buffer
+	if err := png.Encode(&multiBuf, multiImg); err != nil {
+		t.Fatalf("failed to encode multi-color image: %v", err)
+	}
+
+	if client.IsLowInformationScreenshotForTesting(multiBuf.Bytes()) {
+		t.Fatal("expected multi-color image to have sufficient information")
 	}
 }
 

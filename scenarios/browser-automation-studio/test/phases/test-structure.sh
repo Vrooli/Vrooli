@@ -1,24 +1,31 @@
 #!/bin/bash
-set -e
+# Validates required files and directories for the scenario shell.
 
-echo "=== Test Structure ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Verify required directories exist
-dirs=(api ui cli initialization docs)
-for dir in "${dirs[@]}"; do
-  if [[ ! -d "$dir" ]]; then
-    echo "❌ Missing directory: $dir"
-    exit 1
-  fi
-done
+testing::phase::init --target-time "30s"
 
-# Verify key files
-files=(api/main.go ui/package.json ui/vite.config.ts cli/install.sh Makefile .vrooli/service.json)
-for file in "${files[@]}"; do
-  if [[ ! -f "$file" ]]; then
-    echo "❌ Missing file: $file"
-    exit 1
-  fi
-done
+required_dirs=(api ui cli initialization docs)
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-echo "✅ Structure tests passed"
+required_files=(
+  api/main.go
+  ui/package.json
+  ui/vite.config.ts
+  cli/install.sh
+  Makefile
+  .vrooli/service.json
+)
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+testing::phase::end_with_summary "Structure validation completed"
