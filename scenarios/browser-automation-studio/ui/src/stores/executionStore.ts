@@ -11,6 +11,9 @@ import {
   type LogEntry,
 } from './executionEventProcessor';
 
+const WS_RETRY_LIMIT = 5;
+const WS_RETRY_BASE_DELAY_MS = 1500;
+
 interface ExecutionUpdateMessage {
   type: string;
   execution_id?: string;
@@ -139,13 +142,15 @@ interface ExecutionStore {
   currentExecution: Execution | null;
   socket: WebSocket | null;
   socketListeners: Map<string, EventListener>;
+  websocketStatus: 'idle' | 'connecting' | 'connected' | 'error';
+  websocketAttempts: number;
 
   startExecution: (workflowId: string, saveWorkflowFn?: () => Promise<void>) => Promise<void>;
   stopExecution: (executionId: string) => Promise<void>;
   loadExecutions: (workflowId?: string) => Promise<void>;
   loadExecution: (executionId: string) => Promise<void>;
   refreshTimeline: (executionId: string) => Promise<void>;
-  connectWebSocket: (executionId: string) => Promise<void>;
+  connectWebSocket: (executionId: string, attempt?: number) => Promise<void>;
   disconnectWebSocket: () => void;
   addScreenshot: (screenshot: Screenshot) => void;
   addLog: (log: LogEntry) => void;
@@ -179,6 +184,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   currentExecution: null,
   socket: null,
   socketListeners: new Map(),
+  websocketStatus: 'idle',
+  websocketAttempts: 0,
 
   startExecution: async (workflowId: string, saveWorkflowFn?: () => Promise<void>) => {
     try {
@@ -240,11 +247,18 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       set((state) => ({
         currentExecution:
           state.currentExecution?.id === executionId
-            ? { ...state.currentExecution, status: 'failed' as const }
+            ? {
+                ...state.currentExecution,
+                status: 'failed' as const,
+                error: 'Execution stopped by user',
+                currentStep: 'Stopped by user',
+                completedAt: new Date(),
+              }
             : state.currentExecution,
       }));
     } catch (error) {
       logger.error('Failed to stop execution', { component: 'ExecutionStore', action: 'stopExecution', executionId }, error);
+      throw error;
     }
   },
 
@@ -299,33 +313,157 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         ? (data.frames as TimelineFrame[])
         : [];
 
-      set((state) => ({
-        currentExecution:
-          state.currentExecution && state.currentExecution.id === executionId
-            ? { ...state.currentExecution, timeline: frames }
-            : state.currentExecution,
-      }));
+      const normalizeStatus = (value?: string): Execution['status'] | undefined => {
+        switch ((value ?? '').toLowerCase()) {
+          case 'pending':
+          case 'queued':
+            return 'pending';
+          case 'running':
+          case 'in_progress':
+            return 'running';
+          case 'completed':
+          case 'success':
+          case 'succeeded':
+            return 'completed';
+          case 'failed':
+          case 'error':
+          case 'cancelled':
+            return 'failed';
+          default:
+            return undefined;
+        }
+      };
+
+      const mappedStatus = normalizeStatus(data?.status);
+      const progressValue = typeof data?.progress === 'number' ? data.progress : undefined;
+      const completedAtRaw = data?.completed_at ?? data?.completedAt;
+      const errorMessage = typeof data?.error === 'string' ? data.error : undefined;
+
+      set((state) => {
+        if (!state.currentExecution || state.currentExecution.id !== executionId) {
+          return {};
+        }
+
+        const updated: Execution = {
+          ...state.currentExecution,
+          timeline: frames,
+        };
+
+        if (mappedStatus && updated.status !== mappedStatus) {
+          updated.status = mappedStatus;
+        }
+
+        if (progressValue != null) {
+          updated.progress = progressValue;
+        }
+
+        if (errorMessage && errorMessage.trim().length > 0) {
+          updated.error = errorMessage.trim();
+        }
+
+        if (completedAtRaw && (updated.status === 'completed' || updated.status === 'failed')) {
+          const completedDate = new Date(completedAtRaw);
+          if (!Number.isNaN(completedDate.valueOf())) {
+            updated.completedAt = completedDate;
+          }
+        }
+
+        if (frames.length > 0) {
+          const lastFrame = frames[frames.length - 1];
+          const label = lastFrame?.node_id ?? lastFrame?.step_type;
+          if (typeof label === 'string' && label.trim().length > 0) {
+            updated.currentStep = label.trim();
+          }
+        }
+
+        return { currentExecution: updated };
+      });
     } catch (error) {
       logger.error('Failed to load execution timeline', { component: 'ExecutionStore', action: 'refreshTimeline', executionId }, error);
     }
   },
 
-  connectWebSocket: async (executionId: string) => {
-    // Cleanup any existing connection first
+  connectWebSocket: async (executionId: string, attempt = 0) => {
     get().disconnectWebSocket();
 
     const config = await getConfig();
     if (!config.WS_URL) {
       logger.error('WebSocket base URL not configured', { component: 'ExecutionStore', action: 'connectWebSocket', executionId });
+      set({ websocketStatus: 'error', websocketAttempts: attempt });
       return;
     }
 
     const wsBase = config.WS_URL.endsWith('/') ? config.WS_URL : `${config.WS_URL}/`;
-    const wsUrl = new URL('ws', wsBase);
+    let wsUrl: URL;
+    try {
+      wsUrl = new URL('ws', wsBase);
+    } catch (err) {
+      logger.error('Failed to construct WebSocket URL', { component: 'ExecutionStore', action: 'connectWebSocket', executionId, wsBase }, err);
+      set({ websocketStatus: 'error', websocketAttempts: attempt });
+      return;
+    }
     wsUrl.searchParams.set('execution_id', executionId);
+
+    set({ websocketStatus: 'connecting', websocketAttempts: attempt });
 
     const socket = new WebSocket(wsUrl.toString());
     const listeners = new Map<string, EventListener>();
+    let reconnectScheduled = false;
+    let interruptionLogged = false;
+
+    const announceInterruption = (message: string) => {
+      if (interruptionLogged) {
+        return;
+      }
+      const current = get().currentExecution;
+      if (current && current.id === executionId) {
+        get().addLog({
+          id: createId(),
+          level: 'warning',
+          message,
+          timestamp: new Date(),
+        });
+      }
+      interruptionLogged = true;
+    };
+
+    const scheduleReconnect = () => {
+      if (reconnectScheduled || typeof window === 'undefined') {
+        return;
+      }
+
+      const current = get().currentExecution;
+      if (!current || current.id !== executionId) {
+        set({ websocketStatus: 'idle', websocketAttempts: attempt });
+        return;
+      }
+
+      if (current.status !== 'running') {
+        set({ websocketStatus: 'idle', websocketAttempts: attempt });
+        return;
+      }
+
+      if (attempt >= WS_RETRY_LIMIT) {
+        announceInterruption('Live execution stream disconnected. Max reconnect attempts reached.');
+        logger.error('Max WebSocket reconnect attempts reached', { component: 'ExecutionStore', action: 'connectWebSocket', executionId, attempt });
+        set({ websocketStatus: 'error', websocketAttempts: attempt });
+        return;
+      }
+
+      const nextAttempt = attempt + 1;
+      const delay = WS_RETRY_BASE_DELAY_MS * Math.min(nextAttempt, 5);
+      reconnectScheduled = true;
+      announceInterruption('Live execution stream interrupted. Retrying connection…');
+      set({ websocketStatus: 'connecting', websocketAttempts: nextAttempt });
+
+      window.setTimeout(() => {
+        const currentExecution = get().currentExecution;
+        if (!currentExecution || currentExecution.id !== executionId || currentExecution.status !== 'running') {
+          return;
+        }
+        void get().connectWebSocket(executionId, nextAttempt);
+      }, delay);
+    };
 
     const handleEvent = (event: ExecutionEventMessage, fallbackTimestamp?: string, fallbackProgress?: number) => {
       const handlers: ExecutionEventHandlers = {
@@ -392,26 +530,49 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
     };
 
-    const errorListener: EventListener = (event) => {
-      logger.error('WebSocket error', { component: 'ExecutionStore', action: 'handleWebSocketError', executionId }, event);
-      get().updateExecutionStatus('failed', 'WebSocket error');
+    const openListener: EventListener = () => {
+      reconnectScheduled = false;
+      interruptionLogged = false;
+      set({ websocketStatus: 'connected', websocketAttempts: attempt });
     };
 
-    const closeListener: EventListener = () => {
-      // Clean up listeners before clearing state
+    const errorListener: EventListener = (event) => {
+      logger.error('WebSocket error', { component: 'ExecutionStore', action: 'handleWebSocketError', executionId }, event);
+      scheduleReconnect();
+    };
+
+    const closeListener: EventListener = (event) => {
       listeners.forEach((listener, eventType) => {
         socket.removeEventListener(eventType, listener);
       });
       listeners.clear();
       set({ socket: null, socketListeners: new Map() });
+
+      const closeEvent = event as CloseEvent;
+      const current = get().currentExecution;
+      const isRunning = current && current.id === executionId && current.status === 'running';
+
+      if (!reconnectScheduled && isRunning && !closeEvent.wasClean) {
+        scheduleReconnect();
+        return;
+      }
+
+      if (!reconnectScheduled) {
+        set({
+          websocketStatus: isRunning ? 'error' : 'idle',
+          websocketAttempts: attempt,
+        });
+      }
     };
 
     // Track listeners for cleanup
+    listeners.set('open', openListener);
     listeners.set('message', messageListener);
     listeners.set('error', errorListener);
     listeners.set('close', closeListener);
 
     // Add event listeners
+    socket.addEventListener('open', openListener);
     socket.addEventListener('message', messageListener);
     socket.addEventListener('error', errorListener);
     socket.addEventListener('close', closeListener);
@@ -432,7 +593,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       socket.close();
 
       // Clear state
-      set({ socket: null, socketListeners: new Map() });
+      set({ socket: null, socketListeners: new Map(), websocketStatus: 'idle', websocketAttempts: 0 });
     }
   },
 

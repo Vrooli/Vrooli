@@ -1,8 +1,6 @@
 import {
-  Plus,
   Play,
   Save,
-  FolderOpen,
   Bug,
   ArrowLeft,
   Edit2,
@@ -43,7 +41,7 @@ interface HeaderProps {
   showBackToProject?: boolean;
 }
 
-function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkflow: selectedWorkflow, showBackToProject }: HeaderProps) {
+function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProject, currentWorkflow: selectedWorkflow, showBackToProject }: HeaderProps) {
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
   const saveWorkflow = useWorkflowStore((state) => state.saveWorkflow);
   const updateWorkflow = useWorkflowStore((state) => state.updateWorkflow);
@@ -619,27 +617,6 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
             </div>
             
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
-            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-              <button
-                onClick={onNewWorkflow}
-                className="toolbar-button flex items-center gap-0 sm:gap-2"
-                title="New Workflow"
-                aria-label="New Workflow"
-              >
-                <Plus size={16} />
-                <span className="hidden text-sm sm:inline">New</span>
-              </button>
-
-              <button
-                className="toolbar-button flex items-center gap-0 sm:gap-2"
-                title="Open Workflow"
-                aria-label="Open Workflow"
-              >
-                <FolderOpen size={16} />
-                <span className="hidden text-sm sm:inline">Open</span>
-              </button>
-            </div>
-
             <div className="mt-1 sm:mt-0 flex items-center gap-2">
               {saveStatusNode}
             </div>

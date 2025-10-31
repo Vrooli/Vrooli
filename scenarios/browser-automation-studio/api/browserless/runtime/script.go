@@ -162,6 +162,41 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
   const baseResult = { index: step.index, nodeId: step.nodeId, type: step.type, stepName };
   let extras = {};
 
+  const shouldCaptureReplay = () => {
+    const type = (step && typeof step.type === 'string') ? step.type.toLowerCase() : '';
+    if (!type) {
+      return false;
+    }
+    if (!page || typeof page.screenshot !== 'function') {
+      return false;
+    }
+    if (type === 'screenshot') {
+      return false;
+    }
+    return true;
+  };
+
+  const ensureReplayScreenshot = async () => {
+    if (!shouldCaptureReplay()) {
+      return null;
+    }
+    if (extras && typeof extras === 'object' && Object.prototype.hasOwnProperty.call(extras, 'screenshotBase64') && extras.screenshotBase64) {
+      return extras.screenshotBase64;
+    }
+    try {
+      const capture = await page.screenshot({ encoding: 'base64', fullPage: true });
+      if (capture && capture.length) {
+        extras = { ...extras, screenshotBase64: capture };
+        return capture;
+      }
+    } catch (captureError) {
+      try {
+        console.warn('[BAS][replay] failed to capture replay screenshot:', captureError);
+      } catch (_) {}
+    }
+    return null;
+  };
+
   try {
     switch (step.type) {
       case 'navigate': {
@@ -952,6 +987,7 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
       }
     }
 
+    await ensureReplayScreenshot();
     const telemetryResult = flushTelemetry();
     const successPayload = {
       ...baseResult,
@@ -971,6 +1007,9 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
     }
     return { success: true, steps: [successPayload], totalDurationMs: Date.now() - runStart };
   } catch (error) {
+    try {
+      await ensureReplayScreenshot();
+    } catch (_) {}
     const message = (error && error.message) ? error.message : String(error);
     const stack = (error && error.stack) ? error.stack : undefined;
     const telemetryResult = flushTelemetry();

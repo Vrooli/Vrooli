@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Activity,
   Pause,
   RotateCw,
   X,
+  Square,
   Terminal,
   Image,
   Clock,
@@ -16,6 +17,7 @@ import {
 import { format } from 'date-fns';
 import ReplayPlayer, { ReplayFrame } from './ReplayPlayer';
 import { useExecutionStore } from '../stores/executionStore';
+import { toast } from 'react-hot-toast';
 import {
   toNumber,
   toBoundingBox,
@@ -136,11 +138,15 @@ const HEARTBEAT_STALL_SECONDS = 15;
 
 function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
+  const stopExecution = useExecutionStore((state) => state.stopExecution);
+  const startExecution = useExecutionStore((state) => state.startExecution);
   const [activeTab, setActiveTab] = useState<'replay' | 'screenshots' | 'logs'>(
     execution.timeline && execution.timeline.length > 0 ? 'replay' : 'screenshots'
   );
   const [selectedScreenshot, setSelectedScreenshot] = useState<Screenshot | null>(null);
   const [, setHeartbeatTick] = useState(0);
+  const [isStopping, setIsStopping] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
   const executionError =
@@ -248,8 +254,40 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
     }
   }, [heartbeatState, heartbeatAgeLabel, heartbeatAgeSeconds]);
 
+  const statusMessage = useMemo(() => {
+    const label = typeof execution.currentStep === 'string' ? execution.currentStep.trim() : '';
+    if (label.length > 0) {
+      return label;
+    }
+    switch (execution.status) {
+      case 'pending':
+        return 'Pending...';
+      case 'running':
+        return 'Running...';
+      case 'completed':
+        return 'Completed';
+      case 'failed':
+        return execution.error ? 'Failed' : 'Failed';
+      default:
+        return 'Initializing...';
+    }
+  }, [execution.currentStep, execution.status, execution.error]);
+
+  const isRunning = execution.status === 'running';
+  const canRestart = Boolean(execution.workflowId) && execution.status !== 'running';
+
+  const timelineForReplay = useMemo(() => {
+    return (execution.timeline ?? []).filter((frame) => {
+      if (!frame) {
+        return false;
+      }
+      const type = (typeof frame.step_type === 'string' ? frame.step_type : typeof frame.stepType === 'string' ? frame.stepType : '').toLowerCase();
+      return type !== 'screenshot';
+    });
+  }, [execution.timeline]);
+
   const replayFrames = useMemo<ReplayFrame[]>(() => {
-    return (execution.timeline ?? []).map((frame: TimelineFrame, index: number) => {
+    return timelineForReplay.map((frame: TimelineFrame, index: number) => {
       const screenshotData = frame?.screenshot ?? undefined;
       const screenshotUrl = resolveUrl(screenshotData?.url);
       const thumbnailUrl = resolveUrl(screenshotData?.thumbnail_url);
@@ -280,7 +318,7 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
         ? (frame.dom_snapshot_artifact_id ?? frame.domSnapshotArtifactId)
         : (typeof domSnapshotArtifact?.id === 'string' ? domSnapshotArtifact.id : undefined);
 
-      return {
+      const mappedFrame: ReplayFrame = {
         id: screenshotData?.artifact_id || frame?.timeline_artifact_id || `frame-${index}`,
         stepIndex: typeof frame?.step_index === 'number' ? frame.step_index : index,
         nodeId: typeof frame?.node_id === 'string' ? frame.node_id : undefined,
@@ -334,9 +372,12 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
         domSnapshotHtml,
         domSnapshotPreview,
         domSnapshotArtifactId,
-      } as ReplayFrame;
-    });
-  }, [execution.timeline]);
+      };
+
+      const hasScreenshot = Boolean(mappedFrame.screenshot?.url || mappedFrame.screenshot?.thumbnailUrl);
+      return hasScreenshot ? mappedFrame : { ...mappedFrame, screenshot: undefined };
+    }).filter((frame) => Boolean(frame.screenshot));
+  }, [timelineForReplay]);
 
   const hasTimeline = replayFrames.length > 0;
 
@@ -400,6 +441,43 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
     };
   }, [execution.status, execution.id, refreshTimeline]);
 
+  const handleStop = useCallback(async () => {
+    if (!isRunning || isStopping) {
+      return;
+    }
+    setIsStopping(true);
+    try {
+      await stopExecution(execution.id);
+      toast.success('Execution stopped');
+      await refreshTimeline(execution.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to stop execution';
+      toast.error(message);
+    } finally {
+      setIsStopping(false);
+    }
+  }, [execution.id, isRunning, isStopping, stopExecution, refreshTimeline]);
+
+  const handleRestart = useCallback(async () => {
+    if (!canRestart || isRestarting) {
+      return;
+    }
+    if (!execution.workflowId) {
+      toast.error('Workflow identifier missing for restart');
+      return;
+    }
+    setIsRestarting(true);
+    try {
+      await startExecution(execution.workflowId);
+      toast.success('Workflow restarted');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to restart workflow';
+      toast.error(message);
+    } finally {
+      setIsRestarting(false);
+    }
+  }, [canRestart, execution.workflowId, isRestarting, startExecution]);
+
   const getStatusIcon = () => {
     switch (execution.status) {
       case 'running':
@@ -435,7 +513,7 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
             <div className="text-sm font-medium text-white">
               Execution #{execution.id.slice(0, 8)}
             </div>
-            <div className="text-xs text-gray-500">{execution.currentStep || 'Initializing...'}</div>
+            <div className="text-xs text-gray-500">{statusMessage}</div>
             {heartbeatDescriptor && (
               <div
                 className="mt-1 flex items-center gap-2 text-[11px]"
@@ -457,14 +535,29 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="toolbar-button p-1.5" title="Pause">
+          <button
+            className="toolbar-button p-1.5 text-gray-500 opacity-50 cursor-not-allowed"
+            title="Pause (coming soon)"
+            disabled
+            aria-disabled="true"
+          >
             <Pause size={14} />
           </button>
-          <button className="toolbar-button p-1.5" title="Restart">
-            <RotateCw size={14} />
+          <button
+            className="toolbar-button p-1.5"
+            title={canRestart ? 'Restart workflow' : 'Stop execution before restarting'}
+            onClick={handleRestart}
+            disabled={!canRestart || isRestarting || isStopping}
+          >
+            {isRestarting ? <Loader size={14} className="animate-spin" /> : <RotateCw size={14} />}
           </button>
-          <button className="toolbar-button p-1.5 text-red-400" title="Stop">
-            <X size={14} />
+          <button
+            className="toolbar-button p-1.5 text-red-400 disabled:text-red-400/50 disabled:cursor-not-allowed"
+            title={isRunning ? 'Stop execution' : 'Execution not running'}
+            onClick={handleStop}
+            disabled={!isRunning || isStopping}
+          >
+            {isStopping ? <Loader size={14} className="animate-spin" /> : <Square size={14} />}
           </button>
           {onClose && (
             <button
@@ -496,10 +589,7 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
           disabled={!hasTimeline}
         >
           <PlayCircle size={14} />
-          Replay ({replayFrames.length}
-          {execution.status === 'failed' && execution.progress < 100 && (
-            <span className="ml-1 text-rose-300 text-xs">incomplete</span>
-          )})
+          Replay ({replayFrames.length})
         </button>
         <button
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${

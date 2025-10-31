@@ -36,6 +36,7 @@ type Client struct {
 	browserless       string
 	httpClient        *http.Client
 	heartbeatInterval time.Duration
+	recordingsRoot    string
 }
 
 const (
@@ -99,6 +100,11 @@ func NewClient(log *logrus.Logger, repo database.Repository) *Client {
 		interval = custom
 	}
 
+	recordingsRoot := resolveRecordingsRoot(log)
+	if log != nil {
+		log.WithField("recordings_root", recordingsRoot).Debug("Browserless client using recordings root")
+	}
+
 	return &Client{
 		log:         log,
 		repo:        repo,
@@ -108,7 +114,95 @@ func NewClient(log *logrus.Logger, repo database.Repository) *Client {
 			Timeout: 90 * time.Second,
 		},
 		heartbeatInterval: interval,
+		recordingsRoot:    recordingsRoot,
 	}
+}
+
+func resolveRecordingsRoot(log *logrus.Logger) string {
+	if value := strings.TrimSpace(os.Getenv("BAS_RECORDINGS_ROOT")); value != "" {
+		if abs, err := filepath.Abs(value); err == nil {
+			return abs
+		}
+		if log != nil {
+			log.WithField("path", value).Warn("Using BAS_RECORDINGS_ROOT without normalization")
+		}
+		return value
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		if log != nil {
+			log.WithError(err).Warn("Failed to resolve working directory for recordings root; using relative default")
+		}
+		return filepath.Join("scenarios", "browser-automation-studio", "data", "recordings")
+	}
+
+	absCwd, absErr := filepath.Abs(cwd)
+	if absErr == nil {
+		dir := absCwd
+		for {
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			if filepath.Base(dir) == "browser-automation-studio" && filepath.Base(parent) == "scenarios" {
+				recordings := filepath.Join(dir, "data", "recordings")
+				if abs, err := filepath.Abs(recordings); err == nil {
+					return abs
+				}
+				return recordings
+			}
+			dir = parent
+		}
+	}
+
+	root := filepath.Join(absCwd, "scenarios", "browser-automation-studio", "data", "recordings")
+	if abs, err := filepath.Abs(root); err == nil {
+		return abs
+	}
+	return root
+}
+
+func sanitizeFrameSlug(stepIndex int, stepName string) string {
+	normalized := strings.ToLower(strings.TrimSpace(stepName))
+	if normalized == "" {
+		return fmt.Sprintf("frame-%04d", stepIndex+1)
+	}
+
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range normalized {
+		switch {
+		case r >= 'a' && r <= 'z':
+			builder.WriteRune(r)
+			lastDash = false
+		case r >= '0' && r <= '9':
+			builder.WriteRune(r)
+			lastDash = false
+		case r == ' ' || r == '-' || r == '_':
+			if !lastDash && builder.Len() > 0 {
+				builder.WriteRune('-')
+				lastDash = true
+			}
+		default:
+			// skip unsupported characters
+		}
+	}
+
+	slug := strings.Trim(builder.String(), "-")
+	if slug == "" {
+		return fmt.Sprintf("frame-%04d", stepIndex+1)
+	}
+	return slug
+}
+
+func makeFrameFilename(stepIndex int, stepName string) string {
+	slug := sanitizeFrameSlug(stepIndex, stepName)
+	suffix := uuid.New().String()
+	if len(suffix) > 8 {
+		suffix = suffix[:8]
+	}
+	return fmt.Sprintf("%s-%s.png", slug, suffix)
 }
 
 // ExecuteWorkflow executes the supplied workflow via Browserless, capturing artifacts per step.
@@ -665,9 +759,10 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 					ThumbnailURL: record.ThumbnailURL,
 					ContentType:  "image/png",
 					Payload: database.JSONMap{
-						"width":    record.Width,
-						"height":   record.Height,
-						"stepType": step.Type,
+						"width":     record.Width,
+						"height":    record.Height,
+						"stepType":  step.Type,
+						"publicUrl": record.StorageURL,
 					},
 				}
 				if record.SizeBytes > 0 {
@@ -1371,7 +1466,7 @@ func (c *Client) persistScreenshot(ctx context.Context, execution *database.Exec
 		c.log.WithError(err).Debug("Failed to read screenshot dimensions; using defaults")
 	}
 
-	info, err := c.storeScreenshot(ctx, execution.ID, deriveStepName(step), data)
+	info, err := c.storeScreenshot(ctx, execution.ID, step.Index, deriveStepName(step), data, cfg.Width, cfg.Height)
 	if err != nil {
 		return nil, err
 	}
@@ -1406,35 +1501,62 @@ func (c *Client) persistScreenshot(ctx context.Context, execution *database.Exec
 	return record, nil
 }
 
-func (c *Client) storeScreenshot(ctx context.Context, executionID uuid.UUID, stepName string, data []byte) (*storage.ScreenshotInfo, error) {
+func (c *Client) storeScreenshot(ctx context.Context, executionID uuid.UUID, stepIndex int, stepName string, data []byte, width, height int) (*storage.ScreenshotInfo, error) {
 	if c.storage != nil {
 		info, err := c.storage.StoreScreenshot(ctx, executionID, stepName, data, "image/png")
 		if err == nil {
+			if width > 0 && info.Width == 0 {
+				info.Width = width
+			}
+			if height > 0 && info.Height == 0 {
+				info.Height = height
+			}
+			if info.ThumbnailURL == "" {
+				info.ThumbnailURL = info.URL
+			}
 			return info, nil
 		}
-		c.log.WithError(err).Warn("MinIO upload failed; falling back to local filesystem")
+		c.log.WithError(err).Warn("MinIO upload failed; falling back to recordings filesystem")
 	}
 
-	dir := filepath.Join(os.TempDir(), "browser-automation-studio", executionID.String())
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create local screenshot directory: %w", err)
+	root := strings.TrimSpace(c.recordingsRoot)
+	if root == "" {
+		return nil, fmt.Errorf("recordings root not configured")
 	}
 
-	filename := strings.TrimSpace(stepName)
-	if filename == "" {
-		filename = fmt.Sprintf("step-%d", time.Now().UnixNano())
+	framesDir := filepath.Join(root, executionID.String(), "frames")
+	if err := os.MkdirAll(framesDir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create recordings directory: %w", err)
 	}
-	filePath := filepath.Join(dir, filename+".png")
 
+	filename := makeFrameFilename(stepIndex, stepName)
+	filePath := filepath.Join(framesDir, filename)
 	if err := os.WriteFile(filePath, data, 0o644); err != nil {
-		return nil, fmt.Errorf("failed to write fallback screenshot: %w", err)
+		return nil, fmt.Errorf("failed to persist replay frame: %w", err)
 	}
 
-	return &storage.ScreenshotInfo{
-		URL:          filePath,
-		ThumbnailURL: filePath,
+	publicURL := fmt.Sprintf("/api/v1/recordings/assets/%s/frames/%s", executionID.String(), filename)
+
+	info := &storage.ScreenshotInfo{
+		URL:          publicURL,
+		ThumbnailURL: publicURL,
 		SizeBytes:    int64(len(data)),
-	}, nil
+		Width:        width,
+		Height:       height,
+	}
+
+	if (info.Width == 0 || info.Height == 0) && len(data) > 0 {
+		if cfg, _, err := image.DecodeConfig(bytes.NewReader(data)); err == nil {
+			if info.Width == 0 {
+				info.Width = cfg.Width
+			}
+			if info.Height == 0 {
+				info.Height = cfg.Height
+			}
+		}
+	}
+
+	return info, nil
 }
 
 func instructionParamsToJSONMap(instruction runtime.Instruction) database.JSONMap {

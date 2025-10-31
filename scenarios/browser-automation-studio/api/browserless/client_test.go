@@ -268,6 +268,7 @@ func newTestClient() (*Client, *mockRepository) {
 		httpClient:        &http.Client{Timeout: 2 * time.Second},
 		heartbeatInterval: defaultHeartbeatInterval,
 	}
+	client.recordingsRoot = resolveRecordingsRoot(log)
 	return client, repo
 }
 
@@ -1468,13 +1469,14 @@ func TestBuildStepScript(t *testing.T) {
 }
 
 func TestStoreScreenshotFallback(t *testing.T) {
+	recordingsRoot := t.TempDir()
+	t.Setenv("BAS_RECORDINGS_ROOT", recordingsRoot)
+
 	client, repo := newTestClient()
 	client.storage = nil
 
 	exec := &database.Execution{ID: uuid.New()}
 	step := runtime.StepResult{Index: 0, Type: "screenshot", StepName: "test"}
-
-	t.Setenv("TMPDIR", t.TempDir())
 
 	encoded := base64.StdEncoding.EncodeToString([]byte{137, 80, 78, 71, 13, 10, 26, 10})
 	step.ScreenshotBase64 = encoded
@@ -1491,9 +1493,23 @@ func TestStoreScreenshotFallback(t *testing.T) {
 		t.Fatalf("expected screenshot record to be persisted")
 	}
 
-	path := repo.screenshots[0].StorageURL
-	if _, err := os.Stat(path); err != nil {
-		t.Fatalf("fallback screenshot not written: %v", err)
+	storageURL := repo.screenshots[0].StorageURL
+	expectedPrefix := fmt.Sprintf("/api/v1/recordings/assets/%s/frames/", exec.ID.String())
+	if !strings.HasPrefix(storageURL, expectedPrefix) {
+		t.Fatalf("unexpected storage URL: %s", storageURL)
+	}
+
+	framesDir := filepath.Join(client.recordingsRoot, exec.ID.String(), "frames")
+	entries, err := os.ReadDir(framesDir)
+	if err != nil {
+		t.Fatalf("failed to read frames directory: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected exactly one frame asset, found %d", len(entries))
+	}
+	savedPath := filepath.Join(framesDir, entries[0].Name())
+	if _, err := os.Stat(savedPath); err != nil {
+		t.Fatalf("replay frame not persisted: %v", err)
 	}
 }
 
