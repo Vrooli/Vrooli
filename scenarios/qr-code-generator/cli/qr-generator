@@ -5,9 +5,24 @@ set -e
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scenarios/qr-code-generator/cli"
-# Find API port from running process or use default
-API_PORT=$(lsof -i -P 2>/dev/null | grep "qr-code.*LISTEN" | awk '{print $9}' | cut -d: -f2 | head -1)
-API_URL="${API_URL:-http://localhost:${API_PORT:-17320}}"
+
+# Find API port from running process
+if [ -z "$API_PORT" ]; then
+    API_PORT=$(lsof -i -P 2>/dev/null | grep "qr-code.*LISTEN" | awk '{print $9}' | cut -d: -f2 | head -1)
+fi
+
+# Validate API connection info
+if [ -z "$API_URL" ]; then
+    if [ -z "$API_PORT" ]; then
+        echo "❌ Error: Cannot find qr-code-generator API"
+        echo "💡 Please ensure the scenario is running:"
+        echo "   vrooli scenario start qr-code-generator"
+        echo ""
+        echo "   Or set API_PORT/API_URL environment variable explicitly"
+        exit 1
+    fi
+    API_URL="http://localhost:${API_PORT}"
+fi
 
 show_help() {
     cat << EOF

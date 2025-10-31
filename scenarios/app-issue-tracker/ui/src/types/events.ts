@@ -25,7 +25,8 @@ export interface ApiIssue {
   description?: string;
   notes?: string;
   priority?: string;
-  app_id?: string;
+  app_id?: string; // Deprecated, kept for backward compatibility
+  targets?: Array<{ type: string; id: string; name?: string }>;
   status?: string;
   metadata?: {
     created_at?: string;

@@ -240,8 +240,10 @@ func createTestIssue(id, title, issueType, priority, appID string) *Issue {
 		Description: fmt.Sprintf("Test issue: %s", title),
 		Type:        issueType,
 		Priority:    priority,
-		AppID:       appID,
-		Status:      "open",
+		Targets: []Target{
+			{Type: "scenario", ID: appID},
+		},
+		Status: "open",
 	}
 	issue.Reporter.Name = "Test Suite"
 	issue.Reporter.Email = "test@vrooli.local"

@@ -243,6 +243,7 @@ interface ReportDiagnosticsState {
   bridgeCompliance: BridgeComplianceResult | null;
   bridgeComplianceCheckedAt: string | null;
   bridgeComplianceFailures: string[];
+  runtimeFailureEntries: Array<{ code: string; label: string; detail?: { title: string; recommendation: string } }>;
   diagnosticsRuleResults: BridgeRuleReport[];
   diagnosticsWarnings: string[];
 }
@@ -298,6 +299,19 @@ const BRIDGE_FAILURE_LABELS: Record<string, string> = {
   'BACK/FWD': 'History navigation commands were not acknowledged by the iframe.',
   CHECK_FAILED: 'Runtime bridge check could not complete. Try refreshing the preview.',
   NO_IFRAME: 'Preview iframe was unavailable when the runtime check executed.',
+  CAP_LOGS: 'Preview bridge did not advertise console log capture capability. Restart the scenario to refresh the UI bundle.',
+  CAP_NETWORK: 'Preview bridge did not advertise network request capture capability. Restart the scenario to refresh the UI bundle.',
+};
+
+const BRIDGE_CAPABILITY_DETAILS: Record<string, { title: string; recommendation: string }> = {
+  CAP_LOGS: {
+    title: 'Missing console log capture capability',
+    recommendation: 'Inspect the scenario UI bootstrap and ensure the iframe bridge is initialized with console log capture enabled.',
+  },
+  CAP_NETWORK: {
+    title: 'Missing network request capture capability',
+    recommendation: 'Inspect the scenario UI bootstrap and ensure the iframe bridge is initialized with network capture enabled.',
+  },
 };
 
 const useReportIssueState = ({
@@ -1466,9 +1480,100 @@ const useReportIssueState = ({
     }
   }, [diagnosticsLastFetchedAt]);
 
+  const runtimeFailureCodes = useMemo(() => {
+    const codes = new Set<string>();
+
+    if (bridgeCompliance && Array.isArray(bridgeCompliance.failures)) {
+      bridgeCompliance.failures.forEach(rawCode => {
+        const code = (rawCode ?? '').toString().trim();
+        if (code) {
+          codes.add(code);
+        }
+      });
+    }
+
+    if (!bridgeState.caps.includes('logs')) {
+      codes.add('CAP_LOGS');
+    }
+    if (!bridgeState.caps.includes('network')) {
+      codes.add('CAP_NETWORK');
+    }
+
+    return Array.from(codes);
+  }, [bridgeCompliance, bridgeState.caps]);
+
+  const runtimeFailureEntries = useMemo(() => runtimeFailureCodes.map(code => ({
+    code,
+    label: BRIDGE_FAILURE_LABELS[code] ?? code,
+    detail: BRIDGE_CAPABILITY_DETAILS[code],
+  })), [runtimeFailureCodes]);
+
+  const bridgeComplianceFailures = useMemo(
+    () => runtimeFailureEntries.map(entry => entry.label),
+    [runtimeFailureEntries],
+  );
+
   const diagnosticsViolations = useMemo(() => diagnosticsReport?.violations ?? [], [diagnosticsReport]);
 
-  const diagnosticsRuleResults = useMemo(() => diagnosticsReport?.results ?? [], [diagnosticsReport]);
+  const baseDiagnosticsRuleResults = useMemo(() => diagnosticsReport?.results ?? [], [diagnosticsReport]);
+
+  const runtimeDiagnosticsRule = useMemo<BridgeRuleReport | null>(() => {
+    if (runtimeFailureEntries.length === 0) {
+      return null;
+    }
+
+    const scenarioSlug = (() => {
+      const candidates = [
+        diagnosticsReport?.scenario,
+        app?.scenario_name,
+        app?.id,
+        appId,
+      ];
+      const match = candidates
+        .map(value => (value ?? '').toString().trim())
+        .find(value => value.length > 0);
+      return match ?? 'scenario';
+    })();
+
+    const checkedAtIso = (() => {
+      if (bridgeCompliance?.checkedAt) {
+        try {
+          return new Date(bridgeCompliance.checkedAt).toISOString();
+        } catch {
+          // fall through
+        }
+      }
+      return new Date().toISOString();
+    })();
+
+    const violations = runtimeFailureEntries.map((entry, index) => ({
+      type: 'runtime_bridge_capability',
+      title: entry.detail?.title ?? entry.label,
+      description: entry.label,
+      file_path: 'runtime-bridge',
+      line: index + 1,
+      recommendation: entry.detail?.recommendation ?? 'Restart the scenario preview so the iframe bridge reinitializes with capture capabilities enabled.',
+      severity: 'high',
+      standard: 'runtime',
+    }));
+
+    return {
+      rule_id: 'runtime_bridge_capabilities',
+      name: 'Runtime bridge capabilities',
+      scenario: scenarioSlug,
+      files_scanned: 0,
+      duration_ms: 0,
+      warning: undefined,
+      warnings: [],
+      targets: ['runtime'],
+      violations,
+      checked_at: checkedAtIso,
+    } satisfies BridgeRuleReport;
+  }, [app?.id, app?.scenario_name, appId, bridgeCompliance?.checkedAt, diagnosticsReport?.scenario, runtimeFailureEntries]);
+
+  const diagnosticsRuleResults = useMemo(() => (
+    runtimeDiagnosticsRule ? [...baseDiagnosticsRuleResults, runtimeDiagnosticsRule] : baseDiagnosticsRuleResults
+  ), [baseDiagnosticsRuleResults, runtimeDiagnosticsRule]);
 
   const diagnosticsWarnings = useMemo(() => {
     if (!diagnosticsReport) {
@@ -1496,22 +1601,7 @@ const useReportIssueState = ({
   }, [diagnosticsReport]);
 
   const diagnosticsDescription = useMemo(() => {
-    const runtimeFailures = (() => {
-      if (!bridgeCompliance || bridgeCompliance.ok || !Array.isArray(bridgeCompliance.failures)) {
-        return [] as string[];
-      }
-      const seen = new Set<string>();
-      return bridgeCompliance.failures
-        .map(code => BRIDGE_FAILURE_LABELS[code] ?? code)
-        .filter(message => {
-          const normalized = (message ?? '').toString().trim();
-          if (!normalized || seen.has(normalized)) {
-            return false;
-          }
-          seen.add(normalized);
-          return true;
-        });
-    })();
+    const runtimeFailures = runtimeFailureEntries.map(entry => entry.label);
 
     const hasDiagnosticsReport = Boolean(diagnosticsReport);
     const hasRuntimeIssues = runtimeFailures.length > 0;
@@ -1670,7 +1760,7 @@ const useReportIssueState = ({
     app?.id,
     app?.scenario_name,
     appId,
-    bridgeCompliance,
+    runtimeFailureEntries,
     diagnosticsReport,
     diagnosticsRuleResults,
     diagnosticsScannedFileCount,
@@ -1847,27 +1937,6 @@ const useReportIssueState = ({
     }
   }, [bridgeCompliance]);
 
-  const bridgeComplianceFailures = useMemo(() => {
-    if (!bridgeCompliance || bridgeCompliance.ok) {
-      return [] as string[];
-    }
-
-    const normalized = Array.isArray(bridgeCompliance.failures)
-      ? bridgeCompliance.failures
-      : [];
-
-    const seen = new Set<string>();
-    return normalized
-      .map(code => BRIDGE_FAILURE_LABELS[code] ?? code)
-      .filter((message): message is string => {
-        if (!message || seen.has(message)) {
-          return false;
-        }
-        seen.add(message);
-        return true;
-      });
-  }, [bridgeCompliance]);
-
   const diagnosticsState = useMemo(() => {
     if (diagnosticsLoading) {
       return 'loading';
@@ -1878,11 +1947,14 @@ const useReportIssueState = ({
     if (diagnosticsStatus === 'success' && diagnosticsEvaluation === 'fail') {
       return 'fail';
     }
+    if (runtimeFailureEntries.length > 0) {
+      return 'fail';
+    }
     if (diagnosticsStatus === 'success' && diagnosticsEvaluation === 'pass') {
       return 'pass';
     }
     return 'idle';
-  }, [diagnosticsLoading, diagnosticsStatus, diagnosticsEvaluation]);
+  }, [diagnosticsEvaluation, diagnosticsLoading, diagnosticsStatus, runtimeFailureEntries.length]);
 
   return {
     textareaRef,
@@ -1991,6 +2063,7 @@ const useReportIssueState = ({
       bridgeCompliance,
       bridgeComplianceCheckedAt,
       bridgeComplianceFailures,
+      runtimeFailureEntries,
       diagnosticsRuleResults,
       diagnosticsWarnings,
     },

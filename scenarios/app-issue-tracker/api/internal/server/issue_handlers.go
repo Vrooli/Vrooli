@@ -42,12 +42,21 @@ func (s *Server) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	priority := r.URL.Query().Get("priority")
 	issueType := r.URL.Query().Get("type")
-	appID := r.URL.Query().Get("app_id")
-	limitStr := r.URL.Query().Get("limit")
 
+	// Support both new and old query parameters for backward compatibility
+	targetID := r.URL.Query().Get("target_id")
+	targetType := r.URL.Query().Get("target_type")
+	appID := r.URL.Query().Get("app_id") // Deprecated but supported for backward compat
+
+	// If old app_id param is used and no target_id, use app_id as target_id
+	if appID != "" && targetID == "" {
+		targetID = appID
+	}
+
+	limitStr := r.URL.Query().Get("limit")
 	limit := normalizeListLimit(limitStr, defaultIssueListLimit, maxIssueListLimit)
 
-	issues, err := s.issues.ListIssues(status, priority, issueType, appID, limit)
+	issues, err := s.issues.ListIssues(status, priority, issueType, targetID, targetType, limit)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidStatusFilter) {
 			handlers.WriteError(w, http.StatusBadRequest, "Invalid status filter")
@@ -57,7 +66,8 @@ func (s *Server) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 			"status", status,
 			"priority", priority,
 			"type", issueType,
-			"app_id", appID,
+			"target_id", targetID,
+			"target_type", targetType,
 		)
 		handlers.WriteError(w, http.StatusInternalServerError, "Failed to load issues")
 		return

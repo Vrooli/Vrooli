@@ -1,4 +1,4 @@
-import type { IssueStatus, Priority } from './issue';
+import type { IssueStatus, Priority, Target } from './issue';
 
 export interface CreateIssueAttachmentPayload {
   name: string;
@@ -22,7 +22,7 @@ export interface CreateIssueInitialFields {
   description?: string;
   priority?: Priority;
   status?: IssueStatus;
-  appId?: string;
+  targets?: Target[];
   tags?: string[];
   reporterName?: string;
   reporterEmail?: string;
@@ -40,7 +40,7 @@ export interface CreateIssueInput {
   description: string;
   priority: Priority;
   status: IssueStatus;
-  appId: string;
+  targets: Target[];
   tags: string[];
   reporterName?: string;
   reporterEmail?: string;
@@ -53,7 +53,7 @@ export interface UpdateIssueInput {
   description?: string;
   priority?: Priority;
   status?: IssueStatus;
-  appId?: string;
+  targets?: Target[];
   tags?: string[];
   reporterName?: string;
   reporterEmail?: string;

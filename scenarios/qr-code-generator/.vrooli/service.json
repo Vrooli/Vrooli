@@ -36,7 +36,7 @@
     "n8n": {
       "type": "n8n",
       "enabled": true,
-      "required": true,
+      "required": false,
       "shared_workflows": [
         "file-list-writer",
         "ollama",
@@ -65,7 +65,7 @@
     "redis": {
       "type": "redis",
       "enabled": true,
-      "required": true,
+      "required": false,
       "purpose": "Cache generated QR codes and track batch jobs"
     }
   },
@@ -139,7 +139,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o qr-generator-api .",
+          "run": "cd api && go mod download && go build -o qr-code-generator-api .",
           "description": "Build Go API binary"
         },
         {
@@ -183,14 +183,9 @@
       "description": "Test QR code generator",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-generation",
-          "run": "curl -X POST http://localhost:$API_PORT/generate -H 'Content-Type: application/json' -d '{\"text\":\"test\",\"size\":256}'",
-          "description": "Test QR generation"
+          "name": "run-tests",
+          "run": "bash test/run-tests.sh",
+          "description": "Run comprehensive phased test suite"
         }
       ]
     },

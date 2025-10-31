@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"os"
 	"path/filepath"
@@ -206,9 +207,7 @@ func parseAgentTranscript(path string, maxEntries int) (map[string]interface{}, 
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 2*1024*1024)
+	reader := bufio.NewReader(file)
 
 	var (
 		metadata map[string]interface{}
@@ -216,104 +215,119 @@ func parseAgentTranscript(path string, maxEntries int) (map[string]interface{}, 
 		entries  []AgentConversationEntry
 	)
 
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for {
+		lineBytes, readErr := reader.ReadBytes('\n')
+		if len(lineBytes) == 0 && readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+			return nil, "", nil, readErr
+		}
+
+		line := strings.TrimSpace(string(lineBytes))
 		if line == "" {
+			if readErr != nil {
+				if errors.Is(readErr, io.EOF) {
+					break
+				}
+				return nil, "", nil, readErr
+			}
 			continue
 		}
 
 		var raw map[string]interface{}
+		appended := false
+
 		if err := json.Unmarshal([]byte(line), &raw); err != nil {
 			entries = append(entries, AgentConversationEntry{
 				Kind: "unparsed",
 				Text: line,
 				Data: map[string]interface{}{"error": err.Error()},
 			})
-			continue
-		}
-
-		if _, ok := raw["sandbox"]; ok {
+			appended = true
+		} else if _, ok := raw["sandbox"]; ok {
 			metadata = raw
-			continue
-		}
-
-		if rawPrompt, ok := raw["prompt"].(string); ok {
+		} else if rawPrompt, ok := raw["prompt"].(string); ok {
 			prompt = rawPrompt
 			entries = append(entries, AgentConversationEntry{
 				Kind: "prompt",
 				Role: "user",
 				Text: rawPrompt,
 			})
-			continue
-		}
+			appended = true
+		} else {
+			msg, ok := raw["msg"].(map[string]interface{})
+			if !ok {
+				entries = append(entries, AgentConversationEntry{
+					Kind: "raw",
+					Raw:  raw,
+				})
+				appended = true
+			} else {
+				entry := AgentConversationEntry{
+					Kind: "event",
+					ID:   asString(raw["id"]),
+					Type: asString(msg["type"]),
+				}
 
-		msg, ok := raw["msg"].(map[string]interface{})
-		if !ok {
-			entries = append(entries, AgentConversationEntry{
-				Kind: "raw",
-				Raw:  raw,
-			})
-			continue
-		}
+				if role := strings.TrimSpace(asString(msg["role"])); role != "" {
+					entry.Role = role
+				}
 
-		entry := AgentConversationEntry{
-			Kind: "event",
-			ID:   asString(raw["id"]),
-			Type: asString(msg["type"]),
-		}
+				switch entry.Type {
+				case "agent_message", "final_response":
+					if entry.Role == "" {
+						entry.Role = "assistant"
+					}
+					entry.Kind = "message"
+					entry.Text = asString(msg["message"])
+				case "agent_reasoning", "reasoning":
+					if entry.Role == "" {
+						entry.Role = "assistant"
+					}
+					entry.Kind = "reasoning"
+					entry.Text = asString(msg["text"])
+				case "user_message":
+					if entry.Role == "" {
+						entry.Role = "user"
+					}
+					entry.Kind = "message"
+					entry.Text = asString(msg["message"])
+				case "tool_request", "tool_result", "tool_output", "tool_error":
+					entry.Kind = "tool"
+					entry.Text = asString(msg["summary"])
+				case "token_count", "task_started":
+					entry.Kind = "event"
+				}
 
-		if role := strings.TrimSpace(asString(msg["role"])); role != "" {
-			entry.Role = role
-		}
+				data := sanitizeConversationData(msg, "type", "message", "text", "role")
+				if timestamp := raw["timestamp"]; timestamp != nil {
+					if data == nil {
+						data = make(map[string]interface{})
+					}
+					data["timestamp"] = timestamp
+				}
+				entry.Data = data
 
-		switch entry.Type {
-		case "agent_message", "final_response":
-			if entry.Role == "" {
-				entry.Role = "assistant"
+				if entry.Data == nil {
+					entry.Raw = msg
+				}
+
+				entries = append(entries, entry)
+				appended = true
 			}
-			entry.Kind = "message"
-			entry.Text = asString(msg["message"])
-		case "agent_reasoning", "reasoning":
-			if entry.Role == "" {
-				entry.Role = "assistant"
-			}
-			entry.Kind = "reasoning"
-			entry.Text = asString(msg["text"])
-		case "user_message":
-			if entry.Role == "" {
-				entry.Role = "user"
-			}
-			entry.Kind = "message"
-			entry.Text = asString(msg["message"])
-		case "tool_request", "tool_result", "tool_output", "tool_error":
-			entry.Kind = "tool"
-			entry.Text = asString(msg["summary"])
-		case "token_count", "task_started":
-			entry.Kind = "event"
 		}
 
-		data := sanitizeConversationData(msg, "type", "message", "text", "role")
-		if timestamp := raw["timestamp"]; timestamp != nil {
-			if data == nil {
-				data = make(map[string]interface{})
-			}
-			data["timestamp"] = timestamp
-		}
-		entry.Data = data
-
-		if entry.Data == nil {
-			entry.Raw = msg
-		}
-
-		entries = append(entries, entry)
-
-		if maxEntries > 0 && len(entries) >= maxEntries {
+		if appended && maxEntries > 0 && len(entries) >= maxEntries {
 			break
 		}
-	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, "", nil, err
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+			return nil, "", nil, readErr
+		}
 	}
 
 	return metadata, prompt, entries, nil

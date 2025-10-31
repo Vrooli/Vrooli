@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"fmt"
 	"path"
 	"strings"
 )
@@ -48,14 +49,21 @@ func IsValidStatus(status string) bool {
 	return ok
 }
 
+// Target represents a scenario or resource that an issue applies to
+type Target struct {
+	Type string `yaml:"type" json:"type"` // "scenario" | "resource"
+	ID   string `yaml:"id" json:"id"`
+	Name string `yaml:"name,omitempty" json:"name,omitempty"` // Optional display name
+}
+
 type Issue struct {
-	ID          string `yaml:"id" json:"id"`
-	Title       string `yaml:"title" json:"title"`
-	Description string `yaml:"description" json:"description"`
-	Type        string `yaml:"type" json:"type"`
-	Priority    string `yaml:"priority" json:"priority"`
-	AppID       string `yaml:"app_id" json:"app_id"`
-	Status      string `yaml:"status" json:"status"`
+	ID          string   `yaml:"id" json:"id"`
+	Title       string   `yaml:"title" json:"title"`
+	Description string   `yaml:"description" json:"description"`
+	Type        string   `yaml:"type" json:"type"`
+	Priority    string   `yaml:"priority" json:"priority"`
+	Targets     []Target `yaml:"targets" json:"targets"`
+	Status      string   `yaml:"status" json:"status"`
 
 	Reporter struct {
 		Name      string `yaml:"name" json:"name"`
@@ -150,12 +158,12 @@ type PromptPreviewResponse struct {
 }
 
 type UpdateIssueRequest struct {
-	Title         *string            `json:"title"`
-	Description   *string            `json:"description"`
-	Type          *string            `json:"type"`
-	Priority      *string            `json:"priority"`
-	AppID         *string            `json:"app_id"`
-	Status        *string            `json:"status"`
+	Title         *string   `json:"title"`
+	Description   *string   `json:"description"`
+	Type          *string   `json:"type"`
+	Priority      *string   `json:"priority"`
+	Targets       *[]Target `json:"targets"`
+	Status        *string   `json:"status"`
 	Tags          *[]string          `json:"tags"`
 	Labels        *map[string]string `json:"labels"`
 	Watchers      *[]string          `json:"watchers"`
@@ -237,7 +245,7 @@ type CreateIssueRequest struct {
 	Description   string            `json:"description"`
 	Type          string            `json:"type"`
 	Priority      string            `json:"priority"`
-	AppID         string            `json:"app_id"`
+	Targets       []Target          `json:"targets"`
 	Status        string            `json:"status"`
 	Tags          []string          `json:"tags"`
 	Labels        map[string]string `json:"labels"`
@@ -366,4 +374,82 @@ func NormalizeAttachmentPath(value string) string {
 		return ""
 	}
 	return cleaned
+}
+
+// ValidateTarget ensures target type and ID are valid
+func ValidateTarget(t Target) error {
+	trimmedType := strings.ToLower(strings.TrimSpace(t.Type))
+	if trimmedType != "scenario" && trimmedType != "resource" {
+		return fmt.Errorf("invalid target type: %s (must be 'scenario' or 'resource')", t.Type)
+	}
+
+	trimmedID := strings.TrimSpace(t.ID)
+	if trimmedID == "" {
+		return fmt.Errorf("target ID cannot be empty")
+	}
+
+	return nil
+}
+
+// NormalizeTargets validates and normalizes target list, removing duplicates
+func NormalizeTargets(targets []Target) ([]Target, error) {
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("at least one target is required")
+	}
+
+	normalized := make([]Target, 0, len(targets))
+	seen := make(map[string]bool)
+
+	for _, t := range targets {
+		if err := ValidateTarget(t); err != nil {
+			return nil, err
+		}
+
+		key := fmt.Sprintf("%s:%s", strings.ToLower(t.Type), strings.ToLower(t.ID))
+		if seen[key] {
+			continue // Skip duplicates
+		}
+		seen[key] = true
+
+		normalized = append(normalized, Target{
+			Type: strings.ToLower(strings.TrimSpace(t.Type)),
+			ID:   strings.TrimSpace(t.ID),
+			Name: strings.TrimSpace(t.Name),
+		})
+	}
+
+	return normalized, nil
+}
+
+// GetTargetIDs extracts just the IDs from targets (useful for backward compat)
+func GetTargetIDs(targets []Target) []string {
+	ids := make([]string, len(targets))
+	for i, t := range targets {
+		ids[i] = t.ID
+	}
+	return ids
+}
+
+// GetTargetsByType filters targets by type ("scenario" or "resource")
+func GetTargetsByType(targets []Target, targetType string) []Target {
+	var filtered []Target
+	normalizedType := strings.ToLower(strings.TrimSpace(targetType))
+	for _, t := range targets {
+		if strings.ToLower(t.Type) == normalizedType {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
+// FormatTargets returns a comma-separated string of targets in "type:id" format
+func FormatTargets(targets []Target) string {
+	if len(targets) == 0 {
+		return ""
+	}
+	strs := make([]string, len(targets))
+	for i, t := range targets {
+		strs[i] = fmt.Sprintf("%s:%s", t.Type, t.ID)
+	}
+	return strings.Join(strs, ", ")
 }

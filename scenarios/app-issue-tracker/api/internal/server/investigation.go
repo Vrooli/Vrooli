@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"app-issue-tracker-api/internal/agents"
+	issuespkg "app-issue-tracker-api/internal/issues"
 	"app-issue-tracker-api/internal/logging"
 	services "app-issue-tracker-api/internal/server/services"
 	"app-issue-tracker-api/internal/utils"
@@ -95,9 +96,16 @@ func (svc *InvestigationService) transitionIssueAndPublish(
 // attemptScenarioRestart tries to restart the scenario and returns a status string for the event
 // Returns: nil if no scenario to restart, "success" if restart succeeded, "failed:<reason>" if restart failed
 func (svc *InvestigationService) attemptScenarioRestart(issue *Issue, issueID string) *string {
-	scenarioName := strings.TrimSpace(issue.AppID)
-	if scenarioName == "" {
+	// Try to find a scenario target to restart
+	scenarios := issuespkg.GetTargetsByType(issue.Targets, "scenario")
+	if len(scenarios) == 0 {
 		return nil // No scenario to restart
+	}
+
+	// Use the first scenario target
+	scenarioName := strings.TrimSpace(scenarios[0].ID)
+	if scenarioName == "" {
+		return nil
 	}
 
 	restartCtx, cancel := context.WithTimeout(context.Background(), ScenarioRestartTimeout)

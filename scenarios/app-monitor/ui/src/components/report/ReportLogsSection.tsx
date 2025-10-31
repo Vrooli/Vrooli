@@ -44,6 +44,9 @@ const ReportLogsSection = ({
   healthPanelId,
   statusPanelId,
 }: ReportLogsSectionProps) => {
+  const missingLogsCapability = !bridgeCaps.includes('logs');
+  const missingNetworkCapability = !bridgeCaps.includes('network');
+
   const renderHealthStatusIcon = (status: 'pass' | 'warn' | 'fail') => {
     switch (status) {
       case 'pass':
@@ -220,6 +223,17 @@ const ReportLogsSection = ({
           )}
         </button>
       </div>
+      {missingLogsCapability && (
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
+          <AlertTriangle aria-hidden size={18} />
+          <div>
+            <p className="report-dialog__logs-alert-title">Console capture unavailable</p>
+            <p>
+              Runtime diagnostics flagged that this preview&apos;s iframe bridge did not advertise log support. Restart the scenario to refresh the UI bundle, or include diagnostics in the issue so follow-up agents are notified.
+            </p>
+          </div>
+        </div>
+      )}
       <div
         id={consoleLogsPanelId}
         className="report-dialog__logs-panel"
@@ -326,6 +340,17 @@ const ReportLogsSection = ({
           )}
         </button>
       </div>
+      {missingNetworkCapability && (
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
+          <AlertTriangle aria-hidden size={18} />
+          <div>
+            <p className="report-dialog__logs-alert-title">Network capture unavailable</p>
+            <p>
+              Runtime diagnostics flagged that this preview&apos;s iframe bridge did not advertise network request support. Restart the scenario to refresh the UI bundle, or include diagnostics in the issue so follow-up agents are notified.
+            </p>
+          </div>
+        </div>
+      )}
       <div
         id={networkPanelId}
         className="report-dialog__logs-panel"

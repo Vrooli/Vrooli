@@ -221,7 +221,7 @@ export async function createIssue(
     description: input.description.trim() || input.title.trim(),
     priority: input.priority.toLowerCase(),
     status: input.status.toLowerCase(),
-    app_id: input.appId.trim() || 'unknown',
+    targets: input.targets,
     tags: input.tags,
     reporter_name: input.reporterName?.trim(),
     reporter_email: input.reporterEmail?.trim(),
@@ -297,8 +297,8 @@ export async function updateIssue(
   if (typeof input.status === 'string') {
     body.status = input.status.toLowerCase();
   }
-  if (typeof input.appId === 'string') {
-    body.app_id = input.appId.trim();
+  if (Array.isArray(input.targets)) {
+    body.targets = input.targets;
   }
   if (Array.isArray(input.tags)) {
     body.tags = input.tags;

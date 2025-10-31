@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -78,12 +79,16 @@ func newIssueAnalytics(issues []Issue, now time.Time) issueAnalytics {
 			}
 		}
 
-		stats := analytics.appStats[issue.AppID]
-		stats.total++
-		if issue.Status == "open" || issue.Status == "active" {
-			stats.open++
+		// Track stats for each target
+		for _, target := range issue.Targets {
+			key := fmt.Sprintf("%s:%s", target.Type, target.ID)
+			stats := analytics.appStats[key]
+			stats.total++
+			if issue.Status == "open" || issue.Status == "active" {
+				stats.open++
+			}
+			analytics.appStats[key] = stats
 		}
-		analytics.appStats[issue.AppID] = stats
 
 		createdAt := strings.TrimSpace(issue.Metadata.CreatedAt)
 		resolvedAt := strings.TrimSpace(issue.Metadata.ResolvedAt)

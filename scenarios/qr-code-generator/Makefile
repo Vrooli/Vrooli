@@ -4,13 +4,12 @@
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make              - Show this help message and list all available commands
-#   make start        - Start the QR code generator scenario through the lifecycle system
-#   make run          - Alias for 'make start' - starts the scenario
-#   make stop         - Stop the QR code generator scenario and clean up processes
-#   make test         - Run the full test suite for this scenario
-#   make logs         - Display recent logs from the scenario services
-#   make clean        - Remove build artifacts and temporary files
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Remove build artifacts
 
 .PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
@@ -42,7 +41,7 @@ help: ## Show this help message
 
 start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
 
 run: start ## Alias for start
 

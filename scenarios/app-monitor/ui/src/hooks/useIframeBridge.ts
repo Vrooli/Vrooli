@@ -914,6 +914,14 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       recordFailure('BACK/FWD');
     }
 
+    if (helloReceivedRef.current && !supportsLogsRef.current) {
+      recordFailure('CAP_LOGS');
+    }
+
+    if (helloReceivedRef.current && !supportsNetworkRef.current) {
+      recordFailure('CAP_NETWORK');
+    }
+
     if (originalHref) {
       sendNav('GO', originalHref);
     }

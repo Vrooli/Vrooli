@@ -62,10 +62,8 @@ func main() {
 	// Require explicit port configuration
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		fmt.Fprintf(os.Stderr, "❌ Error: API_PORT or PORT environment variable is required\n")
+		fmt.Fprintf(os.Stderr, "❌ Error: API_PORT environment variable is required\n")
+		fmt.Fprintf(os.Stderr, "💡 This service must be run through the Vrooli lifecycle system.\n")
 		os.Exit(1)
 	}
 

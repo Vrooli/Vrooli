@@ -96,6 +96,7 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 
 	v1 := r.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/ws", server.handleWebSocket).Methods("GET")
+	v1.HandleFunc("/components", server.getComponentsHandler).Methods("GET")
 	v1.HandleFunc("/issues", server.getIssuesHandler).Methods("GET")
 	v1.HandleFunc("/issues", server.createIssueHandler).Methods("POST")
 	v1.HandleFunc("/issues/{id}/attachments/{attachment:.*}", server.getIssueAttachmentHandler).Methods("GET")

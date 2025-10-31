@@ -17,6 +17,21 @@
   --border-radius-sm: 8px;
   --accent: #6366f1;
   --accent-muted: rgba(99, 102, 241, 0.08);
+
+  /* Component selector variables */
+  --background: #ffffff;
+  --background-secondary: #f8fafc;
+  --background-tertiary: #f1f5f9;
+  --background-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --primary: #6366f1;
+  --primary-alpha: rgba(99, 102, 241, 0.1);
+  --danger: #ef4444;
+  --danger-alpha: rgba(239, 68, 68, 0.1);
 }
 
 body {
@@ -47,6 +62,21 @@ button, input, select, textarea {
   --accent: #8b5cf6;
   color: #e2e8f0;
   background-color: #0f172a;
+
+  /* Component selector variables - dark mode */
+  --background: #1f2937;
+  --background-secondary: #111827;
+  --background-tertiary: #374151;
+  --background-hover: #374151;
+  --border: #374151;
+  --border-hover: #4b5563;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --primary: #8b5cf6;
+  --primary-alpha: rgba(139, 92, 246, 0.15);
+  --danger: #f87171;
+  --danger-alpha: rgba(248, 113, 113, 0.15);
 }
 
 .dark body {

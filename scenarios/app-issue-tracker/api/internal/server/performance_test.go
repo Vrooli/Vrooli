@@ -31,8 +31,10 @@ func TestPerformance_CreateIssues(t *testing.T) {
 			Method: http.MethodPost,
 			Path:   "/api/v1/issues",
 			Body: map[string]interface{}{
-				"title":  fmt.Sprintf("Performance Test Issue %d", i),
-				"app_id": "perf-test",
+				"title": fmt.Sprintf("Performance Test Issue %d", i),
+				"targets": []map[string]interface{}{
+					{"type": "scenario", "id": "perf-test"},
+				},
 			},
 		}
 
@@ -147,8 +149,10 @@ func TestPerformance_ConcurrentWrites(t *testing.T) {
 					Method: http.MethodPost,
 					Path:   "/api/v1/issues",
 					Body: map[string]interface{}{
-						"title":  fmt.Sprintf("Concurrent Write %d-%d", writerID, j),
-						"app_id": "concurrent-test",
+						"title": fmt.Sprintf("Concurrent Write %d-%d", writerID, j),
+						"targets": []map[string]interface{}{
+							{"type": "scenario", "id": "concurrent-test"},
+						},
 					},
 				}
 
@@ -302,8 +306,10 @@ func BenchmarkCreateIssue(b *testing.B) {
 			Method: http.MethodPost,
 			Path:   "/api/v1/issues",
 			Body: map[string]interface{}{
-				"title":  fmt.Sprintf("Benchmark Issue %d", i),
-				"app_id": "benchmark-test",
+				"title": fmt.Sprintf("Benchmark Issue %d", i),
+				"targets": []map[string]interface{}{
+					{"type": "scenario", "id": "benchmark-test"},
+				},
 			},
 		}
 

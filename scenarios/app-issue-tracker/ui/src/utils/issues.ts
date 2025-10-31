@@ -339,7 +339,9 @@ export function transformIssue(raw: ApiIssue, options: TransformIssueOptions): I
     priority: normalizePriority(raw.priority),
     createdAt,
     status: normalizeStatus(raw.status),
-    app: labels.app ?? raw.app_id ?? 'unknown',
+    targets: Array.isArray(raw.targets)
+      ? raw.targets.map(t => ({ type: t.type as 'scenario' | 'resource', id: t.id, name: t.name }))
+      : [{ type: 'scenario' as const, id: 'unknown' }],
     tags,
     attachments,
     resolvedAt,
@@ -360,7 +362,7 @@ export function buildIssueSnapshot(issue: Issue): Record<string, unknown> {
     source_issue_title_original: issue.rawTitle ?? issue.title,
     status: issue.status,
     priority: issue.priority,
-    app: issue.app,
+    targets: issue.targets,
     assignee: issue.assignee,
     created_at: issue.createdAt,
     updated_at: issue.updatedAt ?? null,

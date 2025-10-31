@@ -55,7 +55,10 @@ func (pb *PromptBuilder) BuildPrompt(issue *Issue, issueDir, agentID, projectPat
 		"{{issue_description}}":  fallbackValue,
 		"{{issue_type}}":         fallbackValue,
 		"{{issue_priority}}":     fallbackValue,
-		"{{app_name}}":           fallbackValue,
+		"{{app_name}}":           fallbackValue, // Deprecated but kept for backward compat
+		"{{targets}}":            fallbackValue, // NEW
+		"{{scenarios}}":          fallbackValue, // NEW
+		"{{resources}}":          fallbackValue, // NEW
 		"{{error_message}}":      fallbackValue,
 		"{{stack_trace}}":        fallbackValue,
 		"{{affected_files}}":     fallbackValue,
@@ -74,7 +77,37 @@ func (pb *PromptBuilder) BuildPrompt(issue *Issue, issueDir, agentID, projectPat
 		replacements["{{issue_description}}"] = utils.ValueOrFallback(issue.Description, fallbackValue)
 		replacements["{{issue_type}}"] = utils.ValueOrFallback(issue.Type, fallbackValue)
 		replacements["{{issue_priority}}"] = utils.ValueOrFallback(issue.Priority, fallbackValue)
-		replacements["{{app_name}}"] = utils.ValueOrFallback(issue.AppID, fallbackValue)
+
+		// NEW: Build target strings
+		if len(issue.Targets) > 0 {
+			var targetStrs, scenarioStrs, resourceStrs []string
+
+			for _, t := range issue.Targets {
+				targetStrs = append(targetStrs, fmt.Sprintf("%s:%s", t.Type, t.ID))
+
+				if t.Type == "scenario" {
+					scenarioStrs = append(scenarioStrs, t.ID)
+				} else if t.Type == "resource" {
+					resourceStrs = append(resourceStrs, t.ID)
+				}
+			}
+
+			replacements["{{targets}}"] = strings.Join(targetStrs, ", ")
+			replacements["{{scenarios}}"] = utils.ValueOrFallback(strings.Join(scenarioStrs, ", "), fallbackValue)
+			replacements["{{resources}}"] = utils.ValueOrFallback(strings.Join(resourceStrs, ", "), fallbackValue)
+
+			// Backward compat: use first scenario or first target as app_name
+			if len(scenarioStrs) > 0 {
+				replacements["{{app_name}}"] = scenarioStrs[0]
+			} else if len(issue.Targets) > 0 {
+				replacements["{{app_name}}"] = issue.Targets[0].ID
+			} else {
+				replacements["{{app_name}}"] = fallbackValue
+			}
+		} else {
+			replacements["{{app_name}}"] = fallbackValue
+		}
+
 		replacements["{{error_message}}"] = utils.ValueOrFallback(issue.ErrorContext.ErrorMessage, fallbackValue)
 		replacements["{{stack_trace}}"] = utils.ValueOrFallback(issue.ErrorContext.StackTrace, fallbackValue)
 		replacements["{{affected_files}}"] = utils.ValueOrFallback(joinList(issue.ErrorContext.AffectedFiles), fallbackValue)

@@ -5,27 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎮 Retro QR Generator</title>
     <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="crt-effect">
         <div class="container">
-            <header>
+            <header class="app-header">
                 <h1 class="neon-text">⚡ QR CODE GENERATOR ⚡</h1>
-                <div class="subtitle">[ VROOLI QUANTUM ENCODER v1.0 ]</div>
+                <div class="subtitle" aria-label="Application version">[ VROOLI QUANTUM ENCODER v1.0 ]</div>
             </header>
 
-            <div class="main-panel">
-                <div class="control-section">
-                    <h2 class="section-title">▶ INPUT DATA</h2>
+            <main id="main-content" class="main-panel" tabindex="-1">
+                <section class="panel control-section" aria-labelledby="input-title">
+                    <h2 id="input-title" class="section-title">▶ INPUT DATA</h2>
                     
                     <div class="input-group">
-                        <label class="retro-label">ENTER TEXT/URL:</label>
+                        <label class="retro-label" for="qr-text">Enter text or URL</label>
                         <textarea id="qr-text" class="retro-input" placeholder="Type your message here..." rows="3"></textarea>
                     </div>
 
                     <div class="options-grid">
                         <div class="option-group">
-                            <label class="retro-label">SIZE:</label>
+                            <label class="retro-label" for="qr-size">Size</label>
                             <select id="qr-size" class="retro-select">
                                 <option value="128">128px</option>
                                 <option value="256" selected>256px</option>
@@ -35,7 +43,7 @@
                         </div>
 
                         <div class="option-group">
-                            <label class="retro-label">ERROR CORRECTION:</label>
+                            <label class="retro-label" for="qr-correction">Error correction</label>
                             <select id="qr-correction" class="retro-select">
                                 <option value="L">Low (7%)</option>
                                 <option value="M" selected>Medium (15%)</option>
@@ -45,32 +53,34 @@
                         </div>
                     </div>
 
-                    <div class="color-controls">
+                    <fieldset class="color-controls" aria-describedby="color-hint">
+                        <legend class="retro-label color-legend">Custom colours</legend>
+                        <p id="color-hint" class="assistive-text">Pick contrasting colours for accessible QR codes.</p>
                         <div class="color-group">
-                            <label class="retro-label">FOREGROUND:</label>
+                            <label class="retro-label" for="qr-color">Foreground colour</label>
                             <div class="color-picker-wrapper">
                                 <input type="color" id="qr-color" value="#00ff00" class="color-picker">
-                                <span id="color-hex" class="color-value">#00FF00</span>
+                                <span id="color-hex" class="color-value" aria-live="polite">#00FF00</span>
                             </div>
                         </div>
                         <div class="color-group">
-                            <label class="retro-label">BACKGROUND:</label>
+                            <label class="retro-label" for="qr-bg">Background colour</label>
                             <div class="color-picker-wrapper">
                                 <input type="color" id="qr-bg" value="#000000" class="color-picker">
-                                <span id="bg-hex" class="color-value">#000000</span>
+                                <span id="bg-hex" class="color-value" aria-live="polite">#000000</span>
                             </div>
                         </div>
-                    </div>
+                    </fieldset>
 
-                    <button id="generate-btn" class="retro-button">
-                        <span class="button-text">⚙ GENERATE QR CODE</span>
+                    <button id="generate-btn" class="retro-button" type="button">
+                        <span class="button-text">⚙ Generate QR code</span>
                     </button>
-                </div>
+                </section>
 
-                <div class="preview-section">
-                    <h2 class="section-title">▶ OUTPUT PREVIEW</h2>
+                <section class="panel preview-section" aria-labelledby="preview-title">
+                    <h2 id="preview-title" class="section-title">▶ OUTPUT PREVIEW</h2>
                     
-                    <div class="qr-display" id="qr-display">
+                    <div class="qr-display" id="qr-display" aria-live="polite" aria-busy="false" aria-label="QR code preview area">
                         <div class="placeholder">
                             <div class="ascii-art">
                                 ╔══════════════╗
@@ -86,32 +96,32 @@
                     </div>
 
                     <div class="action-buttons" id="action-buttons" style="display: none;">
-                        <button id="download-btn" class="retro-button secondary">
-                            💾 DOWNLOAD
+                        <button id="download-btn" class="retro-button secondary" type="button">
+                            💾 <span class="button-text">Download</span>
                         </button>
-                        <button id="copy-btn" class="retro-button secondary">
-                            📋 COPY URL
+                        <button id="copy-btn" class="retro-button secondary" type="button">
+                            📋 <span class="button-text">Copy URL</span>
                         </button>
                     </div>
-                </div>
-            </div>
+                </section>
+            </main>
 
-            <div class="batch-panel">
-                <h2 class="section-title">▶ BATCH MODE</h2>
+            <section class="batch-panel panel" aria-labelledby="batch-title">
+                <h2 id="batch-title" class="section-title">▶ BATCH MODE</h2>
                 <div class="batch-info">
                     Process multiple QR codes at once. Add items below:
                 </div>
                 <div id="batch-items" class="batch-items"></div>
-                <button id="add-batch-item" class="retro-button small">+ ADD ITEM</button>
-                <button id="process-batch" class="retro-button" style="display: none;">
-                    ⚡ PROCESS BATCH (<span id="batch-count">0</span>)
+                <button id="add-batch-item" class="retro-button small" type="button">+ Add item</button>
+                <button id="process-batch" class="retro-button" style="display: none;" type="button">
+                    ⚡ Process batch (<span id="batch-count" aria-live="polite">0</span>)
                 </button>
-            </div>
+            </section>
 
             <footer>
                 <div class="status-bar">
-                    <span id="status" class="status-text">SYSTEM READY</span>
-                    <span class="credits">POWERED BY VROOLI | 2025</span>
+                    <span id="status" class="status-text" role="status" aria-live="polite">System ready</span>
+                    <span class="credits">Powered by Vrooli | 2025</span>
                 </div>
             </footer>
         </div>

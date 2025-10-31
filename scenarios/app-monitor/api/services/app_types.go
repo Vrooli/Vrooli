@@ -562,6 +562,7 @@ type LocalhostUsageReport struct {
 type IssueReportRequest struct {
 	AppID                     string                  `json:"-"`
 	Message                   string                  `json:"message"`
+	Targets                   []IssueTarget           `json:"targets"`
 	IncludeScreenshot         *bool                   `json:"includeScreenshot"`
 	PreviewURL                *string                 `json:"previewUrl"`
 	AppName                   *string                 `json:"appName"`
@@ -587,6 +588,12 @@ type IssueReportRequest struct {
 	AppStatusCapturedAt       *string                 `json:"appStatusCapturedAt"`
 	PrimaryDescription        *string                 `json:"primaryDescription"`
 	IncludeDiagnosticsSummary *bool                   `json:"includeDiagnosticsSummary"`
+}
+
+type IssueTarget struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
 }
 
 type IssueConsoleLogEntry struct {

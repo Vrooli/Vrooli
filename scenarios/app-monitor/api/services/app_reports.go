@@ -66,6 +66,11 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		scenarioName = appID
 	}
 
+	targetEntries := sanitizeIssueTargets(req.Targets, scenarioName, appName)
+	if len(targetEntries) == 0 {
+		return nil, errors.New("no valid targets provided for issue report")
+	}
+
 	previewURL := ""
 	if req.PreviewURL != nil {
 		previewURL = normalizePreviewURL(*req.PreviewURL)
@@ -396,6 +401,13 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		})
 	}
 
+	if len(targetEntries) > 0 {
+		metadataExtra["target_primary"] = targetEntries[0].ID
+	}
+	if len(targetEntries) > 1 {
+		metadataExtra["target_count"] = strconv.Itoa(len(targetEntries))
+	}
+
 	if len(metadataExtra) == 0 {
 		metadataExtra = nil
 	}
@@ -406,18 +418,30 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 	reporterEmail := "monitor@vrooli.local"
 
+	targetPayload := make([]map[string]string, 0, len(targetEntries))
+	for _, target := range targetEntries {
+		entry := map[string]string{
+			"type": target.Type,
+			"id":   target.ID,
+		}
+		if target.Name != "" {
+			entry["name"] = target.Name
+		}
+		targetPayload = append(targetPayload, entry)
+	}
+
 	payload := map[string]interface{}{
 		"title":          title,
 		"description":    description,
 		"type":           "bug",
 		"priority":       "medium",
-		"app_id":         scenarioName,
 		"tags":           tags,
 		"environment":    environment,
 		"metadata_extra": metadataExtra,
 		"artifacts":      artifacts,
 		"reporter_name":  reporterName,
 		"reporter_email": reporterEmail,
+		"targets":        targetPayload,
 	}
 
 	result, err := s.submitIssueToTracker(ctx, port, payload)
@@ -716,6 +740,50 @@ func sanitizeHealthChecks(entries []IssueHealthCheckEntry, maxEntries, maxNameLe
 	}
 
 	return sanitized
+}
+
+func sanitizeIssueTargets(input []IssueTarget, fallbackScenarioID, fallbackScenarioName string) []IssueTarget {
+	seen := make(map[string]struct{})
+	normalized := make([]IssueTarget, 0, len(input)+1)
+
+	for _, target := range input {
+		typeVal := strings.ToLower(strings.TrimSpace(target.Type))
+		if typeVal == "" {
+			typeVal = "scenario"
+		}
+
+		idVal := strings.TrimSpace(target.ID)
+		if idVal == "" {
+			continue
+		}
+
+		key := fmt.Sprintf("%s:%s", typeVal, strings.ToLower(idVal))
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+
+		nameVal := strings.TrimSpace(target.Name)
+		normalized = append(normalized, IssueTarget{
+			Type: typeVal,
+			ID:   idVal,
+			Name: nameVal,
+		})
+	}
+
+	fallbackID := strings.TrimSpace(fallbackScenarioID)
+	if fallbackID != "" {
+		fallbackKey := fmt.Sprintf("scenario:%s", strings.ToLower(fallbackID))
+		if _, exists := seen[fallbackKey]; !exists {
+			normalized = append([]IssueTarget{{
+				Type: "scenario",
+				ID:   fallbackID,
+				Name: strings.TrimSpace(fallbackScenarioName),
+			}}, normalized...)
+		}
+	}
+
+	return normalized
 }
 
 // sanitizeIssueCaptures validates and normalizes screenshot/element captures

@@ -87,7 +87,9 @@ func TestIssueServiceCreateIssueStoresArtifacts(t *testing.T) {
 	req := &issuespkg.CreateIssueRequest{
 		Title:       "Sample Issue",
 		Description: "Example description",
-		AppID:       "demo-app",
+		Targets: []issuespkg.Target{
+			{Type: "scenario", ID: "demo-app"},
+		},
 		Artifacts: []issuespkg.ArtifactPayload{{
 			Name:        "diagnostics.txt",
 			Category:    "logs",
@@ -126,6 +128,9 @@ func TestIssueServiceUpdateIssueTransitionsStatus(t *testing.T) {
 	req := &issuespkg.CreateIssueRequest{
 		Title:       "Needs Update",
 		Description: "Initial",
+		Targets: []issuespkg.Target{
+			{Type: "scenario", ID: "test-app"},
+		},
 	}
 
 	issue, _, err := svc.CreateIssue(req)
@@ -204,7 +209,13 @@ func TestIssueServiceDeleteIssueRemovesDirectory(t *testing.T) {
 	root := t.TempDir()
 	store := storage.NewFileIssueStore(root)
 	svc := NewIssueService(store, NewArtifactManager(), nil, time.Now)
-	req := &issuespkg.CreateIssueRequest{Title: "Delete me", Description: "to be removed"}
+	req := &issuespkg.CreateIssueRequest{
+		Title:       "Delete me",
+		Description: "to be removed",
+		Targets: []issuespkg.Target{
+			{Type: "scenario", ID: "test-app"},
+		},
+	}
 
 	issue, storagePath, err := svc.CreateIssue(req)
 	if err != nil {
@@ -237,7 +248,13 @@ func TestIssueServiceDeleteIssueBlocksRunningProcess(t *testing.T) {
 	processor := &stubProcessor{running: map[string]bool{"issue-running": true}}
 	svc := NewIssueService(store, NewArtifactManager(), processor, time.Now)
 
-	req := &issuespkg.CreateIssueRequest{Title: "Running", Description: "Agent active"}
+	req := &issuespkg.CreateIssueRequest{
+		Title:       "Running",
+		Description: "Agent active",
+		Targets: []issuespkg.Target{
+			{Type: "scenario", ID: "test-app"},
+		},
+	}
 	issue, storagePath, err := svc.CreateIssue(req)
 	if err != nil {
 		t.Fatalf("CreateIssue failed: %v", err)
@@ -263,7 +280,7 @@ func TestIssueServiceListIssuesRejectsInvalidStatus(t *testing.T) {
 	store := storage.NewFileIssueStore(root)
 	svc := NewIssueService(store, NewArtifactManager(), nil, time.Now)
 
-	if _, err := svc.ListIssues("not-real", "", "", "", 10); !errors.Is(err, ErrInvalidStatusFilter) {
+	if _, err := svc.ListIssues("not-real", "", "", "", "", 10); !errors.Is(err, ErrInvalidStatusFilter) {
 		t.Fatalf("expected ErrInvalidStatusFilter, got %v", err)
 	}
 }
@@ -279,8 +296,10 @@ func TestIssueServiceListIssuesFiltersCaseInsensitive(t *testing.T) {
 		Title:    "Case sensitivity",
 		Priority: "High",
 		Type:     "Bug",
-		AppID:    "Example-App",
-		Status:   "open",
+		Targets: []issuespkg.Target{
+			{Type: "scenario", ID: "Example-App"},
+		},
+		Status: "open",
 		Metadata: struct {
 			CreatedAt  string            `yaml:"created_at" json:"created_at"`
 			UpdatedAt  string            `yaml:"updated_at" json:"updated_at"`
@@ -299,7 +318,7 @@ func TestIssueServiceListIssuesFiltersCaseInsensitive(t *testing.T) {
 		t.Fatalf("failed to seed issue: %v", err)
 	}
 
-	results, err := svc.ListIssues("", "HIGH", "BUG", "EXAMPLE-app", 10)
+	results, err := svc.ListIssues("", "HIGH", "BUG", "EXAMPLE-app", "", 10)
 	if err != nil {
 		t.Fatalf("ListIssues failed: %v", err)
 	}

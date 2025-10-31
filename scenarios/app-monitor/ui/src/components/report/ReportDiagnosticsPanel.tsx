@@ -31,9 +31,6 @@ const ReportDiagnosticsPanel = ({
     diagnosticsScannedFileCount,
     diagnosticsCheckedAt,
     refreshDiagnostics,
-    bridgeCompliance,
-    bridgeComplianceCheckedAt,
-    bridgeComplianceFailures,
     diagnosticsRuleResults,
     diagnosticsWarnings,
     diagnosticsDescription,
@@ -183,35 +180,7 @@ const ReportDiagnosticsPanel = ({
     };
   }), [diagnosticsRuleResults]);
 
-  const runtimeCard = useMemo(() => {
-    if (!bridgeCompliance) {
-      return null;
-    }
-
-    const status: 'success' | 'warning' = bridgeCompliance.ok ? 'success' : 'warning';
-    return {
-      key: 'runtime-bridge',
-      status,
-      title: 'Runtime bridge check',
-      summary: bridgeCompliance.ok
-        ? 'Iframe handshake responded as expected.'
-        : 'Runtime diagnostics detected missing signals.',
-      meta: bridgeComplianceCheckedAt ? `Checked at ${bridgeComplianceCheckedAt}` : null,
-      body: bridgeCompliance.ok ? null : (
-        bridgeComplianceFailures.length > 0 ? (
-          <ul className="report-dialog__bridge-inline-list">
-            {bridgeComplianceFailures.map(message => (
-              <li key={message}>{message}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="report-dialog__bridge-inline-note">
-            Runtime diagnostics could not identify specific missing signals. Refresh the preview and try again.
-          </p>
-        )
-      ),
-    };
-  }, [bridgeCompliance, bridgeComplianceCheckedAt, bridgeComplianceFailures]);
+  const runtimeCard = useMemo(() => null, []);
 
   const cards = useMemo(() => {
     const entries: Array<{

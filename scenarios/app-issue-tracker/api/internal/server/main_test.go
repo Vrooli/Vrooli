@@ -34,7 +34,9 @@ func TestGetIssueHandlerReturnsIssue(t *testing.T) {
 		Title:    "Login fails",
 		Priority: "high",
 		Type:     "bug",
-		AppID:    "app-x",
+		Targets: []Target{
+			{Type: "scenario", ID: "app-x"},
+		},
 	}
 
 	if _, err := server.saveIssue(issue, "open"); err != nil {
@@ -81,7 +83,9 @@ func TestUpdateIssueHandlerMovesIssueAndUpdatesFields(t *testing.T) {
 		Title:    "Search is broken",
 		Priority: "medium",
 		Type:     "bug",
-		AppID:    "app-y",
+		Targets: []Target{
+			{Type: "scenario", ID: "app-y"},
+		},
 	}
 
 	if _, err := server.saveIssue(issue, "open"); err != nil {
@@ -141,7 +145,9 @@ func TestDeleteIssueHandlerRemovesIssue(t *testing.T) {
 		Title:    "UI glitch",
 		Priority: "low",
 		Type:     "bug",
-		AppID:    "app-z",
+		Targets: []Target{
+			{Type: "scenario", ID: "app-z"},
+		},
 	}
 
 	issueDir, err := server.saveIssue(issue, "open")
@@ -173,7 +179,9 @@ func TestCreateIssueHandlerStoresArtifacts(t *testing.T) {
 	payload := map[string]any{
 		"title":       "UI glitch in dashboard",
 		"description": "Steps to reproduce...",
-		"app_id":      "app-dashboard",
+		"targets": []map[string]interface{}{
+			{"type": "scenario", "id": "app-dashboard"},
+		},
 		"metadata_extra": map[string]string{
 			"source": "unit-test",
 		},
@@ -263,7 +271,9 @@ func TestGetIssueAttachmentHandlerServesContent(t *testing.T) {
 	payload := map[string]any{
 		"title":       "Attachment fetch",
 		"description": "desc",
-		"app_id":      "app-dashboard",
+		"targets": []map[string]interface{}{
+			{"type": "scenario", "id": "app-dashboard"},
+		},
 		"artifacts": []map[string]string{
 			{
 				"name":         "Execution Logs",

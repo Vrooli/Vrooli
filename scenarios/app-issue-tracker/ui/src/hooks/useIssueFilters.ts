@@ -39,9 +39,9 @@ export function useIssueFilters({ issues }: UseIssueFiltersOptions): UseIssueFil
   const availableApps = useMemo(() => {
     const apps = new Set<string>();
     issues.forEach((issue) => {
-      if (issue.app) {
-        apps.add(issue.app);
-      }
+      issue.targets.forEach((target) => {
+        apps.add(target.id);
+      });
     });
     if (appFilter !== 'all' && appFilter.trim()) {
       apps.add(appFilter.trim());
@@ -52,7 +52,7 @@ export function useIssueFilters({ issues }: UseIssueFiltersOptions): UseIssueFil
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
       const matchesPriority = priorityFilter === 'all' || issue.priority === priorityFilter;
-      const matchesApp = appFilter === 'all' || issue.app === appFilter;
+      const matchesApp = appFilter === 'all' || issue.targets.some((target) => target.id === appFilter);
 
       if (!searchFilter.trim()) {
         return matchesPriority && matchesApp;

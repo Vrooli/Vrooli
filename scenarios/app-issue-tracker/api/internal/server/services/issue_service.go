@@ -211,10 +211,12 @@ func (s *IssueService) FindIssueDirectory(issueID string) (string, string, error
 	return s.store.FindIssueDirectory(issueID)
 }
 
-func (s *IssueService) ListIssues(statusFilter, priorityFilter, typeFilter, appIDFilter string, limit int) ([]issuespkg.Issue, error) {
+func (s *IssueService) ListIssues(statusFilter, priorityFilter, typeFilter, targetIDFilter, targetTypeFilter string, limit int) ([]issuespkg.Issue, error) {
 	priorityFilter = strings.TrimSpace(priorityFilter)
 	typeFilter = strings.TrimSpace(typeFilter)
-	appIDFilter = strings.TrimSpace(appIDFilter)
+	targetIDFilter = strings.TrimSpace(targetIDFilter)
+	targetTypeFilter = strings.TrimSpace(targetTypeFilter)
+
 	var folders []string
 	if trimmed := strings.TrimSpace(statusFilter); trimmed != "" {
 		if normalized, ok := issuespkg.NormalizeStatus(trimmed); ok {
@@ -241,8 +243,10 @@ func (s *IssueService) ListIssues(statusFilter, priorityFilter, typeFilter, appI
 			if typeFilter != "" && !strings.EqualFold(issue.Type, typeFilter) {
 				continue
 			}
-			if appIDFilter != "" && !strings.EqualFold(issue.AppID, appIDFilter) {
-				continue
+			if targetIDFilter != "" || targetTypeFilter != "" {
+				if !matchesTarget(issue.Targets, targetIDFilter, targetTypeFilter) {
+					continue
+				}
 			}
 			filtered = append(filtered, issue)
 		}
@@ -301,4 +305,21 @@ func (s *IssueService) SearchIssues(query string, limit int) ([]issuespkg.Issue,
 
 func (s *IssueService) StoreArtifacts(issue *issuespkg.Issue, issueDir string, payloads []issuespkg.ArtifactPayload, replaceExisting bool) error {
 	return s.artifacts.StoreIssueArtifacts(issue, issueDir, payloads, replaceExisting)
+}
+
+// matchesTarget checks if an issue's targets match the given filters
+func matchesTarget(targets []issuespkg.Target, targetIDFilter, targetTypeFilter string) bool {
+	trimmedID := strings.ToLower(strings.TrimSpace(targetIDFilter))
+	trimmedType := strings.ToLower(strings.TrimSpace(targetTypeFilter))
+
+	for _, t := range targets {
+		idMatch := trimmedID == "" || strings.ToLower(t.ID) == trimmedID
+		typeMatch := trimmedType == "" || strings.ToLower(t.Type) == trimmedType
+
+		if idMatch && typeMatch {
+			return true
+		}
+	}
+
+	return false
 }

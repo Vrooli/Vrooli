@@ -23,10 +23,12 @@ func TestIntegration_IssueLifecycle(t *testing.T) {
 		Body: map[string]interface{}{
 			"title":       "Integration Test Bug",
 			"description": "Test bug for lifecycle validation",
-			"app_id":      "integration-test",
-			"type":        "bug",
-			"priority":    "high",
-			"tags":        []string{"integration", "test"},
+			"targets": []map[string]interface{}{
+				{"type": "scenario", "id": "integration-test"},
+			},
+			"type":     "bug",
+			"priority": "high",
+			"tags":     []string{"integration", "test"},
 		},
 	}
 
@@ -166,7 +168,9 @@ func TestIntegration_MultipleIssuesWorkflow(t *testing.T) {
 			Path:   "/api/v1/issues",
 			Body: map[string]interface{}{
 				"title":  fmt.Sprintf("Multi-Issue Test %d", i),
-				"app_id": "multi-test",
+				"targets": []map[string]interface{}{
+				{"type": "scenario", "id": "multi-test"},
+			},
 			},
 		}
 
@@ -265,8 +269,10 @@ func TestIntegration_AttachmentHandling(t *testing.T) {
 		Method: http.MethodPost,
 		Path:   "/api/v1/issues",
 		Body: map[string]interface{}{
-			"title":  "Attachment Test",
-			"app_id": "attachment-test",
+			"title": "Attachment Test",
+			"targets": []map[string]interface{}{
+				{"type": "scenario", "id": "attachment-test"},
+			},
 			"artifacts": []map[string]string{
 				{
 					"name":         "error.log",
@@ -392,8 +398,10 @@ func TestIntegration_TimestampTracking(t *testing.T) {
 		Method: http.MethodPost,
 		Path:   "/api/v1/issues",
 		Body: map[string]interface{}{
-			"title":  "Timestamp Test",
-			"app_id": "timestamp-test",
+			"title": "Timestamp Test",
+			"targets": []map[string]interface{}{
+				{"type": "scenario", "id": "timestamp-test"},
+			},
 		},
 	}
 

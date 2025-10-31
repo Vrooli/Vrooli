@@ -168,8 +168,15 @@ func TestGetAllIssues(t *testing.T) {
 	}
 
 	for _, issue := range appIssues {
-		if issue.AppID != "getall-app" {
-			t.Errorf("Expected app_id 'getall-app', got %s", issue.AppID)
+		found := false
+		for _, target := range issue.Targets {
+			if target.ID == "getall-app" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected issue to have target 'getall-app', got %+v", issue.Targets)
 		}
 	}
 }

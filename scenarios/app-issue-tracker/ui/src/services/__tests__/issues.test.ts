@@ -22,7 +22,7 @@ describe('issues service', () => {
       description: '  Details here  ',
       priority: 'High',
       status: 'active',
-      appId: '  web-ui  ',
+      targets: [{ type: 'scenario', id: 'web-ui' }],
       tags: ['regression', ' ui '],
       reporterName: '  Morgan  ',
       reporterEmail: ' morgan@example.com ',

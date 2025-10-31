@@ -27,6 +27,7 @@ import { useIssueFocus } from './hooks/useIssueFocus';
 import { SnackStackProvider, useSnackPublisher } from './notifications/SnackStackProvider';
 import type { SnackVariant } from './notifications/snackBus';
 import { resolveApiBase } from '@vrooli/api-base';
+import { useComponentStore } from './stores/componentStore';
 
 declare const __API_PORT__: string | undefined;
 
@@ -339,6 +340,12 @@ function AppContent() {
   useEffect(() => {
     void fetchAllDataRef.current();
   }, []);
+
+  // Load components globally on mount (for target selector)
+  const fetchComponents = useComponentStore((state) => state.fetchComponents);
+  useEffect(() => {
+    void fetchComponents(API_BASE_URL);
+  }, [fetchComponents]);
 
   useEffect(() => {
     setParams((params) => {

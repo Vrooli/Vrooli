@@ -177,6 +177,25 @@ func TestReportAppIssue_ValidScreenshot(t *testing.T) {
 			t.Error("Screenshot artifact was not included in payload")
 		}
 	}
+
+	if appID, exists := receivedPayload["app_id"]; exists && appID != nil {
+		t.Errorf("Expected app_id to be omitted, found %v", appID)
+	}
+
+	if targets, ok := receivedPayload["targets"].([]interface{}); !ok || len(targets) == 0 {
+		t.Error("Expected targets array to be populated")
+	} else {
+		if first, ok := targets[0].(map[string]interface{}); ok {
+			if first["type"] != "scenario" {
+				t.Errorf("Expected primary target type 'scenario', got %v", first["type"])
+			}
+			if first["id"] != "test-scenario" {
+				t.Errorf("Expected primary target id 'test-scenario', got %v", first["id"])
+			}
+		} else {
+			t.Error("Targets entry was not an object")
+		}
+	}
 }
 
 func TestReportAppIssue_FullWorkflow(t *testing.T) {
@@ -259,6 +278,26 @@ func TestReportAppIssue_FullWorkflow(t *testing.T) {
 		t.Error("Expected tags to be populated")
 	}
 
+	if _, exists := receivedPayload["app_id"]; exists {
+		t.Error("Expected app_id to be omitted from payload")
+	}
+
+	if targets, ok := receivedPayload["targets"].([]interface{}); !ok || len(targets) == 0 {
+		t.Fatal("Expected targets array to contain at least one entry")
+	} else if first, ok := targets[0].(map[string]interface{}); ok {
+		if first["type"] != "scenario" {
+			t.Errorf("Expected first target type 'scenario', got %v", first["type"])
+		}
+		if first["id"] != "test-scenario" {
+			t.Errorf("Expected first target id 'test-scenario', got %v", first["id"])
+		}
+		if firstName, ok := first["name"].(string); ok && strings.TrimSpace(firstName) == "" {
+			t.Error("Expected target name to be populated when available")
+		}
+	} else {
+		t.Fatal("Targets entry was not an object")
+	}
+
 	// Verify artifacts
 	if artifacts, ok := receivedPayload["artifacts"].([]interface{}); ok {
 		found := false
@@ -314,6 +353,14 @@ func TestReportAppIssue_LogsTruncation(t *testing.T) {
 	_, err := service.ReportAppIssue(context.Background(), req)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if _, exists := receivedPayload["app_id"]; exists {
+		t.Error("Expected payload to omit deprecated app_id field")
+	}
+
+	if targets, ok := receivedPayload["targets"].([]interface{}); !ok || len(targets) == 0 {
+		t.Error("Expected targets array to be included in payload")
 	}
 
 	// Verify logs were truncated

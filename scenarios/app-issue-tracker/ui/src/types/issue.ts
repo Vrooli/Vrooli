@@ -10,6 +10,12 @@ export type IssueStatus =
 
 export type Priority = "Critical" | "High" | "Medium" | "Low";
 
+export interface Target {
+  type: "scenario" | "resource";
+  id: string;
+  name?: string; // Optional display name
+}
+
 export interface IssueAttachment {
   name: string;
   type?: string;
@@ -41,7 +47,7 @@ export interface Issue {
   priority: Priority;
   createdAt: string;
   status: IssueStatus;
-  app: string;
+  targets: Target[];
   tags: string[];
   attachments: IssueAttachment[];
   resolvedAt?: string | null;

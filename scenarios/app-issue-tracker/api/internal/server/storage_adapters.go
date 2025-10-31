@@ -59,6 +59,7 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 	return nil
 }
 
-func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter, appIDFilter string, limit int) ([]Issue, error) {
-	return s.issues.ListIssues(statusFilter, priorityFilter, typeFilter, appIDFilter, limit)
+func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter, targetIDFilter string, limit int) ([]Issue, error) {
+	// Pass empty string for targetTypeFilter since this helper doesn't filter by type
+	return s.issues.ListIssues(statusFilter, priorityFilter, typeFilter, targetIDFilter, "", limit)
 }

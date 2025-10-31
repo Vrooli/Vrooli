@@ -13,7 +13,7 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react';
-import type { Issue, IssueStatus, Priority } from '../types/issue';
+import type { Issue, IssueStatus, Priority, Target } from '../types/issue';
 import { Modal } from './Modal';
 import { getFallbackStatuses } from '../utils/issues';
 import { toTitleCase } from '../utils/string';
@@ -24,6 +24,7 @@ import type {
   CreateIssueInput,
   UpdateIssueInput,
 } from '../types/issueCreation';
+import { ComponentSelectorDialog } from './ComponentSelectorDialog';
 
 interface AttachmentDraft {
   id: string;
@@ -64,7 +65,7 @@ function buildInitialFieldsFromIssue(issue: Issue): CreateIssueInitialFields {
     description: issue.description ?? '',
     priority: issue.priority,
     status: issue.status,
-    appId: issue.app,
+    targets: issue.targets,
     tags: issue.tags,
     reporterName: issue.reporterName,
     reporterEmail: issue.reporterEmail,
@@ -98,7 +99,8 @@ export function CreateIssueModal(props: CreateIssueModalProps) {
   const [description, setDescription] = useState(initialData?.description ?? '');
   const [priority, setPriority] = useState<Priority>(initialData?.priority ?? 'Medium');
   const [status, setStatus] = useState<IssueStatus>(initialData?.status ?? 'open');
-  const [appId, setAppId] = useState(initialData?.appId ?? 'web-ui');
+  const [targets, setTargets] = useState<Target[]>(initialData?.targets ?? []);
+  const [showComponentSelector, setShowComponentSelector] = useState(false);
   const [tags, setTags] = useState(initialData?.tags?.join(', ') ?? '');
   const [reporterName, setReporterName] = useState(initialData?.reporterName ?? '');
   const [reporterEmail, setReporterEmail] = useState(initialData?.reporterEmail ?? '');
@@ -107,6 +109,14 @@ export function CreateIssueModal(props: CreateIssueModalProps) {
   const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleRemoveTarget = useCallback((targetToRemove: Target) => {
+    setTargets((prev) =>
+      prev.filter(
+        (t) => !(t.type === targetToRemove.type && t.id === targetToRemove.id),
+      ),
+    );
+  }, []);
 
   const handleFileSelection = useCallback(
     (fileSource: FileList | File[]) => {
@@ -289,8 +299,14 @@ export function CreateIssueModal(props: CreateIssueModalProps) {
         if (status !== baseline.status) {
           updatePayload.status = status;
         }
-        if (appId.trim() !== (baseline.appId ?? '').trim()) {
-          updatePayload.appId = appId.trim();
+        // Check if targets changed
+        const targetsChanged =
+          targets.length !== (baseline.targets ?? []).length ||
+          targets.some((t) =>
+            !(baseline.targets ?? []).some((bt) => bt.type === t.type && bt.id === t.id),
+          );
+        if (targetsChanged) {
+          updatePayload.targets = targets;
         }
         if (tagsChanged) {
           updatePayload.tags = normalizedTags;
@@ -315,12 +331,18 @@ export function CreateIssueModal(props: CreateIssueModalProps) {
 
         await props.onSubmit(updatePayload);
       } else {
+        // Create mode validation
+        if (targets.length === 0) {
+          setErrorMessage('Please select at least one target (scenario or resource).');
+          return;
+        }
+
         await props.onSubmit({
           title,
           description,
           priority,
           status,
-          appId,
+          targets,
           tags: normalizeTagsInput(tags),
           reporterName: reporterName.trim() || undefined,
           reporterEmail: reporterEmail.trim() || undefined,
@@ -387,15 +409,42 @@ export function CreateIssueModal(props: CreateIssueModalProps) {
                 required
               />
             </label>
-            <label className="form-field">
-              <span>Application</span>
-              <input
-                type="text"
-                value={appId}
-                onChange={(event) => setAppId(event.target.value)}
-                placeholder="e.g. web-ui"
-              />
-            </label>
+            <div className="form-field">
+              <span>Targets</span>
+              <button
+                type="button"
+                className="target-selector-trigger"
+                onClick={() => setShowComponentSelector(true)}
+              >
+                <KanbanSquare size={16} />
+                <span>
+                  {targets.length === 0
+                    ? 'Select targets'
+                    : `${targets.length} target${targets.length !== 1 ? 's' : ''} selected`}
+                </span>
+              </button>
+              {targets.length > 0 && (
+                <div className="target-chips">
+                  {targets.map((target) => (
+                    <span
+                      key={`${target.type}:${target.id}`}
+                      className="target-chip"
+                    >
+                      <span className="target-chip-type">{target.type}</span>
+                      <span className="target-chip-id">{target.id}</span>
+                      <button
+                        type="button"
+                        className="target-chip-remove"
+                        onClick={() => handleRemoveTarget(target)}
+                        aria-label={`Remove ${target.type}:${target.id}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             <label className="form-field">
               <span>Priority</span>
               <select value={priority} onChange={(event) => setPriority(event.target.value as Priority)}>
@@ -588,6 +637,17 @@ export function CreateIssueModal(props: CreateIssueModalProps) {
           </div>
         </div>
       </form>
+
+      {showComponentSelector && (
+        <ComponentSelectorDialog
+          selectedTargets={targets}
+          onSelectTargets={(newTargets) => {
+            setTargets(newTargets);
+            setShowComponentSelector(false);
+          }}
+          onClose={() => setShowComponentSelector(false)}
+        />
+      )}
     </Modal>
   );
 }

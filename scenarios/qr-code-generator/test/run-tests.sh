@@ -4,13 +4,17 @@ set -e
 
 echo "Running all tests for QR Code Generator"
 
-cd test/phases
+# Get the scenario root directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-./test-structure.sh
-./test-dependencies.sh
-./test-unit.sh
-./test-integration.sh
-./test-performance.sh
-./test-business.sh
+cd "$SCENARIO_ROOT"
+
+bash test/phases/test-structure.sh
+bash test/phases/test-dependencies.sh
+bash test/phases/test-unit.sh
+bash test/phases/test-integration.sh
+bash test/phases/test-performance.sh
+bash test/phases/test-business.sh
 
 echo "All tests completed."

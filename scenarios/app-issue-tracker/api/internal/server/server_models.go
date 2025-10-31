@@ -29,6 +29,7 @@ func IsValidIssueStatus(status string) bool {
 	return issuespkg.IsValidStatus(status)
 }
 
+type Target = issuespkg.Target
 type Issue = issuespkg.Issue
 type Attachment = issuespkg.Attachment
 type PromptPreviewRequest = issuespkg.PromptPreviewRequest

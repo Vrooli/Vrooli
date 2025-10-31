@@ -25,16 +25,23 @@ func (s *Server) exportIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	priority := r.URL.Query().Get("priority")
 	issueType := r.URL.Query().Get("type")
-	appID := r.URL.Query().Get("app_id")
+
+	// Support both new and old query parameters
+	targetID := r.URL.Query().Get("target_id")
+	appID := r.URL.Query().Get("app_id") // Backward compat
+
+	if appID != "" && targetID == "" {
+		targetID = appID
+	}
 
 	// Get all matching issues
-	issues, err := s.getAllIssues(status, priority, issueType, appID, 1000)
+	issues, err := s.getAllIssues(status, priority, issueType, targetID, 1000)
 	if err != nil {
 		logging.LogErrorErr("Failed to load issues for export", err,
 			"status", status,
 			"priority", priority,
 			"type", issueType,
-			"app_id", appID,
+			"target_id", targetID,
 		)
 		handlers.WriteError(w, http.StatusInternalServerError, "Failed to load issues")
 		return
@@ -75,13 +82,15 @@ func (s *Server) exportCSV(w http.ResponseWriter, issues []Issue) {
 	csvWriter := csv.NewWriter(w)
 	defer csvWriter.Flush()
 
-	header := []string{"ID", "Title", "Description", "Type", "Priority", "Status", "App ID", "Tags", "Created At", "Updated At"}
+	header := []string{"ID", "Title", "Description", "Type", "Priority", "Status", "Targets", "Tags", "Created At", "Updated At"}
 	if err := csvWriter.Write(header); err != nil {
 		logging.LogErrorErr("Failed to write CSV header", err)
 		return
 	}
 
 	for _, issue := range issues {
+		targetsStr := formatTargetsForExport(issue.Targets)
+
 		record := []string{
 			issue.ID,
 			issue.Title,
@@ -89,7 +98,7 @@ func (s *Server) exportCSV(w http.ResponseWriter, issues []Issue) {
 			issue.Type,
 			issue.Priority,
 			issue.Status,
-			issue.AppID,
+			targetsStr,
 			strings.Join(issue.Metadata.Tags, "; "),
 			issue.Metadata.CreatedAt,
 			issue.Metadata.UpdatedAt,
@@ -150,7 +159,7 @@ func (s *Server) exportMarkdown(w http.ResponseWriter, issues []Issue) {
 			fmt.Fprintf(w, "**ID:** `%s`  \n", issue.ID)
 			fmt.Fprintf(w, "**Priority:** %s  \n", issue.Priority)
 			fmt.Fprintf(w, "**Type:** %s  \n", issue.Type)
-			fmt.Fprintf(w, "**App:** %s  \n", issue.AppID)
+			fmt.Fprintf(w, "**Targets:** %s  \n", formatTargetsForExport(issue.Targets))
 			fmt.Fprintf(w, "**Created:** %s  \n", issue.Metadata.CreatedAt)
 			fmt.Fprintf(w, "\n%s\n\n", issue.Description)
 
@@ -161,4 +170,16 @@ func (s *Server) exportMarkdown(w http.ResponseWriter, issues []Issue) {
 			fmt.Fprintf(w, "---\n\n")
 		}
 	}
+}
+
+// formatTargetsForExport formats targets as a comma-separated string
+func formatTargetsForExport(targets []Target) string {
+	if len(targets) == 0 {
+		return ""
+	}
+	strs := make([]string, len(targets))
+	for i, t := range targets {
+		strs[i] = fmt.Sprintf("%s:%s", t.Type, t.ID)
+	}
+	return strings.Join(strs, ", ")
 }

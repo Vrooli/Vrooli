@@ -41,9 +41,14 @@ func PrepareIssueForCreate(req *CreateIssueRequest, now time.Time) (*Issue, stri
 		priority = "medium"
 	}
 
-	appID := strings.TrimSpace(req.AppID)
-	if appID == "" {
-		appID = "unknown"
+	// Validate and normalize targets
+	if len(req.Targets) == 0 {
+		return nil, "", newValidationError("At least one target is required")
+	}
+
+	normalizedTargets, err := NormalizeTargets(req.Targets)
+	if err != nil {
+		return nil, "", newValidationError(fmt.Sprintf("Invalid targets: %v", err))
 	}
 
 	targetStatus := "open"
@@ -62,7 +67,7 @@ func PrepareIssueForCreate(req *CreateIssueRequest, now time.Time) (*Issue, stri
 		Description: description,
 		Type:        issueType,
 		Priority:    priority,
-		AppID:       appID,
+		Targets:     normalizedTargets,
 		Status:      targetStatus,
 		Notes:       strings.TrimSpace(req.Notes),
 	}
@@ -146,11 +151,15 @@ func ApplyUpdateRequest(issue *Issue, req *UpdateIssueRequest, currentFolder str
 			issue.Priority = priority
 		}
 	}
-	if req.AppID != nil {
-		appID := strings.TrimSpace(*req.AppID)
-		if appID != "" {
-			issue.AppID = appID
+	if req.Targets != nil {
+		if *req.Targets == nil || len(*req.Targets) == 0 {
+			return "", newValidationError("Targets cannot be empty")
 		}
+		normalizedTargets, err := NormalizeTargets(*req.Targets)
+		if err != nil {
+			return "", newValidationError(fmt.Sprintf("Invalid targets: %v", err))
+		}
+		issue.Targets = normalizedTargets
 	}
 	if req.Tags != nil {
 		if *req.Tags == nil {

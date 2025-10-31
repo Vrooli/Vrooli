@@ -74,8 +74,10 @@ func TestCreateIssueHandler_Comprehensive(t *testing.T) {
 			Method: http.MethodPost,
 			Path:   "/api/v1/issues",
 			Body: map[string]interface{}{
-				"title":  "New Issue",
-				"app_id": "test-app",
+				"title": "New Issue",
+				"targets": []map[string]interface{}{
+					{"type": "scenario", "id": "test-app"},
+				},
 			},
 		}
 
@@ -118,10 +120,12 @@ func TestCreateIssueHandler_Comprehensive(t *testing.T) {
 			Body: map[string]interface{}{
 				"title":       "Comprehensive Issue",
 				"description": "Full description",
-				"app_id":      "test-app",
-				"type":        "feature",
-				"priority":    "medium",
-				"tags":        []string{"ui", "frontend"},
+				"targets": []map[string]interface{}{
+					{"type": "scenario", "id": "test-app"},
+				},
+				"type":     "feature",
+				"priority": "medium",
+				"tags":     []string{"ui", "frontend"},
 				"metadata_extra": map[string]string{
 					"source": "test-suite",
 				},
@@ -163,7 +167,9 @@ func TestCreateIssueHandler_Comprehensive(t *testing.T) {
 				Method: http.MethodPost,
 				Path:   "/api/v1/issues",
 				Body: map[string]interface{}{
-					"app_id": "test-app",
+					"targets": []map[string]interface{}{
+					{"type": "scenario", "id": "test-app"},
+				},
 				},
 				ExpectedStatus: http.StatusBadRequest,
 			},
@@ -423,7 +429,7 @@ func TestGetIssuesHandler_Comprehensive(t *testing.T) {
 		req := HTTPTestRequest{
 			Method:      http.MethodGet,
 			Path:        "/api/v1/issues",
-			QueryParams: map[string]string{"app_id": "test-app"},
+			QueryParams: map[string]string{"target_id": "test-app"},
 		}
 
 		w := makeHTTPRequest(env.Server.getIssuesHandler, req)

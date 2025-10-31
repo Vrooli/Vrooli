@@ -504,8 +504,8 @@ export function IssueDetailsModal({
                   showLabel={false}
                 />
                 <IssueHeaderBadge
-                  label="App"
-                  value={issue.app}
+                  label="Targets"
+                  value={issue.targets.map(t => `${t.type}:${t.id}`).join(', ')}
                   icon={<AppWindow size={14} />}
                   showLabel={false}
                 />
