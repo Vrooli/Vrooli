@@ -5,17 +5,14 @@ import { Toaster } from 'react-hot-toast'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import App from './App'
 import './index.css'
+import type { AppMonitorProxyInfo } from './utils/apiClient'
 
 declare global {
   interface Window {
     __funnelBuilderBridgeInitialized?: boolean
-    __APP_MONITOR_PROXY_INFO__?: {
-      path?: string
-      primary?: {
-        path?: string
-        basePath?: string
-      }
-    }
+    __APP_MONITOR_PROXY_INFO__?: AppMonitorProxyInfo
+    __APP_MONITOR_PROXY_INDEX__?: AppMonitorProxyInfo
+    __FUNNEL_BUILDER_BASE_PATH__?: string
   }
 
   interface ImportMeta {
@@ -70,6 +67,10 @@ const resolveRouterBase = () => {
 }
 
 const routerBase = resolveRouterBase()
+
+if (typeof window !== 'undefined') {
+  window.__FUNNEL_BUILDER_BASE_PATH__ = routerBase
+}
 
 if (typeof window !== 'undefined' && window.parent !== window && !window.__funnelBuilderBridgeInitialized) {
   let parentOrigin: string | undefined

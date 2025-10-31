@@ -301,7 +301,7 @@ func TestGetAnalytics(t *testing.T) {
 		testServer.Server.router.ServeHTTP(recorder, req)
 
 		response := assertJSONResponse(t, recorder, http.StatusOK, []string{
-			"funnelId", "totalViews", "totalLeads", "conversionRate", "dropOffPoints",
+			"funnelId", "totalViews", "totalLeads", "capturedLeads", "completedLeads", "conversionRate", "captureRate", "dropOffPoints", "dailyStats", "trafficSources",
 		})
 
 		if response["funnelId"] != funnelID {
@@ -311,6 +311,16 @@ func TestGetAnalytics(t *testing.T) {
 		dropOffPoints := response["dropOffPoints"].([]interface{})
 		if len(dropOffPoints) == 0 {
 			t.Error("Expected drop-off points data")
+		}
+
+		dailyStats := response["dailyStats"].([]interface{})
+		if len(dailyStats) == 0 {
+			t.Error("Expected daily stats data")
+		}
+
+		trafficSources := response["trafficSources"].([]interface{})
+		if len(trafficSources) == 0 {
+			t.Error("Expected traffic sources data")
 		}
 	})
 
@@ -322,14 +332,30 @@ func TestGetAnalytics(t *testing.T) {
 		recorder := httptest.NewRecorder()
 		testServer.Server.router.ServeHTTP(recorder, req)
 
-		response := assertJSONResponse(t, recorder, http.StatusOK, []string{"totalViews", "conversionRate"})
+		response := assertJSONResponse(t, recorder, http.StatusOK, []string{"totalViews", "totalLeads", "capturedLeads", "completedLeads", "conversionRate", "captureRate", "dailyStats", "trafficSources"})
 
 		if response["totalViews"].(float64) != 0 {
 			t.Error("Expected zero views for new funnel")
 		}
 
+		if response["totalLeads"].(float64) != 0 {
+			t.Error("Expected zero leads for new funnel")
+		}
+
+		if response["capturedLeads"].(float64) != 0 {
+			t.Error("Expected zero captured leads for new funnel")
+		}
+
+		if response["completedLeads"].(float64) != 0 {
+			t.Error("Expected zero completed leads for new funnel")
+		}
+
 		if response["conversionRate"].(float64) != 0 {
 			t.Error("Expected zero conversion rate for new funnel")
+		}
+
+		if response["captureRate"].(float64) != 0 {
+			t.Error("Expected zero capture rate for new funnel")
 		}
 	})
 }

@@ -1,30 +1,85 @@
-import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Plus, Save, Eye, Settings } from 'lucide-react'
+import {
+  Eye,
+  Layers,
+  Menu,
+  PanelLeftOpen,
+  Plus,
+  Save,
+  Settings,
+  X,
+} from 'lucide-react'
 import { useFunnelStore } from '../store/useFunnelStore'
 import StepList from '../components/builder/StepList'
 import StepEditor from '../components/builder/StepEditor'
 import StepTypeSelector from '../components/builder/StepTypeSelector'
+import FunnelSettingsModal from '../components/builder/FunnelSettingsModal'
 import toast from 'react-hot-toast'
+import { FunnelStep } from '../types'
+import { getFunnelTemplate } from '../data/funnelTemplates'
+import { saveFunnelToCache } from '../utils/funnelCache'
+
+const buildPreviewUrl = (funnelId?: string) => {
+  if (!funnelId) {
+    return ''
+  }
+
+  const previewPath = `/preview/${funnelId}`
+
+  if (typeof window === 'undefined') {
+    return previewPath
+  }
+
+  const basePath = window.__FUNNEL_BUILDER_BASE_PATH__
+  if (!basePath || basePath === '/' || basePath === '') {
+    return previewPath
+  }
+
+  const normalizedBase = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath
+  return `${normalizedBase}${previewPath}`
+}
 
 const FunnelBuilder = () => {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const templateId = searchParams.get('template') ?? undefined
+
   const {
     currentFunnel,
     selectedStep,
     setCurrentFunnel,
     setSelectedStep,
     reorderSteps,
-    addStep
+    addStep,
+    updateFunnelDetails,
+    updateFunnelSettings
   } = useFunnelStore()
   
   const [showStepSelector, setShowStepSelector] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
+  const cancelNameEditRef = useRef(false)
 
   useEffect(() => {
-    if (id) {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMobileSidebarOpen(false)
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (id && id !== 'new') {
       // Load funnel by ID
       // For now, using mock data
       const mockFunnel = {
@@ -71,25 +126,61 @@ const FunnelBuilder = () => {
         status: 'draft' as const
       }
       setCurrentFunnel(mockFunnel)
-    } else {
-      // Create new funnel
-      const newFunnel = {
-        id: 'new-' + Date.now(),
-        name: 'Untitled Funnel',
-        slug: 'untitled-funnel',
-        description: '',
-        steps: [],
-        settings: {
-          theme: { primaryColor: '#0ea5e9' },
-          progressBar: true
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'draft' as const
-      }
-      setCurrentFunnel(newFunnel)
+      setSelectedStep(mockFunnel.steps[0])
+      return
     }
-  }, [id])
+
+    const now = new Date().toISOString()
+    const uniqueSuffix = Date.now().toString()
+
+    if (templateId) {
+      const template = getFunnelTemplate(templateId)
+
+      if (template) {
+        const steps = template.funnel.steps.map((step, index) => ({
+          ...step,
+          id: `${step.id}-${uniqueSuffix}`,
+          position: index,
+          content: JSON.parse(JSON.stringify(step.content)) as typeof step.content
+        }))
+
+        const templateFunnel = {
+          id: `new-${uniqueSuffix}`,
+          name: template.funnel.name,
+          slug: `${template.id}-${uniqueSuffix}`,
+          description: template.funnel.description,
+          steps,
+          settings: {
+            ...template.funnel.settings
+          },
+          createdAt: now,
+          updatedAt: now,
+          status: 'draft' as const
+        }
+
+        setCurrentFunnel(templateFunnel)
+        setSelectedStep(steps[0] ?? null)
+        return
+      }
+    }
+
+    const newFunnel = {
+      id: `new-${uniqueSuffix}`,
+      name: 'Untitled Funnel',
+      slug: `untitled-${uniqueSuffix}`,
+      description: '',
+      steps: [],
+      settings: {
+        theme: { primaryColor: '#0ea5e9' },
+        progressBar: true
+      },
+      createdAt: now,
+      updatedAt: now,
+      status: 'draft' as const
+    }
+    setCurrentFunnel(newFunnel)
+    setSelectedStep(null)
+  }, [id, templateId, setCurrentFunnel, setSelectedStep])
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -104,75 +195,278 @@ const FunnelBuilder = () => {
     }
   }
 
+  const handleSelectStep = (step: FunnelStep) => {
+    setSelectedStep(step)
+    setIsMobileSidebarOpen(false)
+  }
+
+  const openStepSelector = (source: 'mobile' | 'desktop') => {
+    setShowStepSelector(true)
+    if (source === 'mobile') {
+      setIsMobileSidebarOpen(false)
+    }
+  }
+
   const handleSave = () => {
     // Save funnel to backend
     toast.success('Funnel saved successfully!')
   }
 
+  useEffect(() => {
+    if (currentFunnel) {
+      setNameDraft(currentFunnel.name)
+      saveFunnelToCache(currentFunnel)
+    }
+  }, [currentFunnel])
+
+  useEffect(() => {
+    if (isEditingName) {
+      const focusField = () => {
+        nameInputRef.current?.focus()
+        nameInputRef.current?.select()
+      }
+
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(focusField)
+      } else {
+        focusField()
+      }
+    }
+  }, [isEditingName])
+
+  const beginEditingName = () => {
+    cancelNameEditRef.current = false
+    setNameDraft(currentFunnel?.name ?? '')
+    setIsEditingName(true)
+  }
+
+  const cancelNameEdit = () => {
+    cancelNameEditRef.current = true
+    setNameDraft(currentFunnel?.name ?? '')
+    setIsEditingName(false)
+  }
+
+  const commitName = () => {
+    const trimmed = nameDraft.trim()
+    const nextName = trimmed.length > 0 ? trimmed : 'Untitled Funnel'
+    updateFunnelDetails({ name: nextName })
+    setNameDraft(nextName)
+    cancelNameEditRef.current = false
+    setIsEditingName(false)
+  }
+
+  const handleNameBlur = () => {
+    if (cancelNameEditRef.current) {
+      cancelNameEditRef.current = false
+      return
+    }
+    commitName()
+  }
+
+  const handleNameKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commitName()
+      return
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelNameEdit()
+    }
+  }
+
   const handlePreview = () => {
-    window.open(`/preview/${currentFunnel?.id}`, '_blank')
+    const previewUrl = buildPreviewUrl(currentFunnel?.id)
+    if (!previewUrl) {
+      toast.error('Unable to open preview – funnel is not ready.')
+      return
+    }
+
+    if (currentFunnel) {
+      saveFunnelToCache(currentFunnel)
+    }
+
+    window.open(previewUrl, '_blank', 'noopener,noreferrer')
   }
 
   if (!currentFunnel) {
     return <div className="p-8">Loading...</div>
   }
 
+  const sidebarList = (
+    <div className="flex-1 overflow-y-auto px-4 pb-4 md:p-4">
+      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={currentFunnel.steps.map((step) => step.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <StepList
+            steps={currentFunnel.steps}
+            selectedStep={selectedStep}
+            onSelectStep={handleSelectStep}
+          />
+        </SortableContext>
+      </DndContext>
+    </div>
+  )
+
   return (
     <div className="flex flex-col md:h-screen md:flex-row">
-      <div className="border-b border-gray-200 bg-white md:h-full md:w-80 md:border-b-0 md:border-r">
-        <div className="flex items-center justify-between gap-3 px-4 py-4 md:block md:gap-0 md:p-4">
-          <h3 className="text-base font-semibold text-gray-900 md:mb-4 md:text-lg">Funnel Steps</h3>
-          <button
-            onClick={() => setShowStepSelector(true)}
-            className="btn btn-primary shrink-0 md:mt-4 md:w-full"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Step
-          </button>
-        </div>
+      {isMobileSidebarOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-full flex-col bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">Funnel Steps</h3>
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-200 text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                aria-label="Close step navigation"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-4 py-4">
+              <button
+                onClick={() => openStepSelector('mobile')}
+                className="btn btn-primary w-full"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Step
+              </button>
+            </div>
+            {sidebarList}
+          </aside>
+        </>
+      )}
 
-        <div className="max-h-[60vh] overflow-y-auto px-4 pb-4 md:flex-1 md:overflow-auto md:p-4">
-          <DndContext
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={currentFunnel.steps.map((step) => step.id)}
-              strategy={verticalListSortingStrategy}
+      <aside
+        className={`hidden md:flex md:flex-col md:border-r md:border-gray-200 md:bg-white transition-all duration-200 ${
+          isSidebarCollapsed ? 'md:w-16' : 'md:w-80'
+        }`}
+      >
+        {isSidebarCollapsed ? (
+          <div className="flex h-full items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(false)}
+              className="flex items-center justify-center"
+              aria-label="Expand step navigation"
+              title="Expand step navigation"
             >
-              <StepList
-                steps={currentFunnel.steps}
-                selectedStep={selectedStep}
-                onSelectStep={setSelectedStep}
-              />
-            </SortableContext>
-          </DndContext>
-        </div>
-      </div>
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-600 shadow-sm">
+                <Layers className="h-5 w-5" aria-hidden="true" />
+              </span>
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="border-b border-gray-200 px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
+                    <Layers className="h-5 w-5" aria-hidden="true" />
+                    <span className="sr-only">Funnel Builder icon</span>
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Funnel Steps</h3>
+                    <p className="text-xs text-gray-500">Drag to reorder steps</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  className="icon-btn icon-btn-ghost h-9 w-9"
+                  aria-label="Collapse step navigation"
+                  title="Collapse step navigation"
+                >
+                  <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <div className="px-4 py-4">
+              <button
+                onClick={() => openStepSelector('desktop')}
+                className="btn btn-primary w-full"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Step
+              </button>
+            </div>
+            {sidebarList}
+          </>
+        )}
+      </aside>
 
       <div className="flex flex-1 flex-col bg-gray-50">
         <div className="border-b border-gray-200 bg-white px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 sm:text-xl">{currentFunnel.name}</h2>
-              <p className="text-sm text-gray-600">{currentFunnel.description}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => setShowSettings(!showSettings)}
-                className="btn btn-outline"
-                aria-label="Funnel settings"
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-200 text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 md:hidden"
+                aria-label="Open step navigation"
               >
-                <Settings className="h-4 w-4" />
-                <span className="ml-2 hidden text-sm sm:inline">Settings</span>
+                <Menu className="h-5 w-5" />
               </button>
-              <button onClick={handlePreview} className="btn btn-secondary">
-                <Eye className="mr-2 h-4 w-4" />
-                Preview
+              <div>
+                {isEditingName ? (
+                  <input
+                    ref={nameInputRef}
+                    value={nameDraft}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                    onBlur={handleNameBlur}
+                    onKeyDown={handleNameKeyDown}
+                    className="w-full max-w-md border-b border-transparent bg-transparent text-lg font-bold text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-0 sm:text-xl"
+                    aria-label="Funnel name"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={beginEditingName}
+                    className="text-left text-lg font-bold text-gray-900 transition-colors hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 sm:text-xl"
+                    aria-label="Edit funnel name"
+                    title="Click to rename funnel"
+                  >
+                    {currentFunnel.name}
+                  </button>
+                )}
+                <p className="text-sm text-gray-600">{currentFunnel.description}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className="icon-btn icon-btn-ghost"
+                aria-label="Funnel settings"
+                title="Funnel settings"
+              >
+                <Settings className="h-4 w-4" aria-hidden="true" />
               </button>
-              <button onClick={handleSave} className="btn btn-primary">
-                <Save className="mr-2 h-4 w-4" />
-                Save
+              <button
+                type="button"
+                onClick={handlePreview}
+                className="icon-btn icon-btn-secondary"
+                aria-label="Preview funnel"
+                title="Preview funnel"
+              >
+                <Eye className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="icon-btn icon-btn-primary"
+                aria-label="Save funnel"
+                title="Save funnel"
+              >
+                <Save className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -206,6 +500,17 @@ const FunnelBuilder = () => {
             setShowStepSelector(false)
           }}
           onClose={() => setShowStepSelector(false)}
+        />
+      )}
+      {showSettings && currentFunnel && (
+        <FunnelSettingsModal
+          settings={currentFunnel.settings}
+          onClose={() => setShowSettings(false)}
+          onSave={(settings) => {
+            updateFunnelSettings(settings)
+            toast.success('Funnel settings updated')
+            setShowSettings(false)
+          }}
         />
       )}
     </div>

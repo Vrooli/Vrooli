@@ -1,9 +1,19 @@
 import { Outlet, NavLink } from 'react-router-dom'
 import { useState } from 'react'
-import { LayoutDashboard, Layers, BarChart3, FileText, Menu, X } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Layers,
+  BarChart3,
+  FileText,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 
 const Layout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isDesktopMenuCollapsed, setIsDesktopMenuCollapsed] = useState(false)
 
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -60,25 +70,60 @@ const Layout = () => {
       )}
 
       <div className="md:flex md:min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r border-gray-200 bg-white md:block">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-primary-600">Funnel Builder</h1>
+        <aside
+          className={`hidden shrink-0 border-r border-gray-200 bg-white md:flex md:flex-col ${
+            isDesktopMenuCollapsed ? 'md:w-20' : 'md:w-64'
+          }`}
+        >
+          <div className="flex items-center justify-between p-4">
+            {isDesktopMenuCollapsed ? (
+              <div className="flex items-center">
+                <span
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600"
+                  aria-hidden
+                >
+                  <Layers className="h-5 w-5" />
+                </span>
+                <span className="sr-only">Funnel Builder</span>
+              </div>
+            ) : (
+              <h1 className="text-2xl font-bold text-primary-600">Funnel Builder</h1>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsDesktopMenuCollapsed((prev) => !prev)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              aria-label={
+                isDesktopMenuCollapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar'
+              }
+            >
+              {isDesktopMenuCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </button>
           </div>
-          <nav className="px-4 pb-4">
+          <nav className={`px-3 pb-4 ${isDesktopMenuCollapsed ? 'space-y-1' : ''}`}>
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
+                aria-label={item.label}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 text-sm rounded-lg mb-1 transition-colors ${
+                  `flex items-center rounded-lg py-3 text-sm transition-colors ${
+                    isDesktopMenuCollapsed ? 'justify-center px-2 gap-0' : 'px-4 gap-3'
+                  } ${
                     isActive
                       ? 'bg-primary-50 text-primary-600'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`
                 }
               >
-                <item.icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <item.icon className="h-5 w-5" aria-hidden />
+                <span className={`${isDesktopMenuCollapsed ? 'sr-only' : 'font-medium'}`}>
+                  {item.label}
+                </span>
               </NavLink>
             ))}
           </nav>

@@ -15,6 +15,7 @@ interface FunnelStore {
   updateStep: (stepId: string, updates: Partial<FunnelStep>) => void
   deleteStep: (stepId: string) => void
   reorderSteps: (startIndex: number, endIndex: number) => void
+  updateFunnelDetails: (updates: Partial<Pick<Funnel, 'name' | 'description' | 'slug' | 'status'>>) => void
   updateFunnelSettings: (settings: Partial<Funnel['settings']>) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
@@ -89,36 +90,69 @@ export const useFunnelStore = create<FunnelStore>((set) => ({
   
   reorderSteps: (startIndex, endIndex) => set((state) => {
     if (!state.currentFunnel) return state
-    
+
     const newSteps = Array.from(state.currentFunnel.steps)
     const [removed] = newSteps.splice(startIndex, 1)
     newSteps.splice(endIndex, 0, removed)
-    
+
     const reorderedSteps = newSteps.map((step, index) => ({
       ...step,
       position: index
     }))
-    
+
     const newFunnel = {
       ...state.currentFunnel,
       steps: reorderedSteps
     }
-    
+
     return { currentFunnel: newFunnel }
+  }),
+  
+  updateFunnelDetails: (updates) => set((state) => {
+    if (!state.currentFunnel) return state
+
+    const timestamp = new Date().toISOString()
+    const mergedFunnel: Funnel = {
+      ...state.currentFunnel,
+      ...updates,
+      updatedAt: timestamp
+    }
+
+    const updatedFunnels = state.funnels.map((funnel) =>
+      funnel.id === mergedFunnel.id
+        ? ({ ...funnel, ...updates, updatedAt: timestamp } as Funnel)
+        : funnel
+    )
+
+    return {
+      currentFunnel: mergedFunnel,
+      funnels: updatedFunnels
+    }
   }),
   
   updateFunnelSettings: (settings) => set((state) => {
     if (!state.currentFunnel) return state
-    
+
+    const timestamp = new Date().toISOString()
     const newFunnel = {
       ...state.currentFunnel,
       settings: {
         ...state.currentFunnel.settings,
         ...settings
-      }
+      },
+      updatedAt: timestamp
     }
-    
-    return { currentFunnel: newFunnel }
+
+    const updatedFunnels = state.funnels.map((funnel) =>
+      funnel.id === newFunnel.id
+        ? ({ ...funnel, settings: newFunnel.settings, updatedAt: timestamp } as Funnel)
+        : funnel
+    )
+
+    return {
+      currentFunnel: newFunnel,
+      funnels: updatedFunnels
+    }
   }),
   
   setLoading: (loading) => set({ isLoading: loading }),

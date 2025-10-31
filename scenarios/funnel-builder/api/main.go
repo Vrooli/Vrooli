@@ -90,11 +90,11 @@ func NewServer() (*Server, error) {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			return nil, fmt.Errorf("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -129,12 +129,12 @@ func connectWithBackoff(config *pgxpool.Config) (*pgxpool.Pool, error) {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
-	
+
 	var db *pgxpool.Pool
 	var err error
-	
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		db, err = pgxpool.NewWithConfig(context.Background(), config)
 		if err == nil {
@@ -142,41 +142,41 @@ func connectWithBackoff(config *pgxpool.Config) (*pgxpool.Pool, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			pingErr := db.Ping(ctx)
 			cancel()
-			
+
 			if pingErr == nil {
-				log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+				log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 				return db, nil
 			}
-			
+
 			err = pingErr
 			db.Close()
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, err)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, err)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, err)
 }
 
@@ -196,22 +196,22 @@ func (s *Server) setupRoutes() {
 	api := s.router.Group("/api/v1")
 	{
 		api.GET("/health", s.handleHealth)
-		
+
 		// Funnel endpoints
 		api.GET("/funnels", s.handleGetFunnels)
 		api.GET("/funnels/:id", s.handleGetFunnel)
 		api.POST("/funnels", s.handleCreateFunnel)
 		api.PUT("/funnels/:id", s.handleUpdateFunnel)
 		api.DELETE("/funnels/:id", s.handleDeleteFunnel)
-		
+
 		// Funnel execution endpoints (use different path to avoid conflict)
 		api.GET("/execute/:slug", s.handleExecuteFunnel)
 		api.POST("/execute/:slug/submit", s.handleSubmitStep)
-		
+
 		// Analytics endpoints
 		api.GET("/funnels/:id/analytics", s.handleGetAnalytics)
 		api.GET("/funnels/:id/leads", s.handleGetLeads)
-		
+
 		// Template endpoints
 		api.GET("/templates", s.handleGetTemplates)
 		api.GET("/templates/:slug", s.handleGetTemplate)
@@ -263,27 +263,27 @@ func (s *Server) handleHealth(c *gin.Context) {
 
 func (s *Server) handleGetFunnels(c *gin.Context) {
 	tenantID := c.Query("tenant_id")
-	
+
 	query := `
 		SELECT id, tenant_id, name, slug, description, settings, status, created_at, updated_at
 		FROM funnel_builder.funnels
 		WHERE ($1::uuid IS NULL OR tenant_id = $1)
 		ORDER BY created_at DESC
 	`
-	
+
 	var tenantUUID *uuid.UUID
 	if tenantID != "" {
 		parsed, _ := uuid.Parse(tenantID)
 		tenantUUID = &parsed
 	}
-	
+
 	rows, err := s.db.Query(context.Background(), query, tenantUUID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer rows.Close()
-	
+
 	var funnels []Funnel
 	for rows.Next() {
 		var f Funnel
@@ -291,25 +291,28 @@ func (s *Server) handleGetFunnels(c *gin.Context) {
 		if err != nil {
 			continue
 		}
-		
-		// Load steps for each funnel
-		f.Steps, _ = s.getFunnelSteps(f.ID)
+
+		steps, stepErr := s.getFunnelSteps(f.ID)
+		if stepErr != nil {
+			log.Printf("failed to load steps for funnel %s: %v", f.ID, stepErr)
+		}
+		f.Steps = steps
 		funnels = append(funnels, f)
 	}
-	
+
 	c.JSON(http.StatusOK, funnels)
 }
 
 func (s *Server) handleGetFunnel(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var f Funnel
 	query := `
 		SELECT id, tenant_id, name, slug, description, settings, status, created_at, updated_at
 		FROM funnel_builder.funnels
 		WHERE id = $1
 	`
-	
+
 	err := s.db.QueryRow(context.Background(), query, id).Scan(
 		&f.ID, &f.TenantID, &f.Name, &f.Slug, &f.Description, &f.Settings, &f.Status, &f.CreatedAt, &f.UpdatedAt,
 	)
@@ -317,9 +320,13 @@ func (s *Server) handleGetFunnel(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Funnel not found"})
 		return
 	}
-	
-	f.Steps, _ = s.getFunnelSteps(f.ID)
-	
+
+	steps, stepErr := s.getFunnelSteps(f.ID)
+	if stepErr != nil {
+		log.Printf("failed to load steps for funnel %s: %v", f.ID, stepErr)
+	}
+	f.Steps = steps
+
 	c.JSON(http.StatusOK, f)
 }
 
@@ -332,40 +339,40 @@ func (s *Server) handleCreateFunnel(c *gin.Context) {
 		Settings    json.RawMessage `json:"settings"`
 		TenantID    *string         `json:"tenant_id"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	if input.Slug == "" {
 		input.Slug = generateSlug(input.Name)
 	}
-	
+
 	if input.Settings == nil {
 		input.Settings = json.RawMessage(`{"theme":{"primaryColor":"#0ea5e9"},"progressBar":true}`)
 	}
-	
+
 	tx, err := s.db.Begin(context.Background())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer tx.Rollback(context.Background())
-	
+
 	var funnelID string
 	query := `
 		INSERT INTO funnel_builder.funnels (name, slug, description, settings, tenant_id)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 	`
-	
+
 	err = tx.QueryRow(context.Background(), query, input.Name, input.Slug, input.Description, input.Settings, input.TenantID).Scan(&funnelID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Insert steps if provided
 	for i, step := range input.Steps {
 		stepQuery := `
@@ -378,12 +385,12 @@ func (s *Server) handleCreateFunnel(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	if err = tx.Commit(context.Background()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"id":          funnelID,
 		"slug":        input.Slug,
@@ -393,7 +400,7 @@ func (s *Server) handleCreateFunnel(c *gin.Context) {
 
 func (s *Server) handleUpdateFunnel(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var input struct {
 		Name        string          `json:"name"`
 		Description string          `json:"description"`
@@ -401,48 +408,48 @@ func (s *Server) handleUpdateFunnel(c *gin.Context) {
 		Settings    json.RawMessage `json:"settings"`
 		Status      string          `json:"status"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	query := `
 		UPDATE funnel_builder.funnels
 		SET name = $2, description = $3, settings = $4, status = $5, updated_at = NOW()
 		WHERE id = $1
 	`
-	
+
 	_, err := s.db.Exec(context.Background(), query, id, input.Name, input.Description, input.Settings, input.Status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Funnel updated"})
 }
 
 func (s *Server) handleDeleteFunnel(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	query := `DELETE FROM funnel_builder.funnels WHERE id = $1`
 	_, err := s.db.Exec(context.Background(), query, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Funnel deleted"})
 }
 
 func (s *Server) handleExecuteFunnel(c *gin.Context) {
 	slug := c.Param("slug")
 	sessionID := c.Query("session_id")
-	
+
 	if sessionID == "" {
 		sessionID = uuid.New().String()
 	}
-	
+
 	// Get funnel by slug
 	var funnelID string
 	var settings json.RawMessage
@@ -452,7 +459,7 @@ func (s *Server) handleExecuteFunnel(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Funnel not found"})
 		return
 	}
-	
+
 	// Get or create lead
 	var leadID string
 	leadQuery := `SELECT id FROM funnel_builder.leads WHERE funnel_id = $1 AND session_id = $2`
@@ -478,18 +485,18 @@ func (s *Server) handleExecuteFunnel(c *gin.Context) {
 		// Record analytics event
 		s.recordEvent(funnelID, leadID, "start", nil)
 	}
-	
+
 	// Get current step for lead
 	currentStep := s.getCurrentStep(funnelID, leadID)
-	
+
 	// Record view event
 	if currentStep != nil {
 		stepID := currentStep["id"].(string)
 		s.recordEvent(funnelID, leadID, "view", &stepID)
 	}
-	
+
 	progress := s.calculateProgress(funnelID, leadID)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"step":       currentStep,
 		"progress":   progress,
@@ -500,19 +507,19 @@ func (s *Server) handleExecuteFunnel(c *gin.Context) {
 
 func (s *Server) handleSubmitStep(c *gin.Context) {
 	slug := c.Param("slug")
-	
+
 	var input struct {
 		SessionID string          `json:"session_id" binding:"required"`
 		StepID    string          `json:"step_id" binding:"required"`
 		Response  json.RawMessage `json:"response" binding:"required"`
 		Duration  int             `json:"duration_ms"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Get funnel and lead
 	var funnelID, leadID string
 	query := `
@@ -526,7 +533,7 @@ func (s *Server) handleSubmitStep(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Session not found"})
 		return
 	}
-	
+
 	// Record step response
 	responseQuery := `
 		INSERT INTO funnel_builder.step_responses (lead_id, step_id, response, duration_ms)
@@ -537,13 +544,13 @@ func (s *Server) handleSubmitStep(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Update lead data
 	s.updateLeadData(leadID, input.Response)
-	
+
 	// Record analytics event
 	s.recordEvent(funnelID, leadID, "step_complete", &input.StepID)
-	
+
 	// Get next step
 	nextStep := s.getNextStep(funnelID, input.StepID)
 	if nextStep == nil {
@@ -569,7 +576,7 @@ func (s *Server) handleSubmitStep(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"next_step": nextStep,
 		"progress":  s.calculateProgress(funnelID, leadID),
@@ -578,95 +585,246 @@ func (s *Server) handleSubmitStep(c *gin.Context) {
 
 func (s *Server) handleGetAnalytics(c *gin.Context) {
 	funnelID := c.Param("id")
-	
-	// Get overall metrics
+
+	ctx := context.Background()
+
+	// Count total views based on recorded analytics events
+	var totalViews int
+	viewQuery := `
+		SELECT COUNT(*)
+		FROM funnel_builder.analytics_events
+		WHERE funnel_id = $1 AND event_type IN ('view', 'start')
+	`
+	if err := s.db.QueryRow(ctx, viewQuery, funnelID).Scan(&totalViews); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get overall lead metrics
 	metricsQuery := `
 		SELECT 
 			COUNT(DISTINCT l.id) as total_leads,
 			COUNT(DISTINCT CASE WHEN l.completed THEN l.id END) as completed_leads,
+			COUNT(DISTINCT CASE 
+				WHEN COALESCE(NULLIF(l.email, ''), NULLIF(l.phone, ''), NULLIF(l.name, '')) IS NOT NULL
+					OR (l.data IS NOT NULL AND l.data <> '{}'::jsonb)
+				THEN l.id
+				ELSE NULL
+			END) as captured_leads,
 			AVG(CASE WHEN l.completed THEN EXTRACT(EPOCH FROM (l.completed_at - l.created_at)) END) as avg_completion_time
 		FROM funnel_builder.leads l
 		WHERE l.funnel_id = $1
 	`
-	
-	var totalLeads, completedLeads int
+
+	var totalLeads, completedLeads, capturedLeads int
 	var avgTime sql.NullFloat64
-	err := s.db.QueryRow(context.Background(), metricsQuery, funnelID).Scan(&totalLeads, &completedLeads, &avgTime)
-	if err != nil {
+	if err := s.db.QueryRow(ctx, metricsQuery, funnelID).Scan(&totalLeads, &completedLeads, &capturedLeads, &avgTime); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	conversionRate := float64(0)
 	if totalLeads > 0 {
 		conversionRate = float64(completedLeads) / float64(totalLeads) * 100
 	}
-	
+
+	if totalViews < totalLeads {
+		totalViews = totalLeads
+	}
+
+	captureRate := float64(0)
+	if totalLeads > 0 {
+		captureRate = float64(capturedLeads) / float64(totalLeads) * 100
+	}
+
 	// Get step drop-off data
 	dropOffQuery := `
 		SELECT fs.id, fs.title, fs.position,
 			COUNT(DISTINCT sr.lead_id) as responses,
+			COUNT(DISTINCT CASE WHEN ae.event_type IN ('view', 'start') THEN ae.lead_id END) as visitors,
 			AVG(sr.duration_ms) as avg_duration
 		FROM funnel_builder.funnel_steps fs
 		LEFT JOIN funnel_builder.step_responses sr ON fs.id = sr.step_id
+		LEFT JOIN funnel_builder.analytics_events ae ON fs.id = ae.step_id
 		WHERE fs.funnel_id = $1
 		GROUP BY fs.id, fs.title, fs.position
 		ORDER BY fs.position
 	`
-	
-	rows, _ := s.db.Query(context.Background(), dropOffQuery, funnelID)
+
+	rows, err := s.db.Query(ctx, dropOffQuery, funnelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	defer rows.Close()
-	
+
 	var dropOffPoints []map[string]interface{}
 	for rows.Next() {
 		var stepID, stepTitle string
-		var position, responses int
+		var position, responses, visitors int
 		var avgDuration sql.NullFloat64
-		
-		rows.Scan(&stepID, &stepTitle, &position, &responses, &avgDuration)
-		
-		dropOffRate := float64(0)
-		if totalLeads > 0 && responses < totalLeads {
-			dropOffRate = float64(totalLeads-responses) / float64(totalLeads) * 100
+
+		if err := rows.Scan(&stepID, &stepTitle, &position, &responses, &visitors, &avgDuration); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
-		
+
+		dropOffRate := float64(0)
+		if visitors > 0 && responses < visitors {
+			dropOffRate = float64(visitors-responses) / float64(visitors) * 100
+		}
+
 		dropOffPoints = append(dropOffPoints, map[string]interface{}{
 			"stepId":      stepID,
 			"stepTitle":   stepTitle,
+			"position":    position,
 			"dropOffRate": dropOffRate,
 			"responses":   responses,
+			"visitors":    visitors,
 			"avgDuration": avgDuration.Float64,
 		})
 	}
-	
+
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Build daily stats for the past two weeks
+	dailyStatsQuery := `
+		WITH date_series AS (
+			SELECT generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, INTERVAL '1 day')::date AS date
+		), lead_counts AS (
+			SELECT created_at::date AS day,
+				COUNT(*) AS sessions,
+				COUNT(*) FILTER (
+					WHERE COALESCE(NULLIF(email, ''), NULLIF(phone, ''), NULLIF(name, '')) IS NOT NULL
+						OR (data IS NOT NULL AND data <> '{}'::jsonb)
+				) AS captured,
+				COUNT(*) FILTER (WHERE completed AND completed_at IS NOT NULL) AS conversions
+			FROM funnel_builder.leads
+			WHERE funnel_id = $1
+			GROUP BY created_at::date
+		)
+		SELECT d.date,
+			COALESCE(l.sessions, 0) AS views,
+			COALESCE(l.captured, 0) AS leads,
+			COALESCE(l.conversions, 0) AS conversions
+		FROM date_series d
+		LEFT JOIN lead_counts l ON l.day = d.date
+		ORDER BY d.date
+	`
+
+	dailyRows, err := s.db.Query(ctx, dailyStatsQuery, funnelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer dailyRows.Close()
+
+	var dailyStats []map[string]interface{}
+	for dailyRows.Next() {
+		var day time.Time
+		var views, leads, conversions int
+
+		if err := dailyRows.Scan(&day, &views, &leads, &conversions); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		dailyStats = append(dailyStats, map[string]interface{}{
+			"date":        day.Format("2006-01-02"),
+			"views":       views,
+			"leads":       leads,
+			"conversions": conversions,
+		})
+	}
+
+	if err := dailyRows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	trafficQuery := `
+		SELECT COALESCE(NULLIF(l.source, ''), 'Direct') as source, COUNT(*) as count
+		FROM funnel_builder.leads l
+		WHERE l.funnel_id = $1
+		GROUP BY source
+		ORDER BY count DESC
+	`
+
+	trafficRows, err := s.db.Query(ctx, trafficQuery, funnelID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer trafficRows.Close()
+
+	var trafficSources []map[string]interface{}
+	for trafficRows.Next() {
+		var source string
+		var count int
+
+		if err := trafficRows.Scan(&source, &count); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		percentage := float64(0)
+		if totalLeads > 0 {
+			percentage = float64(count) / float64(totalLeads) * 100
+		}
+
+		trafficSources = append(trafficSources, map[string]interface{}{
+			"source":     source,
+			"count":      count,
+			"percentage": percentage,
+		})
+	}
+
+	if err := trafficRows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	averageTimeSeconds := float64(0)
+	if avgTime.Valid {
+		averageTimeSeconds = avgTime.Float64
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"funnelId":       funnelID,
-		"totalViews":     totalLeads,
-		"totalLeads":     completedLeads,
+		"totalViews":     totalViews,
+		"totalLeads":     totalLeads,
+		"completedLeads": completedLeads,
+		"capturedLeads":  capturedLeads,
 		"conversionRate": conversionRate,
-		"averageTime":    avgTime.Float64,
+		"captureRate":    captureRate,
+		"averageTime":    averageTimeSeconds,
 		"dropOffPoints":  dropOffPoints,
+		"dailyStats":     dailyStats,
+		"trafficSources": trafficSources,
 	})
 }
 
 func (s *Server) handleGetLeads(c *gin.Context) {
 	funnelID := c.Param("id")
 	format := c.Query("format")
-	
+
 	query := `
 		SELECT id, email, phone, name, data, source, completed, created_at
 		FROM funnel_builder.leads
 		WHERE funnel_id = $1
 		ORDER BY created_at DESC
 	`
-	
+
 	rows, err := s.db.Query(context.Background(), query, funnelID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer rows.Close()
-	
+
 	var leads []Lead
 	for rows.Next() {
 		var l Lead
@@ -702,7 +860,7 @@ func (s *Server) handleGetLeads(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	if format == "csv" {
 		// Convert to CSV format
 		c.Header("Content-Type", "text/csv")
@@ -710,7 +868,7 @@ func (s *Server) handleGetLeads(c *gin.Context) {
 		c.String(http.StatusOK, convertToCSV(leads))
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, leads)
 }
 
@@ -721,21 +879,21 @@ func (s *Server) handleGetTemplates(c *gin.Context) {
 		WHERE is_public = true
 		ORDER BY name
 	`
-	
+
 	rows, err := s.db.Query(context.Background(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer rows.Close()
-	
+
 	var templates []map[string]interface{}
 	for rows.Next() {
 		var id, name, slug, description, category string
 		var templateData, metrics json.RawMessage
-		
+
 		rows.Scan(&id, &name, &slug, &description, &category, &templateData, &metrics)
-		
+
 		templates = append(templates, map[string]interface{}{
 			"id":           id,
 			"name":         name,
@@ -746,29 +904,29 @@ func (s *Server) handleGetTemplates(c *gin.Context) {
 			"metrics":      metrics,
 		})
 	}
-	
+
 	c.JSON(http.StatusOK, templates)
 }
 
 func (s *Server) handleGetTemplate(c *gin.Context) {
 	slug := c.Param("slug")
-	
+
 	var template map[string]interface{}
 	query := `
 		SELECT id, name, slug, description, category, template_data, metrics
 		FROM funnel_builder.funnel_templates
 		WHERE slug = $1 AND is_public = true
 	`
-	
+
 	var id, name, slugResult, description, category string
 	var templateData, metrics json.RawMessage
-	
+
 	err := s.db.QueryRow(context.Background(), query, slug).Scan(&id, &name, &slugResult, &description, &category, &templateData, &metrics)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
 		return
 	}
-	
+
 	template = map[string]interface{}{
 		"id":           id,
 		"name":         name,
@@ -778,7 +936,7 @@ func (s *Server) handleGetTemplate(c *gin.Context) {
 		"templateData": templateData,
 		"metrics":      metrics,
 	}
-	
+
 	c.JSON(http.StatusOK, template)
 }
 
@@ -790,13 +948,13 @@ func (s *Server) getFunnelSteps(funnelID string) ([]FunnelStep, error) {
 		WHERE funnel_id = $1
 		ORDER BY position
 	`
-	
+
 	rows, err := s.db.Query(context.Background(), query, funnelID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var steps []FunnelStep
 	for rows.Next() {
 		var step FunnelStep
@@ -806,7 +964,11 @@ func (s *Server) getFunnelSteps(funnelID string) ([]FunnelStep, error) {
 		}
 		steps = append(steps, step)
 	}
-	
+
+	if steps == nil {
+		return []FunnelStep{}, nil
+	}
+
 	return steps, nil
 }
 
@@ -818,31 +980,31 @@ func (s *Server) getCurrentStep(funnelID, leadID string) map[string]interface{} 
 		JOIN funnel_builder.funnel_steps fs ON sr.step_id = fs.id
 		WHERE sr.lead_id = $1 AND fs.funnel_id = $2
 	`
-	
+
 	var lastPosition sql.NullInt64
 	s.db.QueryRow(context.Background(), query, leadID, funnelID).Scan(&lastPosition)
-	
+
 	nextPosition := 0
 	if lastPosition.Valid {
 		nextPosition = int(lastPosition.Int64) + 1
 	}
-	
+
 	// Get the next step
 	stepQuery := `
 		SELECT id, type, position, title, content
 		FROM funnel_builder.funnel_steps
 		WHERE funnel_id = $1 AND position = $2
 	`
-	
+
 	var stepID, stepType, title string
 	var position int
 	var content json.RawMessage
-	
+
 	err := s.db.QueryRow(context.Background(), stepQuery, funnelID, nextPosition).Scan(&stepID, &stepType, &position, &title, &content)
 	if err != nil {
 		return nil
 	}
-	
+
 	return map[string]interface{}{
 		"id":       stepID,
 		"type":     stepType,
@@ -857,23 +1019,23 @@ func (s *Server) getNextStep(funnelID, currentStepID string) map[string]interfac
 	var currentPosition int
 	query := `SELECT position FROM funnel_builder.funnel_steps WHERE id = $1`
 	s.db.QueryRow(context.Background(), query, currentStepID).Scan(&currentPosition)
-	
+
 	// Get next step
 	nextQuery := `
 		SELECT id, type, position, title, content
 		FROM funnel_builder.funnel_steps
 		WHERE funnel_id = $1 AND position = $2
 	`
-	
+
 	var stepID, stepType, title string
 	var position int
 	var content json.RawMessage
-	
+
 	err := s.db.QueryRow(context.Background(), nextQuery, funnelID, currentPosition+1).Scan(&stepID, &stepType, &position, &title, &content)
 	if err != nil {
 		return nil
 	}
-	
+
 	return map[string]interface{}{
 		"id":       stepID,
 		"type":     stepType,
@@ -886,10 +1048,10 @@ func (s *Server) getNextStep(funnelID, currentStepID string) map[string]interfac
 func (s *Server) calculateProgress(funnelID, leadID string) float64 {
 	// Get total steps
 	var totalSteps int
-	s.db.QueryRow(context.Background(), 
-		`SELECT COUNT(*) FROM funnel_builder.funnel_steps WHERE funnel_id = $1`, 
+	s.db.QueryRow(context.Background(),
+		`SELECT COUNT(*) FROM funnel_builder.funnel_steps WHERE funnel_id = $1`,
 		funnelID).Scan(&totalSteps)
-	
+
 	// Get completed steps
 	var completedSteps int
 	s.db.QueryRow(context.Background(),
@@ -898,11 +1060,11 @@ func (s *Server) calculateProgress(funnelID, leadID string) float64 {
 		JOIN funnel_builder.funnel_steps fs ON sr.step_id = fs.id
 		WHERE sr.lead_id = $1 AND fs.funnel_id = $2`,
 		leadID, funnelID).Scan(&completedSteps)
-	
+
 	if totalSteps == 0 {
 		return 0
 	}
-	
+
 	return float64(completedSteps) / float64(totalSteps) * 100
 }
 
@@ -912,11 +1074,11 @@ func (s *Server) updateLeadData(leadID string, response json.RawMessage) {
 	if err := json.Unmarshal(response, &data); err != nil {
 		return
 	}
-	
+
 	email, _ := data["email"].(string)
 	name, _ := data["name"].(string)
 	phone, _ := data["phone"].(string)
-	
+
 	if email != "" || name != "" || phone != "" {
 		query := `
 			UPDATE funnel_builder.leads
@@ -972,13 +1134,13 @@ func main() {
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	server, err := NewServer()
 	if err != nil {
 		log.Fatal("Failed to create server:", err)
 	}
 	defer server.db.Close()
-	
+
 	log.Printf("Funnel Builder API starting on port %s", port)
 	if err := server.router.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)

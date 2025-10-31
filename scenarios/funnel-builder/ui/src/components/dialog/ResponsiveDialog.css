@@ -1,0 +1,76 @@
+.responsive-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.responsive-dialog__content {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #ffffff;
+  min-height: 0;
+}
+
+.responsive-dialog__content--compact {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 64px);
+}
+
+.responsive-dialog__content--wide {
+  width: min(960px, 100%);
+  max-height: min(680px, calc(100vh - 64px));
+}
+
+.responsive-dialog__content--xl {
+  width: min(1200px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+}
+
+@media (max-width: 768px) {
+  .responsive-dialog__overlay {
+    padding: 24px 12px;
+  }
+
+  .responsive-dialog__content {
+    width: min(640px, 100%);
+    max-height: calc(100vh - 48px);
+    border-radius: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .responsive-dialog__overlay {
+    align-items: flex-end;
+    justify-content: stretch;
+    padding: 0;
+  }
+
+  .responsive-dialog__content {
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 28px 28px 0 0;
+    margin: 0;
+    margin-top: auto;
+    box-shadow: 0 -18px 48px rgba(15, 23, 42, 0.4);
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+
+  .responsive-dialog__content--compact,
+  .responsive-dialog__content--wide,
+  .responsive-dialog__content--xl {
+    width: 100%;
+    max-width: 100%;
+  }
+}

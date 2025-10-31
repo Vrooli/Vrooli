@@ -77,8 +77,28 @@ export interface BranchingRule {
   nextStepId: string
 }
 
+export interface FunnelTheme {
+  primaryColor: string
+  fontFamily?: string
+  borderRadius?: string
+  [key: string]: unknown
+}
+
+export interface FunnelSettings {
+  theme: FunnelTheme
+  tracking?: {
+    googleAnalytics?: string
+    facebookPixel?: string
+    [key: string]: unknown
+  }
+  exitIntent?: boolean
+  progressBar?: boolean
+  [key: string]: unknown
+}
+
 export interface Funnel {
   id: string
+  tenantId?: string | null
   name: string
   slug: string
   description?: string
@@ -89,24 +109,12 @@ export interface Funnel {
   status: 'draft' | 'active' | 'archived'
 }
 
-export interface FunnelSettings {
-  theme: {
-    primaryColor: string
-    fontFamily?: string
-    borderRadius?: string
-  }
-  tracking?: {
-    googleAnalytics?: string
-    facebookPixel?: string
-  }
-  exitIntent?: boolean
-  progressBar?: boolean
-}
-
 export interface Lead {
   id: string
   funnelId: string
-  email: string
+  email?: string
+  phone?: string
+  name?: string
   data: Record<string, any>
   source?: string
   completed: boolean
@@ -121,21 +129,39 @@ export interface StepResponse {
   timestamp: string
 }
 
-export interface Analytics {
+export interface StepDropOffPoint {
+  stepId: string
+  stepTitle: string
+  position: number
+  dropOffRate: number
+  responses: number
+  visitors: number
+  avgDuration?: number | null
+}
+
+export interface DailyStat {
+  date: string
+  views: number
+  leads: number
+  conversions: number
+}
+
+export interface TrafficSourceStat {
+  source: string
+  count: number
+  percentage: number
+}
+
+export interface FunnelAnalytics {
   funnelId: string
   totalViews: number
   totalLeads: number
+  completedLeads: number
+  capturedLeads: number
   conversionRate: number
-  averageTime: number
-  dropOffPoints: {
-    stepId: string
-    stepTitle: string
-    dropOffRate: number
-  }[]
-  dailyStats: {
-    date: string
-    views: number
-    leads: number
-    conversions: number
-  }[]
+  captureRate: number
+  averageTime: number | null
+  dropOffPoints: StepDropOffPoint[]
+  dailyStats: DailyStat[]
+  trafficSources: TrafficSourceStat[]
 }

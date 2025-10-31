@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 // TestGetFunnels tests funnel listing (covering handleGetFunnels)
@@ -52,6 +54,13 @@ func TestGetFunnels(t *testing.T) {
 		for _, funnel := range funnels {
 			if funnel["id"] == funnelID {
 				found = true
+				steps, ok := funnel["steps"].([]interface{})
+				if !ok {
+					t.Fatalf("expected steps to be an array, got %T", funnel["steps"])
+				}
+				if steps == nil {
+					t.Fatal("expected steps to be an empty array when no steps exist, got nil")
+				}
 				break
 			}
 		}
@@ -67,6 +76,52 @@ func TestGetFunnels(t *testing.T) {
 
 		if recorder.Code != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", recorder.Code)
+		}
+	})
+
+	t.Run("Steps_ReturnsEmptyArrayWhenNoSteps", func(t *testing.T) {
+		name := "Empty Steps Funnel " + uuid.NewString()
+		funnelData := map[string]interface{}{
+			"name":        name,
+			"description": "Funnel without predefined steps",
+			"steps":       []map[string]interface{}{},
+		}
+
+		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
+		recorder := httptest.NewRecorder()
+		testServer.Server.router.ServeHTTP(recorder, req)
+
+		if recorder.Code != http.StatusCreated {
+			t.Fatalf("Failed to create funnel without steps: status %d, body: %s", recorder.Code, recorder.Body.String())
+		}
+
+		var createResp map[string]interface{}
+		json.Unmarshal(recorder.Body.Bytes(), &createResp)
+		funnelID := createResp["id"].(string)
+		defer cleanupTestData(t, testServer.Server, funnelID)
+
+		req, _ = makeHTTPRequest("GET", "/api/v1/funnels/"+funnelID, nil)
+		recorder = httptest.NewRecorder()
+		testServer.Server.router.ServeHTTP(recorder, req)
+
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("Expected status 200 when fetching funnel, got %d", recorder.Code)
+		}
+
+		var funnel map[string]interface{}
+		json.Unmarshal(recorder.Body.Bytes(), &funnel)
+
+		if funnel["steps"] == nil {
+			t.Fatalf("expected steps field to be an empty array, got nil")
+		}
+
+		steps, ok := funnel["steps"].([]interface{})
+		if !ok {
+			t.Fatalf("expected steps to be an array, got %T", funnel["steps"])
+		}
+
+		if len(steps) != 0 {
+			t.Fatalf("expected zero steps, got %d", len(steps))
 		}
 	})
 }

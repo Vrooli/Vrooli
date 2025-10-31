@@ -1,72 +1,79 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { Funnel } from '../types'
+import { loadFunnelFromCache } from '../utils/funnelCache'
 
 const FunnelPreview = () => {
   const { id } = useParams()
   const [funnel, setFunnel] = useState<Funnel | null>(null)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [responses, setResponses] = useState<Record<string, any>>({})
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Load funnel data - mock for now
-    const mockFunnel: Funnel = {
-      id: id!,
-      name: 'Sample Funnel',
-      slug: 'sample-funnel',
-      steps: [
-        {
-          id: 'step-1',
-          type: 'quiz',
-          position: 0,
-          title: 'What brings you here today?',
-          content: {
-            question: 'What brings you here today?',
-            options: [
-              { id: 'opt-1', text: 'Growing my business', icon: '📈' },
-              { id: 'opt-2', text: 'Finding new customers', icon: '🎯' },
-              { id: 'opt-3', text: 'Improving conversions', icon: '🚀' },
-            ]
-          }
-        },
-        {
-          id: 'step-2',
-          type: 'form',
-          position: 1,
-          title: 'Let\'s get started!',
-          content: {
-            fields: [
-              { id: 'field-1', type: 'text' as const, label: 'Full Name', required: true },
-              { id: 'field-2', type: 'email' as const, label: 'Email', required: true },
-              { id: 'field-3', type: 'tel' as const, label: 'Phone', required: false },
-            ],
-            submitText: 'Get My Free Guide'
-          }
-        },
-        {
-          id: 'step-3',
-          type: 'cta',
-          position: 2,
-          title: 'Success!',
-          content: {
-            headline: 'Check Your Email!',
-            subheadline: 'We\'ve sent your free guide to your inbox.',
-            buttonText: 'Go to Dashboard',
-            buttonUrl: '/dashboard'
-          }
-        }
-      ],
-      settings: {
-        theme: { primaryColor: '#0ea5e9' },
-        progressBar: true
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: 'active'
+    if (!id) {
+      setFunnel(null)
+      setIsLoading(false)
+      return
     }
-    setFunnel(mockFunnel)
+
+    setIsLoading(true)
+    const cachedFunnel = loadFunnelFromCache(id)
+    setFunnel(cachedFunnel)
+    setIsLoading(false)
   }, [id])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !id) {
+      return
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === `funnel-preview:${id}`) {
+        if (!event.newValue) {
+          setFunnel(null)
+          return
+        }
+
+        try {
+          const updated = JSON.parse(event.newValue) as Funnel
+          setFunnel(updated)
+        } catch (error) {
+          console.error('Unable to refresh preview state from cache', error)
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [id])
+
+  useEffect(() => {
+    setResponses({})
+    setCurrentStepIndex(0)
+  }, [funnel?.id])
+
+  useEffect(() => {
+    if (!funnel || funnel.steps.length === 0) {
+      setCurrentStepIndex(0)
+      return
+    }
+
+    setCurrentStepIndex((prev) => {
+      if (prev >= funnel.steps.length) {
+        return funnel.steps.length - 1
+      }
+      return prev
+    })
+  }, [funnel])
+
+  const primaryColor = useMemo(() => {
+    if (!funnel?.settings?.theme?.primaryColor) {
+      return '#0ea5e9'
+    }
+    return funnel.settings.theme.primaryColor
+  }, [funnel?.settings?.theme?.primaryColor])
 
   const handleNext = () => {
     if (funnel && currentStepIndex < funnel.steps.length - 1) {
@@ -85,23 +92,52 @@ const FunnelPreview = () => {
     handleNext()
   }
 
-  if (!funnel) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center">Loading preview...</div>
   }
 
-  const currentStep = funnel.steps[currentStepIndex]
-  const progress = ((currentStepIndex + 1) / funnel.steps.length) * 100
+  if (!funnel) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 px-4 text-center">
+        <div>
+          <h2 className="mb-2 text-2xl font-semibold text-gray-800">Preview unavailable</h2>
+          <p className="text-sm text-gray-500">
+            We couldn't find a saved funnel for this preview. Go back to the builder, make sure your
+            funnel has at least one step, and click preview again.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const totalSteps = funnel.steps.length
+  const progress = totalSteps === 0 ? 0 : ((currentStepIndex + 1) / totalSteps) * 100
+  const currentStep = totalSteps > 0 ? funnel.steps[currentStepIndex] : null
+
+  if (!currentStep) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 px-4 text-center">
+        <div>
+          <h2 className="mb-2 text-2xl font-semibold text-gray-800">This funnel is empty</h2>
+          <p className="text-sm text-gray-500">
+            Add at least one step in the builder, save your changes, and open the preview again to
+            see the customer experience.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {funnel.settings.progressBar && (
+      {funnel.settings?.progressBar ? (
         <div className="fixed top-0 left-0 right-0 h-1 bg-gray-200">
           <div
             className="h-full bg-primary-600 transition-all duration-300"
-            style={{ width: `${progress}%` }}
+            style={{ width: `${progress}%`, backgroundColor: primaryColor }}
           />
         </div>
-      )}
+      ) : null}
 
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-2xl mx-auto">

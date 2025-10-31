@@ -107,6 +107,9 @@ function healthCheckPlugin() {
 
 export default defineConfig({
   plugins: [react(), healthCheckPlugin()],
+  resolve: {
+    dedupe: ['react', 'react-dom']
+  },
   server: {
     host: process.env.VITE_HOST || process.env.UI_HOST || '0.0.0.0',
     port: parseInt(process.env.UI_PORT || process.env.FUNNEL_UI_PORT || '20000', 10),
@@ -120,5 +123,8 @@ export default defineConfig({
   preview: {
     port: parseInt(process.env.UI_PORT || process.env.FUNNEL_UI_PORT || '20000', 10),
     host: process.env.VITE_HOST || process.env.UI_HOST || '0.0.0.0'
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom']
   }
 })
