@@ -73,7 +73,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
             {autoFix && (
               <span style={{
-                background: 'rgba(0, 255, 0, 0.15)',
+                background: 'var(--alpha-accent-15)',
                 border: '1px solid var(--color-success)',
                 color: 'var(--color-success)',
                 padding: '2px 6px',
@@ -133,7 +133,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
             <div style={{
               height: '6px',
               borderRadius: '999px',
-              background: 'rgba(0, 255, 0, 0.15)',
+              background: 'var(--alpha-accent-15)',
               overflow: 'hidden'
             }}>
               <div style={{
@@ -180,7 +180,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
             <div style={{
               width: '100px',
               height: '4px',
-              background: 'rgba(0, 255, 0, 0.2)',
+              background: 'var(--alpha-accent-20)',
               borderRadius: '2px',
               overflow: 'hidden'
             }}>

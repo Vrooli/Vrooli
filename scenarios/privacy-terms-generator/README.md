@@ -11,6 +11,7 @@ Generate legally compliant privacy policies, terms of service, and other legal d
 - **Multiple Output Formats**: Markdown, HTML, PDF
 - **Version History Tracking**: Track changes to generated documents over time
 - **Semantic Search**: Find relevant legal clauses using Qdrant or PostgreSQL full-text search
+- **Compliance Checklists**: Generate jurisdiction-specific implementation checklists (GDPR, CCPA, UK-GDPR, PIPEDA)
 - **Programmatic Access**: Full CLI and API for automation
 
 ## Quick Start
@@ -52,12 +53,21 @@ privacy-terms-generator search "data collection" \
 # View document version history
 privacy-terms-generator history <document-id> \
   --limit 10
+
+# Generate compliance checklist
+privacy-terms-generator compliance GDPR \
+  --business-name "My Company"
+
+# Save checklist to file
+privacy-terms-generator compliance US \
+  --business-name "SaaS Co" \
+  --output ccpa-checklist.md
 ```
 
 ### Using the Web UI
 
 1. Start the UI server: `vrooli scenario run privacy-terms-generator`
-2. Open http://localhost:21150 in your browser
+2. Open the URL shown in the output (typically http://localhost:${UI_PORT})
 3. Fill in your business details
 4. Generate your legal documents
 

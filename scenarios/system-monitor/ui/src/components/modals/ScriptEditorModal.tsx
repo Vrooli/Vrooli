@@ -113,7 +113,7 @@ export const ScriptEditorModal = ({
           alignItems: 'center',
           padding: 'var(--spacing-lg)',
           borderBottom: '1px solid var(--color-accent)',
-          background: 'rgba(0, 255, 0, 0.05)'
+          background: 'var(--alpha-accent-05)'
         }}>
           <div>
             <h3 style={{ 
@@ -202,7 +202,7 @@ export const ScriptEditorModal = ({
           {(currentMode === 'edit' || mode === 'create') && (
             <div className="script-metadata" style={{
               padding: 'var(--spacing-md)',
-              borderBottom: '1px solid rgba(0, 255, 0, 0.2)',
+              borderBottom: '1px solid var(--alpha-accent-20)',
               background: 'rgba(0, 0, 0, 0.3)'
             }}>
               <div style={{
@@ -338,8 +338,8 @@ export const ScriptEditorModal = ({
               justifyContent: 'space-between',
               alignItems: 'center',
               padding: 'var(--spacing-sm) var(--spacing-md)',
-              background: 'rgba(0, 255, 0, 0.05)',
-              borderBottom: '1px solid rgba(0, 255, 0, 0.2)',
+              background: 'var(--alpha-accent-05)',
+              borderBottom: '1px solid var(--alpha-accent-20)',
               fontSize: 'var(--font-size-sm)',
               color: 'var(--color-text-bright)'
             }}>

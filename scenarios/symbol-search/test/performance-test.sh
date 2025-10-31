@@ -7,7 +7,7 @@ set -e
 
 # Configuration
 API_URL="${API_URL:-http://localhost:${API_PORT:-15000}}"
-TEST_TYPE="$1"
+TEST_TYPE="${1:-all}"
 RESULTS_FILE="/tmp/symbol-search-perf-results.json"
 
 # Colors for output

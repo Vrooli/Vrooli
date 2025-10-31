@@ -96,7 +96,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
           alignItems: 'center',
           padding: 'var(--spacing-lg)',
           borderBottom: '1px solid var(--color-accent)',
-          background: 'rgba(0, 255, 0, 0.05)'
+          background: 'var(--alpha-accent-05)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
             {getStatusIcon()}
@@ -142,7 +142,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
         {/* Execution Summary */}
         <div className="execution-summary" style={{
           padding: 'var(--spacing-lg)',
-          borderBottom: '1px solid rgba(0, 255, 0, 0.2)',
+          borderBottom: '1px solid var(--alpha-accent-20)',
           background: 'rgba(0, 0, 0, 0.3)'
         }}>
           <div style={{
@@ -259,8 +259,8 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
                 alignItems: 'center',
                 gap: 'var(--spacing-sm)',
                 padding: 'var(--spacing-sm) var(--spacing-md)',
-                background: 'rgba(0, 255, 0, 0.05)',
-                borderBottom: '1px solid rgba(0, 255, 0, 0.2)',
+                background: 'var(--alpha-accent-05)',
+                borderBottom: '1px solid var(--alpha-accent-20)',
                 fontSize: 'var(--font-size-sm)',
                 color: 'var(--color-text-bright)'
               }}>

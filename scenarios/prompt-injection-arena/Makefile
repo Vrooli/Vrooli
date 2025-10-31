@@ -1,16 +1,22 @@
 # Scenario Makefile
-# 
+#
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
 #   make        - Show help
-#   make start  - Start this scenario
-#   make run    - Alias for start
-#   make stop   - Stop this scenario
-#   make test   - Run scenario tests
-#   make logs   - Show scenario logs
-#   make clean  - Clean build artifacts
+#   make start  - Start this scenario through Vrooli lifecycle
+#   make run    - Alias for 'start'
+#   make stop   - Stop this scenario and cleanup processes
+#   make test   - Run scenario test suite (all phases)
+#   make logs   - Show recent logs from running scenario
+#   make status - Check if scenario is currently running
+#   make clean  - Clean build artifacts and temporary files
+#   make build  - Build API binary (if applicable)
+#   make dev    - Start in development mode
+#   make fmt    - Format all code (Go and UI)
+#   make lint   - Lint all code (Go and UI)
+#   make check  - Run fmt, lint, and test (pre-commit workflow)
 
 .PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
@@ -42,7 +48,7 @@ help: ## Show this help message
 
 start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
 
 run: start ## Alias for 'start'
 

@@ -191,20 +191,20 @@ type ConnectivityStatistics struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	// Build database URL from components or use provided URL
+	// Priority: DATABASE_URL > POSTGRES_URL > component-based construction
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		// Try POSTGRES_URL first (from environment)
 		dbURL = os.Getenv("POSTGRES_URL")
 	}
 	if dbURL == "" {
-		// Fall back to building from components
+		// Build from individual components with Vrooli resource defaults
 		dbHost := getEnv("POSTGRES_HOST", getEnv("DB_HOST", "localhost"))
 		dbPort := getEnv("POSTGRES_PORT", getEnv("DB_PORT", "5433"))
 		dbUser := getEnv("POSTGRES_USER", getEnv("DB_USER", "vrooli"))
 		dbPass := getEnv("POSTGRES_PASSWORD", getEnv("DB_PASSWORD", ""))
 		dbName := getEnv("POSTGRES_DB", getEnv("DB_NAME", "vrooli"))
 		dbSSL := getEnv("POSTGRES_SSLMODE", getEnv("DB_SSL_MODE", "disable"))
-		
+
 		if dbPass == "" {
 			return nil, fmt.Errorf("database password not configured - set POSTGRES_PASSWORD or DB_PASSWORD environment variable")
 		}
@@ -329,6 +329,14 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/network/targets", s.handleListTargets).Methods("GET")
 	api.HandleFunc("/network/targets", s.handleCreateTarget).Methods("POST")
 	api.HandleFunc("/network/alerts", s.handleListAlerts).Methods("GET")
+
+	// API Management endpoints
+	api.HandleFunc("/api/definitions", s.handleListAPIDefinitions).Methods("GET", "OPTIONS")
+	api.HandleFunc("/api/definitions", s.handleCreateAPIDefinition).Methods("POST", "OPTIONS")
+	api.HandleFunc("/api/definitions/{id}", s.handleGetAPIDefinition).Methods("GET", "OPTIONS")
+	api.HandleFunc("/api/definitions/{id}", s.handleUpdateAPIDefinition).Methods("PUT", "OPTIONS")
+	api.HandleFunc("/api/definitions/{id}", s.handleDeleteAPIDefinition).Methods("DELETE", "OPTIONS")
+	api.HandleFunc("/api/discover", s.handleDiscoverAPIEndpoints).Methods("POST", "OPTIONS")
 }
 
 // Middleware functions
@@ -438,8 +446,8 @@ func authMiddleware(next http.Handler) http.Handler {
 			// Production mode: require valid API key
 			expectedKey := os.Getenv("NETWORK_TOOLS_API_KEY")
 			if expectedKey == "" {
-				// Generate a secure API key on startup
-				log.Printf("Error: No API key configured in production mode. Set NETWORK_TOOLS_API_KEY environment variable.")
+				// API key required but not configured
+				log.Printf("Error: No API key configured in production mode. Configure authentication via environment variables.")
 				sendError(w, "Service misconfigured - API key not set", http.StatusInternalServerError)
 				return
 			}
@@ -1439,7 +1447,11 @@ func (s *Server) Run() error {
 func main() {
 	// Check if running under lifecycle management
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		log.Println("Warning: Not running under Vrooli lifecycle management")
+		log.Println("ERROR: Network Tools must be started via Vrooli lifecycle system")
+		log.Println("Please use: vrooli scenario start network-tools")
+		log.Println("Or from scenario directory: make start")
+		log.Println("Direct execution bypasses critical infrastructure (process management, port allocation, health monitoring)")
+		os.Exit(1)
 	}
 
 	server, err := NewServer()

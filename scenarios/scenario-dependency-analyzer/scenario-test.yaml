@@ -43,9 +43,10 @@ tests:
       
   - name: "Claude Code resource is available"
     type: exec
-    command: resource-claude-code --version
+    command: resource-claude-code help
     expect:
       exit_code: 0
+      output_contains: ["Claude Code AI development assistant"]
       
   - name: "Qdrant resource is accessible" 
     type: exec

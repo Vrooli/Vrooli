@@ -1,6 +1,238 @@
 // SmartFile - AI-Powered File Manager JavaScript
 
-const API_BASE = `http://localhost:${window.location.port === '3000' ? '8080' : window.location.port}/api`;
+const API_BASE = resolveApiBase();
+
+function resolveApiBase() {
+    const API_PATH = '/api';
+    const DEFAULT_PORT = 8080;
+
+    if (typeof window === 'undefined') {
+        return `http://127.0.0.1:${DEFAULT_PORT}${API_PATH}`;
+    }
+
+    const proxyBase = resolveProxyBase();
+    if (proxyBase) {
+        return appendPath(proxyBase, API_PATH);
+    }
+
+    const envApiBase = resolveEnvApiBase();
+    if (envApiBase) {
+        return appendPath(envApiBase, API_PATH);
+    }
+
+    const origin = window.location?.origin;
+    if (origin && origin !== 'null') {
+        return appendPath(origin, API_PATH);
+    }
+
+    const port = window.location?.port || DEFAULT_PORT;
+    const protocol = window.location?.protocol || 'http:';
+    const hostname = window.location?.hostname || '127.0.0.1';
+    return `${protocol}//${hostname}:${port}${API_PATH}`;
+}
+
+function resolveEnvApiBase() {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+
+    const env = window.ENV || window.env;
+    const candidate = typeof env?.API_URL === 'string' ? env.API_URL : typeof env?.apiUrl === 'string' ? env.apiUrl : undefined;
+    if (typeof candidate !== 'string') {
+        return undefined;
+    }
+
+    const trimmed = candidate.trim();
+    return trimmed ? stripTrailingSlash(trimmed) : undefined;
+}
+
+function resolveProxyBase() {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+
+    const sources = collectProxySources();
+    for (const source of sources) {
+        const candidates = extractProxyCandidates(source);
+        for (const candidate of candidates) {
+            const normalized = normalizeProxyCandidate(candidate);
+            if (normalized) {
+                return normalized;
+            }
+        }
+    }
+
+    return undefined;
+}
+
+function collectProxySources() {
+    const sources = [];
+    const seen = new Set();
+
+    const enqueue = (value) => {
+        if (!value || seen.has(value)) {
+            return;
+        }
+        seen.add(value);
+        sources.push(value);
+    };
+
+    const frames = [window];
+    try {
+        if (window.parent && window.parent !== window) {
+            frames.push(window.parent);
+        }
+    } catch (error) {
+        // Ignore cross-origin access errors
+    }
+
+    try {
+        if (window.top && window.top !== window && !frames.includes(window.top)) {
+            frames.push(window.top);
+        }
+    } catch (error) {
+        // Ignore cross-origin access errors
+    }
+
+    for (const frame of frames) {
+        if (!frame) {
+            continue;
+        }
+        try {
+            enqueue(frame.__APP_MONITOR_PROXY_INFO__);
+            enqueue(frame.__APP_MONITOR_PROXY_INDEX__);
+        } catch (error) {
+            // Ignore cross-origin access errors
+        }
+    }
+
+    return sources;
+}
+
+function extractProxyCandidates(source, bucket = [], depth = 0) {
+    if (!source || depth > 4) {
+        return bucket;
+    }
+
+    if (typeof source === 'string') {
+        bucket.push(source);
+        return bucket;
+    }
+
+    if (typeof source === 'number' && Number.isFinite(source)) {
+        bucket.push(String(source));
+        return bucket;
+    }
+
+    if (Array.isArray(source)) {
+        source.forEach((item) => extractProxyCandidates(item, bucket, depth + 1));
+        return bucket;
+    }
+
+    if (typeof source !== 'object') {
+        return bucket;
+    }
+
+    const keys = [
+        'apiBase',
+        'apiUrl',
+        'api',
+        'primary',
+        'url',
+        'target',
+        'path',
+        'endpoint',
+        'endpoints',
+        'proxy',
+        'proxyUrl',
+        'proxyPath',
+        'proxyApiUrl',
+        'proxyApiPath',
+        'services',
+        'ports',
+        'entries'
+    ];
+
+    for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+            extractProxyCandidates(source[key], bucket, depth + 1);
+        }
+    }
+
+    return bucket;
+}
+
+function normalizeProxyCandidate(candidate) {
+    if (typeof candidate !== 'string') {
+        return undefined;
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+
+    const protocolMatch = trimmed.match(/^https?:\/\//i);
+    if (protocolMatch) {
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (trimmed.startsWith('//')) {
+        const protocol = window.location?.protocol || 'https:';
+        return stripTrailingSlash(`${protocol}${trimmed}`);
+    }
+
+    if (trimmed.startsWith('/')) {
+        const origin = window.location?.origin;
+        if (origin) {
+            return stripTrailingSlash(`${origin}${trimmed}`);
+        }
+        return stripTrailingSlash(trimmed);
+    }
+
+    if (/^\d+$/.test(trimmed)) {
+        return `http://127.0.0.1:${trimmed}`;
+    }
+
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(trimmed)) {
+        return stripTrailingSlash(`http://${trimmed}`);
+    }
+
+    const origin = window.location?.origin;
+    if (origin) {
+        return stripTrailingSlash(`${origin}/${trimmed.replace(/^\/+/, '')}`);
+    }
+
+    return stripTrailingSlash(trimmed);
+}
+
+function appendPath(base, path) {
+    if (!base) {
+        return ensureLeadingSlash(path);
+    }
+
+    const sanitizedBase = stripTrailingSlash(base);
+    const sanitizedPath = ensureLeadingSlash(path);
+    if (sanitizedBase.toLowerCase().endsWith(sanitizedPath.toLowerCase())) {
+        return sanitizedBase;
+    }
+
+    return `${sanitizedBase}${sanitizedPath}`;
+}
+
+function stripTrailingSlash(value) {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    return value.replace(/\/+$/, '');
+}
+
+function ensureLeadingSlash(value) {
+    if (typeof value !== 'string' || !value) {
+        return '/';
+    }
+    return value.startsWith('/') ? value : `/${value}`;
+}
 
 // State management
 const state = {
@@ -13,11 +245,83 @@ const state = {
     uploadProgress: 0
 };
 
+function createIcon(name, { className = '', size } = {}) {
+    if (!name) return null;
+    const iconElement = document.createElement('span');
+    iconElement.setAttribute('data-lucide', name);
+    iconElement.className = ['lucide-icon', className].filter(Boolean).join(' ');
+    iconElement.setAttribute('aria-hidden', 'true');
+    if (size) {
+        iconElement.style.width = `${size}px`;
+        iconElement.style.height = `${size}px`;
+    }
+    return iconElement;
+}
+
+function renderLucideIcons(scope = document) {
+    if (!window.lucide?.createIcons || !scope) return;
+
+    const elements = [];
+
+    if (scope !== document && scope.matches?.('[data-lucide]')) {
+        elements.push(scope);
+    }
+
+    const descendants = scope.querySelectorAll?.('[data-lucide]') ?? [];
+    descendants.forEach(el => elements.push(el));
+
+    if (elements.length) {
+        window.lucide.createIcons({ elements });
+    }
+}
+
+function renderEmptyState(container, { icon, title, hint }) {
+    if (!container) return;
+    container.innerHTML = '';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'empty-state';
+
+    if (icon) {
+        const iconElement = createIcon(icon, { className: 'empty-icon' });
+        if (iconElement) {
+            wrapper.appendChild(iconElement);
+        }
+    }
+
+    if (title) {
+        const titleEl = document.createElement('p');
+        titleEl.textContent = title;
+        wrapper.appendChild(titleEl);
+    }
+
+    if (hint) {
+        const hintEl = document.createElement('p');
+        hintEl.className = 'empty-hint';
+        hintEl.textContent = hint;
+        wrapper.appendChild(hintEl);
+    }
+
+    container.appendChild(wrapper);
+    renderLucideIcons(wrapper);
+}
+
+function setPreviewIcon(container, iconName, className = 'file-type-icon', size) {
+    if (!container) return;
+    container.innerHTML = '';
+    const iconElement = createIcon(iconName, { className, size });
+    if (iconElement) {
+        container.appendChild(iconElement);
+        renderLucideIcons(iconElement);
+    }
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     initializeEventListeners();
     loadFiles();
     setupDragAndDrop();
+    renderLucideIcons();
 });
 
 // Event Listeners
@@ -121,8 +425,10 @@ async function loadFiles() {
 
 function renderFiles() {
     const grid = document.getElementById('file-grid');
+    if (!grid) return;
+
     const uploadZone = grid.querySelector('.upload-zone');
-    
+
     // Clear existing files but keep upload zone
     grid.innerHTML = '';
     if (uploadZone) grid.appendChild(uploadZone);
@@ -131,6 +437,8 @@ function renderFiles() {
         const card = createFileCard(file);
         grid.appendChild(card);
     });
+
+    renderLucideIcons(grid);
 }
 
 function createFileCard(file) {
@@ -147,7 +455,7 @@ function createFileCard(file) {
         img.src = file.thumbnail || file.url || "#";
         img.alt = file.name;
         img.onerror = () => {
-            preview.innerHTML = `<div style="font-size: 48px; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; height: 100%;">${getFileIcon(file.type)}</div>`;
+            setPreviewIcon(preview, getFileIcon(file.type));
         };
         preview.appendChild(img);
         
@@ -155,7 +463,7 @@ function createFileCard(file) {
         overlay.className = "overlay";
         preview.appendChild(overlay);
     } else {
-        preview.innerHTML = `<div style="font-size: 48px; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; height: 100%;">${getFileIcon(file.type)}</div>`;
+        setPreviewIcon(preview, getFileIcon(file.type));
     }
 
     const info = document.createElement("div");
@@ -182,14 +490,16 @@ function createFileCard(file) {
 
 // Search Functionality
 async function performSearch(query) {
-    if (!query.trim()) {
-        document.getElementById('search-results').innerHTML = `
-            <div class="empty-state">
-                <span class="empty-icon">🔍</span>
-                <p>Search for files using natural language</p>
-                <p class="empty-hint">Try "photos from last summer" or "documents about project X"</p>
-            </div>
-        `;
+    const container = document.getElementById('search-results');
+    if (!container) return;
+
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+        renderEmptyState(container, {
+            icon: 'search',
+            title: 'Search for files using natural language',
+            hint: 'Try "photos from last summer" or "documents about project X"'
+        });
         return;
     }
 
@@ -197,18 +507,21 @@ async function performSearch(query) {
         const response = await fetch(`${API_BASE}/search`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ query: trimmedQuery })
         });
 
-        if (response.ok) {
-            state.searchResults = await response.json();
-            renderSearchResults();
+        if (!response.ok) {
+            throw new Error(`Search request failed: ${response.status}`);
         }
+
+        state.searchResults = await response.json();
+        renderSearchResults();
+        return;
     } catch (error) {
         console.error('Search error:', error);
         // Use mock results for demo
         state.searchResults = state.files.filter(f => 
-            f.name.toLowerCase().includes(query.toLowerCase())
+            f.name.toLowerCase().includes(trimmedQuery.toLowerCase())
         );
         renderSearchResults();
     }
@@ -216,27 +529,28 @@ async function performSearch(query) {
 
 function renderSearchResults() {
     const container = document.getElementById('search-results');
-    
+    if (!container) return;
+
     if (state.searchResults.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <span class="empty-icon">🔍</span>
-                <p>No results found</p>
-                <p class="empty-hint">Try a different search query</p>
-            </div>
-        `;
+        renderEmptyState(container, {
+            icon: 'search-x',
+            title: 'No results found',
+            hint: 'Try a different search query'
+        });
         return;
     }
 
     container.innerHTML = '';
     const grid = document.createElement('div');
     grid.className = 'file-grid';
-    
+
     state.searchResults.forEach(file => {
-        grid.appendChild(createFileCard(file));
+        const card = createFileCard(file);
+        grid.appendChild(card);
     });
-    
+
     container.appendChild(grid);
+    renderLucideIcons(grid);
 }
 
 // File Upload
@@ -348,15 +662,16 @@ async function scanForDuplicates() {
 
     try {
         const response = await fetch(`${API_BASE}/duplicates`);
-        if (response.ok) {
-            state.duplicates = await response.json();
-            renderDuplicates();
-            hideProcessing();
+        if (!response.ok) {
+            throw new Error(`Duplicate scan failed: ${response.status}`);
         }
+
+        state.duplicates = await response.json();
     } catch (error) {
         console.error('Duplicate scan error:', error);
         // Use mock data for demo
         state.duplicates = generateMockDuplicates();
+    } finally {
         renderDuplicates();
         hideProcessing();
     }
@@ -364,15 +679,14 @@ async function scanForDuplicates() {
 
 function renderDuplicates() {
     const container = document.getElementById('duplicates-container');
-    
+    if (!container) return;
+
     if (state.duplicates.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <span class="empty-icon">✓</span>
-                <p>No duplicates found</p>
-                <p class="empty-hint">Your files are well organized!</p>
-            </div>
-        `;
+        renderEmptyState(container, {
+            icon: 'check-circle-2',
+            title: 'No duplicates found',
+            hint: 'Your files are well organized!'
+        });
         return;
     }
 
@@ -380,14 +694,24 @@ function renderDuplicates() {
     state.duplicates.forEach(group => {
         const groupDiv = document.createElement('div');
         groupDiv.className = 'duplicate-group';
-        groupDiv.innerHTML = `
-            <h3>Duplicate Group (${group.files.length} files)</h3>
-            <div class="file-grid">
-                ${group.files.map(file => createFileCard(file).outerHTML).join('')}
-            </div>
-        `;
+
+        const heading = document.createElement('h3');
+        heading.textContent = `Duplicate Group (${group.files.length} files)`;
+        groupDiv.appendChild(heading);
+
+        const grid = document.createElement('div');
+        grid.className = 'file-grid';
+
+        group.files.forEach(file => {
+            const card = createFileCard(file);
+            grid.appendChild(card);
+        });
+
+        groupDiv.appendChild(grid);
         container.appendChild(groupDiv);
     });
+
+    renderLucideIcons(container);
 }
 
 // Tags
@@ -441,9 +765,16 @@ function openFileModal(file, isPhoto = false) {
     // Set preview
     if (file.thumbnail || (file.type && file.type.startsWith('image/'))) {
         const imgSrc = file.thumbnail || file.url || '#';
-        preview.innerHTML = `<img src="${imgSrc}" alt="${file.name}" style="max-width: 100%; max-height: ${isPhoto ? '80vh' : '400px'}; object-fit: ${isPhoto ? 'contain' : 'cover'};">`;
+        preview.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.alt = file.name;
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = isPhoto ? '80vh' : '400px';
+        img.style.objectFit = isPhoto ? 'contain' : 'cover';
+        preview.appendChild(img);
     } else {
-        preview.innerHTML = `<div style="font-size: 120px; color: var(--text-tertiary);">${getFileIcon(file.type)}</div>`;
+        setPreviewIcon(preview, getFileIcon(file.type), 'modal-file-icon', 120);
     }
 
     // Set details with enhanced info for photos
@@ -473,16 +804,47 @@ function closeModal() {
 
 // Utility Functions
 function getFileIcon(type) {
-    if (!type) return '📄';
-    if (type.startsWith('image/')) return '🖼️';
-    if (type.startsWith('video/')) return '🎥';
-    if (type.startsWith('audio/')) return '🎵';
-    if (type.includes('pdf')) return '📑';
-    if (type.includes('word') || type.includes('document')) return '📝';
-    if (type.includes('sheet') || type.includes('excel')) return '📊';
-    if (type.includes('presentation') || type.includes('powerpoint')) return '📈';
-    if (type.includes('zip') || type.includes('archive')) return '🗜️';
-    return '📄';
+    if (!type) return 'file';
+
+    const normalized = type.toLowerCase();
+
+    if (normalized.startsWith('image/')) return 'image';
+    if (normalized.startsWith('video/')) return 'video';
+    if (normalized.startsWith('audio/')) return 'music';
+    if (normalized.includes('pdf')) return 'file-text';
+    if (
+        normalized.includes('word') ||
+        normalized.includes('document') ||
+        normalized.includes('msword') ||
+        normalized.includes('wordprocessingml')
+    ) {
+        return 'file-text';
+    }
+    if (
+        normalized.includes('sheet') ||
+        normalized.includes('excel') ||
+        normalized.includes('spreadsheet') ||
+        normalized.includes('spreadsheetml')
+    ) {
+        return 'table';
+    }
+    if (
+        normalized.includes('presentation') ||
+        normalized.includes('powerpoint') ||
+        normalized.includes('presentationml') ||
+        normalized.includes('ppt')
+    ) {
+        return 'presentation';
+    }
+    if (
+        normalized.includes('zip') ||
+        normalized.includes('archive') ||
+        normalized.includes('compressed')
+    ) {
+        return 'file-archive';
+    }
+
+    return 'file';
 }
 
 function formatFileSize(bytes) {

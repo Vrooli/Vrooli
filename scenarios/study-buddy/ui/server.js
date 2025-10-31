@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const http = require('http');
 const socketIO = require('socket.io');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -15,7 +16,6 @@ const io = socketIO(server, {
 });
 
 const PORT = process.env.UI_PORT || process.env.PORT;
-const API_PORT = process.env.API_PORT;
 const API_URL = `http://localhost:${process.env.API_PORT || 8500}`;
 
 app.use(cors());
@@ -23,12 +23,56 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 // Health check endpoint for orchestrator
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        scenario: 'study-buddy',
-        port: PORT,
-        timestamp: new Date().toISOString()
+app.get('/health', async (req, res) => {
+    const now = new Date();
+    const timestamp = now.toISOString();
+    let status = 'healthy';
+    let readiness = true;
+
+    const apiConnectivity = {
+        connected: false,
+        api_url: API_URL,
+        last_check: timestamp,
+        latency_ms: null,
+        error: null
+    };
+
+    try {
+        const start = Date.now();
+        const response = await axios.get(`${API_URL}/health`, { timeout: 2000 });
+        apiConnectivity.latency_ms = Date.now() - start;
+        apiConnectivity.connected = response.status === 200;
+
+        if (response.data?.readiness === false || !apiConnectivity.connected) {
+            status = 'degraded';
+            readiness = false;
+        }
+    } catch (error) {
+        status = 'degraded';
+        readiness = false;
+
+        const message = error.response?.data?.message || error.message || 'Failed to reach API health endpoint';
+        const retryable = !error.response || error.response.status >= 500;
+        apiConnectivity.error = {
+            code: error.code || 'API_HEALTH_UNAVAILABLE',
+            message,
+            category: 'network',
+            retryable,
+            details: {
+                status: error.response?.status ?? null
+            }
+        };
+    }
+
+    res.json({
+        status,
+        service: 'study-buddy-ui',
+        timestamp,
+        readiness,
+        api_connectivity: apiConnectivity,
+        metrics: {
+            active_connections: io.engine?.clientsCount ?? 0
+        }
     });
 });
 
@@ -36,7 +80,6 @@ app.get('/health', (req, res) => {
 // API proxy endpoints
 app.post('/api/*', async (req, res) => {
     try {
-        const axios = require('axios');
         const apiPath = req.path.replace('/api', '');
         const response = await axios.post(`${API_URL}${apiPath}`, req.body);
         res.json(response.data);
@@ -48,7 +91,6 @@ app.post('/api/*', async (req, res) => {
 
 app.get('/api/*', async (req, res) => {
     try {
-        const axios = require('axios');
         const apiPath = req.path.replace('/api', '');
         const response = await axios.get(`${API_URL}${apiPath}`, { params: req.query });
         res.json(response.data);

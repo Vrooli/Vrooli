@@ -293,24 +293,78 @@
         const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
 
         function buildDocsCandidates() {
-            const candidates = [];
+            const unique = new Set();
+            const origin = window.location.origin || '';
 
             const append = (value) => {
-                if (typeof value === 'string' && value.trim().length > 0) {
-                    candidates.push(value.trim());
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed.length > 0) {
+                        unique.add(trimmed);
+                    }
                 }
             };
 
-            try {
-                append(new URL('./docs-content', window.location.href).toString());
-            } catch (error) {
-                console.warn('[VisitedTracker] Failed to resolve relative docs endpoint', error);
-            }
+            const appendRelativeFallbacks = () => {
+                append('docs-content');
+                append('./docs-content');
+
+                try {
+                    const relativeUrl = new URL('docs-content', window.location.href);
+                    append(relativeUrl.pathname);
+                    append(relativeUrl.href);
+                } catch (error) {
+                    console.warn('[VisitedTracker] Failed to construct relative docs URL', error);
+                }
+            };
+
+            const appendPathVariants = (basePath) => {
+                if (typeof basePath !== 'string') {
+                    return;
+                }
+
+                const normalizedBase = basePath.trim();
+
+                if (!normalizedBase) {
+                    const candidate = '/docs-content';
+                    append(candidate);
+                    if (origin) {
+                        append(`${origin}${candidate}`);
+                    }
+                    return;
+                }
+
+                if (/^https?:\/\//i.test(normalizedBase)) {
+                    const absolute = normalizedBase.replace(/\/+$/g, '');
+                    append(`${absolute}/docs-content`);
+                    return;
+                }
+
+                const stripped = normalizedBase.replace(/\/+$/g, '');
+                const withLeadingSlash = stripped.startsWith('/') ? stripped : `/${stripped}`;
+                const candidatePath = `${withLeadingSlash}/docs-content`.replace(/\/{2,}/g, '/');
+                append(candidatePath);
+                if (origin) {
+                    append(`${origin}${candidatePath}`);
+                }
+            };
+
+            appendRelativeFallbacks();
 
             try {
-                append(new URL('/docs-content', window.location.origin).toString());
+                const { pathname } = window.location;
+                const withoutFile = pathname.replace(/index\.html?$/i, '');
+                const trimmed = withoutFile.replace(/\/+$/g, '');
+
+                appendPathVariants(trimmed);
+
+                if (trimmed.endsWith('/docs')) {
+                    appendPathVariants(trimmed.slice(0, -5));
+                }
+
+                appendPathVariants('');
             } catch (error) {
-                console.warn('[VisitedTracker] Failed to resolve absolute docs endpoint', error);
+                console.warn('[VisitedTracker] Failed to derive pathname candidates', error);
             }
 
             for (const key of PROXY_INFO_KEYS) {
@@ -323,14 +377,14 @@
                     const basePath = info.basePath || info.base_path || info.proxyPath || info.proxy_path;
                     if (typeof basePath === 'string' && basePath.trim().length > 0) {
                         const sanitized = basePath.startsWith('/') ? basePath : `/${basePath}`;
-                        append(`${sanitized.replace(/\/$/, '')}/docs-content`);
+                        appendPathVariants(sanitized.replace(/\/+$/g, ''));
                     }
                 } catch (error) {
                     console.warn('[VisitedTracker] Unable to use proxy info for docs endpoint', error);
                 }
             }
 
-            return Array.from(new Set(candidates));
+            return Array.from(unique);
         }
 
         async function loadDocumentation() {

@@ -37,6 +37,13 @@ type TestEnvironment struct {
 	Cleanup     func()
 }
 
+// setTestEnvWithDefault sets environment variable only if not already set
+func setTestEnvWithDefault(key, defaultValue string) {
+	if os.Getenv(key) == "" {
+		os.Setenv(key, defaultValue)
+	}
+}
+
 // setupTestEnvironment creates an isolated test environment with proper cleanup
 func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	// Save original environment variables
@@ -52,19 +59,21 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 		"SEARXNG_HOST":      os.Getenv("SEARXNG_HOST"),
 	}
 
-	// Set test environment variables
-	os.Setenv("REDIS_HOST", "localhost")
-	os.Setenv("REDIS_PORT", "6379")
-	os.Setenv("POSTGRES_HOST", "localhost")
-	os.Setenv("POSTGRES_PORT", "5432")
-	os.Setenv("POSTGRES_USER", "test")
-	os.Setenv("POSTGRES_PASSWORD", "test")
-	os.Setenv("POSTGRES_DB", "local_info_scout_test")
-	os.Setenv("OLLAMA_HOST", "http://localhost:11434")
-	os.Setenv("SEARXNG_HOST", "http://localhost:8280")
+	// Set test environment variables with fallback to existing values
+	setTestEnvWithDefault("REDIS_HOST", "localhost")
+	setTestEnvWithDefault("REDIS_PORT", "6379")
+	setTestEnvWithDefault("POSTGRES_HOST", "localhost")
+	setTestEnvWithDefault("POSTGRES_PORT", "5432")
+	setTestEnvWithDefault("POSTGRES_USER", "test")
+	setTestEnvWithDefault("POSTGRES_PASSWORD", "test")
+	setTestEnvWithDefault("POSTGRES_DB", "local_info_scout_test")
+	setTestEnvWithDefault("OLLAMA_HOST", "http://localhost:11434")
+	setTestEnvWithDefault("SEARXNG_HOST", "http://localhost:8280")
 
-	// Try to create a test Redis client
-	redisAddr := "localhost:6379"
+	// Try to create a test Redis client using env vars
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPort := os.Getenv("REDIS_PORT")
+	redisAddr := redisHost + ":" + redisPort
 	testRedis := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: "",

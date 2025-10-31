@@ -294,7 +294,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
             padding: 'var(--spacing-xl)',
             maxWidth: '500px',
             width: '90%',
-            boxShadow: '0 0 50px rgba(0, 255, 0, 0.3)'
+            boxShadow: '0 0 50px var(--alpha-accent-30)'
           }}>
             <div style={{
               display: 'flex',

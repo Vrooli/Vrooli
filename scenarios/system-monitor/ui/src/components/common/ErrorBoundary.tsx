@@ -220,7 +220,7 @@ Browser Info:
             {/* Development Info */}
             {isDev && error && errorInfo && (
               <div style={{
-                background: 'rgba(0, 255, 0, 0.05)',
+                background: 'var(--alpha-accent-05)',
                 border: '1px solid var(--color-accent)',
                 borderRadius: 'var(--border-radius-md)',
                 padding: 'var(--spacing-lg)',
@@ -319,7 +319,7 @@ Browser Info:
                   alignItems: 'center',
                   gap: 'var(--spacing-sm)',
                   padding: 'var(--spacing-md) var(--spacing-lg)',
-                  background: 'rgba(0, 255, 0, 0.1)',
+                  background: 'var(--alpha-accent-10)',
                   color: 'var(--color-accent)',
                   border: '1px solid var(--color-accent)',
                   borderRadius: 'var(--border-radius-md)',
@@ -331,11 +331,11 @@ Browser Info:
                   transition: 'all 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 255, 0, 0.2)';
+                  e.currentTarget.style.background = 'var(--alpha-accent-20)';
                   e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 255, 0, 0.1)';
+                  e.currentTarget.style.background = 'var(--alpha-accent-10)';
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >

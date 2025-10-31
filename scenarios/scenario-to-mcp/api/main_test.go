@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -5,6 +6,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -341,6 +343,82 @@ func TestGetSession(t *testing.T) {
 
 		assertErrorResponse(t, w, http.StatusNotFound, "Session not found")
 	})
+}
+
+func TestDocumentationEndpoints(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestEnvironment(t)
+	defer env.Cleanup()
+
+	createTestDocFile(t, env.TempDir, filepath.Join("docs", "intro.md"), "# Intro\nScenario documentation sample")
+	createTestDocFile(t, env.TempDir, "README.md", "# Scenario Overview\nOverview details")
+
+	ts := setupTestServer(t, nil, env.TempDir)
+
+	w := makeHTTPRequest(ts, HTTPTestRequest{
+		Method: "GET",
+		Path:   "/api/v1/docs",
+	})
+
+	var docID string
+
+	assertJSONResponse(t, w, http.StatusOK, func(resp map[string]interface{}) error {
+		docsValue, ok := resp["docs"].([]interface{})
+		if !ok {
+			t.Fatalf("Expected docs array in response, got: %T", resp["docs"])
+		}
+
+		if len(docsValue) == 0 {
+			t.Fatal("Expected at least one documentation entry")
+		}
+
+		for _, item := range docsValue {
+			entry, ok := item.(map[string]interface{})
+			if !ok {
+				t.Fatalf("Invalid documentation entry type: %T", item)
+			}
+
+			if path, ok := entry["relativePath"].(string); ok && path == "docs/intro.md" {
+				if id, ok := entry["id"].(string); ok {
+					docID = id
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if docID == "" {
+		t.Fatal("Expected to capture document id for docs/intro.md")
+	}
+
+	encodedID := url.QueryEscape(docID)
+	w = makeHTTPRequest(ts, HTTPTestRequest{
+		Method: "GET",
+		Path:   "/api/v1/docs/content?id=" + encodedID,
+	})
+
+	assertJSONResponse(t, w, http.StatusOK, func(resp map[string]interface{}) error {
+		content, ok := resp["content"].(string)
+		if !ok {
+			t.Fatal("Expected content string in response")
+		}
+
+		if content == "" {
+			t.Error("Expected document content to be returned")
+		}
+
+		return nil
+	})
+
+	w = makeHTTPRequest(ts, HTTPTestRequest{
+		Method: "GET",
+		Path:   "/api/v1/docs/content?id=invalid",
+	})
+
+	assertErrorResponse(t, w, http.StatusNotFound, "")
 }
 
 // TestCORSMiddleware tests CORS headers
@@ -768,8 +846,8 @@ func TestLoadScenarios(t *testing.T) {
 	ts := setupTestServer(t, db, env.TempDir)
 
 	RunLoadTest(t, ts, LoadTestPattern{
-		Name:           "HealthCheckLoad",
-		Description:    "Health check should handle concurrent requests",
+		Name:        "HealthCheckLoad",
+		Description: "Health check should handle concurrent requests",
 		Request: HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/v1/health",
@@ -780,8 +858,8 @@ func TestLoadScenarios(t *testing.T) {
 	})
 
 	RunLoadTest(t, ts, LoadTestPattern{
-		Name:           "RegistryLoad",
-		Description:    "Registry should handle concurrent requests",
+		Name:        "RegistryLoad",
+		Description: "Registry should handle concurrent requests",
 		Request: HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/v1/mcp/registry",

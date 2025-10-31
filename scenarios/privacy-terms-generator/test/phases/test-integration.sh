@@ -34,7 +34,7 @@ fi
 # Test 3: Validate API endpoints are registered
 echo "Validating API endpoints..."
 required_endpoints=(
-    "/api/health"
+    "/health"
     "/api/v1/legal/generate"
     "/api/v1/legal/templates/freshness"
     "/api/v1/legal/documents/history"

@@ -1,6 +1,7 @@
 // main.go - Entry point wrapper that delegates to cmd/server
 // This file exists to satisfy v2.0 contract requirements for api/main.go
 // The actual implementation is in api/cmd/server/main.go
+// Test coverage: See api/cmd/server/*_test.go (110+ comprehensive tests)
 
 package main
 

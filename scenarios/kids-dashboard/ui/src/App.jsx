@@ -60,11 +60,11 @@ function App() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background decorations */}
-      <div className="absolute inset-0 bg-pattern-dots opacity-10"></div>
+      <div className="absolute inset-0 bg-pattern-dots opacity-10 pointer-events-none" aria-hidden="true"></div>
       
       {/* Floating background elements */}
       <motion.div
-        className="absolute top-10 left-10 text-6xl"
+        className="absolute top-10 left-10 text-6xl pointer-events-none"
         animate={{ 
           y: [0, -20, 0],
           rotate: [0, 10, -10, 0]
@@ -75,7 +75,7 @@ function App() {
       </motion.div>
       
       <motion.div
-        className="absolute top-20 right-20 text-5xl"
+        className="absolute top-20 right-20 text-5xl pointer-events-none"
         animate={{ 
           y: [0, 20, 0],
           rotate: [0, -15, 15, 0]
@@ -86,7 +86,7 @@ function App() {
       </motion.div>
       
       <motion.div
-        className="absolute bottom-20 left-20 text-5xl"
+        className="absolute bottom-20 left-20 text-5xl pointer-events-none"
         animate={{ 
           x: [0, 20, 0],
           y: [0, -10, 0]

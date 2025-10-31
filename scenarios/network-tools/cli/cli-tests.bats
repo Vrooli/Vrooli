@@ -124,10 +124,9 @@ teardown() {
     [[ "$output" =~ "url" ]]
 }
 
-# Test: API test command structure
-@test "api-test command accepts base URL parameter" {
+# Test: API commands in help
+@test "api command shows in help" {
     run $TEST_CLI help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "api-test" ]]
-    [[ "$output" =~ "base_url" ]]
+    [[ "$output" =~ "api list" || "$output" =~ "api test" ]]
 }

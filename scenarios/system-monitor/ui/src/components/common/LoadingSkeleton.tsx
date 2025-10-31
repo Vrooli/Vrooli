@@ -216,7 +216,7 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
           width: '32px',
           height: '32px',
           borderRadius: '50%',
-          background: 'linear-gradient(90deg, rgba(0,255,0,0.1) 25%, rgba(0,255,0,0.3) 50%, rgba(0,255,0,0.1) 75%)',
+          background: 'linear-gradient(90deg, var(--alpha-accent-10) 25%, var(--alpha-accent-30) 50%, var(--alpha-accent-10) 75%)',
           backgroundSize: '200% 100%',
           animation: 'skeleton-loading 1.5s infinite'
         }}
@@ -246,7 +246,7 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
         }
         
         .skeleton-item {
-          background: linear-gradient(90deg, rgba(0,255,0,0.1) 25%, rgba(0,255,0,0.3) 50%, rgba(0,255,0,0.1) 75%);
+          background: linear-gradient(90deg, var(--alpha-accent-10) 25%, var(--alpha-accent-30) 50%, var(--alpha-accent-10) 75%);
           background-size: 200% 100%;
           animation: skeleton-loading 1.5s infinite;
           border-radius: 2px;

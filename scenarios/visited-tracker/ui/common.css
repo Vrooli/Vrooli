@@ -30,6 +30,40 @@ body {
     line-height: 1.5;
 }
 
+/* Unified scrollbar styling for dark theme surfaces */
+body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-secondary) var(--bg-tertiary);
+}
+
+body::-webkit-scrollbar,
+.file-list::-webkit-scrollbar,
+.modal-content::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+body::-webkit-scrollbar-track,
+.file-list::-webkit-scrollbar-track,
+.modal-content::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+body::-webkit-scrollbar-thumb,
+.file-list::-webkit-scrollbar-thumb,
+.modal-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent-secondary), var(--accent-primary));
+    border-radius: 8px;
+    border: 2px solid var(--bg-tertiary);
+}
+
+body::-webkit-scrollbar-thumb:hover,
+.file-list::-webkit-scrollbar-thumb:hover,
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--accent-secondary), var(--accent-secondary));
+}
+
 /* Header Styles */
 .header {
     background: var(--bg-secondary);
@@ -48,7 +82,7 @@ body {
 .header-bottom {
     display: flex;
     justify-content: center;
-    padding-top: 16px;
+    padding-top: 20px;
     border-top: 1px solid var(--border-primary);
 }
 
@@ -81,25 +115,88 @@ body {
     display: flex;
     align-items: center;
     gap: 16px;
+    flex-wrap: wrap;
+}
+
+.header-controls > * {
+    flex: 1 1 160px;
+}
+
+.header-controls .logs-btn {
+    flex: 0 0 auto;
 }
 
 .header-stats {
-    display: flex;
-    gap: 32px;
-    font-size: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    width: 100%;
+    max-width: 820px;
     color: var(--text-secondary);
 }
 
 .stat-item {
     display: flex;
-    flex-direction: column;
     align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    background: rgba(33, 38, 45, 0.85);
+    border: 1px solid rgba(48, 54, 61, 0.7);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(6px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    background: rgba(31, 111, 235, 0.18);
+    color: var(--accent-secondary);
+    flex-shrink: 0;
+}
+
+.stat-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.header-stats .stat-item:nth-child(2) .stat-icon {
+    background: rgba(35, 134, 54, 0.18);
+    color: var(--accent-primary);
+}
+
+.header-stats .stat-item:nth-child(3) .stat-icon {
+    background: rgba(210, 153, 34, 0.18);
+    color: var(--accent-warning);
+}
+
+.stat-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .stat-value {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
 }
 
 .stats {
@@ -615,6 +712,7 @@ textarea.input {
     .header-controls {
         width: 100%;
         justify-content: space-between;
+        gap: 12px;
     }
 
     .header-stats {
@@ -642,5 +740,81 @@ textarea.input {
 
     .btn {
         justify-content: center;
+    }
+}
+
+@media (max-width: 520px) {
+    .header-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .header-controls > * {
+        flex: none;
+        width: 100%;
+    }
+
+    .header-controls .logs-btn {
+        width: 48px;
+        align-self: flex-end;
+    }
+
+    .header-bottom {
+        padding-top: 12px;
+    }
+
+    .header-stats {
+        gap: 16px;
+    }
+
+    .stat-item {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .stat-value {
+        font-size: 18px;
+    }
+
+    .container {
+        padding: 16px;
+    }
+
+    .controls {
+        gap: 12px;
+    }
+
+    .filter-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .filter-group .select {
+        width: 100%;
+    }
+
+    .connection-popover {
+        left: 0;
+        right: auto;
+        width: min(100vw - 32px, 320px);
+    }
+
+    .connection-popover::before {
+        right: 24px;
+    }
+}
+
+@media (max-width: 360px) {
+    .logo {
+        font-size: 20px;
+    }
+
+    .header-controls .logs-btn {
+        width: 100%;
+    }
+
+    .stat-item {
+        flex: 1 1 100%;
     }
 }

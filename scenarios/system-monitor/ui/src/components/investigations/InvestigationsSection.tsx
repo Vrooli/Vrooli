@@ -125,7 +125,7 @@ export const InvestigationsSection = ({
         alignItems: 'center',
         padding: 'var(--spacing-md)',
         borderBottom: '1px solid var(--color-accent)',
-        background: 'rgba(0, 255, 0, 0.02)'
+        background: 'var(--alpha-accent-02)'
       }}>
         <h2 style={{ 
           margin: 0,
@@ -144,7 +144,7 @@ export const InvestigationsSection = ({
         
         {/* Agent Spawn Card */}
         <div className="agent-spawn-card" style={{
-          background: 'rgba(0, 255, 0, 0.03)',
+          background: 'var(--alpha-accent-03)',
           border: '1px solid var(--color-accent)',
           borderRadius: 'var(--border-radius-md)',
           padding: 'var(--spacing-lg)',
@@ -158,7 +158,7 @@ export const InvestigationsSection = ({
                 style={{
                   color: 'var(--color-success)',
                   flexShrink: 0,
-                  filter: 'drop-shadow(0 0 10px rgba(0, 255, 0, 0.5))'
+                  filter: 'drop-shadow(0 0 10px var(--alpha-accent-50))'
                 }}
               />
 
@@ -354,13 +354,13 @@ export const InvestigationsSection = ({
               alignItems: 'center',
               gap: 'var(--spacing-sm)',
               padding: 'var(--spacing-sm) var(--spacing-md)',
-              background: 'rgba(0, 255, 0, 0.02)',
+              background: 'var(--alpha-accent-02)',
               borderBottom: reportsExpanded ? '1px solid var(--color-accent)' : 'none',
               userSelect: 'none',
               transition: 'background 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 255, 0, 0.05)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 255, 0, 0.02)'}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--alpha-accent-05)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'var(--alpha-accent-02)'}
           >
             <div 
               onClick={() => setReportsExpanded(!reportsExpanded)}
@@ -449,13 +449,13 @@ export const InvestigationsSection = ({
               alignItems: 'center',
               gap: 'var(--spacing-sm)',
               padding: 'var(--spacing-sm) var(--spacing-md)',
-              background: 'rgba(0, 255, 0, 0.02)',
+              background: 'var(--alpha-accent-02)',
               borderBottom: scriptsExpanded ? '1px solid var(--color-accent)' : 'none',
               userSelect: 'none',
               transition: 'background 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 255, 0, 0.05)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 255, 0, 0.02)'}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--alpha-accent-05)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'var(--alpha-accent-02)'}
           >
             <div 
               onClick={() => setScriptsExpanded(!scriptsExpanded)}

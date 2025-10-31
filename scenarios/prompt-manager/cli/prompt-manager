@@ -10,23 +10,38 @@ CLI_NAME="prompt-manager"
 VERSION="1.0.0"
 
 # API URL Discovery
-# 1. First check environment variable
+# Priority order ensures scenario-specific discovery takes precedence over generic environment variables
+# to prevent collisions when multiple scenarios are running simultaneously
+
+# 1. First check scenario-specific environment variable (highest priority)
 API_URL="${PROMPT_MANAGER_API_URL}"
 
-# 2. If not set, try to discover from lifecycle system
+# 2. Try to discover from vrooli scenario status (scenario-specific, prevents cross-scenario pollution)
 if [[ -z "$API_URL" ]]; then
-    # Check if API_PORT is set (indicates we're running via lifecycle)
-    if [[ -n "${API_PORT}" ]]; then
-        API_URL="http://localhost:${API_PORT}"
+    if command -v vrooli &> /dev/null; then
+        # Get scenario status and extract API_PORT
+        API_PORT_FROM_STATUS=$(vrooli scenario status prompt-manager 2>/dev/null | grep -oP 'API_PORT:\s*\K\d+' | head -1)
+        if [[ -n "$API_PORT_FROM_STATUS" ]]; then
+            API_URL="http://localhost:${API_PORT_FROM_STATUS}"
+        fi
     fi
 fi
 
-# 3. Try to read from running resources file
+# 3. Try to read from running resources file (scenario-specific lookup)
 if [[ -z "$API_URL" ]] && [[ -f "${APP_ROOT}/.vrooli/running-resources.json" ]]; then
     # Try to extract prompt-manager API port from running resources
     API_PORT_FROM_FILE=$(jq -r '.scenarios["prompt-manager"].ports.api // empty' "${APP_ROOT}/.vrooli/running-resources.json" 2>/dev/null)
     if [[ -n "$API_PORT_FROM_FILE" ]]; then
         API_URL="http://localhost:${API_PORT_FROM_FILE}"
+    fi
+fi
+
+# 4. Fall back to generic API_PORT environment variable (lowest priority, may be from another scenario)
+if [[ -z "$API_URL" ]]; then
+    # Check if API_PORT is set (indicates we're running via lifecycle)
+    # NOTE: This may be from another scenario if multiple are running
+    if [[ -n "${API_PORT}" ]]; then
+        API_URL="http://localhost:${API_PORT}"
     fi
 fi
 
@@ -436,6 +451,46 @@ cmd_quick() {
     fi
 }
 
+cmd_versions() {
+    local prompt_id="$1"
+
+    [[ -z "$prompt_id" ]] && error "Prompt ID required"
+
+    info "Fetching version history for prompt: $prompt_id"
+    check_api
+
+    local versions
+    versions=$(api_get "/api/v1/prompts/$prompt_id/versions")
+
+    if [[ -n "$versions" ]] && [[ "$versions" != "null" ]] && [[ "$versions" != "[]" ]]; then
+        echo -e "${YELLOW}Version History:${NC}"
+        echo "$versions" | jq -r '.[] | "v\(.version_number) - \(.created_at) - \(.change_summary // "No summary")"'
+    else
+        warn "No version history found for this prompt"
+    fi
+}
+
+cmd_revert() {
+    local prompt_id="$1"
+    local version_num="$2"
+
+    [[ -z "$prompt_id" ]] && error "Prompt ID required"
+    [[ -z "$version_num" ]] && error "Version number required"
+
+    info "Reverting prompt $prompt_id to version $version_num"
+    check_api
+
+    local response
+    response=$(api_post "/api/v1/prompts/$prompt_id/revert/$version_num" "{}")
+
+    if [[ -n "$response" ]]; then
+        success "Successfully reverted to version $version_num"
+        echo "$response" | jq '.'
+    else
+        error "Failed to revert prompt"
+    fi
+}
+
 cmd_help() {
     show_banner
     echo -e "${WHITE}Usage: $CLI_NAME <command> [arguments]${NC}"
@@ -450,6 +505,8 @@ cmd_help() {
     echo -e "  ${GREEN}use${NC} <prompt-id>                Record usage and display prompt"
     echo -e "  ${GREEN}quick${NC} <key>                     Get prompt by quick access key"
     echo -e "  ${GREEN}favorite${NC} <prompt-id>            Toggle prompt favorite status"
+    echo -e "  ${GREEN}versions${NC} <prompt-id>            Show version history"
+    echo -e "  ${GREEN}revert${NC} <prompt-id> <version>    Revert to previous version"
     echo -e "  ${GREEN}help${NC}                           Show this help message"
     echo
     echo -e "${CYAN}Examples:${NC}"
@@ -496,6 +553,12 @@ main() {
             ;;
         "favorite"|"fav")
             cmd_favorite "${2:-}" "${3:-}"
+            ;;
+        "versions"|"history")
+            cmd_versions "${2:-}"
+            ;;
+        "revert"|"restore")
+            cmd_revert "${2:-}" "${3:-}"
             ;;
         "help"|"--help"|"-h")
             cmd_help

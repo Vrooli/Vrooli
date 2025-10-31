@@ -93,6 +93,18 @@ type TestResult struct {
 	TestedAt     time.Time `json:"tested_at" db:"tested_at"`
 }
 
+type PromptVersion struct {
+	ID            string     `json:"id" db:"id"`
+	PromptID      string     `json:"prompt_id" db:"prompt_id"`
+	VersionNumber int        `json:"version_number" db:"version_number"`
+	FilePath      string     `json:"file_path" db:"file_path"`
+	ContentCache  *string    `json:"content_cache" db:"content_cache"`
+	Variables     []string   `json:"variables" db:"variables"`
+	ChangeSummary *string    `json:"change_summary" db:"change_summary"`
+	CreatedBy     *string    `json:"created_by" db:"created_by"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+}
+
 // Request/Response types
 type CreatePromptRequest struct {
 	CampaignID          string   `json:"campaign_id"`
@@ -117,6 +129,7 @@ type UpdatePromptRequest struct {
 	EffectivenessRating *int     `json:"effectiveness_rating"`
 	Notes               *string  `json:"notes"`
 	Tags                []string `json:"tags"`
+	ChangeSummary       *string  `json:"change_summary"`
 }
 
 type CreateCampaignRequest struct {
@@ -176,7 +189,7 @@ func main() {
 		dbName := os.Getenv("POSTGRES_DB")
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all required database connection parameters")
 		}
 
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -206,8 +219,8 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Set search path to use prompt_mgr schema to avoid table name conflicts
-	_, err = db.Exec("SET search_path TO prompt_mgr, public")
+	// Set search path to use public schema (tables are in public, not prompt_mgr)
+	_, err = db.Exec("SET search_path TO public")
 	if err != nil {
 		log.Fatal("Failed to set search_path:", err)
 	}
@@ -346,11 +359,27 @@ func main() {
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	// Check database connectivity
+	dbHealthy := s.checkDatabase()
+	overallStatus := "healthy"
+	if dbHealthy != "healthy" {
+		overallStatus = "degraded"
+	}
+
 	status := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
+		"status":    overallStatus,
+		"service":   "prompt-manager-api",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"readiness": dbHealthy == "healthy", // Ready only if database is healthy
+		"dependencies": map[string]interface{}{
+			"database": map[string]interface{}{
+				"connected": dbHealthy == "healthy",
+				"error":     nil,
+			},
+		},
+		// Legacy field for backward compatibility
 		"services": map[string]interface{}{
-			"database": s.checkDatabase(),
+			"database": dbHealthy,
 			"qdrant":   s.checkQdrant(),
 			"ollama":   s.checkOllama(),
 		},
@@ -538,10 +567,10 @@ func (s *APIServer) getPrompts(w http.ResponseWriter, r *http.Request) {
 	favorites := r.URL.Query().Get("favorites") == "true"
 
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
-		       p.variables, p.usage_count, p.last_used, p.is_favorite, 
+		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating, 
+		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
 		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
 		FROM prompts p
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
@@ -562,7 +591,7 @@ func (s *APIServer) getPrompts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var prompts []Prompt
+	prompts := make([]Prompt, 0)
 	for rows.Next() {
 		prompt, err := s.scanPrompt(rows)
 		if err != nil {
@@ -677,19 +706,19 @@ func (s *APIServer) searchPrompts(w http.ResponseWriter, r *http.Request) {
 
 	// Use PostgreSQL full-text search
 	sqlQuery := `
-		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
-		       p.variables, p.usage_count, p.last_used, p.is_favorite, 
+		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating, 
+		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
 		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
 		FROM prompts p
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
 		WHERE p.is_archived = false AND (
 			to_tsvector('english', p.title) @@ plainto_tsquery('english', $1) OR
-			to_tsvector('english', p.content) @@ plainto_tsquery('english', $1) OR
+			to_tsvector('english', p.content_cache) @@ plainto_tsquery('english', $1) OR
 			to_tsvector('english', COALESCE(p.description, '')) @@ plainto_tsquery('english', $1)
 		)
-		ORDER BY 
+		ORDER BY
 			ts_rank(to_tsvector('english', p.title), plainto_tsquery('english', $1)) DESC,
 			p.usage_count DESC,
 			p.created_at DESC
@@ -930,10 +959,10 @@ func (s *APIServer) getCampaignPrompts(w http.ResponseWriter, r *http.Request) {
 	campaignID := vars["id"]
 
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
-		       p.variables, p.usage_count, p.last_used, p.is_favorite, 
+		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating, 
+		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
 		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
 		FROM prompts p
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
@@ -970,8 +999,25 @@ func (s *APIServer) updatePrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create version snapshot if content is being updated
+	if req.Content != nil || req.Title != nil {
+		_, err := s.db.Exec(`
+			INSERT INTO prompt_mgr.prompt_versions (prompt_id, version_number, file_path, content_cache, variables, change_summary)
+			SELECT id, version, 'snapshot', content_cache, variables::jsonb,
+			       CASE
+			           WHEN $2 THEN 'Manual update'
+			           ELSE NULL
+			       END
+			FROM prompt_mgr.prompts
+			WHERE id = $1
+		`, promptID, req.ChangeSummary != nil)
+		if err != nil {
+			log.Printf("Warning: Failed to create version snapshot: %v", err)
+		}
+	}
+
 	// Build dynamic update query
-	updates := []string{"updated_at = CURRENT_TIMESTAMP"}
+	updates := []string{"updated_at = CURRENT_TIMESTAMP", "version = version + 1"}
 	args := []interface{}{}
 	argIndex := 1
 
@@ -1103,6 +1149,7 @@ func (s *APIServer) recordPromptUsage(w http.ResponseWriter, r *http.Request) {
 	// Update campaign last used
 	s.db.Exec(`UPDATE campaigns SET last_used = CURRENT_TIMESTAMP WHERE id = (SELECT campaign_id FROM prompts WHERE id = $1)`, promptID)
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "usage recorded"})
 }
@@ -1243,10 +1290,10 @@ func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter 
 
 	// Fetch full prompt details from PostgreSQL
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
-		       p.variables, p.usage_count, p.last_used, p.is_favorite, 
+		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating, 
+		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
 		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
 		FROM prompts p
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
@@ -1296,10 +1343,10 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch the prompt
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
-		       p.variables, p.usage_count, p.last_used, p.is_favorite, 
+		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating, 
+		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
 		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
 		FROM prompts p
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
@@ -1536,10 +1583,10 @@ func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Export prompts
-	promptQuery := `SELECT id, campaign_id, title, content, description, variables, 
-		usage_count, last_used, is_favorite, is_archived, quick_access_key, 
-		version, parent_version_id, word_count, estimated_tokens, 
-		effectiveness_rating, notes, created_at, updated_at 
+	promptQuery := `SELECT id, campaign_id, title, content_cache, description, variables,
+		usage_count, last_used, is_favorite, is_archived, quick_access_key,
+		version, parent_version_id, word_count, estimated_tokens,
+		effectiveness_rating, notes, created_at, updated_at
 		FROM prompts WHERE 1=1`
 
 	if campaignID != "" {
@@ -1744,11 +1791,149 @@ func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
 
 // Version control stub implementations
 func (s *APIServer) getPromptVersions(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]string{"error": "Version history not yet implemented"})
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	promptID := vars["id"]
+
+	// Validate prompt exists
+	var exists bool
+	err := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM prompt_mgr.prompts WHERE id = $1)", promptID).Scan(&exists)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Database error"})
+		return
+	}
+	if !exists {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Prompt not found"})
+		return
+	}
+
+	// Retrieve version history
+	query := `
+		SELECT id, prompt_id, version_number, file_path, content_cache,
+		       variables, change_summary, created_by, created_at
+		FROM prompt_mgr.prompt_versions
+		WHERE prompt_id = $1
+		ORDER BY version_number DESC
+	`
+
+	rows, err := s.db.Query(query, promptID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to retrieve versions"})
+		return
+	}
+	defer rows.Close()
+
+	versions := make([]PromptVersion, 0)
+	for rows.Next() {
+		var v PromptVersion
+		var variables []byte
+		err := rows.Scan(&v.ID, &v.PromptID, &v.VersionNumber, &v.FilePath, &v.ContentCache,
+			&variables, &v.ChangeSummary, &v.CreatedBy, &v.CreatedAt)
+		if err != nil {
+			continue
+		}
+		if len(variables) > 0 {
+			json.Unmarshal(variables, &v.Variables)
+		}
+		versions = append(versions, v)
+	}
+
+	json.NewEncoder(w).Encode(versions)
 }
 
 func (s *APIServer) revertPromptVersion(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]string{"error": "Version revert not yet implemented"})
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	promptID := vars["id"]
+	versionNum := vars["version"]
+
+	// Validate version exists
+	var version PromptVersion
+	var variables []byte
+	query := `
+		SELECT id, prompt_id, version_number, file_path, content_cache,
+		       variables, change_summary, created_by, created_at
+		FROM prompt_mgr.prompt_versions
+		WHERE prompt_id = $1 AND version_number = $2
+	`
+	err := s.db.QueryRow(query, promptID, versionNum).Scan(
+		&version.ID, &version.PromptID, &version.VersionNumber, &version.FilePath,
+		&version.ContentCache, &variables, &version.ChangeSummary, &version.CreatedBy, &version.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Version not found"})
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Database error"})
+		}
+		return
+	}
+	if len(variables) > 0 {
+		json.Unmarshal(variables, &version.Variables)
+	}
+
+	// Start transaction
+	tx, err := s.db.Begin()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to start transaction"})
+		return
+	}
+	defer tx.Rollback()
+
+	// Get current prompt version
+	var currentVersion int
+	err = tx.QueryRow("SELECT version FROM prompt_mgr.prompts WHERE id = $1", promptID).Scan(&currentVersion)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to get current version"})
+		return
+	}
+
+	// Create a version entry for the current state before reverting
+	_, err = tx.Exec(`
+		INSERT INTO prompt_mgr.prompt_versions (prompt_id, version_number, file_path, content_cache, variables, change_summary)
+		SELECT id, version, 'reverted', content_cache, variables::jsonb, 'Snapshot before revert to version ' || $2
+		FROM prompt_mgr.prompts
+		WHERE id = $1
+	`, promptID, versionNum)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create snapshot"})
+		return
+	}
+
+	// Update prompt with version content
+	variablesJSON, _ := json.Marshal(version.Variables)
+	_, err = tx.Exec(`
+		UPDATE prompt_mgr.prompts
+		SET content_cache = $1,
+		    variables = $2::jsonb,
+		    version = version + 1,
+		    parent_version_id = $3,
+		    updated_at = NOW()
+		WHERE id = $4
+	`, version.ContentCache, variablesJSON, version.ID, promptID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to revert prompt"})
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to commit revert"})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Reverted to version %s", versionNum),
+		"new_version": currentVersion + 1,
+	})
 }

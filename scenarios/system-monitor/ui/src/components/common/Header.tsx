@@ -172,8 +172,9 @@ export const Header = ({
       position: 'sticky',
       top: 0,
       zIndex: 1200,
-      background: 'rgba(0, 0, 0, 0.88)',
-      borderBottom: '1px solid rgba(0, 255, 0, 0.2)',
+      background: 'var(--color-surface)',
+      borderBottom: '1px solid var(--color-surface-border)',
+      boxShadow: '0 10px 30px rgba(1, 7, 4, 0.6)',
       backdropFilter: 'blur(10px)'
     }}>
       <div style={{
@@ -213,7 +214,7 @@ export const Header = ({
                 padding: '0.45rem 0.9rem',
                 borderRadius: 'var(--border-radius-md)',
                 border: `1px solid ${buttonAccent}`,
-                background: buttonTone === 'idle' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 255, 0, 0.08)',
+                background: buttonTone === 'idle' ? 'rgba(7, 25, 16, 0.6)' : 'var(--alpha-accent-12)',
                 color: buttonTone === 'idle' ? 'var(--color-text)' : buttonAccent,
                 fontSize: 'var(--font-size-sm)',
                 textTransform: 'uppercase',
@@ -235,8 +236,8 @@ export const Header = ({
                   width: '340px',
                   maxHeight: '380px',
                   overflowY: 'auto',
-                  background: 'rgba(0, 0, 0, 0.92)',
-                  border: '1px solid var(--color-accent)',
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-surface-border)',
                   borderRadius: 'var(--border-radius-md)',
                   boxShadow: 'var(--shadow-glow)'
                 }}
@@ -246,7 +247,7 @@ export const Header = ({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '0.75rem 1rem',
-                  borderBottom: '1px solid rgba(0, 255, 0, 0.12)',
+                  borderBottom: '1px solid var(--alpha-accent-12)',
                   fontSize: 'var(--font-size-xs)',
                   letterSpacing: '0.1em',
                   color: 'var(--color-text-dim)'
@@ -266,8 +267,8 @@ export const Header = ({
                         width: '24px',
                         height: '24px',
                         borderRadius: '50%',
-                        border: '1px solid rgba(0, 255, 0, 0.3)',
-                        background: 'transparent',
+                        border: '1px solid var(--alpha-accent-30)',
+                        background: 'rgba(7, 25, 16, 0.6)',
                         color: 'var(--color-text-dim)',
                         cursor: 'pointer'
                       }}
@@ -296,8 +297,10 @@ export const Header = ({
                       const errorMessage = agentErrors[agent.id];
                       const isTerminalStatus = terminalStatuses.has(normalized);
                       const stopButtonColor = isTerminalStatus ? 'var(--color-text-dim)' : 'var(--color-error)';
-                      const stopButtonBackground = isTerminalStatus ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 0, 0, 0.08)';
-                      const stopButtonBorder = isTerminalStatus ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 0, 0, 0.4)';
+                      const stopButtonBackground = isTerminalStatus ? 'rgba(7, 25, 16, 0.55)' : 'rgba(255, 77, 109, 0.14)';
+                      const stopButtonBorder = isTerminalStatus
+                        ? '1px solid rgba(231, 255, 241, 0.12)'
+                        : '1px solid rgba(255, 77, 109, 0.4)';
                       const stopButtonIcon = isStopping
                         ? <Loader2 size={12} className="animate-spin" />
                         : isTerminalStatus
@@ -314,7 +317,7 @@ export const Header = ({
                           key={agent.id}
                           style={{
                             padding: '0.85rem 1rem',
-                            borderBottom: '1px solid rgba(0, 255, 0, 0.08)',
+                            borderBottom: '1px solid var(--alpha-accent-08)',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '0.5rem'
@@ -422,8 +425,8 @@ export const Header = ({
               width: '36px',
               height: '36px',
               borderRadius: 'var(--border-radius-sm)',
-              border: '1px solid rgba(0, 255, 0, 0.2)',
-              background: 'rgba(0, 0, 0, 0.35)',
+              border: '1px solid var(--color-surface-border)',
+              background: 'rgba(7, 25, 16, 0.65)',
               color: 'var(--color-text)'
             }}
           >
@@ -443,8 +446,8 @@ export const Header = ({
               width: '36px',
               height: '36px',
               borderRadius: 'var(--border-radius-sm)',
-              border: '1px solid rgba(0, 255, 0, 0.2)',
-              background: 'rgba(0, 0, 0, 0.35)',
+              border: '1px solid var(--color-surface-border)',
+              background: 'rgba(7, 25, 16, 0.65)',
               color: 'var(--color-text)'
             }}
           >

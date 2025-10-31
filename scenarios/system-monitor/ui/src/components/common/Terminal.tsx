@@ -103,8 +103,8 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
           maxHeight: 'min(80vh, 720px)',
           display: 'flex',
           flexDirection: 'column',
-          background: 'rgba(0, 0, 0, 0.95)',
-          border: '1px solid var(--color-accent)',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-surface-border)',
           borderRadius: 'var(--border-radius-lg)',
           boxShadow: 'var(--shadow-bright-glow)'
         }}
@@ -115,8 +115,8 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: 'var(--spacing-md) var(--spacing-lg)',
-            borderBottom: '1px solid var(--color-accent)',
-            background: 'rgba(0, 255, 0, 0.08)',
+            borderBottom: '1px solid var(--color-surface-border)',
+            background: 'var(--alpha-accent-08)',
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
             fontSize: 'var(--font-size-sm)'

@@ -279,7 +279,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
   if (loading) {
     return (
       <div className="automatic-triggers-section" style={{
-        background: 'rgba(0, 255, 0, 0.03)',
+        background: 'var(--alpha-accent-03)',
         border: '1px solid var(--color-accent)',
         borderRadius: 'var(--border-radius-md)',
         padding: 'var(--spacing-lg)',
@@ -294,7 +294,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
   return (
     <div className="automatic-triggers-section" style={{
-      background: 'rgba(0, 255, 0, 0.03)',
+      background: 'var(--alpha-accent-03)',
       border: '1px solid var(--color-accent)',
       borderRadius: 'var(--border-radius-md)',
       padding: 'var(--spacing-lg)',
@@ -304,7 +304,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
         <Settings size={48} style={{ 
           color: 'var(--color-accent)', 
           flexShrink: 0,
-          filter: 'drop-shadow(0 0 10px rgba(0, 255, 0, 0.3))'
+          filter: 'drop-shadow(0 0 10px var(--alpha-accent-30))'
         }} />
         
         <div style={{ flex: 1 }}>
@@ -334,7 +334,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               padding: 'var(--spacing-md)',
               background: 'rgba(0, 0, 0, 0.3)',
               borderRadius: 'var(--border-radius-sm)',
-              border: '1px solid rgba(0, 255, 0, 0.1)'
+              border: '1px solid var(--alpha-accent-10)'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
@@ -374,7 +374,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                 style={{
                   flex: 1,
                   height: '6px',
-                  background: 'rgba(0, 255, 0, 0.2)',
+                  background: 'var(--alpha-accent-20)',
                   borderRadius: '3px',
                   outline: 'none',
                   WebkitAppearance: 'none',
@@ -444,8 +444,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                     alignItems: 'center',
                     gap: 'var(--spacing-md)',
                     padding: 'var(--spacing-md)',
-                    background: trigger.enabled ? 'rgba(0, 255, 0, 0.05)' : 'rgba(0, 0, 0, 0.3)',
-                    border: `1px solid ${trigger.enabled ? 'var(--color-accent)' : 'rgba(0, 255, 0, 0.2)'}`,
+                    background: trigger.enabled ? 'var(--alpha-accent-05)' : 'rgba(0, 0, 0, 0.3)',
+                    border: `1px solid ${trigger.enabled ? 'var(--color-accent)' : 'var(--alpha-accent-20)'}`,
                     borderRadius: 'var(--border-radius-sm)',
                     transition: 'all 0.2s'
                   }}
@@ -577,20 +577,20 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                       <div
                         style={{
                           marginTop: 'var(--spacing-sm)',
-                          background: 'rgba(0, 255, 0, 0.08)',
+                          background: 'var(--alpha-accent-08)',
                           borderRadius: '999px',
                           overflow: 'hidden',
                           height: '6px',
-                          boxShadow: '0 0 8px rgba(0, 255, 0, 0.2)'
+                          boxShadow: '0 0 8px var(--alpha-accent-20)'
                         }}
                       >
                         <div
                           style={{
                             width: `${progressValue * 100}%`,
                             height: '100%',
-                            background: 'linear-gradient(90deg, rgba(0, 255, 0, 0.3) 0%, rgba(0, 255, 0, 0.8) 100%)',
+                            background: 'linear-gradient(90deg, var(--alpha-accent-30) 0%, var(--alpha-accent-80) 100%)',
                             transition: 'width 0.4s ease',
-                            boxShadow: progressValue > 0.95 ? '0 0 12px rgba(0, 255, 0, 0.6)' : 'none'
+                            boxShadow: progressValue > 0.95 ? '0 0 12px var(--alpha-accent-60)' : 'none'
                           }}
                         />
                       </div>

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -286,10 +287,10 @@ func TestOllamaConfiguration(t *testing.T) {
 	t.Run("DefaultConfiguration", func(t *testing.T) {
 		// Test default Ollama configuration
 		defaultConfig := map[string]interface{}{
-			"temperature":  0.7,
-			"max_tokens":   100,
-			"top_p":        1.0,
-			"top_k":        40,
+			"temperature":    0.7,
+			"max_tokens":     100,
+			"top_p":          1.0,
+			"top_k":          40,
 			"repeat_penalty": 1.1,
 		}
 

@@ -84,7 +84,7 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 # Status and health
 prompt-manager status
 
-# Campaign management  
+# Campaign management
 prompt-manager campaigns list
 prompt-manager campaigns create "My Campaign" "Description"
 
@@ -94,6 +94,10 @@ prompt-manager list [campaign] [filter]
 prompt-manager search "query"
 prompt-manager show <prompt-id>
 prompt-manager use <prompt-id>  # Copy and record usage
+
+# Version control (NEW)
+prompt-manager versions <prompt-id>           # View version history
+prompt-manager revert <prompt-id> <version>   # Revert to previous version
 
 # Quick access
 prompt-manager quick <key>      # Access by quick key

@@ -674,7 +674,7 @@ export const MetricCard = ({
         <div className="metric-bar" style={{
           width: '100%',
           height: '4px',
-          background: 'rgba(0, 255, 0, 0.2)',
+          background: 'var(--alpha-accent-20)',
           borderRadius: '2px',
           overflow: 'hidden'
         }}>

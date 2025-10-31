@@ -1,19 +1,30 @@
 // SmartNotes - Main JavaScript
-// Get API port from the backend (injected dynamically if needed)
-const API_URL = window.location.hostname === 'localhost' 
-    ? `http://localhost:${window.API_PORT || '17001'}` 
-    : '/api';
 
+const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
+const DEFAULT_API_SUFFIX = '/api';
+const ICON_DEFAULTS = { size: 20, strokeWidth: 1.8 };
+
+const API_BASE = resolveApiBase();
 let currentNote = null;
 let notes = [];
 let folders = [];
 let tags = [];
 let templates = [];
 let autoSaveTimeout = null;
+let lucideReady = Boolean(window.lucide);
 
 // Initialize
+window.addEventListener('load', () => {
+    if (window.lucide) {
+        lucideReady = true;
+        refreshStaticIcons();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
+    refreshStaticIcons();
+    initializeSidebarControls();
     loadNotes();
     loadFolders();
     loadTags();
@@ -22,9 +33,354 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
-    console.log('🚀 SmartNotes initialized');
+    console.log('[SmartNotes] UI initialized');
     updateStats();
+    updatePinButtonState(false);
+    updateFavoriteButtonState(false);
+    updateSidebarToggleIcon();
 }
+
+function stripTrailingSlash(value = '') {
+    return typeof value === 'string' ? value.replace(/\/+$/u, '') : '';
+}
+
+function ensureLeadingSlash(value = '') {
+    if (typeof value !== 'string' || !value) {
+        return '/';
+    }
+    return value.startsWith('/') ? value : `/${value}`;
+}
+
+function normalizePort(value) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        return String(value);
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return /^\d+$/.test(trimmed) ? trimmed : undefined;
+    }
+    return undefined;
+}
+
+function pickProxyEndpoint(info) {
+    if (!info) {
+        return undefined;
+    }
+
+    const candidates = [];
+    const enqueue = (candidate) => {
+        if (!candidate) {
+            return;
+        }
+        if (typeof candidate === 'string') {
+            const trimmed = candidate.trim();
+            if (trimmed) {
+                candidates.push(trimmed);
+            }
+            return;
+        }
+        if (typeof candidate === 'object') {
+            enqueue(candidate.url || candidate.href || candidate.target || candidate.path);
+            if (Array.isArray(candidate.endpoints)) {
+                candidate.endpoints.forEach(enqueue);
+            }
+        }
+    };
+
+    enqueue(info);
+
+    if (typeof info === 'object') {
+        enqueue(info.apiBase || info.api_path || info.apiPath);
+        enqueue(info.api);
+        enqueue(info.baseUrl || info.baseURL);
+        enqueue(info.apiUrl || info.apiURL);
+        enqueue(info.url);
+        enqueue(info.target);
+        if (Array.isArray(info.endpoints)) {
+            info.endpoints.forEach(enqueue);
+        }
+    }
+
+    return candidates.find(Boolean);
+}
+
+function resolveProxyEndpoint() {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+
+    for (const key of PROXY_INFO_KEYS) {
+        const info = window[key];
+        if (!info) {
+            continue;
+        }
+
+        const candidate = pickProxyEndpoint(info);
+        if (candidate) {
+            return candidate;
+        }
+
+        const ports = typeof info === 'object' ? info.ports : undefined;
+        const rawPort = ports && (ports.api?.port ?? ports.api);
+        const normalizedPort = normalizePort(rawPort);
+        if (normalizedPort) {
+            const protocol = window.location?.protocol === 'https:' ? 'https:' : 'http:';
+            const hostname = window.location?.hostname || 'localhost';
+            return `${protocol}//${hostname}:${normalizedPort}`;
+        }
+    }
+
+    return undefined;
+}
+
+function ensureApiSuffix(value) {
+    const trimmed = stripTrailingSlash((value || '').trim());
+    if (!trimmed) {
+        return DEFAULT_API_SUFFIX;
+    }
+    if (trimmed.endsWith(DEFAULT_API_SUFFIX)) {
+        return trimmed;
+    }
+    if (/^https?:\/\//i.test(trimmed)) {
+        return `${trimmed}${DEFAULT_API_SUFFIX}`;
+    }
+    return ensureLeadingSlash(trimmed === '/' ? DEFAULT_API_SUFFIX : `${trimmed}${DEFAULT_API_SUFFIX}`);
+}
+
+function resolveApiBase() {
+    if (typeof window === 'undefined') {
+        return DEFAULT_API_SUFFIX;
+    }
+
+    const proxyBase = resolveProxyEndpoint();
+    if (proxyBase) {
+        if (/^https?:\/\//i.test(proxyBase)) {
+            return ensureApiSuffix(proxyBase);
+        }
+        const origin = window.location?.origin;
+        if (origin) {
+            return ensureApiSuffix(`${stripTrailingSlash(origin)}${ensureLeadingSlash(proxyBase)}`);
+        }
+        return ensureApiSuffix(proxyBase);
+    }
+
+    const envApiUrl = typeof window.API_URL === 'string' ? window.API_URL.trim() : '';
+    if (envApiUrl) {
+        return ensureApiSuffix(envApiUrl);
+    }
+
+    const apiPort = normalizePort(window.API_PORT);
+    if (apiPort) {
+        const protocol = window.location?.protocol === 'https:' ? 'https:' : 'http:';
+        const host = window.location?.hostname || 'localhost';
+        return ensureApiSuffix(`${protocol}//${host}:${apiPort}`);
+    }
+
+    const origin = window.location?.origin;
+    if (origin) {
+        return ensureApiSuffix(origin);
+    }
+
+    return DEFAULT_API_SUFFIX;
+}
+
+function joinApiUrl(path = '/') {
+    const base = stripTrailingSlash(API_BASE);
+    const suffix = ensureLeadingSlash(path);
+    return `${base}${suffix}`;
+}
+
+function apiFetch(path, options = {}) {
+    const target = joinApiUrl(path);
+    return fetch(target, options);
+}
+
+async function apiFetchJson(path, options = {}) {
+    const response = await apiFetch(path, options);
+    const raw = await response.text();
+
+    if (!response.ok) {
+        const message = raw || `Request failed (${response.status})`;
+        throw new Error(message);
+    }
+
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(raw);
+    } catch (error) {
+        throw new Error(`Failed to parse response JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+function buildJsonRequest(method, payload, headers = {}) {
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+        },
+    };
+
+    if (payload !== undefined) {
+        options.body = JSON.stringify(payload);
+    }
+
+    return options;
+}
+
+function applyIcon(element, iconName, overrides = {}) {
+    if (!element) {
+        return;
+    }
+
+    const resolvedIcon = iconName || element.dataset.icon;
+    if (!resolvedIcon) {
+        element.textContent = overrides.fallback || '';
+        return;
+    }
+
+    element.dataset.icon = resolvedIcon;
+
+    const lucideApi = window.lucide;
+    const iconNode = lucideApi?.icons?.[resolvedIcon];
+    if (lucideReady && iconNode && typeof lucideApi?.createElement === 'function') {
+        const size = Number(overrides.size ?? element.dataset.iconSize ?? ICON_DEFAULTS.size);
+        const strokeWidth = Number(overrides.strokeWidth ?? element.dataset.iconStroke ?? ICON_DEFAULTS.strokeWidth);
+        const svg = lucideApi.createElement(iconNode, { name: resolvedIcon, size, strokeWidth });
+        svg.setAttribute('aria-hidden', 'true');
+        element.replaceChildren(svg);
+    } else if (!element.childElementCount && !element.textContent.trim()) {
+        element.textContent = overrides.fallback || '';
+    }
+}
+
+function refreshStaticIcons(root = document) {
+    if (!root) {
+        return;
+    }
+    const elements = root.querySelectorAll('[data-icon]');
+    elements.forEach((node) => applyIcon(node, node.dataset.icon));
+}
+
+function updatePinButtonState(isPinned) {
+    const iconTarget = document.querySelector('#pinBtn .icon');
+    applyIcon(iconTarget, isPinned ? 'Pin' : 'PinOff');
+}
+
+function updateFavoriteButtonState(isFavorite) {
+    const iconTarget = document.querySelector('#favoriteBtn .icon');
+    applyIcon(iconTarget, isFavorite ? 'Star' : 'StarOff');
+}
+
+const sidebarState = {
+    mediaQuery: typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)') : { matches: false, addEventListener: () => {} },
+};
+
+function initializeSidebarControls() {
+    const appContainer = document.getElementById('appContainer');
+    const overlay = document.getElementById('sidebarOverlay');
+    const toggle = document.getElementById('sidebarToggle');
+
+    if (!appContainer || !toggle) {
+        return;
+    }
+
+    const handleViewportChange = () => {
+        if (sidebarState.mediaQuery.matches) {
+            setSidebarCollapsed(false, { skipIcon: true });
+            setSidebarOpen(false, { skipIcon: true });
+            overlay?.classList.add('hidden');
+            document.body.classList.remove('sidebar-open');
+        } else {
+            setSidebarOpen(false, { skipIcon: true });
+            overlay?.classList.add('hidden');
+            document.body.classList.remove('sidebar-open');
+        }
+        updateSidebarToggleIcon();
+    };
+
+    toggle.addEventListener('click', () => {
+        if (sidebarState.mediaQuery.matches) {
+            const isOpen = appContainer.classList.contains('sidebar-open');
+            setSidebarOpen(!isOpen);
+        } else {
+            const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
+            setSidebarCollapsed(!isCollapsed);
+        }
+        updateSidebarToggleIcon();
+    });
+
+    overlay?.addEventListener('click', () => setSidebarOpen(false));
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && sidebarState.mediaQuery.matches) {
+            setSidebarOpen(false);
+        }
+    });
+
+    if (typeof sidebarState.mediaQuery.addEventListener === 'function') {
+        sidebarState.mediaQuery.addEventListener('change', handleViewportChange);
+    }
+
+    handleViewportChange();
+}
+
+function setSidebarOpen(shouldOpen, { skipIcon } = {}) {
+    const appContainer = document.getElementById('appContainer');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (!appContainer) {
+        return;
+    }
+
+    if (shouldOpen) {
+        appContainer.classList.add('sidebar-open');
+        overlay?.classList.remove('hidden');
+        document.body.classList.add('sidebar-open');
+    } else {
+        appContainer.classList.remove('sidebar-open');
+        overlay?.classList.add('hidden');
+        document.body.classList.remove('sidebar-open');
+    }
+
+    if (!skipIcon) {
+        updateSidebarToggleIcon();
+    }
+}
+
+function setSidebarCollapsed(collapsed, { skipIcon } = {}) {
+    const appContainer = document.getElementById('appContainer');
+    if (!appContainer) {
+        return;
+    }
+
+    if (collapsed) {
+        appContainer.classList.add('sidebar-collapsed');
+    } else {
+        appContainer.classList.remove('sidebar-collapsed');
+    }
+
+    if (!skipIcon) {
+        updateSidebarToggleIcon();
+    }
+}
+
+function updateSidebarToggleIcon() {
+    const toggleIcon = document.querySelector('#sidebarToggle .icon');
+    const appContainer = document.getElementById('appContainer');
+    if (!toggleIcon || !appContainer) {
+        return;
+    }
+
+    const iconName = sidebarState.mediaQuery.matches
+        ? (appContainer.classList.contains('sidebar-open') ? 'PanelLeft' : 'Menu')
+        : (appContainer.classList.contains('sidebar-collapsed') ? 'PanelLeftOpen' : 'PanelLeft');
+
+    applyIcon(toggleIcon, iconName);
+}
+
 
 // Event Listeners
 function setupEventListeners() {
@@ -87,8 +443,8 @@ function handleNavigation(e) {
 // Notes Management
 async function loadNotes() {
     try {
-        const response = await fetch(`${API_URL}/api/notes`);
-        notes = await response.json();
+        const data = await apiFetchJson('/notes');
+        notes = Array.isArray(data) ? data : [];
         displayNotes(notes);
         updateStats();
     } catch (error) {
@@ -99,8 +455,12 @@ async function loadNotes() {
 
 function displayNotes(notesToDisplay) {
     const notesList = document.getElementById('notesList');
+    if (!notesList) {
+        return;
+    }
+
     notesList.innerHTML = '';
-    
+
     if (!notesToDisplay || notesToDisplay.length === 0) {
         notesList.innerHTML = `
             <div class="empty-state">
@@ -110,10 +470,11 @@ function displayNotes(notesToDisplay) {
                 </button>
             </div>
         `;
+        refreshStaticIcons(notesList);
         return;
     }
-    
-    notesToDisplay.forEach(note => {
+
+    notesToDisplay.forEach((note) => {
         const noteCard = createNoteCard(note);
         notesList.appendChild(noteCard);
     });
@@ -123,56 +484,91 @@ function createNoteCard(note) {
     const card = document.createElement('div');
     card.className = 'note-card';
     card.dataset.noteId = note.id;
-    
-    const preview = note.content ? 
-        note.content.substring(0, 150).replace(/[#*`]/g, '') : 
-        'Empty note';
-    
-    const date = new Date(note.updated_at);
-    const dateStr = date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
+
+    const titleRow = document.createElement('div');
+    titleRow.className = 'note-card-title';
+
+    const flags = document.createElement('div');
+    flags.className = 'note-card-flags';
+
+    if (note.is_pinned) {
+        const pinIcon = document.createElement('span');
+        pinIcon.className = 'icon flag-icon';
+        applyIcon(pinIcon, 'Pin');
+        flags.appendChild(pinIcon);
+    }
+
+    if (note.is_favorite) {
+        const favoriteIcon = document.createElement('span');
+        favoriteIcon.className = 'icon flag-icon';
+        applyIcon(favoriteIcon, 'Star');
+        flags.appendChild(favoriteIcon);
+    }
+
+    const title = document.createElement('span');
+    title.className = 'note-card-title-text';
+    title.textContent = note.title || 'Untitled';
+
+    titleRow.appendChild(flags);
+    titleRow.appendChild(title);
+
+    const preview = document.createElement('div');
+    preview.className = 'note-card-preview';
+    const previewText = note.content ? note.content.replace(/[#*`]/g, '').slice(0, 150) : 'Empty note';
+    preview.textContent = previewText.length === 150 ? `${previewText}...` : previewText;
+
+    const meta = document.createElement('div');
+    meta.className = 'note-card-meta';
+
+    const tagsWrapper = document.createElement('div');
+    tagsWrapper.className = 'note-card-tags';
+    (note.tags || []).slice(0, 3).forEach((tag) => {
+        const tagElement = document.createElement('span');
+        tagElement.className = 'note-card-tag';
+        tagElement.textContent = tag;
+        tagsWrapper.appendChild(tagElement);
     });
-    
-    card.innerHTML = `
-        <div class="note-card-title">
-            ${note.is_pinned ? '📌 ' : ''}
-            ${note.is_favorite ? '⭐ ' : ''}
-            ${note.title || 'Untitled'}
-        </div>
-        <div class="note-card-preview">${preview}...</div>
-        <div class="note-card-meta">
-            <div class="note-card-tags">
-                ${(note.tags || []).slice(0, 3).map(tag => 
-                    `<span class="note-card-tag">${tag}</span>`
-                ).join('')}
-            </div>
-            <span>${dateStr}</span>
-        </div>
-    `;
-    
+
+    const dateLabel = document.createElement('span');
+    const updatedAt = note.updated_at ? new Date(note.updated_at) : new Date();
+    dateLabel.textContent = updatedAt.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+    });
+
+    meta.appendChild(tagsWrapper);
+    meta.appendChild(dateLabel);
+
+    card.appendChild(titleRow);
+    card.appendChild(preview);
+    card.appendChild(meta);
+
     card.addEventListener('click', () => loadNote(note.id));
-    
+
+    refreshStaticIcons(card);
     return card;
 }
 
 async function loadNote(noteId) {
     try {
-        const response = await fetch(`${API_URL}/api/notes/${noteId}`);
-        const note = await response.json();
-        
+        const note = await apiFetchJson(`/notes/${noteId}`);
+
+        if (!note) {
+            throw new Error('Note not found');
+        }
+
         currentNote = note;
         displayNote(note);
-        
+
         // Highlight active card
         document.querySelectorAll('.note-card').forEach(card => {
             card.classList.remove('active');
         });
         document.querySelector(`[data-note-id="${noteId}"]`)?.classList.add('active');
-        
+
         // Get AI suggestions
         getAISuggestions(note.content);
-        
+
     } catch (error) {
         console.error('Failed to load note:', error);
         showNotification('Failed to load note', 'error');
@@ -182,13 +578,10 @@ async function loadNote(noteId) {
 function displayNote(note) {
     document.getElementById('noteTitle').value = note.title || '';
     document.getElementById('noteContent').value = note.content || '';
-    
-    // Update pin/favorite buttons
-    document.getElementById('pinBtn').innerHTML = 
-        note.is_pinned ? '📌' : '📍';
-    document.getElementById('favoriteBtn').innerHTML = 
-        note.is_favorite ? '⭐' : '☆';
-    
+
+    updatePinButtonState(Boolean(note.is_pinned));
+    updateFavoriteButtonState(Boolean(note.is_favorite));
+
     updateWordCount();
 }
 
@@ -201,17 +594,14 @@ async function createNewNote() {
     };
     
     try {
-        const response = await fetch(`${API_URL}/api/notes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(note)
-        });
-        
-        const newNote = await response.json();
+        const newNote = await apiFetchJson('/notes', buildJsonRequest('POST', note));
+        if (!newNote) {
+            throw new Error('API did not return a note');
+        }
         currentNote = newNote;
         
         await loadNotes();
-        loadNote(newNote.id);
+        await loadNote(newNote.id);
         
         showNotification('New note created', 'success');
         
@@ -221,29 +611,35 @@ async function createNewNote() {
     }
 }
 
-async function saveNote() {
-    if (!currentNote) return;
-    
+async function saveNote(options = {}) {
+    if (!currentNote) {
+        return;
+    }
+
     const title = document.getElementById('noteTitle').value;
     const content = document.getElementById('noteContent').value;
-    
+
     try {
-        const response = await fetch(`${API_URL}/api/notes/${currentNote.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ...currentNote,
-                title,
-                content
-            })
-        });
-        
-        currentNote = await response.json();
+        const payload = {
+            ...currentNote,
+            title,
+            content
+        };
+
+        const savedNote = await apiFetchJson(`/notes/${currentNote.id}`, buildJsonRequest('PUT', payload));
+        if (!savedNote) {
+            throw new Error('API did not return saved note');
+        }
+
+        currentNote = savedNote;
         document.getElementById('lastSaved').textContent = 'Saved';
-        
-        // Refresh notes list
-        await loadNotes();
-        
+        updatePinButtonState(Boolean(currentNote.is_pinned));
+        updateFavoriteButtonState(Boolean(currentNote.is_favorite));
+
+        if (!options.skipRefresh) {
+            await loadNotes();
+        }
+
     } catch (error) {
         console.error('Failed to save note:', error);
         document.getElementById('lastSaved').textContent = 'Failed to save';
@@ -256,9 +652,11 @@ async function deleteCurrentNote() {
     if (!confirm('Are you sure you want to delete this note?')) return;
     
     try {
-        await fetch(`${API_URL}/api/notes/${currentNote.id}`, {
-            method: 'DELETE'
-        });
+        const response = await apiFetch(`/notes/${currentNote.id}`, { method: 'DELETE' });
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(message || 'Failed to delete');
+        }
         
         currentNote = null;
         document.getElementById('noteTitle').value = '';
@@ -306,14 +704,14 @@ function scheduleAutoSave() {
     }
     
     autoSaveTimeout = setTimeout(() => {
-        saveNote();
+        saveNote({ skipRefresh: true });
     }, 2000);
 }
 
 function startAutoSave() {
     setInterval(() => {
         if (currentNote && document.getElementById('lastSaved').textContent.includes('Unsaved')) {
-            saveNote();
+            saveNote({ skipRefresh: true });
         }
     }, 30000); // Auto-save every 30 seconds
 }
@@ -321,16 +719,14 @@ function startAutoSave() {
 function togglePin() {
     if (!currentNote) return;
     currentNote.is_pinned = !currentNote.is_pinned;
-    document.getElementById('pinBtn').innerHTML = 
-        currentNote.is_pinned ? '📌' : '📍';
+    updatePinButtonState(currentNote.is_pinned);
     saveNote();
 }
 
 function toggleFavorite() {
     if (!currentNote) return;
     currentNote.is_favorite = !currentNote.is_favorite;
-    document.getElementById('favoriteBtn').innerHTML = 
-        currentNote.is_favorite ? '⭐' : '☆';
+    updateFavoriteButtonState(currentNote.is_favorite);
     saveNote();
 }
 
@@ -454,21 +850,16 @@ async function performSearch() {
     if (!query) return;
     
     try {
-        const response = await fetch(`${API_URL}/api/search`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                query,
-                user_id: 'default-user',
-                limit: 20
-            })
-        });
-        
-        const results = await response.json();
-        displayNotes(results.results);
+        const results = await apiFetchJson('/search', buildJsonRequest('POST', {
+            query,
+            user_id: 'default-user',
+            limit: 20
+        }));
+        const matches = Array.isArray(results?.results) ? results.results : [];
+        displayNotes(matches);
         
         document.getElementById('sectionTitle').textContent = 
-            `Search Results (${results.count})`;
+            `Search Results (${results?.count ?? matches.length})`;
         
     } catch (error) {
         console.error('Search failed:', error);
@@ -479,8 +870,8 @@ async function performSearch() {
 // Folders
 async function loadFolders() {
     try {
-        const response = await fetch(`${API_URL}/api/folders`);
-        folders = await response.json();
+        const data = await apiFetchJson('/folders');
+        folders = Array.isArray(data) ? data : [];
         displayFolders(folders);
     } catch (error) {
         console.error('Failed to load folders:', error);
@@ -516,24 +907,25 @@ function closeModal(modalId) {
 async function createFolder() {
     const name = document.getElementById('folderName').value;
     const color = document.querySelector('.color-option.selected')?.dataset.color || '#6366f1';
-    
+
     if (!name) return;
-    
+
     try {
-        await fetch(`${API_URL}/api/folders`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                name,
-                color,
-                user_id: 'default-user'
-            })
-        });
-        
+        const response = await apiFetch('/folders', buildJsonRequest('POST', {
+            name,
+            color,
+            user_id: 'default-user'
+        }));
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(message || 'Failed to create folder');
+        }
+
+        document.getElementById('folderName').value = '';
         await loadFolders();
         closeModal('folderModal');
         showNotification('Folder created', 'success');
-        
+
     } catch (error) {
         console.error('Failed to create folder:', error);
         showNotification('Failed to create folder', 'error');
@@ -543,8 +935,8 @@ async function createFolder() {
 // Tags
 async function loadTags() {
     try {
-        const response = await fetch(`${API_URL}/api/tags`);
-        tags = await response.json();
+        const data = await apiFetchJson('/tags');
+        tags = Array.isArray(data) ? data : [];
         displayTags(tags);
     } catch (error) {
         console.error('Failed to load tags:', error);
@@ -653,8 +1045,8 @@ function loadNotesByTag(tagName) {
 
 async function loadTemplates() {
     try {
-        const response = await fetch(`${API_URL}/api/templates`);
-        templates = await response.json();
+        const data = await apiFetchJson('/templates');
+        templates = Array.isArray(data) ? data : [];
         displayTemplates(templates);
     } catch (error) {
         console.error('Failed to load templates:', error);

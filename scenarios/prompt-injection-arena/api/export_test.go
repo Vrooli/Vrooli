@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -142,8 +143,8 @@ func TestExportHandlers(t *testing.T) {
 		suite := NewHandlerTestSuite("ExportHandlers", router, "/api/v1/export")
 		patterns := NewTestScenarioBuilder().
 			AddInvalidQueryParams("/api/v1/export/results", map[string]string{
-			"format": "invalid-format",
-		}).
+				"format": "invalid-format",
+			}).
 			AddNonExistentResource("/api/v1/export/report", "GET", "Session").
 			Build()
 		suite.RunErrorTests(t, patterns)
@@ -531,11 +532,11 @@ func TestExportEdgeCases(t *testing.T) {
 
 	t.Run("NullValues", func(t *testing.T) {
 		result := TestResult{
-			ID:              uuid.New().String(),
-			ResponseText:    "",
-			ErrorMessage:    "",
+			ID:               uuid.New().String(),
+			ResponseText:     "",
+			ErrorMessage:     "",
 			SafetyViolations: nil,
-			Metadata:        nil,
+			Metadata:         nil,
 		}
 
 		data, err := json.Marshal(result)

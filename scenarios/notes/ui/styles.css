@@ -53,6 +53,19 @@
     box-sizing: border-box;
 }
 
+.icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+}
+
+.icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    stroke-width: 1.8;
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg-paper);
@@ -60,6 +73,10 @@ body {
     line-height: 1.6;
     overflow: hidden;
     position: relative;
+}
+
+body.sidebar-open {
+    overflow: hidden;
 }
 
 /* Paper texture overlay */
@@ -85,6 +102,39 @@ body::before {
     z-index: 2;
 }
 
+.app-container.sidebar-collapsed .sidebar {
+    width: 0;
+    border-right: none;
+}
+
+.app-container.sidebar-collapsed .sidebar > * {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.app-container.sidebar-collapsed .sidebar::before {
+    opacity: 0;
+}
+
+.app-container.sidebar-collapsed .main-content {
+    margin-left: 0;
+}
+
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 20;
+}
+
+.app-container.sidebar-open .sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* Sidebar */
 .sidebar {
     width: 280px;
@@ -95,6 +145,12 @@ body::before {
     overflow-y: auto;
     position: relative;
     box-shadow: 4px 0 12px rgba(139, 92, 246, 0.08);
+    flex-shrink: 0;
+    transition: width 0.3s ease;
+}
+
+.sidebar > * {
+    transition: opacity 0.2s ease;
 }
 
 /* Decorative notebook spiral */
@@ -139,8 +195,12 @@ body::before {
 }
 
 .logo {
-    font-size: 2rem;
     animation: bounce 2s infinite;
+}
+
+.logo.icon svg {
+    width: 2.2rem;
+    height: 2.2rem;
 }
 
 @keyframes bounce {
@@ -160,13 +220,20 @@ body::before {
 }
 
 .user-avatar {
-    font-size: 1.25rem;
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
+.user-avatar svg {
+    width: 100%;
+    height: 100%;
 }
 
 /* Search */
 .search-container {
     padding: 1rem;
     border-bottom: 1px solid var(--border-light);
+    position: relative;
 }
 
 .search-input {
@@ -193,8 +260,8 @@ body::before {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 1rem;
     color: var(--text-tertiary);
+    display: inline-flex;
 }
 
 /* Navigation */
@@ -230,7 +297,16 @@ body::before {
 }
 
 .nav-icon {
-    font-size: 1.125rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.nav-icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
 }
 
 /* Folders & Tags */
@@ -368,17 +444,34 @@ body::before {
     padding: 1.5rem;
     background: var(--bg-primary);
     border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.notes-title-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .notes-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
-    margin-bottom: 1rem;
+    margin: 0;
 }
 
 .notes-actions {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.notes-title-group .btn-icon {
+    border-color: var(--border);
 }
 
 .btn {
@@ -462,14 +555,32 @@ body::before {
 }
 
 .note-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 0.5rem;
+}
+
+.note-card-title-text {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    flex: 1;
+}
+
+.note-card-flags {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.note-card-flags .icon svg {
+    width: 1rem;
+    height: 1rem;
 }
 
 .note-card-preview {
@@ -971,25 +1082,58 @@ body::before {
 
 @media (max-width: 768px) {
     .sidebar {
-        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: min(85vw, 320px);
+        max-width: 320px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: var(--shadow-lg);
+        z-index: 30;
     }
-    
+
+    .app-container.sidebar-open .sidebar {
+        transform: translateX(0);
+    }
+
+    .app-container.sidebar-collapsed .sidebar {
+        width: min(85vw, 320px);
+        border-right: 2px solid var(--border);
+    }
+
+    .app-container.sidebar-collapsed .sidebar > * {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .app-container.sidebar-collapsed .sidebar::before {
+        opacity: 1;
+    }
+
+    .notes-title-group .btn-icon {
+        border-color: var(--border);
+    }
+
     .notes-list-section {
         width: 100%;
         border-right: none;
     }
-    
+
+    .ai-panel {
+        display: none;
+    }
+
     .note-editor-section {
         display: none;
     }
-    
+
     .note-editor-section.mobile-active {
         display: flex;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 100;
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        background: var(--bg-primary);
     }
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,6 +10,42 @@ import (
 	"os/exec"
 	"time"
 )
+
+// Simple structured logger
+type Logger struct{}
+
+func (l *Logger) Info(msg string, fields ...interface{}) {
+	logEntry := map[string]interface{}{
+		"level":     "INFO",
+		"message":   msg,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+	for i := 0; i < len(fields); i += 2 {
+		if i+1 < len(fields) {
+			logEntry[fmt.Sprint(fields[i])] = fields[i+1]
+		}
+	}
+	jsonBytes, _ := json.Marshal(logEntry)
+	fmt.Println(string(jsonBytes))
+}
+
+func (l *Logger) Error(msg string, err error, fields ...interface{}) {
+	logEntry := map[string]interface{}{
+		"level":     "ERROR",
+		"message":   msg,
+		"error":     err.Error(),
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+	for i := 0; i < len(fields); i += 2 {
+		if i+1 < len(fields) {
+			logEntry[fmt.Sprint(fields[i])] = fields[i+1]
+		}
+	}
+	jsonBytes, _ := json.Marshal(logEntry)
+	fmt.Fprintln(os.Stderr, string(jsonBytes))
+}
+
+var logger = &Logger{}
 
 type GenerateRequest struct {
 	BusinessName   string   `json:"business_name"`
@@ -32,9 +69,12 @@ type GenerateResponse struct {
 }
 
 type HealthResponse struct {
-	Status     string `json:"status"`
-	Timestamp  string `json:"timestamp"`
-	Components map[string]string `json:"components"`
+	Status     string                 `json:"status"`
+	Service    string                 `json:"service"`
+	Timestamp  string                 `json:"timestamp"`
+	Readiness  bool                   `json:"readiness"`
+	Version    string                 `json:"version,omitempty"`
+	Dependencies map[string]interface{} `json:"dependencies,omitempty"`
 }
 
 type TemplateFreshnessResponse struct {
@@ -75,30 +115,67 @@ type SearchResult struct {
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	components := make(map[string]string)
-	
-	// Check PostgreSQL
-	cmd := exec.Command("resource-postgres", "status", "--json")
-	if err := cmd.Run(); err == nil {
-		components["postgres"] = "healthy"
-	} else {
-		components["postgres"] = "unhealthy"
+	dependencies := make(map[string]interface{})
+	overallStatus := "healthy"
+
+	// Check PostgreSQL with timeout
+	postgresStart := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-postgres", "status", "--json")
+	postgresHealthy := cmd.Run() == nil
+	postgresLatency := time.Since(postgresStart).Milliseconds()
+
+	postgresHealth := map[string]interface{}{
+		"connected": postgresHealthy,
+		"latency_ms": postgresLatency,
+		"error": nil,
 	}
-	
-	// Check Ollama
-	cmd = exec.Command("resource-ollama", "status", "--json")
-	if err := cmd.Run(); err == nil {
-		components["ollama"] = "healthy"
-	} else {
-		components["ollama"] = "unhealthy"
+	if !postgresHealthy {
+		postgresHealth["error"] = map[string]interface{}{
+			"code": "CONNECTION_FAILED",
+			"message": "Failed to connect to PostgreSQL",
+			"category": "resource",
+			"retryable": true,
+		}
+		overallStatus = "degraded"
 	}
-	
+	dependencies["database"] = postgresHealth
+
+	// Check Ollama with timeout (lightweight check)
+	// Note: resource-ollama status is slow (1.4s), so we use a fast ping check instead
+	ollamaCtx, ollamaCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer ollamaCancel()
+	cmd = exec.CommandContext(ollamaCtx, "curl", "-sf", "http://localhost:11434/api/tags")
+	ollamaHealthy := cmd.Run() == nil
+
+	ollamaHealth := map[string]interface{}{
+		"name": "ollama",
+		"connected": ollamaHealthy,
+		"error": nil,
+	}
+	if !ollamaHealthy {
+		ollamaHealth["error"] = map[string]interface{}{
+			"code": "CONNECTION_FAILED",
+			"message": "Failed to connect to Ollama",
+			"category": "resource",
+			"retryable": true,
+		}
+		overallStatus = "degraded"
+	}
+
+	externalServices := []interface{}{ollamaHealth}
+	dependencies["external_services"] = externalServices
+
 	response := HealthResponse{
-		Status:     "healthy",
-		Timestamp:  time.Now().Format(time.RFC3339),
-		Components: components,
+		Status:       overallStatus,
+		Service:      "privacy-terms-generator-api",
+		Timestamp:    time.Now().Format(time.RFC3339),
+		Readiness:    true,
+		Version:      "1.0.0",
+		Dependencies: dependencies,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -158,7 +235,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 	cmd := exec.Command("/home/matthalloran8/Vrooli/scenarios/privacy-terms-generator/cli/privacy-terms-generator", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Document generation failed: %v", err)
+		logger.Error("Document generation failed", err, "type", req.DocumentType, "business", req.BusinessName)
 		http.Error(w, "Document generation failed", http.StatusInternalServerError)
 		return
 	}
@@ -200,7 +277,7 @@ func documentHistoryHandler(w http.ResponseWriter, r *http.Request) {
 		"history", docID, "--json")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Failed to get document history: %v", err)
+		logger.Error("Failed to get document history", err, "document_id", docID)
 		http.Error(w, "Failed to retrieve document history", http.StatusInternalServerError)
 		return
 	}
@@ -241,7 +318,7 @@ func searchClausesHandler(w http.ResponseWriter, r *http.Request) {
 	cmd := exec.Command("/home/matthalloran8/Vrooli/scenarios/privacy-terms-generator/cli/privacy-terms-generator", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Search failed: %v", err)
+		logger.Error("Search failed", err, "query", req.Query, "type", req.ClauseType)
 		http.Error(w, "Search failed", http.StatusInternalServerError)
 		return
 	}
@@ -252,10 +329,12 @@ func searchClausesHandler(w http.ResponseWriter, r *http.Request) {
 
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Get allowed origins from environment, default to localhost for development
+		// Get allowed origins from environment
 		allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
 		if allowedOrigin == "" {
-			allowedOrigin = "http://localhost:35000"
+			// Use UI_PORT from environment (validated at startup)
+			uiPort := os.Getenv("UI_PORT")
+			allowedOrigin = fmt.Sprintf("http://localhost:%s", uiPort)
 		}
 
 		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
@@ -272,8 +351,9 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-	// Lifecycle protection check - must run through Vrooli lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+	// Validate required environment variables
+	lifecycleManaged := os.Getenv("VROOLI_LIFECYCLE_MANAGED")
+	if lifecycleManaged != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
@@ -291,6 +371,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	uiPort := os.Getenv("UI_PORT")
+	if uiPort == "" {
+		fmt.Fprintf(os.Stderr, "❌ UI_PORT environment variable is required\n")
+		os.Exit(1)
+	}
+
 	// Health check at root level (required by orchestration)
 	http.HandleFunc("/health", corsMiddleware(healthHandler))
 
@@ -299,8 +385,8 @@ func main() {
 	http.HandleFunc("/api/v1/legal/templates/freshness", corsMiddleware(templateFreshnessHandler))
 	http.HandleFunc("/api/v1/legal/documents/history", corsMiddleware(documentHistoryHandler))
 	http.HandleFunc("/api/v1/legal/clauses/search", corsMiddleware(searchClausesHandler))
-	
-	log.Printf("Privacy & Terms Generator API starting on port %s", port)
+
+	logger.Info("Privacy & Terms Generator API starting", "port", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}

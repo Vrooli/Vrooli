@@ -151,6 +151,23 @@ describe('Visited Tracker UI Server', () => {
         expect(response.text).toContain('"name"');
     });
 
+    test('serves docs content for root and namespaced paths', async () => {
+        const direct = await agent.get('/docs-content');
+        expect(direct.status).toBe(200);
+        expect(direct.headers['content-type']).toMatch(/markdown|text\/markdown/);
+        expect(direct.text).toContain('# Visited Tracker');
+
+        const namespaced = await agent.get('/assets/sample-scope/docs-content');
+        expect(namespaced.status).toBe(200);
+        expect(namespaced.text).toContain('# Visited Tracker');
+    });
+
+    test('docs content endpoint rejects unsupported methods', async () => {
+        const response = await agent.post('/docs-content');
+        expect(response.status).toBe(405);
+        expect(response.headers['allow']).toBe('GET, HEAD');
+    });
+
     test('root path serves index.html', async () => {
         const response = await agent.get('/');
         expect(response.status).toBe(200);

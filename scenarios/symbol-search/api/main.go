@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -47,9 +48,9 @@ type Category struct {
 }
 
 type SearchResponse struct {
-	Characters     []Character `json:"characters"`
-	Total          int         `json:"total"`
-	QueryTimeMs    float64     `json:"query_time_ms"`
+	Characters     []Character            `json:"characters"`
+	Total          int                    `json:"total"`
+	QueryTimeMs    float64                `json:"query_time_ms"`
 	FiltersApplied map[string]interface{} `json:"filters_applied"`
 }
 
@@ -68,9 +69,9 @@ type BulkRangeRequest struct {
 }
 
 type BulkRangeResponse struct {
-	Characters       []Character `json:"characters"`
-	TotalCharacters  int         `json:"total_characters"`
-	RangesProcessed  int         `json:"ranges_processed"`
+	Characters      []Character `json:"characters"`
+	TotalCharacters int         `json:"total_characters"`
+	RangesProcessed int         `json:"ranges_processed"`
 }
 
 type API struct {
@@ -99,78 +100,85 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
 		log.Fatal("Failed to open database connection:", err)
 	}
 	defer db.Close()
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	api := &API{db: db}
 
+	bootstrapCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	if err := api.ensureUnicodeData(bootstrapCtx); err != nil {
+		log.Fatalf("failed to populate unicode data: %v", err)
+	}
+
 	// Initialize Gin router
 	router := gin.Default()
-	
+
 	// Enable CORS
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -204,7 +212,7 @@ func main() {
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	log.Printf("Starting Symbol Search API server on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }
@@ -231,16 +239,16 @@ func (api *API) healthCheck(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
-		"timestamp": time.Now().UTC(),
-		"database":  "connected",
+		"status":            "healthy",
+		"timestamp":         time.Now().UTC(),
+		"database":          "connected",
 		"characters_loaded": count > 0,
 	})
 }
 
 func (api *API) searchCharacters(c *gin.Context) {
 	start := time.Now()
-	
+
 	// Parse query parameters
 	query := c.DefaultQuery("q", "")
 	category := c.Query("category")
@@ -248,12 +256,12 @@ func (api *API) searchCharacters(c *gin.Context) {
 	unicodeVersion := c.Query("unicode_version")
 	limitStr := c.DefaultQuery("limit", "100")
 	offsetStr := c.DefaultQuery("offset", "0")
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 || limit > 1000 {
 		limit = 100
 	}
-	
+
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil || offset < 0 {
 		offset = 0
@@ -265,8 +273,8 @@ func (api *API) searchCharacters(c *gin.Context) {
 	argIndex := 1
 
 	if query != "" {
-		whereClauses = append(whereClauses, 
-			fmt.Sprintf("(name ILIKE $%d OR description ILIKE $%d OR codepoint ILIKE $%d)", 
+		whereClauses = append(whereClauses,
+			fmt.Sprintf("(name ILIKE $%d OR description ILIKE $%d OR codepoint ILIKE $%d)",
 				argIndex, argIndex+1, argIndex+2))
 		searchTerm := "%" + query + "%"
 		args = append(args, searchTerm, searchTerm, searchTerm)
@@ -319,7 +327,7 @@ func (api *API) searchCharacters(c *gin.Context) {
 			name
 		LIMIT $%d OFFSET $%d
 	`, whereSQL, argIndex, argIndex+1, argIndex+2)
-	
+
 	// Add exact name match for ranking
 	if query != "" {
 		args = append(args, "%"+query+"%", limit, offset)
@@ -340,7 +348,7 @@ func (api *API) searchCharacters(c *gin.Context) {
 	for rows.Next() {
 		var char Character
 		var propertiesJSON []byte
-		
+
 		err := rows.Scan(
 			&char.Codepoint, &char.Decimal, &char.Name, &char.Category,
 			&char.Block, &char.UnicodeVersion, &char.Description,
@@ -390,11 +398,11 @@ func (api *API) searchCharacters(c *gin.Context) {
 
 func (api *API) getCharacterDetail(c *gin.Context) {
 	codepoint := c.Param("codepoint")
-	
+
 	// Handle both Unicode format (U+1F600) and decimal format
 	var query string
 	var arg interface{}
-	
+
 	if strings.HasPrefix(strings.ToUpper(codepoint), "U+") {
 		query = "SELECT codepoint, decimal, name, category, block, unicode_version, description, html_entity, css_content, properties FROM characters WHERE codepoint = $1"
 		arg = strings.ToUpper(codepoint)
@@ -413,7 +421,7 @@ func (api *API) getCharacterDetail(c *gin.Context) {
 
 	var char Character
 	var propertiesJSON []byte
-	
+
 	err := api.db.QueryRow(query, arg).Scan(
 		&char.Codepoint, &char.Decimal, &char.Name, &char.Category,
 		&char.Block, &char.UnicodeVersion, &char.Description,
@@ -445,16 +453,16 @@ func (api *API) getCharacterDetail(c *gin.Context) {
 		ORDER BY decimal 
 		LIMIT 5
 	`
-	
+
 	rows, err := api.db.Query(relatedQuery, char.Block, char.Codepoint)
 	if err == nil {
 		defer rows.Close()
-		
+
 		var relatedCharacters []Character
 		for rows.Next() {
 			var related Character
 			var relatedPropertiesJSON []byte
-			
+
 			err := rows.Scan(
 				&related.Codepoint, &related.Decimal, &related.Name, &related.Category,
 				&related.Block, &related.UnicodeVersion, &related.Description,
@@ -493,7 +501,7 @@ func (api *API) getCategories(c *gin.Context) {
 		GROUP BY c.code, c.name, c.description
 		ORDER BY c.name
 	`
-	
+
 	rows, err := api.db.Query(query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -528,7 +536,7 @@ func (api *API) getBlocks(c *gin.Context) {
 		GROUP BY b.id, b.name, b.start_codepoint, b.end_codepoint, b.description
 		ORDER BY b.start_codepoint
 	`
-	
+
 	rows, err := api.db.Query(query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -541,7 +549,7 @@ func (api *API) getBlocks(c *gin.Context) {
 	var blocks []CharacterBlock
 	for rows.Next() {
 		var block CharacterBlock
-		err := rows.Scan(&block.ID, &block.Name, &block.StartCodepoint, 
+		err := rows.Scan(&block.ID, &block.Name, &block.StartCodepoint,
 			&block.EndCodepoint, &block.Description, &block.CharacterCount)
 		if err != nil {
 			log.Printf("Error scanning block: %v", err)
@@ -601,7 +609,7 @@ func (api *API) getBulkRange(c *gin.Context) {
 		for rows.Next() {
 			var char Character
 			var propertiesJSON []byte
-			
+
 			err := rows.Scan(
 				&char.Codepoint, &char.Decimal, &char.Name, &char.Category,
 				&char.Block, &char.UnicodeVersion, &char.Description,
@@ -640,16 +648,16 @@ func parseCodepointRange(start, end string) (int, int, error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid start codepoint: %v", err)
 	}
-	
+
 	endDecimal, err := parseCodepoint(end)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid end codepoint: %v", err)
 	}
-	
+
 	if startDecimal > endDecimal {
 		return 0, 0, fmt.Errorf("start codepoint must be <= end codepoint")
 	}
-	
+
 	return startDecimal, endDecimal, nil
 }
 
@@ -673,14 +681,14 @@ func generateUsageExamples(char Character) []string {
 		fmt.Sprintf("HTML: &#%d;", char.Decimal),
 		fmt.Sprintf("Unicode: %s", char.Codepoint),
 	}
-	
+
 	if char.HTMLEntity != nil && *char.HTMLEntity != "" {
 		examples = append(examples, fmt.Sprintf("HTML Entity: %s", *char.HTMLEntity))
 	}
-	
+
 	if char.CSSContent != nil && *char.CSSContent != "" {
 		examples = append(examples, fmt.Sprintf("CSS: content: \"%s\";", *char.CSSContent))
 	}
-	
+
 	return examples
 }

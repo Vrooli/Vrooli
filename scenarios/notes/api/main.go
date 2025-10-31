@@ -8,8 +8,10 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
@@ -98,6 +100,7 @@ type Folder struct {
 
 type Tag struct {
 	ID         string `json:"id"`
+	UserID     string `json:"user_id"`
 	Name       string `json:"name"`
 	Color      string `json:"color"`
 	UsageCount int    `json:"usage_count"`
@@ -139,6 +142,24 @@ func getDefaultUserID() string {
 		}
 	}
 	return defaultUserID
+}
+
+func normalizeUserID(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || strings.EqualFold(trimmed, "default") || strings.EqualFold(trimmed, "default_user") || strings.EqualFold(trimmed, "default-user") {
+		return getDefaultUserID()
+	}
+
+	if _, err := uuid.Parse(trimmed); err != nil {
+		if logger != nil {
+			logger.Warn("Invalid user ID provided, falling back to default user", "provided_user_id", trimmed, "error", err.Error())
+		} else {
+			log.Printf("[WARN] Invalid user ID provided (%s), falling back to default user: %v", trimmed, err)
+		}
+		return getDefaultUserID()
+	}
+
+	return trimmed
 }
 
 func main() {
@@ -372,10 +393,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getNotesHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = getDefaultUserID()
-	}
+	userID := normalizeUserID(r.URL.Query().Get("user_id"))
 
 	query := `
 		SELECT n.id, n.title, n.content, n.content_type, n.summary,
@@ -428,8 +446,9 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if note.UserID == "" {
-		note.UserID = getDefaultUserID()
+	note.UserID = normalizeUserID(note.UserID)
+	if queryUserID := r.URL.Query().Get("user_id"); queryUserID != "" {
+		note.UserID = normalizeUserID(queryUserID)
 	}
 
 	// Set defaults if not provided
@@ -507,10 +526,10 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		SET title = $2, content = $3, folder_id = $4,
 		    is_pinned = $5, is_favorite = $6, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
-		RETURNING updated_at`
+		RETURNING user_id, updated_at`
 
 	err := db.QueryRow(query, id, note.Title, note.Content, note.FolderID,
-		note.IsPinned, note.IsFavorite).Scan(&note.UpdatedAt)
+		note.IsPinned, note.IsFavorite).Scan(&note.UserID, &note.UpdatedAt)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -518,7 +537,7 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	note.ID = id
-	note.UserID = getDefaultUserID() // Set user ID for indexing
+	note.UserID = normalizeUserID(note.UserID)
 
 	// Re-index in Qdrant with updated content
 	go indexNoteInQdrant(note)
@@ -544,10 +563,7 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getFoldersHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = getDefaultUserID()
-	}
+	userID := normalizeUserID(r.URL.Query().Get("user_id"))
 
 	query := `
 		SELECT id, user_id, parent_id, name, icon, color, position, created_at, updated_at
@@ -584,8 +600,9 @@ func createFolderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if folder.UserID == "" {
-		folder.UserID = getDefaultUserID()
+	folder.UserID = normalizeUserID(folder.UserID)
+	if queryUserID := r.URL.Query().Get("user_id"); queryUserID != "" {
+		folder.UserID = normalizeUserID(queryUserID)
 	}
 	if folder.Icon == "" {
 		folder.Icon = "📁"
@@ -655,10 +672,7 @@ func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTagsHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = getDefaultUserID()
-	}
+	userID := normalizeUserID(r.URL.Query().Get("user_id"))
 
 	query := `
 		SELECT id, name, color, usage_count
@@ -680,6 +694,7 @@ func getTagsHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
+		t.UserID = userID
 		tags = append(tags, t)
 	}
 
@@ -694,10 +709,11 @@ func createTagHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = getDefaultUserID()
+	userID := normalizeUserID(tag.UserID)
+	if queryUserID := r.URL.Query().Get("user_id"); queryUserID != "" {
+		userID = normalizeUserID(queryUserID)
 	}
+	tag.UserID = userID
 
 	if tag.Color == "" {
 		tag.Color = "#10b981"
@@ -723,10 +739,7 @@ func createTagHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTemplatesHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = getDefaultUserID()
-	}
+	userID := normalizeUserID(r.URL.Query().Get("user_id"))
 
 	query := `
 		SELECT id, user_id, name, description, content, category, usage_count, is_public, created_at
@@ -763,8 +776,9 @@ func createTemplateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if template.UserID == "" {
-		template.UserID = getDefaultUserID()
+	template.UserID = normalizeUserID(template.UserID)
+	if queryUserID := r.URL.Query().Get("user_id"); queryUserID != "" {
+		template.UserID = normalizeUserID(queryUserID)
 	}
 
 	query := `
@@ -797,8 +811,9 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if searchReq.UserID == "" {
-		searchReq.UserID = getDefaultUserID()
+	searchReq.UserID = normalizeUserID(searchReq.UserID)
+	if queryUserID := r.URL.Query().Get("user_id"); queryUserID != "" {
+		searchReq.UserID = normalizeUserID(queryUserID)
 	}
 	if searchReq.Limit == 0 {
 		searchReq.Limit = 20

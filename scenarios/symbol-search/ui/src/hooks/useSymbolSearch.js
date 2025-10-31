@@ -1,6 +1,35 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
-const API_BASE = '/api'
+const rawExplicitBase =
+  typeof import.meta !== 'undefined' && import.meta.env && typeof import.meta.env.VITE_API_BASE_URL === 'string'
+    ? import.meta.env.VITE_API_BASE_URL.trim()
+    : ''
+
+const rawFallbackPort =
+  typeof import.meta !== 'undefined' && import.meta.env && typeof import.meta.env.VITE_API_PORT === 'string'
+    ? import.meta.env.VITE_API_PORT.trim()
+    : ''
+
+const explicitApiBase = rawExplicitBase.length > 0 ? rawExplicitBase : undefined
+const fallbackApiPort = rawFallbackPort.length > 0 ? rawFallbackPort : '15000'
+
+const apiOrigin = resolveApiBase({
+  explicitUrl: explicitApiBase,
+  defaultPort: fallbackApiPort,
+  appendSuffix: false,
+})
+
+const apiBase = buildApiUrl('/api', {
+  baseUrl: apiOrigin,
+  appendSuffix: false,
+})
+
+const createEndpointUrl = (endpoint) =>
+  buildApiUrl(endpoint, {
+    baseUrl: apiBase,
+    appendSuffix: false,
+  })
 
 /**
  * Custom hook for Symbol Search API interactions
@@ -20,20 +49,23 @@ export function useSymbolSearch() {
 
   // Track current request to cancel outdated ones
   const currentRequestRef = useRef(null)
-  const abortControllerRef = useRef(null)
+  const searchAbortControllerRef = useRef(null)
 
   // API request helper with abort support
   const apiRequest = useCallback(async (endpoint, options = {}) => {
-    const controller = new AbortController()
-    abortControllerRef.current = controller
+    const {
+      signal,
+      headers = {},
+      ...requestInit
+    } = options
 
     try {
-      const response = await fetch(`${API_BASE}${endpoint}`, {
-        ...options,
-        signal: controller.signal,
+      const response = await fetch(createEndpointUrl(endpoint), {
+        ...requestInit,
+        signal,
         headers: {
           'Content-Type': 'application/json',
-          ...options.headers
+          ...headers
         }
       })
 
@@ -62,14 +94,17 @@ export function useSymbolSearch() {
       offset = 0
     } = params
 
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-
     // Generate request ID to handle race conditions
     const requestId = Date.now()
     currentRequestRef.current = requestId
+
+    // Cancel previous search request
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort()
+    }
+
+    const controller = new AbortController()
+    searchAbortControllerRef.current = controller
 
     setState(prev => ({
       ...prev,
@@ -88,7 +123,9 @@ export function useSymbolSearch() {
       queryParams.set('limit', limit.toString())
       queryParams.set('offset', offset.toString())
 
-      const data = await apiRequest(`/search?${queryParams.toString()}`)
+      const data = await apiRequest(`/search?${queryParams.toString()}`, {
+        signal: controller.signal
+      })
 
       // Check if this is still the current request
       if (currentRequestRef.current !== requestId) {
@@ -105,7 +142,7 @@ export function useSymbolSearch() {
         error: null
       }))
     } catch (error) {
-      if (error.name === 'AbortError') {
+      if (error?.name === 'AbortError') {
         return // Ignore aborted requests
       }
 
@@ -116,6 +153,10 @@ export function useSymbolSearch() {
           error: error.message,
           hasMore: false
         }))
+      }
+    } finally {
+      if (searchAbortControllerRef.current === controller) {
+        searchAbortControllerRef.current = null
       }
     }
   }, [apiRequest])
@@ -155,6 +196,9 @@ export function useSymbolSearch() {
         blocks: blocksResponse.blocks || []
       }))
     } catch (error) {
+      if (error?.name === 'AbortError') {
+        return
+      }
       console.error('Failed to load metadata:', error)
       // Don't set error state for metadata failures
     }
@@ -168,8 +212,8 @@ export function useSymbolSearch() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort()
       }
     }
   }, [])

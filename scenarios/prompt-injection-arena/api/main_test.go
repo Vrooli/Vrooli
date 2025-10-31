@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -149,8 +150,8 @@ func TestGetInjectionLibrary(t *testing.T) {
 		suite := NewHandlerTestSuite("GetInjectionLibrary", router, "/api/v1/injections")
 		patterns := NewTestScenarioBuilder().
 			AddInvalidQueryParams("/api/v1/injections", map[string]string{
-			"limit": "invalid",
-		}).
+				"limit": "invalid",
+			}).
 			Build()
 		suite.RunErrorTests(t, patterns)
 	})
@@ -178,15 +179,15 @@ func TestAddInjectionTechnique(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/v1/injections/library",
 			Body: map[string]interface{}{
-				"name":                "New Injection",
-				"category":            "test",
-				"description":         "Test description",
-				"example_prompt":      "Test prompt",
-				"difficulty_score":    0.5,
-				"success_rate":        0.7,
-				"source_attribution":  "test",
-				"is_active":           true,
-				"created_by":          "test-user",
+				"name":               "New Injection",
+				"category":           "test",
+				"description":        "Test description",
+				"example_prompt":     "Test prompt",
+				"difficulty_score":   0.5,
+				"success_rate":       0.7,
+				"source_attribution": "test",
+				"is_active":          true,
+				"created_by":         "test-user",
 			},
 		}
 
@@ -234,7 +235,7 @@ func TestAddInjectionTechnique(t *testing.T) {
 				"category":           "test",
 				"description":        "Test description",
 				"example_prompt":     "Test prompt",
-				"difficulty_score":   1.5, // Invalid: > 1.0
+				"difficulty_score":   1.5,  // Invalid: > 1.0
 				"success_rate":       -0.1, // Invalid: < 0.0
 				"source_attribution": "test",
 			},
@@ -334,7 +335,7 @@ func TestTestAgent(t *testing.T) {
 					"max_tokens":    100,
 					"created_by":    "test-user",
 				},
-				"test_suite": []string{technique.ID},
+				"test_suite":         []string{technique.ID},
 				"max_execution_time": 300,
 			},
 		}

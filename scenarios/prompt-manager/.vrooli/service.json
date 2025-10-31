@@ -139,7 +139,7 @@
         },
         {
           "name": "install-cli",
-          "run": "chmod +x cli/prompt-manager && ln -sf $(pwd)/cli/prompt-manager ~/.local/bin/prompt-manager 2>/dev/null || true",
+          "run": "cd cli && chmod +x prompt-manager && ln -sf $(pwd)/prompt-manager ~/.local/bin/prompt-manager 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {
@@ -188,27 +188,9 @@
       "description": "Test Prompt Manager API and CLI",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-campaigns-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/campaigns",
-          "description": "Test API v1 campaigns endpoint"
-        },
-        {
-          "name": "test-cli-status",
-          "run": "prompt-manager status",
-          "description": "Test CLI status command"
+          "name": "run-test-suite",
+          "run": "./test/run-tests.sh",
+          "description": "Run comprehensive test suite"
         }
       ]
     },

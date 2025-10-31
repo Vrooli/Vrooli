@@ -196,7 +196,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           padding: 'var(--spacing-sm)',
                           background: 'rgba(0, 0, 0, 0.3)',
                           borderRadius: 'var(--border-radius-sm)',
-                          border: '1px solid rgba(0, 255, 0, 0.15)'
+                          border: '1px solid var(--alpha-accent-15)'
                         }}>
                           <div style={{
                             display: 'flex',
@@ -224,7 +224,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           padding: 'var(--spacing-sm)',
                           background: 'rgba(0, 0, 0, 0.3)',
                           borderRadius: 'var(--border-radius-sm)',
-                          border: '1px solid rgba(0, 255, 0, 0.15)'
+                          border: '1px solid var(--alpha-accent-15)'
                         }}>
                           <div style={{
                             display: 'flex',

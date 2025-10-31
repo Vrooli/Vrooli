@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 
 const DEFAULT_VERSION = '1.0.0';
 const SERVICE_NAME = 'visited-tracker';
@@ -10,6 +11,7 @@ const PROXY_ROOT = '/proxy';
 const PROXY_API_PREFIX = `${PROXY_ROOT}/api`;
 const PROXY_API_BASE = `${PROXY_API_PREFIX}/v1`;
 const PROXY_HEALTH_URL = `${PROXY_ROOT}/health`;
+const DOCS_CONTENT_ROUTE = /^\/(?:.*\/)?docs-content\/?$/;
 
 const buildHealthPayload = ({ apiPort, displayUrl }) => ({
     status: 'healthy',
@@ -102,6 +104,39 @@ function createApp({ apiPort } = {}) {
         proxyToApi(req, res, upstreamPath);
     });
 
+    const docsMarkdownPath = path.join(__dirname, '../docs/PROMPT_USAGE.md');
+
+    const serveDocsContent = (req, res) => {
+        fs.readFile(docsMarkdownPath, 'utf8', (err, data) => {
+            if (err) {
+                console.error('[visited-tracker-ui] Failed to read documentation:', err);
+                res.status(404).type('text/plain').send('Documentation not found');
+                return;
+            }
+            res.type('text/markdown');
+            if (req.method === 'HEAD') {
+                res.setHeader('Content-Length', Buffer.byteLength(data, 'utf8'));
+                res.end();
+                return;
+            }
+            res.send(data);
+        });
+    };
+
+    app.use((req, res, next) => {
+        if (!DOCS_CONTENT_ROUTE.test(req.path)) {
+            return next();
+        }
+
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            res.set('Allow', 'GET, HEAD');
+            res.status(405).end();
+            return;
+        }
+
+        serveDocsContent(req, res);
+    });
+
     app.use(express.static(__dirname));
 
     app.get('/', (_req, res) => {
@@ -126,21 +161,6 @@ function createApp({ apiPort } = {}) {
 
     app.get('/docs', (_req, res) => {
         res.sendFile(path.join(__dirname, 'docs.html'));
-    });
-
-    app.get('/docs-content', (_req, res) => {
-        const fs = require('fs');
-        const docsPath = path.join(__dirname, '../docs/PROMPT_USAGE.md');
-
-        fs.readFile(docsPath, 'utf8', (err, data) => {
-            if (err) {
-                console.error('[visited-tracker-ui] Failed to read documentation:', err);
-                res.status(404).send('Documentation not found');
-                return;
-            }
-            res.type('text/markdown');
-            res.send(data);
-        });
     });
 
     app.get('/health', async (_req, res) => {

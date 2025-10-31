@@ -221,7 +221,7 @@ const MetricLineChart = ({
     {data.length > 0 ? (
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke="rgba(0, 255, 0, 0.15)" strokeDasharray="4 4" />
+          <CartesianGrid stroke="var(--alpha-accent-15)" strokeDasharray="4 4" />
           <XAxis
             dataKey="timestamp"
             stroke="var(--color-text-dim)"
@@ -235,8 +235,8 @@ const MetricLineChart = ({
           />
           <Tooltip
             contentStyle={{
-              background: 'rgba(0, 0, 0, 0.85)',
-              border: '1px solid var(--color-accent)',
+              background: 'rgba(7, 25, 16, 0.88)',
+              border: '1px solid var(--color-surface-border)',
               borderRadius: 'var(--border-radius-md)',
               color: 'var(--color-text)'
             }}
@@ -307,7 +307,7 @@ const buildDiskUsageCard = (
       <div style={{
         width: '100%',
         height: '10px',
-        background: 'rgba(0, 255, 0, 0.1)',
+        background: 'var(--alpha-accent-10)',
         borderRadius: 'var(--border-radius-sm)'
       }}>
         <div
@@ -369,7 +369,7 @@ const renderProcessTable = (
           {processes.slice(0, 10).map(process => {
             const value = valueAccessor(process);
             return (
-              <tr key={`${process.name}-${process.pid}`} style={{ borderTop: '1px solid rgba(0, 255, 0, 0.1)' }}>
+              <tr key={`${process.name}-${process.pid}`} style={{ borderTop: '1px solid var(--alpha-accent-10)' }}>
                 <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-text-bright)' }}>{process.name}</td>
                 <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-text)' }}>{process.pid}</td>
                 <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-accent)' }}>
@@ -682,7 +682,7 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--spacing-md)' }}>
             {networkDetails.connection_pools.map(pool => (
               <div key={pool.name} style={{
-                border: '1px solid rgba(0, 255, 0, 0.15)',
+                border: '1px solid var(--alpha-accent-15)',
                 borderRadius: 'var(--border-radius-md)',
                 padding: 'var(--spacing-md)',
                 background: 'rgba(0, 0, 0, 0.4)'
@@ -949,7 +949,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             <div style={{
               width: '100%',
               height: '6px',
-              background: 'rgba(0, 255, 0, 0.2)',
+              background: 'var(--alpha-accent-20)',
               borderRadius: '3px',
               overflow: 'hidden'
             }}>
@@ -995,7 +995,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 <div style={{
                   width: '100%',
                   height: '6px',
-                  background: 'rgba(0, 255, 0, 0.2)',
+                  background: 'var(--alpha-accent-20)',
                   borderRadius: '3px',
                   overflow: 'hidden'
                 }}>
@@ -1052,7 +1052,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                     disabled={detailsLoading && isActive}
                     style={{
                       textAlign: 'left',
-                      border: `1px solid ${isActive ? 'var(--color-text-bright)' : 'rgba(0,255,0,0.2)'}`,
+                      border: `1px solid ${isActive ? 'var(--color-text-bright)' : 'var(--alpha-accent-20)'}`,
                       background: 'rgba(0,0,0,0.4)',
                       color: 'var(--color-text)',
                       padding: 'var(--spacing-sm) var(--spacing-md)',
@@ -1073,7 +1073,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                     <div style={{
                       width: '100%',
                       height: '6px',
-                      background: 'rgba(0, 255, 0, 0.1)',
+                      background: 'var(--alpha-accent-10)',
                       borderRadius: 'var(--border-radius-sm)'
                     }}>
                       <div
@@ -1197,7 +1197,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
               </thead>
               <tbody>
                 {topDirectories.map((entry: DiskUsageEntry) => (
-                  <tr key={entry.path} style={{ borderTop: '1px solid rgba(0,255,0,0.15)' }}>
+                  <tr key={entry.path} style={{ borderTop: '1px solid var(--alpha-accent-15)' }}>
                     <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-text-bright)' }}>{entry.path}</td>
                     <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>{entry.size_human}</td>
                   </tr>
@@ -1231,7 +1231,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 </thead>
                 <tbody>
                   {largestFiles.map(entry => (
-                    <tr key={entry.path} style={{ borderTop: '1px solid rgba(0,255,0,0.15)' }}>
+                    <tr key={entry.path} style={{ borderTop: '1px solid var(--alpha-accent-15)' }}>
                       <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-text-bright)' }}>{entry.path}</td>
                       <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>{entry.size_human}</td>
                     </tr>
@@ -1329,7 +1329,7 @@ export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDet
                   : '—'
               }].map(stat => (
                 <div key={stat.label} style={{
-                  border: '1px solid rgba(0,255,0,0.2)',
+                  border: '1px solid var(--alpha-accent-20)',
                   borderRadius: 'var(--border-radius-md)',
                   padding: 'var(--spacing-md)',
                   background: 'rgba(0, 40, 0, 0.2)'
@@ -1360,7 +1360,7 @@ export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDet
               {gpuMetrics.devices.length > 0 ? (
                 gpuMetrics.devices.map(device => (
                   <div key={device.uuid || device.index} style={{
-                    border: '1px solid rgba(0,255,0,0.2)',
+                    border: '1px solid var(--alpha-accent-20)',
                     borderRadius: 'var(--border-radius-md)',
                     padding: 'var(--spacing-md)',
                     background: 'rgba(0,0,0,0.35)'

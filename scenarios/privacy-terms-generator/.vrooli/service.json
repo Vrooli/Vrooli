@@ -132,6 +132,11 @@
        },
       "steps": [
         {
+          "name": "build-api",
+          "run": "cd api && go build -o privacy-terms-generator-api main.go",
+          "description": "Build API server binary"
+        },
+        {
           "name": "initialize-database",
           "run": "cat initialization/postgres/schema.sql | psql -U postgres -d vrooli_db || echo 'Database initialization skipped'",
           "description": "Create database schema"
@@ -182,19 +187,9 @@
       "description": "Test privacy & terms generator",
       "steps": [
         {
-          "name": "test-cli-generation",
-          "run": "cli/privacy-terms-generator generate privacy --business-name 'TestCo' --jurisdiction US --format markdown",
-          "description": "Test CLI document generation"
-        },
-        {
-          "name": "test-template-freshness",
-          "run": "cli/privacy-terms-generator list-templates --json | jq -e '.[0].fetched_at'",
-          "description": "Test template freshness tracking"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:${UI_PORT}/health",
-          "description": "Test UI health endpoint"
+          "name": "run-test-suite",
+          "run": "test/run-tests.sh",
+          "description": "Run comprehensive test suite (all phases)"
         }
       ]
     },

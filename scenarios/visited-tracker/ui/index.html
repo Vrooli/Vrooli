@@ -45,9 +45,38 @@
         }
 
         .header {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-primary);
-            padding: 16px 24px;
+            position: relative;
+            background: linear-gradient(135deg, rgba(31, 111, 235, 0.22), rgba(35, 134, 54, 0.08)), var(--bg-secondary);
+            border-bottom: 1px solid rgba(48, 54, 61, 0.8);
+            padding: 24px 28px 32px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            top: -140px;
+            right: -120px;
+            width: 320px;
+            height: 320px;
+            background: radial-gradient(circle at center, rgba(31, 111, 235, 0.35), transparent 70%);
+            filter: blur(2px);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            bottom: -160px;
+            left: -120px;
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle at center, rgba(35, 134, 54, 0.28), transparent 70%);
+            filter: blur(2px);
+            opacity: 0.6;
+            pointer-events: none;
         }
 
         .header-top {
@@ -56,13 +85,16 @@
             align-items: center;
             margin-bottom: 16px;
             position: relative;
+            z-index: 1;
         }
 
         .header-bottom {
             display: flex;
             justify-content: center;
-            padding-top: 16px;
-            border-top: 1px solid var(--border-primary);
+            padding-top: 24px;
+            border-top: 1px solid rgba(48, 54, 61, 0.7);
+            position: relative;
+            z-index: 1;
         }
 
         .logo {
@@ -88,6 +120,16 @@
             display: flex;
             align-items: center;
             gap: 16px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(6px);
+        }
+
+        .header-controls > * {
+            flex: 1 1 160px;
+        }
+
+        .header-controls .logs-btn {
+            flex: 0 0 auto;
         }
 
         .connection-indicator {
@@ -242,25 +284,6 @@
             border-color: var(--accent-secondary);
         }
 
-        .header-stats {
-            display: flex;
-            gap: 32px;
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .stat-value {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -413,6 +436,94 @@
 
             .filter-group .select {
                 width: auto;
+            }
+
+            .header-controls {
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .header {
+                padding: 12px 16px;
+            }
+
+            .header-top {
+                gap: 16px;
+            }
+
+            .header-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .header-controls > * {
+                flex: none;
+                width: 100%;
+            }
+
+            .header-controls .logs-btn {
+                width: 48px;
+                align-self: flex-end;
+            }
+
+            .header-bottom {
+                padding-top: 12px;
+            }
+
+            .header-stats {
+                gap: 16px;
+                grid-template-columns: 1fr;
+            }
+
+            .header-stats .stat-item {
+                align-items: flex-start;
+            }
+
+            .header-stats .stat-value {
+                font-size: 18px;
+            }
+
+            .container {
+                padding: 16px;
+            }
+
+            .campaigns-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-group {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+
+            .filter-group .select {
+                width: 100%;
+            }
+
+            .connection-popover {
+                left: 0;
+                right: auto;
+                width: min(100vw - 32px, 320px);
+            }
+
+            .connection-popover::before {
+                right: 24px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .logo {
+                font-size: 20px;
+            }
+
+            .header-controls .logs-btn {
+                width: 100%;
+            }
+
+            .header-stats {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -891,16 +1002,31 @@
         <div class="header-bottom">
             <div class="header-stats">
                 <div class="stat-item">
-                    <span class="stat-value" id="totalCampaigns">-</span>
-                    <span>Total Campaigns</span>
+                    <span class="stat-icon" aria-hidden="true">
+                        <i data-lucide="layers"></i>
+                    </span>
+                    <div class="stat-meta">
+                        <span class="stat-label">Total Campaigns</span>
+                        <span class="stat-value" id="totalCampaigns">-</span>
+                    </div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-value" id="activeCampaigns">-</span>
-                    <span>Active</span>
+                    <span class="stat-icon" aria-hidden="true">
+                        <i data-lucide="flame"></i>
+                    </span>
+                    <div class="stat-meta">
+                        <span class="stat-label">Active Campaigns</span>
+                        <span class="stat-value" id="activeCampaigns">-</span>
+                    </div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-value" id="totalFiles">-</span>
-                    <span>Tracked Files</span>
+                    <span class="stat-icon" aria-hidden="true">
+                        <i data-lucide="folder-open"></i>
+                    </span>
+                    <div class="stat-meta">
+                        <span class="stat-label">Tracked Files</span>
+                        <span class="stat-value" id="totalFiles">-</span>
+                    </div>
                 </div>
             </div>
         </div>

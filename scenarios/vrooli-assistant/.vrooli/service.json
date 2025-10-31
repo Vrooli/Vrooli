@@ -109,12 +109,12 @@
         },
         {
           "name": "install-web-ui-deps",
-          "run": "cd ui/web && npm install",
+          "run": "cd ui && npm install",
           "description": "Install browser UI dependencies"
         },
         {
           "name": "build-web-ui",
-          "run": "cd ui/web && npm run build",
+          "run": "cd ui && npm run build",
           "description": "Build browser UI assets"
         },
         {
@@ -144,7 +144,7 @@
       "steps": [
         {
           "name": "prepare-web-ui",
-          "run": "cd ui/web && npm run build",
+          "run": "cd ui && npm run build",
           "description": "Build browser UI assets for preview"
         },
         {
@@ -178,7 +178,7 @@
         },
         {
           "name": "test-web-ui-build",
-          "run": "cd ui/web && npm run build",
+          "run": "cd ui && npm run build",
           "description": "Ensure web UI builds successfully"
         },
         {

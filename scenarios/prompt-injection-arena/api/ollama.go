@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -38,11 +37,8 @@ type OllamaResponse struct {
 
 // TestAgentWithOllama performs actual agent testing using Ollama
 func TestAgentWithOllama(systemPrompt string, injectionPrompt string, modelName string, temperature float64, maxTokens int) (string, int64, error) {
-	// Get Ollama URL from environment or use default
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
-	}
+	// Get Ollama URL from validated configuration
+	ollamaURL := appConfig.OllamaURL
 
 	// Create request
 	req := OllamaRequest{

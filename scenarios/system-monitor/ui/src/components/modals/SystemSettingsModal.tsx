@@ -170,7 +170,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
         background: 'var(--color-bg)',
         border: '1px solid var(--color-accent)',
         borderRadius: 'var(--border-radius-lg)',
-        boxShadow: '0 20px 40px rgba(0, 255, 0, 0.2)',
+        boxShadow: '0 20px 40px var(--alpha-accent-20)',
         maxWidth: '600px',
         width: '100%',
         maxHeight: '90vh',
@@ -183,7 +183,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
           justifyContent: 'space-between',
           padding: 'var(--spacing-lg)',
           borderBottom: '1px solid var(--color-accent)',
-          background: 'rgba(0, 255, 0, 0.02)'
+          background: 'var(--alpha-accent-02)'
         }}>
           <div style={{
             display: 'flex',
@@ -253,7 +253,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
               alignItems: 'center',
               gap: 'var(--spacing-sm)',
               padding: 'var(--spacing-md)',
-              background: 'rgba(0, 255, 0, 0.1)',
+              background: 'var(--alpha-accent-10)',
               border: '1px solid var(--color-success)',
               borderRadius: 'var(--border-radius-md)',
               color: 'var(--color-success)',

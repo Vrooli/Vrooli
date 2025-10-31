@@ -194,7 +194,7 @@ func (s spaFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s spaFileServer) serveIndex(w http.ResponseWriter, r *http.Request) {
 	indexFile, err := s.fs.Open(s.index)
 	if err != nil {
-		http.Error(w, "Vrooli Assistant web UI is not built yet. Run `npm install && npm run build` inside ui/web.", http.StatusServiceUnavailable)
+		http.Error(w, "Vrooli Assistant web UI is not built yet. Run `npm install && npm run build` inside ui/.", http.StatusServiceUnavailable)
 		return
 	}
 	defer indexFile.Close()

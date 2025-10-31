@@ -23,50 +23,55 @@
             window.__smartNotesBridgeInitialized = true;
         }
     </script>
+    <script src="https://unpkg.com/lucide@0.548.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <div class="app-container">
+    <div class="app-container" id="appContainer">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="app-header">
                 <h1 class="app-title">
-                    <span class="logo">📝</span>
-                    SmartNotes
+                    <span class="logo icon" data-icon="NotebookPen"></span>
+                    <span class="app-title-text">SmartNotes</span>
                 </h1>
                 <div class="user-info">
-                    <span class="user-avatar">👤</span>
+                    <span class="user-avatar icon" data-icon="User"></span>
                     <span class="user-name">Default User</span>
                 </div>
             </div>
 
             <div class="search-container">
                 <input type="text" id="searchInput" class="search-input" placeholder="Search notes...">
-                <button id="searchBtn" class="search-btn">🔍</button>
+                <button id="searchBtn" class="search-btn" aria-label="Search">
+                    <span class="icon" data-icon="Search"></span>
+                </button>
             </div>
 
             <nav class="nav-menu">
                 <button class="nav-item active" data-view="notes">
-                    <span class="nav-icon">📄</span>
-                    All Notes
+                    <span class="nav-icon icon" data-icon="FileText"></span>
+                    <span class="nav-label">All Notes</span>
                 </button>
                 <button class="nav-item" data-view="favorites">
-                    <span class="nav-icon">⭐</span>
-                    Favorites
+                    <span class="nav-icon icon" data-icon="Star"></span>
+                    <span class="nav-label">Favorites</span>
                 </button>
                 <button class="nav-item" data-view="archived">
-                    <span class="nav-icon">📦</span>
-                    Archive
+                    <span class="nav-icon icon" data-icon="Archive"></span>
+                    <span class="nav-label">Archive</span>
                 </button>
                 <button class="nav-item" data-view="templates">
-                    <span class="nav-icon">📋</span>
-                    Templates
+                    <span class="nav-icon icon" data-icon="ClipboardList"></span>
+                    <span class="nav-label">Templates</span>
                 </button>
             </nav>
 
             <div class="folders-section">
                 <div class="section-header">
                     <h3>Folders</h3>
-                    <button class="add-folder-btn">+</button>
+                    <button class="add-folder-btn" aria-label="Add folder">
+                        <span class="icon" data-icon="FolderPlus"></span>
+                    </button>
                 </div>
                 <div id="foldersList" class="folders-list"></div>
             </div>
@@ -89,22 +94,29 @@
                 </div>
             </div>
         </aside>
+        <div class="sidebar-overlay hidden" id="sidebarOverlay"></div>
 
         <!-- Main Content -->
         <main class="main-content">
             <!-- Notes List -->
             <section class="notes-list-section">
                 <div class="notes-header">
-                    <h2 id="sectionTitle">All Notes</h2>
+                    <div class="notes-title-group">
+                        <button id="sidebarToggle" class="btn-icon" aria-label="Toggle sidebar">
+                            <span class="icon" data-icon="PanelLeft"></span>
+                        </button>
+                        <h2 id="sectionTitle">All Notes</h2>
+                    </div>
                     <div class="notes-actions">
                         <button id="newNoteBtn" class="btn btn-primary">
-                            <span>+</span> New Note
+                            <span class="icon" data-icon="Plus"></span>
+                            <span>New Note</span>
                         </button>
                         <button id="sortBtn" class="btn-icon" title="Sort">
-                            <span>↕️</span>
+                            <span class="icon" data-icon="ArrowUpDown"></span>
                         </button>
                         <button id="viewModeBtn" class="btn-icon" title="View Mode">
-                            <span>⚏</span>
+                            <span class="icon" data-icon="LayoutGrid"></span>
                         </button>
                     </div>
                 </div>
@@ -118,19 +130,19 @@
                     <input type="text" id="noteTitle" class="note-title-input" placeholder="Untitled Note">
                     <div class="editor-actions">
                         <button id="zenModeBtn" class="btn-icon" title="Zen Mode" onclick="window.location.href='/zen'">
-                            <span>🧘</span>
+                            <span class="icon" data-icon="Flower2"></span>
                         </button>
                         <button id="pinBtn" class="btn-icon" title="Pin">
-                            <span>📌</span>
+                            <span class="icon" data-icon="Pin"></span>
                         </button>
                         <button id="favoriteBtn" class="btn-icon" title="Favorite">
-                            <span>⭐</span>
+                            <span class="icon" data-icon="Star"></span>
                         </button>
                         <button id="shareBtn" class="btn-icon" title="Share">
-                            <span>🔗</span>
+                            <span class="icon" data-icon="Share2"></span>
                         </button>
                         <button id="deleteBtn" class="btn-icon btn-danger" title="Delete">
-                            <span>🗑️</span>
+                            <span class="icon" data-icon="Trash2"></span>
                         </button>
                     </div>
                 </div>
@@ -144,15 +156,25 @@
                     <button class="toolbar-btn" data-format="h2" title="Heading 2">H2</button>
                     <button class="toolbar-btn" data-format="h3" title="Heading 3">H3</button>
                     <span class="toolbar-separator"></span>
-                    <button class="toolbar-btn" data-format="ul" title="Bullet List">•</button>
-                    <button class="toolbar-btn" data-format="ol" title="Numbered List">1.</button>
-                    <button class="toolbar-btn" data-format="checkbox" title="Checkbox">☐</button>
+                    <button class="toolbar-btn" data-format="ul" title="Bullet List">
+                        <span class="icon" data-icon="List"></span>
+                    </button>
+                    <button class="toolbar-btn" data-format="ol" title="Numbered List">
+                        <span class="icon" data-icon="ListOrdered"></span>
+                    </button>
+                    <button class="toolbar-btn" data-format="checkbox" title="Checkbox">
+                        <span class="icon" data-icon="SquareCheck"></span>
+                    </button>
                     <span class="toolbar-separator"></span>
                     <button class="toolbar-btn" data-format="code" title="Code">&lt;&gt;</button>
                     <button class="toolbar-btn" data-format="quote" title="Quote">"</button>
-                    <button class="toolbar-btn" data-format="link" title="Link">🔗</button>
+                    <button class="toolbar-btn" data-format="link" title="Link">
+                        <span class="icon" data-icon="Link"></span>
+                    </button>
                     <span class="toolbar-separator"></span>
-                    <button class="toolbar-btn" id="stickerBtn" title="Add Stickers">✨</button>
+                    <button class="toolbar-btn" id="stickerBtn" title="Add Stickers">
+                        <span class="icon" data-icon="Sparkles"></span>
+                    </button>
                 </div>
                 
                 <!-- Sticker Picker -->
@@ -197,7 +219,9 @@
         <aside class="ai-panel" id="aiPanel">
             <div class="ai-header">
                 <h3>AI Assistant</h3>
-                <button id="closeAiPanel" class="btn-icon">×</button>
+                <button id="closeAiPanel" class="btn-icon" aria-label="Close AI panel">
+                    <span class="icon" data-icon="X"></span>
+                </button>
             </div>
 
             <div class="ai-suggestions">
@@ -209,7 +233,9 @@
                 <div id="chatMessages" class="chat-messages"></div>
                 <div class="chat-input-container">
                     <input type="text" id="chatInput" class="chat-input" placeholder="Ask AI anything...">
-                    <button id="chatSend" class="chat-send">→</button>
+                    <button id="chatSend" class="chat-send" aria-label="Send chat message">
+                        <span class="icon" data-icon="Send"></span>
+                    </button>
                 </div>
             </div>
         </aside>

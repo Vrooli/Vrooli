@@ -368,7 +368,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
             <div style={{
               padding: 'var(--spacing-sm) var(--spacing-md)',
               borderBottom: '1px solid var(--color-accent)',
-              background: 'rgba(0, 255, 0, 0.1)',
+              background: 'var(--alpha-accent-10)',
               fontSize: 'var(--font-size-xs)',
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
@@ -389,7 +389,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                       textAlign: 'left',
                       padding: 'var(--spacing-md)',
                       border: 'none',
-                      background: isSelected ? 'rgba(0, 255, 0, 0.12)' : 'transparent',
+                      background: isSelected ? 'var(--alpha-accent-12)' : 'transparent',
                       color: 'var(--color-text)',
                       display: 'flex',
                       flexDirection: 'column',
@@ -456,7 +456,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                 style={{
                   padding: 'var(--spacing-md) var(--spacing-lg)',
                   borderBottom: '1px solid var(--color-accent)',
-                  background: 'rgba(0, 255, 0, 0.05)'
+                  background: 'var(--alpha-accent-05)'
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
@@ -534,7 +534,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
               <div
                 style={{
                   padding: 'var(--spacing-md) var(--spacing-lg)',
-                  borderBottom: '1px solid rgba(0, 255, 0, 0.2)',
+                  borderBottom: '1px solid var(--alpha-accent-20)',
                   background: 'rgba(0, 0, 0, 0.35)',
                   display: 'flex',
                   flexDirection: 'column',
@@ -647,7 +647,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                             width: '100%',
                             padding: 'var(--spacing-sm)',
                             background: 'rgba(0, 0, 0, 0.2)',
-                            border: '1px solid rgba(0, 255, 0, 0.15)',
+                            border: '1px solid var(--alpha-accent-15)',
                             borderRadius: 'var(--border-radius-sm)',
                             color: 'var(--color-text-dim)',
                             fontFamily: 'var(--font-family-mono)',
@@ -851,8 +851,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: 'var(--spacing-sm) var(--spacing-lg)',
-                  background: 'rgba(0, 255, 0, 0.05)',
-                  borderBottom: '1px solid rgba(0, 255, 0, 0.2)',
+                  background: 'var(--alpha-accent-05)',
+                  borderBottom: '1px solid var(--alpha-accent-20)',
                   fontSize: 'var(--font-size-sm)',
                   color: 'var(--color-text-bright)'
                 }}>

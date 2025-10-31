@@ -5,10 +5,13 @@
  * Serves static files and provides health check endpoint
  */
 
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const url = require('url');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, parse as parseUrl } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Validate required environment variables
 if (!process.env.UI_PORT) {
@@ -39,7 +42,7 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  const parsedUrl = url.parse(req.url);
+  const parsedUrl = parseUrl(req.url);
   const pathname = parsedUrl.pathname;
 
   // Health check endpoint

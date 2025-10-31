@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Home, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
 
@@ -270,6 +270,7 @@ const ScenarioViewer = ({ scenario, onBack }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [iframeKey, setIframeKey] = useState(0);
   const [resolutionError, setResolutionError] = useState('');
+  const fullscreenTargetRef = useRef(null);
 
   const scenarioUrl = useMemo(() => resolveScenarioUrl(scenario), [scenario]);
 
@@ -293,25 +294,102 @@ const ScenarioViewer = ({ scenario, onBack }) => {
     setIframeKey(prev => prev + 1);
   };
 
-  const handleFullscreen = () => {
-    if (!isFullscreen) {
-      document.documentElement.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
+  const getFullscreenElement = () => {
+    if (typeof document === 'undefined') {
+      return null;
     }
-    setIsFullscreen(!isFullscreen);
+
+    return document.fullscreenElement
+      || document.webkitFullscreenElement
+      || document.mozFullScreenElement
+      || document.msFullscreenElement
+      || null;
+  };
+
+  const requestElementFullscreen = (element) => {
+    if (!element || typeof element !== 'object') {
+      return;
+    }
+
+    const request = element.requestFullscreen
+      || element.webkitRequestFullscreen
+      || element.mozRequestFullScreen
+      || element.msRequestFullscreen;
+
+    if (typeof request === 'function') {
+      const result = request.call(element);
+      if (result instanceof Promise) {
+        result.catch((error) => {
+          console.warn('[ScenarioViewer] Failed to enter fullscreen', error);
+        });
+      }
+    }
+  };
+
+  const exitFullscreen = () => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const exit = document.exitFullscreen
+      || document.webkitExitFullscreen
+      || document.mozCancelFullScreen
+      || document.msExitFullscreen;
+
+    if (typeof exit === 'function') {
+      const result = exit.call(document);
+      if (result instanceof Promise) {
+        result.catch((error) => {
+          console.warn('[ScenarioViewer] Failed to exit fullscreen', error);
+        });
+        return result;
+      }
+      return result;
+    }
+  };
+
+  const handleFullscreen = () => {
+    const target = fullscreenTargetRef.current;
+    if (!target) {
+      return;
+    }
+
+    const fullscreenElement = getFullscreenElement();
+    const isTargetFullscreen = fullscreenElement === target;
+
+    if (!fullscreenElement) {
+      requestElementFullscreen(target);
+      return;
+    }
+
+    if (isTargetFullscreen) {
+      exitFullscreen();
+      return;
+    }
+
+    const exitResult = exitFullscreen();
+    if (exitResult instanceof Promise) {
+      exitResult.finally(() => requestElementFullscreen(target));
+    } else {
+      requestElementFullscreen(target);
+    }
   };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const fullscreenElement = getFullscreenElement();
+      const target = fullscreenTargetRef.current;
+      setIsFullscreen(fullscreenElement === target);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      const target = fullscreenTargetRef.current;
+      if (getFullscreenElement() === target) {
+        exitFullscreen();
       }
     };
   }, []);
@@ -387,6 +465,7 @@ const ScenarioViewer = ({ scenario, onBack }) => {
       {/* Iframe Container */}
       <div className="flex-1 relative p-4">
         <motion.div
+          ref={fullscreenTargetRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -418,7 +497,9 @@ const ScenarioViewer = ({ scenario, onBack }) => {
               title={scenario.title}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               onLoad={() => setIsLoading(false)}
-              style={{ minHeight: 'calc(100vh - 200px)' }}
+              style={isFullscreen
+                ? { height: '100%', minHeight: '100%' }
+                : { minHeight: 'calc(100vh - 200px)' }}
             />
           )}
         </motion.div>

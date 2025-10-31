@@ -24,11 +24,11 @@
       "description": "Vrooli Bridge API port",
       "range": "15000-19999"
     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Project management dashboard",
-       "range": "35000-39999"
-     }
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Project management dashboard",
+      "range": "35000-39999"
+    }
   },
   "resources": {
     "postgres": {
@@ -60,7 +60,7 @@
       "description": "Vrooli Bridge health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/"
+        "ui": "/health"
       },
       "checks": [
         {
@@ -74,7 +74,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 3000,
           "interval": 60000
@@ -86,27 +86,27 @@
     },
     "setup": {
       "description": "Initialize Vrooli Bridge",
-         "condition": {
-          "checks": [
-             {
-                "type": "binaries",
-                "targets": [
-                   "api/vrooli-bridge-api",
-                   "vrooli-bridge"
-                ]
-             },
-             {
-                "type": "cli",
-                "targets": [
-                   "vrooli-bridge"
-                ]
-             },
-            {
-              "type": "resources",
-              "populated": true
-            }
-          ]
-        },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/vrooli-bridge-api",
+              "vrooli-bridge"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "vrooli-bridge"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
           "name": "build-api",
@@ -139,18 +139,18 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && python3 -m http.server ${UI_PORT}",
+          "run": "cd ui && python3 server.py",
           "description": "Start UI server in background",
           "background": true,
           "condition": {
             "file_exists": "ui/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -194,7 +194,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "true",
+          "run": "pkill -f \"scenarios/vrooli-bridge/ui/server.py\" || true; sleep 1; pkill -9 -f \"scenarios/vrooli-bridge/ui/server.py\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

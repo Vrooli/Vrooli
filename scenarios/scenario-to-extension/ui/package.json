@@ -1,11 +1,34 @@
 {
   "name": "scenario-to-extension-ui",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
   "description": "Web UI for the Browser Extension Generator scenario",
-  "main": "app.js",
   "scripts": {
-    "serve": "python3 -m http.server 3202",
-    "serve-alt": "python -m SimpleHTTPServer 3202"
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-tabs": "^1.1.2",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "lucide-react": "^0.451.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.2",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.4"
   },
   "keywords": [
     "browser-extension",
@@ -16,8 +39,5 @@
   ],
   "author": "Vrooli Scenario Generator",
   "license": "MIT",
-  "dependencies": {
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
-  },
   "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }

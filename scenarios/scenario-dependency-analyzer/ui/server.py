@@ -2,24 +2,35 @@
 """
 Simple HTTP server for scenario-dependency-analyzer UI with health endpoint
 """
-import os
 import json
+import os
 import http.server
 import socketserver
 from datetime import datetime
+from pathlib import Path
 
 PORT = int(os.environ.get('UI_PORT', 36897))
 API_PORT = int(os.environ.get('API_PORT', 15533))
 
 
+SERVE_ROOT = Path(__file__).resolve().parent
+DIST_DIR = SERVE_ROOT / "dist"
+
+
 class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP handler with health check endpoint"""
+
+    def __init__(self, *args, **kwargs):
+        directory = DIST_DIR if DIST_DIR.exists() else SERVE_ROOT
+        super().__init__(*args, directory=str(directory), **kwargs)
 
     def do_GET(self):
         if self.path == '/health':
             self.send_health_response()
         else:
-            # Serve static files
+            candidate = Path(self.translate_path(self.path))
+            if not candidate.exists() or candidate.is_dir():
+                self.path = '/index.html'
             super().do_GET()
 
     def send_health_response(self):
@@ -64,7 +75,7 @@ class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir(str(DIST_DIR if DIST_DIR.exists() else SERVE_ROOT))
 
     # Allow socket reuse to prevent "Address already in use" errors
     socketserver.TCPServer.allow_reuse_address = True

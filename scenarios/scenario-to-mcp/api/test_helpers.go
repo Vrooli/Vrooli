@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -36,11 +37,11 @@ func setupTestLogger() func() {
 
 // TestEnvironment manages isolated test environment
 type TestEnvironment struct {
-	TempDir      string
-	OriginalWD   string
-	TestDB       *sql.DB
-	TestDBName   string
-	Cleanup      func()
+	TempDir    string
+	OriginalWD string
+	TestDB     *sql.DB
+	TestDBName string
+	Cleanup    func()
 }
 
 // setupTestEnvironment creates an isolated test environment
@@ -266,6 +267,19 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 			// Allow partial match
 			t.Logf("Error message: %s (expected to contain: %s)", response.Error, expectedErrorSubstring)
 		}
+	}
+}
+
+func createTestDocFile(t *testing.T, scenariosRoot, relativePath, content string) {
+	t.Helper()
+
+	absolutePath := filepath.Join(scenariosRoot, "scenarios", scenarioName, filepath.FromSlash(relativePath))
+	if err := os.MkdirAll(filepath.Dir(absolutePath), 0755); err != nil {
+		t.Fatalf("Failed to create doc directory: %v", err)
+	}
+
+	if err := os.WriteFile(absolutePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test doc file: %v", err)
 	}
 }
 

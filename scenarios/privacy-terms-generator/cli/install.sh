@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# Validate HOME environment variable
+if [ -z "${HOME:-}" ]; then
+    echo "❌ HOME environment variable is not set" >&2
+    exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_NAME="privacy-terms-generator"
 CLI_PATH="${SCRIPT_DIR}/${CLI_NAME}"

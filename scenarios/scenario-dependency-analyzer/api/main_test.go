@@ -28,8 +28,9 @@ func TestHealthHandler(t *testing.T) {
 			t.Fatalf("Failed to unmarshal response: %v", err)
 		}
 
-		if response["status"] != "healthy" {
-			t.Errorf("Expected status 'healthy', got %v", response["status"])
+		status := response["status"]
+		if status != "healthy" && status != "degraded" {
+			t.Errorf("Expected status 'healthy' or 'degraded', got %v", status)
 		}
 
 		if response["service"] != "scenario-dependency-analyzer" {
