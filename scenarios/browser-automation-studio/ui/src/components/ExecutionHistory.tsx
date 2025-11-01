@@ -59,9 +59,12 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
   );
 
   const loadExecutions = useExecutionStore((state) => state.loadExecutions);
+  const storeExecutions = useExecutionStore((state) => state.executions);
 
-  const fetchExecutions = useCallback(async () => {
-    setIsLoading(true);
+  const fetchExecutions = useCallback(async (options?: { skipSpinner?: boolean }) => {
+    if (!options?.skipSpinner) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       // Use the store's loadExecutions to fetch and populate the executions array
@@ -90,8 +93,16 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
   };
 
   useEffect(() => {
-    fetchExecutions();
+    const existing = useExecutionStore.getState().executions as unknown as ExecutionSummary[];
+    if (existing.length > 0) {
+      setExecutions(existing);
+    }
+    fetchExecutions({ skipSpinner: existing.length > 0 });
   }, [fetchExecutions]);
+
+  useEffect(() => {
+    setExecutions(storeExecutions as unknown as ExecutionSummary[]);
+  }, [storeExecutions]);
 
   useEffect(() => {
     if (!isMobileFilterOpen) {
@@ -214,7 +225,7 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
           <h3 className="text-lg font-semibold text-white mb-2">Failed to Load Executions</h3>
           <p className="text-gray-400 mb-4">{error}</p>
           <button
-            onClick={fetchExecutions}
+            onClick={() => fetchExecutions()}
             className="px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             Retry

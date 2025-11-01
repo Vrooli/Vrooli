@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import clsx from 'clsx';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pause, Play } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 
 // Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
 const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
@@ -26,6 +26,9 @@ const resolveReplayAsset = (relativePath: string) => {
 const geometricPrismUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-prism.jpg');
 const geometricOrbitUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-orbit.jpg');
 const geometricMosaicUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-mosaic.jpg');
+
+const REPLAY_ARROW_CURSOR_PATH = 'M6 3L6 22L10.4 18.1L13.1 26.4L15.9 25.2L13.1 17.5L22 17.5L6 3Z';
+
 
 export interface ReplayBoundingBox {
   x?: number;
@@ -59,6 +62,7 @@ interface CursorAnimationOverride {
   target?: NormalizedPoint;
   pathStyle?: CursorPathStyle;
   speedProfile?: CursorSpeedProfile;
+  path?: ReplayPoint[];
 }
 
 type CursorOverrideMap = Record<string, CursorAnimationOverride>;
@@ -906,7 +910,7 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
           <span className="relative inline-flex h-8 w-8 items-center justify-center text-white">
             <svg viewBox="0 0 32 32" className="h-8 w-8">
               <path
-                d="M6 3L6.2 21.6L11.4 16.4L14.2 25.6L17.2 24.6L14.6 15.6L24 14.4L6 3Z"
+                d={REPLAY_ARROW_CURSOR_PATH}
                 fill="rgba(255,255,255,0.96)"
                 stroke="rgba(15,23,42,0.85)"
                 strokeWidth={1.4}
@@ -928,7 +932,7 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
           <span className="relative inline-flex h-8 w-8 items-center justify-center text-white">
             <svg viewBox="0 0 32 32" className="h-8 w-8">
               <path
-                d="M6.2 3L6.4 21.2L11 16.8L14 26.2L17.7 24.8L14.7 15.2L24.2 14.1L6.2 3Z"
+                d={REPLAY_ARROW_CURSOR_PATH}
                 fill="rgba(30,41,59,0.95)"
                 stroke="rgba(226,232,240,0.92)"
                 strokeWidth={1.3}
@@ -962,7 +966,7 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
                 </linearGradient>
               </defs>
               <path
-                d="M6 3L6.2 21.6L11.4 16.4L14.5 26.1L18 24.9L15 15.4L24.4 14.2L6 3Z"
+                d={REPLAY_ARROW_CURSOR_PATH}
                 fill="url(#replay-cursor-neon)"
                 stroke="rgba(191,219,254,0.9)"
                 strokeWidth={1.2}
@@ -1537,7 +1541,7 @@ export function ReplayPlayer({
           ? `${basePointerTransform} ${cursorDecor.wrapperStyle.transform}`
           : basePointerTransform,
         transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
-        pointerEvents: 'none',
+        pointerEvents: 'none' as const,
         opacity: 0.45,
         transitionProperty: 'left, top, transform',
       }
@@ -1867,11 +1871,16 @@ export function ReplayPlayer({
           <button
             type="button"
             onClick={() => setIsMetadataCollapsed((prev) => !prev)}
-            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] text-slate-200 hover:bg-white/10"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950"
             aria-expanded={!isMetadataCollapsed}
+            aria-label={isMetadataCollapsed ? 'Expand frame metadata' : 'Collapse frame metadata'}
           >
-            {isMetadataCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-            {isMetadataCollapsed ? 'Expand' : 'Collapse'}
+            <ChevronDown
+              size={14}
+              className={clsx('transition-transform duration-200', {
+                '-rotate-180': !isMetadataCollapsed,
+              })}
+            />
           </button>
         </div>
 

@@ -254,6 +254,8 @@ type CursorOption = {
   preview: ReactNode;
 };
 
+const ARROW_CURSOR_PATH = 'M6 3L6 22L10.4 18.1L13.1 26.4L15.9 25.2L13.1 17.5L22 17.5L6 3Z';
+
 const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
   {
     id: 'disabled',
@@ -308,7 +310,7 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
       <span className="relative inline-flex h-7 w-7 items-center justify-center text-white">
         <svg viewBox="0 0 32 32" className="h-6 w-6">
           <path
-            d="M6 3L6.2 21.6L11.4 16.4L14.2 25.6L17.2 24.6L14.6 15.6L24 14.4L6 3Z"
+            d={ARROW_CURSOR_PATH}
             fill="rgba(255,255,255,0.95)"
             stroke="rgba(15,23,42,0.85)"
             strokeWidth={1.4}
@@ -327,7 +329,7 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
       <span className="relative inline-flex h-7 w-7 items-center justify-center text-white">
         <svg viewBox="0 0 32 32" className="h-6 w-6">
           <path
-            d="M6.2 3L6.4 21.2L11 16.8L14 26.2L17.7 24.8L14.7 15.2L24.2 14.1L6.2 3Z"
+            d={ARROW_CURSOR_PATH}
             fill="rgba(30,41,59,0.95)"
             stroke="rgba(226,232,240,0.9)"
             strokeWidth={1.3}
@@ -353,7 +355,7 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
             </linearGradient>
           </defs>
           <path
-            d="M6 3L6.2 21.6L11.4 16.4L14.5 26.1L18 24.9L15 15.4L24.4 14.2L6 3Z"
+            d={ARROW_CURSOR_PATH}
             fill="url(#cursor-neon-preview)"
             stroke="rgba(191,219,254,0.9)"
             strokeWidth={1.2}
@@ -406,6 +408,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   const stopExecution = useExecutionStore((state) => state.stopExecution);
   const startExecution = useExecutionStore((state) => state.startExecution);
   const loadExecution = useExecutionStore((state) => state.loadExecution);
+  const loadExecutions = useExecutionStore((state) => state.loadExecutions);
   const [activeTab, setActiveTab] = useState<ViewerTab>('replay');
   const [hasAutoSwitchedToReplay, setHasAutoSwitchedToReplay] = useState<boolean>(
     Boolean(execution.timeline && execution.timeline.length > 0)
@@ -461,10 +464,12 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   const [isBackgroundMenuOpen, setIsBackgroundMenuOpen] = useState(false);
   const [isCursorMenuOpen, setIsCursorMenuOpen] = useState(false);
   const [isCursorPositionMenuOpen, setIsCursorPositionMenuOpen] = useState(false);
+  const [isCustomizationCollapsed, setIsCustomizationCollapsed] = useState(true);
   const screenshotRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const backgroundSelectorRef = useRef<HTMLDivElement | null>(null);
   const cursorSelectorRef = useRef<HTMLDivElement | null>(null);
   const cursorPositionSelectorRef = useRef<HTMLDivElement | null>(null);
+  const preloadedWorkflowRef = useRef<string | null>(null);
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
   const executionError = execution.error ?? undefined;
@@ -486,6 +491,17 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     setActiveTab('replay');
     setSelectedScreenshot(null);
   }, [execution.id]);
+
+  useEffect(() => {
+    if (!showExecutionSwitcher || !execution.workflowId) {
+      return;
+    }
+    if (preloadedWorkflowRef.current === execution.workflowId) {
+      return;
+    }
+    preloadedWorkflowRef.current = execution.workflowId;
+    void loadExecutions(execution.workflowId);
+  }, [execution.workflowId, loadExecutions, showExecutionSwitcher]);
 
   useEffect(() => {
     if (!showExecutionSwitcher && activeTab === 'executions') {
@@ -907,6 +923,13 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     return base;
   }, []);
 
+  const selectedChromeOption = useMemo(() => {
+    return (
+      REPLAY_CHROME_OPTIONS.find((option) => option.id === replayChromeTheme) ||
+      REPLAY_CHROME_OPTIONS[0]
+    );
+  }, [replayChromeTheme]);
+
   const selectedBackgroundOption = useMemo<BackgroundOption>(() => {
     return (
       REPLAY_BACKGROUND_OPTIONS.find((option) => option.id === replayBackgroundTheme) ||
@@ -927,6 +950,15 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       REPLAY_CURSOR_POSITIONS[0]
     );
   }, [replayCursorInitialPosition]);
+
+  useEffect(() => {
+    if (!isCustomizationCollapsed) {
+      return;
+    }
+    setIsBackgroundMenuOpen(false);
+    setIsCursorMenuOpen(false);
+    setIsCursorPositionMenuOpen(false);
+  }, [isCustomizationCollapsed]);
 
   const handleBackgroundSelect = useCallback(
     (option: BackgroundOption) => {
@@ -1234,314 +1266,342 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                 </div>
               </div>
             )}
-            <div className="rounded-2xl border border-white/5 bg-slate-950/40 px-4 py-3 shadow-inner space-y-4">
-              <div>
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Browser frame</span>
-                  <span className="text-[11px] text-slate-500">Customize the replay window</span>
+            <div className="rounded-2xl border border-white/5 bg-slate-950/40 px-4 py-3 shadow-inner">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Replay customization</span>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                    <span>Chrome • {selectedChromeOption.label}</span>
+                    <span>Background • {selectedBackgroundOption.label}</span>
+                    <span>Cursor • {selectedCursorOption.label}</span>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {REPLAY_CHROME_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setReplayChromeTheme(option.id)}
-                      title={option.subtitle}
-                      className={clsx(
-                        'rounded-full px-3 py-1.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
-                        replayChromeTheme === option.id
-                          ? 'bg-flow-accent text-white shadow-[0_12px_35px_rgba(59,130,246,0.45)]'
-                          : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900/80',
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomizationCollapsed((prev) => !prev)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition-colors transition-transform hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900"
+                  aria-expanded={!isCustomizationCollapsed}
+                  aria-label={isCustomizationCollapsed ? 'Expand replay customization' : 'Collapse replay customization'}
+                >
+                  <ChevronDown
+                    size={16}
+                    className={clsx('transition-transform duration-200', {
+                      '-rotate-180': !isCustomizationCollapsed,
+                    })}
+                  />
+                </button>
               </div>
+              {!isCustomizationCollapsed && (
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Browser frame</span>
+                      <span className="text-[11px] text-slate-500">Customize the replay window</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {REPLAY_CHROME_OPTIONS.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setReplayChromeTheme(option.id)}
+                          title={option.subtitle}
+                          className={clsx(
+                            'rounded-full px-3 py-1.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                            replayChromeTheme === option.id
+                              ? 'bg-flow-accent text-white shadow-[0_12px_35px_rgba(59,130,246,0.45)]'
+                              : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900/80',
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="border-t border-white/5 pt-3 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Background</span>
-                  <span className="text-[11px] text-slate-500">Set the stage behind the browser</span>
-                </div>
-                <div ref={backgroundSelectorRef} className="relative">
-                  <button
-                    type="button"
-                    className={clsx(
-                      'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
-                      isBackgroundMenuOpen
-                        ? 'border-flow-accent/70 bg-slate-900/80 text-white'
-                        : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
-                    )}
-                    onClick={() => {
-                      setIsBackgroundMenuOpen((open) => !open);
-                      setIsCursorMenuOpen(false);
-                      setIsCursorPositionMenuOpen(false);
-                    }}
-                    aria-haspopup="menu"
-                    aria-expanded={isBackgroundMenuOpen}
-                  >
-                    <span className="flex items-center gap-3">
-                      <span
-                        aria-hidden
-                        className="relative h-10 w-16 overflow-hidden rounded-lg border border-white/10 shadow-inner"
-                        style={selectedBackgroundOption.previewStyle}
+                  <div className="border-t border-white/5 pt-3 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Background</span>
+                      <span className="text-[11px] text-slate-500">Set the stage behind the browser</span>
+                    </div>
+                    <div ref={backgroundSelectorRef} className="relative">
+                      <button
+                        type="button"
+                        className={clsx(
+                          'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                          isBackgroundMenuOpen
+                            ? 'border-flow-accent/70 bg-slate-900/80 text-white'
+                            : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                        )}
+                        onClick={() => {
+                          setIsBackgroundMenuOpen((open) => !open);
+                          setIsCursorMenuOpen(false);
+                          setIsCursorPositionMenuOpen(false);
+                        }}
+                        aria-haspopup="menu"
+                        aria-expanded={isBackgroundMenuOpen}
                       >
-                        {selectedBackgroundOption.previewNode}
-                      </span>
-                      <span className="flex flex-col text-xs leading-tight text-slate-300">
-                        <span className="text-sm font-medium text-white">
-                          {selectedBackgroundOption.label}
+                        <span className="flex items-center gap-3">
+                          <span
+                            aria-hidden
+                            className="relative h-10 w-16 overflow-hidden rounded-lg border border-white/10 shadow-inner"
+                            style={selectedBackgroundOption.previewStyle}
+                          >
+                            {selectedBackgroundOption.previewNode}
+                          </span>
+                          <span className="flex flex-col text-xs leading-tight text-slate-300">
+                            <span className="text-sm font-medium text-white">
+                              {selectedBackgroundOption.label}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {selectedBackgroundOption.subtitle}
+                            </span>
+                          </span>
                         </span>
-                        <span className="text-[11px] text-slate-400">
-                          {selectedBackgroundOption.subtitle}
-                        </span>
-                      </span>
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={clsx(
-                        'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
-                        isBackgroundMenuOpen ? 'rotate-180 text-white' : '',
-                      )}
-                    />
-                  </button>
+                        <ChevronDown
+                          size={14}
+                          className={clsx(
+                            'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
+                            isBackgroundMenuOpen ? 'rotate-180 text-white' : '',
+                          )}
+                        />
+                      </button>
 
-                  {isBackgroundMenuOpen && (
-                    <div
-                      role="menu"
-                      className="absolute right-0 z-30 mt-2 w-full min-w-[260px] rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-md sm:w-80"
-                    >
-                      {BACKGROUND_GROUP_ORDER.map((group) => {
-                        const options = backgroundOptionsByGroup[group.id];
-                        if (!options || options.length === 0) {
-                          return null;
-                        }
-                        return (
-                          <div key={group.id} className="py-1">
-                            <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
-                              {group.label}
-                            </div>
+                      {isBackgroundMenuOpen && (
+                        <div
+                          role="menu"
+                          className="absolute right-0 z-30 mt-2 w-full min-w-[260px] rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-md sm:w-80"
+                        >
+                          {BACKGROUND_GROUP_ORDER.map((group) => {
+                            const options = backgroundOptionsByGroup[group.id];
+                            if (!options || options.length === 0) {
+                              return null;
+                            }
+                            return (
+                              <div key={group.id} className="py-1">
+                                <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                                  {group.label}
+                                </div>
+                                <div className="space-y-1">
+                                  {options.map((option) => {
+                                    const isActive = replayBackgroundTheme === option.id;
+                                    return (
+                                      <button
+                                        key={option.id}
+                                        type="button"
+                                        role="menuitemradio"
+                                        aria-checked={isActive}
+                                        onClick={() => handleBackgroundSelect(option)}
+                                        className={clsx(
+                                          'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                          isActive
+                                            ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
+                                            : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                        )}
+                                      >
+                                        <span
+                                          className="relative h-10 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-white/10 shadow-inner"
+                                          style={option.previewStyle}
+                                        >
+                                          {option.previewNode}
+                                        </span>
+                                        <span className="flex flex-1 flex-col text-xs text-slate-300">
+                                          <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                                            <span>{option.label}</span>
+                                            {isActive && <Check size={14} className="text-flow-accent" />}
+                                          </span>
+                                          <span className="text-[11px] text-slate-400">{option.subtitle}</span>
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/5 pt-3 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Cursor</span>
+                      <span className="text-[11px] text-slate-500">Style the virtual pointer overlay</span>
+                    </div>
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div ref={cursorSelectorRef} className="relative flex-1 min-w-[220px]">
+                        <button
+                          type="button"
+                          className={clsx(
+                            'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                            isCursorMenuOpen
+                              ? 'border-flow-accent/70 bg-slate-900/80 text-white'
+                              : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                          )}
+                          onClick={() => {
+                            setIsCursorMenuOpen((open) => !open);
+                            setIsBackgroundMenuOpen(false);
+                            setIsCursorPositionMenuOpen(false);
+                          }}
+                          aria-haspopup="menu"
+                          aria-expanded={isCursorMenuOpen}
+                        >
+                          <span className="flex items-center gap-3">
+                            <span className="relative flex h-10 w-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-900/60">
+                              {selectedCursorOption.preview}
+                            </span>
+                            <span className="flex flex-col text-xs leading-tight text-slate-300">
+                              <span className="text-sm font-medium text-white">{selectedCursorOption.label}</span>
+                              <span className="text-[11px] text-slate-400">{selectedCursorOption.subtitle}</span>
+                            </span>
+                          </span>
+                          <ChevronDown
+                            size={14}
+                            className={clsx(
+                              'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
+                              isCursorMenuOpen ? 'rotate-180 text-white' : '',
+                            )}
+                          />
+                        </button>
+                        {isCursorMenuOpen && (
+                          <div
+                            role="menu"
+                            className="absolute right-0 z-30 mt-2 w-full min-w-[240px] rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_20px_50px_rgba(15,23,42,0.55)] backdrop-blur"
+                          >
+                            {CURSOR_GROUP_ORDER.map((group) => {
+                              const options = cursorOptionsByGroup[group.id];
+                              if (!options || options.length === 0) {
+                                return null;
+                              }
+                              return (
+                                <div key={group.id} className="mb-2 last:mb-0">
+                                  <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                                    {group.label}
+                                  </div>
+                                  <div className="space-y-1">
+                                    {options.map((option) => {
+                                      const isActive = replayCursorTheme === option.id;
+                                      return (
+                                        <button
+                                          key={option.id}
+                                          type="button"
+                                          role="menuitemradio"
+                                          aria-checked={isActive}
+                                          onClick={() => handleCursorThemeSelect(option.id)}
+                                          className={clsx(
+                                            'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                            isActive
+                                              ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
+                                              : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                          )}
+                                        >
+                                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/70">
+                                            {option.preview}
+                                          </span>
+                                          <span className="flex flex-1 flex-col text-xs text-slate-300">
+                                            <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                                              <span>{option.label}</span>
+                                              {isActive && <Check size={14} className="text-flow-accent" />}
+                                            </span>
+                                            <span className="text-[11px] text-slate-400">{option.subtitle}</span>
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <div ref={cursorPositionSelectorRef} className="relative flex flex-1 flex-col gap-2 lg:max-w-xs">
+                        <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Initial placement</span>
+                        <button
+                          type="button"
+                          className={clsx(
+                            'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                            isCursorPositionMenuOpen
+                              ? 'border-flow-accent/70 bg-slate-900/80 text-white'
+                              : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                          )}
+                          onClick={() => {
+                            setIsCursorPositionMenuOpen((open) => !open);
+                            setIsBackgroundMenuOpen(false);
+                            setIsCursorMenuOpen(false);
+                          }}
+                          aria-haspopup="menu"
+                          aria-expanded={isCursorPositionMenuOpen}
+                        >
+                          <span className="flex flex-col text-xs leading-tight text-slate-300">
+                            <span className="text-sm font-medium text-white">{selectedCursorPositionOption.label}</span>
+                            <span className="text-[11px] text-slate-400">{selectedCursorPositionOption.subtitle}</span>
+                          </span>
+                          <ChevronDown
+                            size={14}
+                            className={clsx(
+                              'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
+                              isCursorPositionMenuOpen ? 'rotate-180 text-white' : '',
+                            )}
+                          />
+                        </button>
+                        {isCursorPositionMenuOpen && (
+                          <div
+                            role="menu"
+                            className="absolute right-0 z-30 mt-2 w-full rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.55)] backdrop-blur"
+                          >
                             <div className="space-y-1">
-                              {options.map((option) => {
-                                const isActive = replayBackgroundTheme === option.id;
+                              {REPLAY_CURSOR_POSITIONS.map((option) => {
+                                const isActive = replayCursorInitialPosition === option.id;
                                 return (
                                   <button
                                     key={option.id}
                                     type="button"
                                     role="menuitemradio"
                                     aria-checked={isActive}
-                                    onClick={() => handleBackgroundSelect(option)}
+                                    onClick={() => handleCursorPositionSelect(option.id)}
                                     className={clsx(
-                                      'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                      'w-full rounded-lg border px-2.5 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
                                       isActive
-                                        ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
+                                        ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_10px_28px_rgba(59,130,246,0.3)]'
                                         : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
                                     )}
                                   >
-                                    <span
-                                      className="relative h-10 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-white/10 shadow-inner"
-                                      style={option.previewStyle}
-                                    >
-                                      {option.previewNode}
+                                    <span className="block text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                                      {option.label}
                                     </span>
-                                    <span className="flex flex-1 flex-col text-xs text-slate-300">
-                                      <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                                        <span>{option.label}</span>
-                                        {isActive && <Check size={14} className="text-flow-accent" />}
-                                      </span>
-                                      <span className="text-[11px] text-slate-400">{option.subtitle}</span>
-                                    </span>
+                                    <span className="text-[11px] text-slate-400/90">{option.subtitle}</span>
                                   </button>
                                 );
                               })}
                             </div>
                           </div>
-                        );
-                      })}
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t border-white/5 pt-3 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Cursor</span>
-                  <span className="text-[11px] text-slate-500">Style the virtual pointer overlay</span>
-                </div>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div ref={cursorSelectorRef} className="relative flex-1 min-w-[220px]">
-                    <button
-                      type="button"
-                      className={clsx(
-                        'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
-                        isCursorMenuOpen
-                          ? 'border-flow-accent/70 bg-slate-900/80 text-white'
-                          : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
-                      )}
-                      onClick={() => {
-                        setIsCursorMenuOpen((open) => !open);
-                        setIsBackgroundMenuOpen(false);
-                        setIsCursorPositionMenuOpen(false);
-                      }}
-                      aria-haspopup="menu"
-                      aria-expanded={isCursorMenuOpen}
-                    >
-                      <span className="flex items-center gap-3">
-                        <span className="relative flex h-10 w-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-900/60">
-                          {selectedCursorOption.preview}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Cursor size</span>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={CURSOR_SCALE_MIN}
+                          max={CURSOR_SCALE_MAX}
+                          step={0.05}
+                          value={replayCursorScale}
+                          onChange={(event) => handleCursorScaleChange(Number.parseFloat(event.target.value))}
+                          className="flex-1 accent-flow-accent"
+                        />
+                        <span className="w-12 text-right text-xs text-slate-300">
+                          {Math.round(replayCursorScale * 100)}%
                         </span>
-                        <span className="flex flex-col text-xs leading-tight text-slate-300">
-                          <span className="text-sm font-medium text-white">{selectedCursorOption.label}</span>
-                          <span className="text-[11px] text-slate-400">{selectedCursorOption.subtitle}</span>
-                        </span>
-                      </span>
-                      <ChevronDown
-                        size={14}
-                        className={clsx(
-                          'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
-                          isCursorMenuOpen ? 'rotate-180 text-white' : '',
-                        )}
-                      />
-                    </button>
-                    {isCursorMenuOpen && (
-                      <div
-                        role="menu"
-                        className="absolute right-0 z-30 mt-2 w-full min-w-[240px] rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_20px_50px_rgba(15,23,42,0.55)] backdrop-blur"
-                      >
-                        {CURSOR_GROUP_ORDER.map((group) => {
-                          const options = cursorOptionsByGroup[group.id];
-                          if (!options || options.length === 0) {
-                            return null;
-                          }
-                          return (
-                            <div key={group.id} className="mb-2 last:mb-0">
-                              <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
-                                {group.label}
-                              </div>
-                              <div className="space-y-1">
-                                {options.map((option) => {
-                                  const isActive = replayCursorTheme === option.id;
-                                  return (
-                                    <button
-                                      key={option.id}
-                                      type="button"
-                                      role="menuitemradio"
-                                      aria-checked={isActive}
-                                      onClick={() => handleCursorThemeSelect(option.id)}
-                                      className={clsx(
-                                        'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
-                                        isActive
-                                          ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
-                                          : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
-                                      )}
-                                    >
-                                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/70">
-                                        {option.preview}
-                                      </span>
-                                      <span className="flex flex-1 flex-col text-xs text-slate-300">
-                                        <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                                          <span>{option.label}</span>
-                                          {isActive && <Check size={14} className="text-flow-accent" />}
-                                        </span>
-                                        <span className="text-[11px] text-slate-400">{option.subtitle}</span>
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
                       </div>
-                    )}
-                  </div>
-                  <div ref={cursorPositionSelectorRef} className="relative flex flex-1 flex-col gap-2 lg:max-w-xs">
-                    <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Initial placement</span>
-                    <button
-                      type="button"
-                      className={clsx(
-                        'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
-                        isCursorPositionMenuOpen
-                          ? 'border-flow-accent/70 bg-slate-900/80 text-white'
-                          : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
-                      )}
-                      onClick={() => {
-                        setIsCursorPositionMenuOpen((open) => !open);
-                        setIsBackgroundMenuOpen(false);
-                        setIsCursorMenuOpen(false);
-                      }}
-                      aria-haspopup="menu"
-                      aria-expanded={isCursorPositionMenuOpen}
-                    >
-                      <span className="flex flex-col text-xs leading-tight text-slate-300">
-                        <span className="text-sm font-medium text-white">{selectedCursorPositionOption.label}</span>
-                        <span className="text-[11px] text-slate-400">{selectedCursorPositionOption.subtitle}</span>
+                      <span className="text-[11px] text-slate-500">
+                        Fine-tune pointer proportions for the recorded viewport.
                       </span>
-                      <ChevronDown
-                        size={14}
-                        className={clsx(
-                          'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
-                          isCursorPositionMenuOpen ? 'rotate-180 text-white' : '',
-                        )}
-                      />
-                    </button>
-                    {isCursorPositionMenuOpen && (
-                      <div
-                        role="menu"
-                        className="absolute right-0 z-30 mt-2 w-full rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.55)] backdrop-blur"
-                      >
-                        <div className="space-y-1">
-                          {REPLAY_CURSOR_POSITIONS.map((option) => {
-                            const isActive = replayCursorInitialPosition === option.id;
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                role="menuitemradio"
-                                aria-checked={isActive}
-                                onClick={() => handleCursorPositionSelect(option.id)}
-                                className={clsx(
-                                  'w-full rounded-lg border px-2.5 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
-                                  isActive
-                                    ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_10px_28px_rgba(59,130,246,0.3)]'
-                                    : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
-                                )}
-                              >
-                                <span className="block text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                                  {option.label}
-                                </span>
-                                <span className="text-[11px] text-slate-400/90">{option.subtitle}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Cursor size</span>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={CURSOR_SCALE_MIN}
-                      max={CURSOR_SCALE_MAX}
-                      step={0.05}
-                      value={replayCursorScale}
-                      onChange={(event) => handleCursorScaleChange(Number.parseFloat(event.target.value))}
-                      className="flex-1 accent-flow-accent"
-                    />
-                    <span className="w-12 text-right text-xs text-slate-300">
-                      {Math.round(replayCursorScale * 100)}%
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-slate-500">
-                    Fine-tune pointer proportions for the recorded viewport.
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
             <ReplayPlayer
               frames={replayFrames}

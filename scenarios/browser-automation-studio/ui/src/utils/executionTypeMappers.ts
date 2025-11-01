@@ -3,7 +3,7 @@
  * from API responses to strongly-typed frontend structures.
  */
 
-import { resolveApiBase } from '@vrooli/api-base';
+import { buildApiUrl, resolveApiBase } from '@vrooli/api-base';
 import { getCachedConfig } from '../config';
 import type { ReplayFrame, ReplayPoint, ReplayRetryHistoryEntry } from '../components/ReplayPlayer';
 
@@ -118,7 +118,99 @@ export const mapAssertion = (value: unknown): ReplayFrame['assertion'] => {
 
 const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
-const normalizeBase = (value: string): string => value.replace(/\/+$/, '');
+const API_SUFFIX = '/api/v1';
+
+const isLoopbackHost = (hostname?: string | null): boolean => {
+  if (!hostname) {
+    return false;
+  }
+  const value = hostname.toLowerCase();
+  return value === 'localhost' || value === '127.0.0.1' || value === '0.0.0.0' || value === '::1' || value === '[::1]';
+};
+
+const rewriteLoopbackUrl = (url: URL): string => {
+  if (typeof window === 'undefined' || !window.location) {
+    return url.toString();
+  }
+  const currentHost = window.location.hostname;
+  if (!currentHost || isLoopbackHost(currentHost) || !isLoopbackHost(url.hostname)) {
+    return url.toString();
+  }
+
+  const origin = window.location.origin.replace(/\/$/, '');
+  const pathname = url.pathname.startsWith('/') ? url.pathname : `/${url.pathname}`;
+  const search = url.search ?? '';
+  const hash = url.hash ?? '';
+  return `${origin}${pathname}${search}${hash}`;
+};
+
+type CanonicalInfo = {
+  origin: string;
+  fullPath: string; // includes suffix when present (no trailing slash)
+  rootPath: string; // path before suffix (can be empty string)
+};
+
+const getCanonicalInfo = (): CanonicalInfo | null => {
+  try {
+    const base = resolveApiBase({ appendSuffix: true });
+    const canonicalUrl = new URL(base);
+    const normalizedFullPath = canonicalUrl.pathname.endsWith('/')
+      ? canonicalUrl.pathname.slice(0, -1)
+      : canonicalUrl.pathname;
+    const suffixIndex = normalizedFullPath.endsWith(API_SUFFIX)
+      ? normalizedFullPath.length - API_SUFFIX.length
+      : -1;
+    const rootPath = suffixIndex >= 0 ? normalizedFullPath.slice(0, suffixIndex) : normalizedFullPath;
+    return {
+      origin: canonicalUrl.origin,
+      fullPath: normalizedFullPath,
+      rootPath,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const ensureLeadingSlash = (value: string) => (value.startsWith('/') ? value : `/${value}`);
+
+const splitPathAndSuffix = (value: string) => {
+  const match = value.match(/^[^?#]*/u);
+  const path = match ? match[0] : '';
+  const suffix = value.slice(path.length);
+  return { path, suffix };
+};
+
+const alignPathToCanonical = (rawPath: string, canonical: CanonicalInfo): string => {
+  const normalized = ensureLeadingSlash(rawPath);
+  if (canonical.fullPath && canonical.fullPath.length && normalized.startsWith(canonical.fullPath)) {
+    return normalized;
+  }
+  if (canonical.rootPath && canonical.rootPath.length && normalized.startsWith(canonical.rootPath)) {
+    return normalized;
+  }
+  if (canonical.rootPath && canonical.rootPath.length) {
+    if (normalized.startsWith(API_SUFFIX)) {
+      return `${canonical.rootPath}${normalized}`;
+    }
+    return `${canonical.rootPath}${normalized}`;
+  }
+  return normalized;
+};
+
+const attemptBuildWithBase = (path: string, base?: string): string | undefined => {
+  if (!base) {
+    return undefined;
+  }
+  try {
+    const urlString = buildApiUrl(path.startsWith('/') ? path : `/${path}`, {
+      baseUrl: base,
+      appendSuffix: false,
+    });
+    return rewriteLoopbackUrl(new URL(urlString));
+  } catch {
+    return undefined;
+  }
+};
 
 export const resolveUrl = (url?: string | null): string | undefined => {
   if (!url) {
@@ -130,7 +222,21 @@ export const resolveUrl = (url?: string | null): string | undefined => {
     return undefined;
   }
 
+  const canonical = getCanonicalInfo();
+
   if (ABSOLUTE_URL_PATTERN.test(trimmed)) {
+    if (typeof window !== 'undefined' && window.location) {
+      try {
+        const parsed = new URL(trimmed);
+        if (canonical && parsed.origin === canonical.origin) {
+          parsed.pathname = alignPathToCanonical(parsed.pathname, canonical);
+          return rewriteLoopbackUrl(parsed);
+        }
+        return rewriteLoopbackUrl(parsed);
+      } catch {
+        // fall through and return trimmed value below
+      }
+    }
     return trimmed;
   }
 
@@ -139,36 +245,37 @@ export const resolveUrl = (url?: string | null): string | undefined => {
     return `${protocol}${trimmed}`;
   }
 
-  const ensureLeadingSlash = (value: string) => (value.startsWith('/') ? value : `/${value}`);
+  if (canonical) {
+    const { path, suffix } = splitPathAndSuffix(trimmed);
+    const alignedPath = alignPathToCanonical(path, canonical);
+    return `${canonical.origin}${alignedPath}${suffix}`;
+  }
 
   const configBase = getCachedConfig()?.API_URL;
-  if (configBase) {
+  const fromConfig = attemptBuildWithBase(trimmed, configBase);
+  if (fromConfig) {
+    return fromConfig;
+  }
+
+  const resolvedBase = (() => {
     try {
-      return new URL(ensureLeadingSlash(trimmed), configBase).toString();
+      return resolveApiBase({ appendSuffix: false });
     } catch {
-      // fall through to other resolution strategies
+      return undefined;
+    }
+  })();
+  const fromResolved = attemptBuildWithBase(trimmed, resolvedBase);
+  if (fromResolved) {
+    return fromResolved;
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const fallback = attemptBuildWithBase(trimmed, window.location.origin);
+    if (fallback) {
+      return fallback;
     }
   }
 
-  try {
-    const apiBase = resolveApiBase({ appendSuffix: false });
-    if (apiBase && apiBase.length) {
-      const base = normalizeBase(apiBase);
-      if (trimmed.startsWith('/')) {
-        return `${base}${trimmed}`;
-      }
-      return `${base}/${trimmed}`;
-    }
-  } catch (_) {
-    // fall back to window-based resolution
-  }
-
-  try {
-    const fallbackOrigin = typeof window !== 'undefined' && window.location?.origin
-      ? window.location.origin
-      : 'http://localhost';
-    return new URL(ensureLeadingSlash(trimmed), fallbackOrigin).toString();
-  } catch {
-    return trimmed;
-  }
+  const localFallback = attemptBuildWithBase(trimmed, 'http://localhost');
+  return localFallback ?? trimmed;
 };
