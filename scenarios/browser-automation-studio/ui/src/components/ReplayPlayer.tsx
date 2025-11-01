@@ -1,6 +1,31 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pause, Play } from 'lucide-react';
+
+// Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
+const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
+
+const withReplayBasePath = (value: string) => {
+  if (!value || ABSOLUTE_URL_PATTERN.test(value)) {
+    return value;
+  }
+  const base = import.meta.env.BASE_URL || '/';
+  if (base === '/' || value.startsWith(base)) {
+    return value;
+  }
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const normalizedValue = value.startsWith('/') ? value.slice(1) : value;
+  return `${normalizedBase}${normalizedValue}`;
+};
+
+const resolveReplayAsset = (relativePath: string) => {
+  const url = new URL(relativePath, import.meta.url);
+  return withReplayBasePath(url.pathname || url.href);
+};
+
+const geometricPrismUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-prism.jpg');
+const geometricOrbitUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-orbit.jpg');
+const geometricMosaicUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-mosaic.jpg');
 
 export interface ReplayBoundingBox {
   x?: number;
@@ -97,7 +122,26 @@ export type ReplayBackgroundTheme =
   | 'charcoal'
   | 'steel'
   | 'emerald'
-  | 'none';
+  | 'none'
+  | 'geoPrism'
+  | 'geoOrbit'
+  | 'geoMosaic';
+
+export type ReplayCursorTheme =
+  | 'disabled'
+  | 'white'
+  | 'black'
+  | 'aura'
+  | 'arrowLight'
+  | 'arrowDark'
+  | 'arrowNeon';
+export type ReplayCursorInitialPosition =
+  | 'center'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'random';
 
 interface ReplayPlayerProps {
   frames: ReplayFrame[];
@@ -107,11 +151,16 @@ interface ReplayPlayerProps {
   executionStatus?: 'pending' | 'running' | 'completed' | 'failed';
   chromeTheme?: ReplayChromeTheme;
   backgroundTheme?: ReplayBackgroundTheme;
+  cursorTheme?: ReplayCursorTheme;
+  cursorInitialPosition?: ReplayCursorInitialPosition;
+  cursorScale?: number;
 }
 
 const DEFAULT_DURATION = 1600;
 const MIN_DURATION = 800;
 const MAX_DURATION = 6000;
+const MIN_CURSOR_SCALE = 0.6;
+const MAX_CURSOR_SCALE = 1.8;
 
 const clampDuration = (value?: number) => {
   if (!value || Number.isNaN(value)) {
@@ -183,6 +232,16 @@ const toPointStyle = (point: ReplayPoint | null | undefined, dims: Dimensions) =
   } as const;
 };
 
+const pointsEqual = (a?: ReplayPoint | null, b?: ReplayPoint | null, tolerance = 0.5) => {
+  if (!a || !b) {
+    return false;
+  }
+  if (typeof a.x !== 'number' || typeof a.y !== 'number' || typeof b.x !== 'number' || typeof b.y !== 'number') {
+    return false;
+  }
+  return Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance;
+};
+
 const toTrailPoints = (trail: ReplayPoint[] | undefined, dims: Dimensions) => {
   if (!trail || trail.length === 0 || !dims.width || !dims.height) {
     return [] as Array<{ x: number; y: number }>;
@@ -211,7 +270,9 @@ const pickZoomAnchor = (frame: ReplayFrame): ReplayBoundingBox | undefined => {
 
 type BackgroundDecor = {
   containerClass: string;
+  containerStyle?: CSSProperties;
   contentClass: string;
+  baseLayer?: ReactNode;
   overlay?: ReactNode;
 };
 
@@ -220,14 +281,37 @@ const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => 
     case 'sunset':
       return {
         containerClass:
-          'border border-rose-200/40 bg-gradient-to-br from-fuchsia-700/95 via-rose-600/85 to-amber-400/80 shadow-[0_26px_70px_rgba(236,72,153,0.38)]',
-        contentClass: 'p-6 sm:p-7 backdrop-blur-[1.5px]',
+          'border border-rose-200/35 shadow-[0_26px_70px_rgba(236,72,153,0.42)] bg-slate-950',
+        containerStyle: {
+          backgroundImage:
+            'linear-gradient(135deg, rgba(244,114,182,0.92) 0%, rgba(251,191,36,0.88) 100%)',
+          backgroundColor: '#43112d',
+        },
+        contentClass: 'p-6 sm:p-7 backdrop-blur-[1.2px]',
+        baseLayer: (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div
+              className="absolute inset-[-20%]"
+              style={{
+                background:
+                  'radial-gradient(95% 80% at 0% 5%, rgba(255,245,235,0.42), transparent 65%), radial-gradient(105% 85% at 100% 100%, rgba(254,215,170,0.32), transparent 70%)',
+              }}
+            />
+            <div
+              className="absolute inset-0 opacity-28 mix-blend-soft-light"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(145deg, rgba(254,226,226,0.45) 0, rgba(254,226,226,0.45) 1px, transparent 1px, transparent 16px)',
+              }}
+            />
+          </div>
+        ),
         overlay: (
           <div
-            className="pointer-events-none absolute inset-0 opacity-55 mix-blend-screen"
+            className="pointer-events-none absolute inset-0 opacity-45 mix-blend-screen"
             style={{
               background:
-                'radial-gradient(140% 120% at 0% 0%, rgba(254,226,226,0.28), transparent 65%), radial-gradient(120% 120% at 100% 100%, rgba(254,249,195,0.28), transparent 60%)',
+                'radial-gradient(120% 130% at 15% 10%, rgba(236,72,153,0.3), transparent 65%), radial-gradient(125% 120% at 85% 90%, rgba(251,191,36,0.28), transparent 60%)',
             }}
           />
         ),
@@ -266,15 +350,101 @@ const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => 
       return {
         containerClass:
           'border border-cyan-300/25 bg-slate-950 shadow-[0_24px_60px_rgba(8,47,73,0.5)]',
-        contentClass: 'p-6 sm:p-7 backdrop-blur-[1.5px]',
+        contentClass: 'p-6 sm:p-7',
+        baseLayer: (
+          <div className="pointer-events-none absolute inset-0">
+            <div
+              className="absolute inset-0 opacity-75"
+              style={{
+                background:
+                  'radial-gradient(120% 140% at 12% 12%, rgba(56,189,248,0.22), transparent 65%), radial-gradient(120% 130% at 88% 88%, rgba(14,116,144,0.28), transparent 70%)',
+              }}
+            />
+          </div>
+        ),
         overlay: (
           <div
-            className="pointer-events-none absolute inset-0 opacity-60"
+            className="pointer-events-none absolute inset-0 opacity-82 mix-blend-screen"
             style={{
               backgroundImage:
-                'linear-gradient(rgba(148,163,184,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.14) 1px, transparent 1px)',
-              backgroundSize: '32px 32px',
+                'linear-gradient(rgba(148,163,184,0.42) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.42) 1px, transparent 1px)',
+              backgroundSize: '28px 28px',
               backgroundPosition: 'center',
+            }}
+          />
+        ),
+      };
+    case 'geoPrism':
+      return {
+        containerClass:
+          'border border-cyan-200/35 bg-slate-950 shadow-[0_32px_90px_rgba(56,189,248,0.36)]',
+        containerStyle: {
+          backgroundColor: '#0f172a',
+        },
+        contentClass: 'p-6 sm:p-7 bg-slate-950/35',
+        baseLayer: (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <img src={geometricPrismUrl} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/28 via-transparent to-indigo-500/24 mix-blend-screen" />
+            <div className="absolute inset-0 bg-slate-950/42" />
+          </div>
+        ),
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(140% 120% at 12% 12%, rgba(56,189,248,0.25), transparent 65%), radial-gradient(140% 130% at 88% 88%, rgba(129,140,248,0.24), transparent 60%)',
+            }}
+          />
+        ),
+      };
+    case 'geoOrbit':
+      return {
+        containerClass:
+          'border border-sky-200/35 bg-slate-950 shadow-[0_30px_88px_rgba(14,165,233,0.38)]',
+        containerStyle: {
+          backgroundColor: '#0b1120',
+        },
+        contentClass: 'p-6 sm:p-7 bg-slate-950/40',
+        baseLayer: (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <img src={geometricOrbitUrl} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-br from-sky-300/22 via-transparent to-amber-300/22 mix-blend-screen" />
+            <div className="absolute inset-0 bg-slate-950/45" />
+          </div>
+        ),
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(130% 120% at 18% 15%, rgba(94,234,212,0.18), transparent 65%), radial-gradient(120% 120% at 82% 85%, rgba(250,204,21,0.16), transparent 60%)',
+            }}
+          />
+        ),
+      };
+    case 'geoMosaic':
+      return {
+        containerClass:
+          'border border-amber-200/30 bg-slate-950 shadow-[0_28px_80px_rgba(245,158,11,0.32)]',
+        containerStyle: {
+          backgroundColor: '#0b1526',
+        },
+        contentClass: 'p-6 sm:p-7 bg-slate-950/38',
+        baseLayer: (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <img src={geometricMosaicUrl} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-sky-400/20 via-transparent to-indigo-400/22 mix-blend-screen" />
+            <div className="absolute inset-0 bg-slate-950/45" />
+          </div>
+        ),
+        overlay: (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(160deg, rgba(14,165,233,0.18) 0%, rgba(99,102,241,0.24) 45%, transparent 78%)',
             }}
           />
         ),
@@ -325,6 +495,172 @@ const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => 
           />
         ),
       };
+  }
+};
+
+type CursorDecor = {
+  wrapperClass?: string;
+  wrapperStyle?: CSSProperties;
+  showPing: boolean;
+  pingClass?: string;
+  pingStyle?: CSSProperties;
+  renderBase: ReactNode | null;
+  trailColor: string;
+  trailWidth: number;
+  offset?: { x: number; y: number };
+  transformOrigin?: string;
+};
+
+const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
+  const buildHalo = (config: {
+    wrapperClass?: string;
+    wrapperStyle?: CSSProperties;
+    pingClass: string;
+    pingStyle?: CSSProperties;
+    baseClass: string;
+    baseStyle?: CSSProperties;
+    dotClass?: string;
+    dotStyle?: CSSProperties;
+    showDot?: boolean;
+    trailColor: string;
+    trailWidth: number;
+  }): CursorDecor => ({
+    wrapperClass: config.wrapperClass,
+    wrapperStyle: config.wrapperStyle,
+    showPing: true,
+    pingClass: config.pingClass,
+    pingStyle: config.pingStyle,
+    renderBase: (
+      <span className={config.baseClass} style={config.baseStyle}>
+        {config.showDot === false || !config.dotClass ? null : (
+          <span className={config.dotClass} style={config.dotStyle} />
+        )}
+      </span>
+    ),
+    trailColor: config.trailColor,
+    trailWidth: config.trailWidth,
+  });
+
+  switch (theme) {
+    case 'black':
+      return buildHalo({
+        pingClass: 'absolute h-8 w-8 animate-ping rounded-full border border-black/40 bg-black/10',
+        baseClass:
+          'relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-black bg-slate-900 shadow-[0_10px_28px_rgba(15,23,42,0.55)]',
+        dotClass: 'h-2 w-2 rounded-full bg-white/80',
+        trailColor: 'rgba(30,41,59,0.7)',
+        trailWidth: 2,
+      });
+    case 'aura':
+      return buildHalo({
+        wrapperClass: 'drop-shadow-[0_18px_45px_rgba(14,165,233,0.45)]',
+        pingClass: 'absolute h-12 w-12 animate-ping rounded-full border-2 border-cyan-300/35',
+        pingStyle: {
+          background:
+            'radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(14,116,144,0.08) 60%, transparent 80%)',
+        },
+        baseClass:
+          'relative z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-cyan-200/80 bg-gradient-to-br from-sky-400 via-emerald-300 to-violet-400 shadow-[0_14px_38px_rgba(56,189,248,0.45)]',
+        showDot: false,
+        trailColor: 'rgba(14,165,233,0.8)',
+        trailWidth: 2.3,
+      });
+    case 'disabled':
+      return {
+        showPing: false,
+        renderBase: null,
+        trailColor: 'rgba(0,0,0,0)',
+        trailWidth: 0,
+      };
+    case 'arrowLight':
+      return {
+        showPing: false,
+        wrapperClass: 'drop-shadow-[0_18px_32px_rgba(15,23,42,0.55)]',
+        renderBase: (
+          <span className="relative inline-flex h-8 w-8 items-center justify-center text-white">
+            <svg viewBox="0 0 32 32" className="h-8 w-8">
+              <path
+                d="M6 3L6.2 21.6L11.4 16.4L14.2 25.6L17.2 24.6L14.6 15.6L24 14.4L6 3Z"
+                fill="rgba(255,255,255,0.96)"
+                stroke="rgba(15,23,42,0.85)"
+                strokeWidth={1.4}
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        ),
+        trailColor: 'rgba(148,163,184,0.55)',
+        trailWidth: 1.1,
+        offset: { x: 8, y: 10 },
+        transformOrigin: '18% 12%',
+      };
+    case 'arrowDark':
+      return {
+        showPing: false,
+        wrapperClass: 'drop-shadow-[0_20px_40px_rgba(15,23,42,0.6)]',
+        renderBase: (
+          <span className="relative inline-flex h-8 w-8 items-center justify-center text-white">
+            <svg viewBox="0 0 32 32" className="h-8 w-8">
+              <path
+                d="M6.2 3L6.4 21.2L11 16.8L14 26.2L17.7 24.8L14.7 15.2L24.2 14.1L6.2 3Z"
+                fill="rgba(30,41,59,0.95)"
+                stroke="rgba(226,232,240,0.92)"
+                strokeWidth={1.3}
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        ),
+        trailColor: 'rgba(51,65,85,0.65)',
+        trailWidth: 1.2,
+        offset: { x: 8, y: 10 },
+        transformOrigin: '18% 12%',
+      };
+    case 'arrowNeon':
+      return {
+        showPing: true,
+        wrapperClass: 'drop-shadow-[0_22px_52px_rgba(59,130,246,0.55)]',
+        pingClass: 'absolute h-12 w-12 animate-ping rounded-full border-2 border-cyan-200/40',
+        pingStyle: {
+          background:
+            'radial-gradient(circle at 50% 50%, rgba(56,189,248,0.25) 0%, rgba(56,189,248,0.08) 55%, transparent 80%)',
+        },
+        renderBase: (
+          <span className="relative inline-flex h-8 w-8 items-center justify-center text-white">
+            <svg viewBox="0 0 32 32" className="h-8 w-8">
+              <defs>
+                <linearGradient id="replay-cursor-neon" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#38bdf8" />
+                  <stop offset="45%" stopColor="#34d399" />
+                  <stop offset="100%" stopColor="#a855f7" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M6 3L6.2 21.6L11.4 16.4L14.5 26.1L18 24.9L15 15.4L24.4 14.2L6 3Z"
+                fill="url(#replay-cursor-neon)"
+                stroke="rgba(191,219,254,0.9)"
+                strokeWidth={1.2}
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="pointer-events-none absolute -inset-1 rounded-full bg-cyan-300/25 blur-lg" />
+          </span>
+        ),
+        trailColor: 'rgba(56,189,248,0.7)',
+        trailWidth: 1.4,
+        offset: { x: 8, y: 10 },
+        transformOrigin: '18% 12%',
+      };
+    case 'white':
+    default:
+      return buildHalo({
+        pingClass: 'absolute h-10 w-10 animate-ping rounded-full border border-white/35',
+        baseClass:
+          'relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/90 bg-white/85 shadow-[0_12px_32px_rgba(148,163,184,0.45)]',
+        dotClass: 'h-1.5 w-1.5 rounded-full bg-slate-500/60',
+        trailColor: 'rgba(59,130,246,0.65)',
+        trailWidth: 1.8,
+      });
   }
 };
 
@@ -421,6 +757,9 @@ export function ReplayPlayer({
   executionStatus,
   chromeTheme = 'aurora',
   backgroundTheme = 'aurora',
+  cursorTheme = 'white',
+  cursorInitialPosition = 'center',
+  cursorScale = 1,
 }: ReplayPlayerProps) {
   const normalizedFrames = useMemo(() => {
     return frames
@@ -437,10 +776,21 @@ export function ReplayPlayer({
   const [isMetadataCollapsed, setIsMetadataCollapsed] = useState(true);
   const rafRef = useRef<number | null>(null);
   const durationRef = useRef<number>(DEFAULT_DURATION);
+  const cursorSeedRef = useRef<{ x: number; y: number }>({ x: Math.random(), y: Math.random() });
+  const cursorSourceRef = useRef<'data' | 'fallback'>('fallback');
+  const [cursorPosition, setCursorPosition] = useState<ReplayPoint | undefined>(undefined);
   const backgroundDecor = useMemo(
     () => buildBackgroundDecor(backgroundTheme ?? 'aurora'),
     [backgroundTheme],
   );
+  const effectiveCursorTheme = cursorTheme ?? 'white';
+  const isCursorEnabled = effectiveCursorTheme !== 'disabled';
+  const cursorDecor = useMemo(() => buildCursorDecor(effectiveCursorTheme), [effectiveCursorTheme]);
+  const pointerScale =
+    typeof cursorScale === 'number' && !Number.isNaN(cursorScale)
+      ? Math.min(MAX_CURSOR_SCALE, Math.max(MIN_CURSOR_SCALE, cursorScale))
+      : 1;
+  const cursorTrailStrokeWidth = cursorDecor.trailWidth * pointerScale;
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -510,6 +860,23 @@ export function ReplayPlayer({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isCursorEnabled) {
+      cursorSourceRef.current = 'fallback';
+      setCursorPosition(undefined);
+    }
+  }, [isCursorEnabled]);
+
+  useEffect(() => {
+    if (cursorInitialPosition === 'random') {
+      cursorSeedRef.current = { x: Math.random(), y: Math.random() };
+      if (isCursorEnabled) {
+        cursorSourceRef.current = 'fallback';
+        setCursorPosition(undefined);
+      }
+    }
+  }, [cursorInitialPosition, isCursorEnabled]);
+
   // Compute current frame safely (use index 0 as fallback for empty arrays to satisfy hooks)
   const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
 
@@ -551,6 +918,93 @@ export function ReplayPlayer({
     return undefined;
   }, [currentFrame]);
 
+  const dimensions: Dimensions = {
+    width: currentFrame?.screenshot?.width || FALLBACK_DIMENSIONS.width,
+    height: currentFrame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
+  };
+
+  useEffect(() => {
+    if (!isCursorEnabled) {
+      return;
+    }
+    if (!currentFrame) {
+      return;
+    }
+
+    const extractPointFromFrame = (): ReplayPoint | undefined => {
+      if (currentFrame.cursorTrail && currentFrame.cursorTrail.length > 0) {
+        for (let index = currentFrame.cursorTrail.length - 1; index >= 0; index -= 1) {
+          const point = currentFrame.cursorTrail[index];
+          if (typeof point?.x === 'number' && typeof point?.y === 'number') {
+            return point;
+          }
+        }
+      }
+      const click = currentFrame.clickPosition;
+      if (click && typeof click.x === 'number' && typeof click.y === 'number') {
+        return click;
+      }
+      return undefined;
+    };
+
+    const framePoint = extractPointFromFrame();
+    if (framePoint) {
+      cursorSourceRef.current = 'data';
+      setCursorPosition((prev) => (pointsEqual(prev, framePoint) ? prev : framePoint));
+      return;
+    }
+
+    if (cursorSourceRef.current === 'data' && cursorPosition) {
+      return;
+    }
+
+    const { width, height } = dimensions;
+    if (!width || !height) {
+      return;
+    }
+
+    const padX = Math.max(12, width * 0.08);
+    const padY = Math.max(12, height * 0.08);
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+    const fallbackPoint = (() => {
+      switch (cursorInitialPosition) {
+        case 'top-left':
+          return { x: padX, y: padY };
+        case 'top-right':
+          return { x: width - padX, y: padY };
+        case 'bottom-left':
+          return { x: padX, y: height - padY };
+        case 'bottom-right':
+          return { x: width - padX, y: height - padY };
+        case 'random':
+          return {
+            x: clamp(width * cursorSeedRef.current.x, padX, width - padX),
+            y: clamp(height * cursorSeedRef.current.y, padY, height - padY),
+          };
+        case 'center':
+        default:
+          return { x: width / 2, y: height / 2 };
+      }
+    })();
+
+    if (!fallbackPoint) {
+      return;
+    }
+
+    if (cursorSourceRef.current !== 'fallback' || !pointsEqual(cursorPosition, fallbackPoint)) {
+      cursorSourceRef.current = 'fallback';
+      setCursorPosition(fallbackPoint);
+    }
+  }, [
+    currentFrame,
+    cursorInitialPosition,
+    cursorPosition,
+    dimensions.height,
+    dimensions.width,
+    isCursorEnabled,
+  ]);
+
   // Early return AFTER all hooks
   if (normalizedFrames.length === 0 || !currentFrame) {
     return (
@@ -559,7 +1013,9 @@ export function ReplayPlayer({
           'relative flex h-64 items-center justify-center overflow-hidden rounded-3xl text-sm text-slate-200/80 transition-all duration-500',
           backgroundDecor.containerClass,
         )}
+        style={backgroundDecor.containerStyle}
       >
+        {backgroundDecor.baseLayer}
         {backgroundDecor.overlay}
         <div
           className={clsx(
@@ -587,10 +1043,6 @@ export function ReplayPlayer({
       (typeof currentFrame.retryBackoffFactor === 'number' && currentFrame.retryBackoffFactor !== 1 && currentFrame.retryBackoffFactor !== 0) ||
       (currentFrame.retryHistory && currentFrame.retryHistory.length > 0)
   );
-  const dimensions: Dimensions = {
-    width: screenshot?.width || FALLBACK_DIMENSIONS.width,
-    height: screenshot?.height || FALLBACK_DIMENSIONS.height,
-  };
   const aspectRatio = dimensions.width > 0 ? (dimensions.height / dimensions.width) * 100 : 56.25;
 
   const zoom = currentFrame.zoomFactor && currentFrame.zoomFactor > 1 ? Math.min(currentFrame.zoomFactor, 3) : 1;
@@ -647,8 +1099,30 @@ export function ReplayPlayer({
     });
   };
 
-  const pointerStyle = toPointStyle(currentFrame.clickPosition, dimensions);
-  const cursorTrailPoints = toTrailPoints(currentFrame.cursorTrail, dimensions);
+  const cursorTrailPoints = isCursorEnabled
+    ? toTrailPoints(currentFrame.cursorTrail, dimensions)
+    : [];
+  const pointerStyle = isCursorEnabled && cursorPosition
+    ? toPointStyle(cursorPosition, dimensions)
+    : undefined;
+  const hasTrail = cursorTrailPoints.length >= 2 && cursorTrailStrokeWidth > 0.05;
+  const pointerOffsetX = cursorDecor.offset?.x ?? 0;
+  const pointerOffsetY = cursorDecor.offset?.y ?? 0;
+  const basePointerTransform = `translate(calc(-50% + ${pointerOffsetX}px), calc(-50% + ${pointerOffsetY}px))${
+    pointerScale !== 1 ? ` scale(${pointerScale})` : ''
+  }`;
+  const pointerWrapperStyle =
+    pointerStyle && isCursorEnabled
+      ? {
+          ...pointerStyle,
+          ...cursorDecor.wrapperStyle,
+          transform: cursorDecor.wrapperStyle?.transform
+            ? `${basePointerTransform} ${cursorDecor.wrapperStyle.transform}`
+            : basePointerTransform,
+          transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
+          transitionProperty: 'left, top, transform',
+        }
+      : undefined;
 
   const changeFrame = (index: number) => {
     if (index < 0 || index >= normalizedFrames.length) {
@@ -685,7 +1159,9 @@ export function ReplayPlayer({
           'relative overflow-hidden rounded-3xl transition-all duration-500',
           backgroundDecor.containerClass,
         )}
+        style={backgroundDecor.containerStyle}
       >
+        {backgroundDecor.baseLayer}
         {backgroundDecor.overlay}
         <div className={clsx('relative z-[1]', backgroundDecor.contentClass)}>
           <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
@@ -737,7 +1213,7 @@ export function ReplayPlayer({
                       />
                     )}
 
-                    {cursorTrailPoints.length >= 2 && (
+                    {hasTrail && (
                       <svg
                         className="absolute inset-0 h-full w-full"
                         viewBox="0 0 100 100"
@@ -745,8 +1221,8 @@ export function ReplayPlayer({
                       >
                         <polyline
                           points={cursorTrailPoints.map((point) => `${point.x},${point.y}`).join(' ')}
-                          stroke="rgba(56,189,248,0.6)"
-                          strokeWidth={1.8}
+                          stroke={cursorDecor.trailColor}
+                          strokeWidth={cursorTrailStrokeWidth}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           fill="none"
@@ -754,16 +1230,21 @@ export function ReplayPlayer({
                       </svg>
                     )}
 
-                    {pointerStyle && (
+                    {pointerWrapperStyle && cursorDecor.renderBase && (
                       <div
-                        className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
-                        style={{
-                          ...pointerStyle,
-                          transitionProperty: 'left, top',
-                        }}
+                        className={clsx(
+                          'absolute pointer-events-none transition-all duration-500 ease-out',
+                          cursorDecor.wrapperClass,
+                        )}
+                        style={pointerWrapperStyle}
                       >
-                        <span className="absolute h-10 w-10 animate-ping rounded-full border border-white/40" />
-                        <span className="relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/90 bg-white/80 shadow-lg" />
+                        {cursorDecor.showPing && cursorDecor.pingClass && (
+                          <span
+                            className={cursorDecor.pingClass}
+                            style={cursorDecor.pingStyle}
+                          />
+                        )}
+                        {cursorDecor.renderBase}
                       </div>
                     )}
                   </div>

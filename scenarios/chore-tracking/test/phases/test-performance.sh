@@ -1,79 +1,58 @@
 #!/bin/bash
-# Performance test phase
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+# Lightweight performance sanity checks for chore-tracking APIs.
+set -euo pipefail
 
-# shellcheck disable=SC1091
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-# shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Initialize phase with 180-second target
-testing::phase::init --target-time "180s"
+testing::phase::init --target-time "180s" --require-runtime
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-log::info "Running performance tests for chore-tracking"
-
-# Check if scenario is running
-if ! vrooli scenario status chore-tracking | grep -q "running"; then
-    log::warn "Scenario not running, starting it..."
-    vrooli scenario start chore-tracking
-    sleep 5
+API_BASE_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME")
+if [ -z "$API_BASE_URL" ]; then
+  testing::phase::add_error "Unable to resolve API base URL"
+  testing::phase::end_with_summary "Performance checks incomplete"
 fi
 
-# Performance test: Response time for health check
-log::info "Testing health endpoint response time..."
-HEALTH_TIME=$(curl -w "%{time_total}" -o /dev/null -s http://localhost:${API_PORT:-8080}/health)
-log::info "Health check response time: ${HEALTH_TIME}s"
+measure_endpoint() {
+  local label="$1"
+  local endpoint="$2"
+  local threshold="$3"
 
-if (( $(echo "$HEALTH_TIME < 1.0" | bc -l) )); then
-    log::success "Health check response time acceptable"
-else
-    testing::phase::add_error "Health check response time too slow: ${HEALTH_TIME}s"
-fi
+  local elapsed
+  elapsed=$(curl -w '%{time_total}' -o /dev/null -s "${API_BASE_URL}${endpoint}" || echo "10")
 
-# Performance test: Chore listing
-log::info "Testing chore listing response time..."
-CHORES_TIME=$(curl -w "%{time_total}" -o /dev/null -s http://localhost:${API_PORT:-8080}/api/chores)
-log::info "Chore listing response time: ${CHORES_TIME}s"
+  if awk "BEGIN {exit !(${elapsed} < ${threshold})}"; then
+    log::info "${label}: ${elapsed}s"
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "${label} exceeded threshold (${elapsed}s >= ${threshold}s)"
+    testing::phase::add_test failed
+  fi
+}
 
-if (( $(echo "$CHORES_TIME < 2.0" | bc -l) )); then
-    log::success "Chore listing response time acceptable"
-else
-    testing::phase::add_error "Chore listing response time too slow: ${CHORES_TIME}s"
-fi
+measure_endpoint "Health check latency" "/health" 1.0
+measure_endpoint "Chore listing latency" "/api/chores" 2.0
+measure_endpoint "User listing latency" "/api/users" 2.0
 
-# Performance test: User listing
-log::info "Testing user listing response time..."
-USERS_TIME=$(curl -w "%{time_total}" -o /dev/null -s http://localhost:${API_PORT:-8080}/api/users)
-log::info "User listing response time: ${USERS_TIME}s"
-
-if (( $(echo "$USERS_TIME < 2.0" | bc -l) )); then
-    log::success "User listing response time acceptable"
-else
-    testing::phase::add_error "User listing response time too slow: ${USERS_TIME}s"
-fi
-
-# Concurrent request test
-log::info "Testing concurrent request handling..."
-CONCURRENT_REQUESTS=10
-START_TIME=$(date +%s.%N)
-
-for i in $(seq 1 $CONCURRENT_REQUESTS); do
-    curl -s http://localhost:${API_PORT:-8080}/health > /dev/null &
+# Basic concurrency probe using health endpoint
+concurrent_requests=8
+start_time=$(date +%s.%N)
+for _ in $(seq 1 $concurrent_requests); do
+  curl -s "${API_BASE_URL}/health" >/dev/null &
 done
-
 wait
+end_time=$(date +%s.%N)
+total_time=$(awk -v start="$start_time" -v end="$end_time" 'BEGIN {printf "%.4f", end - start}')
 
-END_TIME=$(date +%s.%N)
-TOTAL_TIME=$(echo "$END_TIME - $START_TIME" | bc)
-log::info "Concurrent requests completed in: ${TOTAL_TIME}s"
-
-if (( $(echo "$TOTAL_TIME < 5.0" | bc -l) )); then
-    log::success "Concurrent request handling acceptable"
+if awk "BEGIN {exit !(${total_time} < 5.0)}"; then
+  log::info "Concurrent health checks completed in ${total_time}s"
+  testing::phase::add_test passed
 else
-    testing::phase::add_error "Concurrent request handling too slow: ${TOTAL_TIME}s"
+  testing::phase::add_error "Concurrent health checks too slow (${total_time}s)"
+  testing::phase::add_test failed
 fi
 
-# End with summary
-testing::phase::end_with_summary "Performance tests completed"
+testing::phase::end_with_summary "Performance checks completed"

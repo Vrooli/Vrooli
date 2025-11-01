@@ -3,6 +3,9 @@
   "service": "data-backup-manager-ui",
   "timestamp": "2025-09-13T00:00:00Z",
   "readiness": true,
+  "status_notes": [
+    "Static UI snapshot; live backup diagnostics run after hydration."
+  ],
   "version": "1.0.0",
   "api_connectivity": {
     "connected": false,
@@ -15,6 +18,18 @@
       "retryable": false
     },
     "latency_ms": null
+  },
+  "dependencies": {
+    "data-backup-manager-api": {
+      "connected": false,
+      "latency_ms": null,
+      "error": {
+        "code": "STATIC_UI_JS_CHECK",
+        "message": "Static health payload cannot reach the API; client JS runs active checks.",
+        "category": "configuration",
+        "retryable": false
+      }
+    }
   },
   "static_files": {
     "available": true,
@@ -93,5 +108,10 @@
       "medium",
       "high"
     ]
+  },
+  "build": {
+    "commit": "static-snapshot-2025-09-13",
+    "version": "1.0.0",
+    "environment": "development"
   }
 }

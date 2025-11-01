@@ -164,38 +164,12 @@
       ]
     },
     "test": {
-      "description": "Test Contact Book API, CLI, and database integration",
+      "description": "Run phased test suite",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-contacts-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/contacts",
-          "description": "Test contacts API endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats contact-book.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/contact-book.bats"
-          }
-        },
-        {
-          "name": "test-database-integration",
-          "run": "bash test/test-database-integration.sh",
-          "description": "Test database schema and operations"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased testing (structure, dependencies, unit, integration, business, performance)"
         }
       ]
     },

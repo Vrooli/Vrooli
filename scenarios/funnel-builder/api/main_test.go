@@ -60,9 +60,12 @@ func TestCreateFunnel(t *testing.T) {
 	defer testServer.Cleanup()
 
 	t.Run("Success_WithSteps", func(t *testing.T) {
+		projectID := createTestProject(t, testServer.Server, "Create Funnel WithSteps")
+
 		funnelData := map[string]interface{}{
 			"name":        "Test Funnel",
 			"description": "A test funnel",
+			"project_id":  projectID,
 			"steps": []map[string]interface{}{
 				{
 					"type":     "form",
@@ -93,8 +96,10 @@ func TestCreateFunnel(t *testing.T) {
 	})
 
 	t.Run("Success_WithoutSteps", func(t *testing.T) {
+		projectID := createTestProject(t, testServer.Server, "Create Funnel WithoutSteps")
 		funnelData := map[string]interface{}{
-			"name": "Empty Funnel",
+			"name":       "Empty Funnel",
+			"project_id": projectID,
 		}
 
 		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
@@ -106,8 +111,10 @@ func TestCreateFunnel(t *testing.T) {
 	})
 
 	t.Run("Error_MissingName", func(t *testing.T) {
+		projectID := createTestProject(t, testServer.Server, "Create Funnel MissingName")
 		funnelData := map[string]interface{}{
 			"description": "Missing name field",
+			"project_id":  projectID,
 		}
 
 		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
@@ -118,8 +125,10 @@ func TestCreateFunnel(t *testing.T) {
 	})
 
 	t.Run("Error_EmptyName", func(t *testing.T) {
+		projectID := createTestProject(t, testServer.Server, "Create Funnel EmptyName")
 		funnelData := map[string]interface{}{
-			"name": "",
+			"name":       "",
+			"project_id": projectID,
 		}
 
 		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
@@ -130,8 +139,10 @@ func TestCreateFunnel(t *testing.T) {
 	})
 
 	t.Run("Edge_UnicodeCharacters", func(t *testing.T) {
+		projectID := createTestProject(t, testServer.Server, "Create Funnel Unicode")
 		funnelData := map[string]interface{}{
-			"name": "测试漏斗 テストファネル",
+			"name":       "测试漏斗 テストファネル",
+			"project_id": projectID,
 		}
 
 		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
@@ -141,6 +152,73 @@ func TestCreateFunnel(t *testing.T) {
 		response := assertJSONResponse(t, recorder, http.StatusCreated, []string{"id"})
 		defer cleanupTestData(t, testServer.Server, response["id"].(string))
 	})
+
+	t.Run("Error_MissingProjectID", func(t *testing.T) {
+		funnelData := map[string]interface{}{
+			"name": "No Project",
+		}
+
+		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
+		recorder := httptest.NewRecorder()
+		testServer.Server.router.ServeHTTP(recorder, req)
+
+		assertErrorResponse(t, recorder, http.StatusBadRequest)
+	})
+}
+
+func TestProjectsAPI(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	testServer := setupTestServer(t)
+	if testServer == nil {
+		return
+	}
+	defer testServer.Cleanup()
+
+	projectData := map[string]interface{}{
+		"name":        "Test Project",
+		"description": "Project created during tests",
+	}
+
+	req, _ := makeHTTPRequest("POST", "/api/v1/projects", projectData)
+	recorder := httptest.NewRecorder()
+	testServer.Server.router.ServeHTTP(recorder, req)
+
+	createResp := assertJSONResponse(t, recorder, http.StatusCreated, []string{"id", "name"})
+	projectID := createResp["id"].(string)
+	defer cleanupProject(t, testServer.Server, projectID)
+
+	req, _ = makeHTTPRequest("GET", "/api/v1/projects", nil)
+	recorder = httptest.NewRecorder()
+	testServer.Server.router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Expected status 200 when fetching projects, got %d", recorder.Code)
+	}
+
+	var listResp []map[string]interface{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("Failed to parse projects list: %v", err)
+	}
+
+	if len(listResp) == 0 {
+		t.Fatalf("Expected at least one project in list")
+	}
+
+	updateData := map[string]interface{}{
+		"name":        "Updated Test Project",
+		"description": "Updated description",
+	}
+
+	req, _ = makeHTTPRequest("PUT", "/api/v1/projects/"+projectID, updateData)
+	recorder = httptest.NewRecorder()
+	testServer.Server.router.ServeHTTP(recorder, req)
+
+	updateResp := assertJSONResponse(t, recorder, http.StatusOK, []string{"id", "name", "description"})
+	if updateResp["name"] != "Updated Test Project" {
+		t.Errorf("Expected updated project name, got %v", updateResp["name"])
+	}
 }
 
 // TestGetFunnel tests single funnel retrieval

@@ -61,9 +61,20 @@ go tool cover -html=coverage.out -o coverage.html
 ### Via Testing Infrastructure
 
 ```bash
-# From scenario root
-bash test/phases/test-unit.sh
+# From the scenario root
+test/run-tests.sh                # Run all phases
+test/run-tests.sh quick          # Structure + unit smoke test
+test/phases/test-unit.sh         # Invoke a single phase
 ```
+
+The shared runner (see `test/run-tests.sh`) wires in all standard phases:
+
+- `structure` – validates required files and directories
+- `dependencies` – checks automation assets and manifest health
+- `unit` – delegates to the centralized Go test runner with coverage gates
+- `integration` – confirms API/CLI wiring without starting the runtime
+- `business` – verifies seed data and automation workflows
+- `performance` – placeholder until benchmarks land
 
 ## Test Structure
 

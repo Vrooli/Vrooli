@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,12 +17,25 @@ import (
 
 // setupTestLogger initializes the global logger for testing
 func setupTestLogger() func() {
+	originalLogger := logger
+
 	// Suppress logs during tests unless VERBOSE_TESTS is set
 	if os.Getenv("VERBOSE_TESTS") != "true" {
-		log.SetOutput(io.Discard)
+		logger = slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		}))
+	} else {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
 	}
+	slog.SetDefault(logger)
+
 	return func() {
-		log.SetOutput(os.Stderr)
+		logger = originalLogger
+		if logger != nil {
+			slog.SetDefault(logger)
+		}
 	}
 }
 

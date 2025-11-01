@@ -2,7 +2,7 @@
 # Comment System Unit Test Phase
 # Runs Go unit tests with coverage tracking
 
-set -e
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"

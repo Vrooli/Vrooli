@@ -13,7 +13,7 @@
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-scroll-area": "^1.0.5",
     "@radix-ui/react-tooltip": "^1.0.7",
-    "@vrooli/iframe-bridge": "file:../../../../../packages/iframe-bridge",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "lucide-react": "^0.379.0",

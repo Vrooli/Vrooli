@@ -1,7 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
+import toast, { Toaster, ToastBar } from 'react-hot-toast'
+import { X } from 'lucide-react'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import App from './App'
 import './index.css'
@@ -100,7 +101,28 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
           },
         }}
-      />
+      >
+        {(t) => (
+          <ToastBar toast={t}>
+            {({ icon, message }) => (
+              <div className="flex w-full items-start gap-3">
+                {icon}
+                <div className="flex-1 text-sm text-gray-900">{message}</div>
+                {t.type !== 'loading' && (
+                  <button
+                    type="button"
+                    onClick={() => toast.dismiss(t.id)}
+                    className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-transparent text-gray-500 transition hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1"
+                    aria-label="Close notification"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
+          </ToastBar>
+        )}
+      </Toaster>
     </BrowserRouter>
   </React.StrictMode>
 )

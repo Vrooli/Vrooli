@@ -83,6 +83,8 @@
                             <span>Refresh</span>
                         </button>
                         <select class="device-filter" id="deviceFilter">
+                            <option value="visible" selected>Visible Devices</option>
+                            <option value="hidden">Hidden Devices</option>
                             <option value="all">All Devices</option>
                             <option value="lights">Lights</option>
                             <option value="sensors">Sensors</option>
@@ -307,6 +309,26 @@
 
         <!-- Toast Notifications -->
         <div class="toast-container" id="toastContainer"></div>
+
+        <!-- Device Details Modal -->
+        <div class="modal" id="deviceDetailModal" aria-hidden="true">
+            <div class="modal__overlay" data-modal-dismiss></div>
+            <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="deviceModalTitle" tabindex="-1">
+                <header class="modal__header">
+                    <div class="modal__icon">
+                        <span class="icon" data-lucide="info"></span>
+                    </div>
+                    <div class="modal__titles">
+                        <h3 class="modal__title" id="deviceModalTitle">Device details</h3>
+                        <p class="modal__subtitle" id="deviceModalSubtitle"></p>
+                    </div>
+                    <button class="modal__close" type="button" aria-label="Close device details" data-modal-dismiss>
+                        <span class="icon" data-lucide="x"></span>
+                    </button>
+                </header>
+                <div class="modal__content" id="deviceModalContent" role="document"></div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="app.js"></script>

@@ -91,6 +91,12 @@ class HomeAutomationApp {
         this.automations = new Map();
         this.scenes = new Map();
         this.iconRetryAttempts = 0;
+        this.hiddenDeviceGroupIds = new Set();
+        this.hiddenLinkedEntityIds = new Set();
+        this.hiddenDeviceStorageKey = 'homeAutomationHiddenDeviceGroups';
+        this.hiddenLinkedStorageKey = 'homeAutomationHiddenLinkedEntities';
+        this.currentDeviceFilter = 'visible';
+        this.currentLinkedEntitiesFilter = 'visible';
         this.pendingIconRefresh = null;
         this.deviceDataSource = 'unknown';
         this.usingMockDevices = false;
@@ -100,6 +106,17 @@ class HomeAutomationApp {
             mockMode: false,
             status: 'unknown'
         };
+
+        this.deviceModal = null;
+        this.deviceModalContent = null;
+        this.deviceModalTitle = null;
+        this.deviceModalSubtitle = null;
+        this.modalReturnFocusTo = null;
+        this.boundModalKeyListener = null;
+        this.activeModalDeviceId = null;
+        this.linkedEntitiesSectionElement = null;
+        this.boundLinkedEntitiesHandler = null;
+        this.activeLinkedGroupId = null;
 
         this.init();
     }
@@ -111,7 +128,11 @@ class HomeAutomationApp {
         this.initializeTabNavigation();
         this.initializeWebSocket();
         this.initializeEventListeners();
+        this.initializeDeviceDetailsModal();
         this.initializeHomeAssistantConfigForm();
+        this.loadHiddenDevicePreferences();
+        this.loadHiddenLinkedEntityPreferences();
+        this.syncInitialDeviceFilter();
 
         // Load initial data
         this.loadUserProfile();
@@ -232,6 +253,135 @@ class HomeAutomationApp {
         document.getElementById('calendarSettings')?.addEventListener('click', () => {
             this.showToast('Calendar integration coming soon', 'info');
         });
+    }
+
+    loadHiddenDevicePreferences() {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        try {
+            const raw = window.localStorage.getItem(this.hiddenDeviceStorageKey);
+            if (!raw) {
+                return;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                const normalized = parsed
+                    .map((value) => this.normalizeGroupId(value))
+                    .filter((value) => Boolean(value));
+                this.hiddenDeviceGroupIds = new Set(normalized);
+            }
+        } catch (error) {
+            console.warn('[HomeAutomation] Failed to load hidden device preferences', error);
+            this.hiddenDeviceGroupIds = new Set();
+        }
+    }
+
+    loadHiddenLinkedEntityPreferences() {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        try {
+            const raw = window.localStorage.getItem(this.hiddenLinkedStorageKey);
+            if (!raw) {
+                return;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                const normalized = parsed
+                    .map((value) => this.normalizeEntityId(value))
+                    .filter(Boolean);
+                this.hiddenLinkedEntityIds = new Set(normalized);
+            }
+        } catch (error) {
+            console.warn('[HomeAutomation] Failed to load hidden linked entity preferences', error);
+            this.hiddenLinkedEntityIds = new Set();
+        }
+    }
+
+    syncInitialDeviceFilter() {
+        if (typeof document === 'undefined') {
+            this.currentDeviceFilter = 'visible';
+            return;
+        }
+
+        const select = document.getElementById('deviceFilter');
+        const normalized = this.normalizeDeviceFilter(select?.value);
+        this.currentDeviceFilter = normalized;
+
+        if (select && select.value !== normalized) {
+            select.value = normalized;
+        }
+    }
+
+    persistHiddenDevicePreferences() {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        try {
+            const serialized = JSON.stringify(Array.from(this.hiddenDeviceGroupIds));
+            window.localStorage.setItem(this.hiddenDeviceStorageKey, serialized);
+        } catch (error) {
+            console.warn('[HomeAutomation] Failed to persist hidden device preferences', error);
+        }
+    }
+
+
+    persistHiddenLinkedPreferences() {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        try {
+            const serialized = JSON.stringify(Array.from(this.hiddenLinkedEntityIds));
+            window.localStorage.setItem(this.hiddenLinkedStorageKey, serialized);
+        } catch (error) {
+            console.warn('[HomeAutomation] Failed to persist hidden linked entity preferences', error);
+        }
+    }
+
+
+    initializeDeviceDetailsModal() {
+        if (typeof document === 'undefined') {
+            return;
+        }
+
+        this.deviceModal = document.getElementById('deviceDetailModal');
+        this.deviceModalContent = document.getElementById('deviceModalContent');
+        this.deviceModalTitle = document.getElementById('deviceModalTitle');
+        this.deviceModalSubtitle = document.getElementById('deviceModalSubtitle');
+
+        if (!this.deviceModal || !this.deviceModalContent || !this.deviceModalTitle) {
+            console.warn('Device detail modal elements not found; device inspector disabled.');
+            return;
+        }
+
+        const dismissElements = this.deviceModal.querySelectorAll('[data-modal-dismiss]');
+        dismissElements.forEach((element) => {
+            element.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.closeDeviceModal();
+            }, { passive: true });
+        });
+
+        this.deviceModal.addEventListener('click', (event) => {
+            if (event.target && event.target.dataset && Object.prototype.hasOwnProperty.call(event.target.dataset, 'modalDismiss')) {
+                this.closeDeviceModal();
+            }
+        });
+
+        this.boundModalKeyListener = (event) => {
+            if (event.key === 'Escape' && this.isDeviceModalOpen()) {
+                this.closeDeviceModal();
+            }
+        };
+
+        document.addEventListener('keydown', this.boundModalKeyListener);
     }
     
     resolveApiBaseUrl() {
@@ -421,32 +571,289 @@ class HomeAutomationApp {
     
     renderDevices() {
         const devicesGrid = document.getElementById('devicesGrid');
-        if (!devicesGrid) return;
+        if (!devicesGrid) {
+            return;
+        }
 
         devicesGrid.innerHTML = '';
 
         const deviceGroups = this.buildDeviceGroups();
         this.deviceGroups = deviceGroups;
+        this.pruneHiddenDeviceGroups(deviceGroups);
+        this.pruneHiddenLinkedEntities(deviceGroups);
 
-        if (deviceGroups.length === 0) {
-            devicesGrid.innerHTML = `
-                <div class="device-placeholder">
-                    <div class="placeholder-icon"><span class="icon" data-lucide="search"></span></div>
-                    <p>No devices found</p>
-                    <small>Check Home Assistant connection</small>
-                </div>
-            `;
+        const normalizedFilter = this.normalizeDeviceFilter(this.currentDeviceFilter);
+        this.currentDeviceFilter = normalizedFilter;
+
+        const select = document.getElementById('deviceFilter');
+        if (select && select.value !== normalizedFilter) {
+            select.value = normalizedFilter;
+        }
+
+        const filteredGroups = this.getFilteredDeviceGroups(deviceGroups, normalizedFilter);
+
+        if (filteredGroups.length === 0) {
+            devicesGrid.innerHTML = this.buildDeviceGridEmptyState(normalizedFilter, deviceGroups.length);
             this.refreshIcons();
             return;
         }
 
-        deviceGroups.forEach(group => {
+        filteredGroups.forEach((group) => {
             const groupCard = this.createDeviceGroupCard(group);
             devicesGrid.appendChild(groupCard);
         });
 
         this.refreshIcons();
     }
+    normalizeDeviceFilter(filter) {
+        const allowed = new Set(['visible', 'hidden', 'all', 'lights', 'sensors', 'switches', 'climate']);
+        if (!filter || !allowed.has(filter)) {
+            return 'visible';
+        }
+        return filter;
+    }
+
+    normalizeGroupId(value) {
+        if (typeof value === 'string') {
+            return value;
+        }
+
+        if (typeof value === 'number') {
+            return String(value);
+        }
+
+        return null;
+    }
+
+    normalizeEntityId(value) {
+        if (value === null || value === undefined) {
+            return null;
+        }
+
+        if (typeof value === 'object' && value && Object.prototype.hasOwnProperty.call(value, 'id')) {
+            return this.normalizeEntityId(value.id);
+        }
+
+        if (typeof value === 'string') {
+            return value;
+        }
+
+        if (typeof value === 'number') {
+            return String(value);
+        }
+
+        return null;
+    }
+
+    isDeviceGroupHidden(groupId) {
+        const normalized = this.normalizeGroupId(groupId);
+        if (!normalized) {
+            return false;
+        }
+
+        return this.hiddenDeviceGroupIds.has(normalized);
+    }
+
+    isLinkedEntityHidden(entityId) {
+        const normalized = this.normalizeEntityId(entityId);
+        if (!normalized) {
+            return false;
+        }
+
+        return this.hiddenLinkedEntityIds.has(normalized);
+    }
+
+    pruneHiddenDeviceGroups(deviceGroups) {
+        if (!Array.isArray(deviceGroups) || deviceGroups.length === 0) {
+            return;
+        }
+
+        const availableIds = new Set(deviceGroups.map((group) => this.normalizeGroupId(group.id)).filter(Boolean));
+        let changed = false;
+
+        Array.from(this.hiddenDeviceGroupIds).forEach((groupId) => {
+            if (!availableIds.has(groupId)) {
+                this.hiddenDeviceGroupIds.delete(groupId);
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            this.persistHiddenDevicePreferences();
+        }
+    }
+
+    pruneHiddenLinkedEntities(deviceGroups) {
+        if (!Array.isArray(deviceGroups) || deviceGroups.length === 0) {
+            return;
+        }
+
+        const availableIds = new Set();
+        deviceGroups.forEach((group) => {
+            if (!group || !Array.isArray(group.others)) {
+                return;
+            }
+
+            group.others.forEach((entity) => {
+                const identifier = this.normalizeEntityId(entity?.id);
+                if (identifier) {
+                    availableIds.add(identifier);
+                }
+            });
+        });
+
+        let changed = false;
+        Array.from(this.hiddenLinkedEntityIds).forEach((entityId) => {
+            if (!availableIds.has(entityId)) {
+                this.hiddenLinkedEntityIds.delete(entityId);
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            this.persistHiddenLinkedPreferences();
+        }
+    }
+
+    getFilteredDeviceGroups(deviceGroups, filter) {
+        const normalizedFilter = this.normalizeDeviceFilter(filter);
+        const domainMap = {
+            lights: ['light'],
+            sensors: ['sensor', 'binary_sensor'],
+            switches: ['switch'],
+            climate: ['climate']
+        };
+
+        if (normalizedFilter === 'hidden') {
+            return deviceGroups.filter((group) => this.isDeviceGroupHidden(group.id));
+        }
+
+        if (normalizedFilter === 'all') {
+            return deviceGroups;
+        }
+
+        const visibleGroups = deviceGroups.filter((group) => !this.isDeviceGroupHidden(group.id));
+        const domains = domainMap[normalizedFilter];
+
+        if (!domains || normalizedFilter === 'visible') {
+            return visibleGroups;
+        }
+
+        return visibleGroups.filter((group) => this.groupMatchesDomainFilter(group, domains));
+    }
+
+    groupMatchesDomainFilter(group, domain) {
+        if (!group || !domain) {
+            return false;
+        }
+
+        const domainList = Array.isArray(domain) ? domain : [domain];
+        const normalizedDomains = domainList
+            .map((value) => (value || '').toLowerCase())
+            .filter(Boolean);
+
+        if (normalizedDomains.length === 0) {
+            return false;
+        }
+
+        const primaryDomain = (group.primary?.domain || group.primary?.type || '').toLowerCase();
+        if (normalizedDomains.includes(primaryDomain)) {
+            return true;
+        }
+
+        return Array.isArray(group.domains) && group.domains.some((value) => normalizedDomains.includes((value || '').toLowerCase()));
+    }
+
+    buildDeviceGridEmptyState(filter, totalGroups) {
+        let title = 'No devices found';
+        let message = 'Check Home Assistant connection';
+        let icon = 'search';
+
+        if (filter === 'hidden') {
+            title = 'No hidden devices';
+            message = 'Hide a device from the main list to manage it here.';
+            icon = 'eye';
+        } else if (totalGroups > 0) {
+            title = 'No devices match the filter';
+            message = 'Try a different filter or show all devices.';
+            icon = 'filter';
+        }
+
+        return `
+            <div class="device-placeholder">
+                <div class="placeholder-icon"><span class="icon" data-lucide="${icon}"></span></div>
+                <p>${title}</p>
+                <small>${message}</small>
+            </div>
+        `;
+    }
+
+    hideDeviceGroup(group) {
+        const identifier = this.normalizeGroupId(typeof group === 'object' ? group?.id : group);
+        if (!identifier) {
+            return;
+        }
+
+        if (this.hiddenDeviceGroupIds.has(identifier)) {
+            return;
+        }
+
+        this.hiddenDeviceGroupIds.add(identifier);
+        this.persistHiddenDevicePreferences();
+
+        const label = typeof group === 'object' ? (group?.name || group?.primary?.name || identifier) : identifier;
+        this.showToast(`${label} hidden. View Hidden Devices to manage it.`, 'info');
+        this.renderDevices();
+    }
+
+    unhideDeviceGroup(group) {
+        const identifier = this.normalizeGroupId(typeof group === 'object' ? group?.id : group);
+        if (!identifier || !this.hiddenDeviceGroupIds.has(identifier)) {
+            return;
+        }
+
+        this.hiddenDeviceGroupIds.delete(identifier);
+        this.persistHiddenDevicePreferences();
+
+        const label = typeof group === 'object' ? (group?.name || group?.primary?.name || identifier) : identifier;
+        this.showToast(`${label} returned to the device list.`, 'success');
+        this.renderDevices();
+    }
+
+    hideLinkedEntity(entity, context = {}) {
+        const identifier = this.normalizeEntityId(typeof entity === 'object' ? entity?.id : entity);
+        if (!identifier || this.hiddenLinkedEntityIds.has(identifier)) {
+            return;
+        }
+
+        this.hiddenLinkedEntityIds.add(identifier);
+        this.persistHiddenLinkedPreferences();
+
+        const entityName = typeof entity === 'object' ? (entity?.name || entity?.id || identifier) : identifier;
+        const groupName = context?.group?.name || context?.group?.primary?.name;
+        const label = groupName ? `${entityName} hidden on ${groupName}.` : `${entityName} hidden.`;
+
+        this.showToast(`${label} Switch to Hidden to manage it.`, 'info');
+        this.renderDevices();
+    }
+
+    unhideLinkedEntity(entity, context = {}) {
+        const identifier = this.normalizeEntityId(typeof entity === 'object' ? entity?.id : entity);
+        if (!identifier || !this.hiddenLinkedEntityIds.has(identifier)) {
+            return;
+        }
+
+        this.hiddenLinkedEntityIds.delete(identifier);
+        this.persistHiddenLinkedPreferences();
+
+        const entityName = typeof entity === 'object' ? (entity?.name || entity?.id || identifier) : identifier;
+        const groupName = context?.group?.name || context?.group?.primary?.name;
+        const label = groupName ? `${entityName} is visible on ${groupName} again.` : `${entityName} is visible again.`;
+
+        this.showToast(label, 'success');
+        this.renderDevices();
+    }
+
 
     buildDeviceGroups() {
         if (this.devices.size === 0) {
@@ -549,23 +956,45 @@ class HomeAutomationApp {
 
     createDeviceGroupCard(group) {
         const primaryDevice = group.primary;
-        const card = this.createDeviceCard(primaryDevice);
+        const normalizedGroupId = this.normalizeGroupId(group.id) || group.id;
+        const isHidden = this.isDeviceGroupHidden(group.id);
+        const card = this.createDeviceCard(primaryDevice, { groupId: normalizedGroupId, hidden: isHidden });
 
-        card.dataset.groupId = group.id;
+        card.dataset.groupId = normalizedGroupId;
         card.dataset.domains = group.domains.join(',');
         card.dataset.primaryDomain = primaryDevice?.domain || primaryDevice?.type || '';
         card.dataset.groupSize = String(group.size || 1);
+        card.dataset.hidden = String(isHidden);
+        card.dataset.visibilityState = isHidden ? 'hidden' : 'visible';
 
-        if (group.others.length > 0) {
+        if (isHidden) {
+            card.classList.add('device-card--hidden');
+            const hiddenBanner = document.createElement('div');
+            hiddenBanner.className = 'device-hidden-banner';
+            hiddenBanner.innerHTML = `
+                <span class="icon" data-lucide="eye-off"></span>
+                <span>Hidden Device</span>
+            `;
+            card.insertBefore(hiddenBanner, card.firstChild);
+        }
+
+        const allLinkedEntities = Array.isArray(group.others) ? group.others : [];
+        const visibleLinkedEntities = allLinkedEntities.filter((linked) => !this.isLinkedEntityHidden(linked.id));
+        const hiddenLinkedCount = allLinkedEntities.length - visibleLinkedEntities.length;
+
+        if (allLinkedEntities.length > 0) {
             card.classList.add('device-card--group');
 
             const headerInfo = card.querySelector('.device-info');
             if (headerInfo) {
                 const badge = document.createElement('div');
                 badge.className = 'device-badge device-badge--hub';
+                const visibleCount = visibleLinkedEntities.length;
+                const baseLabel = `${visibleCount} linked ${visibleCount === 1 ? 'entity' : 'entities'}`;
+                const badgeLabel = hiddenLinkedCount > 0 ? `${baseLabel} (+${hiddenLinkedCount} hidden)` : baseLabel;
                 badge.innerHTML = `
                     <span class="icon" data-lucide="git-branch"></span>
-                    <span>${group.others.length} linked ${group.others.length === 1 ? 'entity' : 'entities'}</span>
+                    <span>${this.escapeHtml(badgeLabel)}</span>
                 `;
                 headerInfo.appendChild(badge);
             }
@@ -588,15 +1017,21 @@ class HomeAutomationApp {
 
             summary.appendChild(header);
 
-            const controlsCount = group.others.filter(device => this.canControlDomain(device.domain)).length;
-            const sensorsCount = group.others.length - controlsCount;
+            const controlsCount = visibleLinkedEntities.filter(device => this.canControlDomain(device.domain)).length;
+            const sensorsCount = visibleLinkedEntities.length - controlsCount;
 
             const stats = document.createElement('div');
             stats.className = 'device-group-summary-stats';
-            stats.textContent = `${controlsCount} control${controlsCount === 1 ? '' : 's'} • ${sensorsCount} sensor${sensorsCount === 1 ? '' : 's'}`;
+            if (visibleLinkedEntities.length > 0) {
+                stats.textContent = `${controlsCount} control${controlsCount === 1 ? '' : 's'} • ${sensorsCount} sensor${sensorsCount === 1 ? '' : 's'}`;
+            } else if (hiddenLinkedCount > 0) {
+                stats.textContent = 'All linked entities are hidden';
+            } else {
+                stats.textContent = 'No linked entities available';
+            }
             summary.appendChild(stats);
 
-            const names = group.others
+            const names = visibleLinkedEntities
                 .map(device => this.buildLinkedSummaryLabel(group, device))
                 .filter(Boolean);
             const summaryList = this.formatLinkedNames(names);
@@ -606,20 +1041,667 @@ class HomeAutomationApp {
                 listEl.className = 'device-group-summary-list';
                 listEl.textContent = summaryList;
                 summary.appendChild(listEl);
+            } else if (hiddenLinkedCount > 0) {
+                const hintEl = document.createElement('div');
+                hintEl.className = 'device-group-summary-list';
+                hintEl.textContent = 'Hidden linked entities can be managed in device details.';
+                summary.appendChild(hintEl);
             }
 
             const subEntitiesContainer = document.createElement('div');
             subEntitiesContainer.className = 'device-sub-entities';
 
-            group.others.forEach(device => {
+            visibleLinkedEntities.forEach(device => {
                 subEntitiesContainer.appendChild(this.createSubEntityRow(device, group.name));
             });
+
+            if (visibleLinkedEntities.length === 0 && hiddenLinkedCount > 0) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'sub-entity-row sub-entity-row--empty';
+                placeholder.innerHTML = `
+                    <span class="icon" data-lucide="eye-off"></span>
+                    <span>All linked entities are hidden. Open details to review them.</span>
+                `;
+                subEntitiesContainer.appendChild(placeholder);
+            }
 
             card.appendChild(summary);
             card.appendChild(subEntitiesContainer);
         }
 
+        this.attachVisibilityToggle(card, group);
+        this.attachDeviceCardInteractions(card, group);
+
         return card;
+    }
+
+    attachDeviceCardInteractions(card, group) {
+        if (!card) {
+            return;
+        }
+
+        const deviceId = card.dataset.deviceId;
+        if (!deviceId) {
+            return;
+        }
+
+        const inferredLabel = group?.name || this.devices.get(deviceId)?.name || 'device';
+
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('aria-label', `View details for ${inferredLabel}`);
+
+        const openModal = () => {
+            this.openDeviceModal(deviceId, { group, triggerElement: card });
+        };
+
+        card.addEventListener('click', (event) => {
+            if (event.target.closest('.device-control') || event.target.closest('.sub-entity-controls') || event.target.closest('button')) {
+                return;
+            }
+
+            openModal();
+        });
+
+        card.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            if (event.target !== card && event.target.closest('.device-control')) {
+                return;
+            }
+
+            event.preventDefault();
+            openModal();
+        });
+    }
+
+    attachVisibilityToggle(card, group) {
+        if (!card || !group?.id) {
+            return;
+        }
+
+        const toggle = card.querySelector('.device-visibility-toggle');
+        if (!toggle) {
+            return;
+        }
+
+        toggle.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (this.isDeviceGroupHidden(group.id)) {
+                this.unhideDeviceGroup(group);
+            } else {
+                this.hideDeviceGroup(group);
+            }
+        });
+    }
+
+    openDeviceModal(deviceId, options = {}) {
+        if (!this.deviceModal || !this.deviceModalContent || !deviceId) {
+            return;
+        }
+
+        const device = this.devices.get(deviceId);
+        if (!device) {
+            console.warn('Device not found for modal view:', deviceId);
+            return;
+        }
+
+        const group = options.group || this.findDeviceGroup(device);
+
+        if (this.deviceModalTitle) {
+            this.deviceModalTitle.textContent = device.name || device.id;
+        }
+
+        if (this.deviceModalSubtitle) {
+            const subtitleParts = [];
+            if (device.id) {
+                subtitleParts.push(`ID: ${device.id}`);
+            }
+            if (group && typeof group.size === 'number') {
+                subtitleParts.push(group.size === 1 ? 'Single entity' : `${group.size} linked entities`);
+            }
+            if (device.available === true) {
+                subtitleParts.push('Online');
+            } else if (device.available === false) {
+                subtitleParts.push('Offline');
+            }
+            this.deviceModalSubtitle.textContent = subtitleParts.join(' • ');
+        }
+
+        this.currentLinkedEntitiesFilter = 'visible';
+        this.activeLinkedGroupId = this.normalizeGroupId(group?.id) || this.normalizeGroupId(device.groupId) || null;
+
+        this.deviceModalContent.innerHTML = this.buildDeviceModalContent(device, group);
+        this.deviceModalContent.scrollTop = 0;
+
+        this.initializeLinkedEntitiesSection(group);
+        this.refreshIcons();
+
+        this.deviceModal.classList.add('is-open');
+        this.deviceModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        this.activeModalDeviceId = deviceId;
+
+        if (options.triggerElement instanceof HTMLElement) {
+            this.modalReturnFocusTo = options.triggerElement;
+        } else {
+            this.modalReturnFocusTo = null;
+        }
+
+        const dialog = this.deviceModal.querySelector('.modal__dialog');
+        if (dialog && typeof dialog.focus === 'function') {
+            setTimeout(() => dialog.focus({ preventScroll: true }), 0);
+        }
+    }
+
+    closeDeviceModal() {
+        if (!this.deviceModal) {
+            return;
+        }
+
+        this.deviceModal.classList.remove('is-open');
+        this.deviceModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        this.activeModalDeviceId = null;
+
+        if (this.linkedEntitiesSectionElement && this.boundLinkedEntitiesHandler) {
+            this.linkedEntitiesSectionElement.removeEventListener('click', this.boundLinkedEntitiesHandler);
+        }
+
+        this.linkedEntitiesSectionElement = null;
+        this.boundLinkedEntitiesHandler = null;
+        this.activeLinkedGroupId = null;
+        this.currentLinkedEntitiesFilter = 'visible';
+
+        if (this.deviceModalContent) {
+            this.deviceModalContent.innerHTML = '';
+        }
+
+        if (this.deviceModalSubtitle) {
+            this.deviceModalSubtitle.textContent = '';
+        }
+
+        const returnTarget = this.modalReturnFocusTo;
+        this.modalReturnFocusTo = null;
+
+        if (returnTarget && typeof returnTarget.focus === 'function') {
+            setTimeout(() => returnTarget.focus(), 0);
+        }
+    }
+
+    isDeviceModalOpen() {
+        return Boolean(this.deviceModal && this.deviceModal.classList.contains('is-open'));
+    }
+
+    findDeviceGroup(device) {
+        if (!device) {
+            return null;
+        }
+
+        const deviceId = device.id;
+        const groupId = device.groupId;
+
+        return this.deviceGroups.find((group) => {
+            if (!group) {
+                return false;
+            }
+
+            if (group.id && groupId && group.id === groupId) {
+                return true;
+            }
+
+            if (group.primary?.id === deviceId) {
+                return true;
+            }
+
+            return Array.isArray(group.others) && group.others.some((item) => item.id === deviceId);
+        }) || null;
+    }
+
+    buildDeviceModalContent(device, group) {
+        const overviewRows = this.buildDeviceSummaryRows(device, group);
+        const stateSection = this.buildDetailSection(device.state);
+        const attributesSection = this.buildDetailSection(device.attributes);
+        const rawSection = this.buildRawStateSection(device.rawState);
+
+        return `
+            <section class="modal__section">
+                <h4 class="modal__section-title">Overview</h4>
+                <div class="device-detail-grid">
+                    ${overviewRows}
+                </div>
+            </section>
+            <section class="modal__section">
+                <h4 class="modal__section-title">Current State</h4>
+                ${stateSection}
+            </section>
+            <section class="modal__section">
+                <h4 class="modal__section-title">Attributes</h4>
+                ${attributesSection}
+            </section>
+            <section class="modal__section modal__section--linked">
+                <div class="modal__section-heading modal__section-heading--linked">
+                    <h4 class="modal__section-title">Linked Entities</h4>
+                    <div class="linked-entities__toolbar" role="group" aria-label="Linked entities filter"></div>
+                </div>
+                <div class="linked-entities__body"></div>
+            </section>
+            <section class="modal__section">
+                <h4 class="modal__section-title">Raw Payload</h4>
+                ${rawSection}
+                <span class="modal__hint">Use the raw payload to debug integrations or build advanced automations.</span>
+            </section>
+        `;
+    }
+
+    initializeLinkedEntitiesSection(group) {
+        if (!this.deviceModalContent) {
+            return;
+        }
+
+        const section = this.deviceModalContent.querySelector('.modal__section--linked');
+        if (!section) {
+            return;
+        }
+
+        if (this.linkedEntitiesSectionElement && this.boundLinkedEntitiesHandler) {
+            this.linkedEntitiesSectionElement.removeEventListener('click', this.boundLinkedEntitiesHandler);
+        }
+
+        this.linkedEntitiesSectionElement = section;
+        this.boundLinkedEntitiesHandler = (event) => {
+            this.handleLinkedEntitiesSectionClick(event);
+        };
+
+        section.addEventListener('click', this.boundLinkedEntitiesHandler, false);
+        this.renderLinkedEntitiesSection(group);
+    }
+
+    renderLinkedEntitiesSection(group) {
+        const section = this.linkedEntitiesSectionElement || this.deviceModalContent?.querySelector('.modal__section--linked');
+        if (!section) {
+            return;
+        }
+
+        const toolbar = section.querySelector('.linked-entities__toolbar');
+        const body = section.querySelector('.linked-entities__body');
+        if (!toolbar || !body) {
+            return;
+        }
+
+        const normalizedGroupId = this.normalizeGroupId(group?.id);
+        if (normalizedGroupId) {
+            section.dataset.groupId = normalizedGroupId;
+            this.activeLinkedGroupId = normalizedGroupId;
+        } else {
+            delete section.dataset.groupId;
+            this.activeLinkedGroupId = null;
+        }
+
+        const linkedEntities = Array.isArray(group?.others) ? group.others : [];
+        const visibleEntities = linkedEntities.filter((entity) => !this.isLinkedEntityHidden(entity.id));
+        const hiddenEntities = linkedEntities.filter((entity) => this.isLinkedEntityHidden(entity.id));
+        const activeFilter = this.currentLinkedEntitiesFilter === 'hidden' ? 'hidden' : 'visible';
+
+        toolbar.innerHTML = this.buildLinkedEntitiesToolbar({
+            activeFilter,
+            visibleCount: visibleEntities.length,
+            hiddenCount: hiddenEntities.length
+        });
+
+        const entitiesToRender = activeFilter === 'hidden' ? hiddenEntities : visibleEntities;
+        let contentHtml;
+
+        if (entitiesToRender.length === 0) {
+            let message;
+            if (linkedEntities.length === 0) {
+                message = 'No linked entities available';
+            } else if (activeFilter === 'hidden') {
+                message = 'No hidden linked entities';
+            } else if (hiddenEntities.length > 0) {
+                message = 'No visible linked entities. Switch to Hidden to manage them.';
+            } else {
+                message = 'No visible linked entities';
+            }
+            contentHtml = `<span class="detail-empty">${this.escapeHtml(message)}</span>`;
+        } else {
+            const items = entitiesToRender
+                .map((entity) => this.buildLinkedEntityItem(entity, { hidden: this.isLinkedEntityHidden(entity.id) }))
+                .join('');
+            contentHtml = `<div class="linked-entities linked-entities--${activeFilter}">${items}</div>`;
+        }
+
+        body.innerHTML = contentHtml;
+        this.refreshIcons();
+    }
+
+    buildLinkedEntitiesToolbar({ activeFilter, visibleCount, hiddenCount }) {
+        const normalizedFilter = activeFilter === 'hidden' ? 'hidden' : 'visible';
+        return `
+            <button type="button" class="linked-entities__filter-button ${normalizedFilter === 'visible' ? 'is-active' : ''}" data-linked-filter="visible">
+                <span class="icon" data-lucide="eye"></span>
+                <span>Visible (${visibleCount})</span>
+            </button>
+            <button type="button" class="linked-entities__filter-button ${normalizedFilter === 'hidden' ? 'is-active' : ''}" data-linked-filter="hidden">
+                <span class="icon" data-lucide="eye-off"></span>
+                <span>Hidden (${hiddenCount})</span>
+            </button>
+        `;
+    }
+
+    buildLinkedEntityItem(entity, options = {}) {
+        if (!entity) {
+            return '';
+        }
+
+        const normalizedId = this.normalizeEntityId(entity.id);
+        if (!normalizedId) {
+            return '';
+        }
+
+        const isHidden = options?.hidden === true;
+        const stateHtml = this.formatDeviceState(entity.state, entity);
+        const toggleAction = isHidden ? 'unhide' : 'hide';
+        const toggleLabel = isHidden ? 'Unhide' : 'Hide';
+        const toggleIcon = isHidden ? 'eye' : 'eye-off';
+
+        return `
+            <div class="linked-entity ${isHidden ? 'linked-entity--hidden' : ''}" data-entity-id="${this.escapeHtml(normalizedId)}" data-visibility="${isHidden ? 'hidden' : 'visible'}">
+                <div class="linked-entity__meta">
+                    <span class="icon" data-lucide="${this.escapeHtml(this.iconForDomain(entity.domain))}"></span>
+                    <div class="linked-entity__text">
+                        <span class="linked-entity__name">${this.escapeHtml(entity.name || entity.id)}</span>
+                        <span class="linked-entity__type">${this.escapeHtml(this.titleCase(entity.domain || entity.type || 'Unknown'))}</span>
+                    </div>
+                </div>
+                <div class="linked-entity__state">${stateHtml}</div>
+                <div class="linked-entity__actions">
+                    <button type="button" class="linked-entity__visibility-toggle" data-entity-id="${this.escapeHtml(normalizedId)}" data-action="${toggleAction}" aria-label="${this.escapeHtml(`${toggleLabel} ${entity.name || entity.id}`)}">
+                        <span class="icon" data-lucide="${toggleIcon}"></span>
+                        <span>${toggleLabel}</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    handleLinkedEntitiesSectionClick(event) {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) {
+            return;
+        }
+
+        const filterButton = target.closest('[data-linked-filter]');
+        if (filterButton) {
+            event.preventDefault();
+            const requestedFilter = filterButton.dataset.linkedFilter;
+            if (requestedFilter && requestedFilter !== this.currentLinkedEntitiesFilter) {
+                this.currentLinkedEntitiesFilter = requestedFilter === 'hidden' ? 'hidden' : 'visible';
+                const group = this.getActiveLinkedEntityGroup();
+                this.renderLinkedEntitiesSection(group);
+            }
+            return;
+        }
+
+        const toggleButton = target.closest('.linked-entity__visibility-toggle');
+        if (!toggleButton) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const entityId = this.normalizeEntityId(toggleButton.dataset.entityId);
+        const action = toggleButton.dataset.action;
+        const group = this.getActiveLinkedEntityGroup();
+        if (!entityId || !group) {
+            return;
+        }
+
+        const entity = Array.isArray(group.others)
+            ? group.others.find((item) => this.normalizeEntityId(item.id) === entityId)
+            : null;
+
+        if (action === 'hide') {
+            this.hideLinkedEntity(entity || entityId, { group });
+        } else if (action === 'unhide') {
+            this.unhideLinkedEntity(entity || entityId, { group });
+        }
+
+        const updatedGroup = this.getActiveLinkedEntityGroup();
+        this.renderLinkedEntitiesSection(updatedGroup);
+    }
+
+    getActiveLinkedEntityGroup() {
+        const normalizedGroupId = this.activeLinkedGroupId ? this.normalizeGroupId(this.activeLinkedGroupId) : null;
+        if (normalizedGroupId) {
+            const byId = this.deviceGroups.find((group) => this.normalizeGroupId(group.id) === normalizedGroupId);
+            if (byId) {
+                return byId;
+            }
+        }
+
+        if (this.activeModalDeviceId) {
+            const device = this.devices.get(this.activeModalDeviceId);
+            if (device) {
+                return this.findDeviceGroup(device);
+            }
+        }
+
+        return null;
+    }
+
+    buildDeviceSummaryRows(device, group) {
+        const rows = [];
+
+        rows.push({
+            label: 'Domain',
+            value: this.escapeHtml(this.titleCase(device.domain || device.type || 'Unknown'))
+        });
+
+        rows.push({
+            label: 'Entity ID',
+            value: this.escapeHtml(device.id)
+        });
+
+        if (group?.name && group.name !== device.name) {
+            rows.push({
+                label: 'Group',
+                value: this.escapeHtml(group.name)
+            });
+        }
+
+        if (group) {
+            const linkedEntities = Array.isArray(group.others) ? group.others : [];
+            const hiddenLinked = linkedEntities.filter((entity) => this.isLinkedEntityHidden(entity.id)).length;
+            const visibleLinked = linkedEntities.length - hiddenLinked;
+
+            let summaryValue;
+            if (linkedEntities.length === 0) {
+                summaryValue = 'None';
+            } else if (hiddenLinked > 0) {
+                summaryValue = `${visibleLinked} visible • ${hiddenLinked} hidden`;
+            } else {
+                summaryValue = `${visibleLinked} visible`;
+            }
+
+            rows.push({
+                label: 'Linked Entities',
+                value: this.escapeHtml(summaryValue)
+            });
+        }
+
+        if (device.entityCategory) {
+            rows.push({
+                label: 'Entity Category',
+                value: this.escapeHtml(this.titleCase(device.entityCategory))
+            });
+        }
+
+        rows.push({
+            label: 'Availability',
+            value: this.buildAvailabilityPill(device)
+        });
+
+        if (typeof device.user_can_control === 'boolean') {
+            rows.push({
+                label: 'User Control',
+                value: this.formatDetailValue(device.user_can_control)
+            });
+        }
+
+        if (device.lastUpdated) {
+            rows.push({
+                label: 'Last Updated',
+                value: this.escapeHtml(this.formatTimestamp(device.lastUpdated))
+            });
+        }
+
+        if (this.deviceDataSource && this.deviceDataSource !== 'unknown') {
+            rows.push({
+                label: 'Data Source',
+                value: this.escapeHtml(this.formatDataSourceLabel(this.deviceDataSource))
+            });
+        }
+
+        return rows
+            .filter((row) => row && row.value)
+            .map((row) => `
+                <div class="device-detail-row">
+                    <span class="device-detail-label">${this.escapeHtml(row.label)}</span>
+                    <span class="device-detail-value">${row.value}</span>
+                </div>
+            `)
+            .join('');
+    }
+
+    buildDetailSection(data) {
+        if (!data || typeof data !== 'object') {
+            return '<span class="detail-empty">No details available</span>';
+        }
+
+        const entries = Object.entries(data).filter(([key, value]) => typeof value !== 'function' && value !== undefined);
+        if (entries.length === 0) {
+            return '<span class="detail-empty">No details available</span>';
+        }
+
+        const rows = entries.map(([key, value]) => `
+            <div class="device-detail-row">
+                <span class="device-detail-label">${this.escapeHtml(this.titleCase(key))}</span>
+                <span class="device-detail-value">${this.formatDetailValue(value)}</span>
+            </div>
+        `).join('');
+
+        return `<div class="device-detail-grid">${rows}</div>`;
+    }
+
+    buildRawStateSection(rawState) {
+        if (!rawState || typeof rawState !== 'object' || Object.keys(rawState).length === 0) {
+            return '<span class="detail-empty">No raw payload available</span>';
+        }
+
+        return `<pre class="device-detail-json">${this.escapeHtml(JSON.stringify(rawState, null, 2))}</pre>`;
+    }
+
+    buildAvailabilityPill(device) {
+        if (device.available === true) {
+            return '<span class="status-pill is-online">Online</span>';
+        }
+
+        if (device.available === false) {
+            return '<span class="status-pill is-offline">Offline</span>';
+        }
+
+        return '<span class="status-pill is-unknown">Unknown</span>';
+    }
+
+    formatDetailValue(value) {
+        if (value === null || value === undefined) {
+            return '<span class="detail-empty">Not available</span>';
+        }
+
+        if (typeof value === 'boolean') {
+            return `<span class="status-pill ${value ? 'is-positive' : 'is-negative'}">${value ? 'True' : 'False'}</span>`;
+        }
+
+        if (typeof value === 'number') {
+            return this.escapeHtml(String(value));
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed ? this.escapeHtml(trimmed) : '<span class="detail-empty">Empty</span>';
+        }
+
+        if (Array.isArray(value)) {
+            if (value.length === 0) {
+                return '<span class="detail-empty">Empty</span>';
+            }
+            return `<pre class="device-detail-json">${this.escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
+        }
+
+        if (typeof value === 'object') {
+            const keys = Object.keys(value);
+            if (keys.length === 0) {
+                return '<span class="detail-empty">Empty</span>';
+            }
+            return `<pre class="device-detail-json">${this.escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
+        }
+
+        return this.escapeHtml(String(value));
+    }
+
+    formatDataSourceLabel(value) {
+        if (!value) {
+            return '';
+        }
+        return this.titleCase(String(value).replace(/[_\-]+/g, ' '));
+    }
+
+    titleCase(value) {
+        if (!value && value !== 0) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/[_\-]+/g, ' ')
+            .split(' ')
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    }
+
+    escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    formatTimestamp(value) {
+        if (!value) {
+            return '';
+        }
+
+        try {
+            const date = new Date(value);
+            if (!Number.isNaN(date.getTime())) {
+                return date.toLocaleString(undefined, { hour12: false });
+            }
+        } catch (error) {
+            console.warn('Failed to format timestamp', value, error);
+        }
+
+        return String(value);
     }
 
     formatLinkedNames(names) {
@@ -694,7 +1776,7 @@ class HomeAutomationApp {
 
         return `
             <button class="btn device-control btn-compact ${isOn ? 'btn-secondary' : 'btn-primary'}" 
-                    onclick="app.toggleDevice('${device.id}')">
+                    onclick="event.stopPropagation(); app.toggleDevice('${device.id}')">
                 <span class="icon" data-lucide="${icon}"></span>
                 <span>${label}</span>
             </button>
@@ -1025,19 +2107,27 @@ class HomeAutomationApp {
         return controllable.has(domain);
     }
     
-    createDeviceCard(device) {
+    createDeviceCard(device, options = {}) {
         const card = document.createElement('div');
         card.className = 'device-card';
         card.dataset.deviceId = device.id;
-        
+
         const isActive = device.state?.active ?? device.state?.on ?? false;
         const statusClass = device.available
             ? (isActive ? 'on' : 'off')
             : 'unavailable';
 
-        const controls = device.user_can_control 
+        const controls = device.user_can_control
             ? this.createDeviceControls(device)
             : '<p style="color: var(--text-tertiary); font-size: 0.8rem;">Read-only</p>';
+
+        const groupId = options?.groupId ? this.normalizeGroupId(options.groupId) : null;
+        const isHidden = options?.hidden === true;
+        const visibilityButton = groupId ? `
+            <button type="button" class="device-visibility-toggle" data-group-id="${groupId}" data-state="${isHidden ? 'hidden' : 'visible'}" aria-label="${isHidden ? 'Unhide device' : 'Hide device'}" title="${isHidden ? 'Unhide device' : 'Hide device'}">
+                <span class="icon" data-lucide="${isHidden ? 'eye' : 'eye-off'}"></span>
+            </button>
+        ` : '';
 
         card.innerHTML = `
             <div class="device-header">
@@ -1045,7 +2135,10 @@ class HomeAutomationApp {
                     <h3>${device.name}</h3>
                     <div class="device-type">${device.domain || device.type}</div>
                 </div>
-                <div class="device-status ${statusClass}"></div>
+                <div class="device-actions">
+                    ${visibilityButton}
+                    <div class="device-status ${statusClass}"></div>
+                </div>
             </div>
             <div class="device-state">
                 ${this.formatDeviceState(device.state, device)}
@@ -1054,7 +2147,7 @@ class HomeAutomationApp {
                 ${controls}
             </div>
         `;
-        
+
         return card;
     }
     
@@ -1064,7 +2157,7 @@ class HomeAutomationApp {
         if (!this.canControlDomain(domain)) {
             return `
                 <button class="btn device-control btn-secondary" 
-                        onclick="app.refreshDevice('${device.id}')">
+                        onclick="event.stopPropagation(); app.refreshDevice('${device.id}')">
                     <span class="icon" data-lucide="refresh-cw"></span>
                     <span>Refresh</span>
                 </button>
@@ -1077,7 +2170,7 @@ class HomeAutomationApp {
 
         return `
             <button class="btn device-control ${isOn ? 'btn-secondary' : 'btn-primary'}" 
-                    onclick="app.toggleDevice('${device.id}')">
+                    onclick="event.stopPropagation(); app.toggleDevice('${device.id}')">
                 <span class="icon" data-lucide="${icon}"></span>
                 <span>${label}</span>
             </button>
@@ -1485,32 +2578,9 @@ class HomeAutomationApp {
     }
     
     filterDevices(filter) {
-        const deviceCards = document.querySelectorAll('.device-card');
-        
-        const filterMap = {
-            lights: 'light',
-            sensors: 'sensor',
-            switches: 'switch',
-            climate: 'climate'
-        };
-
-        const normalizedFilter = filterMap[filter] || filter;
-
-        deviceCards.forEach(card => {
-            if (filter === 'all') {
-                card.style.display = '';
-                return;
-            }
-
-            const domains = (card.dataset.domains || '')
-                .split(',')
-                .map(item => item.trim())
-                .filter(Boolean);
-
-            const primaryDomain = (card.dataset.primaryDomain || '').trim();
-            const matches = domains.includes(normalizedFilter) || normalizedFilter === primaryDomain;
-            card.style.display = matches ? '' : 'none';
-        });
+        const normalized = this.normalizeDeviceFilter(filter);
+        this.currentDeviceFilter = normalized;
+        this.renderDevices();
     }
     
     // Scenes Management

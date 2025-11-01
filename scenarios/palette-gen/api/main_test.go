@@ -603,6 +603,54 @@ func TestExportHandler(t *testing.T) {
 		exportHandler(w, req)
 		assertErrorResponse(t, w, 400)
 	})
+
+	t.Run("Error_MissingFormat", func(t *testing.T) {
+		req := map[string]interface{}{
+			"palette": palette,
+			// format field intentionally missing
+		}
+		w, err := makeHTTPRequest("POST", "/export", req, exportHandler)
+		if err != nil {
+			t.Fatalf("Failed to make request: %v", err)
+		}
+		assertErrorResponse(t, w, 400)
+	})
+
+	t.Run("Error_MissingPalette", func(t *testing.T) {
+		req := map[string]interface{}{
+			"format": "css",
+			// palette field intentionally missing
+		}
+		w, err := makeHTTPRequest("POST", "/export", req, exportHandler)
+		if err != nil {
+			t.Fatalf("Failed to make request: %v", err)
+		}
+		assertErrorResponse(t, w, 400)
+	})
+
+	t.Run("Error_InvalidFormatType", func(t *testing.T) {
+		req := map[string]interface{}{
+			"palette": palette,
+			"format":  123, // Should be string, not number
+		}
+		w, err := makeHTTPRequest("POST", "/export", req, exportHandler)
+		if err != nil {
+			t.Fatalf("Failed to make request: %v", err)
+		}
+		assertErrorResponse(t, w, 400)
+	})
+
+	t.Run("Error_InvalidPaletteType", func(t *testing.T) {
+		req := map[string]interface{}{
+			"palette": "not-an-array", // Should be array, not string
+			"format":  "css",
+		}
+		w, err := makeHTTPRequest("POST", "/export", req, exportHandler)
+		if err != nil {
+			t.Fatalf("Failed to make request: %v", err)
+		}
+		assertErrorResponse(t, w, 400)
+	})
 }
 
 // TestHistoryHandler tests the palette history endpoint

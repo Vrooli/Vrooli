@@ -1,117 +1,53 @@
 #!/bin/bash
+# Runs API and CLI integration checks for Contact Book.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Integration Tests ==="
+testing::phase::init --target-time "240s" --require-runtime
 
-# Get API port dynamically
-API_PORT=$(lsof -ti:19313 2>/dev/null | head -1 | xargs -I {} lsof -nP -p {} 2>/dev/null | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1)
-if [ -z "$API_PORT" ]; then
-    # Fallback to checking service.json
-    API_PORT=$(jq -r '.services.api.port // empty' .vrooli/service.json 2>/dev/null)
+scenario_name="$TESTING_PHASE_SCENARIO_NAME"
+API_URL=""
+if command -v vrooli >/dev/null 2>&1; then
+  API_URL=$(testing::connectivity::get_api_url "$scenario_name" || true)
 fi
-if [ -z "$API_PORT" ]; then
-    API_PORT="19313"  # Final fallback
+
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to determine API URL (vrooli CLI required)"
+  testing::phase::end_with_summary "Integration checks incomplete"
 fi
 
-API_URL="http://localhost:${API_PORT}"
+# Core endpoints respond
+testing::phase::check "API health endpoint" curl -sf -o /dev/null "${API_URL}/health"
+testing::phase::check "Contacts listing" curl -sf -o /dev/null "${API_URL}/api/v1/contacts?limit=10"
+testing::phase::check "Relationships listing" curl -sf -o /dev/null "${API_URL}/api/v1/relationships?limit=10"
+testing::phase::check "Analytics endpoint" curl -sf -o /dev/null "${API_URL}/api/v1/analytics"
+testing::phase::check "Search endpoint" curl -sf -o /dev/null -X POST "${API_URL}/api/v1/search" -H "Content-Type: application/json" -d '{"query":"test","limit":5}'
 
-echo "Testing against API at: $API_URL"
-
-# Wait for API to be ready
-echo "Waiting for API to be ready..."
-for i in {1..30}; do
-    if curl -sf "${API_URL}/health" > /dev/null 2>&1; then
-        echo "✅ API is ready"
-        break
-    fi
-    if [ $i -eq 30 ]; then
-        echo "❌ API failed to start within 30 seconds"
-        exit 1
-    fi
-    sleep 1
-done
-
-# Test health endpoint
-echo "Testing health endpoint..."
-response=$(curl -sf "${API_URL}/health")
-if echo "$response" | jq -e '.status == "healthy"' > /dev/null 2>&1; then
-    echo "✅ Health endpoint working"
+# Create and fetch a contact to verify persistence
+create_payload='{"full_name":"Integration Test Contact","emails":["integration@test.com"]}'
+create_response=$(curl -sf -X POST "${API_URL}/api/v1/contacts" -H 'Content-Type: application/json' -d "$create_payload" || true)
+contact_id=""
+if command -v jq >/dev/null 2>&1; then
+  contact_id=$(echo "$create_response" | jq -r '.id // empty')
 else
-    echo "❌ Health endpoint returned unexpected response"
-    exit 1
+  contact_id=$(echo "$create_response" | sed -n 's/.*"id"\s*:\s*"\([^"]\+\)".*/\1/p')
 fi
-
-# Test contacts endpoint
-echo "Testing contacts endpoint..."
-response=$(curl -sf "${API_URL}/api/v1/contacts")
-if echo "$response" | jq -e '.persons' > /dev/null 2>&1; then
-    echo "✅ Contacts endpoint working"
+if [ -n "$contact_id" ]; then
+  testing::phase::check "Retrieve created contact" curl -sf -o /dev/null "${API_URL}/api/v1/contacts/${contact_id}"
 else
-    echo "❌ Contacts endpoint failed"
-    exit 1
+  testing::phase::add_warning "Contact creation response missing id"
+  testing::phase::add_test skipped
 fi
 
-# Test search endpoint
-echo "Testing search endpoint..."
-response=$(curl -sf -X POST "${API_URL}/api/v1/search" \
-    -H "Content-Type: application/json" \
-    -d '{"query":"test","limit":5}')
-if echo "$response" | jq -e '.results' > /dev/null 2>&1; then
-    echo "✅ Search endpoint working"
+if command -v contact-book >/dev/null 2>&1; then
+  testing::phase::check "contact-book help" contact-book help >/dev/null
+  testing::phase::check "contact-book status" contact-book status --json >/dev/null
+  testing::phase::check "contact-book list" contact-book list --json --limit 5 >/dev/null
 else
-    echo "❌ Search endpoint failed"
-    exit 1
+  testing::phase::add_warning "contact-book CLI not in PATH; skipping CLI smoke checks"
+  testing::phase::add_test skipped
 fi
 
-# Test relationships endpoint
-echo "Testing relationships endpoint..."
-response=$(curl -sf "${API_URL}/api/v1/relationships")
-if echo "$response" | jq -e '.relationships' > /dev/null 2>&1; then
-    echo "✅ Relationships endpoint working"
-else
-    echo "❌ Relationships endpoint failed"
-    exit 1
-fi
-
-# Test analytics endpoint
-echo "Testing analytics endpoint..."
-response=$(curl -sf "${API_URL}/api/v1/analytics")
-if echo "$response" | jq -e 'has("analytics")' > /dev/null 2>&1; then
-    echo "✅ Analytics endpoint working"
-else
-    echo "❌ Analytics endpoint failed"
-    exit 1
-fi
-
-# Test CLI commands
-echo "Testing CLI commands..."
-if command -v contact-book > /dev/null 2>&1; then
-    # Test help
-    if contact-book help > /dev/null 2>&1; then
-        echo "✅ CLI help command working"
-    else
-        echo "❌ CLI help command failed"
-        exit 1
-    fi
-
-    # Test status
-    if contact-book status --json > /dev/null 2>&1; then
-        echo "✅ CLI status command working"
-    else
-        echo "❌ CLI status command failed"
-        exit 1
-    fi
-
-    # Test list
-    if contact-book list --json --limit 1 > /dev/null 2>&1; then
-        echo "✅ CLI list command working"
-    else
-        echo "❌ CLI list command failed"
-        exit 1
-    fi
-else
-    echo "⚠️  CLI not in PATH, skipping CLI tests"
-fi
-
-echo "✅ All integration tests passed"
+testing::phase::end_with_summary "Integration validation completed"

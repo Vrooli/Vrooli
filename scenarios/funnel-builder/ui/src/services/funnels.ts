@@ -1,4 +1,4 @@
-import { Funnel, FunnelAnalytics, FunnelSettings, FunnelStep } from '../types'
+import { Funnel, FunnelAnalytics, FunnelSettings, FunnelStep, Project } from '../types'
 import { apiFetch } from '../utils/apiClient'
 
 type RawJson = Record<string, unknown>
@@ -79,6 +79,12 @@ const normalizeFunnel = (raw: unknown, index: number): Funnel => {
     .map((step, positionIndex) => toFunnelStep(step, positionIndex))
     .sort((a, b) => a.position - b.position)
 
+  const projectId = typeof candidate.project_id === 'string'
+    ? candidate.project_id
+    : typeof candidate.projectId === 'string'
+      ? candidate.projectId
+      : null
+
   const createdAt = typeof candidate.created_at === 'string'
     ? candidate.created_at
     : typeof candidate.createdAt === 'string'
@@ -98,6 +104,7 @@ const normalizeFunnel = (raw: unknown, index: number): Funnel => {
       : typeof candidate.tenantId === 'string'
         ? candidate.tenantId
         : null,
+    projectId,
     name: typeof candidate.name === 'string' ? candidate.name : 'Untitled Funnel',
     slug: typeof candidate.slug === 'string' ? candidate.slug : 'untitled-funnel',
     description: typeof candidate.description === 'string' ? candidate.description : undefined,
@@ -106,6 +113,43 @@ const normalizeFunnel = (raw: unknown, index: number): Funnel => {
     createdAt,
     updatedAt,
     status: (candidate.status ?? 'draft') as Funnel['status']
+  }
+}
+
+const normalizeProject = (raw: unknown, index: number): Project => {
+  const candidate = raw && typeof raw === 'object' ? (raw as RawJson) : {}
+
+  const funnelsSource = Array.isArray(candidate.funnels) ? candidate.funnels : []
+  const funnels = funnelsSource.map((funnel, funnelIndex) => normalizeFunnel(funnel, funnelIndex))
+
+  const createdAt = typeof candidate.created_at === 'string'
+    ? candidate.created_at
+    : typeof candidate.createdAt === 'string'
+      ? candidate.createdAt
+      : new Date().toISOString()
+
+  const updatedAt = typeof candidate.updated_at === 'string'
+    ? candidate.updated_at
+    : typeof candidate.updatedAt === 'string'
+      ? candidate.updatedAt
+      : createdAt
+
+  const descriptionRaw = typeof candidate.description === 'string' ? candidate.description.trim() : ''
+
+  return {
+    id: typeof candidate.id === 'string' ? candidate.id : `project-${index}`,
+    tenantId: typeof candidate.tenant_id === 'string'
+      ? candidate.tenant_id
+      : typeof candidate.tenantId === 'string'
+        ? candidate.tenantId
+        : null,
+    name: typeof candidate.name === 'string' && candidate.name.trim() !== ''
+      ? candidate.name
+      : 'Untitled Project',
+    description: descriptionRaw !== '' ? descriptionRaw : undefined,
+    createdAt,
+    updatedAt,
+    funnels
   }
 }
 
@@ -119,4 +163,54 @@ export async function fetchFunnelAnalytics(
   init?: RequestInit
 ): Promise<FunnelAnalytics> {
   return apiFetch<FunnelAnalytics>(`/funnels/${funnelId}/analytics`, init)
+}
+
+export interface ProjectPayload {
+  name: string
+  description?: string
+  tenantId?: string
+}
+
+export async function fetchProjects(init?: RequestInit): Promise<Project[]> {
+  const response = await apiFetch<unknown[]>('/projects', init)
+  return response.map((raw, index) => normalizeProject(raw, index))
+}
+
+export async function createProject(payload: ProjectPayload, init?: RequestInit): Promise<Project> {
+  const body = JSON.stringify({
+    name: payload.name,
+    description: payload.description,
+    tenant_id: payload.tenantId
+  })
+
+  return apiFetch<Project>('/projects', {
+    ...init,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {})
+    },
+    body
+  })
+}
+
+export async function updateProject(
+  projectId: string,
+  payload: Partial<ProjectPayload>,
+  init?: RequestInit
+): Promise<Project> {
+  const body = JSON.stringify({
+    name: payload.name,
+    description: payload.description
+  })
+
+  return apiFetch<Project>(`/projects/${projectId}`, {
+    ...init,
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {})
+    },
+    body
+  })
 }

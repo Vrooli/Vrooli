@@ -650,87 +650,18 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: comment-system
+Phased testing is orchestrated via `test/run-tests.sh`, which sources the shared runner in
+`scripts/scenarios/testing/shell/runner.sh` and emits live artifacts beneath
+`coverage/phase-results/*.json` for requirements reporting.
 
-# Structure validation:
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/comment-system
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - ui/index.html # Admin dashboard
-    - ui/sdk/vrooli-comments.js # JavaScript SDK
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - ui
-    - ui/sdk
-    - initialization/storage/postgres
-    - docs
+- **Structure** — verifies presence/permissions of core files (`api/main.go`, `cli/comment-system`, schema, SDK assets) and required directories.
+- **Dependencies** — runs `go mod verify`, smoke checks npm dependency resolution, and exercises `comment-system help` to ensure the CLI is callable.
+- **Unit** — executes Go unit tests with coverage aggregation through `testing::unit::run_all_tests`, exporting reports to `coverage/comment-system/go/`.
+- **Integration** — drives CRUD + external dependency flows by running `test/test-comment-crud.sh` and `test/test-integration.sh` against the runtime-discovered API URL.
+- **Business** — validates threaded conversations (`test/test-threading.sh`) and CLI workflows (`comment-system status --json`).
+- **Performance** — samples health/latency for `/api/v1/comments/{scenario}` and raises warnings when baseline thresholds are exceeded.
 
-# Resource validation:
-resources:
-  required: [postgres]
-  optional: [redis]
-  health_timeout: 60
-
-# Declarative tests:
-tests:
-  - name: "PostgreSQL is accessible"
-    type: http
-    service: postgres
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Comment creation API works"
-    type: http
-    service: api
-    endpoint: /api/v1/comments/test-scenario
-    method: POST
-    body:
-      content: "Test comment"
-      content_type: "plaintext"
-    expect:
-      status: 201
-      body:
-        success: true
-        
-  - name: "Comment retrieval API works"
-    type: http
-    service: api
-    endpoint: /api/v1/comments/test-scenario
-    method: GET
-    expect:
-      status: 200
-      body:
-        comments: []
-        total_count: 0
-        
-  - name: "CLI status command works"
-    type: exec
-    command: ./cli/comment-system status --json
-    expect:
-      exit_code: 0
-      output_contains: ["healthy"]
-      
-  - name: "Database schema is initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('scenario_configs', 'comments', 'comment_history')"
-    expect:
-      rows: 
-        - count: 3
-```
+The lifecycle `test` step now delegates to this phased suite, ensuring `make test` and `vrooli scenario test comment-system` share identical coverage-aware execution.
 
 ### Performance Validation
 - [x] API response times meet SLA targets (<200ms for CRUD operations)

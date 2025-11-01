@@ -4,6 +4,9 @@
   "timestamp": "2025-09-13T00:00:00Z",
   "readiness": true,
   "version": "1.0.0",
+  "status_notes": [
+    "Static UI bundle served by Vite; runtime telemetry confirms API reachability inside the app."
+  ],
   "api_connectivity": {
     "connected": false,
     "api_url": "http://localhost:${API_PORT}",
@@ -15,6 +18,18 @@
       "retryable": false
     },
     "latency_ms": null
+  },
+  "dependencies": {
+    "crypto-tools-api": {
+      "connected": false,
+      "latency_ms": null,
+      "error": {
+        "code": "STATIC_UI_VITE_CHECK",
+        "message": "Static health payload cannot perform live checks; see api_connectivity for context.",
+        "category": "configuration",
+        "retryable": false
+      }
+    }
   },
   "static_files": {
     "available": true,
@@ -76,5 +91,10 @@
       "PBKDF2",
       "Argon2"
     ]
+  },
+  "build": {
+    "commit": "static-snapshot-2025-09-13",
+    "version": "1.0.0",
+    "environment": "development"
   }
 }

@@ -5,7 +5,20 @@ const http = require('http');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
+
+// Fail fast if UI_PORT is not configured
+if (!process.env.UI_PORT) {
+    console.error('ERROR: UI_PORT environment variable is required');
+    process.exit(1);
+}
+
+// Fail fast if API_PORT is not configured
+if (!process.env.API_PORT) {
+    console.error('ERROR: API_PORT environment variable is required');
+    process.exit(1);
+}
+
+const PORT = process.env.UI_PORT;
 const API_PORT = process.env.API_PORT;
 const startTime = new Date();
 
@@ -113,14 +126,9 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Serve profile management page
-app.get('/profiles', (req, res) => {
-    res.sendFile(path.join(__dirname, 'profiles.html'));
-});
-
-// Serve analytics page
-app.get('/analytics', (req, res) => {
-    res.sendFile(path.join(__dirname, 'analytics.html'));
+// Serve deep links through the primary single-page application shell
+app.get(['/profiles', '/analytics', '/providers', '/templates', '/contacts'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Health check helper functions
@@ -131,7 +139,7 @@ function checkStaticFiles() {
     };
 
     // Check for essential static files
-    const requiredFiles = ['index.html', 'profiles.html', 'analytics.html'];
+    const requiredFiles = ['index.html'];
     const missingFiles = [];
 
     requiredFiles.forEach(fileName => {

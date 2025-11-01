@@ -1,59 +1,44 @@
 #!/bin/bash
+# Validates required files and directories for the Contact Book scenario.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Structure Tests ==="
-
-# Check required directories
-echo "Checking directory structure..."
+testing::phase::init --target-time "30s"
 
 required_dirs=(
-    ".vrooli"
-    "api"
-    "cli"
-    "initialization"
-    "initialization/postgres"
-    "test"
-    "test/phases"
+  .vrooli
+  api
+  cli
+  data
+  initialization
+  initialization/postgres
+  test
+  test/phases
+  ui
 )
-
-for dir in "${required_dirs[@]}"; do
-    if [ -d "$dir" ]; then
-        echo "✅ Directory exists: $dir"
-    else
-        echo "❌ Missing directory: $dir"
-        exit 1
-    fi
-done
-
-# Check required files
-echo "Checking required files..."
-
-required_files=(
-    ".vrooli/service.json"
-    "PRD.md"
-    "README.md"
-    "Makefile"
-    "api/main.go"
-    "api/go.mod"
-    "cli/install.sh"
-)
-
-for file in "${required_files[@]}"; do
-    if [ -f "$file" ]; then
-        echo "✅ File exists: $file"
-    else
-        echo "❌ Missing file: $file"
-        exit 1
-    fi
-done
-
-# Check scenario-test.yaml exists (legacy compatibility)
-if [ -f "scenario-test.yaml" ]; then
-    echo "✅ Legacy scenario-test.yaml exists"
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
 else
-    echo "❌ Missing scenario-test.yaml (legacy support)"
-    exit 1
+  testing::phase::add_test failed
 fi
 
-echo "✅ All structure tests passed"
+required_files=(
+  .vrooli/service.json
+  Makefile
+  PRD.md
+  README.md
+  api/main.go
+  api/go.mod
+  cli/install.sh
+  test/run-tests.sh
+  test/phases/test-structure.sh
+)
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+testing::phase::end_with_summary "Structure validation completed"

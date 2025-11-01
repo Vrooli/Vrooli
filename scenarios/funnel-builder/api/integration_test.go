@@ -23,9 +23,11 @@ func TestCompleteFunnelFlow(t *testing.T) {
 
 	t.Run("CompleteUserJourney", func(t *testing.T) {
 		// Step 1: Create funnel
+		projectID := createTestProject(t, testServer.Server, "Complete Journey Project")
 		funnelData := map[string]interface{}{
 			"name":        "Complete Journey Test",
 			"description": "Testing full user journey",
+			"project_id":  projectID,
 			"steps": []map[string]interface{}{
 				{
 					"type":     "form",

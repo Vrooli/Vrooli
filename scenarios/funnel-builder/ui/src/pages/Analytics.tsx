@@ -349,14 +349,15 @@ const Analytics = () => {
   const hasDailyData = dailyPerformanceData.some((entry) => entry.views || entry.leads || entry.conversions)
 
   const dropOffChartData = useMemo(() => {
-    if (!analytics) {
+    const dropOffPoints = analytics?.dropOffPoints ?? []
+    if (!dropOffPoints.length) {
       return []
     }
 
-    const totalVisitors = Math.max(analytics.totalLeads ?? 0, analytics.totalViews ?? 0)
+    const totalVisitors = Math.max(analytics?.totalLeads ?? 0, analytics?.totalViews ?? 0)
     let previousVisitors = totalVisitors
 
-    return analytics.dropOffPoints.map((point) => {
+    return dropOffPoints.map((point) => {
       const visitors = point.visitors || previousVisitors
       const completions = point.responses || 0
       const dropOff = Math.max(visitors - completions, 0)

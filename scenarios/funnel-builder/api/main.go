@@ -27,6 +27,7 @@ type Server struct {
 type Funnel struct {
 	ID          string          `json:"id"`
 	TenantID    *string         `json:"tenant_id,omitempty"`
+	ProjectID   *string         `json:"project_id,omitempty"`
 	Name        string          `json:"name"`
 	Slug        string          `json:"slug"`
 	Description string          `json:"description,omitempty"`
@@ -35,6 +36,16 @@ type Funnel struct {
 	Status      string          `json:"status"`
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
+type Project struct {
+	ID          string    `json:"id"`
+	TenantID    *string   `json:"tenant_id,omitempty"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Funnels     []Funnel  `json:"funnels"`
 }
 
 type FunnelStep struct {
@@ -197,6 +208,11 @@ func (s *Server) setupRoutes() {
 	{
 		api.GET("/health", s.handleHealth)
 
+		// Project endpoints
+		api.GET("/projects", s.handleGetProjects)
+		api.POST("/projects", s.handleCreateProject)
+		api.PUT("/projects/:id", s.handleUpdateProject)
+
 		// Funnel endpoints
 		api.GET("/funnels", s.handleGetFunnels)
 		api.GET("/funnels/:id", s.handleGetFunnel)
@@ -261,11 +277,156 @@ func (s *Server) handleHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func (s *Server) handleGetProjects(c *gin.Context) {
+	tenantID := c.Query("tenant_id")
+
+	var tenantUUID *uuid.UUID
+	if tenantID != "" {
+		parsed, err := uuid.Parse(tenantID)
+		if err == nil {
+			tenantUUID = &parsed
+		}
+	}
+
+	query := `
+		SELECT id, tenant_id, name, COALESCE(description, ''), created_at, updated_at
+		FROM funnel_builder.projects
+		WHERE ($1::uuid IS NULL OR tenant_id = $1)
+		ORDER BY created_at DESC
+	`
+
+	rows, err := s.db.Query(context.Background(), query, tenantUUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var projects []Project
+	for rows.Next() {
+		var p Project
+		err := rows.Scan(&p.ID, &p.TenantID, &p.Name, &p.Description, &p.CreatedAt, &p.UpdatedAt)
+		if err != nil {
+			log.Printf("failed to scan project row: %v", err)
+			continue
+		}
+
+		funnels, funnelErr := s.getProjectFunnels(&p.ID)
+		if funnelErr != nil {
+			log.Printf("failed to load funnels for project %s: %v", p.ID, funnelErr)
+		}
+		p.Funnels = funnels
+		projects = append(projects, p)
+	}
+
+	c.JSON(http.StatusOK, projects)
+}
+
+func (s *Server) handleCreateProject(c *gin.Context) {
+	var input struct {
+		Name        string  `json:"name" binding:"required"`
+		Description string  `json:"description"`
+		TenantID    *string `json:"tenant_id"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		return
+	}
+
+	description := strings.TrimSpace(input.Description)
+
+	query := `
+		INSERT INTO funnel_builder.projects (name, description, tenant_id)
+		VALUES ($1, NULLIF($2, ''), $3)
+		RETURNING id, tenant_id, name, COALESCE(description, ''), created_at, updated_at
+	`
+
+	var project Project
+	err := s.db.QueryRow(context.Background(), query, name, description, input.TenantID).Scan(
+		&project.ID,
+		&project.TenantID,
+		&project.Name,
+		&project.Description,
+		&project.CreatedAt,
+		&project.UpdatedAt,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	project.Funnels = []Funnel{}
+
+	c.JSON(http.StatusCreated, project)
+}
+
+func (s *Server) handleUpdateProject(c *gin.Context) {
+	id := c.Param("id")
+
+	var input struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	name := strings.TrimSpace(input.Name)
+	description := strings.TrimSpace(input.Description)
+
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		return
+	}
+
+	query := `
+		UPDATE funnel_builder.projects
+		SET name = $2, description = NULLIF($3, ''), updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, tenant_id, name, COALESCE(description, ''), created_at, updated_at
+	`
+
+	var project Project
+	err := s.db.QueryRow(context.Background(), query, id, name, description).Scan(
+		&project.ID,
+		&project.TenantID,
+		&project.Name,
+		&project.Description,
+		&project.CreatedAt,
+		&project.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	funnels, funnelErr := s.getProjectFunnels(&project.ID)
+	if funnelErr != nil {
+		log.Printf("failed to load funnels for project %s: %v", project.ID, funnelErr)
+	}
+	project.Funnels = funnels
+
+	c.JSON(http.StatusOK, project)
+}
+
 func (s *Server) handleGetFunnels(c *gin.Context) {
 	tenantID := c.Query("tenant_id")
 
 	query := `
-		SELECT id, tenant_id, name, slug, description, settings, status, created_at, updated_at
+		SELECT id, tenant_id, project_id, name, slug, description, settings, status, created_at, updated_at
 		FROM funnel_builder.funnels
 		WHERE ($1::uuid IS NULL OR tenant_id = $1)
 		ORDER BY created_at DESC
@@ -287,7 +448,7 @@ func (s *Server) handleGetFunnels(c *gin.Context) {
 	var funnels []Funnel
 	for rows.Next() {
 		var f Funnel
-		err := rows.Scan(&f.ID, &f.TenantID, &f.Name, &f.Slug, &f.Description, &f.Settings, &f.Status, &f.CreatedAt, &f.UpdatedAt)
+		err := rows.Scan(&f.ID, &f.TenantID, &f.ProjectID, &f.Name, &f.Slug, &f.Description, &f.Settings, &f.Status, &f.CreatedAt, &f.UpdatedAt)
 		if err != nil {
 			continue
 		}
@@ -308,13 +469,22 @@ func (s *Server) handleGetFunnel(c *gin.Context) {
 
 	var f Funnel
 	query := `
-		SELECT id, tenant_id, name, slug, description, settings, status, created_at, updated_at
+		SELECT id, tenant_id, project_id, name, slug, description, settings, status, created_at, updated_at
 		FROM funnel_builder.funnels
 		WHERE id = $1
 	`
 
 	err := s.db.QueryRow(context.Background(), query, id).Scan(
-		&f.ID, &f.TenantID, &f.Name, &f.Slug, &f.Description, &f.Settings, &f.Status, &f.CreatedAt, &f.UpdatedAt,
+		&f.ID,
+		&f.TenantID,
+		&f.ProjectID,
+		&f.Name,
+		&f.Slug,
+		&f.Description,
+		&f.Settings,
+		&f.Status,
+		&f.CreatedAt,
+		&f.UpdatedAt,
 	)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Funnel not found"})
@@ -338,10 +508,22 @@ func (s *Server) handleCreateFunnel(c *gin.Context) {
 		Steps       []FunnelStep    `json:"steps"`
 		Settings    json.RawMessage `json:"settings"`
 		TenantID    *string         `json:"tenant_id"`
+		ProjectID   *string         `json:"project_id"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.ProjectID == nil || *input.ProjectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id is required"})
+		return
+	}
+
+	projectID := strings.TrimSpace(*input.ProjectID)
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id is required"})
 		return
 	}
 
@@ -362,12 +544,12 @@ func (s *Server) handleCreateFunnel(c *gin.Context) {
 
 	var funnelID string
 	query := `
-		INSERT INTO funnel_builder.funnels (name, slug, description, settings, tenant_id)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO funnel_builder.funnels (name, slug, description, settings, tenant_id, project_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
 
-	err = tx.QueryRow(context.Background(), query, input.Name, input.Slug, input.Description, input.Settings, input.TenantID).Scan(&funnelID)
+	err = tx.QueryRow(context.Background(), query, input.Name, input.Slug, input.Description, input.Settings, input.TenantID, projectID).Scan(&funnelID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -407,6 +589,7 @@ func (s *Server) handleUpdateFunnel(c *gin.Context) {
 		Steps       []FunnelStep    `json:"steps"`
 		Settings    json.RawMessage `json:"settings"`
 		Status      string          `json:"status"`
+		ProjectID   *string         `json:"project_id"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -420,7 +603,25 @@ func (s *Server) handleUpdateFunnel(c *gin.Context) {
 		WHERE id = $1
 	`
 
-	_, err := s.db.Exec(context.Background(), query, id, input.Name, input.Description, input.Settings, input.Status)
+	args := []interface{}{id, input.Name, input.Description, input.Settings, input.Status}
+
+	if input.ProjectID != nil {
+		trimmed := strings.TrimSpace(*input.ProjectID)
+		var project interface{}
+		if trimmed == "" {
+			project = nil
+		} else {
+			project = trimmed
+		}
+		query = `
+			UPDATE funnel_builder.funnels
+			SET name = $2, description = $3, settings = $4, status = $5, project_id = $6, updated_at = NOW()
+			WHERE id = $1
+		`
+		args = append(args, project)
+	}
+
+	_, err := s.db.Exec(context.Background(), query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -658,7 +859,7 @@ func (s *Server) handleGetAnalytics(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var dropOffPoints []map[string]interface{}
+	dropOffPoints := make([]map[string]interface{}, 0)
 	for rows.Next() {
 		var stepID, stepTitle string
 		var position, responses, visitors int
@@ -722,7 +923,7 @@ func (s *Server) handleGetAnalytics(c *gin.Context) {
 	}
 	defer dailyRows.Close()
 
-	var dailyStats []map[string]interface{}
+	dailyStats := make([]map[string]interface{}, 0)
 	for dailyRows.Next() {
 		var day time.Time
 		var views, leads, conversions int
@@ -760,7 +961,7 @@ func (s *Server) handleGetAnalytics(c *gin.Context) {
 	}
 	defer trafficRows.Close()
 
-	var trafficSources []map[string]interface{}
+	trafficSources := make([]map[string]interface{}, 0)
 	for trafficRows.Next() {
 		var source string
 		var count int
@@ -938,6 +1139,59 @@ func (s *Server) handleGetTemplate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, template)
+}
+
+func (s *Server) getProjectFunnels(projectID *string) ([]Funnel, error) {
+	var (
+		query string
+		args  []interface{}
+	)
+
+	if projectID == nil {
+		query = `
+			SELECT id, tenant_id, project_id, name, slug, description, settings, status, created_at, updated_at
+			FROM funnel_builder.funnels
+			WHERE project_id IS NULL
+			ORDER BY created_at DESC
+		`
+	} else {
+		query = `
+			SELECT id, tenant_id, project_id, name, slug, description, settings, status, created_at, updated_at
+			FROM funnel_builder.funnels
+			WHERE project_id = $1
+			ORDER BY created_at DESC
+		`
+		args = append(args, *projectID)
+	}
+
+	rows, err := s.db.Query(context.Background(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var funnels []Funnel
+	for rows.Next() {
+		var f Funnel
+		err := rows.Scan(&f.ID, &f.TenantID, &f.ProjectID, &f.Name, &f.Slug, &f.Description, &f.Settings, &f.Status, &f.CreatedAt, &f.UpdatedAt)
+		if err != nil {
+			log.Printf("failed to scan funnel for project: %v", err)
+			continue
+		}
+
+		steps, stepErr := s.getFunnelSteps(f.ID)
+		if stepErr != nil {
+			log.Printf("failed to load steps for funnel %s: %v", f.ID, stepErr)
+		}
+		f.Steps = steps
+		funnels = append(funnels, f)
+	}
+
+	if funnels == nil {
+		return []Funnel{}, nil
+	}
+
+	return funnels, nil
 }
 
 // Helper functions

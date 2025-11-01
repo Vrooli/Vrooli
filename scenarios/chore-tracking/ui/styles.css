@@ -991,12 +991,64 @@ body {
     .header-right {
         align-items: stretch;
         width: 100%;
-        gap: 14px;
+        gap: 18px;
     }
 
     .user-stats {
-        justify-content: space-between;
+        justify-content: flex-start;
         width: 100%;
+        gap: 14px;
+        padding: 14px 6px;
+        border: 1px solid #E5E7EB;
+        border-radius: 16px;
+        background: #F5F3FF;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .user-stats::-webkit-scrollbar {
+        display: none;
+    }
+
+    .user-stats {
+        scrollbar-width: none;
+    }
+
+    .stat-card,
+    .user-avatar {
+        flex: 0 0 160px;
+        scroll-snap-align: start;
+    }
+
+    .stat-card {
+        padding: 14px;
+    }
+
+    .user-avatar {
+        min-width: 160px;
+        height: auto;
+        padding: 16px;
+        border-radius: 16px;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .avatar-emoji {
+        font-size: 36px;
+    }
+
+    .level-badge {
+        position: static;
+        width: auto;
+        height: auto;
+        padding: 6px 12px;
+        background: rgba(255, 255, 255, 0.18);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.35);
     }
 
     .header-controls {
@@ -1007,20 +1059,31 @@ body {
 
     .main-content {
         grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
     }
 
     .sidebar {
         flex-direction: row;
         gap: 8px;
         border-right: none;
-        border-bottom: 1px solid #E5E7EB;
-        padding: 16px;
+        border-top: 1px solid #E5E7EB;
+        border-bottom: none;
+        padding: 12px 16px;
         overflow-x: auto;
+        order: 2;
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
+        background: var(--bg-card);
+        box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(6px);
     }
 
     .nav-btn {
         flex: 1 0 auto;
         justify-content: center;
+        padding: 12px 10px;
     }
 
     .nav-text {
@@ -1028,7 +1091,8 @@ body {
     }
 
     .content-area {
-        padding: 24px 20px 40px;
+        order: 1;
+        padding: 24px 20px 96px;
     }
 
     .quests-grid,
@@ -1063,17 +1127,20 @@ body {
     }
 
     .tagline {
-        font-size: 12px;
+        display: none;
     }
 
     .user-stats {
         gap: 12px;
+        padding: 12px 4px;
     }
 
     .stat-card {
-        padding: 10px 12px;
-        flex: 1 1 calc(50% - 12px);
+        padding: 12px;
+        flex: 0 0 140px;
         min-width: 140px;
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .stat-value {
@@ -1081,20 +1148,45 @@ body {
     }
 
     .user-avatar {
-        width: 56px;
-        height: 56px;
+        width: auto;
+        height: auto;
+        min-width: 140px;
+        flex: 0 0 140px;
     }
 
     .header-controls {
         align-items: stretch;
+        flex-direction: column;
+        gap: 14px;
     }
 
     .sound-toggle {
-        align-self: center;
+        align-self: stretch;
+        justify-content: center;
+        height: 48px;
+    }
+
+    .power-ups-container {
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding: 12px 10px;
+        gap: 10px;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .power-ups-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .power-up-badge {
+        flex: 0 0 72px;
+        scroll-snap-align: center;
     }
 
     .content-area {
-        padding: 20px 16px 36px;
+        padding: 20px 16px 96px;
     }
 
     .view-header {
@@ -1129,18 +1221,12 @@ body {
 
 @media (max-width: 420px) {
     .user-stats {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
+        padding: 10px 2px;
     }
 
     .stat-card {
-        min-width: 0;
-        justify-content: center;
-    }
-
-    .user-avatar {
-        margin: 0 auto;
+        min-width: 120px;
     }
 
     .header-controls {
@@ -1152,8 +1238,8 @@ body {
     }
 
     .power-up-badge {
-        flex: 1 0 28%;
-        min-width: 72px;
+        flex: 0 0 64px;
+        min-width: 64px;
     }
 
     .nav-btn {

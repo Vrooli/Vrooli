@@ -228,35 +228,9 @@
       "description": "Test campaign content studio API and CLI",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-campaigns-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/campaigns",
-          "description": "Test API campaigns endpoint"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:$UI_PORT/health",
-          "description": "Test UI health endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats campaign-content-studio.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/campaign-content-studio.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased test suite"
         }
       ]
     },

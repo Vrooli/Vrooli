@@ -71,4 +71,66 @@
   .drag-overlay {
     @apply cursor-grabbing;
   }
+
+  .funnel-preview {
+    --preview-primary: #0284c7;
+    --preview-primary-hover: #0369a1;
+    --preview-primary-pressed: #075985;
+    --preview-primary-soft: #e0f2fe;
+    --preview-primary-soft-alt: #bae6fd;
+    --preview-primary-border: #38bdf8;
+    --preview-badge-bg: #dbeafe;
+    --preview-badge-text: #1d4ed8;
+    --preview-ring: rgba(14, 165, 233, 0.35);
+    --preview-border-radius: 0.75rem;
+    --preview-font-family: 'Inter', 'Inter var', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--preview-font-family);
+  }
+
+  .funnel-preview__card {
+    border-radius: var(--preview-border-radius);
+  }
+
+  .funnel-preview__primary-button {
+    background-color: var(--preview-primary);
+    color: #fff;
+    border-radius: var(--preview-border-radius);
+  }
+
+  .funnel-preview__primary-button:hover {
+    background-color: var(--preview-primary-hover);
+  }
+
+  .funnel-preview__primary-button:active {
+    background-color: var(--preview-primary-pressed);
+  }
+
+  .funnel-preview__primary-button:focus-visible {
+    --tw-ring-color: var(--preview-ring);
+  }
+
+  .funnel-preview__option {
+    border-radius: var(--preview-border-radius);
+  }
+
+  .funnel-preview__option:hover {
+    background-color: var(--preview-primary-soft);
+    border-color: var(--preview-primary-border);
+  }
+
+  .funnel-preview__input {
+    border-radius: var(--preview-border-radius);
+  }
+
+  .funnel-preview__input:focus-visible {
+    --tw-ring-color: var(--preview-primary);
+  }
+
+  .funnel-preview__secondary-button {
+    border-radius: var(--preview-border-radius);
+  }
+
+  .funnel-preview__progress {
+    border-radius: var(--preview-border-radius);
+  }
 }

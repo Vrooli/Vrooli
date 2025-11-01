@@ -1,82 +1,69 @@
 #!/bin/bash
+# Lightweight performance smoke checks for Contact Book.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Performance Tests ==="
+testing::phase::init --target-time "120s" --require-runtime
 
-# Get API port dynamically
-API_PORT=$(lsof -ti:19313 2>/dev/null | head -1 | xargs -I {} lsof -nP -p {} 2>/dev/null | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1)
-if [ -z "$API_PORT" ]; then
-    API_PORT="19313"  # Fallback
+scenario_name="$TESTING_PHASE_SCENARIO_NAME"
+API_URL=""
+if command -v vrooli >/dev/null 2>&1; then
+  API_URL=$(testing::connectivity::get_api_url "$scenario_name" || true)
 fi
 
-API_URL="http://localhost:${API_PORT}"
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to determine API URL (vrooli CLI required)"
+  testing::phase::end_with_summary "Performance checks incomplete"
+fi
 
-# Function to measure response time
-measure_response_time() {
-    local endpoint=$1
-    local method=${2:-GET}
-    local data=${3:-}
+measure_endpoint() {
+  local description="$1"
+  local threshold_ms="$2"
+  shift 2
 
-    local start=$(date +%s%N)
-    if [ -z "$data" ]; then
-        curl -sf -X "$method" "${API_URL}${endpoint}" > /dev/null
-    else
-        curl -sf -X "$method" "${API_URL}${endpoint}" \
-            -H "Content-Type: application/json" \
-            -d "$data" > /dev/null
-    fi
-    local end=$(date +%s%N)
-
-    # Calculate milliseconds
-    echo $(( (end - start) / 1000000 ))
+  local timing
+  timing=$(curl -sf -o /dev/null -w '%{time_total}' "$@" || echo "-1")
+  if [ "$timing" = "-1" ] || [ -z "$timing" ]; then
+    testing::phase::add_error "$description request failed"
+    testing::phase::add_test failed
+    return
+  fi
+  local elapsed_ms
+  elapsed_ms=$(awk -v t="$timing" 'BEGIN{printf "%.0f", t*1000}')
+  if [ "$elapsed_ms" -le "$threshold_ms" ]; then
+    log::success "${description}: ${elapsed_ms}ms"
+    testing::phase::add_test passed
+  else
+    testing::phase::add_warning "${description} slower than target (${elapsed_ms}ms > ${threshold_ms}ms)"
+    testing::phase::add_test skipped
+  fi
 }
 
-# Test health endpoint performance
-echo "Testing health endpoint performance..."
-health_time=$(measure_response_time "/health")
-echo "Health endpoint: ${health_time}ms"
-if [ "$health_time" -lt 200 ]; then
-    echo "✅ Health endpoint under 200ms target"
-else
-    echo "⚠️  Health endpoint slower than 200ms target (${health_time}ms)"
-fi
+measure_endpoint "Health endpoint" 200 "${API_URL}/health"
+measure_endpoint "Contacts endpoint" 200 "${API_URL}/api/v1/contacts?limit=50"
+measure_endpoint "Search endpoint" 500 -X POST "${API_URL}/api/v1/search" -H 'Content-Type: application/json' -d '{"query":"performance","limit":10}'
 
-# Test contacts endpoint performance
-echo "Testing contacts endpoint performance..."
-contacts_time=$(measure_response_time "/api/v1/contacts?limit=50")
-echo "Contacts endpoint (50 items): ${contacts_time}ms"
-if [ "$contacts_time" -lt 200 ]; then
-    echo "✅ Contacts endpoint under 200ms target"
-else
-    echo "⚠️  Contacts endpoint slower than 200ms target (${contacts_time}ms)"
-fi
-
-# Test search endpoint performance
-echo "Testing search endpoint performance..."
-search_time=$(measure_response_time "/api/v1/search" "POST" '{"query":"test","limit":10}')
-echo "Search endpoint: ${search_time}ms"
-if [ "$search_time" -lt 500 ]; then
-    echo "✅ Search endpoint under 500ms target"
-else
-    echo "⚠️  Search endpoint slower than 500ms target (${search_time}ms)"
-fi
-
-# Test CLI performance
-echo "Testing CLI performance..."
-if command -v contact-book > /dev/null 2>&1; then
-    start=$(date +%s%N)
-    contact-book list --limit 10 > /dev/null 2>&1
+if command -v contact-book >/dev/null 2>&1; then
+  start=$(date +%s%N)
+  if contact-book list --limit 20 >/dev/null 2>&1; then
     end=$(date +%s%N)
-    cli_time=$(( (end - start) / 1000000 ))
-    echo "CLI list command: ${cli_time}ms"
-    if [ "$cli_time" -lt 2000 ]; then
-        echo "✅ CLI under 2s target"
+    cli_ms=$(( (end - start) / 1000000 ))
+    if [ "$cli_ms" -le 2000 ]; then
+      log::success "contact-book list latency ${cli_ms}ms"
+      testing::phase::add_test passed
     else
-        echo "⚠️  CLI slower than 2s target (${cli_time}ms)"
+      testing::phase::add_warning "contact-book list slower than target (${cli_ms}ms > 2000ms)"
+      testing::phase::add_test skipped
     fi
+  else
+    testing::phase::add_error "contact-book list command failed"
+    testing::phase::add_test failed
+  fi
 else
-    echo "⚠️  CLI not available, skipping CLI performance test"
+  testing::phase::add_warning "contact-book CLI not in PATH; skipping CLI performance"
+  testing::phase::add_test skipped
 fi
 
-echo "✅ Performance tests complete"
+testing::phase::end_with_summary "Performance sampling completed"

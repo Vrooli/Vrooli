@@ -1,14 +1,16 @@
 import { create } from 'zustand'
-import { Funnel, FunnelStep } from '../types'
+import { Funnel, FunnelStep, Project } from '../types'
 
 interface FunnelStore {
   funnels: Funnel[]
+  projects: Project[]
   currentFunnel: Funnel | null
   selectedStep: FunnelStep | null
   isLoading: boolean
   error: string | null
   
   setFunnels: (funnels: Funnel[]) => void
+  setProjects: (projects: Project[]) => void
   setCurrentFunnel: (funnel: Funnel | null) => void
   setSelectedStep: (step: FunnelStep | null) => void
   addStep: (step: FunnelStep) => void
@@ -23,12 +25,18 @@ interface FunnelStore {
 
 export const useFunnelStore = create<FunnelStore>((set) => ({
   funnels: [],
+  projects: [],
   currentFunnel: null,
   selectedStep: null,
   isLoading: false,
   error: null,
 
   setFunnels: (funnels) => set({ funnels }),
+
+  setProjects: (projects) => set({
+    projects,
+    funnels: projects.flatMap((project) => project.funnels ?? [])
+  }),
   
   setCurrentFunnel: (funnel) => set({ currentFunnel: funnel }),
   

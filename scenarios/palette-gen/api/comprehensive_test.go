@@ -430,6 +430,10 @@ func TestGetEnv(t *testing.T) {
 // TestInitRedis tests Redis initialization
 func TestInitRedis(t *testing.T) {
 	t.Run("InitializationDoesNotPanic", func(t *testing.T) {
+		// Initialize logger for test
+		cleanupLogger := setupTestLogger()
+		defer cleanupLogger()
+
 		// Save original client
 		originalClient := redisClient
 
@@ -449,6 +453,10 @@ func TestInitRedis(t *testing.T) {
 	})
 
 	t.Run("CustomHostPort", func(t *testing.T) {
+		// Initialize logger for test
+		cleanupLogger := setupTestLogger()
+		defer cleanupLogger()
+
 		originalClient := redisClient
 		os.Setenv("REDIS_HOST", "custom-host")
 		os.Setenv("REDIS_PORT", "9999")
@@ -478,7 +486,7 @@ func TestHandlerWithMalformedJSON(t *testing.T) {
 	}{
 		{"generate", "/generate", generateHandler},
 		{"suggest", "/suggest", suggestHandler},
-		// {"export", "/export", exportHandler}, // TODO: Fix panic on malformed JSON in production code
+		{"export", "/export", exportHandler},
 		{"accessibility", "/accessibility", accessibilityHandler},
 		{"harmony", "/harmony", harmonyHandler},
 		{"colorblind", "/colorblind", colorblindHandler},

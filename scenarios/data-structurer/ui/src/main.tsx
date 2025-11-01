@@ -27,7 +27,12 @@ if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_
     console.warn('[data-structurer] Unable to infer parent origin for iframe bridge', error);
   }
 
-  initIframeBridgeChild({ parentOrigin, appId: 'data-structurer' });
+  initIframeBridgeChild({
+    parentOrigin,
+    appId: 'data-structurer',
+    captureLogs: { enabled: true, streaming: true },
+    captureNetwork: { enabled: true, streaming: true },
+  });
   window[BRIDGE_STATE_KEY] = true;
 }
 

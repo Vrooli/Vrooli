@@ -306,6 +306,10 @@ func TestAssertHelpers(t *testing.T) {
 // TestInitRedis_ErrorPaths tests Redis initialization error handling
 func TestInitRedis_ErrorPaths(t *testing.T) {
 	t.Run("CustomPassword", func(t *testing.T) {
+		// Initialize logger for test
+		cleanupLogger := setupTestLogger()
+		defer cleanupLogger()
+
 		originalClient := redisClient
 		os.Setenv("REDIS_PASSWORD", "testpass")
 		defer func() {
@@ -318,6 +322,10 @@ func TestInitRedis_ErrorPaths(t *testing.T) {
 	})
 
 	t.Run("DefaultHostPort", func(t *testing.T) {
+		// Initialize logger for test
+		cleanupLogger := setupTestLogger()
+		defer cleanupLogger()
+
 		originalClient := redisClient
 		os.Unsetenv("REDIS_HOST")
 		os.Unsetenv("REDIS_PORT")

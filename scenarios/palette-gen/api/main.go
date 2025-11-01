@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"os"
@@ -115,6 +115,7 @@ type ColorblindResponse struct {
 var (
 	redisClient *redis.Client
 	ctx         = context.Background()
+	logger      *slog.Logger
 )
 
 func main() {
@@ -129,6 +130,13 @@ func main() {
 `)
 		os.Exit(1)
 	}
+
+	// Initialize structured logger
+	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	// Initialize Redis if available
@@ -143,9 +151,10 @@ func main() {
 	http.HandleFunc("/colorblind", colorblindHandler)
 	http.HandleFunc("/history", historyHandler)
 
-	log.Printf("Palette Generator API starting on port %s", port)
+	logger.Info("Palette Generator API starting", "port", port, "service", "palette-gen-api")
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal("Server failed to start:", err)
+		logger.Error("Server failed to start", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -157,7 +166,10 @@ func initRedis() {
 
 	redisPort := os.Getenv("REDIS_PORT")
 	if redisPort == "" {
-		redisPort = "6379"
+		// Redis is optional, skip if not configured
+		logger.Info("Redis not configured, caching disabled", "reason", "REDIS_PORT missing")
+		redisClient = nil
+		return
 	}
 
 	redisAddr := redisHost + ":" + redisPort
@@ -171,10 +183,10 @@ func initRedis() {
 	// Test connection
 	_, err := redisClient.Ping(ctx).Result()
 	if err != nil {
-		log.Printf("Warning: Redis not available, caching disabled: %v", err)
+		logger.Warn("Redis not available, caching disabled", "error", err, "address", redisAddr)
 		redisClient = nil
 	} else {
-		log.Printf("Redis connection established at %s", redisAddr)
+		logger.Info("Redis connection established", "address", redisAddr, "status", "connected")
 	}
 }
 
@@ -273,7 +285,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			var response PaletteResponse
 			if json.Unmarshal([]byte(cached), &response) == nil {
-				log.Printf("Cache hit for key: %s", cacheKey)
+				logger.Debug("Cache hit", "cache_key", cacheKey, "theme", req.Theme, "style", req.Style)
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("X-Cache", "HIT")
 				if req.IncludeAIDebug {
@@ -520,8 +532,29 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	format := req["format"].(string)
-	palette := req["palette"].([]interface{})
+	// Validate format field
+	formatRaw, ok := req["format"]
+	if !ok {
+		http.Error(w, "Missing 'format' field", http.StatusBadRequest)
+		return
+	}
+	format, ok := formatRaw.(string)
+	if !ok {
+		http.Error(w, "Invalid 'format' field type (expected string)", http.StatusBadRequest)
+		return
+	}
+
+	// Validate palette field
+	paletteRaw, ok := req["palette"]
+	if !ok {
+		http.Error(w, "Missing 'palette' field", http.StatusBadRequest)
+		return
+	}
+	palette, ok := paletteRaw.([]interface{})
+	if !ok {
+		http.Error(w, "Invalid 'palette' field type (expected array)", http.StatusBadRequest)
+		return
+	}
 
 	exportData := exportPalette(palette, format)
 
@@ -918,7 +951,7 @@ Respond in this exact JSON format:
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
 		result.Error = fmt.Sprintf("marshal request: %v", err)
-		log.Printf("Failed to marshal Ollama request: %v", err)
+		logger.Error("Failed to marshal Ollama request", "error", err, "model", model)
 		return result
 	}
 
@@ -930,7 +963,7 @@ Respond in this exact JSON format:
 	resp, err := client.Post(ollamaURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		result.Error = fmt.Sprintf("request failed: %v", err)
-		log.Printf("Failed to contact Ollama: %v", err)
+		logger.Error("Failed to contact Ollama", "error", err, "url", ollamaURL)
 		return result
 	}
 	defer resp.Body.Close()
@@ -938,21 +971,21 @@ Respond in this exact JSON format:
 
 	if resp.StatusCode != http.StatusOK {
 		result.Error = fmt.Sprintf("status %d", resp.StatusCode)
-		log.Printf("Ollama returned status %d", resp.StatusCode)
+		logger.Warn("Ollama returned non-OK status", "status_code", resp.StatusCode, "url", ollamaURL)
 		return result
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		result.Error = fmt.Sprintf("read response: %v", err)
-		log.Printf("Failed to read Ollama response: %v", err)
+		logger.Error("Failed to read Ollama response", "error", err)
 		return result
 	}
 
 	var ollamaResp OllamaResponse
 	if err := json.Unmarshal(body, &ollamaResp); err != nil {
 		result.Error = fmt.Sprintf("parse response: %v", err)
-		log.Printf("Failed to parse Ollama response: %v", err)
+		logger.Error("Failed to parse Ollama response", "error", err, "body_length", len(body))
 		return result
 	}
 
@@ -967,7 +1000,7 @@ Respond in this exact JSON format:
 	var suggestions []map[string]interface{}
 	if err := json.Unmarshal([]byte(raw), &suggestions); err != nil {
 		result.Error = fmt.Sprintf("parse AI JSON: %v", err)
-		log.Printf("Failed to parse AI suggestions as JSON: %v", err)
+		logger.Error("Failed to parse AI suggestions as JSON", "error", err, "raw_response_length", len(raw))
 		return result
 	}
 

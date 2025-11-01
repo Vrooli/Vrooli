@@ -107,7 +107,7 @@
            {
              "type": "binaries",
              "targets": [
-               "palette-gen-api"
+               "api/palette-gen-api"
              ]
            },
            {
@@ -190,24 +190,9 @@
       "description": "Test Palette Gen services",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-palette-generation",
-          "run": "echo '{\"theme\":\"ocean\",\"style\":\"vibrant\",\"num_colors\":5}' | curl -sf -X POST http://localhost:$API_PORT/generate -H 'Content-Type: application/json' -d @-",
-          "description": "Test palette generation endpoint"
-        },
-        {
-          "name": "test-ui-accessibility",
-          "run": "curl -sf http://localhost:$UI_PORT | grep -q 'Palette Gen'",
-          "description": "Test UI server is accessible"
+          "name": "run-test-suite",
+          "run": "test/run-tests.sh",
+          "description": "Run comprehensive test suite"
         }
       ]
     },

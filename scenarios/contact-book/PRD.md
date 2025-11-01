@@ -514,7 +514,8 @@ structure:
     - cli/install.sh
     - initialization/postgres/schema.sql
     - initialization/postgres/seed.sql
-    - scenario-test.yaml
+    - test/run-tests.sh
+    - test/phases/test-structure.sh
     
   required_dirs:
     - api

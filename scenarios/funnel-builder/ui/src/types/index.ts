@@ -99,6 +99,7 @@ export interface FunnelSettings {
 export interface Funnel {
   id: string
   tenantId?: string | null
+  projectId?: string | null
   name: string
   slug: string
   description?: string
@@ -107,6 +108,16 @@ export interface Funnel {
   createdAt: string
   updatedAt: string
   status: 'draft' | 'active' | 'archived'
+}
+
+export interface Project {
+  id: string
+  tenantId?: string | null
+  name: string
+  description?: string
+  createdAt: string
+  updatedAt: string
+  funnels: Funnel[]
 }
 
 export interface Lead {

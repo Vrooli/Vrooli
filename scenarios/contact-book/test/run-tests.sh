@@ -1,69 +1,43 @@
 #!/bin/bash
+# Shared phased test orchestrator for Contact Book scenario
+set -euo pipefail
 
-set -e
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-echo "=================================="
-echo "Contact Book Phased Testing Suite"
-echo "=================================="
-echo ""
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Change to scenario directory
-cd "$(dirname "$0")/.."
+LOG_DIR="$TEST_DIR/artifacts"
 
-# Track test results
-TOTAL_PHASES=0
-PASSED_PHASES=0
-FAILED_PHASES=()
+# Initialise shared runner with runtime auto-management disabled by default
+# (individual phases opt in when required). Ask the runner to ensure the
+# artifact/log directory exists up front.
+testing::runner::init \
+  --scenario-name "contact-book" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$LOG_DIR" \
+  --default-manage-runtime false
 
-# Function to run a test phase
-run_phase() {
-    local phase_name=$1
-    local phase_script=$2
+PHASES_DIR="$TEST_DIR/phases"
 
-    TOTAL_PHASES=$((TOTAL_PHASES + 1))
-    echo "Running Phase: $phase_name"
-    echo "-----------------------------------"
+testing::runner::register_phase --name structure --script "$PHASES_DIR/test-structure.sh" --timeout 30
 
-    if [ -f "$phase_script" ]; then
-        chmod +x "$phase_script"
-        if bash "$phase_script"; then
-            PASSED_PHASES=$((PASSED_PHASES + 1))
-            echo "✅ $phase_name PASSED"
-        else
-            FAILED_PHASES+=("$phase_name")
-            echo "❌ $phase_name FAILED"
-        fi
-    else
-        echo "⚠️  $phase_script not found, skipping"
-    fi
-    echo ""
-}
+testing::runner::register_phase --name dependencies --script "$PHASES_DIR/test-dependencies.sh" --timeout 60
 
-# Run all test phases in order
-run_phase "Structure" "test/phases/test-structure.sh"
-run_phase "Dependencies" "test/phases/test-dependencies.sh"
-run_phase "Unit Tests" "test/phases/test-unit.sh"
-run_phase "Integration Tests" "test/phases/test-integration.sh"
-run_phase "Performance Tests" "test/phases/test-performance.sh"
-run_phase "Business Value Tests" "test/phases/test-business.sh"
+testing::runner::register_phase --name unit --script "$PHASES_DIR/test-unit.sh" --timeout 120
 
-# Summary
-echo "=================================="
-echo "Test Summary"
-echo "=================================="
-echo "Total Phases: $TOTAL_PHASES"
-echo "Passed: $PASSED_PHASES"
-echo "Failed: $((TOTAL_PHASES - PASSED_PHASES))"
+testing::runner::register_phase --name integration --script "$PHASES_DIR/test-integration.sh" --timeout 240 --requires-runtime true
 
-if [ ${#FAILED_PHASES[@]} -gt 0 ]; then
-    echo ""
-    echo "Failed Phases:"
-    for phase in "${FAILED_PHASES[@]}"; do
-        echo "  - $phase"
-    done
-    exit 1
-else
-    echo ""
-    echo "✅ All test phases passed!"
-    exit 0
-fi
+testing::runner::register_phase --name business --script "$PHASES_DIR/test-business.sh" --timeout 240 --requires-runtime true
+
+testing::runner::register_phase --name performance --script "$PHASES_DIR/test-performance.sh" --timeout 120 --requires-runtime true
+
+# Helpful presets for common workflows.
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure dependencies integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+testing::runner::execute "$@"

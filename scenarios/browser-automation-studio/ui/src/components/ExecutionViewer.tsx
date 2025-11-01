@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
 import {
   Activity,
   Pause,
@@ -13,6 +13,8 @@ import {
   Loader,
   PlayCircle,
   AlertTriangle,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
@@ -20,6 +22,8 @@ import ReplayPlayer, {
   ReplayFrame,
   type ReplayChromeTheme,
   type ReplayBackgroundTheme,
+  type ReplayCursorTheme,
+  type ReplayCursorInitialPosition,
 } from './ReplayPlayer';
 import { useExecutionStore } from '../stores/executionStore';
 import type {
@@ -39,6 +43,30 @@ import {
   mapAssertion,
   resolveUrl,
 } from '../utils/executionTypeMappers';
+// Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
+const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
+
+const withAssetBasePath = (value: string) => {
+  if (!value || ABSOLUTE_URL_PATTERN.test(value)) {
+    return value;
+  }
+  const base = import.meta.env.BASE_URL || '/';
+  if (base === '/' || value.startsWith(base)) {
+    return value;
+  }
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const normalizedValue = value.startsWith('/') ? value.slice(1) : value;
+  return `${normalizedBase}${normalizedValue}`;
+};
+
+const resolveBackgroundAsset = (relativePath: string) => {
+  const url = new URL(relativePath, import.meta.url);
+  return withAssetBasePath(url.pathname || url.href);
+};
+
+const geometricPrismUrl = resolveBackgroundAsset('../assets/replay-backgrounds/geometric-prism.jpg');
+const geometricOrbitUrl = resolveBackgroundAsset('../assets/replay-backgrounds/geometric-orbit.jpg');
+const geometricMosaicUrl = resolveBackgroundAsset('../assets/replay-backgrounds/geometric-mosaic.jpg');
 
 interface ExecutionProps {
   execution: Execution;
@@ -55,12 +83,16 @@ const REPLAY_CHROME_OPTIONS: Array<{ id: ReplayChromeTheme; label: string; subti
   { id: 'minimal', label: 'Minimal', subtitle: 'Hide browser chrome' },
 ];
 
+const CURSOR_SCALE_MIN = 0.6;
+const CURSOR_SCALE_MAX = 1.8;
+
 const REPLAY_BACKGROUND_OPTIONS: Array<{
   id: ReplayBackgroundTheme;
   label: string;
   subtitle: string;
   previewStyle: CSSProperties;
-  kind: 'abstract' | 'solid' | 'minimal';
+  previewNode?: ReactNode;
+  kind: 'abstract' | 'solid' | 'minimal' | 'geometric';
 }> = [
   {
     id: 'aurora',
@@ -76,7 +108,8 @@ const REPLAY_BACKGROUND_OPTIONS: Array<{
     label: 'Sunset Bloom',
     subtitle: 'Fuchsia → amber ambience',
     previewStyle: {
-      backgroundImage: 'linear-gradient(135deg, rgba(244,114,182,0.75), rgba(251,191,36,0.7))',
+      backgroundImage: 'linear-gradient(135deg, rgba(244,114,182,0.9), rgba(251,191,36,0.88))',
+      backgroundColor: '#43112d',
     },
     kind: 'abstract',
   },
@@ -105,8 +138,8 @@ const REPLAY_BACKGROUND_OPTIONS: Array<{
     previewStyle: {
       backgroundColor: '#0f172a',
       backgroundImage:
-        'linear-gradient(rgba(96,165,250,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,0.18) 1px, transparent 1px)',
-      backgroundSize: '12px 12px',
+        'linear-gradient(rgba(96,165,250,0.34) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,0.31) 1px, transparent 1px)',
+      backgroundSize: '14px 14px',
     },
     kind: 'abstract',
   },
@@ -149,6 +182,202 @@ const REPLAY_BACKGROUND_OPTIONS: Array<{
     },
     kind: 'minimal',
   },
+  {
+    id: 'geoPrism',
+    label: 'Prismatic Peaks',
+    subtitle: 'Layered neon triangles',
+    previewStyle: {
+      backgroundColor: '#0f172a',
+    },
+    previewNode: (
+      <span className="absolute inset-0 overflow-hidden">
+        <img src={geometricPrismUrl} alt="" className="h-full w-full object-cover" />
+        <span className="absolute inset-0 bg-gradient-to-br from-cyan-400/30 via-transparent to-indigo-500/24 mix-blend-screen" />
+        <span className="absolute inset-0 bg-slate-950/45" />
+      </span>
+    ),
+    kind: 'geometric',
+  },
+  {
+    id: 'geoOrbit',
+    label: 'Orbital Glow',
+    subtitle: 'Concentric energy orbits',
+    previewStyle: {
+      backgroundColor: '#0b1120',
+    },
+    previewNode: (
+      <span className="absolute inset-0 overflow-hidden">
+        <img src={geometricOrbitUrl} alt="" className="h-full w-full object-cover" />
+        <span className="absolute inset-0 bg-gradient-to-br from-sky-300/28 via-transparent to-amber-300/20 mix-blend-screen" />
+        <span className="absolute inset-0 bg-slate-950/45" />
+      </span>
+    ),
+    kind: 'geometric',
+  },
+  {
+    id: 'geoMosaic',
+    label: 'Isometric Mosaic',
+    subtitle: 'Staggered tile lattice',
+    previewStyle: {
+      backgroundColor: '#0b1526',
+    },
+    previewNode: (
+      <span className="absolute inset-0 overflow-hidden">
+        <img src={geometricMosaicUrl} alt="" className="h-full w-full object-cover" />
+        <span className="absolute inset-0 bg-gradient-to-tr from-sky-400/28 via-transparent to-indigo-400/22 mix-blend-screen" />
+        <span className="absolute inset-0 bg-slate-950/45" />
+      </span>
+    ),
+    kind: 'geometric',
+  },
+];
+
+const BACKGROUND_GROUP_ORDER: Array<{ id: (typeof REPLAY_BACKGROUND_OPTIONS)[number]['kind']; label: string }> = [
+  { id: 'abstract', label: 'Abstract' },
+  { id: 'solid', label: 'Solid' },
+  { id: 'minimal', label: 'Minimal' },
+  { id: 'geometric', label: 'Geometric' },
+];
+
+type BackgroundOption = (typeof REPLAY_BACKGROUND_OPTIONS)[number];
+
+type CursorOption = {
+  id: ReplayCursorTheme;
+  label: string;
+  subtitle: string;
+  group: 'hidden' | 'halo' | 'arrow';
+  preview: ReactNode;
+};
+
+const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
+  {
+    id: 'disabled',
+    group: 'hidden',
+    label: 'Hidden',
+    subtitle: 'No virtual cursor overlay',
+    preview: (
+      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+        Off
+      </span>
+    ),
+  },
+  {
+    id: 'white',
+    group: 'halo',
+    label: 'Soft White',
+    subtitle: 'Clean highlight for dark scenes',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-white/85 bg-white/90 shadow-[0_8px_20px_rgba(148,163,184,0.4)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-500/60" />
+      </span>
+    ),
+  },
+  {
+    id: 'black',
+    group: 'halo',
+    label: 'Carbon Dark',
+    subtitle: 'High contrast for bright scenes',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-black bg-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.55)]">
+        <span className="h-2 w-2 rounded-full bg-white/80" />
+      </span>
+    ),
+  },
+  {
+    id: 'aura',
+    group: 'halo',
+    label: 'Aura Glow',
+    subtitle: 'Brand accent trail',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-cyan-200/80 bg-gradient-to-br from-sky-400 via-emerald-300 to-violet-400 shadow-[0_10px_22px_rgba(56,189,248,0.45)]">
+        <span className="absolute -inset-0.5 rounded-full border border-cyan-300/50 opacity-70" />
+      </span>
+    ),
+  },
+  {
+    id: 'arrowLight',
+    group: 'arrow',
+    label: 'Classic Light',
+    subtitle: 'OS-style white arrow',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center text-white">
+        <svg viewBox="0 0 32 32" className="h-6 w-6">
+          <path
+            d="M6 3L6.2 21.6L11.4 16.4L14.2 25.6L17.2 24.6L14.6 15.6L24 14.4L6 3Z"
+            fill="rgba(255,255,255,0.95)"
+            stroke="rgba(15,23,42,0.85)"
+            strokeWidth={1.4}
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    ),
+  },
+  {
+    id: 'arrowDark',
+    group: 'arrow',
+    label: 'Noir Precision',
+    subtitle: 'Deep slate pointer with halo',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center text-white">
+        <svg viewBox="0 0 32 32" className="h-6 w-6">
+          <path
+            d="M6.2 3L6.4 21.2L11 16.8L14 26.2L17.7 24.8L14.7 15.2L24.2 14.1L6.2 3Z"
+            fill="rgba(30,41,59,0.95)"
+            stroke="rgba(226,232,240,0.9)"
+            strokeWidth={1.3}
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    ),
+  },
+  {
+    id: 'arrowNeon',
+    group: 'arrow',
+    label: 'Neon Signal',
+    subtitle: 'Gradient arrow with glow',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center text-white">
+        <svg viewBox="0 0 32 32" className="h-6 w-6">
+          <defs>
+            <linearGradient id="cursor-neon-preview" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#38bdf8" />
+              <stop offset="45%" stopColor="#34d399" />
+              <stop offset="100%" stopColor="#a855f7" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M6 3L6.2 21.6L11.4 16.4L14.5 26.1L18 24.9L15 15.4L24.4 14.2L6 3Z"
+            fill="url(#cursor-neon-preview)"
+            stroke="rgba(191,219,254,0.9)"
+            strokeWidth={1.2}
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="pointer-events-none absolute -inset-1 rounded-full bg-cyan-300/25 blur-md" />
+      </span>
+    ),
+  },
+];
+
+const CURSOR_GROUP_ORDER: Array<{ id: CursorOption['group']; label: string }> = [
+  { id: 'hidden', label: 'Hidden' },
+  { id: 'halo', label: 'Halo Cursors' },
+  { id: 'arrow', label: 'Arrowhead Cursors' },
+];
+
+const REPLAY_CURSOR_POSITIONS: Array<{
+  id: ReplayCursorInitialPosition;
+  label: string;
+  subtitle: string;
+}> = [
+  { id: 'center', label: 'Center', subtitle: 'Start replay from the middle' },
+  { id: 'top-left', label: 'Top Left', subtitle: 'Anchor to the navigation corner' },
+  { id: 'top-right', label: 'Top Right', subtitle: 'Anchor to utility corner' },
+  { id: 'bottom-left', label: 'Bottom Left', subtitle: 'Anchor to lower control area' },
+  { id: 'bottom-right', label: 'Bottom Right', subtitle: 'Anchor to lower action edge' },
+  { id: 'random', label: 'Randomized', subtitle: 'Fresh placement each replay' },
 ];
 
 const isReplayChromeTheme = (value: string | null | undefined): value is ReplayChromeTheme =>
@@ -158,6 +387,14 @@ const isReplayBackgroundTheme = (
   value: string | null | undefined,
 ): value is ReplayBackgroundTheme =>
   Boolean(value && REPLAY_BACKGROUND_OPTIONS.some((option) => option.id === value));
+
+const isReplayCursorTheme = (value: string | null | undefined): value is ReplayCursorTheme =>
+  Boolean(value && REPLAY_CURSOR_OPTIONS.some((option) => option.id === value));
+
+const isReplayCursorInitialPosition = (
+  value: string | null | undefined,
+): value is ReplayCursorInitialPosition =>
+  Boolean(value && REPLAY_CURSOR_POSITIONS.some((option) => option.id === value));
 
 function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
@@ -185,7 +422,42 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
     const stored = window.localStorage.getItem('browserAutomation.replayBackgroundTheme');
     return isReplayBackgroundTheme(stored) ? stored : 'aurora';
   });
+  const [replayCursorTheme, setReplayCursorTheme] = useState<ReplayCursorTheme>(() => {
+    if (typeof window === 'undefined') {
+      return 'white';
+    }
+    const stored = window.localStorage.getItem('browserAutomation.replayCursorTheme');
+    return isReplayCursorTheme(stored) ? stored : 'white';
+  });
+  const [replayCursorInitialPosition, setReplayCursorInitialPosition] =
+    useState<ReplayCursorInitialPosition>(() => {
+      if (typeof window === 'undefined') {
+        return 'center';
+      }
+      const stored = window.localStorage.getItem('browserAutomation.replayCursorInitialPosition');
+      return isReplayCursorInitialPosition(stored) ? stored : 'center';
+    });
+  const [replayCursorScale, setReplayCursorScale] = useState<number>(() => {
+    if (typeof window === 'undefined') {
+      return 1;
+    }
+    const stored = window.localStorage.getItem('browserAutomation.replayCursorScale');
+    if (!stored) {
+      return 1;
+    }
+    const parsed = Number.parseFloat(stored);
+    if (Number.isFinite(parsed)) {
+      return Math.min(CURSOR_SCALE_MAX, Math.max(CURSOR_SCALE_MIN, parsed));
+    }
+    return 1;
+  });
+  const [isBackgroundMenuOpen, setIsBackgroundMenuOpen] = useState(false);
+  const [isCursorMenuOpen, setIsCursorMenuOpen] = useState(false);
+  const [isCursorPositionMenuOpen, setIsCursorPositionMenuOpen] = useState(false);
   const screenshotRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const backgroundSelectorRef = useRef<HTMLDivElement | null>(null);
+  const cursorSelectorRef = useRef<HTMLDivElement | null>(null);
+  const cursorPositionSelectorRef = useRef<HTMLDivElement | null>(null);
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
   const executionError = execution.error ?? undefined;
@@ -229,6 +501,126 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
       console.warn('Failed to persist replay background theme', err);
     }
   }, [replayBackgroundTheme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem('browserAutomation.replayCursorTheme', replayCursorTheme);
+    } catch (err) {
+      console.warn('Failed to persist replay cursor theme', err);
+    }
+  }, [replayCursorTheme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem('browserAutomation.replayCursorInitialPosition', replayCursorInitialPosition);
+    } catch (err) {
+      console.warn('Failed to persist replay cursor initial position', err);
+    }
+  }, [replayCursorInitialPosition]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem('browserAutomation.replayCursorScale', replayCursorScale.toFixed(2));
+    } catch (err) {
+      console.warn('Failed to persist replay cursor scale', err);
+    }
+  }, [replayCursorScale]);
+
+  useEffect(() => {
+    if (!isBackgroundMenuOpen) {
+      return;
+    }
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (backgroundSelectorRef.current && !backgroundSelectorRef.current.contains(target)) {
+        setIsBackgroundMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsBackgroundMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isBackgroundMenuOpen]);
+
+  useEffect(() => {
+    if (!isCursorMenuOpen) {
+      return;
+    }
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (cursorSelectorRef.current && !cursorSelectorRef.current.contains(target)) {
+        setIsCursorMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCursorMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCursorMenuOpen]);
+
+  useEffect(() => {
+    if (!isCursorPositionMenuOpen) {
+      return;
+    }
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (cursorPositionSelectorRef.current && !cursorPositionSelectorRef.current.contains(target)) {
+        setIsCursorPositionMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCursorPositionMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCursorPositionMenuOpen]);
 
   useEffect(() => {
     if (!hasAutoSwitchedToReplay && execution.timeline && execution.timeline.length > 0) {
@@ -477,35 +869,77 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
     return items;
   }, [execution.timeline]);
 
-  const backgroundOptionGroups = useMemo(
-    () => ({
-      abstract: REPLAY_BACKGROUND_OPTIONS.filter((option) => option.kind === 'abstract'),
-      solid: REPLAY_BACKGROUND_OPTIONS.filter((option) => option.kind === 'solid'),
-      minimal: REPLAY_BACKGROUND_OPTIONS.filter((option) => option.kind === 'minimal'),
-    }),
-    [],
+  const backgroundOptionsByGroup = useMemo(() => {
+    const base: Record<BackgroundOption['kind'], BackgroundOption[]> = {
+      abstract: [],
+      solid: [],
+      minimal: [],
+      geometric: [],
+    };
+    for (const option of REPLAY_BACKGROUND_OPTIONS) {
+      base[option.kind].push(option);
+    }
+    return base;
+  }, []);
+
+  const cursorOptionsByGroup = useMemo(() => {
+    const base: Record<CursorOption['group'], CursorOption[]> = {
+      hidden: [],
+      halo: [],
+      arrow: [],
+    };
+    for (const option of REPLAY_CURSOR_OPTIONS) {
+      base[option.group].push(option);
+    }
+    return base;
+  }, []);
+
+  const selectedBackgroundOption = useMemo<BackgroundOption>(() => {
+    return (
+      REPLAY_BACKGROUND_OPTIONS.find((option) => option.id === replayBackgroundTheme) ||
+      REPLAY_BACKGROUND_OPTIONS[0]
+    );
+  }, [replayBackgroundTheme]);
+
+  const selectedCursorOption = useMemo<CursorOption>(() => {
+    return (
+      REPLAY_CURSOR_OPTIONS.find((option) => option.id === replayCursorTheme) ||
+      REPLAY_CURSOR_OPTIONS[0]
+    );
+  }, [replayCursorTheme]);
+
+  const selectedCursorPositionOption = useMemo(() => {
+    return (
+      REPLAY_CURSOR_POSITIONS.find((option) => option.id === replayCursorInitialPosition) ||
+      REPLAY_CURSOR_POSITIONS[0]
+    );
+  }, [replayCursorInitialPosition]);
+
+  const handleBackgroundSelect = useCallback(
+    (option: BackgroundOption) => {
+      setReplayBackgroundTheme(option.id);
+      setIsBackgroundMenuOpen(false);
+    },
+    [setReplayBackgroundTheme],
   );
 
-  const renderBackgroundOption = (option: (typeof REPLAY_BACKGROUND_OPTIONS)[number]) => (
-    <button
-      key={option.id}
-      type="button"
-      onClick={() => setReplayBackgroundTheme(option.id)}
-      title={option.subtitle}
-      className={clsx(
-        'group flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
-        replayBackgroundTheme === option.id
-          ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
-          : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-flow-accent/50 hover:text-white',
-      )}
-    >
-      <span
-        className="h-6 w-12 rounded-full border border-white/10 shadow-inner transition-transform duration-200 group-hover:scale-[1.03]"
-        style={option.previewStyle}
-      />
-      <span>{option.label}</span>
-    </button>
-  );
+  const handleCursorThemeSelect = useCallback((value: ReplayCursorTheme) => {
+    setReplayCursorTheme(value);
+    setIsCursorMenuOpen(false);
+  }, []);
+
+  const handleCursorPositionSelect = useCallback((value: ReplayCursorInitialPosition) => {
+    setReplayCursorInitialPosition(value);
+    setIsCursorPositionMenuOpen(false);
+  }, []);
+
+  const handleCursorScaleChange = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const clamped = Math.min(CURSOR_SCALE_MAX, Math.max(CURSOR_SCALE_MIN, value));
+    setReplayCursorScale(clamped);
+  }, []);
 
   const screenshots = timelineScreenshots.length > 0 ? timelineScreenshots : execution.screenshots;
 
@@ -785,31 +1219,281 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
                   <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Background</span>
                   <span className="text-[11px] text-slate-500">Set the stage behind the browser</span>
                 </div>
-                <div className="space-y-3">
-                  {backgroundOptionGroups.abstract.length > 0 && (
-                    <div>
-                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Abstract</span>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {backgroundOptionGroups.abstract.map(renderBackgroundOption)}
-                      </div>
+                <div ref={backgroundSelectorRef} className="relative">
+                  <button
+                    type="button"
+                    className={clsx(
+                      'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                      isBackgroundMenuOpen
+                        ? 'border-flow-accent/70 bg-slate-900/80 text-white'
+                        : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                    )}
+                    onClick={() => {
+                      setIsBackgroundMenuOpen((open) => !open);
+                      setIsCursorMenuOpen(false);
+                      setIsCursorPositionMenuOpen(false);
+                    }}
+                    aria-haspopup="menu"
+                    aria-expanded={isBackgroundMenuOpen}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span
+                        aria-hidden
+                        className="relative h-10 w-16 overflow-hidden rounded-lg border border-white/10 shadow-inner"
+                        style={selectedBackgroundOption.previewStyle}
+                      >
+                        {selectedBackgroundOption.previewNode}
+                      </span>
+                      <span className="flex flex-col text-xs leading-tight text-slate-300">
+                        <span className="text-sm font-medium text-white">
+                          {selectedBackgroundOption.label}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {selectedBackgroundOption.subtitle}
+                        </span>
+                      </span>
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={clsx(
+                        'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
+                        isBackgroundMenuOpen ? 'rotate-180 text-white' : '',
+                      )}
+                    />
+                  </button>
+
+                  {isBackgroundMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 z-30 mt-2 w-full min-w-[260px] rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-md sm:w-80"
+                    >
+                      {BACKGROUND_GROUP_ORDER.map((group) => {
+                        const options = backgroundOptionsByGroup[group.id];
+                        if (!options || options.length === 0) {
+                          return null;
+                        }
+                        return (
+                          <div key={group.id} className="py-1">
+                            <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                              {group.label}
+                            </div>
+                            <div className="space-y-1">
+                              {options.map((option) => {
+                                const isActive = replayBackgroundTheme === option.id;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    type="button"
+                                    role="menuitemradio"
+                                    aria-checked={isActive}
+                                    onClick={() => handleBackgroundSelect(option)}
+                                    className={clsx(
+                                      'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                      isActive
+                                        ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
+                                        : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                    )}
+                                  >
+                                    <span
+                                      className="relative h-10 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-white/10 shadow-inner"
+                                      style={option.previewStyle}
+                                    >
+                                      {option.previewNode}
+                                    </span>
+                                    <span className="flex flex-1 flex-col text-xs text-slate-300">
+                                      <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                                        <span>{option.label}</span>
+                                        {isActive && <Check size={14} className="text-flow-accent" />}
+                                      </span>
+                                      <span className="text-[11px] text-slate-400">{option.subtitle}</span>
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                  {backgroundOptionGroups.solid.length > 0 && (
-                    <div>
-                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Solid</span>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {backgroundOptionGroups.solid.map(renderBackgroundOption)}
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 pt-3 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Cursor</span>
+                  <span className="text-[11px] text-slate-500">Style the virtual pointer overlay</span>
+                </div>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div ref={cursorSelectorRef} className="relative flex-1 min-w-[220px]">
+                    <button
+                      type="button"
+                      className={clsx(
+                        'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                        isCursorMenuOpen
+                          ? 'border-flow-accent/70 bg-slate-900/80 text-white'
+                          : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                      )}
+                      onClick={() => {
+                        setIsCursorMenuOpen((open) => !open);
+                        setIsBackgroundMenuOpen(false);
+                        setIsCursorPositionMenuOpen(false);
+                      }}
+                      aria-haspopup="menu"
+                      aria-expanded={isCursorMenuOpen}
+                    >
+                      <span className="flex items-center gap-3">
+                        <span className="relative flex h-10 w-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-900/60">
+                          {selectedCursorOption.preview}
+                        </span>
+                        <span className="flex flex-col text-xs leading-tight text-slate-300">
+                          <span className="text-sm font-medium text-white">{selectedCursorOption.label}</span>
+                          <span className="text-[11px] text-slate-400">{selectedCursorOption.subtitle}</span>
+                        </span>
+                      </span>
+                      <ChevronDown
+                        size={14}
+                        className={clsx(
+                          'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
+                          isCursorMenuOpen ? 'rotate-180 text-white' : '',
+                        )}
+                      />
+                    </button>
+                    {isCursorMenuOpen && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 z-30 mt-2 w-full min-w-[240px] rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_20px_50px_rgba(15,23,42,0.55)] backdrop-blur"
+                      >
+                        {CURSOR_GROUP_ORDER.map((group) => {
+                          const options = cursorOptionsByGroup[group.id];
+                          if (!options || options.length === 0) {
+                            return null;
+                          }
+                          return (
+                            <div key={group.id} className="mb-2 last:mb-0">
+                              <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                                {group.label}
+                              </div>
+                              <div className="space-y-1">
+                                {options.map((option) => {
+                                  const isActive = replayCursorTheme === option.id;
+                                  return (
+                                    <button
+                                      key={option.id}
+                                      type="button"
+                                      role="menuitemradio"
+                                      aria-checked={isActive}
+                                      onClick={() => handleCursorThemeSelect(option.id)}
+                                      className={clsx(
+                                        'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                        isActive
+                                          ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
+                                          : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                      )}
+                                    >
+                                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/70">
+                                        {option.preview}
+                                      </span>
+                                      <span className="flex flex-1 flex-col text-xs text-slate-300">
+                                        <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                                          <span>{option.label}</span>
+                                          {isActive && <Check size={14} className="text-flow-accent" />}
+                                        </span>
+                                        <span className="text-[11px] text-slate-400">{option.subtitle}</span>
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-                  )}
-                  {backgroundOptionGroups.minimal.length > 0 && (
-                    <div>
-                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Minimal</span>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {backgroundOptionGroups.minimal.map(renderBackgroundOption)}
+                    )}
+                  </div>
+                  <div ref={cursorPositionSelectorRef} className="relative flex flex-1 flex-col gap-2 lg:max-w-xs">
+                    <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Initial placement</span>
+                    <button
+                      type="button"
+                      className={clsx(
+                        'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                        isCursorPositionMenuOpen
+                          ? 'border-flow-accent/70 bg-slate-900/80 text-white'
+                          : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                      )}
+                      onClick={() => {
+                        setIsCursorPositionMenuOpen((open) => !open);
+                        setIsBackgroundMenuOpen(false);
+                        setIsCursorMenuOpen(false);
+                      }}
+                      aria-haspopup="menu"
+                      aria-expanded={isCursorPositionMenuOpen}
+                    >
+                      <span className="flex flex-col text-xs leading-tight text-slate-300">
+                        <span className="text-sm font-medium text-white">{selectedCursorPositionOption.label}</span>
+                        <span className="text-[11px] text-slate-400">{selectedCursorPositionOption.subtitle}</span>
+                      </span>
+                      <ChevronDown
+                        size={14}
+                        className={clsx(
+                          'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
+                          isCursorPositionMenuOpen ? 'rotate-180 text-white' : '',
+                        )}
+                      />
+                    </button>
+                    {isCursorPositionMenuOpen && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 z-30 mt-2 w-full rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.55)] backdrop-blur"
+                      >
+                        <div className="space-y-1">
+                          {REPLAY_CURSOR_POSITIONS.map((option) => {
+                            const isActive = replayCursorInitialPosition === option.id;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={isActive}
+                                onClick={() => handleCursorPositionSelect(option.id)}
+                                className={clsx(
+                                  'w-full rounded-lg border px-2.5 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                  isActive
+                                    ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_10px_28px_rgba(59,130,246,0.3)]'
+                                    : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                )}
+                              >
+                                <span className="block text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                                  {option.label}
+                                </span>
+                                <span className="text-[11px] text-slate-400/90">{option.subtitle}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Cursor size</span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={CURSOR_SCALE_MIN}
+                      max={CURSOR_SCALE_MAX}
+                      step={0.05}
+                      value={replayCursorScale}
+                      onChange={(event) => handleCursorScaleChange(Number.parseFloat(event.target.value))}
+                      className="flex-1 accent-flow-accent"
+                    />
+                    <span className="w-12 text-right text-xs text-slate-300">
+                      {Math.round(replayCursorScale * 100)}%
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-500">
+                    Fine-tune pointer proportions for the recorded viewport.
+                  </span>
                 </div>
               </div>
             </div>
@@ -818,6 +1502,9 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
               executionStatus={execution.status}
               chromeTheme={replayChromeTheme}
               backgroundTheme={replayBackgroundTheme}
+              cursorTheme={replayCursorTheme}
+              cursorInitialPosition={replayCursorInitialPosition}
+              cursorScale={replayCursorScale}
             />
           </div>
         ) : activeTab === 'screenshots' ? (

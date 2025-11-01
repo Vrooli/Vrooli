@@ -3,10 +3,37 @@
   "service": "device-sync-hub-ui",
   "timestamp": "2025-09-14T00:00:00Z",
   "readiness": true,
+  "status_notes": [
+    "Static UI artefact; once loaded, the client performs live device sync diagnostics."
+  ],
+  "api_connectivity": {
+    "connected": false,
+    "api_url": "http://localhost:${API_PORT}",
+    "last_check": "2025-09-14T00:00:00Z",
+    "error": {
+      "code": "STATIC_UI_HTML_CHECK",
+      "message": "Static payload cannot exercise live API calls until the UI boots.",
+      "category": "configuration",
+      "retryable": false
+    },
+    "latency_ms": null
+  },
   "deployment": {
     "type": "static",
     "mode": "production",
     "version": "1.0.0"
+  },
+  "dependencies": {
+    "device-sync-hub-api": {
+      "connected": false,
+      "latency_ms": null,
+      "error": {
+        "code": "STATIC_UI_HTML_CHECK",
+        "message": "Static snapshot defers API verification to runtime checks.",
+        "category": "configuration",
+        "retryable": false
+      }
+    }
   },
   "static_files": {
     "available": true,
@@ -39,6 +66,11 @@
   "metrics": {
     "deployment_mode": "static",
     "requires_auth": true,
-    "api_connectivity": "runtime_determined"
+    "client_side_health_checks": true
+  },
+  "build": {
+    "commit": "static-snapshot-2025-09-14",
+    "version": "1.0.0",
+    "environment": "production"
   }
 }

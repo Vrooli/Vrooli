@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -103,6 +105,8 @@ type TestServer struct {
 	Cleanup  func()
 }
 
+var testFunnelProjects sync.Map
+
 // setupTestServer creates a test server instance
 func setupTestServer(t *testing.T) *TestServer {
 	t.Helper()
@@ -195,13 +199,45 @@ func assertErrorResponse(t *testing.T, recorder *httptest.ResponseRecorder, expe
 	}
 }
 
+func createTestProject(t *testing.T, server *Server, name string) string {
+	t.Helper()
+
+	projectData := map[string]interface{}{
+		"name":        name,
+		"description": fmt.Sprintf("Project for %s", name),
+	}
+
+	req, _ := makeHTTPRequest("POST", "/api/v1/projects", projectData)
+	recorder := httptest.NewRecorder()
+	server.router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("Failed to create test project: status %d, body: %s", recorder.Code, recorder.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse project response: %v", err)
+	}
+
+	projectID, ok := response["id"].(string)
+	if !ok || projectID == "" {
+		t.Fatalf("Project response missing id: %v", response)
+	}
+
+	return projectID
+}
+
 // createTestFunnel creates a funnel for testing
 func createTestFunnel(t *testing.T, server *Server, name string) string {
 	t.Helper()
 
+	projectID := createTestProject(t, server, fmt.Sprintf("%s Project", name))
+
 	funnelData := map[string]interface{}{
 		"name":        name,
 		"description": "Test funnel for automated testing",
+		"project_id":  projectID,
 		"steps": []map[string]interface{}{
 			{
 				"type":     "form",
@@ -227,8 +263,22 @@ func createTestFunnel(t *testing.T, server *Server, name string) string {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(recorder.Body.Bytes(), &response)
-	return response["id"].(string)
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse create funnel response: %v", err)
+	}
+
+	funnelID, ok := response["id"].(string)
+	if !ok || funnelID == "" {
+		t.Fatalf("Funnel response missing id: %v", response)
+	}
+
+	testFunnelProjects.Store(funnelID, projectID)
+
+	t.Cleanup(func() {
+		cleanupTestData(t, server, funnelID)
+	})
+
+	return funnelID
 }
 
 // createTestLead creates a lead for testing
@@ -261,7 +311,7 @@ func createTestLead(t *testing.T, server *Server, funnelID string) (string, stri
 
 	// Execute funnel to create lead with proper headers
 	req, _ = makeHTTPRequest("GET", fmt.Sprintf("/api/v1/execute/%s?session_id=%s", slug, sessionID), nil)
-	req.RemoteAddr = "127.0.0.1:12345"  // Set test IP address
+	req.RemoteAddr = "127.0.0.1:12345" // Set test IP address
 	recorder = httptest.NewRecorder()
 	server.router.ServeHTTP(recorder, req)
 
@@ -278,13 +328,43 @@ func cleanupTestData(t *testing.T, server *Server, funnelID string) {
 
 	if funnelID != "" {
 		ctx := context.Background()
+
+		var projectID string
+		if value, ok := testFunnelProjects.LoadAndDelete(funnelID); ok {
+			if id, ok := value.(string); ok {
+				projectID = id
+			}
+		}
+
+		if projectID == "" {
+			var project sql.NullString
+			if err := server.db.QueryRow(ctx, "SELECT project_id FROM funnel_builder.funnels WHERE id = $1", funnelID).Scan(&project); err == nil && project.Valid {
+				projectID = project.String
+			}
+		}
+
 		// Delete in correct order due to foreign keys
 		server.db.Exec(ctx, "DELETE FROM funnel_builder.analytics_events WHERE funnel_id = $1", funnelID)
 		server.db.Exec(ctx, "DELETE FROM funnel_builder.step_responses WHERE lead_id IN (SELECT id FROM funnel_builder.leads WHERE funnel_id = $1)", funnelID)
 		server.db.Exec(ctx, "DELETE FROM funnel_builder.leads WHERE funnel_id = $1", funnelID)
 		server.db.Exec(ctx, "DELETE FROM funnel_builder.funnel_steps WHERE funnel_id = $1", funnelID)
 		server.db.Exec(ctx, "DELETE FROM funnel_builder.funnels WHERE id = $1", funnelID)
+
+		if projectID != "" {
+			server.db.Exec(ctx, "DELETE FROM funnel_builder.projects WHERE id = $1", projectID)
+		}
 	}
+}
+
+func cleanupProject(t *testing.T, server *Server, projectID string) {
+	t.Helper()
+
+	if projectID == "" {
+		return
+	}
+
+	ctx := context.Background()
+	server.db.Exec(ctx, "DELETE FROM funnel_builder.projects WHERE id = $1", projectID)
 }
 
 // waitForCondition polls until condition is met or timeout

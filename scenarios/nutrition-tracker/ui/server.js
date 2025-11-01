@@ -1,15 +1,19 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const cors = require('cors');
+import express from 'express';
+import cors from 'cors';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = Number(process.env.UI_PORT || process.env.PORT || 4173);
 
 const distPath = path.join(__dirname, 'dist');
-const staticRoot = fs.existsSync(distPath) ? distPath : __dirname;
+const staticRoot = existsSync(distPath) ? distPath : __dirname;
 
-if (!fs.existsSync(distPath)) {
+if (!existsSync(distPath)) {
   console.warn('[NutritionTracker] dist/ directory not found. Falling back to serving source files.');
   console.warn('  • Run `npm run build` so the lifecycle serves the latest production bundle.');
 }
@@ -58,7 +62,7 @@ app.get('*', (req, res, next) => {
   }
 
   const indexFile = path.join(staticRoot, 'index.html');
-  if (!fs.existsSync(indexFile)) {
+  if (!existsSync(indexFile)) {
     return res.status(500).json({ error: 'UI build missing index.html' });
   }
 

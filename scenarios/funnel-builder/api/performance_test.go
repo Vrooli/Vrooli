@@ -41,8 +41,11 @@ func TestConcurrentFunnelCreation(t *testing.T) {
 			go func(index int) {
 				defer wg.Done()
 
+				projectID := createTestProject(t, testServer.Server, fmt.Sprintf("Concurrent Project %d", index))
+
 				funnelData := map[string]interface{}{
-					"name": fmt.Sprintf("Concurrent Test Funnel %d", index),
+					"name":       fmt.Sprintf("Concurrent Test Funnel %d", index),
+					"project_id": projectID,
 					"steps": []map[string]interface{}{
 						{
 							"type":     "form",

@@ -1,8 +1,16 @@
 import { FormEvent, useEffect, useState, useRef } from 'react'
 import clsx from 'clsx'
-import { Info, Monitor, Smartphone, X } from 'lucide-react'
+import { Check, Info, Monitor, Smartphone, X } from 'lucide-react'
 import { FunnelSettings } from '../../types'
 import ResponsiveDialog from '../dialog/ResponsiveDialog'
+import {
+  DEFAULT_BORDER_RADIUS,
+  DEFAULT_PRIMARY_COLOR,
+  darkenColor,
+  getFontStack as resolveFontStack,
+  lightenColor,
+  sanitizeHexColor
+} from '../../utils/theme'
 
 interface FunnelSettingsModalProps {
   settings: FunnelSettings
@@ -51,74 +59,11 @@ const radiusOptions = [
 ]
 
 const defaultTheme = {
-  primaryColor: '#2563eb',
+  primaryColor: DEFAULT_PRIMARY_COLOR,
   fontFamily: fontOptions[0].value,
-  borderRadius: radiusOptions[1].value,
+  borderRadius: radiusOptions.find((option) => option.value === DEFAULT_BORDER_RADIUS)?.value
+    ?? radiusOptions[1].value,
 }
-
-const sanitizeHexColor = (value?: string): string => {
-  if (!value) {
-    return defaultTheme.primaryColor
-  }
-
-  let hex = value.trim()
-
-  if (!hex.startsWith('#')) {
-    hex = `#${hex}`
-  }
-
-  if (/^#([0-9a-fA-F]{3})$/.test(hex)) {
-    const [, shorthand] = /^#([0-9a-fA-F]{3})$/.exec(hex) ?? []
-    if (shorthand) {
-      const expanded = shorthand
-        .split('')
-        .map((char) => `${char}${char}`)
-        .join('')
-      return `#${expanded}`.toLowerCase()
-    }
-  }
-
-  if (/^#([0-9a-fA-F]{6})$/.test(hex)) {
-    return hex.toLowerCase()
-  }
-
-  return defaultTheme.primaryColor
-}
-
-const hexToRgb = (hex: string) => {
-  const sanitized = sanitizeHexColor(hex)
-  const value = sanitized.slice(1)
-  const r = parseInt(value.slice(0, 2), 16)
-  const g = parseInt(value.slice(2, 4), 16)
-  const b = parseInt(value.slice(4, 6), 16)
-  return { r, g, b }
-}
-
-const rgbToHex = (r: number, g: number, b: number) => {
-  const toHex = (channel: number) => {
-    const clamped = Math.min(255, Math.max(0, Math.round(channel)))
-    return clamped.toString(16).padStart(2, '0')
-  }
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
-const mixColorChannel = (channel: number, target: number, amount: number) => {
-  const clampedAmount = Math.min(1, Math.max(0, amount))
-  return channel + (target - channel) * clampedAmount
-}
-
-const mixWithTarget = (hex: string, target: { r: number; g: number; b: number }, amount: number) => {
-  const { r, g, b } = hexToRgb(hex)
-  const mixedR = mixColorChannel(r, target.r, amount)
-  const mixedG = mixColorChannel(g, target.g, amount)
-  const mixedB = mixColorChannel(b, target.b, amount)
-  return rgbToHex(mixedR, mixedG, mixedB)
-}
-
-const lightenColor = (hex: string, amount: number) => mixWithTarget(hex, { r: 255, g: 255, b: 255 }, amount)
-
-const darkenColor = (hex: string, amount: number) => mixWithTarget(hex, { r: 0, g: 0, b: 0 }, amount)
 
 const normalizeSettings = (settings: FunnelSettings): FunnelSettings => ({
   ...settings,
@@ -171,7 +116,10 @@ const FunnelSettingsModal = ({ settings, onClose, onSave }: FunnelSettingsModalP
 
   const getFontStack = (value: string): string => {
     const match = fontOptions.find((option) => option.value === value)
-    return match?.stack ?? fontOptions[0].stack
+    if (match) {
+      return match.stack
+    }
+    return resolveFontStack(value)
   }
 
   const updateTheme = (key: 'primaryColor' | 'fontFamily' | 'borderRadius', value: string) => {
@@ -206,8 +154,9 @@ const FunnelSettingsModal = ({ settings, onClose, onSave }: FunnelSettingsModalP
     onSave(localSettings)
   }
 
+  const selectedFontFamily = localSettings.theme.fontFamily ?? fontOptions[0].value
   const previewPrimaryColor = sanitizeHexColor(localSettings.theme.primaryColor)
-  const previewFontFamily = getFontStack(localSettings.theme.fontFamily ?? fontOptions[0].value)
+  const previewFontFamily = getFontStack(selectedFontFamily)
   const previewBorderRadius = localSettings.theme.borderRadius ?? radiusOptions[1].value
   const previewBackground = lightenColor(previewPrimaryColor, 0.82)
   const previewGradientEnd = darkenColor(previewPrimaryColor, 0.08)
@@ -231,7 +180,7 @@ const FunnelSettingsModal = ({ settings, onClose, onSave }: FunnelSettingsModalP
       size="xl"
       className="shadow-2xl"
     >
-      <form onSubmit={handleSubmit} className="flex h-full flex-col">
+      <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Funnel Settings</h3>
@@ -249,7 +198,7 @@ const FunnelSettingsModal = ({ settings, onClose, onSave }: FunnelSettingsModalP
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0">
           <div className="flex flex-col gap-10 lg:flex-row">
             <div className="w-full space-y-6 lg:w-1/3 lg:min-w-[320px]">
               <section className="space-y-4">
@@ -277,24 +226,40 @@ const FunnelSettingsModal = ({ settings, onClose, onSave }: FunnelSettingsModalP
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Font family</label>
-                  <select
-                    value={localSettings.theme.fontFamily ?? fontOptions[0].value}
-                    onChange={(event) => updateTheme('fontFamily', event.target.value)}
-                    className="input"
-                    style={{ fontFamily: getFontStack(localSettings.theme.fontFamily ?? fontOptions[0].value) }}
+                  <div
+                    role="radiogroup"
+                    aria-label="Font family"
+                    className="mt-2 grid gap-2"
                   >
-                    {fontOptions.map((font) => (
-                      <option key={font.value} value={font.value} style={{ fontFamily: font.stack }}>
-                        {font.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p
-                    className="mt-2 text-xs text-gray-500"
-                    style={{ fontFamily: getFontStack(localSettings.theme.fontFamily ?? fontOptions[0].value) }}
-                  >
-                    The quick brown fox jumps over the lazy dog.
-                  </p>
+                    {fontOptions.map((font) => {
+                      const isSelected = selectedFontFamily === font.value
+                      return (
+                        <button
+                          key={font.value}
+                          type="button"
+                          onClick={() => updateTheme('fontFamily', font.value)}
+                          className={clsx(
+                            'w-full rounded-lg border px-4 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
+                            isSelected
+                              ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm'
+                              : 'border-gray-200 bg-white text-gray-900 hover:border-gray-300'
+                          )}
+                          role="radio"
+                          aria-checked={isSelected}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-semibold" style={{ fontFamily: font.stack }}>
+                              {font.label}
+                            </span>
+                            {isSelected && <Check className="h-4 w-4 text-primary-600" aria-hidden="true" />}
+                          </div>
+                          <span className="mt-1 block text-xs text-gray-500" style={{ fontFamily: font.stack }}>
+                            The quick brown fox jumps over the lazy dog.
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 <div>

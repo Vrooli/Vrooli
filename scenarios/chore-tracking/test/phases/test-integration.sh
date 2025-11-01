@@ -1,64 +1,36 @@
 #!/bin/bash
-# Integration test phase
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+# Integration test phase ensuring core APIs remain healthy.
+set -euo pipefail
 
-# shellcheck disable=SC1091
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-# shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Initialize phase with 120-second target
-testing::phase::init --target-time "120s"
+testing::phase::init --target-time "180s" --require-runtime
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-log::info "Running integration tests for chore-tracking"
-
-# Check if scenario is running
-if ! vrooli scenario status chore-tracking | grep -q "running"; then
-    log::warn "Scenario not running, starting it..."
-    vrooli scenario start chore-tracking
-    sleep 5
+API_BASE_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME")
+if [ -z "$API_BASE_URL" ]; then
+  testing::phase::add_error "Unable to resolve API base URL"
+  testing::phase::end_with_summary "Integration tests incomplete"
 fi
 
-# Test health endpoint
-log::info "Testing health endpoint..."
-if curl -sf http://localhost:${API_PORT:-8080}/health > /dev/null; then
-    log::success "Health check passed"
+testing::phase::check "Health endpoint responds" curl -sf "${API_BASE_URL}/health"
+
+testing::phase::check "List chores" curl -sf "${API_BASE_URL}/api/chores"
+
+testing::phase::check "List users" curl -sf "${API_BASE_URL}/api/users"
+
+testing::phase::check "List achievements" curl -sf "${API_BASE_URL}/api/achievements"
+
+testing::phase::check "List rewards" curl -sf "${API_BASE_URL}/api/rewards"
+
+if command -v jq >/dev/null 2>&1; then
+  testing::phase::check "Complete chore endpoint" bash -c "curl -sf -X POST '${API_BASE_URL}/api/chores/1/complete' -H 'Content-Type: application/json' -d '{\"user_id\":1}' | jq -e '.success == true' >/dev/null"
 else
-    testing::phase::add_error "Health check failed"
+  testing::phase::add_warning "jq not available; skipping chore completion validation"
+  testing::phase::add_test skipped
 fi
 
-# Test API endpoints
-log::info "Testing API endpoints..."
-
-# Test GET /api/chores
-if curl -sf http://localhost:${API_PORT:-8080}/api/chores > /dev/null; then
-    log::success "GET /api/chores passed"
-else
-    testing::phase::add_error "GET /api/chores failed"
-fi
-
-# Test GET /api/users
-if curl -sf http://localhost:${API_PORT:-8080}/api/users > /dev/null; then
-    log::success "GET /api/users passed"
-else
-    testing::phase::add_error "GET /api/users failed"
-fi
-
-# Test GET /api/achievements
-if curl -sf http://localhost:${API_PORT:-8080}/api/achievements > /dev/null; then
-    log::success "GET /api/achievements passed"
-else
-    testing::phase::add_error "GET /api/achievements failed"
-fi
-
-# Test GET /api/rewards
-if curl -sf http://localhost:${API_PORT:-8080}/api/rewards > /dev/null; then
-    log::success "GET /api/rewards passed"
-else
-    testing::phase::add_error "GET /api/rewards failed"
-fi
-
-# End with summary
 testing::phase::end_with_summary "Integration tests completed"

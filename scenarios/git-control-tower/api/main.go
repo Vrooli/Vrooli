@@ -18,6 +18,28 @@ import (
 
 var db *sql.DB
 
+// Configuration constants
+const (
+	// Default network configuration
+	DefaultDBHost         = "localhost"
+	DefaultCORSOrigin     = "http://localhost:36400"
+	DefaultOllamaURL      = "http://localhost:11434"
+	DefaultOllamaModel    = "llama3:8b"
+
+	// Commit message configuration
+	DefaultCommitMaxLength = 72
+	MaxDiffSummaryFiles    = 10
+
+	// Impact analysis thresholds
+	HighSeverityFileThreshold   = 10
+	MediumSeverityFileThreshold = 5
+	MultiScenarioThreshold      = 3
+	LargeChangesetThreshold     = 20
+	HighLOCDeltaThreshold       = 500
+	MediumCommitSizeThreshold   = 100
+	LargeCommitSizeThreshold    = 500
+)
+
 // HealthResponse represents the health check response
 type HealthResponse struct {
 	Status       string                 `json:"status"`
@@ -114,6 +136,12 @@ type ImpactAnalysis struct {
 	EstimatedDowntime string   `json:"estimated_downtime"`
 }
 
+// AuditDetails represents details logged for audit trail
+type AuditDetails struct {
+	Files    []string          `json:"files,omitempty"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
 func main() {
 	// Lifecycle protection check
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
@@ -203,7 +231,7 @@ func main() {
 func initDB() error {
 	dbHost := os.Getenv("POSTGRES_HOST")
 	if dbHost == "" {
-		dbHost = "localhost"
+		dbHost = DefaultDBHost
 	}
 	dbPort := os.Getenv("POSTGRES_PORT")
 	if dbPort == "" {
@@ -245,7 +273,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		// Get allowed origins from environment or default to localhost
 		allowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
 		if allowedOrigins == "" {
-			allowedOrigins = "http://localhost:36400"
+			allowedOrigins = DefaultCORSOrigin
 		}
 
 		// Set specific allowed origin
@@ -589,7 +617,7 @@ func handleStage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log audit entry
-	logAudit("stage", filesToStage)
+	logAudit("stage", AuditDetails{Files: filesToStage})
 
 	json.NewEncoder(w).Encode(StageResponse{
 		Success: true,
@@ -646,7 +674,7 @@ func handleUnstage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log audit entry
-	logAudit("unstage", filesToUnstage)
+	logAudit("unstage", AuditDetails{Files: filesToUnstage})
 
 	json.NewEncoder(w).Encode(StageResponse{
 		Success: true,
@@ -705,7 +733,7 @@ func handleCommit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log audit entry
-	logAudit("commit", []string{hash})
+	logAudit("commit", AuditDetails{Metadata: map[string]string{"hash": hash}})
 
 	json.NewEncoder(w).Encode(CommitResponse{
 		Success:    true,
@@ -911,7 +939,7 @@ func handleCreateBranch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log audit entry
-	logAudit("branch_create", map[string]string{"branch": req.Name})
+	logAudit("branch_create", AuditDetails{Metadata: map[string]string{"branch": req.Name}})
 
 	json.NewEncoder(w).Encode(BranchCreateResponse{
 		Success: true,
@@ -958,7 +986,7 @@ func handleCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log audit entry
-	logAudit("branch_checkout", map[string]string{"branch": req.Branch})
+	logAudit("branch_checkout", AuditDetails{Metadata: map[string]string{"branch": req.Branch}})
 
 	json.NewEncoder(w).Encode(BranchCheckoutResponse{
 		Success: true,
@@ -984,7 +1012,7 @@ func handleGenerateCommitMessage(w http.ResponseWriter, r *http.Request) {
 
 	// Set defaults
 	if req.MaxLength == 0 {
-		req.MaxLength = 72
+		req.MaxLength = DefaultCommitMaxLength
 	}
 
 	// Get current changes to analyze
@@ -1033,9 +1061,9 @@ func buildDiffSummary(vrooliRoot string, status *RepositoryStatus, specificFiles
 		}
 	}
 
-	// Limit to first 10 files to avoid token overload
-	if len(filesToAnalyze) > 10 {
-		filesToAnalyze = filesToAnalyze[:10]
+	// Limit to first N files to avoid token overload
+	if len(filesToAnalyze) > MaxDiffSummaryFiles {
+		filesToAnalyze = filesToAnalyze[:MaxDiffSummaryFiles]
 	}
 
 	summary.WriteString("Changes summary:\n")
@@ -1051,28 +1079,19 @@ func buildDiffSummary(vrooliRoot string, status *RepositoryStatus, specificFiles
 }
 
 func generateCommitMessageWithAI(diffSummary, context string, maxLength int) ([]string, string, error) {
-	// Check for Ollama first (preferred for local)
+	// Try Ollama (preferred for local)
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
+		ollamaURL = DefaultOllamaURL
 	}
 
-	// Try Ollama
 	suggestions, err := queryOllama(ollamaURL, diffSummary, context, maxLength)
 	if err == nil {
 		return suggestions, "ollama", nil
 	}
 
-	// Try OpenRouter as fallback
-	openRouterKey := os.Getenv("OPENROUTER_API_KEY")
-	if openRouterKey != "" {
-		suggestions, err := queryOpenRouter(openRouterKey, diffSummary, context, maxLength)
-		if err == nil {
-			return suggestions, "openrouter", nil
-		}
-	}
-
-	return nil, "", fmt.Errorf("no AI service available")
+	// No AI service available - caller will use fallback message generator
+	return nil, "", fmt.Errorf("ollama unavailable at %s: %w", ollamaURL, err)
 }
 
 func queryOllama(baseURL, diffSummary, context string, maxLength int) ([]string, error) {
@@ -1093,7 +1112,7 @@ Provide exactly 3 commit message suggestions, one per line, each under %d charac
 
 	// Query Ollama API
 	reqBody := map[string]interface{}{
-		"model":  "llama3:8b", // Default small model
+		"model":  DefaultOllamaModel,
 		"prompt": prompt,
 		"stream": false,
 	}
@@ -1122,12 +1141,6 @@ Provide exactly 3 commit message suggestions, one per line, each under %d charac
 	// Parse response into suggestions
 	suggestions := parseAISuggestions(response)
 	return suggestions, nil
-}
-
-func queryOpenRouter(apiKey, diffSummary, context string, maxLength int) ([]string, error) {
-	// Similar implementation for OpenRouter
-	// Placeholder for now - would use OpenRouter API
-	return nil, fmt.Errorf("openrouter not yet implemented")
 }
 
 func parseAISuggestions(response string) []string {
@@ -1399,9 +1412,9 @@ func handleChangePreview(w http.ResponseWriter, r *http.Request) {
 
 	// Build impact analysis
 	severity := "low"
-	if summary.TotalFiles > 10 || breakingChange {
+	if summary.TotalFiles > HighSeverityFileThreshold || breakingChange {
 		severity = "high"
-	} else if summary.TotalFiles > 5 || requiresRestart {
+	} else if summary.TotalFiles > MediumSeverityFileThreshold || requiresRestart {
 		severity = "medium"
 	}
 
@@ -1452,23 +1465,23 @@ func handleChangePreview(w http.ResponseWriter, r *http.Request) {
 	if requiresRestart {
 		recommendations = append(recommendations, "Changes require service restart - plan deployment window")
 	}
-	if len(scenarios) > 3 {
+	if len(scenarios) > MultiScenarioThreshold {
 		recommendations = append(recommendations, "Multiple scenarios affected - consider splitting into separate commits")
 	}
-	if summary.TotalFiles > 20 {
+	if summary.TotalFiles > LargeChangesetThreshold {
 		recommendations = append(recommendations, "Large changeset detected - consider breaking into smaller, focused commits")
 	}
-	if summary.TotalAdditions+summary.TotalDeletions > 500 {
+	if summary.TotalAdditions+summary.TotalDeletions > HighLOCDeltaThreshold {
 		recommendations = append(recommendations, "High LOC delta - ensure adequate test coverage")
 	}
 
 	// Estimate commit size
 	commitSize := "small"
 	totalChanges := summary.TotalAdditions + summary.TotalDeletions
-	if totalChanges > 100 {
+	if totalChanges > MediumCommitSizeThreshold {
 		commitSize = "medium"
 	}
-	if totalChanges > 500 {
+	if totalChanges > LargeCommitSizeThreshold {
 		commitSize = "large"
 	}
 
@@ -1484,9 +1497,9 @@ func handleChangePreview(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func logAudit(operation string, details interface{}) {
+func logAudit(operation string, details AuditDetails) {
 	if db == nil {
-		log.Printf("Audit log (db unavailable): operation=%s details=%v", operation, details)
+		log.Printf("Audit log (db unavailable): operation=%s details=%+v", operation, details)
 		return
 	}
 

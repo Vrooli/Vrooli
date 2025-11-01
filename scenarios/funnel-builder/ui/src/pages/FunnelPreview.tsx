@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { Funnel } from '../types'
 import { loadFunnelFromCache } from '../utils/funnelCache'
+import { buildThemeTokens } from '../utils/theme'
 
 const FunnelPreview = () => {
   const { id } = useParams()
@@ -68,12 +70,25 @@ const FunnelPreview = () => {
     })
   }, [funnel])
 
-  const primaryColor = useMemo(() => {
-    if (!funnel?.settings?.theme?.primaryColor) {
-      return '#0ea5e9'
-    }
-    return funnel.settings.theme.primaryColor
-  }, [funnel?.settings?.theme?.primaryColor])
+  const themeTokens = useMemo(
+    () => buildThemeTokens(funnel?.settings?.theme ?? null),
+    [funnel?.settings?.theme]
+  )
+
+  const previewStyle = useMemo(() => ({
+    '--preview-primary': themeTokens.primary,
+    '--preview-primary-hover': themeTokens.primaryHover,
+    '--preview-primary-pressed': themeTokens.primaryPressed,
+    '--preview-primary-soft': themeTokens.primarySoft,
+    '--preview-primary-soft-alt': themeTokens.primarySoftAlt,
+    '--preview-primary-border': themeTokens.primaryBorder,
+    '--preview-badge-bg': themeTokens.badgeBackground,
+    '--preview-badge-text': themeTokens.badgeText,
+    '--preview-ring': themeTokens.ring,
+    '--preview-border-radius': themeTokens.borderRadius,
+    '--preview-font-family': themeTokens.fontFamily,
+    background: themeTokens.backgroundGradient
+  }) as CSSProperties, [themeTokens])
 
   const handleNext = () => {
     if (funnel && currentStepIndex < funnel.steps.length - 1) {
@@ -129,19 +144,19 @@ const FunnelPreview = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen funnel-preview" style={previewStyle}>
       {funnel.settings?.progressBar ? (
         <div className="fixed top-0 left-0 right-0 h-1 bg-gray-200">
           <div
-            className="h-full bg-primary-600 transition-all duration-300"
-            style={{ width: `${progress}%`, backgroundColor: primaryColor }}
+            className="h-full transition-all duration-300 funnel-preview__progress"
+            style={{ width: `${progress}%`, backgroundColor: themeTokens.primary }}
           />
         </div>
       ) : null}
 
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl p-8 animate-fade-in">
+          <div className="bg-white shadow-xl p-8 animate-fade-in funnel-preview__card">
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 {currentStep.title}
@@ -160,7 +175,7 @@ const FunnelPreview = () => {
                       <button
                         key={option.id}
                         onClick={() => handleResponse(currentStep.id, option.id)}
-                        className="w-full p-4 bg-gray-50 hover:bg-primary-50 border-2 border-gray-200 hover:border-primary-400 rounded-lg transition-all text-left flex items-center gap-4"
+                        className="w-full p-4 bg-gray-50 border-2 border-gray-200 transition-all text-left flex items-center gap-4 funnel-preview__option"
                       >
                         <span className="text-2xl">{option.icon}</span>
                         <span className="text-lg font-medium">{option.text}</span>
@@ -189,7 +204,7 @@ const FunnelPreview = () => {
                             name={field.id}
                             required={field.required}
                             placeholder={field.placeholder}
-                            className="input w-full h-24 resize-none"
+                            className="input w-full h-24 resize-none funnel-preview__input"
                           />
                         ) : (
                           <input
@@ -197,13 +212,13 @@ const FunnelPreview = () => {
                             name={field.id}
                             required={field.required}
                             placeholder={field.placeholder}
-                            className="input w-full"
+                            className="input w-full funnel-preview__input"
                           />
                         )}
                       </div>
                     ))}
                   </div>
-                  <button type="submit" className="btn btn-primary w-full mt-6">
+                  <button type="submit" className="btn w-full mt-6 funnel-preview__primary-button">
                     {(currentStep.content as any).submitText}
                   </button>
                 </form>
@@ -219,7 +234,7 @@ const FunnelPreview = () => {
                   </p>
                   <button
                     onClick={() => handleResponse(currentStep.id, true)}
-                    className="btn btn-primary"
+                    className="btn funnel-preview__primary-button"
                   >
                     {(currentStep.content as any).buttonText}
                   </button>
@@ -238,7 +253,7 @@ const FunnelPreview = () => {
                   )}
                   <button
                     onClick={() => window.location.href = (currentStep.content as any).buttonUrl}
-                    className="btn btn-primary px-8 py-3 text-lg"
+                    className="btn px-8 py-3 text-lg funnel-preview__primary-button"
                   >
                     {(currentStep.content as any).buttonText}
                   </button>
@@ -250,7 +265,7 @@ const FunnelPreview = () => {
               {currentStepIndex > 0 && (
                 <button
                   onClick={handleBack}
-                  className="btn btn-outline"
+                  className="btn btn-outline funnel-preview__secondary-button"
                 >
                   <ChevronLeft className="w-4 h-4 mr-2" />
                   Back
