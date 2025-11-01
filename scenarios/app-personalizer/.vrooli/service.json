@@ -103,18 +103,18 @@
       "description": "Initialize App Personalizer",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "app-personalizer-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "app-personalizer"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "app-personalizer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "app-personalizer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -144,7 +144,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
+          "run": "echo '\ud83d\ude80 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -161,41 +161,20 @@
             "file_exists": "api/app-personalizer-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
-           "description": "Display service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
+          "description": "Display service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test App Personalizer Go API and CLI",
+      "description": "Comprehensive phased testing for App Personalizer",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-apps-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/apps",
-          "description": "Test API apps endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats app-personalizer.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/app-personalizer.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario tests"
         }
       ]
     },

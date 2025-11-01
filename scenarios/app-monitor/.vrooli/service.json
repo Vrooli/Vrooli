@@ -285,5 +285,15 @@
         }
       ]
     }
+  },
+  "test": {
+    "description": "Phased scenario validation",
+    "steps": [
+      {
+        "name": "run-phased-tests",
+        "run": "test/run-tests.sh",
+        "description": "Execute phased test suite"
+      }
+    ]
   }
 }

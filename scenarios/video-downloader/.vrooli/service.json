@@ -20,7 +20,8 @@
     "health": {
       "description": "Video Downloader health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -30,6 +31,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -39,26 +48,26 @@
     "setup": {
       "description": "Initialize Video Downloader",
       "condition": {
-         "checks": [
-            {
-               "type": "binaries",
-               "targets": [
-                  "video-downloader-api"
-               ]
-            },
-             {
-                "type": "cli",
-                "targets": [
-                   "video-downloader"
-                ]
-             },
-            {
-               "type": "dependencies",
-               "paths": [
-                  "ui/package.json"
-               ]
-            }
-         ]
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "video-downloader-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "video-downloader"
+            ]
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          }
+        ]
       },
       "steps": [
         {
@@ -83,33 +92,33 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📹 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '\ud83d\udcf9 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
     },
     "develop": {
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./video-downloader-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/video-downloader-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./video-downloader-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/video-downloader-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
-           "description": "Display running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
+          "description": "Display running service URLs"
+        }
       ]
     },
     "timeout": 90,
@@ -136,5 +145,15 @@
     "postgres": {
       "required": false
     }
+  },
+  "test": {
+    "description": "Comprehensive phased testing",
+    "steps": [
+      {
+        "name": "run-phased-tests",
+        "run": "test/run-tests.sh",
+        "description": "Execute phased testing suite"
+      }
+    ]
   }
 }

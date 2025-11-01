@@ -1,37 +1,49 @@
 #!/bin/bash
+# Dependency verification phase
 
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-printf "=== Test Dependencies ===\\n"
+testing::phase::init --target-time "60s"
 
-# Check Go dependencies
+run_go_check() {
+  if [ ! -f "api/go.mod" ]; then
+    testing::phase::add_warning "Go module not detected; skipping Go dependency check"
+    testing::phase::add_test skipped
+    return
+  fi
 
-if [[ -f "api/go.mod" ]]; then
+  if ! command -v go >/dev/null 2>&1; then
+    testing::phase::add_warning "Go toolchain missing; cannot verify Go dependencies"
+    testing::phase::add_test skipped
+    return
+  fi
 
-  pushd api &gt;&amp; go mod tidy &gt;/dev/null 2&gt;&amp;1 &amp;&amp; popd
+  if testing::phase::check "Go module graph resolves" bash -c 'cd api && go list ./... >/dev/null'; then
+    return
+  fi
+}
 
-  printf "✅ Go dependencies verified\\n"
+run_node_check() {
+  if [ ! -f "ui/package.json" ]; then
+    testing::phase::add_warning "UI package.json not found; skipping Node dependency check"
+    testing::phase::add_test skipped
+    return
+  fi
 
-else
+  if ! command -v npm >/dev/null 2>&1; then
+    testing::phase::add_warning "npm CLI missing; cannot verify Node dependencies"
+    testing::phase::add_test skipped
+    return
+  fi
 
-  printf "⚠️ No Go module found\\n"
+  if testing::phase::check "npm install --dry-run" bash -c 'cd ui && npm install --dry-run --silent >/dev/null'; then
+    return
+  fi
+}
 
-fi
+run_go_check || true
+run_node_check || true
 
-# Check Node dependencies
-
-if [[ -f "ui/package.json" ]]; then
-
-  # Dry run install to check deps
-
-  pushd ui &gt;&amp; npm install --dry-run --silent &amp;&amp; popd
-
-  printf "✅ UI dependencies check passed\\n"
-
-else
-
-  printf "⚠️ No UI package.json found\\n"
-
-fi
-
-printf "✅ Dependencies tests passed\\n"
+testing::phase::end_with_summary "Dependency validation completed"

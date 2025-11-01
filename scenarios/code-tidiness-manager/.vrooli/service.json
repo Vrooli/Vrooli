@@ -20,16 +20,16 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Code Tidiness Manager API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Cleanup dashboard UI port",
-       "range": "35000-39999"
-     }
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Code Tidiness Manager API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Cleanup dashboard UI port",
+      "range": "35000-39999"
+    }
   },
   "resources": {
     "postgres": {
@@ -111,18 +111,18 @@
       "description": "Initialize Code Tidiness Manager",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "code-tidiness-manager-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "code-tidiness-manager"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "code-tidiness-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "code-tidiness-manager"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -162,7 +162,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🧹 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
+          "run": "echo '\ud83e\uddf9 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -170,15 +170,15 @@
     "develop": {
       "description": "Start Code Tidiness Manager services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./code-tidiness-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/code-tidiness-manager-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./code-tidiness-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/code-tidiness-manager-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev",
@@ -188,51 +188,20 @@
             "file_exists": "ui/package.json"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🧹 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83e\uddf9 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test Code Tidiness Manager functionality",
+      "description": "Phased scenario testing using shared runner",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go test ./...",
-          "description": "Run Go unit tests",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${TIDINESS_API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-scan-endpoint",
-          "run": "curl -sf -X POST http://localhost:${TIDINESS_API_PORT}/api/v1/scan -H 'Content-Type: application/json' -d '{\"paths\": [\"test/\"], \"types\": [\"backup_files\"]}'",
-          "description": "Test scan initiation"
-        },
-        {
-          "name": "test-suggestions-endpoint",
-          "run": "curl -sf http://localhost:${TIDINESS_API_PORT}/api/v1/analyze -X POST -H 'Content-Type: application/json' -d '{\"analysis_type\": \"todo_comments\"}'",
-          "description": "Test suggestions retrieval"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats code-tidiness-manager.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/code-tidiness-manager.bats"
-          }
-        },
-        {
-          "name": "test-cleanup-detection",
-          "run": "bash test/test-cleanup-detection.sh",
-          "description": "Test various cleanup pattern detections"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute structured scenario test phases"
         }
       ]
     },

@@ -17,8 +17,10 @@ log::info "Running performance tests..."
 # Run performance tests with verbose output
 if go test -v -run "Performance" -timeout 120s 2>&1 | tee /dev/stderr; then
     log::success "Performance tests passed"
+    testing::phase::add_test passed
 else
     testing::phase::add_error "Performance tests failed"
+    testing::phase::add_test failed
 fi
 
 # End with summary

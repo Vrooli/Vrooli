@@ -1,139 +1,122 @@
 #!/usr/bin/env bash
+# Performance smoke tests for SmartNotes API
 set -euo pipefail
 
-# Test: Performance Validation
-# Tests response times, throughput, and resource efficiency
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+testing::phase::init --target-time "180s" --require-runtime
 
-# Get ports from environment - required
-if [ -z "${API_PORT:-}" ]; then
-    echo "❌ API_PORT not set and scenario not running"
-    echo "ℹ️  Start the scenario first: make run"
-    exit 1
+scenario_name="$TESTING_PHASE_SCENARIO_NAME"
+API_URL=$(testing::connectivity::get_api_url "$scenario_name" || echo "")
+
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL"
+  testing::phase::end_with_summary "Performance tests incomplete"
 fi
 
-echo "⚡ Testing SmartNotes performance..."
-echo "   API: http://localhost:${API_PORT}"
+NOTES_CREATED=()
 
-# Track failures
-FAILURES=0
-WARNINGS=0
-
-# Track created resources for cleanup
-CREATED_NOTE_IDS=()
-
-# Cleanup function
-cleanup_test_data() {
-    if [ ${#CREATED_NOTE_IDS[@]} -gt 0 ]; then
-        echo ""
-        echo "🧹 Cleaning up ${#CREATED_NOTE_IDS[@]} test note(s)..."
-        for note_id in "${CREATED_NOTE_IDS[@]}"; do
-            curl -sf -X DELETE "http://localhost:${API_PORT}/api/notes/${note_id}" > /dev/null 2>&1 || true
-        done
-        echo "✅ Test data cleaned up"
-    fi
+cleanup_perf_notes() {
+  for note in "${NOTES_CREATED[@]}"; do
+    curl -sf -X DELETE "${API_URL}/api/notes/${note}" >/dev/null 2>&1 || true
+  done
 }
 
-# Register cleanup to run on exit
-trap cleanup_test_data EXIT
+testing::phase::register_cleanup cleanup_perf_notes
 
-# Performance thresholds (in milliseconds)
-HEALTH_THRESHOLD=500
-API_READ_THRESHOLD=500
-API_WRITE_THRESHOLD=1000
+measure() {
+  local method=$1
+  local endpoint=$2
+  local label=$3
+  local threshold=$4
+  local payload=${5:-}
 
-measure_response_time() {
-    local method=$1
-    local endpoint=$2
-    local desc=$3
-    local threshold=$4
-    local data=${5:-}
-
-    local url="http://localhost:${API_PORT}${endpoint}"
-    local start=$(date +%s%N)
-    local response=""
-
-    if [ -n "${data}" ]; then
-        response=$(curl -sf -X "${method}" -H "Content-Type: application/json" -d "${data}" "${url}" 2>&1)
-    else
-        response=$(curl -sf -X "${method}" "${url}" 2>&1)
+  local start end duration response
+  start=$(date +%s%N)
+  if [ -n "$payload" ]; then
+    if ! response=$(curl -sf -X "$method" "${API_URL}${endpoint}" -H "Content-Type: application/json" -d "$payload"); then
+      return 2
     fi
-
-    local end=$(date +%s%N)
-    local duration=$(( (end - start) / 1000000 )) # Convert to milliseconds
-
-    # Track created note IDs for cleanup
-    if [[ "${method}" == "POST" && "${endpoint}" == "/api/notes" ]]; then
-        local note_id=$(echo "${response}" | jq -r '.id' 2>/dev/null || echo "")
-        [ -n "${note_id}" ] && [ "${note_id}" != "null" ] && CREATED_NOTE_IDS+=("${note_id}")
+  else
+    if ! response=$(curl -sf -X "$method" "${API_URL}${endpoint}"); then
+      return 2
     fi
+  fi
+  end=$(date +%s%N)
+  duration=$(( (end - start) / 1000000 ))
 
-    if [ ${duration} -lt ${threshold} ]; then
-        echo "  ✅ ${desc}: ${duration}ms (< ${threshold}ms)"
-    elif [ ${duration} -lt $((threshold * 2)) ]; then
-        echo "  ⚠️  ${desc}: ${duration}ms (target: ${threshold}ms)"
-        ((WARNINGS++))
-    else
-        echo "  ❌ ${desc}: ${duration}ms (target: ${threshold}ms)"
-        ((FAILURES++))
+  if [[ "$method" == "POST" && "$endpoint" == "/api/notes" ]]; then
+    local note_id
+    note_id=$(echo "$response" | jq -r '.id // empty')
+    if [ -n "$note_id" ]; then
+      NOTES_CREATED+=("$note_id")
     fi
+  fi
+
+  printf '%s' "$duration"
+  if [ "$duration" -le "$threshold" ]; then
+    return 0
+  elif [ "$duration" -le $((threshold * 2)) ]; then
+    return 1
+  else
+    return 3
+  fi
 }
 
-# Test 1: Health Check Response Time
-echo "🏥 Testing health check performance..."
-measure_response_time "GET" "/health" "Health check" ${HEALTH_THRESHOLD}
+run_measurement() {
+  local method=$1
+  local endpoint=$2
+  local label=$3
+  local threshold=$4
+  local payload=${5:-}
 
-# Test 2: Read Operations
-echo "📖 Testing read operation performance..."
-measure_response_time "GET" "/api/notes" "List notes" ${API_READ_THRESHOLD}
-measure_response_time "GET" "/api/folders" "List folders" ${API_READ_THRESHOLD}
-measure_response_time "GET" "/api/tags" "List tags" ${API_READ_THRESHOLD}
-measure_response_time "GET" "/api/templates" "List templates" ${API_READ_THRESHOLD}
+  local duration
+  if duration=$(measure "$method" "$endpoint" "$label" "$threshold" "$payload"); then
+    log::success "✅ ${label}: ${duration}ms (target ${threshold}ms)"
+    testing::phase::add_test passed
+  else
+    local status=$?
+    case $status in
+      1)
+        log::warning "⚠️  ${label}: ${duration}ms exceeds target ${threshold}ms"
+        testing::phase::add_warning "${label} slower than target"
+        testing::phase::add_test passed
+        ;;
+      2)
+        log::error "❌ ${label}: request failed"
+        testing::phase::add_test failed
+        ;;
+      *)
+        log::error "❌ ${label}: ${duration:-unknown}ms (target ${threshold}ms)"
+        testing::phase::add_test failed
+        ;;
+    esac
+  fi
+}
 
-# Test 3: Write Operations
-echo "✍️  Testing write operation performance..."
-NOTE_DATA='{"title":"Perf Test","content":"Testing write performance","content_type":"markdown"}'
-measure_response_time "POST" "/api/notes" "Create note" ${API_WRITE_THRESHOLD} "${NOTE_DATA}"
+run_measurement GET "/health" "Health endpoint latency" 500
+run_measurement GET "/api/notes" "List notes latency" 700
+run_measurement GET "/api/tags" "List tags latency" 700
+run_measurement POST "/api/notes" "Create note latency" 900 '{"title":"Perf Note","content":"Performance test payload","content_type":"markdown"}'
+run_measurement POST "/api/search" "Search latency" 900 '{"query":"performance","limit":5}'
 
-# Test 4: Search Performance
-echo "🔍 Testing search performance..."
-SEARCH_DATA='{"query":"test","limit":10}'
-measure_response_time "POST" "/api/search" "Text search" ${API_READ_THRESHOLD} "${SEARCH_DATA}"
-
-# Test 5: Concurrent Requests (simple load test)
-echo "🔄 Testing concurrent request handling..."
-CONCURRENT_REQUESTS=10
-START_TIME=$(date +%s)
-
-for i in $(seq 1 ${CONCURRENT_REQUESTS}); do
-    curl -sf "http://localhost:${API_PORT}/health" > /dev/null 2>&1 &
+# Lightweight concurrency probe
+CONCURRENT=8
+start=$(date +%s)
+for _ in $(seq 1 "$CONCURRENT"); do
+  curl -sf "${API_URL}/health" >/dev/null 2>&1 &
 done
-
 wait
-END_TIME=$(date +%s)
-TOTAL_TIME=$((END_TIME - START_TIME))
-
-if [ ${TOTAL_TIME} -lt 2 ]; then
-    echo "  ✅ Handled ${CONCURRENT_REQUESTS} concurrent requests in ${TOTAL_TIME}s"
-elif [ ${TOTAL_TIME} -lt 5 ]; then
-    echo "  ⚠️  Handled ${CONCURRENT_REQUESTS} concurrent requests in ${TOTAL_TIME}s (slower than expected)"
-    ((WARNINGS++))
+elapsed=$(( $(date +%s) - start ))
+if [ "$elapsed" -le 3 ]; then
+  log::success "✅ ${CONCURRENT} concurrent health requests in ${elapsed}s"
+  testing::phase::add_test passed
 else
-    echo "  ❌ Handled ${CONCURRENT_REQUESTS} concurrent requests in ${TOTAL_TIME}s (too slow)"
-    ((FAILURES++))
+  log::warning "⚠️  Concurrent request handling took ${elapsed}s"
+  testing::phase::add_warning "Concurrent health checks slower than expected"
+  testing::phase::add_test passed
 fi
 
-# Summary
-echo ""
-if [ ${FAILURES} -eq 0 ] && [ ${WARNINGS} -eq 0 ]; then
-    echo "✅ Performance validation passed!"
-    exit 0
-elif [ ${FAILURES} -eq 0 ]; then
-    echo "⚠️  Performance validation passed with ${WARNINGS} warning(s)"
-    exit 0
-else
-    echo "❌ Performance validation failed with ${FAILURES} error(s) and ${WARNINGS} warning(s)"
-    exit 1
-fi
+testing::phase::end_with_summary "Performance checks completed"

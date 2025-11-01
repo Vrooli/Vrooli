@@ -1,164 +1,189 @@
 #!/bin/bash
-
 # Phase: Business Logic & Delegated Generation
 # Validates the delegation pipeline, placeholder persistence, and option handling
 
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
 set -euo pipefail
 
-API_PORT=$(vrooli scenario port test-genie API_PORT 2>/dev/null || echo "")
-ISSUE_PORT=$(vrooli scenario port app-issue-tracker API_PORT 2>/dev/null || echo "")
+testing::phase::init --target-time "180s" --require-runtime
 
-if [[ -z "$API_PORT" ]]; then
-    echo "❌ test-genie scenario is not running"
-    echo "   Start it with: vrooli scenario run test-genie"
-    exit 1
+cd "$TESTING_PHASE_SCENARIO_DIR"
+
+API_PORT=$(vrooli scenario port "${TESTING_PHASE_SCENARIO_NAME}" API_PORT 2>/dev/null || true)
+if [ -z "$API_PORT" ]; then
+    testing::phase::add_error "test-genie runtime unavailable; start the scenario before running business tests"
+    testing::phase::add_test failed
+    testing::phase::end_with_summary "Business validation incomplete"
 fi
 
 API_URL="http://localhost:${API_PORT}"
+ISSUE_PORT=$(vrooli scenario port app-issue-tracker API_PORT 2>/dev/null || true)
+LAST_REQUEST_ID=""
 
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-summary=()
-
-log_step() {
-    echo -e "\n${CYAN}➡️  $1${NC}"
-}
-
-pass() {
-    echo -e "${GREEN}✅ $1${NC}"
-    summary+=("✅ $1")
-}
-
-warn() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-    summary+=("⚠️  $1")
-}
-
-fail() {
-    echo -e "${RED}❌ $1${NC}"
-    summary+=("❌ $1")
-}
-
-log_step "Test 1: App Issue Tracker health"
-if [[ -n "$ISSUE_PORT" ]]; then
-    if curl -s "http://localhost:${ISSUE_PORT}/health" | jq -e '.success == true' >/dev/null 2>&1; then
-        pass "App Issue Tracker responded on port ${ISSUE_PORT}"
-    else
-        warn "App Issue Tracker health endpoint returned unexpected payload"
-    fi
-else
-    warn "App Issue Tracker port not resolved; delegated requests may fall back locally"
+if ! command -v jq >/dev/null 2>&1; then
+    testing::phase::add_error "jq is required for business validation"
+    testing::phase::add_test failed
+    testing::phase::end_with_summary "Business validation incomplete"
 fi
+
+run_step() {
+    local description="$1"
+    shift
+
+    if "$@"; then
+        log::success "✅ ${description}"
+        testing::phase::add_test passed
+        return 0
+    else
+        log::error "❌ ${description}"
+        testing::phase::add_error "${description}"
+        testing::phase::add_test failed
+        return 1
+    fi
+}
+
+check_issue_tracker_health() {
+    if [ -z "$ISSUE_PORT" ]; then
+        testing::phase::add_warning "App Issue Tracker port not resolved; delegation will use local fallback"
+        testing::phase::add_test skipped
+        return
+    fi
+
+    local response
+    response=$(curl -s "http://localhost:${ISSUE_PORT}/health" || true)
+    if echo "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+        run_step "App Issue Tracker health endpoint responds" true
+    else
+        testing::phase::add_warning "App Issue Tracker responded unexpectedly; proceeding with local fallback"
+        testing::phase::add_test skipped
+    fi
+}
 
 submit_generation_request() {
-    local scenario="$1"
-    local payload="$2"
-
-    curl -s -X POST "${API_URL}/api/v1/test-suite/generate" \
+    local payload="$1"
+    curl -s -X POST "$API_URL/api/v1/test-suite/generate" \
         -H "Content-Type: application/json" \
-        -d "${payload}"
+        -d "$payload"
 }
 
-check_submission() {
-    local response="$1"
-    local expected="$2"
+test_delegated_submission() {
+    local payload response status request_id
+    payload='{
+        "scenario_name": "calculator-app",
+        "test_types": ["unit"],
+        "coverage_target": 90,
+        "options": {
+            "include_performance_tests": false,
+            "include_security_tests": false,
+            "custom_test_patterns": ["edge-cases"],
+            "execution_timeout": 120
+        }
+    }'
+    response=$(submit_generation_request "$payload")
+    status=$(echo "$response" | jq -r '.status // empty' 2>/dev/null)
+    request_id=$(echo "$response" | jq -r '.request_id // empty' 2>/dev/null)
 
-    local status
-    status=$(echo "${response}" | jq -r '.status // ""' 2>/dev/null)
-    local request_id
-    request_id=$(echo "${response}" | jq -r '.request_id // ""' 2>/dev/null)
-
-    if [[ "${status}" =~ ${expected} ]] && [[ -n "${request_id}" ]]; then
-        pass "Request ${request_id} recorded with status '${status}'"
-        echo "$request_id"
-    else
-        fail "Unexpected response: ${response}"
-        echo ""
+    if [[ "$status" =~ ^(submitted|generated_locally)$ ]] && [ -n "$request_id" ]; then
+        LAST_REQUEST_ID="$request_id"
+        log::info "   Request recorded with status '$status'"
+        return 0
     fi
+
+    log::error "   Payload: $response"
+    return 1
 }
 
-log_step "Test 2: Delegated generation submission"
-base_payload='{
-    "scenario_name": "calculator-app",
-    "test_types": ["unit"],
-    "coverage_target": 90,
-    "options": {
-        "include_performance_tests": false,
-        "include_security_tests": false,
-        "custom_test_patterns": ["edge-cases"],
-        "execution_timeout": 120
-    }
-}'
-base_response=$(submit_generation_request "calculator-app" "$base_payload")
-BASE_REQUEST_ID=$(check_submission "$base_response" 'submitted|generated_locally')
+test_placeholder_persisted() {
+    if [ -z "$LAST_REQUEST_ID" ]; then
+        testing::phase::add_warning "Previous submission missing request id; skipping placeholder verification"
+        return 0
+    fi
 
-log_step "Test 3: Placeholder persisted"
-if [[ -n "$BASE_REQUEST_ID" ]]; then
-    suites=$(curl -s "${API_URL}/api/v1/test-suites?scenario=calculator-app")
-    suite_count=$(echo "$suites" | jq -r '.test_suites | length' 2>/dev/null)
-    if [[ "$suite_count" -ge 1 ]]; then
-        status=$(echo "$suites" | jq -r '.test_suites[0].status // ""')
-        if [[ "$status" == "maintenance_required" ]]; then
-            pass "Placeholder suite recorded with maintenance_required status"
-        else
-            warn "Placeholder suite present but status is '${status}'"
+    local response status
+    response=$(curl -s "$API_URL/api/v1/test-suites?scenario=calculator-app" || true)
+    status=$(echo "$response" | jq -r '.test_suites[0].status // empty' 2>/dev/null)
+    if [ -n "$status" ]; then
+        log::info "   Placeholder status: $status"
+        return 0
+    fi
+
+    log::error "   listing payload: $response"
+    return 1
+}
+
+test_performance_option_submission() {
+    local payload response status
+    payload='{
+        "scenario_name": "web-api",
+        "test_types": ["performance"],
+        "coverage_target": 70,
+        "options": {
+            "include_performance_tests": true,
+            "include_security_tests": false,
+            "execution_timeout": 240
+        }
+    }'
+    response=$(submit_generation_request "$payload")
+    status=$(echo "$response" | jq -r '.status // empty' 2>/dev/null)
+    [[ "$status" =~ ^(submitted|generated_locally)$ ]]
+}
+
+test_security_option_submission() {
+    local payload response status
+    payload='{
+        "scenario_name": "user-auth-api",
+        "test_types": ["security"],
+        "coverage_target": 65,
+        "options": {
+            "include_performance_tests": false,
+            "include_security_tests": true,
+            "custom_test_patterns": ["sql-injection", "xss"],
+            "execution_timeout": 200
+        }
+    }'
+    response=$(submit_generation_request "$payload")
+    status=$(echo "$response" | jq -r '.status // empty' 2>/dev/null)
+    [[ "$status" =~ ^(submitted|generated_locally)$ ]]
+}
+
+test_concurrent_submissions() {
+    local failure=0
+    local pids=()
+
+    for i in {1..3}; do
+        (
+            payload=$(jq -n --arg idx "$i" '{
+                scenario_name: ("concurrent-" + $idx),
+                test_types: ["unit"],
+                coverage_target: 55,
+                options: { execution_timeout: 90 }
+            }')
+            response=$(submit_generation_request "$payload")
+            if ! echo "$response" | jq -e '.status' >/dev/null 2>&1; then
+                echo "Concurrent request $i failed: $response" >&2
+                exit 1
+            fi
+        ) &
+        pids+=($!)
+    done
+
+    for pid in "${pids[@]}"; do
+        if ! wait "$pid"; then
+            failure=1
         fi
-    else
-        warn "No suite placeholder detected for calculator-app"
-    fi
-else
-    warn "Skipping placeholder verification because submission failed"
-fi
+    done
 
-log_step "Test 4: Performance option submission"
-perf_payload='{
-    "scenario_name": "web-api",
-    "test_types": ["performance"],
-    "coverage_target": 70,
-    "options": {
-        "include_performance_tests": true,
-        "include_security_tests": false,
-        "execution_timeout": 240
-    }
-}'
-perf_response=$(submit_generation_request "web-api" "$perf_payload")
-check_submission "$perf_response" 'submitted|generated_locally' >/dev/null
+    [ "$failure" -eq 0 ]
+}
 
-log_step "Test 5: Security option submission"
-security_payload='{
-    "scenario_name": "user-auth-api",
-    "test_types": ["security"],
-    "coverage_target": 65,
-    "options": {
-        "include_performance_tests": false,
-        "include_security_tests": true,
-        "custom_test_patterns": ["sql-injection", "xss"],
-        "execution_timeout": 200
-    }
-}'
-security_response=$(submit_generation_request "user-auth-api" "$security_payload")
-check_submission "$security_response" 'submitted|generated_locally' >/dev/null
+check_issue_tracker_health
+run_step "Delegated generation submission recorded" test_delegated_submission
+run_step "Placeholder suite persisted" test_placeholder_persisted
+run_step "Performance option submission handled" test_performance_option_submission
+run_step "Security option submission handled" test_security_option_submission
+run_step "Concurrent submissions succeed" test_concurrent_submissions
 
-log_step "Test 6: Concurrent submissions"
-for i in {1..3}; do
-    (
-        payload="{\"scenario_name\":\"concurrent-${i}\",\"test_types\":[\"unit\"],\"coverage_target\":55,\"options\":{\"execution_timeout\":90}}"
-        response=$(submit_generation_request "concurrent-${i}" "$payload")
-        status=$(echo "$response" | jq -r '.status // ""')
-        echo "Concurrent request ${i}: ${status}" \
-            | sed "s/submitted/${GREEN}submitted${NC}/;s/generated_locally/${YELLOW}generated_locally${NC}/"
-    ) &
-done
-wait
-pass "Concurrent submissions completed"
-
-log_step "Summary"
-for line in "${summary[@]}"; do
-    echo -e "$line"
-done
-
-echo -e "\n${CYAN}Business logic tests finished.${NC}"
+testing::phase::end_with_summary "Business delegation validation completed"

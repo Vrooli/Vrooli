@@ -1,29 +1,32 @@
 #!/bin/bash
+# Validates scenario layout and required artifacts.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Test Structure Phase ==="
+testing::phase::init --target-time "30s"
 
-# Check required files and directories
-if [ -f "PRD.md" ]; then
-    echo "✓ PRD.md present"
+required_dirs=(api ui cli test initialization)
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
 else
-    echo "✗ Missing PRD.md"
-    exit 1
+  testing::phase::add_test failed
 fi
 
-if [ -d "cli" ] && [ -f "cli/qr-generator" ]; then
-    echo "✓ CLI directory and executable present"
+required_files=(
+  PRD.md
+  README.md
+  .vrooli/service.json
+  cli/qr-generator
+  test/run-tests.sh
+)
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
 else
-    echo "✗ Missing CLI"
-    exit 1
+  testing::phase::add_test failed
 fi
 
-if [ -f "test/run-tests.sh" ]; then
-    echo "✓ Test runner present"
-else
-    echo "✗ Missing test runner"
-    exit 1
-fi
+testing::phase::check "CLI script parses" bash -c 'bash -n cli/qr-generator'
 
-echo "✓ Structure tests passed"
+testing::phase::end_with_summary "Structure validation completed"

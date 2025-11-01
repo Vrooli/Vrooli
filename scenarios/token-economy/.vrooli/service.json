@@ -379,5 +379,15 @@
       "startup_grace_period": 10000
     },
     "version": "2.0.0"
+  },
+  "test": {
+    "description": "Run phased scenario tests",
+    "steps": [
+      {
+        "name": "run-phased-tests",
+        "run": "test/run-tests.sh",
+        "description": "Execute phased test suite"
+      }
+    ]
   }
 }

@@ -1,169 +1,47 @@
 #!/usr/bin/env bash
-set -uo pipefail  # Removed -e to allow tests to continue after failures
+# Exercises live API/UI endpoints and end-to-end security workflows.
+set -euo pipefail
 
-# Test: Integration Tests
-# Tests API endpoints, UI functionality, and resource integration
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+testing::phase::init --target-time "300s" --require-runtime
 
-echo "🔗 Running Prompt Injection Arena integration tests..."
+scenario_name="$TESTING_PHASE_SCENARIO_NAME"
 
-# Test configuration - require ports from environment
-if [ -z "${API_PORT:-}" ] || [ -z "${UI_PORT:-}" ]; then
-    echo "❌ API_PORT and UI_PORT environment variables are required"
-    exit 1
+API_URL=$(testing::connectivity::get_api_url "$scenario_name" 2>/dev/null || true)
+UI_URL=$(testing::connectivity::get_ui_url "$scenario_name" 2>/dev/null || true)
+
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to discover API URL via vrooli"
+  testing::phase::end_with_summary "Integration tests incomplete"
 fi
 
-API_URL="http://localhost:${API_PORT}"
-UI_URL="http://localhost:${UI_PORT}"
+if [ -z "$UI_URL" ]; then
+  testing::phase::add_error "Unable to discover UI URL via vrooli"
+  testing::phase::end_with_summary "Integration tests incomplete"
+fi
 
-# Track test results
-TESTS_PASSED=0
-TESTS_FAILED=0
+API_PORT="${API_URL##*:}"
+UI_PORT="${UI_URL##*:}"
 
-# Cleanup function
-cleanup_test_data() {
-    echo ""
-    echo "🧹 Cleaning up test data..."
+testing::phase::check "API health endpoint" bash -c 'curl -sf "$1" | jq -e ".status == \"healthy\"" >/dev/null' _ "${API_URL}/health"
+testing::phase::check "UI root serves content" bash -c 'curl -sf "$1" | grep -qi "Prompt Injection Arena"' _ "${UI_URL}/"
+testing::phase::check "UI health endpoint" bash -c 'curl -sf "$1" | jq -e ".api_connectivity.connected == true" >/dev/null' _ "${UI_URL}/health"
 
-    # Use admin cleanup endpoint if available
-    if curl -sf -X POST "${API_URL}/api/v1/admin/cleanup-test-data" > /dev/null 2>&1; then
-        echo "  ✅ Test data cleaned via admin endpoint"
-    else
-        echo "  ⚠️  Admin cleanup not available"
-    fi
-}
+testing::phase::check "Injection library endpoint" bash -c 'curl -sf "$1" | jq -e ".techniques" >/dev/null' _ "${API_URL}/api/v1/injections/library"
+testing::phase::check "Agent leaderboard endpoint" bash -c 'curl -sf "$1" | jq -e ".leaderboard" >/dev/null' _ "${API_URL}/api/v1/leaderboards/agents"
+testing::phase::check "Export formats endpoint" bash -c 'curl -sf "$1" | jq -e ".formats" >/dev/null' _ "${API_URL}/api/v1/export/formats"
 
-# Register cleanup to run on exit
-trap cleanup_test_data EXIT
-
-# Function to make API calls
-api_call() {
-    local method=$1
-    local endpoint=$2
-    local data=${3:-}
-
-    if [ -n "$data" ]; then
-        curl -sf -X "$method" "${API_URL}${endpoint}" \
-            -H "Content-Type: application/json" \
-            -d "$data"
-    else
-        curl -sf -X "$method" "${API_URL}${endpoint}"
-    fi
-}
-
-# Test API Health
-echo "🏥 Testing API health..."
-if curl -sf "${API_URL}/health" | jq -e '.status == "healthy"' > /dev/null; then
-    echo "  ✅ API health check passed"
-    ((TESTS_PASSED++))
+if vrooli resource status qdrant >/dev/null 2>&1; then
+  testing::phase::check "Vector similarity search" bash -c 'curl -sf "$1" | jq -e "type==\"array\"" >/dev/null' _ "${API_URL}/api/v1/injections/similar?query=override"
 else
-    echo "  ❌ API health check failed"
-    ((TESTS_FAILED++))
-    # Don't exit early - let other tests run
+  testing::phase::add_warning "Qdrant unavailable; skipping similarity search validation"
+  testing::phase::add_test skipped
 fi
 
-# Test UI availability
-echo "🎨 Testing UI availability..."
-ui_response=$(curl -sf "${UI_URL}/" 2>&1) || ui_response=""
-if [ -n "$ui_response" ] && echo "$ui_response" | grep -q "Prompt Injection Arena"; then
-    echo "  ✅ UI is accessible"
-    ((TESTS_PASSED++))
-else
-    echo "  ❌ UI is not accessible (UI_URL=${UI_URL}, response_length=${#ui_response})"
-    ((TESTS_FAILED++))
-fi
+testing::phase::check "Agent security integration script" bash -c 'API_PORT="$1" UI_PORT="$2" bash "$3"' _ "$API_PORT" "$UI_PORT" "$TESTING_PHASE_SCENARIO_DIR/test/test-agent-security.sh"
 
-# Test UI health endpoint
-if curl -sf "${UI_URL}/health" | jq -e '.api_connectivity.connected == true' > /dev/null; then
-    echo "  ✅ UI health check passed"
-    ((TESTS_PASSED++))
-else
-    echo "  ❌ UI health check failed"
-    ((TESTS_FAILED++))
-fi
-
-# Test injection library endpoints
-echo "📚 Testing injection library..."
-
-# Get library
-library_response=$(api_call GET /api/v1/injections/library)
-if echo "$library_response" | jq -e '.techniques' > /dev/null; then
-    echo "  ✅ Injection library retrieval works"
-    ((TESTS_PASSED++))
-else
-    echo "  ❌ Failed to retrieve injection library"
-    ((TESTS_FAILED++))
-fi
-
-# Test agent configuration endpoints (via test-agent endpoint)
-echo "🤖 Testing agent security testing..."
-
-# Test the security test-agent endpoint with a simple system prompt
-test_agent_data='{"system_prompt":"You are a helpful assistant.","model_name":"llama3.2","test_suite":[]}'
-if api_call POST /api/v1/security/test-agent "$test_agent_data" | jq -e '.robustness_score' > /dev/null 2>&1; then
-    echo "  ✅ Agent security testing works"
-    ((TESTS_PASSED++))
-else
-    echo "  ⚠️  Agent security testing may need ollama model"
-    # Don't fail on this since it requires ollama model to be available
-fi
-
-# Test leaderboard endpoints
-echo "🏆 Testing leaderboards..."
-
-# Get agent leaderboard
-leaderboard_response=$(api_call GET /api/v1/leaderboards/agents)
-if echo "$leaderboard_response" | jq -e '.leaderboard' > /dev/null; then
-    echo "  ✅ Agent leaderboard works"
-    ((TESTS_PASSED++))
-else
-    echo "  ❌ Failed to retrieve leaderboard"
-    ((TESTS_FAILED++))
-fi
-
-# Test export functionality
-echo "📊 Testing research export..."
-
-# Get export formats
-formats_response=$(api_call GET /api/v1/export/formats)
-if echo "$formats_response" | jq -e '.formats' > /dev/null; then
-    echo "  ✅ Export formats endpoint works"
-    ((TESTS_PASSED++))
-else
-    echo "  ❌ Failed to get export formats"
-    ((TESTS_FAILED++))
-fi
-
-# Test vector search (optional, depends on Qdrant)
-echo "🔍 Testing vector search..."
-if vrooli resource status qdrant &> /dev/null; then
-    search_response=$(api_call GET "/api/v1/injections/similar?query=override%20instructions" 2>/dev/null || echo '{}')
-    if echo "$search_response" | jq -e 'type == "array"' > /dev/null 2>&1; then
-        echo "  ✅ Vector similarity search works"
-        ((TESTS_PASSED++))
-    else
-        echo "  ⚠️  Vector search may need index rebuild"
-    fi
-else
-    echo "  ⚠️  Qdrant not available, skipping vector search tests"
-fi
-
-# Summary
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Integration Test Summary"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✅ Passed: ${TESTS_PASSED}"
-echo "  ❌ Failed: ${TESTS_FAILED}"
-echo "  📊 Total:  $((TESTS_PASSED + TESTS_FAILED))"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-if [ ${TESTS_FAILED} -eq 0 ]; then
-    echo "✅ All integration tests passed!"
-    exit 0
-else
-    echo "❌ Some integration tests failed"
-    exit 1
-fi
+testing::phase::end_with_summary "Integration validation completed"

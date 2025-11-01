@@ -1,27 +1,34 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "Running comprehensive tests for System Monitor"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PHASE_DIR="${SCRIPT_DIR}/phases"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-if [[ ! -d "${PHASE_DIR}" ]]; then
-  echo "Missing test phases directory: ${PHASE_DIR}" >&2
-  exit 1
-fi
+PHASES_DIR="$TEST_DIR/phases"
+ARTIFACT_DIR="$TEST_DIR/artifacts"
 
-run_phase() {
-  local script_name="$1"
-  bash "${PHASE_DIR}/${script_name}"
-}
+# Initialise shared runner so runtime-dependent phases can rely on a managed lifecycle
+# and tests produce standardised artifacts/telemetry.
+testing::runner::init \
+  --scenario-name "system-monitor" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$ARTIFACT_DIR" \
+  --default-manage-runtime true
 
-echo "=== Running test phases ==="
-run_phase "test-unit.sh"
-run_phase "test-business.sh"
-run_phase "test-dependencies.sh"
-run_phase "test-integration.sh"
-run_phase "test-performance.sh"
-run_phase "test-structure.sh"
+testing::runner::register_phase --name structure --script "$PHASES_DIR/test-structure.sh" --timeout 45 --display "phase-structure"
+testing::runner::register_phase --name dependencies --script "$PHASES_DIR/test-dependencies.sh" --timeout 120 --display "phase-dependencies"
+testing::runner::register_phase --name unit --script "$PHASES_DIR/test-unit.sh" --timeout 120 --display "phase-unit"
+testing::runner::register_phase --name integration --script "$PHASES_DIR/test-integration.sh" --timeout 240 --requires-runtime true --display "phase-integration"
+testing::runner::register_phase --name business --script "$PHASES_DIR/test-business.sh" --timeout 180 --requires-runtime true --display "phase-business"
+testing::runner::register_phase --name performance --script "$PHASES_DIR/test-performance.sh" --timeout 180 --display "phase-performance"
 
-echo "All tests completed successfully!"
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure dependencies integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+testing::runner::execute "$@"

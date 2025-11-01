@@ -15,7 +15,7 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 log::info "Running dependency tests..."
 
 # Check Go dependencies
-log::step "Checking Go module dependencies"
+log::info "Checking Go module dependencies"
 if cd api && go mod verify; then
     log::success "Go dependencies verified"
 else
@@ -23,7 +23,7 @@ else
 fi
 
 # Check for required dependencies
-log::step "Checking required packages"
+log::info "Checking required packages"
 required_packages=(
     "github.com/gorilla/mux"
     "github.com/lib/pq"
@@ -41,7 +41,7 @@ for pkg in "${required_packages[@]}"; do
 done
 
 # Check database connection (if configured)
-log::step "Checking database connectivity"
+log::info "Checking database connectivity"
 if [ -n "$POSTGRES_URL" ] || [ -n "$POSTGRES_HOST" ]; then
     if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && go test -tags=testing -run "TestDatabaseConnection" -timeout 30s 2>/dev/null; then
         log::success "Database connection verified"
@@ -53,7 +53,7 @@ else
 fi
 
 # Check service.json validity
-log::step "Validating service configuration"
+log::info "Validating service configuration"
 service_json="${TESTING_PHASE_SCENARIO_DIR}/.vrooli/service.json"
 if [ -f "$service_json" ]; then
     if jq empty "$service_json" 2>/dev/null; then
@@ -67,7 +67,7 @@ else
 fi
 
 # Check for test build tags
-log::step "Verifying test build tags"
+log::info "Verifying test build tags"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && grep -r "// +build testing" *_test.go > /dev/null 2>&1; then
     log::success "Test build tags found in test files"
 else

@@ -1,23 +1,35 @@
 #!/bin/bash
-
+# Comprehensive phased test runner for video-downloader scenario
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &amp;&amp; pwd)"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-cd "$SCRIPT_DIR"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-printf "=== Running Video Downloader Tests ===\\n"
+testing::runner::init \
+  --scenario-name "video-downloader" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$TEST_DIR/artifacts" \
+  --default-manage-runtime false
 
-./phases/test-structure.sh
+testing::runner::register_phase --name structure --script "$TEST_DIR/phases/test-structure.sh" --timeout 30
 
-./phases/test-dependencies.sh
+testing::runner::register_phase --name dependencies --script "$TEST_DIR/phases/test-dependencies.sh" --timeout 60
 
-./phases/test-unit.sh
+testing::runner::register_phase --name unit --script "$TEST_DIR/phases/test-unit.sh" --timeout 120
 
-./phases/test-integration.sh
+testing::runner::register_phase --name integration --script "$TEST_DIR/phases/test-integration.sh" --timeout 180
 
-./phases/test-performance.sh
+testing::runner::register_phase --name business --script "$TEST_DIR/phases/test-business.sh" --timeout 180
 
-./phases/test-business.sh
+testing::runner::register_phase --name performance --script "$TEST_DIR/phases/test-performance.sh" --timeout 60
 
-printf "\\n✅ All tests passed!\\n"
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+testing::runner::execute "$@"

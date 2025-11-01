@@ -1,121 +1,53 @@
 #!/usr/bin/env bash
+# Ensures required resources, toolchains, and package manifests are available.
 set -euo pipefail
 
-# Test: Dependency Validation
-# Validates that all required resources and dependencies are available
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+testing::phase::init --target-time "90s"
 
-echo "📦 Testing Prompt Injection Arena dependencies..."
+# Resource availability
+for resource in postgres ollama n8n; do
+  testing::phase::check "Resource available: ${resource}" vrooli resource status "$resource"
+done
 
-# Track failures
-FAILURES=0
-
-check_resource() {
-    local resource=$1
-    local desc=$2
-    if vrooli resource status "${resource}" &> /dev/null; then
-        echo "  ✅ ${desc}"
-    else
-        echo "  ❌ ${desc} - Resource not available: ${resource}"
-        ((FAILURES++))
-    fi
-}
-
-check_command() {
-    local cmd=$1
-    local desc=$2
-    if command -v "${cmd}" &> /dev/null; then
-        echo "  ✅ ${desc}"
-    else
-        echo "  ❌ ${desc} - Command not found: ${cmd}"
-        ((FAILURES++))
-    fi
-}
-
-# Check required resources
-echo "🔌 Checking required resources..."
-check_resource "postgres" "PostgreSQL database"
-check_resource "ollama" "Ollama AI service"
-check_resource "n8n" "n8n workflow engine"
-
-# Check optional resources (warnings only)
-echo "⚙️  Checking optional resources..."
-if vrooli resource status "qdrant" &> /dev/null; then
-    echo "  ✅ Qdrant vector database (optional)"
+if ! vrooli resource status qdrant >/dev/null 2>&1; then
+  testing::phase::add_warning "Qdrant vector database not available; similarity search tests will be skipped"
 else
-    echo "  ⚠️  Qdrant vector database not available (optional, similarity search disabled)"
+  testing::phase::check "Optional resource available: qdrant" vrooli resource status qdrant
 fi
 
-# Check system dependencies
-echo "🛠️  Checking system dependencies..."
-check_command "go" "Go compiler"
-check_command "node" "Node.js"
-check_command "npm" "npm package manager"
-check_command "jq" "jq JSON processor"
-check_command "curl" "curl HTTP client"
+# Tooling
+for command in go node npm jq curl bats; do
+  if ! testing::phase::check "Command available: ${command}" command -v "$command"; then
+    testing::phase::add_warning "${command} not on PATH"
+  fi
+done
 
-# Check Go dependencies
-echo "🔧 Checking Go dependencies..."
-if [ -f "${SCENARIO_DIR}/api/go.mod" ]; then
-    cd "${SCENARIO_DIR}/api"
-    if go mod verify &> /dev/null; then
-        echo "  ✅ Go modules verified"
-    else
-        echo "  ⚠️  Go modules need downloading (run 'go mod download')"
-    fi
+# Go module graph
+if [ -f "api/go.mod" ]; then
+  testing::phase::check "Go module graph resolves" bash -c 'cd api && go list ./... >/dev/null'
 else
-    echo "  ❌ go.mod not found"
-    ((FAILURES++))
+  testing::phase::add_warning "Go module definition missing"
+  testing::phase::add_test skipped
 fi
 
-# Check Node dependencies
-echo "📦 Checking Node dependencies..."
-if [ -f "${SCENARIO_DIR}/ui/package.json" ]; then
-    if [ -d "${SCENARIO_DIR}/ui/node_modules" ]; then
-        echo "  ✅ Node modules installed"
-    else
-        echo "  ⚠️  Node modules need installation (run 'npm install')"
-    fi
+# Node dependencies (dry-run install to verify manifests)
+if [ -f "ui/package.json" ]; then
+  if command -v npm >/dev/null 2>&1; then
+    testing::phase::check "npm install --dry-run" bash -c 'cd ui && npm install --dry-run >/dev/null'
+  else
+    testing::phase::add_warning "npm missing; cannot verify UI dependencies"
+    testing::phase::add_test skipped
+  fi
 else
-    echo "  ❌ package.json not found"
-    ((FAILURES++))
+  testing::phase::add_warning "UI package.json missing"
+  testing::phase::add_test skipped
 fi
 
-# Check environment variables
-echo "🌍 Checking environment configuration..."
-if [ -n "${POSTGRES_HOST:-}" ]; then
-    echo "  ✅ POSTGRES_HOST configured"
-else
-    echo "  ⚠️  POSTGRES_HOST not set (will be provided by lifecycle)"
-fi
+# CLI binary sanity check
+testing::phase::check "CLI binary present" test -x "cli/prompt-injection-arena"
 
-if [ -n "${OLLAMA_URL:-}" ]; then
-    echo "  ✅ OLLAMA_URL configured"
-else
-    echo "  ⚠️  OLLAMA_URL not set (will use default)"
-fi
-
-# Check CLI binary
-echo "🔧 Checking CLI binary..."
-if [ -f "${SCENARIO_DIR}/cli/prompt-injection-arena" ]; then
-    if [ -x "${SCENARIO_DIR}/cli/prompt-injection-arena" ]; then
-        echo "  ✅ CLI binary exists and is executable"
-    else
-        echo "  ⚠️  CLI binary not executable (run 'chmod +x cli/prompt-injection-arena')"
-    fi
-else
-    echo "  ❌ CLI binary not found"
-    ((FAILURES++))
-fi
-
-# Summary
-echo ""
-if [ ${FAILURES} -eq 0 ]; then
-    echo "✅ Dependency validation passed!"
-    exit 0
-else
-    echo "❌ Dependency validation failed with ${FAILURES} error(s)"
-    exit 1
-fi
+testing::phase::end_with_summary "Dependency validation completed"

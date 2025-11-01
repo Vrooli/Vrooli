@@ -1,30 +1,50 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Integration Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Run CLI BATS tests
-if [ -f "cli/vrooli.bats" ]; then
-  echo "Running CLI BATS tests..."
-  if command -v bats >/dev/null 2>&1; then
-    bats cli/vrooli.bats || {
-      echo "⚠️ CLI tests failed, but continuing..."
-    }
-  else
-    echo "⚠️ BATS not installed, skipping CLI tests"
+testing::phase::init --target-time "240s" --require-runtime
+
+cd "$TESTING_PHASE_SCENARIO_DIR"
+
+run_bats_suite() {
+  local title="$1"
+  local file="$2"
+
+  if ! command -v bats >/dev/null 2>&1; then
+    testing::phase::add_warning "BATS not installed; skipping ${title}"
+    testing::phase::add_test skipped
+    return 0
   fi
+
+  if bats "$file"; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "${title} failed"
+    testing::phase::add_test failed
+  fi
+}
+
+if [ -f "cli/vrooli.bats" ]; then
+  run_bats_suite "CLI integration tests" "cli/vrooli.bats"
 fi
 
-# Run existing integration tests if available
-if [ -f "test.sh" ]; then
-  ./test.sh || exit 1
+if [ -f "test.bats" ]; then
+  run_bats_suite "Scenario BATS tests" "test.bats"
 fi
 
-if [ -f "custom-tests.sh" ]; then
-  ./custom-tests.sh 2>&1 | grep -v "var.sh" || true
+if [ -x "custom-tests.sh" ]; then
+  if ./custom-tests.sh >/dev/null; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Custom workflow validation failed"
+    testing::phase::add_test failed
+  fi
+else
+  testing::phase::add_warning "custom-tests.sh not executable; skipping"
+  testing::phase::add_test skipped
 fi
 
-# Basic resource integration check (assuming resources are up, but for standalone test, mock or skip)
-echo "Basic integration checks passed"
-
-echo "✅ Integration tests passed"
+testing::phase::end_with_summary "Integration tests completed"

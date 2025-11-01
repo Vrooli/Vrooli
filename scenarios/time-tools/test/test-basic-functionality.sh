@@ -64,10 +64,13 @@ run_test() {
 get_api_url() {
     local api_port
 
-    # Try to get port from environment variable first
-    api_port="${TIME_TOOLS_PORT}"
+    # Prefer modern API_PORT but fall back to legacy TIME_TOOLS_PORT
+    api_port="${API_PORT:-${TIME_TOOLS_PORT:-}}"
 
-    # If not set, try to get from vrooli CLI
+    # If not set, try to get from vrooli CLI using both port keys
+    if [[ -z "$api_port" ]]; then
+        api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null || true)
+    fi
     if [[ -z "$api_port" ]]; then
         api_port=$(vrooli scenario port "${SCENARIO_NAME}" TIME_TOOLS_PORT 2>/dev/null || true)
     fi

@@ -1,55 +1,46 @@
 #!/bin/bash
-set -e
+# Lightweight performance guardrails for picker-wheel endpoints
+set -euo pipefail
 
-echo "=== Performance Tests for Picker Wheel ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Validate required environment variables
-if [ -z "${API_PORT:-}" ]; then
-    echo "ERROR: API_PORT environment variable is required for tests"
-    exit 1
+testing::phase::init --target-time "120s" --require-runtime
+
+SCENARIO_NAME="$TESTING_PHASE_SCENARIO_NAME"
+API_URL="$(testing::connectivity::get_api_url "$SCENARIO_NAME" || true)"
+
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to discover API URL"
+  testing::phase::end_with_summary "Performance tests incomplete"
 fi
 
-API_URL="http://localhost:${API_PORT}"
-
-# Test API response time
-echo "Testing API response times..."
-HEALTH_TIME=$(curl -o /dev/null -s -w '%{time_total}' "${API_URL}/health")
-echo "Health endpoint: ${HEALTH_TIME}s"
-if (( $(echo "$HEALTH_TIME > 0.5" | bc -l) )); then
-  echo "⚠️ Health endpoint slow (>500ms)"
+if ! command -v curl >/dev/null 2>&1; then
+  testing::phase::add_error "curl is required for performance checks"
+  testing::phase::end_with_summary "Performance tests incomplete"
 fi
 
-# Test spin endpoint performance
-echo "Testing spin performance..."
+testing::phase::check "Health endpoint responds within 1s" \
+  curl -s --max-time 1 -o /dev/null "${API_URL}/health"
+
+testing::phase::check "Spin endpoint responds within 2s" \
+  curl -s --max-time 2 -o /dev/null -X POST "${API_URL}/api/spin" \
+    -H "Content-Type: application/json" \
+    -d '{"wheel_id":"yes-or-no"}'
+
+PERF_SCRIPT=$(cat <<'SH'
+set -euo pipefail
 for i in {1..10}; do
-  START=$(date +%s%N)
-  curl -sf -X POST "${API_URL}/api/spin" \
+  curl -s --max-time 3 -o /dev/null -X POST "${API_URL}/api/spin" \
     -H "Content-Type: application/json" \
-    -d '{"wheel_id": "yes-or-no"}' > /dev/null
-  END=$(date +%s%N)
-  ELAPSED=$((($END - $START) / 1000000))
-  echo "Spin $i: ${ELAPSED}ms"
-  if [ $ELAPSED -gt 500 ]; then
-    echo "⚠️ Spin endpoint slow (>500ms)"
-  fi
-done
-
-# Test concurrent requests
-echo "Testing concurrent spin requests..."
-for i in {1..20}; do
-  curl -sf -X POST "${API_URL}/api/spin" \
-    -H "Content-Type: application/json" \
-    -d '{"wheel_id": "dinner-decider"}' > /dev/null &
+    -d '{"wheel_id":"dinner-decider"}' &
 done
 wait
-echo "✅ Handled 20 concurrent requests"
+SH
+)
 
-# Test memory usage
-echo "Testing memory usage..."
-API_PID=$(pgrep -f "picker-wheel-api" || echo "")
-if [ -n "$API_PID" ]; then
-  MEM_USAGE=$(ps -o rss= -p $API_PID | awk '{print $1/1024 "MB"}')
-  echo "API memory usage: $MEM_USAGE"
-fi
+testing::phase::check "Handle 10 concurrent spins under 3s" \
+  bash -c "$PERF_SCRIPT"
 
-echo "✅ Performance tests completed"
+testing::phase::end_with_summary "Performance validation completed"

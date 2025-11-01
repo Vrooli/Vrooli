@@ -1,24 +1,26 @@
 #!/bin/bash
 # Unit test phase for code-tidiness-manager
-# Tests Go API server with comprehensive coverage requirements
-
-set -e
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-testing::phase::init --target-time "60s"
+testing::phase::init --target-time "120s"
 source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-# Run unit tests for Go API with coverage requirements
-testing::unit::run_all_tests \
-    --go-dir "api" \
-    --skip-node \
-    --skip-python \
-    --coverage-warn 80 \
-    --coverage-error 50
+echo "Running Go unit tests with coverage thresholds"
+if testing::unit::run_all_tests \
+  --go-dir "api" \
+  --skip-node \
+  --skip-python \
+  --coverage-warn 80 \
+  --coverage-error 50; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Unit tests failed"
+fi
 
 testing::phase::end_with_summary "Unit tests completed"

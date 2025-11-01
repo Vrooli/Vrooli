@@ -97,20 +97,20 @@
     },
     "setup": {
       "description": "Initialize Visitor Intelligence system",
-       "condition": {
-         "checks": [
-            {
-               "type": "binaries",
-               "targets": [
-                  "visitor-intelligence-api"
-               ]
-            },
-              {
-                 "type": "cli",
-                 "targets": [
-                   "visitor-intelligence"
-                 ]
-              },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "visitor-intelligence-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "visitor-intelligence"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -146,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
+          "run": "echo '\ud83d\ude80 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -154,55 +154,29 @@
     "develop": {
       "description": "Start visitor intelligence with Go API server",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./visitor-intelligence-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/visitor-intelligence-api"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
-           "description": "Display all running service URLs and integration example"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && ./visitor-intelligence-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/visitor-intelligence-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
+          "description": "Display all running service URLs and integration example"
+        }
       ]
     },
     "test": {
-      "description": "Test visitor intelligence API and CLI",
+      "description": "Run phased test suite",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-tracking-endpoint",
-          "run": "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"fingerprint\":\"test\",\"event_type\":\"pageview\",\"scenario\":\"test\"}' http://localhost:${API_PORT}/api/v1/visitor/track",
-          "description": "Test visitor tracking endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats visitor-intelligence.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/visitor-intelligence.bats"
-          }
-        },
-        {
-          "name": "test-database-connection",
-          "run": "visitor-intelligence status --json",
-          "description": "Test database connectivity via CLI"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute structure, dependency, unit, integration, business, and performance phases"
         }
       ]
     },

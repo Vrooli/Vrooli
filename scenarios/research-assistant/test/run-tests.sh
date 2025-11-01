@@ -1,16 +1,32 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-echo "=== Running Research Assistant Tests ==="
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Run all test phases
-${SCRIPT_DIR}/phases/test-structure.sh
-${SCRIPT_DIR}/phases/test-dependencies.sh
-${SCRIPT_DIR}/phases/test-unit.sh
-${SCRIPT_DIR}/phases/test-integration.sh
-${SCRIPT_DIR}/phases/test-performance.sh
-${SCRIPT_DIR}/phases/test-business.sh
+testing::runner::init \
+  --scenario-name "research-assistant" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$TEST_DIR/artifacts" \
+  --default-manage-runtime true
 
-echo "✅ All test phases completed successfully"
+PHASES_DIR="$TEST_DIR/phases"
+
+testing::runner::register_phase --name structure --script "$PHASES_DIR/test-structure.sh" --timeout 45
+testing::runner::register_phase --name dependencies --script "$PHASES_DIR/test-dependencies.sh" --timeout 90
+testing::runner::register_phase --name unit --script "$PHASES_DIR/test-unit.sh" --timeout 180
+testing::runner::register_phase --name integration --script "$PHASES_DIR/test-integration.sh" --timeout 240 --requires-runtime true
+testing::runner::register_phase --name business --script "$PHASES_DIR/test-business.sh" --timeout 150
+testing::runner::register_phase --name performance --script "$PHASES_DIR/test-performance.sh" --timeout 120
+
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure dependencies"
+testing::runner::define_preset core "structure dependencies unit integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+testing::runner::execute "$@"

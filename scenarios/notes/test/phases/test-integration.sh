@@ -1,167 +1,140 @@
-#!/bin/bash
-# Integration tests for SmartNotes
-
+#!/usr/bin/env bash
+# Integration validation for SmartNotes API and UI workflows
 set -euo pipefail
 
-echo "🔗 Running SmartNotes integration tests..."
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Test configuration - require ports from environment
-if [ -z "$API_PORT" ] || [ -z "$UI_PORT" ]; then
-    echo "❌ API_PORT and UI_PORT environment variables are required"
-    exit 1
+testing::phase::init --target-time "240s" --require-runtime
+
+scenario_name="$TESTING_PHASE_SCENARIO_NAME"
+API_URL=$(testing::connectivity::get_api_url "$scenario_name" || echo "")
+UI_URL=$(testing::connectivity::get_ui_url "$scenario_name" || echo "")
+
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL for $scenario_name"
+  testing::phase::end_with_summary "Integration tests incomplete"
 fi
-API_URL="http://localhost:${API_PORT}"
-UI_URL="http://localhost:${UI_PORT}"
 
-# Track test results
-TESTS_PASSED=0
-TESTS_FAILED=0
+if [ -z "$UI_URL" ]; then
+  testing::phase::add_warning "UI port unavailable; UI checks skipped"
+fi
 
-# Track created resources for cleanup
-CREATED_NOTE_IDS=()
-CREATED_FOLDER_IDS=()
-CREATED_TAG_IDS=()
-CREATED_TEMPLATE_IDS=()
+NOTES_CREATED=()
 
-# Cleanup function
-cleanup_test_data() {
-    echo ""
-    echo "🧹 Cleaning up test data..."
-
-    # Delete created notes
-    for note_id in "${CREATED_NOTE_IDS[@]}"; do
-        curl -sf -X DELETE "${API_URL}/api/notes/${note_id}" > /dev/null 2>&1 || true
-    done
-
-    # Delete created folders
-    for folder_id in "${CREATED_FOLDER_IDS[@]}"; do
-        curl -sf -X DELETE "${API_URL}/api/folders/${folder_id}" > /dev/null 2>&1 || true
-    done
-
-    # Delete created tags
-    for tag_id in "${CREATED_TAG_IDS[@]}"; do
-        curl -sf -X DELETE "${API_URL}/api/tags/${tag_id}" > /dev/null 2>&1 || true
-    done
-
-    # Delete created templates
-    for template_id in "${CREATED_TEMPLATE_IDS[@]}"; do
-        curl -sf -X DELETE "${API_URL}/api/templates/${template_id}" > /dev/null 2>&1 || true
-    done
-
-    echo "✅ Test data cleaned up"
+cleanup_notes() {
+  for note_id in "${NOTES_CREATED[@]}"; do
+    curl -sf -X DELETE "${API_URL}/api/notes/${note_id}" >/dev/null 2>&1 || true
+  done
 }
 
-# Register cleanup to run on exit
-trap cleanup_test_data EXIT
+testing::phase::register_cleanup cleanup_notes
 
-# Function to make API calls
-api_call() {
-    local method=$1
-    local endpoint=$2
-    local data=${3:-}
+auth_headers=("Content-Type: application/json")
 
-    if [ -n "$data" ]; then
-        curl -sf -X "$method" "${API_URL}${endpoint}" \
-            -H "Content-Type: application/json" \
-            -d "$data"
-    else
-        curl -sf -X "$method" "${API_URL}${endpoint}"
-    fi
+api_health() {
+  local response
+  if ! response=$(curl -sf "${API_URL}/health"); then
+    return 1
+  fi
+  echo "$response" | jq -e '.status == "healthy"' >/dev/null 2>&1
 }
 
-# Test UI availability
-echo "Testing UI availability..."
-if curl -sf "${UI_URL}/" | grep -q "SmartNotes"; then
-    echo "✅ UI is accessible"
+if api_health; then
+  log::success "✅ API health endpoint reports healthy"
+  testing::phase::add_test passed
 else
-    echo "❌ UI is not accessible"
-    exit 1
+  testing::phase::add_error "API health endpoint failed"
+  testing::phase::add_test failed
 fi
 
-# Test folders functionality
-echo "Testing folders..."
-folder_response=$(api_call POST /api/folders '{"name":"Test Folder","icon":"📁","color":"#6366f1"}')
-if echo "$folder_response" | grep -q "Test Folder"; then
-    folder_id=$(echo "$folder_response" | jq -r '.id' 2>/dev/null || echo "")
-    [ -n "$folder_id" ] && CREATED_FOLDER_IDS+=("$folder_id")
-    echo "✅ Folder created"
-else
-    echo "❌ Failed to create folder"
-    exit 1
+if [ -n "$UI_URL" ]; then
+  if curl -sf "$UI_URL/" | grep -q "SmartNotes"; then
+    log::success "✅ UI homepage renders"
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "UI homepage not reachable"
+    testing::phase::add_test failed
+  fi
 fi
 
-# Test tags functionality
-echo "Testing tags..."
-tag_response=$(api_call POST /api/tags '{"name":"test-tag","color":"#10b981"}')
-if echo "$tag_response" | grep -q "test-tag"; then
-    tag_id=$(echo "$tag_response" | jq -r '.id' 2>/dev/null || echo "")
-    [ -n "$tag_id" ] && CREATED_TAG_IDS+=("$tag_id")
-    echo "✅ Tag created"
+create_note() {
+  local payload=$1
+  local response
+  if ! response=$(curl -sf -X POST "${API_URL}/api/notes" -H "Content-Type: application/json" -d "$payload"); then
+    return 1
+  fi
+  local note_id
+  note_id=$(echo "$response" | jq -r '.id // empty')
+  if [ -z "$note_id" ]; then
+    return 1
+  fi
+  NOTES_CREATED+=("$note_id")
+  printf '%s' "$note_id"
+}
+
+NOTE_ID=""
+if NOTE_ID=$(create_note '{"title":"Integration Note","content":"Created during integration tests","content_type":"markdown"}'); then
+  log::success "✅ Note created (${NOTE_ID})"
+  testing::phase::add_test passed
 else
-    echo "❌ Failed to create tag"
-    exit 1
+  testing::phase::add_error "Failed to create note"
+  testing::phase::add_test failed
 fi
 
-# Test templates functionality
-echo "Testing templates..."
-template_response=$(api_call POST /api/templates '{
-    "name":"Meeting Notes",
-    "description":"Template for meeting notes",
-    "content":"# Meeting Notes\\n\\n## Date: \\n## Attendees: \\n## Agenda: \\n## Action Items: ",
-    "category":"business"
-}')
-if echo "$template_response" | grep -q "Meeting Notes"; then
-    template_id=$(echo "$template_response" | jq -r '.id' 2>/dev/null || echo "")
-    [ -n "$template_id" ] && CREATED_TEMPLATE_IDS+=("$template_id")
-    echo "✅ Template created"
-else
-    echo "❌ Failed to create template"
-    exit 1
+test_endpoint() {
+  local method=$1
+  local endpoint=$2
+  local description=$3
+  local data=${4:-}
+  local cmd=(curl -sf -X "$method" "${API_URL}${endpoint}")
+  if [ -n "$data" ]; then
+    cmd+=(-H "Content-Type: application/json" -d "$data")
+  fi
+  if "${cmd[@]}" >/dev/null; then
+    log::success "✅ ${description}"
+    testing::phase::add_test passed
+    return 0
+  fi
+  log::error "❌ ${description}"
+  testing::phase::add_test failed
+  return 1
+}
+
+if [ -n "$NOTE_ID" ]; then
+  test_endpoint GET "/api/notes/${NOTE_ID}" "Fetch created note"
+  test_endpoint PUT "/api/notes/${NOTE_ID}" "Update note" '{"title":"Updated Integration Note","content":"Updated content","content_type":"markdown"}'
 fi
 
-# Test search functionality
-echo "Testing search..."
-search_note_response=$(api_call POST /api/notes '{"title":"Searchable Note","content":"This note contains unique keywords for testing"}')
-search_note_id=$(echo "$search_note_response" | jq -r '.id' 2>/dev/null || echo "")
-[ -n "$search_note_id" ] && CREATED_NOTE_IDS+=("$search_note_id")
-sleep 1
-search_response=$(api_call POST /api/search '{"query":"unique keywords"}')
-if echo "$search_response" | grep -q "Searchable Note"; then
-    echo "✅ Search functionality works"
-else
-    echo "❌ Search functionality failed"
-    exit 1
+test_endpoint GET "/api/notes" "List notes"
+test_endpoint GET "/api/folders" "List folders"
+test_endpoint GET "/api/tags" "List tags"
+
+delete_note() {
+  local note_id=$1
+  if curl -sf -X DELETE "${API_URL}/api/notes/${note_id}" >/dev/null; then
+    log::success "✅ Delete note"
+    testing::phase::add_test passed
+    return 0
+  fi
+  log::error "❌ Delete note"
+  testing::phase::add_test failed
+  return 1
+}
+
+if [ -n "$NOTE_ID" ]; then
+  delete_note "$NOTE_ID" || true
+  NOTES_CREATED=()
 fi
 
-# Test semantic search if Qdrant is available
-echo "Testing semantic search..."
-if curl -sf "http://localhost:6333/collections" &>/dev/null; then
-    # Create a note with specific content
-    ai_note_response=$(api_call POST /api/notes '{"title":"AI Research","content":"Machine learning, neural networks, deep learning algorithms"}')
-    ai_note_id=$(echo "$ai_note_response" | jq -r '.id' 2>/dev/null || echo "")
-    [ -n "$ai_note_id" ] && CREATED_NOTE_IDS+=("$ai_note_id")
-    sleep 2 # Allow time for indexing
-
-    # Test semantic search
-    semantic_response=$(api_call POST /api/search/semantic '{"query":"artificial intelligence","limit":5}' || echo "FAILED")
-    if [[ "$semantic_response" != "FAILED" ]]; then
-        echo "✅ Semantic search functionality available"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-    else
-        echo "⚠️  Semantic search not fully working"
-    fi
+search_payload='{"query":"integration","limit":5}'
+if curl -sf -X POST "${API_URL}/api/search" -H "Content-Type: application/json" -d "$search_payload" >/dev/null; then
+  log::success "✅ Text search responds"
+  testing::phase::add_test passed
 else
-    echo "⚠️  Qdrant not available - semantic search skipped"
+  log::error "❌ Text search endpoint failed"
+  testing::phase::add_test failed
 fi
 
-# Summary
-echo ""
-echo "📊 Test Summary:"
-echo "   ✅ Tests Passed: ${TESTS_PASSED}"
-if [[ $TESTS_FAILED -gt 0 ]]; then
-    echo "   ❌ Tests Failed: ${TESTS_FAILED}"
-    exit 1
-else
-    echo "✅ All integration tests passed!"
-    exit 0
-fi
+testing::phase::end_with_summary "Integration tests completed"

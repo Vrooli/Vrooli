@@ -1,102 +1,77 @@
 #!/usr/bin/env bash
+# Dependency validation for SmartNotes scenario
 set -euo pipefail
 
-# Test: Dependency Validation
-# Validates that all required resources and dependencies are available
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+testing::phase::init --target-time "90s"
 
-echo "📦 Testing SmartNotes dependencies..."
-
-# Track failures
-FAILURES=0
-
-check_resource() {
-    local resource=$1
-    local desc=$2
-    if vrooli resource status "${resource}" &> /dev/null; then
-        echo "  ✅ ${desc}"
-    else
-        echo "  ❌ ${desc} - Resource not available: ${resource}"
-        ((FAILURES++))
-    fi
+require_resource() {
+  local resource=$1
+  testing::phase::check "Resource available: ${resource}" vrooli resource status "$resource"
 }
 
-check_command() {
-    local cmd=$1
-    local desc=$2
-    if command -v "${cmd}" &> /dev/null; then
-        echo "  ✅ ${desc}"
-    else
-        echo "  ❌ ${desc} - Command not found: ${cmd}"
-        ((FAILURES++))
-    fi
+require_command() {
+  local cmd=$1
+  testing::phase::check "Command available: ${cmd}" command -v "$cmd"
 }
 
-# Check required resources
-echo "🔌 Checking required resources..."
-check_resource "postgres" "PostgreSQL database"
-check_resource "qdrant" "Qdrant vector database"
-check_resource "ollama" "Ollama AI service"
-check_resource "n8n" "n8n workflow engine"
+# Critical runtime resources
+require_resource postgres || true
+require_resource qdrant || true
+require_resource ollama || true
+require_resource n8n || true
 
-# Check optional resources (warnings only)
-echo "⚙️  Checking optional resources..."
-if vrooli resource status "redis" &> /dev/null; then
-    echo "  ✅ Redis cache (optional)"
+# Optional redis (warn only)
+if vrooli resource status redis >/dev/null 2>&1; then
+  testing::phase::add_test passed
+  log::success "Redis cache available"
 else
-    echo "  ⚠️  Redis cache not available (optional)"
+  testing::phase::add_warning "Redis cache not installed (optional)"
+  testing::phase::add_test skipped
 fi
 
-# Check system dependencies
-echo "🛠️  Checking system dependencies..."
-check_command "go" "Go compiler"
-check_command "node" "Node.js"
-check_command "npm" "npm package manager"
-check_command "jq" "jq JSON processor"
+# Tooling requirements
+require_command go || true
+require_command node || true
+require_command npm || true
+require_command jq || true
 
-# Check Go dependencies
-echo "🔧 Checking Go dependencies..."
-if [ -f "${SCENARIO_DIR}/api/go.mod" ]; then
-    cd "${SCENARIO_DIR}/api"
-    if go mod verify &> /dev/null; then
-        echo "  ✅ Go modules verified"
-    else
-        echo "  ⚠️  Go modules need downloading (run 'go mod download')"
-    fi
+# Go modules resolve
+if [ -f api/go.mod ]; then
+  if testing::phase::check "Go modules verify" bash -c 'cd api && go mod verify >/dev/null'; then
+    :
+  else
+    :
+  fi
 else
-    echo "  ❌ go.mod not found"
-    ((FAILURES++))
+  testing::phase::add_error "api/go.mod missing"
+  testing::phase::add_test failed
 fi
 
-# Check Node dependencies
-echo "📦 Checking Node dependencies..."
-if [ -f "${SCENARIO_DIR}/ui/package.json" ]; then
-    if [ -d "${SCENARIO_DIR}/ui/node_modules" ]; then
-        echo "  ✅ Node modules installed"
-    else
-        echo "  ⚠️  Node modules need installation (run 'npm install')"
-    fi
+# Node modules present or installable
+if [ -f ui/package.json ]; then
+  if [ -d ui/node_modules ]; then
+    testing::phase::add_test passed
+    log::success "Node modules already installed"
+  else
+    testing::phase::add_warning "ui/node_modules missing; run npm install"
+    testing::phase::add_test skipped
+  fi
 else
-    echo "  ❌ package.json not found"
-    ((FAILURES++))
+  testing::phase::add_error "ui/package.json missing"
+  testing::phase::add_test failed
 fi
 
-# Check environment variables
-echo "🌍 Checking environment configuration..."
-if [ -n "${POSTGRES_HOST:-}" ]; then
-    echo "  ✅ POSTGRES_HOST configured"
+# Ensure lifecycle configuration includes test hook
+if jq -e '.lifecycle.test.steps[]? | select(.run == "./test/run-tests.sh")' .vrooli/service.json >/dev/null 2>&1; then
+  testing::phase::add_test passed
 else
-    echo "  ⚠️  POSTGRES_HOST not set (will be provided by lifecycle)"
+  testing::phase::add_warning "Lifecycle test step not configured"
+  testing::phase::add_test skipped
 fi
 
-# Summary
-echo ""
-if [ ${FAILURES} -eq 0 ]; then
-    echo "✅ Dependency validation passed!"
-    exit 0
-else
-    echo "❌ Dependency validation failed with ${FAILURES} error(s)"
-    exit 1
-fi
+
+testing::phase::end_with_summary "Dependency validation completed"

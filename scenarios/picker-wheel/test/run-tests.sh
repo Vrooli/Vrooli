@@ -1,76 +1,40 @@
 #!/bin/bash
-set -e
+# Phased test orchestrator for picker-wheel scenario
+set -euo pipefail
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$SCENARIO_DIR"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-echo "🧪 Running Picker Wheel Test Suite"
-echo "=================================="
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Initialise shared runner with runtime management so integration-centric
+# phases can assume services are available when required.
+testing::runner::init \
+  --scenario-name "picker-wheel" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$TEST_DIR/artifacts" \
+  --default-manage-runtime true
 
-# Test phases
-PHASES=(
-  "structure"
-  "unit"
-  "integration"
-  "performance"
-)
+PHASE_DIR="$TEST_DIR/phases"
 
-# Track results
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
-SKIPPED_TESTS=0
+testing::runner::register_phase --name structure --script "$PHASE_DIR/test-structure.sh" --timeout 45
 
-# Run each phase
-for phase in "${PHASES[@]}"; do
-  TEST_FILE="test/phases/test-${phase}.sh"
-  TOTAL_TESTS=$((TOTAL_TESTS + 1))
-  
-  if [ ! -f "$TEST_FILE" ]; then
-    echo -e "${YELLOW}⚠️  Skipping $phase tests (file not found)${NC}"
-    SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
-    continue
-  fi
-  
-  echo ""
-  echo "🔍 Running $phase tests..."
-  echo "------------------------"
-  
-  if bash "$TEST_FILE"; then
-    echo -e "${GREEN}✅ $phase tests passed${NC}"
-    PASSED_TESTS=$((PASSED_TESTS + 1))
-  else
-    echo -e "${RED}❌ $phase tests failed${NC}"
-    FAILED_TESTS=$((FAILED_TESTS + 1))
-    
-    # Continue running other phases even if one fails
-    if [ "$CONTINUE_ON_FAILURE" != "true" ]; then
-      echo "Stopping test execution due to failure"
-      break
-    fi
-  fi
-done
+testing::runner::register_phase --name dependencies --script "$PHASE_DIR/test-dependencies.sh" --timeout 90
 
-# Summary
-echo ""
-echo "=================================="
-echo "📊 Test Summary"
-echo "=================================="
-echo "Total:   $TOTAL_TESTS"
-echo -e "Passed:  ${GREEN}$PASSED_TESTS${NC}"
-echo -e "Failed:  ${RED}$FAILED_TESTS${NC}"
-echo -e "Skipped: ${YELLOW}$SKIPPED_TESTS${NC}"
+testing::runner::register_phase --name unit --script "$PHASE_DIR/test-unit.sh" --timeout 120
 
-# Exit with failure if any tests failed
-if [ $FAILED_TESTS -gt 0 ]; then
-  exit 1
-fi
+testing::runner::register_phase --name integration --script "$PHASE_DIR/test-integration.sh" --timeout 180 --requires-runtime true
 
-echo ""
-echo -e "${GREEN}🎉 All tests passed!${NC}"
+testing::runner::register_phase --name business --script "$PHASE_DIR/test-business.sh" --timeout 180 --requires-runtime true
+
+testing::runner::register_phase --name performance --script "$PHASE_DIR/test-performance.sh" --timeout 120 --requires-runtime true
+
+# Helpful presets for iteration
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure dependencies integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+testing::runner::execute "$@"

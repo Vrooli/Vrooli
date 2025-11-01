@@ -44,7 +44,8 @@ test_required_files() {
         "initialization/node-red/anomaly-detector.json"
         "initialization/node-red/metric-collector.json"
         "initialization/configuration/monitoring-config.json"
-        "scenario-test.yaml"
+        ".vrooli/service.json"
+        "test/run-tests.sh"
         "deployment/startup.sh"
     )
     
@@ -99,23 +100,30 @@ test_startup_script() {
 }
 
 # Test scenario configuration
-test_scenario_configuration() {
-    local config_file="$SCRIPT_DIR/scenario-test.yaml"
-    
+test_service_configuration() {
+    local config_file="$SCRIPT_DIR/.vrooli/service.json"
+
     if [ ! -f "$config_file" ]; then
-        log::error "scenario-test.yaml not found"
+        log::error ".vrooli/service.json not found"
         return 1
     fi
-    
-    # Check for expected resources in the configuration
-    local expected_resources=("postgres" "questdb" "node-red" "n8n")
-    
-    for resource in "${expected_resources[@]}"; do
-        if ! grep -q "$resource" "$config_file"; then
-            log::warning "Resource '$resource' not found in scenario-test.yaml"
+
+    if ! jq empty "$config_file" >/dev/null 2>&1; then
+        log::error "Invalid JSON in .vrooli/service.json"
+        return 1
+    fi
+
+    local required_resources=("postgres" "questdb" "node-red" "n8n")
+    for resource in "${required_resources[@]}"; do
+        if ! jq -e --arg name "$resource" '.resources[$name]' "$config_file" >/dev/null 2>&1; then
+            log::warning "Resource '$resource' missing from .vrooli/service.json"
         fi
     done
-    
+
+    if ! jq -e '.lifecycle.test.steps[]? | select(.run == "test/run-tests.sh")' "$config_file" >/dev/null 2>&1; then
+        log::warning "Lifecycle test step does not reference test/run-tests.sh"
+    fi
+
     return 0
 }
 
@@ -128,7 +136,7 @@ main() {
     run_test "Required files exist" test_required_files
     run_test "JSON files validity" test_json_validity
     run_test "Startup script" test_startup_script
-    run_test "Scenario configuration" test_scenario_configuration
+    run_test "Service configuration" test_service_configuration
     
     echo ""
     log::info "📊 Test Results"

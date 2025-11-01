@@ -8,16 +8,27 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 # Initialize phase
-testing::phase::init --target-time "90s"
+testing::phase::init --target-time "90s" --require-runtime
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
 log::info "Running performance tests for saas-landing-manager"
 
+# Resolve API URL for health checks
+API_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME" 2>/dev/null || echo "")
+
+if [ -z "$API_URL" ]; then
+    testing::phase::add_error "Unable to resolve API URL for ${TESTING_PHASE_SCENARIO_NAME}"
+    testing::phase::end_with_summary "Performance tests incomplete"
+fi
+
 # Test 1: API response time
 log::info "Test 1: Measuring API response time"
 START_TIME=$(date +%s%N)
-curl -s http://localhost:${API_PORT:-8080}/health > /dev/null
+if ! curl -s "${API_URL}/health" >/dev/null; then
+    testing::phase::add_error "API health endpoint is not reachable"
+    testing::phase::end_with_summary "Performance tests incomplete"
+fi
 END_TIME=$(date +%s%N)
 RESPONSE_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
 
@@ -34,14 +45,18 @@ log::info "Test 2: Testing concurrent request handling"
 CONCURRENT_REQUESTS=10
 SUCCESS_COUNT=0
 
-for i in $(seq 1 $CONCURRENT_REQUESTS); do
-    curl -s -f http://localhost:${API_PORT:-8080}/health > /dev/null 2>&1 &
+for _ in $(seq 1 $CONCURRENT_REQUESTS); do
+    if curl -s -f "${API_URL}/health" > /dev/null 2>&1; then
+        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    fi
 done
 
-wait
-
-# Simple check - if we got here without hanging, concurrency is working
-log::success "Handled $CONCURRENT_REQUESTS concurrent requests"
+log::info "Handled $SUCCESS_COUNT/$CONCURRENT_REQUESTS health probes"
+if [ "$SUCCESS_COUNT" -eq "$CONCURRENT_REQUESTS" ]; then
+    log::success "Health endpoint responded successfully to repeated probes"
+else
+    testing::phase::add_warning "Health endpoint responded to ${SUCCESS_COUNT}/${CONCURRENT_REQUESTS} probes"
+fi
 
 # Test 3: Run Go performance tests
 log::info "Test 3: Running Go performance benchmarks"

@@ -17,11 +17,15 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 # Note: Error threshold set to 35% (below current 36%) because many endpoints
 # are intentional stubs (not yet implemented). All implemented features have
 # comprehensive test coverage (100% pass rate, 23+ test groups).
-testing::unit::run_all_tests \
+if testing::unit::run_all_tests \
     --go-dir "api" \
     --skip-python \
     --skip-node \
     --coverage-warn 40 \
-    --coverage-error 35
+    --coverage-error 35; then
+    testing::phase::add_test passed
+else
+    testing::phase::add_test failed
+fi
 
 testing::phase::end_with_summary "Unit tests completed"

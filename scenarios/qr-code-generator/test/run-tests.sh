@@ -1,20 +1,39 @@
 #!/bin/bash
+# Shared phased test runner wrapper for qr-code-generator
+set -euo pipefail
 
-set -e
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "${TEST_DIR}/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-echo "Running all tests for QR Code Generator"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Get the scenario root directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_ROOT="$(dirname "$SCRIPT_DIR")"
+# Initialise shared runner; allow runtime-dependent phases to auto-start the scenario.
+testing::runner::init \
+  --scenario-name "qr-code-generator" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$TEST_DIR/artifacts" \
+  --default-manage-runtime true
 
-cd "$SCENARIO_ROOT"
+PHASES_DIR="$TEST_DIR/phases"
 
-bash test/phases/test-structure.sh
-bash test/phases/test-dependencies.sh
-bash test/phases/test-unit.sh
-bash test/phases/test-integration.sh
-bash test/phases/test-performance.sh
-bash test/phases/test-business.sh
+testing::runner::register_phase --name structure --script "$PHASES_DIR/test-structure.sh" --timeout 30
 
-echo "All tests completed."
+testing::runner::register_phase --name dependencies --script "$PHASES_DIR/test-dependencies.sh" --timeout 60
+
+testing::runner::register_phase --name unit --script "$PHASES_DIR/test-unit.sh" --timeout 90
+
+testing::runner::register_phase --name integration --script "$PHASES_DIR/test-integration.sh" --timeout 180 --requires-runtime true
+
+testing::runner::register_phase --name business --script "$PHASES_DIR/test-business.sh" --timeout 120 --requires-runtime true
+
+testing::runner::register_phase --name performance --script "$PHASES_DIR/test-performance.sh" --timeout 60
+
+# Helpful presets for local iteration.
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+testing::runner::execute "$@"

@@ -1,67 +1,63 @@
 #!/bin/bash
-set -e
+# Validates critical files and configuration for picker-wheel
+set -euo pipefail
 
-echo "=== Structure Tests for Picker Wheel ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Check required files
-echo "Checking required files..."
-REQUIRED_FILES=(
-  ".vrooli/service.json"
-  "api/main.go"
-  "api/go.mod"
-  "cli/picker-wheel"
-  "ui/index.html"
-  "ui/styles.css"
-  "ui/script.js"
-  "ui/server.js"
-  "ui/package.json"
-  "initialization/postgres/schema.sql"
-  "PRD.md"
-  "README.md"
-  "Makefile"
+testing::phase::init --target-time "60s"
+
+required_dirs=(api ui cli initialization)
+required_files=(
+  .vrooli/service.json
+  PRD.md
+  README.md
+  Makefile
+  api/main.go
+  api/go.mod
+  ui/package.json
+  ui/server.js
+  initialization/postgres/schema.sql
 )
 
-for file in "${REQUIRED_FILES[@]}"; do
-  if [ ! -f "$file" ]; then
-    echo "❌ Missing required file: $file"
-    exit 1
-  fi
-done
-echo "✅ All required files present"
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-# Validate service.json
-echo "Validating service.json..."
-jq -e '.service.name == "picker-wheel"' .vrooli/service.json &> /dev/null || {
-  echo "❌ Invalid service.json"
-  exit 1
-}
-echo "✅ service.json is valid"
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-# Check lifecycle configuration
-echo "Checking lifecycle configuration..."
-jq -e '.lifecycle.version == "2.0.0"' .vrooli/service.json &> /dev/null || {
-  echo "❌ Lifecycle version not 2.0.0"
-  exit 1
-}
-echo "✅ Lifecycle v2.0 configured"
+if command -v jq >/dev/null 2>&1; then
+  testing::phase::check "service.json declares picker-wheel" \
+    jq -e '.service.name == "picker-wheel"' .vrooli/service.json
+  testing::phase::check "Lifecycle config uses v2.0.0" \
+    jq -e '.lifecycle.version == "2.0.0"' .vrooli/service.json
+else
+  testing::phase::add_warning "jq unavailable; skipped JSON validation"
+  testing::phase::add_test skipped
+fi
 
-# Check Makefile targets
-echo "Checking Makefile targets..."
-REQUIRED_TARGETS=("run" "test" "stop" "status" "logs" "help")
-for target in "${REQUIRED_TARGETS[@]}"; do
-  grep -q "^${target}:" Makefile || {
-    echo "❌ Missing Makefile target: $target"
-    exit 1
-  }
-done
-echo "✅ All required Makefile targets present"
+if command -v grep >/dev/null 2>&1; then
+  for target in run test stop status logs help; do
+    testing::phase::check "Makefile target: $target" grep -q "^${target}:" Makefile
+  done
+else
+  testing::phase::add_warning "grep unavailable; skipped Makefile target checks"
+  testing::phase::add_test skipped
+fi
 
-# Validate SQL schema
-echo "Validating PostgreSQL schema..."
-grep -q "CREATE TABLE IF NOT EXISTS wheels" initialization/postgres/schema.sql || {
-  echo "❌ Invalid PostgreSQL schema"
-  exit 1
-}
-echo "✅ PostgreSQL schema valid"
+if command -v grep >/dev/null 2>&1; then
+  testing::phase::check "Schema defines wheels table" \
+    grep -q "CREATE TABLE IF NOT EXISTS wheels" initialization/postgres/schema.sql
+else
+  testing::phase::add_warning "grep unavailable; skipped schema check"
+  testing::phase::add_test skipped
+fi
 
-echo "✅ All structure tests passed"
+testing::phase::end_with_summary "Structure validation completed"

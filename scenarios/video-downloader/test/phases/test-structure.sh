@@ -1,37 +1,32 @@
 #!/bin/bash
+# Structure validation phase
 
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-printf "=== Test Structure ===\\n"
+testing::phase::init --target-time "30s"
 
-# Check for required directories and files
+required_dirs=(api ui cli initialization)
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-required_dirs=("api" "ui" ".vrooli")
+required_files=(
+  .vrooli/service.json
+  PRD.md
+  api/main.go
+  api/go.mod
+  cli/install.sh
+  cli/video-downloader
+  initialization/postgres/schema.sql
+)
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-for dir in "${required_dirs[@]}"; do
-
-  if [[ ! -d "$dir" ]]; then
-
-    printf "❌ Missing directory: %s\\n" "$dir"
-
-    exit 1
-
-  fi
-
-done
-
-required_files=("api/go.mod" "ui/package.json" ".vrooli/service.json")
-
-for file in "${required_files[@]}"; do
-
-  if [[ ! -f "$file" ]]; then
-
-    printf "❌ Missing file: %s\\n" "$file"
-
-    exit 1
-
-  fi
-
-done
-
-printf "✅ Structure tests passed\\n"
+testing::phase::end_with_summary "Structure validation completed"

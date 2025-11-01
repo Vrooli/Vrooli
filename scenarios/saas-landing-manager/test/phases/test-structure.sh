@@ -15,7 +15,7 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 log::info "Running structure validation tests..."
 
 # Check required directories
-log::step "Checking directory structure"
+log::info "Checking directory structure"
 required_dirs=(
     "api"
     "ui"
@@ -34,7 +34,7 @@ for dir in "${required_dirs[@]}"; do
 done
 
 # Check required files
-log::step "Checking required files"
+log::info "Checking required files"
 required_files=(
     "api/main.go"
     "api/test_helpers.go"
@@ -55,7 +55,7 @@ for file in "${required_files[@]}"; do
 done
 
 # Check test file naming conventions
-log::step "Validating test file naming conventions"
+log::info "Validating test file naming conventions"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && find . -name "*_test.go" | grep -v "/vendor/" > /dev/null; then
     test_count=$(find . -name "*_test.go" | grep -v "/vendor/" | wc -l)
     log::success "Found $test_count test files"
@@ -69,7 +69,7 @@ else
 fi
 
 # Check for test helper functions
-log::step "Checking test infrastructure"
+log::info "Checking test infrastructure"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && grep -q "setupTestLogger" test_helpers.go 2>/dev/null; then
     log::success "Test helper functions found"
 else
@@ -84,7 +84,7 @@ else
 fi
 
 # Validate Go code structure
-log::step "Checking Go code organization"
+log::info "Checking Go code organization"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && go list ./... > /dev/null 2>&1; then
     log::success "Go code structure is valid"
 else
@@ -93,7 +93,7 @@ else
 fi
 
 # Check for documentation
-log::step "Checking documentation"
+log::info "Checking documentation"
 docs_to_check=(
     "PRD.md"
     "README.md"
@@ -113,7 +113,7 @@ for doc in "${docs_to_check[@]}"; do
 done
 
 # Check lifecycle compliance
-log::step "Checking lifecycle compliance"
+log::info "Checking lifecycle compliance"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && grep -q "VROOLI_LIFECYCLE_MANAGED" main.go; then
     log::success "Lifecycle management check found in main.go"
 else

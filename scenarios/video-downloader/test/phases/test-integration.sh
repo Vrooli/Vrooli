@@ -1,13 +1,13 @@
 #!/bin/bash
+# Integration phase placeholder
 
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-printf "=== Integration Tests ===\\n"
+testing::phase::init --target-time "180s"
 
-# Placeholder: Start services and test API integration
+testing::phase::add_warning "Integration tests not yet implemented; add end-to-end download workflow coverage."
+testing::phase::add_test skipped
 
-# For now, check if health endpoint would work, but services not running
-
-# TODO: Implement full integration tests with docker-compose or similar
-
-printf "✅ Integration tests passed (placeholder)\\n"
+testing::phase::end_with_summary "Integration phase placeholder"

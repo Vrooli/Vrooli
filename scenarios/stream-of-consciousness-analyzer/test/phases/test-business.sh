@@ -8,7 +8,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 # Initialize phase
-testing::phase::init --target-time "60s"
+testing::phase::init --target-time "60s" --require-runtime
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 

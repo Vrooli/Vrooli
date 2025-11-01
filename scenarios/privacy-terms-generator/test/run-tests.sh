@@ -1,100 +1,50 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
-# Privacy Terms Generator - Comprehensive Test Runner
-# Executes all test phases in order
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SCENARIO_NAME="privacy-terms-generator"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+ARTIFACT_DIR="$TEST_DIR/artifacts"
+mkdir -p "$ARTIFACT_DIR"
 
-# Test results tracking
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
-SKIPPED_TESTS=0
+# Initialise shared runner
+testing::runner::init \
+  --scenario-name "privacy-terms-generator" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$ARTIFACT_DIR" \
+  --default-manage-runtime false
 
-# Logging functions
-log_info() {
-    echo -e "${BLUE}ℹ${NC} $*"
-}
+# Phase registrations
+PHASE_DIR="$TEST_DIR/phases"
 
-log_success() {
-    echo -e "${GREEN}✓${NC} $*"
-}
+testing::runner::register_phase --name structure --script "$PHASE_DIR/test-structure.sh" --timeout 30
 
-log_error() {
-    echo -e "${RED}✗${NC} $*"
-}
+testing::runner::register_phase --name dependencies --script "$PHASE_DIR/test-dependencies.sh" --timeout 60
 
-log_warning() {
-    echo -e "${YELLOW}⚠${NC} $*"
-}
+testing::runner::register_phase --name unit --script "$PHASE_DIR/test-unit.sh" --timeout 90
 
-# Test phase runner
-run_phase() {
-    local phase_name=$1
-    local phase_script="$SCRIPT_DIR/phases/test-${phase_name}.sh"
+testing::runner::register_phase --name integration --script "$PHASE_DIR/test-integration.sh" --timeout 120
 
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+testing::runner::register_phase --name business --script "$PHASE_DIR/test-business.sh" --timeout 180 --requires-runtime true
 
-    if [[ ! -f "$phase_script" ]]; then
-        log_warning "Phase script not found: $phase_script"
-        SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
-        return 0
-    fi
+testing::runner::register_phase --name performance --script "$PHASE_DIR/test-performance.sh" --timeout 120
 
-    log_info "Running phase: $phase_name"
+# CLI test suite (BATS)
+testing::runner::register_test_type \
+  --name cli \
+  --handler "bats \"$TEST_DIR/cli/run-cli-tests.sh\"" \
+  --kind command \
+  --display "cli-bats"
 
-    if bash "$phase_script"; then
-        log_success "Phase $phase_name passed"
-        PASSED_TESTS=$((PASSED_TESTS + 1))
-        return 0
-    else
-        log_error "Phase $phase_name failed"
-        FAILED_TESTS=$((FAILED_TESTS + 1))
-        return 1
-    fi
-}
+# Presets for fast iteration
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure dependencies integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
 
-# Main test execution
-main() {
-    log_info "Starting comprehensive test suite for $SCENARIO_NAME"
-    echo ""
-
-    # Run test phases in order
-    run_phase "structure" || true
-    run_phase "dependencies" || true
-    run_phase "unit" || true
-    run_phase "integration" || true
-    run_phase "business" || true
-    run_phase "performance" || true
-
-    # Summary
-    echo ""
-    echo "================================"
-    echo "Test Summary"
-    echo "================================"
-    echo "Total:    $TOTAL_TESTS"
-    echo -e "Passed:   ${GREEN}$PASSED_TESTS${NC}"
-    echo -e "Failed:   ${RED}$FAILED_TESTS${NC}"
-    echo -e "Skipped:  ${YELLOW}$SKIPPED_TESTS${NC}"
-    echo "================================"
-
-    if [[ $FAILED_TESTS -eq 0 ]]; then
-        log_success "All available tests passed!"
-        exit 0
-    else
-        log_error "$FAILED_TESTS test(s) failed"
-        exit 1
-    fi
-}
-
-main "$@"
+# Execute with forwarded arguments
+testing::runner::execute "$@"

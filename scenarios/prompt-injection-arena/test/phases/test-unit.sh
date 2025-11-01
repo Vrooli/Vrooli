@@ -1,58 +1,29 @@
 #!/usr/bin/env bash
+# Runs language-specific unit suites and CLI smoke coverage.
 set -euo pipefail
 
-# Test: Unit Tests
-# Runs Go unit tests for the API
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+testing::phase::init --target-time "180s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-echo "🧪 Testing Prompt Injection Arena unit tests..."
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-cd "${SCENARIO_DIR}"
+testing::unit::run_all_tests \
+  --go-dir "api" \
+  --node-dir "ui" \
+  --skip-python \
+  --coverage-warn 60 \
+  --coverage-error 40 \
+  --verbose
 
-# Track failures
-FAILURES=0
-
-# Test Go build (compilation test)
-echo "🐹 Testing Go compilation..."
-if [ -f "api/main.go" ]; then
-    cd api
-    if go build -o test-build . 2>&1; then
-        echo "  ✅ Go compilation successful"
-        rm -f test-build
-    else
-        echo "  ❌ Go compilation failed"
-        ((FAILURES++))
-    fi
-    cd ..
+if [ -f "cli/prompt-injection-arena.bats" ] && command -v bats >/dev/null 2>&1; then
+  testing::phase::check "CLI BATS suite" bash -c 'cd cli && bats prompt-injection-arena.bats --tap'
 else
-    echo "  ❌ api/main.go not found"
-    ((FAILURES++))
+  testing::phase::add_warning "CLI BATS suite unavailable; skipping CLI unit checks"
+  testing::phase::add_test skipped
 fi
 
-# Test CLI BATS tests
-echo "🧪 Testing CLI tests..."
-if [ -f "cli/prompt-injection-arena.bats" ]; then
-    cd cli
-    if bats prompt-injection-arena.bats > /dev/null 2>&1; then
-        test_count=$(bats prompt-injection-arena.bats 2>&1 | grep -E "^1\.\." | sed 's/1\.\.//')
-        echo "  ✅ CLI tests passed (${test_count} tests)"
-    else
-        echo "  ❌ CLI tests failed"
-        ((FAILURES++))
-    fi
-    cd ..
-else
-    echo "  ⚠️  No CLI BATS tests found"
-fi
-
-# Summary
-echo ""
-if [ ${FAILURES} -eq 0 ]; then
-    echo "✅ Unit tests passed!"
-    exit 0
-else
-    echo "❌ Unit tests failed with ${FAILURES} error(s)"
-    exit 1
-fi
+testing::phase::end_with_summary "Unit tests completed"

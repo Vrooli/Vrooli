@@ -15,7 +15,7 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 log::info "Running business logic tests..."
 
 # Test SaaS detection business logic
-log::step "Testing SaaS detection business rules"
+log::info "Testing SaaS detection business rules"
 if cd api && go test -tags=testing -v -run "TestSaaSDetectionEdgeCases|TestCharacteristicsExtraction" -timeout 90s; then
     log::success "SaaS detection business logic tests passed"
 else
@@ -23,7 +23,7 @@ else
 fi
 
 # Test landing page generation business logic
-log::step "Testing landing page generation business rules"
+log::info "Testing landing page generation business rules"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && go test -tags=testing -v -run "TestLandingPageServiceComprehensive" -timeout 90s; then
     log::success "Landing page generation business logic tests passed"
 else
@@ -31,7 +31,7 @@ else
 fi
 
 # Test deployment business logic
-log::step "Testing deployment business rules"
+log::info "Testing deployment business rules"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && go test -tags=testing -v -run "TestDeploymentEdgeCases" -timeout 90s; then
     log::success "Deployment business logic tests passed"
 else
@@ -39,7 +39,7 @@ else
 fi
 
 # Test A/B testing business logic
-log::step "Testing A/B testing business rules"
+log::info "Testing A/B testing business rules"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && go test -tags=testing -v -run "TestGenerateLandingPage_WithABTesting" -timeout 90s; then
     log::success "A/B testing business logic tests passed"
 else

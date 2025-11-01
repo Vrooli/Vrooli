@@ -15,7 +15,7 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 log::info "Running integration tests..."
 
 # Test API integration with database
-log::step "Testing API and database integration"
+log::info "Testing API and database integration"
 if cd api && go test -tags=testing -v -run "TestDatabaseService|TestSaaSDetectionService|TestLandingPageService" -timeout 120s; then
     log::success "Database integration tests passed"
 else
@@ -23,7 +23,7 @@ else
 fi
 
 # Test handler integration
-log::step "Testing HTTP handler integration"
+log::info "Testing HTTP handler integration"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && go test -tags=testing -v -run "TestScanScenariosHandler|TestGenerateLandingPageHandler|TestDeployLandingPageHandler" -timeout 120s; then
     log::success "Handler integration tests passed"
 else
@@ -31,7 +31,7 @@ else
 fi
 
 # Test service integration
-log::step "Testing service-to-service integration"
+log::info "Testing service-to-service integration"
 if cd "${TESTING_PHASE_SCENARIO_DIR}/api" && go test -tags=testing -v -run "TestClaudeCodeService" -timeout 120s; then
     log::success "Service integration tests passed"
 else

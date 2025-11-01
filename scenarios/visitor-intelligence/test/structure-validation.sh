@@ -101,7 +101,7 @@ check "CLI install script exists" "test -x cli/install.sh"
 # Check testing infrastructure
 check "Integration tests exist" "test -x test/integration-test.sh"
 check "CLI tests exist" "test -f cli/visitor-intelligence.bats"
-check "Scenario test configuration exists" "test -f scenario-test.yaml"
+check "Phased test runner configured" "test -f test/run-tests.sh"
 
 # Check service configuration compliance
 check "Service uses PostgreSQL" "grep -q '\"postgres\"' .vrooli/service.json"

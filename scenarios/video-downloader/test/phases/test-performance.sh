@@ -1,11 +1,13 @@
 #!/bin/bash
+# Performance benchmark placeholder
 
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-printf "=== Performance Tests ===\\n"
+testing::phase::init --target-time "60s"
 
-# Placeholder: Performance benchmarks
+testing::phase::add_warning "Performance benchmarks not implemented; add FFmpeg throughput baseline."
+testing::phase::add_test skipped
 
-# TODO: Add load testing with tools like Apache Bench or Artillery
-
-printf "✅ Performance tests passed (placeholder)\\n"
+testing::phase::end_with_summary "Performance phase placeholder"

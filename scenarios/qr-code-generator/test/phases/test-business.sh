@@ -1,19 +1,39 @@
 #!/bin/bash
+# Validates end-to-end QR generation workflows exposed to operators.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Test Business Phase ==="
+testing::phase::init --target-time "120s" --require-runtime
 
-# Test business logic: QR code generation workflow
-echo "Testing QR generation workflow..."
-qr-generator generate "Business test QR" --output /tmp/business-test.png --size 512
+CLI_BIN="${TESTING_PHASE_SCENARIO_DIR}/cli/qr-generator"
+TMP_FILE=""
 
-if [ -f "/tmp/business-test.png" ]; then
-    rm /tmp/business-test.png
-    echo "✓ Business workflow test passed"
+cleanup_tmp_artifacts() {
+  if [ -n "$TMP_FILE" ] && [ -f "$TMP_FILE" ]; then
+    rm -f "$TMP_FILE"
+  fi
+}
+
+testing::phase::register_cleanup cleanup_tmp_artifacts
+
+if [ -f "$CLI_BIN" ]; then
+  TMP_FILE="$(mktemp -t qr-generator-business-XXXXXX).png"
+  if bash "$CLI_BIN" generate "Business workflow test" --output "$TMP_FILE" --size 512 --format png --style retro; then
+    if [ -f "$TMP_FILE" ]; then
+      testing::phase::add_test passed
+    else
+      testing::phase::add_error "Business workflow did not produce expected output file"
+      testing::phase::add_test failed
+    fi
+  else
+    testing::phase::add_error "Business workflow CLI command failed"
+    testing::phase::add_test failed
+  fi
 else
-    echo "✗ Business workflow test failed"
-    exit 1
+  testing::phase::add_warning "CLI script not found; skipping business workflow validation"
+  testing::phase::add_test skipped
 fi
 
-echo "✓ Business tests completed"
+testing::phase::end_with_summary "Business workflow validation completed"

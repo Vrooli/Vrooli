@@ -234,50 +234,12 @@
       ]
     },
     "test": {
-      "description": "Test Game Dialog Generator API, CLI, and character generation",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-character-creation",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/characters -H 'Content-Type: application/json' -d '{\"name\":\"Test Hero\",\"personality_traits\":{\"brave\":0.9}}'",
-          "description": "Test character creation endpoint"
-        },
-        {
-          "name": "test-dialog-generation",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/dialog/generate -H 'Content-Type: application/json' -d '{\"character_id\":\"test\",\"scene_context\":\"jungle clearing\"}'",
-          "description": "Test dialog generation endpoint"
-        },
-        {
-          "name": "test-cli-help",
-          "run": "game-dialog-generator --help",
-          "description": "Test CLI help command"
-        },
-        {
-          "name": "test-cli-status",
-          "run": "game-dialog-generator status",
-          "description": "Test CLI status command"
-        },
-        {
-          "name": "test-qdrant-connection",
-          "run": "resource-qdrant collection info characters || echo 'Qdrant collection test skipped'",
-          "description": "Test Qdrant character collection"
-        },
-        {
-          "name": "test-ollama-generation",
-          "run": "resource-ollama generate 'Create a character greeting' --model llama3.2 || echo 'Ollama test skipped'",
-          "description": "Test Ollama dialog generation"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute shared phased test suite"
         }
       ]
     },

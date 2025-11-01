@@ -1,92 +1,61 @@
 #!/bin/bash
-# SmartNotes comprehensive test runner
+# Phased test orchestrator for SmartNotes scenario
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-# Colors for output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-NC='\033[0m'
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Track results
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
+# Initialise shared runner with managed runtime so integration-style phases can
+# rely on the lifecycle system to start and stop services automatically.
+testing::runner::init \
+  --scenario-name "notes" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$TEST_DIR/artifacts" \
+  --default-manage-runtime true
 
-echo -e "${BLUE}🧪 SmartNotes Test Suite${NC}"
-echo "========================================"
-echo ""
+PHASES_DIR="$TEST_DIR/phases"
 
-# Detect API port
-API_PORT=$(lsof -i -P -n 2>/dev/null | grep "notes-api" | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1)
-if [ -z "$API_PORT" ]; then
-    echo -e "${RED}❌ ERROR: notes-api is not running${NC}"
-    exit 1
-fi
+testing::runner::register_phase \
+  --name structure \
+  --script "$PHASES_DIR/test-structure.sh" \
+  --timeout 45
 
-# Detect UI port - find the node process listening on a port in the UI range (35000-39999)
-# that belongs to the notes scenario (check cwd via pwdx)
-UI_PORT=$(lsof -i -P -n 2>/dev/null | awk '/node.*LISTEN/ && $9 ~ /:3[5-9][0-9]{3}/ {print $2,$9}' | while read pid port; do
-    cwd=$(pwdx "$pid" 2>/dev/null | cut -d: -f2 | tr -d ' ')
-    if [[ "$cwd" == */scenarios/notes/ui ]]; then
-        echo "$port" | cut -d: -f2
-        break
-    fi
-done | head -1)
+testing::runner::register_phase \
+  --name dependencies \
+  --script "$PHASES_DIR/test-dependencies.sh" \
+  --timeout 90
 
-export API_PORT
-export UI_PORT
-export API_URL="http://localhost:${API_PORT}"
-echo -e "${GREEN}✓ Detected API on port ${API_PORT}${NC}"
-if [ -n "$UI_PORT" ]; then
-    echo -e "${GREEN}✓ Detected UI on port ${UI_PORT}${NC}"
-fi
-echo ""
+testing::runner::register_phase \
+  --name unit \
+  --script "$PHASES_DIR/test-unit.sh" \
+  --timeout 120
 
-# Run each test phase
-run_phase() {
-    local phase=$1
-    local script="test/phases/test-${phase}.sh"
+testing::runner::register_phase \
+  --name integration \
+  --script "$PHASES_DIR/test-integration.sh" \
+  --timeout 240 \
+  --requires-runtime true
 
-    if [ ! -f "$script" ]; then
-        echo -e "${YELLOW}⚠️  Skipping ${phase} (script not found)${NC}"
-        return 0
-    fi
+testing::runner::register_phase \
+  --name business \
+  --script "$PHASES_DIR/test-business.sh" \
+  --timeout 240 \
+  --requires-runtime true
 
-    echo -e "${BLUE}━━━ Phase: ${phase} ━━━${NC}"
+testing::runner::register_phase \
+  --name performance \
+  --script "$PHASES_DIR/test-performance.sh" \
+  --timeout 180 \
+  --requires-runtime true
 
-    if bash "$script"; then
-        echo -e "${GREEN}✓ ${phase} tests passed${NC}"
-        PASSED_TESTS=$((PASSED_TESTS + 1))
-    else
-        echo -e "${RED}✗ ${phase} tests failed${NC}"
-        FAILED_TESTS=$((FAILED_TESTS + 1))
-    fi
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    echo ""
-}
+# Useful presets for rapid iteration
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
 
-# Run test phases (in order of increasing complexity)
-run_phase "smoke"
-run_phase "structure"
-run_phase "dependencies"
-run_phase "integration"
-run_phase "business"
-run_phase "performance"
-
-# Summary
-echo "========================================"
-echo -e "${BLUE}📊 Test Summary${NC}"
-echo "  Total phases: $TOTAL_TESTS"
-echo -e "  ${GREEN}Passed: $PASSED_TESTS${NC}"
-if [ $FAILED_TESTS -gt 0 ]; then
-    echo -e "  ${RED}Failed: $FAILED_TESTS${NC}"
-    exit 1
-else
-    echo -e "${GREEN}✅ All tests passed!${NC}"
-    exit 0
-fi
+testing::runner::execute "$@"

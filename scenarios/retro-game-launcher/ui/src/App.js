@@ -150,6 +150,22 @@ const buildLocalApiOrigin = (hostname, protocol) => {
 
 const buildLoopbackBase = () => `http:${DOUBLE_SLASH}${LOOPBACK_HOST}:${DEFAULT_API_PORT}`;
 
+const deriveLocationBase = () => {
+  if (typeof window === 'undefined' || !window.location) {
+    return undefined;
+  }
+
+  try {
+    const derived = new URL('./', window.location.href).toString();
+    return normalizeBase(derived);
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[RetroGameLauncher] Unable to derive location base', error);
+    }
+    return undefined;
+  }
+};
+
 const resolveApiBaseUrl = () => {
   const explicit = (process.env.REACT_APP_API_URL || '').trim();
   if (explicit) {
@@ -162,7 +178,7 @@ const resolveApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
     const proxyBase = resolveProxyBase();
     if (proxyBase) {
-      return proxyBase;
+      return normalizeBase(proxyBase);
     }
 
     const locationProxyBase = resolveLocationProxyBase();
@@ -170,23 +186,41 @@ const resolveApiBaseUrl = () => {
       return locationProxyBase;
     }
 
-    const { hostname, origin, protocol } = window.location || {};
-    const nodeEnv = (process.env.NODE_ENV || '').toLowerCase();
-    const preferCurrentOrigin = Boolean(origin) && (nodeEnv === 'production' || (hostname && !isLocalHostname(hostname)));
+    const { hostname, origin, protocol, pathname } = window.location || {};
+    const normalizedOrigin = origin ? normalizeBase(origin) : '';
+    const proxyMatch = typeof pathname === 'string' ? pathname.match(PROXY_PATH_PATTERN) : null;
+    const proxyPath = proxyMatch && proxyMatch[1] ? ensureLeadingSlash(proxyMatch[1]) : '';
+    const derivedLocationBase = deriveLocationBase();
+    const hostnameIsLocal = Boolean(hostname && isLocalHostname(hostname));
 
-    if (preferCurrentOrigin) {
-      return normalizeBase(origin);
+    if (normalizedOrigin && proxyPath) {
+      return normalizeBase(`${normalizedOrigin}${proxyPath}`);
     }
 
-    if (hostname && isLocalHostname(hostname)) {
+    if (!hostnameIsLocal && derivedLocationBase) {
+      return derivedLocationBase;
+    }
+
+    const nodeEnv = (process.env.NODE_ENV || '').toLowerCase();
+    const preferCurrentOrigin = Boolean(normalizedOrigin) && !proxyPath && (nodeEnv === 'production' || (hostname && !hostnameIsLocal));
+
+    if (preferCurrentOrigin) {
+      return normalizedOrigin;
+    }
+
+    if (hostnameIsLocal && hostname) {
       const localCandidate = buildLocalApiOrigin(hostname, protocol);
       if (localCandidate) {
         return normalizeBase(localCandidate);
       }
     }
 
-    if (origin) {
-      return normalizeBase(origin);
+    if (derivedLocationBase) {
+      return derivedLocationBase;
+    }
+
+    if (normalizedOrigin) {
+      return normalizedOrigin;
     }
   }
 
@@ -203,6 +237,16 @@ const buildApiUrl = (path) => {
   }
 
   const normalizedBase = normalizeBase(base);
+
+  if (typeof window !== 'undefined' && window.location) {
+    const normalizedOrigin = normalizeBase(window.location.origin || '');
+    if (normalizedOrigin && normalizedBase === normalizedOrigin) {
+      const locationProxyBase = resolveLocationProxyBase();
+      if (locationProxyBase) {
+        return `${locationProxyBase}${normalizedPath}`;
+      }
+    }
+  }
 
   if (/\/apps\/[^/]+\/proxy(?:$|\/)/i.test(`${normalizedBase}/`)) {
     return `${normalizedBase}${normalizedPath}`;

@@ -148,11 +148,12 @@
       ]
     },
     "test": {
-      "description": "Run Swarm Manager tests",
+      "description": "Comprehensive phased testing using shared runner",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "cd api && go test ./..."
+          "name": "run-phased-tests",
+          "run": "./test/run-tests.sh",
+          "description": "Execute scenario test phases"
         }
       ]
     },

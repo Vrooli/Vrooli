@@ -87,18 +87,20 @@
     },
     "setup": {
       "description": "Initialize Resource Experimenter",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/resource-experimenter-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["resource-experimenter"]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/resource-experimenter-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "resource-experimenter"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -144,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
+          "run": "echo '\ud83d\ude80 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
           "description": "Display service access information"
         }
       ]
@@ -175,25 +177,12 @@
       ]
     },
     "test": {
-      "description": "Run resource experimenter tests",
+      "description": "Phased testing for resource-experimenter",
       "steps": [
         {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-claude-code",
-          "run": "resource-claude-code status >/dev/null 2>&1",
-          "description": "Test Claude Code availability"
-        },
-        {
-          "name": "run-integration-tests",
-          "run": "./test.sh",
-          "description": "Execute integration test suite",
-          "condition": {
-            "file_exists": "test.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

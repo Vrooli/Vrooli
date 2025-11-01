@@ -39,8 +39,8 @@ test_file_structure() {
     
     local required_files=(
         "README.md"
-        "service.json"
-        "scenario-test.yaml"
+        ".vrooli/service.json"
+        "test/run-tests.sh"
         "api/main.go"
         "api/go.mod"
         "cli/app-monitor"
@@ -193,26 +193,16 @@ test_ui_files() {
 test_configuration() {
     log_info "Testing configuration files..."
     
-    # Test service.json
-    if jq . "${SCRIPT_DIR}/service.json" >/dev/null 2>&1; then
-        if jq -e '.runtime.protected == true' "${SCRIPT_DIR}/service.json" >/dev/null; then
-            log_success "Service configuration is valid and protected"
+    # Test .vrooli/service.json
+    local service_config="${SCRIPT_DIR}/.vrooli/service.json"
+    if jq . "$service_config" >/dev/null 2>&1; then
+        if jq -e '.test.steps[] | select(.run == "test/run-tests.sh")' "$service_config" >/dev/null 2>&1; then
+            log_success "Service test lifecycle configured for phased runner"
         else
-            log_warning "Service is not marked as protected"
+            log_warning "Phased test runner not declared in .vrooli/service.json"
         fi
     else
-        log_error "Invalid service.json"
-    fi
-    
-    # Test scenario-test.yaml
-    if command -v yq >/dev/null 2>&1; then
-        if yq . "${SCRIPT_DIR}/scenario-test.yaml" >/dev/null 2>&1; then
-            log_success "Scenario test configuration is valid"
-        else
-            log_error "Invalid scenario-test.yaml"
-        fi
-    else
-        log_warning "yq not available - skipping YAML validation"
+        log_error "Invalid .vrooli/service.json"
     fi
 }
 
@@ -265,3 +255,4 @@ main() {
 }
 
 main "$@"
+

@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../..}" && pwd)}"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
@@ -14,7 +14,7 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 echo "🔗 Running video-tools integration tests..."
 
 # Check if API is running
-if ! curl -sf http://localhost:${API_PORT:-15760}/health >/dev/null 2>&1; then
+if ! curl -sf http://localhost:${API_PORT:-18125}/health >/dev/null 2>&1; then
     echo "⚠️  API not running, starting it for integration tests..."
     # Note: In CI, the API should already be running
     cd api && ./video-tools-api &
@@ -24,7 +24,7 @@ fi
 
 # Test API endpoints
 echo "Testing health endpoint..."
-response=$(curl -sf http://localhost:${API_PORT:-15760}/health || echo "FAILED")
+response=$(curl -sf http://localhost:${API_PORT:-18125}/health || echo "FAILED")
 if [[ "$response" == "FAILED" ]]; then
     echo "❌ Health endpoint failed"
     exit 1
@@ -32,7 +32,7 @@ fi
 echo "✅ Health endpoint OK"
 
 echo "Testing status endpoint..."
-response=$(curl -sf http://localhost:${API_PORT:-15760}/api/status || echo "FAILED")
+response=$(curl -sf http://localhost:${API_PORT:-18125}/api/status || echo "FAILED")
 if [[ "$response" == "FAILED" ]]; then
     echo "❌ Status endpoint failed"
     exit 1
@@ -41,7 +41,7 @@ echo "✅ Status endpoint OK"
 
 echo "Testing authentication..."
 response=$(curl -sf -H "Authorization: Bearer test-token" \
-    http://localhost:${API_PORT:-15760}/api/v1/jobs || echo "FAILED")
+    http://localhost:${API_PORT:-18125}/api/v1/jobs || echo "FAILED")
 if [[ "$response" == "FAILED" ]]; then
     echo "⚠️  Jobs endpoint failed (may need database)"
 else

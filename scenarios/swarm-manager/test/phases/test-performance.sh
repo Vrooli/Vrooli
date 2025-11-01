@@ -4,6 +4,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 testing::phase::init --target-time "180s"
+source "$TESTING_PHASE_SCENARIO_DIR/test/utils/phase-extensions.sh"
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 

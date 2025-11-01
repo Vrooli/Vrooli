@@ -12,6 +12,7 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 
 testing::unit::run_all_tests \
     --go-dir "api" \
+    --scenario "time-tools" \
     --skip-node \
     --skip-python \
     --coverage-warn 80 \

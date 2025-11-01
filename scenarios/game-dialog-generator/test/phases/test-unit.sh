@@ -24,8 +24,10 @@ if testing::unit::run_all_tests \
     --coverage-warn 80 \
     --coverage-error 50; then
     log::success "All unit tests passed"
+    testing::phase::add_test passed
 else
     testing::phase::add_error "Some unit tests failed"
+    testing::phase::add_test failed
 fi
 
 # End with summary

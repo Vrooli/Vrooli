@@ -1,164 +1,134 @@
 #!/usr/bin/env bash
+# Business workflow validation for SmartNotes
 set -euo pipefail
 
-# Test: Business Logic Validation
-# Tests core business functionality and user workflows
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+testing::phase::init --target-time "240s" --require-runtime
 
-# Get ports from environment - required
-if [ -z "${API_PORT:-}" ]; then
-    echo "❌ API_PORT not set and scenario not running"
-    echo "ℹ️  Start the scenario first: make run"
-    exit 1
-fi
-if [ -z "${UI_PORT:-}" ]; then
-    echo "❌ UI_PORT not set and scenario not running"
-    echo "ℹ️  Start the scenario first: make run"
-    exit 1
+scenario_name="$TESTING_PHASE_SCENARIO_NAME"
+API_URL=$(testing::connectivity::get_api_url "$scenario_name" || echo "")
+
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL"
+  testing::phase::end_with_summary "Business tests incomplete"
 fi
 
-echo "💼 Testing SmartNotes business logic..."
-echo "   API: http://localhost:${API_PORT}"
+FOLDERS_CREATED=()
+TAGS_CREATED=()
+TEMPLATES_CREATED=()
 
-# Track failures
-FAILURES=0
-
-# Track created resources for cleanup
-CREATED_TAG_IDS=()
-
-# Cleanup function
-cleanup_test_data() {
-    if [ ${#CREATED_TAG_IDS[@]} -gt 0 ]; then
-        echo ""
-        echo "🧹 Cleaning up ${#CREATED_TAG_IDS[@]} test tag(s)..."
-        for tag_id in "${CREATED_TAG_IDS[@]}"; do
-            curl -sf -X DELETE "http://localhost:${API_PORT}/api/tags/${tag_id}" > /dev/null 2>&1 || true
-        done
-        echo "✅ Test data cleaned up"
-    fi
+cleanup_business_objects() {
+  for folder in "${FOLDERS_CREATED[@]}"; do
+    curl -sf -X DELETE "${API_URL}/api/folders/${folder}" >/dev/null 2>&1 || true
+  done
+  for tag in "${TAGS_CREATED[@]}"; do
+    curl -sf -X DELETE "${API_URL}/api/tags/${tag}" >/dev/null 2>&1 || true
+  done
+  for template in "${TEMPLATES_CREATED[@]}"; do
+    curl -sf -X DELETE "${API_URL}/api/templates/${template}" >/dev/null 2>&1 || true
+  done
 }
 
-# Register cleanup to run on exit
-trap cleanup_test_data EXIT
+testing::phase::register_cleanup cleanup_business_objects
 
-test_endpoint() {
-    local method=$1
-    local endpoint=$2
-    local desc=$3
-    local data=${4:-}
-
-    local url="http://localhost:${API_PORT}${endpoint}"
-
-    if [ -n "${data}" ]; then
-        local response=$(curl -sf -X "${method}" -H "Content-Type: application/json" -d "${data}" "${url}" 2>&1)
-        if [ $? -eq 0 ]; then
-            # Track created tag IDs for cleanup
-            if [[ "${method}" == "POST" && "${endpoint}" == "/api/tags" ]]; then
-                local tag_id=$(echo "${response}" | jq -r '.id' 2>/dev/null || echo "")
-                [ -n "${tag_id}" ] && [ "${tag_id}" != "null" ] && CREATED_TAG_IDS+=("${tag_id}")
-            fi
-            echo "  ✅ ${desc}"
-            return 0
-        else
-            echo "  ❌ ${desc} - ${method} ${endpoint} failed"
-            ((FAILURES++))
-            return 1
-        fi
-    else
-        if curl -sf -X "${method}" "${url}" > /dev/null; then
-            echo "  ✅ ${desc}"
-            return 0
-        else
-            echo "  ❌ ${desc} - ${method} ${endpoint} failed"
-            ((FAILURES++))
-            return 1
-        fi
-    fi
+post_json() {
+  local endpoint=$1
+  local payload=$2
+  local list_ref=$3
+  local response
+  if ! response=$(curl -sf -X POST "${API_URL}${endpoint}" -H "Content-Type: application/json" -d "$payload"); then
+    return 1
+  fi
+  local id
+  id=$(echo "$response" | jq -r '.id // empty')
+  if [ -z "$id" ]; then
+    return 1
+  fi
+  case "$list_ref" in
+    folder) FOLDERS_CREATED+=("$id") ;;
+    tag) TAGS_CREATED+=("$id") ;;
+    template) TEMPLATES_CREATED+=("$id") ;;
+  esac
+  printf '%s' "$id"
 }
 
-# Test 1: CRUD Operations
-echo "📝 Testing CRUD operations..."
-
-# Create a note
-echo "  Creating test note..."
-NOTE_DATA='{"title":"Test Note","content":"This is a test note for validation","content_type":"markdown"}'
-CREATED_NOTE=$(curl -sf -X POST -H "Content-Type: application/json" -d "${NOTE_DATA}" \
-    "http://localhost:${API_PORT}/api/notes" 2>/dev/null || echo "")
-
-if [ -n "${CREATED_NOTE}" ]; then
-    NOTE_ID=$(echo "${CREATED_NOTE}" | jq -r '.id' 2>/dev/null || echo "")
-    if [ -n "${NOTE_ID}" ] && [ "${NOTE_ID}" != "null" ]; then
-        echo "  ✅ Create note (ID: ${NOTE_ID})"
-    else
-        echo "  ❌ Create note - Invalid response"
-        ((FAILURES++))
-        NOTE_ID=""
-    fi
+if folder_id=$(post_json "/api/folders" '{"name":"Test Folder","icon":"📂","color":"#6366f1"}' folder); then
+  log::success "✅ Folder created (${folder_id})"
+  testing::phase::add_test passed
 else
-    echo "  ❌ Create note - Request failed"
-    ((FAILURES++))
-    NOTE_ID=""
+  testing::phase::add_error "Failed to create folder"
+  testing::phase::add_test failed
 fi
 
-# Read the note (if created)
-if [ -n "${NOTE_ID}" ]; then
-    test_endpoint "GET" "/api/notes/${NOTE_ID}" "Read note by ID"
+test_listing() {
+  local endpoint=$1
+  local description=$2
+  if curl -sf "${API_URL}${endpoint}" >/dev/null; then
+    log::success "✅ ${description}"
+    testing::phase::add_test passed
+  else
+    log::error "❌ ${description}"
+    testing::phase::add_test failed
+  fi
+}
 
-    # Update the note
-    UPDATE_DATA='{"title":"Updated Test Note","content":"Updated content","is_pinned":true}'
-    test_endpoint "PUT" "/api/notes/${NOTE_ID}" "Update note" "${UPDATE_DATA}"
+test_listing "/api/folders" "List folders"
 
-    # List all notes
-    test_endpoint "GET" "/api/notes" "List all notes"
-
-    # Delete the note
-    test_endpoint "DELETE" "/api/notes/${NOTE_ID}" "Delete note"
-fi
-
-# Test 2: Folder Operations
-echo "📁 Testing folder operations..."
-FOLDER_DATA='{"name":"Test Folder","icon":"📂","color":"#6366f1"}'
-CREATED_FOLDER=$(curl -sf -X POST -H "Content-Type: application/json" -d "${FOLDER_DATA}" \
-    "http://localhost:${API_PORT}/api/folders" 2>/dev/null || echo "")
-
-if [ -n "${CREATED_FOLDER}" ]; then
-    FOLDER_ID=$(echo "${CREATED_FOLDER}" | jq -r '.id' 2>/dev/null || echo "")
-    if [ -n "${FOLDER_ID}" ] && [ "${FOLDER_ID}" != "null" ]; then
-        echo "  ✅ Create folder"
-        test_endpoint "GET" "/api/folders" "List folders"
-        test_endpoint "DELETE" "/api/folders/${FOLDER_ID}" "Delete folder"
-    fi
-fi
-
-# Test 3: Tag Operations
-echo "🏷️  Testing tag operations..."
-TAG_DATA='{"name":"test-tag","color":"#10b981"}'
-test_endpoint "POST" "/api/tags" "Create tag" "${TAG_DATA}"
-test_endpoint "GET" "/api/tags" "List tags"
-
-# Test 4: Template Operations
-echo "📋 Testing template operations..."
-test_endpoint "GET" "/api/templates" "List templates"
-
-# Test 5: Search Functionality
-echo "🔍 Testing search functionality..."
-SEARCH_DATA='{"query":"test","limit":10}'
-test_endpoint "POST" "/api/search" "Text search" "${SEARCH_DATA}"
-
-# Test semantic search (if Qdrant is available)
-if vrooli resource status qdrant &> /dev/null; then
-    SEMANTIC_DATA='{"query":"sample note","limit":5}'
-    test_endpoint "POST" "/api/search/semantic" "Semantic search" "${SEMANTIC_DATA}"
-fi
-
-# Summary
-echo ""
-if [ ${FAILURES} -eq 0 ]; then
-    echo "✅ Business logic validation passed!"
-    exit 0
+tag_payload='{"name":"test-suite-tag","color":"#10b981"}'
+if tag_id=$(post_json "/api/tags" "$tag_payload" tag); then
+  log::success "✅ Tag created (${tag_id})"
+  testing::phase::add_test passed
 else
-    echo "❌ Business logic validation failed with ${FAILURES} error(s)"
-    exit 1
+  testing::phase::add_error "Failed to create tag"
+  testing::phase::add_test failed
 fi
+
+test_listing "/api/tags" "List tags"
+
+template_payload='{ "name":"Meeting Notes","description":"Template used during tests","content":"# Meeting Notes","category":"business" }'
+if template_id=$(post_json "/api/templates" "$template_payload" template); then
+  log::success "✅ Template created (${template_id})"
+  testing::phase::add_test passed
+else
+  testing::phase::add_error "Failed to create template"
+  testing::phase::add_test failed
+fi
+
+test_listing "/api/templates" "List templates"
+
+text_search_payload='{"query":"meeting","limit":5}'
+if curl -sf -X POST "${API_URL}/api/search" -H "Content-Type: application/json" -d "$text_search_payload" >/dev/null; then
+  log::success "✅ Text search works"
+  testing::phase::add_test passed
+else
+  log::error "❌ Text search failed"
+  testing::phase::add_test failed
+fi
+
+if vrooli resource status qdrant >/dev/null 2>&1; then
+  semantic_payload='{"query":"collaboration","limit":5}'
+  if curl -sf -X POST "${API_URL}/api/search/semantic" -H "Content-Type: application/json" -d "$semantic_payload" >/dev/null; then
+    log::success "✅ Semantic search available"
+    testing::phase::add_test passed
+  else
+    log::error "❌ Semantic search failed"
+    testing::phase::add_test failed
+  fi
+else
+  testing::phase::add_warning "Qdrant not running; semantic search skipped"
+  testing::phase::add_test skipped
+fi
+
+# Verify analytics endpoint if available
+if curl -sf "${API_URL}/api/analytics/summary" >/dev/null 2>&1; then
+  log::success "✅ Analytics summary reachable"
+  testing::phase::add_test passed
+else
+  testing::phase::add_warning "Analytics summary endpoint unavailable"
+  testing::phase::add_test skipped
+fi
+
+testing::phase::end_with_summary "Business workflow validation completed"
