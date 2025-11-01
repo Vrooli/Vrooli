@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '../utils/logger';
 import { Eye, Code } from 'lucide-react';
 import Editor from '@monaco-editor/react';
@@ -18,6 +18,7 @@ import ReactFlow, {
   ReactFlowProvider,
   NodeChange,
   EdgeChange,
+  useReactFlow,
 } from 'reactflow';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { normalizeNodes, normalizeEdges } from '../utils/workflowNormalizers';
@@ -34,6 +35,8 @@ import WorkflowToolbar from './WorkflowToolbar';
 import CustomConnectionLine from './CustomConnectionLine';
 import 'reactflow/dist/style.css';
 import toast from 'react-hot-toast';
+import ResponsiveDialog from './ResponsiveDialog';
+import type { ExecutionViewportSettings, ViewportPreset } from '../stores/workflowStore';
 
 const nodeTypes: NodeTypes = {
   browserAction: BrowserActionNode,
@@ -56,6 +59,41 @@ const defaultEdgeOptions = {
     height: 20,
     color: '#4a5568',
   },
+};
+
+const DEFAULT_DESKTOP_VIEWPORT: ExecutionViewportSettings = { width: 1920, height: 1080, preset: 'desktop' };
+const DEFAULT_MOBILE_VIEWPORT: ExecutionViewportSettings = { width: 390, height: 844, preset: 'mobile' };
+const MIN_VIEWPORT_DIMENSION = 200;
+const MAX_VIEWPORT_DIMENSION = 10000;
+
+const clampViewportDimension = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return MIN_VIEWPORT_DIMENSION;
+  }
+  return Math.min(Math.max(Math.round(value), MIN_VIEWPORT_DIMENSION), MAX_VIEWPORT_DIMENSION);
+};
+
+const determineViewportPreset = (width: number, height: number): ViewportPreset => {
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return 'custom';
+  }
+  if (width === DEFAULT_DESKTOP_VIEWPORT.width && height === DEFAULT_DESKTOP_VIEWPORT.height) {
+    return 'desktop';
+  }
+  if (width === DEFAULT_MOBILE_VIEWPORT.width && height === DEFAULT_MOBILE_VIEWPORT.height) {
+    return 'mobile';
+  }
+  return 'custom';
+};
+
+const normalizeViewportSetting = (viewport?: ExecutionViewportSettings | null): ExecutionViewportSettings => {
+  if (!viewport || !Number.isFinite(viewport.width) || !Number.isFinite(viewport.height)) {
+    return { ...DEFAULT_DESKTOP_VIEWPORT };
+  }
+  const width = clampViewportDimension(viewport.width);
+  const height = clampViewportDimension(viewport.height);
+  const preset = viewport.preset ?? determineViewportPreset(width, height);
+  return { width, height, preset };
 };
 
 interface WorkflowBuilderProps {
@@ -81,6 +119,13 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);
+  const reactFlowInstance = useReactFlow();
+
+  const graphContainerRef = useRef<HTMLDivElement | null>(null);
+  const [graphWidth, setGraphWidth] = useState(0);
+  const [isViewportDialogOpen, setViewportDialogOpen] = useState(false);
+  const executionViewport = useWorkflowStore((state) => state.currentWorkflow?.executionViewport as ExecutionViewportSettings | undefined);
+  const effectiveViewport = useMemo(() => normalizeViewportSetting(executionViewport), [executionViewport]);
 
   const connectingNodeId = useRef<string | null>(null);
   const isLoadingFromStore = useRef(false);
@@ -102,6 +147,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       setTimeout(() => { isLoadingFromStore.current = false; }, 0);
     }
   }, [storeEdges, setEdges]);
+
 
   // Sync FROM local state TO store (on any user change, not from store load)
   useEffect(() => {
@@ -147,6 +193,35 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   const [codeValue, setCodeValue] = useState('');
   const [codeDirty, setCodeDirty] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (viewMode !== 'visual') {
+      return;
+    }
+
+    const element = graphContainerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateWidth = () => {
+      const rect = element.getBoundingClientRect();
+      setGraphWidth(Math.round(rect.width));
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => updateWidth());
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateWidth);
+    return () => {
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, [viewMode]);
 
   const buildJsonFromState = useCallback(() => {
     try {
@@ -306,10 +381,14 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       !selectedNodeIds.includes(edge.source) && 
       !selectedNodeIds.includes(edge.target)
     );
-    
+
     setNodes(remainingNodes);
     setEdges(remainingEdges);
   }, [nodes, edges, setNodes, setEdges, saveToHistory]);
+
+  const handleViewportSave = useCallback((viewport: ExecutionViewportSettings) => {
+    updateWorkflow({ executionViewport: normalizeViewportSetting(viewport) });
+  }, [updateWorkflow]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -370,10 +449,14 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       if (!type) return;
 
       const reactFlowBounds = event.currentTarget.getBoundingClientRect();
-      const position = {
+      const canvasPosition = {
         x: event.clientX - reactFlowBounds.left,
         y: event.clientY - reactFlowBounds.top,
       };
+
+      const position = typeof reactFlowInstance.project === 'function'
+        ? reactFlowInstance.project(canvasPosition)
+        : canvasPosition;
 
       const newNode: Node = {
         id: `node-${Date.now()}`,
@@ -384,7 +467,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [setNodes]
+    [reactFlowInstance, setNodes]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -393,7 +476,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   }, []);
 
   return (
-    <div className="flex-1 relative">
+    <div ref={graphContainerRef} className="flex-1 relative">
       {viewMode === 'visual' && (
         <WorkflowToolbar 
           showGrid={showGrid} 
@@ -406,6 +489,9 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           canRedo={historyIndex < history.length - 1}
           onDuplicate={duplicateSelected}
           onDelete={deleteSelected}
+          graphWidth={graphWidth}
+          onConfigureViewport={() => setViewportDialogOpen(true)}
+          executionViewport={effectiveViewport}
         />
       )}
 
@@ -541,7 +627,189 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           </div>
         </div>
       )}
+
+      <ViewportDialog
+        isOpen={isViewportDialogOpen}
+        onDismiss={() => setViewportDialogOpen(false)}
+        onSave={(viewport) => {
+          handleViewportSave(viewport);
+          setViewportDialogOpen(false);
+        }}
+        initialValue={effectiveViewport}
+      />
     </div>
+  );
+}
+
+interface ViewportDialogProps {
+  isOpen: boolean;
+  onDismiss: () => void;
+  onSave: (viewport: ExecutionViewportSettings) => void;
+  initialValue?: ExecutionViewportSettings;
+}
+
+function ViewportDialog({ isOpen, onDismiss, onSave, initialValue }: ViewportDialogProps) {
+  const [widthValue, setWidthValue] = useState('');
+  const [heightValue, setHeightValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const normalized = normalizeViewportSetting(initialValue);
+    setWidthValue(String(normalized.width));
+    setHeightValue(String(normalized.height));
+    setError(null);
+  }, [initialValue, isOpen]);
+
+  const numericWidth = Number.parseInt(widthValue, 10);
+  const numericHeight = Number.parseInt(heightValue, 10);
+  const activePreset = determineViewportPreset(numericWidth, numericHeight);
+
+  const handlePresetSelect = (presetViewport: ExecutionViewportSettings) => {
+    const normalized = normalizeViewportSetting(presetViewport);
+    setWidthValue(String(normalized.width));
+    setHeightValue(String(normalized.height));
+    setError(null);
+  };
+
+  const handleWidthChange = (value: string) => {
+    setWidthValue(value.replace(/[^0-9]/g, ''));
+  };
+
+  const handleHeightChange = (value: string) => {
+    setHeightValue(value.replace(/[^0-9]/g, ''));
+  };
+
+  const handleSave = () => {
+    const parsedWidth = Number.parseInt(widthValue, 10);
+    const parsedHeight = Number.parseInt(heightValue, 10);
+
+    if (!Number.isFinite(parsedWidth) || parsedWidth < MIN_VIEWPORT_DIMENSION) {
+      setError(`Width must be between ${MIN_VIEWPORT_DIMENSION} and ${MAX_VIEWPORT_DIMENSION} pixels.`);
+      return;
+    }
+
+    if (!Number.isFinite(parsedHeight) || parsedHeight < MIN_VIEWPORT_DIMENSION) {
+      setError(`Height must be between ${MIN_VIEWPORT_DIMENSION} and ${MAX_VIEWPORT_DIMENSION} pixels.`);
+      return;
+    }
+
+    if (parsedWidth > MAX_VIEWPORT_DIMENSION || parsedHeight > MAX_VIEWPORT_DIMENSION) {
+      setError(`Dimensions cannot exceed ${MAX_VIEWPORT_DIMENSION} pixels.`);
+      return;
+    }
+
+    const width = clampViewportDimension(parsedWidth);
+    const height = clampViewportDimension(parsedHeight);
+    const preset = determineViewportPreset(width, height);
+
+    onSave({ width, height, preset });
+  };
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const presetButtons: Array<{ id: ViewportPreset; label: string; viewport: ExecutionViewportSettings }> = [
+    { id: 'desktop', label: 'Desktop', viewport: DEFAULT_DESKTOP_VIEWPORT },
+    { id: 'mobile', label: 'Mobile', viewport: DEFAULT_MOBILE_VIEWPORT },
+  ];
+
+  return (
+    <ResponsiveDialog
+      isOpen={isOpen}
+      onDismiss={onDismiss}
+      ariaLabel="Configure execution dimensions"
+      className="bg-flow-node border border-gray-800 rounded-lg shadow-2xl w-[360px] max-w-[90vw]"
+    >
+      <div className="px-6 py-4 border-b border-gray-800">
+        <h2 className="text-lg font-semibold text-white">Execution dimensions</h2>
+        <p className="mt-1 text-sm text-gray-400">Apply these dimensions to workflow runs and preview screenshots.</p>
+      </div>
+
+      <div className="px-6 py-5 space-y-5">
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Presets</span>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {presetButtons.map(({ id, label, viewport }) => {
+              const isActive = activePreset === id;
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => handlePresetSelect(viewport)}
+                  className={`flex flex-col rounded-md border px-3 py-2 text-left text-xs transition-colors ${
+                    isActive
+                      ? 'border-flow-accent bg-flow-accent/20 text-white'
+                      : 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
+                  }`}
+                >
+                  <span className="font-semibold text-sm">{label}</span>
+                  <span className="mt-0.5 text-[11px] text-gray-400">
+                    {viewport.width} × {viewport.height}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Width (px)
+            <input
+              type="number"
+              min={MIN_VIEWPORT_DIMENSION}
+              max={MAX_VIEWPORT_DIMENSION}
+              value={widthValue}
+              onChange={(event) => handleWidthChange(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-700 bg-flow-bg px-3 py-2 text-sm text-gray-200 focus:border-flow-accent focus:outline-none"
+            />
+          </label>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Height (px)
+            <input
+              type="number"
+              min={MIN_VIEWPORT_DIMENSION}
+              max={MAX_VIEWPORT_DIMENSION}
+              value={heightValue}
+              onChange={(event) => handleHeightChange(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-700 bg-flow-bg px-3 py-2 text-sm text-gray-200 focus:border-flow-accent focus:outline-none"
+            />
+          </label>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Recommended desktop preset works well for most workflows. Use custom dimensions for responsive testing or narrow layouts.
+        </p>
+
+        {error && (
+          <div className="rounded-md border border-red-500/60 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            {error}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-end gap-3 border-t border-gray-800 px-6 py-4">
+        <button
+          type="button"
+          className="rounded-md border border-gray-700 bg-flow-bg px-4 py-2 text-sm font-semibold text-gray-300 hover:border-gray-500 hover:text-white"
+          onClick={onDismiss}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="rounded-md bg-flow-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+          onClick={handleSave}
+        >
+          Save
+        </button>
+      </div>
+    </ResponsiveDialog>
   );
 }
 

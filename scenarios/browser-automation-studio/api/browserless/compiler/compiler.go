@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -105,18 +106,27 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 		return nil, err
 	}
 
+	metadata := map[string]any{}
+	if width, height := extractViewportFromSettings(raw.Settings); width > 0 && height > 0 {
+		metadata["executionViewport"] = map[string]int{"width": width, "height": height}
+	}
+	if len(metadata) == 0 {
+		metadata = nil
+	}
+
 	return &ExecutionPlan{
 		WorkflowID:   workflow.ID,
 		WorkflowName: workflow.Name,
 		Steps:        steps,
-		Metadata:     map[string]any{},
+		Metadata:     metadata,
 	}, nil
 }
 
 // flowDefinition mirrors the React Flow payload persisted with workflows.
 type flowDefinition struct {
-	Nodes []rawNode `json:"nodes"`
-	Edges []rawEdge `json:"edges"`
+	Nodes    []rawNode          `json:"nodes"`
+	Edges    []rawEdge          `json:"edges"`
+	Settings map[string]any     `json:"settings"`
 }
 
 type rawNode struct {
@@ -133,6 +143,60 @@ type rawEdge struct {
 	SourceHandle string         `json:"sourceHandle"`
 	TargetHandle string         `json:"targetHandle"`
 	Data         map[string]any `json:"data"`
+}
+
+func toPositiveInt(value any) int {
+	switch v := value.(type) {
+	case float64:
+		if v > 0 {
+			return int(v)
+		}
+	case float32:
+		if v > 0 {
+			return int(v)
+		}
+	case int:
+		if v > 0 {
+			return v
+		}
+	case int64:
+		if v > 0 {
+			return int(v)
+		}
+	case json.Number:
+		if intVal, err := v.Int64(); err == nil && intVal > 0 {
+			return int(intVal)
+		}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0
+		}
+		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	return 0
+}
+
+func extractViewportFromSettings(settings map[string]any) (int, int) {
+	if settings == nil {
+		return 0, 0
+	}
+	viewportValue, ok := settings["executionViewport"]
+	if !ok {
+		return 0, 0
+	}
+	viewportMap, ok := viewportValue.(map[string]any)
+	if !ok {
+		return 0, 0
+	}
+	width := toPositiveInt(viewportMap["width"])
+	height := toPositiveInt(viewportMap["height"])
+	if width <= 0 || height <= 0 {
+		return 0, 0
+	}
+	return width, height
 }
 
 type planner struct {

@@ -21,13 +21,25 @@ const (
 	defaultTimeoutMillis    = 30000
 )
 
+func clampViewport(value int) int {
+	if value < 200 {
+		return 200
+	}
+	if value > 10000 {
+		return 10000
+	}
+	return value
+}
+
 // Session manages low-level Browserless interactions.
 type Session struct {
-	baseURL    string
-	httpClient *http.Client
-	log        *logrus.Logger
-	sessionID  string
-	lastHTML   string
+	baseURL        string
+	httpClient     *http.Client
+	log            *logrus.Logger
+	sessionID      string
+	lastHTML       string
+	viewportWidth  int
+	viewportHeight int
 }
 
 // NewSession creates a Browserless session wrapper.
@@ -37,10 +49,12 @@ func NewSession(baseURL string, httpClient *http.Client, log *logrus.Logger) *Se
 		httpClient = &http.Client{Timeout: 90 * time.Second}
 	}
 	return &Session{
-		baseURL:    trimmed,
-		httpClient: httpClient,
-		log:        log,
-		sessionID:  uuid.New().String(),
+		baseURL:        trimmed,
+		httpClient:     httpClient,
+		log:            log,
+		sessionID:      uuid.New().String(),
+		viewportWidth:  defaultViewportWidth,
+		viewportHeight: defaultViewportHeight,
 	}
 }
 
@@ -52,9 +66,19 @@ func (s *Session) SetLastHTML(html string) {
 	s.lastHTML = html
 }
 
+// SetViewport updates the default viewport dimensions used when initializing the session.
+func (s *Session) SetViewport(width, height int) {
+	if width > 0 {
+		s.viewportWidth = clampViewport(width)
+	}
+	if height > 0 {
+		s.viewportHeight = clampViewport(height)
+	}
+}
+
 // ExecuteInstruction runs a single instruction within a persistent Browserless session.
 func (s *Session) ExecuteInstruction(ctx context.Context, instruction Instruction) (*ExecutionResponse, error) {
-	script, err := buildStepScript(instruction)
+	script, err := buildStepScript(instruction, s.viewportWidth, s.viewportHeight)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build browserless script: %w", err)
 	}

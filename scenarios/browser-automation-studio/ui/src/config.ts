@@ -235,6 +235,7 @@ function getConfigSync(): Config {
 }
 
 export { getConfig };
+export const getCachedConfig = () => cachedConfig;
 export const config = getConfigSync;
 export const getApiBase = () => config().API_URL;
 export const getWsBase = () => config().WS_URL;

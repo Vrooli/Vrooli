@@ -16,6 +16,26 @@ import (
 	"github.com/vrooli/browser-automation-studio/constants"
 )
 
+const (
+	previewMinViewportDimension = 200
+	previewMaxViewportDimension = 10000
+	previewDefaultViewportWidth = 1920
+	previewDefaultViewportHeight = 1080
+)
+
+func clampPreviewViewport(value int) int {
+	if value <= 0 {
+		return 0
+	}
+	if value < previewMinViewportDimension {
+		return previewMinViewportDimension
+	}
+	if value > previewMaxViewportDimension {
+		return previewMaxViewportDimension
+	}
+	return value
+}
+
 // ScreenshotHandler handles screenshot-related operations
 type ScreenshotHandler struct {
 	log *logrus.Logger
@@ -29,7 +49,11 @@ func NewScreenshotHandler(log *logrus.Logger) *ScreenshotHandler {
 // TakePreviewScreenshot handles POST /api/v1/ai/preview-screenshot
 func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) {
 	type PreviewRequest struct {
-		URL string `json:"url"`
+		URL      string `json:"url"`
+		Viewport *struct {
+			Width  int `json:"width"`
+			Height int `json:"height"`
+		} `json:"viewport,omitempty"`
 	}
 
 	var req PreviewRequest
@@ -44,7 +68,22 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 		return
 	}
 
-	h.log.WithField("url", req.URL).Info("Taking preview screenshot and capturing console logs")
+	viewportWidth := previewDefaultViewportWidth
+	viewportHeight := previewDefaultViewportHeight
+	if req.Viewport != nil {
+		if w := clampPreviewViewport(req.Viewport.Width); w > 0 {
+			viewportWidth = w
+		}
+		if hVal := clampPreviewViewport(req.Viewport.Height); hVal > 0 {
+			viewportHeight = hVal
+		}
+	}
+
+	h.log.WithFields(logrus.Fields{
+		"url":            req.URL,
+		"viewport_width": viewportWidth,
+		"viewport_height": viewportHeight,
+	}).Info("Taking preview screenshot and capturing console logs")
 
 	// Create temporary files for screenshot and console logs
 	tmpScreenshotFile, err := os.CreateTemp("", "preview-*.png")
@@ -69,9 +108,14 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 	defer cancel()
 
 	// Take screenshot first with explicit viewport to match extract viewport
-	screenshotCmd := exec.CommandContext(ctx, "resource-browserless", "screenshot",
+	screenshotArgs := []string{
+		"screenshot",
 		"--url", req.URL,
-		"--output", tmpScreenshotFile.Name())
+		"--output", tmpScreenshotFile.Name(),
+		"--viewport", fmt.Sprintf("%dx%d", viewportWidth, viewportHeight),
+	}
+
+	screenshotCmd := exec.CommandContext(ctx, "resource-browserless", screenshotArgs...)
 
 	screenshotOutput, err := screenshotCmd.CombinedOutput()
 	if err != nil {

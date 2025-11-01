@@ -17,6 +17,172 @@ export interface SaveErrorState {
 
 type AutosaveOptions = SaveWorkflowOptions & { debounceMs?: number };
 
+export type ViewportPreset = 'desktop' | 'mobile' | 'custom';
+
+export interface ExecutionViewportSettings {
+  width: number;
+  height: number;
+  preset?: ViewportPreset;
+}
+
+const MIN_VIEWPORT_DIMENSION = 200;
+const MAX_VIEWPORT_DIMENSION = 10000;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+};
+
+const clampDimension = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return MIN_VIEWPORT_DIMENSION;
+  }
+  return Math.min(Math.max(Math.round(value), MIN_VIEWPORT_DIMENSION), MAX_VIEWPORT_DIMENSION);
+};
+
+const parseViewportDimension = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return value > 0 ? clampDimension(value) : null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isNaN(parsed)) {
+      return null;
+    }
+    return parsed > 0 ? clampDimension(parsed) : null;
+  }
+  return null;
+};
+
+const parseViewportPreset = (value: unknown): ViewportPreset | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'desktop' || normalized === 'mobile' || normalized === 'custom') {
+    return normalized;
+  }
+  return undefined;
+};
+
+const sanitizeViewportSettings = (viewport: ExecutionViewportSettings | undefined | null): ExecutionViewportSettings | undefined => {
+  if (!viewport) {
+    return undefined;
+  }
+  const width = parseViewportDimension((viewport as ExecutionViewportSettings).width);
+  const height = parseViewportDimension((viewport as ExecutionViewportSettings).height);
+  if (!width || !height) {
+    return undefined;
+  }
+  const preset = parseViewportPreset((viewport as ExecutionViewportSettings).preset);
+  return preset ? { width, height, preset } : { width, height };
+};
+
+const extractExecutionViewport = (definition: unknown): ExecutionViewportSettings | undefined => {
+  if (!isPlainObject(definition)) {
+    return undefined;
+  }
+  const settingsValue = definition.settings;
+  if (!isPlainObject(settingsValue)) {
+    return undefined;
+  }
+  const viewportValue = settingsValue.executionViewport ?? settingsValue.viewport;
+  if (!isPlainObject(viewportValue)) {
+    return undefined;
+  }
+  const width = parseViewportDimension(viewportValue.width);
+  const height = parseViewportDimension(viewportValue.height);
+  if (!width || !height) {
+    return undefined;
+  }
+  const preset = parseViewportPreset(viewportValue.preset ?? viewportValue.mode);
+  return preset ? { width, height, preset } : { width, height };
+};
+
+const buildFlowDefinition = (
+  rawDefinition: unknown,
+  nodes: unknown[],
+  edges: unknown[],
+  viewport?: ExecutionViewportSettings,
+): Record<string, unknown> => {
+  const base = isPlainObject(rawDefinition) ? rawDefinition : {};
+  const baseRecord = base as Record<string, unknown>;
+  const next: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(baseRecord)) {
+    if (key === 'nodes' || key === 'edges' || key === 'settings') {
+      continue;
+    }
+    next[key] = value;
+  }
+
+  next.nodes = nodes;
+  next.edges = edges;
+
+  let existingSettings: Record<string, unknown> = {};
+  if (isPlainObject(baseRecord.settings)) {
+    existingSettings = { ...(baseRecord.settings as Record<string, unknown>) };
+  }
+
+  if (viewport) {
+    existingSettings.executionViewport = viewport;
+  } else {
+    delete existingSettings.executionViewport;
+  }
+
+  if (Object.keys(existingSettings).length > 0) {
+    next.settings = existingSettings;
+  }
+
+  return next;
+};
+
+const PREVIEW_DATA_KEYS = ['previewScreenshot', 'previewScreenshotCapturedAt', 'previewScreenshotSourceUrl'];
+
+const stripPreviewDataFromNodes = (nodes: Node[] | undefined | null): Node[] => {
+  if (!nodes || nodes.length === 0) {
+    return [];
+  }
+  return nodes.map((node) => {
+    if (!node || typeof node !== 'object') {
+      return node;
+    }
+    const data = node.data as Record<string, unknown> | undefined;
+    if (!data || typeof data !== 'object') {
+      return node;
+    }
+
+    let modified = false;
+    const cleanedData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (PREVIEW_DATA_KEYS.includes(key)) {
+        modified = true;
+        continue;
+      }
+      cleanedData[key] = value;
+    }
+
+    if (!modified) {
+      return node;
+    }
+
+    return {
+      ...node,
+      data: cleanedData,
+    } as Node;
+  });
+};
+
+const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): unknown[] => {
+  if (!nodes || nodes.length === 0) {
+    return [];
+  }
+  return stripPreviewDataFromNodes(nodes).map((node) => JSON.parse(JSON.stringify(node)));
+};
+
 const clearAutosaveTimer = () => {
   if (autosaveTimeout) {
     clearTimeout(autosaveTimeout);
@@ -61,8 +227,9 @@ const computeWorkflowFingerprint = (workflow: Workflow | null, nodes: Node[], ed
     return '';
   }
 
-  const serializableNodes = JSON.parse(JSON.stringify(nodes ?? []));
+  const serializableNodes = sanitizeNodesForPersistence(nodes);
   const serializableEdges = JSON.parse(JSON.stringify(edges ?? []));
+  const sanitizedViewport = sanitizeViewportSettings(workflow.executionViewport);
 
   return stableSerialize({
     name: workflow.name ?? '',
@@ -71,6 +238,7 @@ const computeWorkflowFingerprint = (workflow: Workflow | null, nodes: Node[], ed
     tags: Array.isArray(workflow.tags) ? [...workflow.tags].sort() : [],
     nodes: serializableNodes,
     edges: serializableEdges,
+    executionViewport: sanitizedViewport ?? null,
   });
 };
 
@@ -88,6 +256,9 @@ export interface Workflow {
   lastChangeDescription?: string;
   createdAt: Date;
   updatedAt: Date;
+  flow_definition?: Record<string, unknown>;
+  flowDefinition?: Record<string, unknown>;
+  executionViewport?: ExecutionViewportSettings;
   [key: string]: unknown;
 }
 
@@ -140,8 +311,18 @@ const ensureArray = <T>(value: unknown, fallback: T[] = []): T[] => {
 const normalizeWorkflowResponse = (workflow: any): Workflow => {
   const rawNodes = workflow?.nodes ?? workflow?.flow_definition?.nodes ?? workflow?.flowDefinition?.nodes ?? [];
   const rawEdges = workflow?.edges ?? workflow?.flow_definition?.edges ?? workflow?.flowDefinition?.edges ?? [];
-  const normalizedNodes = normalizeNodes(rawNodes ?? []);
+  const normalizedNodesRaw = normalizeNodes(rawNodes ?? []);
+  const normalizedNodes = stripPreviewDataFromNodes(normalizedNodesRaw);
   const normalizedEdges = normalizeEdges(rawEdges ?? []);
+
+  const rawDefinition = workflow?.flow_definition ?? workflow?.flowDefinition ?? {};
+  const executionViewport = sanitizeViewportSettings(extractExecutionViewport(rawDefinition));
+  const flowDefinition = buildFlowDefinition(
+    rawDefinition,
+    sanitizeNodesForPersistence(normalizedNodes),
+    JSON.parse(JSON.stringify(normalizedEdges ?? [])),
+    executionViewport,
+  );
 
   const versionValue = workflow?.version;
   const version = typeof versionValue === 'number'
@@ -162,7 +343,9 @@ const normalizeWorkflowResponse = (workflow: any): Workflow => {
     lastChangeDescription: workflow?.last_change_description ?? workflow?.lastChangeDescription ?? '',
     createdAt: parseDate(workflow?.created_at ?? workflow?.createdAt),
     updatedAt: parseDate(workflow?.updated_at ?? workflow?.updatedAt),
-    flow_definition: workflow?.flow_definition ?? workflow?.flowDefinition ?? { nodes: normalizedNodes, edges: normalizedEdges },
+    flow_definition: flowDefinition,
+    flowDefinition,
+    executionViewport,
   } as Workflow;
 };
 
@@ -377,8 +560,15 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
     try {
       const config = await getConfig();
-      const serializableNodes = JSON.parse(JSON.stringify(nodes ?? []));
+      const serializableNodes = sanitizeNodesForPersistence(nodes ?? []);
       const serializableEdges = JSON.parse(JSON.stringify(edges ?? []));
+      const sanitizedViewport = sanitizeViewportSettings(currentWorkflow.executionViewport);
+      const flowDefinition = buildFlowDefinition(
+        currentWorkflow.flow_definition ?? currentWorkflow.flowDefinition,
+        serializableNodes,
+        serializableEdges,
+        sanitizedViewport,
+      );
       const expectedVersion = options.force && conflictWorkflow
         ? conflictWorkflow.version
         : currentWorkflow.version;
@@ -388,7 +578,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         folder_path: currentWorkflow.folderPath,
         nodes: serializableNodes,
         edges: serializableEdges,
-        flow_definition: { nodes: serializableNodes, edges: serializableEdges },
+        flow_definition: flowDefinition,
         expected_version: expectedVersion,
         source,
       };
@@ -485,7 +675,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (!currentWorkflow) return;
     const nextNodes = updates.nodes ?? nodes;
     const nextEdges = updates.edges ?? edges;
-    const updatedWorkflow = { ...currentWorkflow, ...updates };
+    const sanitizedViewport = sanitizeViewportSettings(updates.executionViewport ?? currentWorkflow.executionViewport);
+    const baseDefinition = updates.flow_definition
+      ?? updates.flowDefinition
+      ?? currentWorkflow.flow_definition
+      ?? currentWorkflow.flowDefinition;
+    const persistedNodes = sanitizeNodesForPersistence(nextNodes as Node[]);
+    const persistedEdges = JSON.parse(JSON.stringify(nextEdges ?? []));
+    const flowDefinition = buildFlowDefinition(baseDefinition, persistedNodes, persistedEdges, sanitizedViewport);
+
+    const updatedWorkflow = {
+      ...currentWorkflow,
+      ...updates,
+      executionViewport: sanitizedViewport,
+      flow_definition: flowDefinition,
+      flowDefinition,
+    };
     const nextFingerprint = computeWorkflowFingerprint(updatedWorkflow, nextNodes, nextEdges);
     const isDirty = nextFingerprint !== lastSavedFingerprint;
 

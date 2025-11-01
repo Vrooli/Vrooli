@@ -47,6 +47,22 @@ export interface ReplayPoint {
   y?: number;
 }
 
+interface NormalizedPoint {
+  x: number;
+  y: number;
+}
+
+type CursorSpeedProfile = 'instant' | 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
+type CursorPathStyle = 'linear' | 'parabolicUp' | 'parabolicDown' | 'cubic' | 'pseudorandom';
+
+interface CursorAnimationOverride {
+  target?: NormalizedPoint;
+  pathStyle?: CursorPathStyle;
+  speedProfile?: CursorSpeedProfile;
+}
+
+type CursorOverrideMap = Record<string, CursorAnimationOverride>;
+
 export interface ReplayScreenshot {
   artifactId: string;
   url?: string;
@@ -161,6 +177,30 @@ const MIN_DURATION = 800;
 const MAX_DURATION = 6000;
 const MIN_CURSOR_SCALE = 0.6;
 const MAX_CURSOR_SCALE = 1.8;
+const DEFAULT_SPEED_PROFILE: CursorSpeedProfile = 'linear';
+const DEFAULT_PATH_STYLE: CursorPathStyle = 'linear';
+const SPEED_PROFILE_OPTIONS: Array<{ id: CursorSpeedProfile; label: string; description: string }> = [
+  { id: 'linear', label: 'Linear', description: 'Consistent motion between frames' },
+  { id: 'easeIn', label: 'Ease in', description: 'Begin slowly, accelerate toward the target' },
+  { id: 'easeOut', label: 'Ease out', description: 'Move quickly at first, settle into the target' },
+  { id: 'easeInOut', label: 'Ease in/out', description: 'Smooth acceleration and deceleration' },
+  { id: 'instant', label: 'Instant', description: 'Jump directly at the end of the step' },
+];
+
+const CURSOR_PATH_STYLE_OPTIONS: Array<{ id: CursorPathStyle; label: string; description: string }> = [
+  { id: 'linear', label: 'Linear', description: 'Direct line between previous and current positions' },
+  { id: 'parabolicUp', label: 'Parabolic (up)', description: 'Arcs upward before easing into the target' },
+  { id: 'parabolicDown', label: 'Parabolic (down)', description: 'Arcs downward before easing into the target' },
+  { id: 'cubic', label: 'Cubic', description: 'Smooth S-curve with a gentle overshoot' },
+  { id: 'pseudorandom', label: 'Pseudorandom', description: 'Organic path generated from deterministic random waypoints' },
+];
+
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
+const clampNormalizedPoint = (point: NormalizedPoint): NormalizedPoint => ({
+  x: clamp01(point.x),
+  y: clamp01(point.y),
+});
 
 const clampDuration = (value?: number) => {
   if (!value || Number.isNaN(value)) {
@@ -181,6 +221,303 @@ type Dimensions = { width: number; height: number };
 
 const FALLBACK_DIMENSIONS: Dimensions = { width: 1920, height: 1080 };
 
+const toNormalizedPoint = (
+  point: ReplayPoint | null | undefined,
+  dims: Dimensions,
+): NormalizedPoint | undefined => {
+  if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
+    return undefined;
+  }
+  const width = dims.width || FALLBACK_DIMENSIONS.width;
+  const height = dims.height || FALLBACK_DIMENSIONS.height;
+  if (!width || !height) {
+    return undefined;
+  }
+  return clampNormalizedPoint({ x: point.x / width, y: point.y / height });
+};
+
+const toAbsolutePoint = (point: NormalizedPoint, dims: Dimensions): ReplayPoint => {
+  const width = dims.width || FALLBACK_DIMENSIONS.width;
+  const height = dims.height || FALLBACK_DIMENSIONS.height;
+  return {
+    x: clamp01(point.x) * width,
+    y: clamp01(point.y) * height,
+  };
+};
+
+const applySpeedProfile = (progress: number, profile: CursorSpeedProfile) => {
+  const clamped = clamp01(progress);
+  switch (profile) {
+    case 'instant':
+      return clamped >= 0.999 ? 1 : 0;
+    case 'easeIn':
+      return clamped * clamped;
+    case 'easeOut':
+      return 1 - (1 - clamped) * (1 - clamped);
+    case 'easeInOut':
+      if (clamped < 0.5) {
+        return 2 * clamped * clamped;
+      }
+      return 1 - Math.pow(-2 * clamped + 2, 2) / 2;
+    case 'linear':
+    default:
+      return clamped;
+  }
+};
+
+const interpolatePath = (points: ReplayPoint[], progress: number): ReplayPoint => {
+  if (points.length === 0) {
+    return { x: 0, y: 0 };
+  }
+  if (points.length === 1) {
+    return points[0];
+  }
+
+  let totalDistance = 0;
+  const segments = [] as Array<{ start: ReplayPoint; end: ReplayPoint; length: number; cumulative: number }>;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const start = points[index];
+    const end = points[index + 1];
+    if (typeof start.x !== 'number' || typeof start.y !== 'number' || typeof end.x !== 'number' || typeof end.y !== 'number') {
+      continue;
+    }
+    const length = Math.hypot(end.x - start.x, end.y - start.y);
+    if (length <= 0.0001) {
+      continue;
+    }
+    totalDistance += length;
+    segments.push({ start, end, length, cumulative: totalDistance });
+  }
+
+  if (segments.length === 0 || totalDistance <= 0) {
+    return points[points.length - 1];
+  }
+
+  const targetDistance = totalDistance * clamp01(progress);
+  for (const segment of segments) {
+    const prevCumulative = segment.cumulative - segment.length;
+    if (targetDistance <= segment.cumulative) {
+      const segmentProgress = segment.length > 0 ? (targetDistance - prevCumulative) / segment.length : 1;
+      return {
+        x: (segment.start.x ?? 0) + (segment.end.x ?? 0 - (segment.start.x ?? 0)) * segmentProgress,
+        y: (segment.start.y ?? 0) + (segment.end.y ?? 0 - (segment.start.y ?? 0)) * segmentProgress,
+      };
+    }
+  }
+
+  return segments[segments.length - 1].end;
+};
+
+const formatCoordinate = (point?: ReplayPoint | null, dims?: Dimensions) => {
+  if (!point || typeof point.x !== 'number' || typeof point.y !== 'number' || !dims?.width || !dims?.height) {
+    return 'n/a';
+  }
+  const percentX = (point.x / dims.width) * 100;
+  const percentY = (point.y / dims.height) * 100;
+  const formatPercent = (value: number) => `${Math.round(value * 10) / 10}%`;
+  return `${Math.round(point.x)}px, ${Math.round(point.y)}px (${formatPercent(percentX)}, ${formatPercent(percentY)})`;
+};
+
+const isSamePoint = (a: NormalizedPoint, b: NormalizedPoint, epsilon = 1e-4) =>
+  Math.abs(a.x - b.x) < epsilon && Math.abs(a.y - b.y) < epsilon;
+
+const createDeterministicRng = (seed: string) => {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return () => {
+    // Xorshift32
+    h ^= h << 13;
+    h ^= h >>> 17;
+    h ^= h << 5;
+    return ((h >>> 0) % 1_000_000) / 1_000_000;
+  };
+};
+
+const sampleQuadraticBezier = (
+  p0: NormalizedPoint,
+  p1: NormalizedPoint,
+  p2: NormalizedPoint,
+  segments = 20,
+): NormalizedPoint[] => {
+  const points: NormalizedPoint[] = [];
+  for (let i = 1; i < segments; i += 1) {
+    const t = i / segments;
+    const invT = 1 - t;
+    const x = invT * invT * p0.x + 2 * invT * t * p1.x + t * t * p2.x;
+    const y = invT * invT * p0.y + 2 * invT * t * p1.y + t * t * p2.y;
+    points.push(clampNormalizedPoint({ x, y }));
+  }
+  return points;
+};
+
+const sampleCubicBezier = (
+  p0: NormalizedPoint,
+  p1: NormalizedPoint,
+  p2: NormalizedPoint,
+  p3: NormalizedPoint,
+  segments = 28,
+): NormalizedPoint[] => {
+  const points: NormalizedPoint[] = [];
+  for (let i = 1; i < segments; i += 1) {
+    const t = i / segments;
+    const invT = 1 - t;
+    const x =
+      invT * invT * invT * p0.x +
+      3 * invT * invT * t * p1.x +
+      3 * invT * t * t * p2.x +
+      t * t * t * p3.x;
+    const y =
+      invT * invT * invT * p0.y +
+      3 * invT * invT * t * p1.y +
+      3 * invT * t * t * p2.y +
+      t * t * t * p3.y;
+    points.push(clampNormalizedPoint({ x, y }));
+  }
+  return points;
+};
+
+const catmullRom = (
+  p0: NormalizedPoint,
+  p1: NormalizedPoint,
+  p2: NormalizedPoint,
+  p3: NormalizedPoint,
+  t: number,
+): NormalizedPoint => {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const x =
+    0.5 *
+    ((2 * p1.x) +
+      (-p0.x + p2.x) * t +
+      (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+      (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+  const y =
+    0.5 *
+    ((2 * p1.y) +
+      (-p0.y + p2.y) * t +
+      (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+      (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+  return { x, y };
+};
+
+const generateCatmullRomPath = (
+  controlPoints: NormalizedPoint[],
+  samplesPerSegment = 6,
+): NormalizedPoint[] => {
+  if (controlPoints.length <= 2) {
+    return [];
+  }
+  const points: NormalizedPoint[] = [];
+  for (let i = 0; i < controlPoints.length - 1; i += 1) {
+    const p0 = controlPoints[i - 1] ?? controlPoints[i];
+    const p1 = controlPoints[i];
+    const p2 = controlPoints[i + 1];
+    const p3 = controlPoints[i + 2] ?? controlPoints[i + 1];
+    for (let step = 1; step <= samplesPerSegment; step += 1) {
+      const t = step / (samplesPerSegment + 1);
+      points.push(clampNormalizedPoint(catmullRom(p0, p1, p2, p3, t)));
+    }
+  }
+  const first = controlPoints[0];
+  const last = controlPoints[controlPoints.length - 1];
+  return points.filter((point) => !isSamePoint(point, first) && !isSamePoint(point, last));
+};
+
+const generateStylizedPath = (
+  style: CursorPathStyle,
+  start: NormalizedPoint,
+  target: NormalizedPoint,
+  frameId: string,
+): NormalizedPoint[] => {
+  if (isSamePoint(start, target)) {
+    return [];
+  }
+
+  const dx = target.x - start.x;
+  const dy = target.y - start.y;
+  const distance = Math.hypot(dx, dy);
+
+  if (style === 'linear') {
+    return [];
+  }
+
+  if (style === 'parabolicUp' || style === 'parabolicDown') {
+    const mid = { x: (start.x + target.x) / 2, y: (start.y + target.y) / 2 };
+    const curveStrength = Math.min(0.45, Math.max(0.08, distance * 0.45));
+    const offsetY = style === 'parabolicUp' ? -curveStrength : curveStrength;
+    const control = clampNormalizedPoint({ x: mid.x, y: mid.y + offsetY });
+    return sampleQuadraticBezier(start, control, target);
+  }
+
+  if (style === 'cubic') {
+    const magnitude = Math.min(0.45, distance * 0.35 + 0.08);
+    const perpLength = Math.hypot(-dy, dx) || 1;
+    const perp = { x: (-dy) / perpLength, y: dx / perpLength };
+    const control1 = clampNormalizedPoint({
+      x: start.x + dx * (1 / 3) + perp.x * magnitude,
+      y: start.y + dy * (1 / 3) + perp.y * magnitude,
+    });
+    const control2 = clampNormalizedPoint({
+      x: start.x + dx * (2 / 3) - perp.x * magnitude,
+      y: start.y + dy * (2 / 3) - perp.y * magnitude,
+    });
+    return sampleCubicBezier(start, control1, control2, target);
+  }
+
+  const rng = createDeterministicRng(`${frameId}:${start.x.toFixed(4)}:${start.y.toFixed(4)}:${target.x.toFixed(4)}:${target.y.toFixed(4)}`);
+  const waypointCount = 3;
+  const controlPoints: NormalizedPoint[] = [start];
+  for (let i = 1; i <= waypointCount; i += 1) {
+    const t = i / (waypointCount + 1);
+    const baseX = start.x + dx * t;
+    const baseY = start.y + dy * t;
+    const jitterRadius = Math.min(0.4, distance * 0.5 + 0.05);
+    const angle = (rng() - 0.5) * Math.PI * 1.4;
+    const offsetMagnitude = jitterRadius * (0.35 + rng() * 0.65);
+    let candidate = clampNormalizedPoint({
+      x: baseX + Math.cos(angle) * offsetMagnitude,
+      y: baseY + Math.sin(angle) * offsetMagnitude,
+    });
+    const prev = controlPoints[controlPoints.length - 1];
+    const prevDist = Math.hypot(prev.x - target.x, prev.y - target.y);
+    const candidateDist = Math.hypot(candidate.x - target.x, candidate.y - target.y);
+    if (candidateDist > prevDist) {
+      const blend = 0.6;
+      candidate = clampNormalizedPoint({
+        x: candidate.x * blend + baseX * (1 - blend),
+        y: candidate.y * blend + baseY * (1 - blend),
+      });
+    }
+    controlPoints.push(candidate);
+  }
+  controlPoints.push(target);
+
+  return generateCatmullRomPath(controlPoints, 6);
+};
+
+const normalizeOverride = (override?: CursorAnimationOverride | null): CursorAnimationOverride | undefined => {
+  if (!override) {
+    return undefined;
+  }
+  const next: CursorAnimationOverride = {};
+  if (override.target) {
+    next.target = clampNormalizedPoint(override.target);
+  }
+  if (override.pathStyle && override.pathStyle !== DEFAULT_PATH_STYLE) {
+    next.pathStyle = override.pathStyle;
+  }
+  if (override.speedProfile && override.speedProfile !== DEFAULT_SPEED_PROFILE) {
+    next.speedProfile = override.speedProfile;
+  }
+  if (next.pathStyle || next.target || next.speedProfile) {
+    return next;
+  }
+  return undefined;
+};
+
 const formatValue = (value: unknown) => {
   if (value == null) {
     return 'null';
@@ -194,6 +531,18 @@ const formatValue = (value: unknown) => {
   }
   return String(value);
 };
+
+interface CursorPlan {
+  frameId: string;
+  dims: Dimensions;
+  startNormalized: NormalizedPoint;
+  targetNormalized: NormalizedPoint;
+  pathNormalized: NormalizedPoint[];
+  speedProfile: CursorSpeedProfile;
+  pathStyle: CursorPathStyle;
+  hasRecordedTrail: boolean;
+  previousTargetNormalized?: NormalizedPoint;
+}
 
 const toRectStyle = (box: ReplayBoundingBox | null | undefined, dims: Dimensions) => {
   if (!box || !dims.width || !dims.height) {
@@ -230,29 +579,6 @@ const toPointStyle = (point: ReplayPoint | null | undefined, dims: Dimensions) =
     left: `${(point.x / dims.width) * 100}%`,
     top: `${(point.y / dims.height) * 100}%`,
   } as const;
-};
-
-const pointsEqual = (a?: ReplayPoint | null, b?: ReplayPoint | null, tolerance = 0.5) => {
-  if (!a || !b) {
-    return false;
-  }
-  if (typeof a.x !== 'number' || typeof a.y !== 'number' || typeof b.x !== 'number' || typeof b.y !== 'number') {
-    return false;
-  }
-  return Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance;
-};
-
-const toTrailPoints = (trail: ReplayPoint[] | undefined, dims: Dimensions) => {
-  if (!trail || trail.length === 0 || !dims.width || !dims.height) {
-    return [] as Array<{ x: number; y: number }>;
-  }
-
-  return trail
-    .filter((point): point is Required<ReplayPoint> => typeof point?.x === 'number' && typeof point?.y === 'number')
-    .map((point) => ({
-      x: (point.x / dims.width) * 100,
-      y: (point.y / dims.height) * 100,
-    }));
 };
 
 const pickZoomAnchor = (frame: ReplayFrame): ReplayBoundingBox | undefined => {
@@ -776,9 +1102,11 @@ export function ReplayPlayer({
   const [isMetadataCollapsed, setIsMetadataCollapsed] = useState(true);
   const rafRef = useRef<number | null>(null);
   const durationRef = useRef<number>(DEFAULT_DURATION);
-  const cursorSeedRef = useRef<{ x: number; y: number }>({ x: Math.random(), y: Math.random() });
-  const cursorSourceRef = useRef<'data' | 'fallback'>('fallback');
+  const [cursorOverrides, setCursorOverrides] = useState<CursorOverrideMap>({});
+  const randomSeedsRef = useRef<Record<string, NormalizedPoint>>({});
   const [cursorPosition, setCursorPosition] = useState<ReplayPoint | undefined>(undefined);
+  const screenshotRef = useRef<HTMLDivElement | null>(null);
+  const [dragState, setDragState] = useState<{ frameId: string; pointerId: number } | null>(null);
   const backgroundDecor = useMemo(
     () => buildBackgroundDecor(backgroundTheme ?? 'aurora'),
     [backgroundTheme],
@@ -792,10 +1120,66 @@ export function ReplayPlayer({
       : 1;
   const cursorTrailStrokeWidth = cursorDecor.trailWidth * pointerScale;
 
+  const updateCursorOverride = (
+    frameId: string,
+    mutator: (previous: CursorAnimationOverride | undefined) => CursorAnimationOverride | null | undefined,
+  ) => {
+    setCursorOverrides((prev) => {
+      const previous = prev[frameId];
+      const next = normalizeOverride(mutator(previous));
+      if (!next) {
+        if (previous === undefined) {
+          return prev;
+        }
+        const { [frameId]: _removed, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [frameId]: next };
+    });
+  };
+
+  const computeFallbackNormalized = (frameId: string, dims: Dimensions): NormalizedPoint => {
+    const width = dims.width || FALLBACK_DIMENSIONS.width;
+    const height = dims.height || FALLBACK_DIMENSIONS.height;
+    const computePadRatio = (size: number) => {
+      if (!size) {
+        return 0.08;
+      }
+      return Math.min(0.48, Math.max(12 / size, 0.08));
+    };
+    const padX = computePadRatio(width);
+    const padY = computePadRatio(height);
+
+    switch (cursorInitialPosition) {
+      case 'top-left':
+        return clampNormalizedPoint({ x: padX, y: padY });
+      case 'top-right':
+        return clampNormalizedPoint({ x: 1 - padX, y: padY });
+      case 'bottom-left':
+        return clampNormalizedPoint({ x: padX, y: 1 - padY });
+      case 'bottom-right':
+        return clampNormalizedPoint({ x: 1 - padX, y: 1 - padY });
+      case 'random': {
+        const seed = randomSeedsRef.current[frameId] || { x: Math.random(), y: Math.random() };
+        randomSeedsRef.current[frameId] = seed;
+        const usableX = Math.max(0.02, 1 - padX * 2);
+        const usableY = Math.max(0.02, 1 - padY * 2);
+        return clampNormalizedPoint({ x: padX + seed.x * usableX, y: padY + seed.y * usableY });
+      }
+      case 'center':
+      default:
+        return { x: 0.5, y: 0.5 };
+    }
+  };
+
   useEffect(() => {
     setCurrentIndex(0);
     setIsPlaying(autoPlay && normalizedFrames.length > 1);
   }, [autoPlay, normalizedFrames.length]);
+
+  useEffect(() => {
+    randomSeedsRef.current = {};
+  }, [cursorInitialPosition]);
 
   useEffect(() => {
     if (!normalizedFrames[currentIndex]) {
@@ -862,20 +1246,84 @@ export function ReplayPlayer({
 
   useEffect(() => {
     if (!isCursorEnabled) {
-      cursorSourceRef.current = 'fallback';
       setCursorPosition(undefined);
     }
   }, [isCursorEnabled]);
 
-  useEffect(() => {
-    if (cursorInitialPosition === 'random') {
-      cursorSeedRef.current = { x: Math.random(), y: Math.random() };
-      if (isCursorEnabled) {
-        cursorSourceRef.current = 'fallback';
-        setCursorPosition(undefined);
+  const cursorPlans = useMemo<CursorPlan[]>(() => {
+    const plans: CursorPlan[] = [];
+    let previousNormalized: NormalizedPoint | undefined;
+
+    normalizedFrames.forEach((frame) => {
+      const dims: Dimensions = {
+        width: frame?.screenshot?.width || FALLBACK_DIMENSIONS.width,
+        height: frame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
+      };
+
+      const override = cursorOverrides[frame.id];
+
+      const recordedTrail = Array.isArray(frame.cursorTrail)
+        ? frame.cursorTrail.filter(
+            (point): point is ReplayPoint => typeof point?.x === 'number' && typeof point?.y === 'number',
+          )
+        : [];
+
+      const recordedTrailNormalized = recordedTrail
+        .map((point) => toNormalizedPoint(point, dims))
+        .filter((point): point is NormalizedPoint => Boolean(point))
+        .map(clampNormalizedPoint);
+
+      const recordedClickNormalized = toNormalizedPoint(frame.clickPosition ?? undefined, dims);
+
+      const overrideTargetNormalized = override?.target ? clampNormalizedPoint(override.target) : undefined;
+      const recordedTargetNormalized =
+        recordedTrailNormalized.length > 0
+          ? recordedTrailNormalized[recordedTrailNormalized.length - 1]
+          : recordedClickNormalized ?? undefined;
+
+      const fallbackNormalized = computeFallbackNormalized(frame.id, dims);
+      const targetNormalized = overrideTargetNormalized ?? recordedTargetNormalized ?? fallbackNormalized;
+
+      const recordedIntermediate =
+        recordedTrailNormalized.length > 2
+          ? recordedTrailNormalized.slice(1, recordedTrailNormalized.length - 1)
+          : [];
+
+      let startNormalized = previousNormalized;
+      if (!startNormalized) {
+        if (recordedTrailNormalized.length > 0) {
+          startNormalized = recordedTrailNormalized[0];
+        } else {
+          startNormalized = fallbackNormalized;
+        }
       }
-    }
-  }, [cursorInitialPosition, isCursorEnabled]);
+
+      startNormalized = clampNormalizedPoint(startNormalized);
+
+      const overridePathStyle = override?.pathStyle;
+      const usingRecordedTrail = !overridePathStyle && recordedIntermediate.length > 0;
+      const effectivePathStyle = overridePathStyle ?? DEFAULT_PATH_STYLE;
+      const generatedPath = usingRecordedTrail
+        ? recordedIntermediate
+        : generateStylizedPath(effectivePathStyle, startNormalized, targetNormalized, frame.id);
+
+      plans.push({
+        frameId: frame.id,
+        dims,
+        startNormalized,
+        targetNormalized,
+        pathNormalized: generatedPath,
+        speedProfile: override?.speedProfile ?? DEFAULT_SPEED_PROFILE,
+        pathStyle: effectivePathStyle,
+        hasRecordedTrail: usingRecordedTrail,
+        previousTargetNormalized: previousNormalized,
+      });
+
+      previousNormalized = targetNormalized;
+    });
+
+    return plans;
+  }, [normalizedFrames, cursorOverrides, cursorInitialPosition]);
 
   // Compute current frame safely (use index 0 as fallback for empty arrays to satisfy hooks)
   const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
@@ -927,83 +1375,21 @@ export function ReplayPlayer({
     if (!isCursorEnabled) {
       return;
     }
-    if (!currentFrame) {
+    const plan = cursorPlans[currentIndex];
+    if (!plan) {
+      setCursorPosition(undefined);
       return;
     }
-
-    const extractPointFromFrame = (): ReplayPoint | undefined => {
-      if (currentFrame.cursorTrail && currentFrame.cursorTrail.length > 0) {
-        for (let index = currentFrame.cursorTrail.length - 1; index >= 0; index -= 1) {
-          const point = currentFrame.cursorTrail[index];
-          if (typeof point?.x === 'number' && typeof point?.y === 'number') {
-            return point;
-          }
-        }
-      }
-      const click = currentFrame.clickPosition;
-      if (click && typeof click.x === 'number' && typeof click.y === 'number') {
-        return click;
-      }
-      return undefined;
-    };
-
-    const framePoint = extractPointFromFrame();
-    if (framePoint) {
-      cursorSourceRef.current = 'data';
-      setCursorPosition((prev) => (pointsEqual(prev, framePoint) ? prev : framePoint));
+    const normalizedPath = [plan.startNormalized, ...plan.pathNormalized, plan.targetNormalized];
+    if (normalizedPath.length === 0) {
+      setCursorPosition(undefined);
       return;
     }
-
-    if (cursorSourceRef.current === 'data' && cursorPosition) {
-      return;
-    }
-
-    const { width, height } = dimensions;
-    if (!width || !height) {
-      return;
-    }
-
-    const padX = Math.max(12, width * 0.08);
-    const padY = Math.max(12, height * 0.08);
-    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-    const fallbackPoint = (() => {
-      switch (cursorInitialPosition) {
-        case 'top-left':
-          return { x: padX, y: padY };
-        case 'top-right':
-          return { x: width - padX, y: padY };
-        case 'bottom-left':
-          return { x: padX, y: height - padY };
-        case 'bottom-right':
-          return { x: width - padX, y: height - padY };
-        case 'random':
-          return {
-            x: clamp(width * cursorSeedRef.current.x, padX, width - padX),
-            y: clamp(height * cursorSeedRef.current.y, padY, height - padY),
-          };
-        case 'center':
-        default:
-          return { x: width / 2, y: height / 2 };
-      }
-    })();
-
-    if (!fallbackPoint) {
-      return;
-    }
-
-    if (cursorSourceRef.current !== 'fallback' || !pointsEqual(cursorPosition, fallbackPoint)) {
-      cursorSourceRef.current = 'fallback';
-      setCursorPosition(fallbackPoint);
-    }
-  }, [
-    currentFrame,
-    cursorInitialPosition,
-    cursorPosition,
-    dimensions.height,
-    dimensions.width,
-    isCursorEnabled,
-  ]);
+    const absolutePath = normalizedPath.map((point) => toAbsolutePoint(point, plan.dims));
+    const profiled = applySpeedProfile(isPlaying ? frameProgress : 1, plan.speedProfile);
+    const evaluated = interpolatePath(absolutePath, profiled);
+    setCursorPosition(evaluated);
+  }, [cursorPlans, currentIndex, frameProgress, isCursorEnabled, isPlaying]);
 
   // Early return AFTER all hooks
   if (normalizedFrames.length === 0 || !currentFrame) {
@@ -1099,13 +1485,26 @@ export function ReplayPlayer({
     });
   };
 
-  const cursorTrailPoints = isCursorEnabled
-    ? toTrailPoints(currentFrame.cursorTrail, dimensions)
+  const currentCursorPlan = cursorPlans[currentIndex];
+  const cursorTrailPoints = isCursorEnabled && currentCursorPlan
+    ? [
+        currentCursorPlan.startNormalized,
+        ...currentCursorPlan.pathNormalized,
+        currentCursorPlan.targetNormalized,
+      ].map((point) => ({
+        x: clamp01(point.x) * 100,
+        y: clamp01(point.y) * 100,
+      }))
     : [];
+  const hasMovement = Boolean(
+    currentCursorPlan && !isSamePoint(currentCursorPlan.startNormalized, currentCursorPlan.targetNormalized),
+  );
+  const shouldRenderGhost = Boolean(isCursorEnabled && currentCursorPlan && !isPlaying && hasMovement);
+  const renderTrailPoints = shouldRenderGhost ? cursorTrailPoints : [];
   const pointerStyle = isCursorEnabled && cursorPosition
-    ? toPointStyle(cursorPosition, dimensions)
+    ? toPointStyle(cursorPosition, currentCursorPlan?.dims ?? dimensions)
     : undefined;
-  const hasTrail = cursorTrailPoints.length >= 2 && cursorTrailStrokeWidth > 0.05;
+  const hasTrail = renderTrailPoints.length >= 2 && cursorTrailStrokeWidth > 0.05;
   const pointerOffsetX = cursorDecor.offset?.x ?? 0;
   const pointerOffsetY = cursorDecor.offset?.y ?? 0;
   const basePointerTransform = `translate(calc(-50% + ${pointerOffsetX}px), calc(-50% + ${pointerOffsetY}px))${
@@ -1123,6 +1522,130 @@ export function ReplayPlayer({
           transitionProperty: 'left, top, transform',
         }
       : undefined;
+
+  const ghostAbsolutePoint = currentCursorPlan
+    ? toAbsolutePoint(currentCursorPlan.startNormalized, currentCursorPlan.dims)
+    : undefined;
+  const ghostStyle = ghostAbsolutePoint && currentCursorPlan
+    ? toPointStyle(ghostAbsolutePoint, currentCursorPlan.dims)
+    : undefined;
+  const ghostWrapperStyle = shouldRenderGhost && ghostStyle
+    ? {
+        ...ghostStyle,
+        ...cursorDecor.wrapperStyle,
+        transform: cursorDecor.wrapperStyle?.transform
+          ? `${basePointerTransform} ${cursorDecor.wrapperStyle.transform}`
+          : basePointerTransform,
+        transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
+        pointerEvents: 'none',
+        opacity: 0.45,
+        transitionProperty: 'left, top, transform',
+      }
+    : undefined;
+
+  const updateDragPosition = (clientX: number, clientY: number) => {
+    if (!screenshotRef.current || !currentFrame || !isCursorEnabled) {
+      return;
+    }
+    const rect = screenshotRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      return;
+    }
+    const normalized = clampNormalizedPoint({
+      x: (clientX - rect.left) / rect.width,
+      y: (clientY - rect.top) / rect.height,
+    });
+
+    updateCursorOverride(currentFrame.id, (previous) => {
+      const existing = previous ?? {};
+      const next: CursorAnimationOverride = {
+        ...existing,
+        target: normalized,
+      };
+      if (existing.path === undefined) {
+        next.path = [];
+      }
+      return next;
+    });
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isCursorEnabled || !currentFrame) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    setDragState({ frameId: currentFrame.id, pointerId: event.pointerId });
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    updateDragPosition(event.clientX, event.clientY);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState || dragState.pointerId !== event.pointerId || dragState.frameId !== currentFrame?.id) {
+      return;
+    }
+    event.preventDefault();
+    updateDragPosition(event.clientX, event.clientY);
+  };
+
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setDragState(null);
+  };
+
+  const isDraggingCursor = dragState?.frameId === currentFrame?.id;
+
+  const currentOverride = currentCursorPlan ? cursorOverrides[currentCursorPlan.frameId] : undefined;
+  const effectiveSpeedProfile = currentCursorPlan?.speedProfile ?? DEFAULT_SPEED_PROFILE;
+  const currentTargetPoint = currentCursorPlan ? toAbsolutePoint(currentCursorPlan.targetNormalized, currentCursorPlan.dims) : undefined;
+  const currentCursorNormalized = currentCursorPlan && cursorPosition
+    ? toNormalizedPoint(cursorPosition, currentCursorPlan.dims)
+    : undefined;
+  const selectedPathStyle = currentOverride?.pathStyle ?? DEFAULT_PATH_STYLE;
+  const usingRecordedTrail = currentCursorPlan?.hasRecordedTrail ?? false;
+  const pathStyleOption = CURSOR_PATH_STYLE_OPTIONS.find((option) => option.id === selectedPathStyle) ?? CURSOR_PATH_STYLE_OPTIONS[0];
+
+  const handleResetSpeedProfile = () => {
+    if (!currentCursorPlan) {
+      return;
+    }
+    updateCursorOverride(currentCursorPlan.frameId, (previous) => {
+      if (!previous) {
+        return undefined;
+      }
+      const next = { ...previous };
+      delete next.speedProfile;
+      return next;
+    });
+  };
+
+  const handleResetPathStyle = () => {
+    if (!currentCursorPlan) {
+      return;
+    }
+    updateCursorOverride(currentCursorPlan.frameId, (previous) => {
+      if (!previous) {
+        return undefined;
+      }
+      const next = { ...previous };
+      delete next.pathStyle;
+      return next;
+    });
+  };
+
+  const handleResetAllCustomizations = () => {
+    if (!currentCursorPlan) {
+      return;
+    }
+    updateCursorOverride(currentCursorPlan.frameId, () => undefined);
+  };
 
   const changeFrame = (index: number) => {
     if (index < 0 || index >= normalizedFrames.length) {
@@ -1183,6 +1706,7 @@ export function ReplayPlayer({
                 }}
               >
                 <div
+                  ref={screenshotRef}
                   className="absolute inset-0"
                   style={{
                     transform: `scale(${zoom})`,
@@ -1220,7 +1744,7 @@ export function ReplayPlayer({
                         preserveAspectRatio="none"
                       >
                         <polyline
-                          points={cursorTrailPoints.map((point) => `${point.x},${point.y}`).join(' ')}
+                          points={renderTrailPoints.map((point) => `${point.x},${point.y}`).join(' ')}
                           stroke={cursorDecor.trailColor}
                           strokeWidth={cursorTrailStrokeWidth}
                           strokeLinecap="round"
@@ -1230,13 +1754,37 @@ export function ReplayPlayer({
                       </svg>
                     )}
 
-                    {pointerWrapperStyle && cursorDecor.renderBase && (
+                    {ghostWrapperStyle && cursorDecor.renderBase && (
                       <div
+                        role="presentation"
                         className={clsx(
-                          'absolute pointer-events-none transition-all duration-500 ease-out',
+                          'absolute pointer-events-none select-none transition-all duration-500 ease-out',
                           cursorDecor.wrapperClass,
                         )}
+                        style={ghostWrapperStyle}
+                      >
+                        {cursorDecor.renderBase}
+                      </div>
+                    )}
+
+                    {pointerWrapperStyle && cursorDecor.renderBase && (
+                      <div
+                        role="presentation"
+                        className={clsx(
+                          'absolute transition-all duration-500 ease-out pointer-events-auto select-none',
+                          cursorDecor.wrapperClass,
+                          isDraggingCursor ? 'cursor-grabbing' : 'cursor-grab',
+                        )}
                         style={pointerWrapperStyle}
+                        onPointerDown={handlePointerDown}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={endDrag}
+                        onPointerCancel={endDrag}
+                        onPointerLeave={(event) => {
+                          if (dragState?.pointerId) {
+                            endDrag(event);
+                          }
+                        }}
                       >
                         {cursorDecor.showPing && cursorDecor.pingClass && (
                           <span
@@ -1398,6 +1946,126 @@ export function ReplayPlayer({
                 <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words text-[11px] text-emerald-100/90">
                   {extractedPreview}
                 </pre>
+              </div>
+            )}
+            {currentCursorPlan && (
+              <div className="rounded-xl border border-white/5 bg-white/5 p-3 text-xs text-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 uppercase tracking-[0.2em] text-slate-400">
+                  <span>Cursor Behavior</span>
+                  {currentOverride && (
+                    <button
+                      type="button"
+                      className="rounded-full border border-slate-600/60 bg-slate-900/60 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-300 hover:border-flow-accent/40 hover:text-white"
+                      onClick={handleResetAllCustomizations}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 space-y-1 text-[11px] text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <span>Current position</span>
+                    <span className="font-mono text-slate-200">
+                      {formatCoordinate(cursorPosition, currentCursorPlan.dims)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Target placement</span>
+                    <span className="font-mono text-slate-200">
+                      {formatCoordinate(currentTargetPoint, currentCursorPlan.dims)}
+                    </span>
+                  </div>
+                  {currentCursorNormalized && (
+                    <div className="flex items-center justify-between">
+                      <span>Live cursor</span>
+                      <span className="font-mono text-slate-200">
+                        {`${Math.round(currentCursorNormalized.x * 100)}%, ${Math.round(currentCursorNormalized.y * 100)}%`}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span>Mode</span>
+                    <span className="text-slate-400">
+                      {usingRecordedTrail ? 'Recorded capture' : pathStyleOption.label}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    <label htmlFor="cursor-speed-profile" className="cursor-pointer">
+                      Speed profile
+                    </label>
+                    {currentOverride?.speedProfile && currentOverride.speedProfile !== DEFAULT_SPEED_PROFILE && (
+                      <button
+                        type="button"
+                        className="rounded-full border border-slate-600/60 bg-slate-900/60 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-300 hover:border-flow-accent/40 hover:text-white"
+                        onClick={handleResetSpeedProfile}
+                      >
+                        Default
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    id="cursor-speed-profile"
+                    className="w-full rounded-lg border border-slate-700/60 bg-slate-900/70 px-2.5 py-1.5 text-[11px] text-slate-200 focus:border-flow-accent/60 focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+                    value={effectiveSpeedProfile}
+                    onChange={(event) => {
+                      const selected = event.target.value as CursorSpeedProfile;
+                      updateCursorOverride(currentCursorPlan.frameId, (previous) => ({
+                        ...(previous ?? {}),
+                        speedProfile: selected,
+                      }));
+                    }}
+                  >
+                    {SPEED_PROFILE_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label} — {option.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-3 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    <label htmlFor="cursor-path-style" className="cursor-pointer">
+                      Path shape
+                    </label>
+                    {currentOverride?.pathStyle && currentOverride.pathStyle !== DEFAULT_PATH_STYLE && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-600/60 bg-slate-900/60 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-300 hover:border-flow-accent/40 hover:text-white"
+                        onClick={handleResetPathStyle}
+                      >
+                        Default
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    id="cursor-path-style"
+                    className="w-full rounded-lg border border-slate-700/60 bg-slate-900/70 px-2.5 py-1.5 text-[11px] text-slate-200 focus:border-flow-accent/60 focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+                    value={selectedPathStyle}
+                    onChange={(event) => {
+                      const selected = event.target.value as CursorPathStyle;
+                      updateCursorOverride(currentCursorPlan.frameId, (previous) => ({
+                        ...(previous ?? {}),
+                        pathStyle: selected,
+                      }));
+                    }}
+                  >
+                    {CURSOR_PATH_STYLE_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label} — {option.description}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-500">
+                    {usingRecordedTrail
+                      ? 'Using captured cursor trail from the execution. Choose a shape to override it.'
+                      : pathStyleOption.description}
+                  </p>
+                </div>
+                <p className="mt-3 text-[10px] text-slate-500">
+                  Tip: drag the cursor directly on the replay canvas to fine-tune the target placement.
+                </p>
               </div>
             )}
             {currentFrame.consoleLogCount || currentFrame.networkEventCount ? (

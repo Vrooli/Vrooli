@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   ChevronDown,
   Check,
+  ListTree,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
@@ -43,6 +44,7 @@ import {
   mapAssertion,
   resolveUrl,
 } from '../utils/executionTypeMappers';
+import ExecutionHistory from './ExecutionHistory';
 // Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
 const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
@@ -71,7 +73,10 @@ const geometricMosaicUrl = resolveBackgroundAsset('../assets/replay-backgrounds/
 interface ExecutionProps {
   execution: Execution;
   onClose?: () => void;
+  showExecutionSwitcher?: boolean;
 }
+
+type ViewerTab = 'replay' | 'screenshots' | 'logs' | 'executions';
 
 const HEARTBEAT_WARN_SECONDS = 8;
 const HEARTBEAT_STALL_SECONDS = 15;
@@ -396,11 +401,12 @@ const isReplayCursorInitialPosition = (
 ): value is ReplayCursorInitialPosition =>
   Boolean(value && REPLAY_CURSOR_POSITIONS.some((option) => option.id === value));
 
-function ExecutionViewer({ execution, onClose }: ExecutionProps) {
+function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: ExecutionProps) {
   const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
   const stopExecution = useExecutionStore((state) => state.stopExecution);
   const startExecution = useExecutionStore((state) => state.startExecution);
-  const [activeTab, setActiveTab] = useState<'replay' | 'screenshots' | 'logs'>('replay');
+  const loadExecution = useExecutionStore((state) => state.loadExecution);
+  const [activeTab, setActiveTab] = useState<ViewerTab>('replay');
   const [hasAutoSwitchedToReplay, setHasAutoSwitchedToReplay] = useState<boolean>(
     Boolean(execution.timeline && execution.timeline.length > 0)
   );
@@ -408,6 +414,7 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
   const [, setHeartbeatTick] = useState(0);
   const [isStopping, setIsStopping] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [isSwitchingExecution, setIsSwitchingExecution] = useState(false);
   const [replayChromeTheme, setReplayChromeTheme] = useState<ReplayChromeTheme>(() => {
     if (typeof window === 'undefined') {
       return 'aurora';
@@ -479,6 +486,12 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
     setActiveTab('replay');
     setSelectedScreenshot(null);
   }, [execution.id]);
+
+  useEffect(() => {
+    if (!showExecutionSwitcher && activeTab === 'executions') {
+      setActiveTab('replay');
+    }
+  }, [showExecutionSwitcher, activeTab]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1023,6 +1036,26 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
     }
   }, [canRestart, execution.workflowId, isRestarting, startExecution]);
 
+  const handleExecutionSwitch = useCallback(async (candidate: { id: string }) => {
+    if (!candidate?.id) {
+      return;
+    }
+    if (candidate.id === execution.id) {
+      setActiveTab('replay');
+      return;
+    }
+    setIsSwitchingExecution(true);
+    try {
+      await loadExecution(candidate.id);
+      setActiveTab('replay');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load execution';
+      toast.error(message);
+    } finally {
+      setIsSwitchingExecution(false);
+    }
+  }, [execution.id, loadExecution]);
+
   const getStatusIcon = () => {
     switch (execution.status) {
       case 'running':
@@ -1159,6 +1192,19 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
           <Terminal size={14} />
           Logs ({execution.logs.length})
         </button>
+        {showExecutionSwitcher && (
+          <button
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              activeTab === 'executions'
+                ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
+                : 'text-gray-400 hover:text-white'
+            }`}
+            onClick={() => setActiveTab('executions')}
+          >
+            {isSwitchingExecution ? <Loader size={14} className="animate-spin" /> : <ListTree size={14} />}
+            Executions
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -1585,6 +1631,18 @@ function ExecutionViewer({ execution, onClose }: ExecutionProps) {
               </div>
             </>
           )
+        ) : activeTab === 'executions' ? (
+          <div className="flex-1 overflow-hidden p-3">
+            {execution.workflowId ? (
+              <div className="h-full overflow-hidden rounded-xl border border-gray-800 bg-flow-node/40">
+                <ExecutionHistory workflowId={execution.workflowId} onSelectExecution={handleExecutionSwitch} />
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                Workflow identifier unavailable for this execution.
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex-1 overflow-auto p-3">
             <div className="terminal-output">

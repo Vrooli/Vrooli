@@ -22,6 +22,7 @@ export interface ElementInfo {
   type: string;
   selectors: SelectorOption[];
   boundingBox: BoundingBox;
+  bounding_box?: BoundingBox;
   confidence: number;
   category: string;
   attributes: Record<string, string>;

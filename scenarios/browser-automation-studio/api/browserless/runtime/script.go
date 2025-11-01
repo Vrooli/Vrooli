@@ -6,15 +6,24 @@ import (
 	"strings"
 )
 
-func buildStepScript(instruction Instruction) (string, error) {
+func buildStepScript(instruction Instruction, viewportWidth, viewportHeight int) (string, error) {
 	payload, err := json.Marshal(instruction)
 	if err != nil {
 		return "", err
 	}
 
+	if viewportWidth <= 0 {
+		viewportWidth = defaultViewportWidth
+	}
+	if viewportHeight <= 0 {
+		viewportHeight = defaultViewportHeight
+	}
+	viewportWidth = clampViewport(viewportWidth)
+	viewportHeight = clampViewport(viewportHeight)
+
 	script := strings.Replace(stepScriptTemplate, "__INSTRUCTION__", string(payload), 1)
-	script = strings.ReplaceAll(script, "__VIEWPORT_WIDTH__", strconv.Itoa(defaultViewportWidth))
-	script = strings.ReplaceAll(script, "__VIEWPORT_HEIGHT__", strconv.Itoa(defaultViewportHeight))
+	script = strings.ReplaceAll(script, "__VIEWPORT_WIDTH__", strconv.Itoa(viewportWidth))
+	script = strings.ReplaceAll(script, "__VIEWPORT_HEIGHT__", strconv.Itoa(viewportHeight))
 	script = strings.ReplaceAll(script, "__DEFAULT_TIMEOUT__", strconv.Itoa(defaultTimeoutMillis))
 	return script, nil
 }
@@ -1399,5 +1408,5 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
 
 // BuildStepScript exposes the step script generation for unit tests.
 func BuildStepScript(instruction Instruction) (string, error) {
-	return buildStepScript(instruction)
+	return buildStepScript(instruction, defaultViewportWidth, defaultViewportHeight)
 }

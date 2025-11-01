@@ -144,6 +144,31 @@ func workflowDefinitionStats(def database.JSONMap) (nodeCount, edgeCount int) {
 	return len(nodes), len(edges)
 }
 
+var previewDataKeys = map[string]struct{}{
+	"previewScreenshot":          {},
+	"previewScreenshotCapturedAt": {},
+	"previewScreenshotSourceUrl":  {},
+}
+
+func stripPreviewData(data map[string]any) map[string]any {
+	if data == nil {
+		return nil
+	}
+	modified := false
+	cleaned := make(map[string]any, len(data))
+	for key, value := range data {
+		if _, skip := previewDataKeys[key]; skip {
+			modified = true
+			continue
+		}
+		cleaned[key] = value
+	}
+	if !modified {
+		return data
+	}
+	return cleaned
+}
+
 func newWorkflowVersionSummary(version *database.WorkflowVersion) *WorkflowVersionSummary {
 	if version == nil {
 		return nil
@@ -1015,12 +1040,12 @@ func normalizeFlowDefinition(payload map[string]any) (database.JSONMap, error) {
 		}
 	}
 
-    nodes, ok := rawNodes.([]any)
-    if !ok || nodes == nil {
-        nodes = []any{}
-    }
+	nodes, ok := rawNodes.([]any)
+	if !ok || nodes == nil {
+		nodes = []any{}
+	}
 
-    for i, rawNode := range nodes {
+	for i, rawNode := range nodes {
 		node, ok := rawNode.(map[string]any)
 		if !ok {
 			return nil, errors.New("AI node payload is not an object")
@@ -1033,6 +1058,9 @@ func normalizeFlowDefinition(payload map[string]any) (database.JSONMap, error) {
 				"x": float64(100 + i*200),
 				"y": float64(100 + i*120),
 			}
+		}
+		if dataMap, ok := node["data"].(map[string]any); ok {
+			node["data"] = stripPreviewData(dataMap)
 		}
 		nodes[i] = node
 	}

@@ -4,6 +4,7 @@
  */
 
 import { resolveApiBase } from '@vrooli/api-base';
+import { getCachedConfig } from '../config';
 import type { ReplayFrame, ReplayPoint, ReplayRetryHistoryEntry } from '../components/ReplayPlayer';
 
 export const toNumber = (value: unknown): number | undefined => {
@@ -138,6 +139,17 @@ export const resolveUrl = (url?: string | null): string | undefined => {
     return `${protocol}${trimmed}`;
   }
 
+  const ensureLeadingSlash = (value: string) => (value.startsWith('/') ? value : `/${value}`);
+
+  const configBase = getCachedConfig()?.API_URL;
+  if (configBase) {
+    try {
+      return new URL(ensureLeadingSlash(trimmed), configBase).toString();
+    } catch {
+      // fall through to other resolution strategies
+    }
+  }
+
   try {
     const apiBase = resolveApiBase({ appendSuffix: false });
     if (apiBase && apiBase.length) {
@@ -152,8 +164,10 @@ export const resolveUrl = (url?: string | null): string | undefined => {
   }
 
   try {
-    const fallbackBase = typeof window !== 'undefined' && window.location ? window.location.href : 'http://localhost';
-    return new URL(trimmed, fallbackBase).toString();
+    const fallbackOrigin = typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'http://localhost';
+    return new URL(ensureLeadingSlash(trimmed), fallbackOrigin).toString();
   } catch {
     return trimmed;
   }

@@ -1,10 +1,12 @@
-import { memo, FC, useState, useEffect, useCallback, useMemo } from 'react';
+import { memo, FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { logger } from '../../utils/logger';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
-import { Globe, Eye, Loader, X, Monitor, FileText, Link2, AppWindow, RefreshCcw } from 'lucide-react';
+import { Globe, Loader, Monitor, FileText, Link2, AppWindow, RefreshCcw, ChevronDown, ChevronRight } from 'lucide-react';
 import { getConfig } from '../../config';
 import toast from 'react-hot-toast';
 import { useScenarioStore } from '../../stores/scenarioStore';
+import { useWorkflowStore } from '../../stores/workflowStore';
+import type { ExecutionViewportSettings } from '../../stores/workflowStore';
 
 interface ConsoleLog {
   level: string;
@@ -19,16 +21,42 @@ const destinationTabs: Array<{ type: DestinationType; label: string; icon: typeo
   { type: 'scenario', label: 'Scenario', icon: AppWindow },
 ];
 
+const MIN_VIEWPORT_DIMENSION = 200;
+const MAX_VIEWPORT_DIMENSION = 10000;
+const DEFAULT_PREVIEW_VIEWPORT = { width: 1920, height: 1080 } as const;
+
+const clampViewportDimension = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return MIN_VIEWPORT_DIMENSION;
+  }
+  return Math.min(Math.max(Math.round(value), MIN_VIEWPORT_DIMENSION), MAX_VIEWPORT_DIMENSION);
+};
+
 const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
-  const [showPreview, setShowPreview] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(true);
+  const [isFetchingPreview, setIsFetchingPreview] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [consoleLogs, setConsoleLogs] = useState<ConsoleLog[]>([]);
   const [activeTab, setActiveTab] = useState<'screenshot' | 'console'>('screenshot');
   const [previewTargetUrl, setPreviewTargetUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [lastPreviewSignature, setLastPreviewSignature] = useState<string | null>(null);
+  const [lastPreviewAt, setLastPreviewAt] = useState<number | null>(null);
+  const requestIdRef = useRef(0);
 
   const { getNodes, setNodes } = useReactFlow();
   const { scenarios: scenarioOptions, isLoading: scenariosLoading, error: scenariosError, fetchScenarios } = useScenarioStore();
+  const executionViewport = useWorkflowStore((state) => state.currentWorkflow?.executionViewport as ExecutionViewportSettings | undefined);
+
+  const previewViewport = useMemo(() => {
+    if (!executionViewport || !Number.isFinite(executionViewport.width) || !Number.isFinite(executionViewport.height)) {
+      return { ...DEFAULT_PREVIEW_VIEWPORT };
+    }
+    return {
+      width: clampViewportDimension(executionViewport.width),
+      height: clampViewportDimension(executionViewport.height),
+    };
+  }, [executionViewport]);
 
   const scenarioName = useMemo(() => {
     const direct = typeof data.scenario === 'string' ? data.scenario.trim() : '';
@@ -74,10 +102,12 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     }
   }, [destinationType, scenarioOptions.length, scenariosLoading, fetchScenarios]);
 
-  const resolveScenarioUrl = useCallback(async (): Promise<string | null> => {
+  const resolveScenarioUrl = useCallback(async (options?: { silent?: boolean }): Promise<string | null> => {
     const trimmedScenario = scenarioName.trim();
     if (!trimmedScenario) {
-      toast.error('Select which scenario to navigate to first');
+      if (!options?.silent) {
+        toast.error('Select which scenario to navigate to first');
+      }
       return null;
     }
 
@@ -116,40 +146,89 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     } catch (error) {
       logger.error('Failed to resolve scenario URL', { component: 'NavigateNode', action: 'resolveScenarioUrl', scenario: scenarioName }, error);
       const message = error instanceof Error ? error.message : 'Failed to resolve scenario URL';
-      toast.error(message);
+      if (!options?.silent) {
+        toast.error(message);
+      }
       return null;
     }
   }, [scenarioName, scenarioPath]);
 
-  const handlePreview = useCallback(async () => {
-    let targetUrl = '';
-
+  const previewSignature = useMemo(() => {
     if (destinationType === 'scenario') {
-      const resolved = await resolveScenarioUrl();
-      if (!resolved) {
-        return;
+      const trimmedScenario = scenarioName.trim();
+      if (!trimmedScenario) {
+        return null;
       }
-      targetUrl = resolved;
-    } else {
-      const trimmed = urlValue.trim();
-      if (!trimmed) {
-        toast.error('Please enter a valid URL');
-        return;
-      }
-      targetUrl = trimmed;
+      const trimmedPath = scenarioPath.trim();
+      return `scenario::${trimmedScenario}::${trimmedPath}`;
     }
 
-    setIsLoading(true);
-    setShowPreview(true);
+    const trimmedUrl = urlValue.trim();
+    if (trimmedUrl.length < 5) {
+      return null;
+    }
+
+    return `url::${trimmedUrl}`;
+  }, [destinationType, scenarioName, scenarioPath, urlValue]);
+
+  const fetchPreview = useCallback(async (signature: string, options?: { force?: boolean }) => {
+    if (!signature) {
+      return;
+    }
+
+    if (!options?.force && signature === lastPreviewSignature) {
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
+    setIsFetchingPreview(true);
+    setPreviewError(null);
 
     try {
+      let targetUrl: string | null = null;
+
+      if (signature.startsWith('scenario::')) {
+        targetUrl = await resolveScenarioUrl({ silent: !options?.force });
+        if (!targetUrl) {
+          if (requestId === requestIdRef.current) {
+            setPreviewTargetUrl(null);
+            setPreviewImage(null);
+            setConsoleLogs([]);
+            setPreviewError('Select a scenario to preview');
+            setActiveTab('screenshot');
+          }
+          return;
+        }
+      } else {
+        const trimmed = urlValue.trim();
+        if (!trimmed) {
+          if (requestId === requestIdRef.current) {
+            setPreviewTargetUrl(null);
+            setPreviewImage(null);
+            setConsoleLogs([]);
+            setPreviewError('Enter a URL to preview');
+            setActiveTab('screenshot');
+          }
+          return;
+        }
+        targetUrl = trimmed;
+      }
+
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      setPreviewTargetUrl(targetUrl);
+
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/preview-screenshot`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: targetUrl }),
+        body: JSON.stringify({ url: targetUrl, viewport: previewViewport }),
       });
 
       if (!response.ok) {
@@ -158,33 +237,88 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
       }
 
       const payload = await response.json();
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
       if (payload?.screenshot) {
+        const logs = Array.isArray(payload.consoleLogs) ? payload.consoleLogs : [];
         setPreviewImage(payload.screenshot);
-        setConsoleLogs(Array.isArray(payload.consoleLogs) ? payload.consoleLogs : []);
-        setPreviewTargetUrl(targetUrl);
+        setConsoleLogs(logs);
+        setActiveTab((prev) => (prev === 'console' && logs.length === 0 ? 'screenshot' : prev));
+        setPreviewError(null);
+        setLastPreviewSignature(signature);
+        setLastPreviewAt(Date.now());
       } else {
         throw new Error('No screenshot data received');
       }
     } catch (error) {
-      logger.error('Failed to take screenshot', { component: 'NavigateNode', action: 'handlePreview', destinationType }, error);
+      logger.error('Failed to take screenshot', { component: 'NavigateNode', action: 'fetchPreview', destinationType }, error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to take preview screenshot';
 
-      if (errorMessage.includes('not be reachable')) {
-        toast.error('URL not accessible from browser automation service. Try using a public URL.');
-      } else if (errorMessage.includes('timeout')) {
-        toast.error('Screenshot request timed out. The page may be taking too long to load.');
-      } else if (errorMessage.includes('connection')) {
-        toast.error('Cannot connect to the target. Please verify accessibility.');
-      } else {
-        toast.error('Failed to take preview screenshot');
+      if (requestId === requestIdRef.current) {
+        setPreviewError(errorMessage);
+        setPreviewImage(null);
+        setConsoleLogs([]);
+        setActiveTab('screenshot');
       }
 
-      setShowPreview(false);
-      setPreviewTargetUrl(null);
+      if (options?.force) {
+        toast.error(errorMessage);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) {
+        setIsFetchingPreview(false);
+      }
     }
-  }, [destinationType, resolveScenarioUrl, urlValue]);
+  }, [destinationType, lastPreviewSignature, previewViewport, resolveScenarioUrl, urlValue]);
+
+  useEffect(() => {
+    if (!previewSignature) {
+      setLastPreviewSignature((prev) => (prev !== null ? null : prev));
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void fetchPreview(previewSignature);
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [fetchPreview, previewSignature]);
+
+  useEffect(() => {
+    if (previewImage && !isPreviewOpen) {
+      setIsPreviewOpen(true);
+    }
+  }, [previewImage, isPreviewOpen]);
+
+  useEffect(() => {
+    const currentScreenshot = typeof data?.previewScreenshot === 'string' ? data.previewScreenshot : null;
+    const desiredScreenshot = typeof previewImage === 'string' && previewImage.trim().length > 0 ? previewImage : null;
+
+    const storedSource = typeof data?.previewScreenshotSourceUrl === 'string' ? data.previewScreenshotSourceUrl : null;
+    const desiredSource = typeof previewTargetUrl === 'string' && previewTargetUrl.trim().length > 0 ? previewTargetUrl : null;
+
+    if (desiredScreenshot && desiredScreenshot !== currentScreenshot) {
+      updateNodeData({
+        previewScreenshot: desiredScreenshot,
+        previewScreenshotCapturedAt: (lastPreviewAt ? new Date(lastPreviewAt) : new Date()).toISOString(),
+        previewScreenshotSourceUrl: desiredSource ?? storedSource ?? undefined,
+      });
+    } else if (!desiredScreenshot && currentScreenshot) {
+      updateNodeData({
+        previewScreenshot: undefined,
+        previewScreenshotCapturedAt: undefined,
+        previewScreenshotSourceUrl: undefined,
+      });
+    } else if (desiredScreenshot && (desiredSource ?? '') !== (storedSource ?? '')) {
+      updateNodeData({
+        previewScreenshotSourceUrl: desiredSource ?? undefined,
+      });
+    }
+  }, [data?.previewScreenshot, data?.previewScreenshotSourceUrl, lastPreviewAt, previewImage, previewTargetUrl, updateNodeData]);
 
   const handleUrlChange = useCallback((value: string) => {
     updateNodeData({ url: value, destinationType: 'url' });
@@ -290,15 +424,6 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                   <RefreshCcw size={14} className="text-gray-400" />
                 )}
               </button>
-              <button
-                type="button"
-                onClick={handlePreview}
-                className="p-1.5 bg-flow-bg hover:bg-gray-700 rounded border border-gray-700 transition-colors"
-                title="Preview scenario"
-                aria-label="Preview scenario"
-              >
-                <Eye size={14} className="text-gray-400" />
-              </button>
             </div>
             {scenariosError && (
               <p className="text-[11px] text-red-400">{scenariosError}</p>
@@ -323,180 +448,181 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
               value={urlValue}
               onChange={(e) => handleUrlChange(e.target.value)}
             />
-            <button
-              type="button"
-              onClick={handlePreview}
-              className="p-1.5 bg-flow-bg hover:bg-gray-700 rounded border border-gray-700 transition-colors"
-              title="Preview URL"
-              aria-label="Preview URL"
-            >
-              <Eye size={14} className="text-gray-400" />
-            </button>
           </div>
         )}
 
-        <Handle type="source" position={Position.Bottom} className="node-handle" />
-      </div>
-
-      {showPreview && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-flow-node border border-gray-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-gray-700">
-              <div className="flex items-center gap-3">
-                <Eye size={20} className="text-blue-400" />
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Target Preview</h2>
-                  <p className="text-xs text-gray-400 break-words">{previewDisplayTarget}</p>
-                </div>
-              </div>
+        <div className="mt-3 border-t border-gray-800 pt-3">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setIsPreviewOpen((open) => !open)}
+              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-300 hover:text-white transition-colors"
+            >
+              {isPreviewOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <span>Preview</span>
+            </button>
+            <div className="flex items-center gap-2">
+              {lastPreviewAt && (
+                <span className="text-[10px] text-gray-500">
+                  Updated {new Date(lastPreviewAt).toLocaleTimeString()}
+                </span>
+              )}
               <button
-                onClick={() => {
-                  setShowPreview(false);
-                  setPreviewImage(null);
-                  setConsoleLogs([]);
-                  setActiveTab('screenshot');
-                  setPreviewTargetUrl(null);
+                type="button"
+                className="p-1.5 rounded border border-gray-700 bg-flow-bg text-gray-400 hover:text-white hover:border-flow-accent transition-colors disabled:opacity-40 disabled:hover:text-gray-400 disabled:hover:border-gray-700"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (previewSignature) {
+                    void fetchPreview(previewSignature, { force: true });
+                  }
                 }}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                aria-label="Close preview"
+                disabled={isFetchingPreview || !previewSignature}
+                title="Refresh preview"
+                aria-label="Refresh preview"
               >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex border-b border-gray-700">
-              <button
-                onClick={() => setActiveTab('screenshot')}
-                className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
-                  activeTab === 'screenshot'
-                    ? 'border-b-2 border-blue-400 text-blue-400'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                aria-pressed={activeTab === 'screenshot'}
-              >
-                <Monitor size={16} />
-                Screenshot
-              </button>
-              <button
-                onClick={() => setActiveTab('console')}
-                className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
-                  activeTab === 'console'
-                    ? 'border-b-2 border-blue-400 text-blue-400'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                aria-pressed={activeTab === 'console'}
-              >
-                <FileText size={16} />
-                Console Logs
-                {consoleLogs.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-blue-600 text-white text-xs rounded-full">
-                    {consoleLogs.length}
-                  </span>
+                {isFetchingPreview ? (
+                  <Loader size={14} className="animate-spin" />
+                ) : (
+                  <RefreshCcw size={14} />
                 )}
               </button>
             </div>
+          </div>
 
-            <div className="flex-1 overflow-auto p-4">
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center h-64">
-                  <Loader size={32} className="text-blue-400 animate-spin mb-4" />
-                  <p className="text-gray-400 text-sm">Taking screenshot and capturing console logs...</p>
-                  <p className="text-gray-500 text-xs mt-2">This may take a few seconds</p>
-                </div>
-              ) : activeTab === 'screenshot' ? (
-                previewImage ? (
-                  <div className="rounded-lg overflow-hidden border border-gray-700">
-                    <img
-                      src={previewImage}
-                      alt="Preview"
-                      className="w-full h-auto"
-                      onError={() => {
-                        toast.error('Failed to load preview image');
-                        setPreviewImage(null);
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-64">
-                    <p className="text-gray-400">Failed to load preview</p>
-                  </div>
-                )
-              ) : (
-                <div className="space-y-2">
-                  {consoleLogs.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-64">
-                      <FileText size={32} className="text-gray-500 mb-4" />
-                      <p className="text-gray-400">No console logs captured</p>
-                      <p className="text-gray-500 text-xs mt-2">Page may not have any console output</p>
-                    </div>
-                  ) : (
-                    consoleLogs.map((log, index) => (
-                      <div
-                        key={`${log.timestamp}-${index}`}
-                        className={`p-3 rounded-lg border text-sm font-mono ${
-                          log.level === 'error'
-                            ? 'bg-red-900/20 border-red-800 text-red-300'
-                            : log.level === 'warn'
-                            ? 'bg-yellow-900/20 border-yellow-800 text-yellow-300'
-                            : log.level === 'info'
-                            ? 'bg-blue-900/20 border-blue-800 text-blue-300'
-                            : 'bg-gray-800 border-gray-700 text-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-1.5 py-0.5 text-xs rounded ${
-                            log.level === 'error'
-                              ? 'bg-red-800 text-red-200'
-                              : log.level === 'warn'
-                              ? 'bg-yellow-800 text-yellow-200'
-                              : log.level === 'info'
-                              ? 'bg-blue-800 text-blue-200'
-                              : 'bg-gray-700 text-gray-200'
-                          }`}>
-                            {log.level.toUpperCase()}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(log.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <div className="whitespace-pre-wrap break-words">
-                          {log.message}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
+          {isPreviewOpen && (
+            <div className="mt-3 space-y-3">
+              <div className="text-[11px] text-gray-400 break-words">
+                {previewDisplayTarget}
+              </div>
 
-            {(previewImage || consoleLogs.length > 0) && !isLoading && (
-              <div className="p-4 border-t border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-500">
-                    <p>Preview captured at {new Date().toLocaleTimeString()}</p>
-                    {consoleLogs.length > 0 && (
-                      <p className="mt-1">Console logs: {consoleLogs.length} messages</p>
-                    )}
-                  </div>
+              <div className="space-y-3">
+                <div className="flex border-b border-gray-800">
                   <button
-                    onClick={() => {
-                      setShowPreview(false);
-                      setPreviewImage(null);
-                      setConsoleLogs([]);
-                      setActiveTab('screenshot');
-                      setPreviewTargetUrl(null);
-                      toast.success('Preview closed');
-                    }}
-                    className="px-4 py-2 bg-flow-accent text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+                    type="button"
+                    onClick={() => setActiveTab('screenshot')}
+                    className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors ${
+                      activeTab === 'screenshot'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    aria-pressed={activeTab === 'screenshot'}
                   >
-                    Close Preview
+                    <Monitor size={14} />
+                    Screenshot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('console')}
+                    className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors ${
+                      activeTab === 'console'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    aria-pressed={activeTab === 'console'}
+                  >
+                    <FileText size={14} />
+                    Console
+                    {consoleLogs.length > 0 && (
+                      <span className="px-1 py-0.5 rounded-full bg-blue-600 text-white text-[10px]">
+                        {consoleLogs.length}
+                      </span>
+                    )}
                   </button>
                 </div>
+
+                <div className="relative">
+                  <div className="h-48 rounded-lg border border-gray-700 bg-gray-900/60 overflow-hidden">
+                    {previewError && !isFetchingPreview ? (
+                      <div className="flex h-full items-center justify-center px-3 text-center text-xs text-red-200">
+                        {previewError}
+                      </div>
+                    ) : activeTab === 'screenshot' ? (
+                      previewImage ? (
+                        <img
+                          src={previewImage}
+                          alt="Preview"
+                          className="h-full w-full object-cover"
+                          onError={() => {
+                            setPreviewError('Failed to load preview image');
+                            setPreviewImage(null);
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center px-3 text-center text-[11px] text-gray-400">
+                          {previewSignature ? 'Waiting for screenshot…' : 'Provide a valid URL or scenario to generate a live preview.'}
+                        </div>
+                      )
+                    ) : consoleLogs.length > 0 ? (
+                      <div className="h-full overflow-y-auto p-3 pr-2">
+                        {consoleLogs.map((log, index) => (
+                          <div
+                            key={`${log.timestamp}-${index}`}
+                            className={`mb-2 rounded border p-2 text-[11px] font-mono last:mb-0 ${
+                              log.level === 'error'
+                                ? 'bg-red-900/20 border-red-800 text-red-200'
+                                : log.level === 'warn'
+                                ? 'bg-yellow-900/20 border-yellow-800 text-yellow-200'
+                                : log.level === 'info'
+                                ? 'bg-blue-900/20 border-blue-800 text-blue-200'
+                                : 'bg-gray-800 border-gray-700 text-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`px-1 py-0.5 text-[10px] rounded ${
+                                log.level === 'error'
+                                  ? 'bg-red-800 text-red-200'
+                                  : log.level === 'warn'
+                                  ? 'bg-yellow-800 text-yellow-200'
+                                  : log.level === 'info'
+                                  ? 'bg-blue-800 text-blue-200'
+                                  : 'bg-gray-700 text-gray-200'
+                              }`}>
+                                {log.level.toUpperCase()}
+                              </span>
+                              <span className="text-[10px] text-gray-500">
+                                {new Date(log.timestamp).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <div className="whitespace-pre-wrap break-words">
+                              {log.message}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : isFetchingPreview ? (
+                      <div className="h-full overflow-hidden p-3">
+                        <div className="space-y-2">
+                          {Array.from({ length: 4 }).map((_, idx) => (
+                            <div
+                              // eslint-disable-next-line react/no-array-index-key
+                              key={idx}
+                              className="h-6 w-full animate-pulse rounded bg-gray-700/60"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex h-full items-center justify-center px-3 text-center text-[11px] text-gray-500">
+                        No console messages captured yet.
+                      </div>
+                    )}
+                  </div>
+
+                  {isFetchingPreview && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40 backdrop-blur-sm">
+                      <Loader size={20} className="animate-spin text-blue-400" />
+                      <span className="text-[11px] text-gray-300">Refreshing preview…</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      )}
+
+        <Handle type="source" position={Position.Bottom} className="node-handle" />
+      </div>
+      
     </>
   );
 };

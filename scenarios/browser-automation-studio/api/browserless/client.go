@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -247,6 +248,9 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 	}
 
 	session := runtime.NewSession(c.browserless, c.httpClient, c.log)
+	if width, height := extractPlanViewport(plan); width > 0 && height > 0 {
+		session.SetViewport(width, height)
+	}
 	totalSteps := len(plan.Steps)
 	if totalSteps == 0 {
 		totalSteps = len(instructions)
@@ -1252,6 +1256,60 @@ func (c *Client) compileWorkflow(ctx context.Context, workflow *database.Workflo
 	}
 
 	return plan, instructions, nil
+}
+
+func extractPlanViewport(plan *compiler.ExecutionPlan) (int, int) {
+	if plan == nil || plan.Metadata == nil {
+		return 0, 0
+	}
+	viewportRaw, ok := plan.Metadata["executionViewport"]
+	if !ok {
+		return 0, 0
+	}
+	viewportMap, ok := viewportRaw.(map[string]any)
+	if !ok {
+		return 0, 0
+	}
+	width := toPositiveInt(viewportMap["width"])
+	height := toPositiveInt(viewportMap["height"])
+	if width <= 0 || height <= 0 {
+		return 0, 0
+	}
+	return width, height
+}
+
+func toPositiveInt(value any) int {
+	switch v := value.(type) {
+	case float64:
+		if v > 0 {
+			return int(v)
+		}
+	case float32:
+		if v > 0 {
+			return int(v)
+		}
+	case int:
+		if v > 0 {
+			return v
+		}
+	case int64:
+		if v > 0 {
+			return int(v)
+		}
+	case json.Number:
+		if intVal, err := v.Int64(); err == nil && intVal > 0 {
+			return int(intVal)
+		}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0
+		}
+		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	return 0
 }
 
 func progressPercent(completed, total int) int {

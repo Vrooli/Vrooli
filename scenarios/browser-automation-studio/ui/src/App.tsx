@@ -31,12 +31,18 @@ import 'reactflow/dist/style.css';
 
 type AppView = 'dashboard' | 'project-detail' | 'project-workflow';
 
+const EXECUTION_MIN_WIDTH = 360;
+const EXECUTION_MAX_WIDTH = 720;
+const EXECUTION_DEFAULT_WIDTH = 440;
+
 function App() {
   const [currentView, setCurrentView] = useState<AppView | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string>('/');
   const [selectedWorkflow, setSelectedWorkflow] = useState<NormalizedWorkflow | null>(null);
+  const [executionPaneWidth, setExecutionPaneWidth] = useState(EXECUTION_DEFAULT_WIDTH);
+  const [isResizingExecution, setIsResizingExecution] = useState(false);
 
   const { currentProject, setCurrentProject } = useProjectStore();
   const { loadWorkflow } = useWorkflowStore();
@@ -45,10 +51,59 @@ function App() {
   const { fetchScenarios } = useScenarioStore();
   const isLargeScreen = useMediaQuery('(min-width: 1024px)');
 
+  const clampExecutionWidth = useCallback(
+    (value: number) => Math.min(EXECUTION_MAX_WIDTH, Math.max(EXECUTION_MIN_WIDTH, value)),
+    [],
+  );
+
+  const handleExecutionResizeMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!isLargeScreen) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const startX = event.clientX;
+      const startWidth = executionPaneWidth;
+
+      setIsResizingExecution(true);
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const deltaX = moveEvent.clientX - startX;
+        const nextWidth = clampExecutionWidth(startWidth - deltaX);
+        setExecutionPaneWidth(nextWidth);
+      };
+
+      const onMouseUp = () => {
+        setIsResizingExecution(false);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    },
+    [clampExecutionWidth, executionPaneWidth, isLargeScreen],
+  );
+
   // Pre-fetch scenarios on app mount for faster loading in NavigateNode
   useEffect(() => {
     void fetchScenarios();
   }, [fetchScenarios]);
+
+  useEffect(() => {
+    if (!currentExecution) {
+      setIsResizingExecution(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    }
+  }, [currentExecution]);
 
   interface RawWorkflow {
     id?: string;
@@ -357,33 +412,51 @@ function App() {
             projectId={currentProject?.id}
           />
           
-          <div className="flex-1 flex min-h-0">
+          <div className={`flex-1 flex min-h-0 ${isResizingExecution ? 'select-none' : ''}`}>
             <div className="flex-1 flex flex-col min-h-0">
               <WorkflowBuilder projectId={currentProject?.id} />
             </div>
 
-            {currentExecution && (
+            {currentExecution && isLargeScreen && (
               <>
-                {isLargeScreen ? (
-                  /* Desktop: side pane on large screens */
-                  <div className="w-1/3 min-w-[400px] border-l border-gray-800 flex flex-col min-h-0">
-                    <ExecutionViewer execution={currentExecution} onClose={clearCurrentExecution} />
-                  </div>
-                ) : (
-                  /* Mobile/Medium: responsive dialog */
-                  <ResponsiveDialog
-                    isOpen={true}
-                    onDismiss={clearCurrentExecution}
-                    ariaLabel="Execution Viewer"
-                    size="xl"
-                  >
-                    <ExecutionViewer execution={currentExecution} onClose={clearCurrentExecution} />
-                  </ResponsiveDialog>
-                )}
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  className={`w-1 cursor-col-resize transition-colors ${
+                    isResizingExecution ? 'bg-flow-accent/50' : 'bg-transparent hover:bg-flow-accent/40'
+                  }`}
+                  onMouseDown={handleExecutionResizeMouseDown}
+                  aria-label="Resize execution viewer pane"
+                />
+                <div
+                  className="border-l border-gray-800 flex flex-col min-h-0"
+                  style={{ width: executionPaneWidth, minWidth: EXECUTION_MIN_WIDTH }}
+                >
+                  <ExecutionViewer
+                    execution={currentExecution}
+                    onClose={clearCurrentExecution}
+                    showExecutionSwitcher
+                  />
+                </div>
               </>
             )}
           </div>
         </div>
+
+        {currentExecution && !isLargeScreen && (
+          <ResponsiveDialog
+            isOpen={true}
+            onDismiss={clearCurrentExecution}
+            ariaLabel="Execution Viewer"
+            size="xl"
+          >
+            <ExecutionViewer
+              execution={currentExecution}
+              onClose={clearCurrentExecution}
+              showExecutionSwitcher
+            />
+          </ResponsiveDialog>
+        )}
         
         {showAIModal && (
           <AIPromptModal
