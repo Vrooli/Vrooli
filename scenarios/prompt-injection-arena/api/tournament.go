@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -168,8 +167,13 @@ func (ts *TournamentScheduler) RunTournament(tournamentID string) error {
 	totalMatches := len(tournament.ParticipantIDs) * len(tournament.InjectionIDs)
 	completedMatches := 0
 
-	log.Printf("Starting tournament '%s' with %d agents vs %d injections (%d total matches)",
-		tournament.Name, len(tournament.ParticipantIDs), len(tournament.InjectionIDs), totalMatches)
+	logger.Info("Starting tournament", map[string]interface{}{
+		"tournament_name":      tournament.Name,
+		"agents":               len(tournament.ParticipantIDs),
+		"injections":           len(tournament.InjectionIDs),
+		"total_matches":        totalMatches,
+		"tournament_id":        tournament.ID,
+	})
 
 	for _, agentID := range tournament.ParticipantIDs {
 		for _, injectionID := range tournament.InjectionIDs {
@@ -182,7 +186,12 @@ func (ts *TournamentScheduler) RunTournament(tournamentID string) error {
 
 			completedMatches++
 			if completedMatches%10 == 0 {
-				log.Printf("Tournament progress: %d/%d matches completed", completedMatches, totalMatches)
+				logger.Info("Tournament progress", map[string]interface{}{
+					"completed_matches": completedMatches,
+					"total_matches":     totalMatches,
+					"progress_percent":  float64(completedMatches) / float64(totalMatches) * 100,
+					"tournament_id":     tournament.ID,
+				})
 			}
 		}
 	}
@@ -202,7 +211,12 @@ func (ts *TournamentScheduler) RunTournament(tournamentID string) error {
 		return fmt.Errorf("failed to update tournament completion: %v", err)
 	}
 
-	log.Printf("Tournament '%s' completed successfully with %d results", tournament.Name, len(results))
+	logger.Info("Tournament completed successfully", map[string]interface{}{
+		"tournament_name": tournament.Name,
+		"tournament_id":   tournament.ID,
+		"results_count":   len(results),
+		"total_matches":   totalMatches,
+	})
 
 	return nil
 }

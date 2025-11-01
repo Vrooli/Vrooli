@@ -4,91 +4,75 @@
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-testing::phase::init --target-time "120s"
+testing::phase::init --target-time "120s" --require-runtime
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
-
-echo "Running performance tests for symbol-search..."
-
-API_PORT="${API_PORT:-8080}"
-API_URL="http://localhost:${API_PORT}"
-
-# Check if API is running
-if ! curl -s "${API_URL}/health" > /dev/null 2>&1; then
-    echo "⚠️  API not running - skipping performance tests"
-    exit 0
+if ! command -v bc >/dev/null 2>&1; then
+  testing::phase::add_warning "bc not available; skipping performance benchmarking"
+  testing::phase::add_test skipped
+  testing::phase::end_with_summary "Performance checks skipped"
 fi
 
-# Function to measure response time
+SCENARIO_NAME="${TESTING_PHASE_SCENARIO_NAME}"
+API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME" || true)
+
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to discover API URL for $SCENARIO_NAME"
+  testing::phase::end_with_summary "Performance checks incomplete"
+fi
+
 measure_response_time() {
-    local endpoint="$1"
-    local method="${2:-GET}"
-    local data="${3:-}"
+  local endpoint="$1"
+  local method="${2:-GET}"
+  local data="${3:-}"
+  local iterations=8
+  local total_ms=0
 
-    local total_time=0
-    local iterations=10
-    local failed=0
+  for _ in $(seq 1 $iterations); do
+    local elapsed
+    if [ "$method" = "GET" ]; then
+      elapsed=$(curl -s -w "%{time_total}" -o /dev/null "${API_URL}${endpoint}")
+    else
+      elapsed=$(curl -s -X POST -w "%{time_total}" -o /dev/null \
+        -H 'Content-Type: application/json' \
+        -d "$data" \
+        "${API_URL}${endpoint}")
+    fi
+    total_ms=$(echo "$total_ms + ($elapsed * 1000)" | bc -l)
+  done
 
-    for i in $(seq 1 $iterations); do
-        if [ "$method" = "GET" ]; then
-            time_ms=$(curl -s -w "%{time_total}" -o /dev/null "${API_URL}${endpoint}")
-        else
-            time_ms=$(curl -s -X POST -w "%{time_total}" -o /dev/null \
-                -H "Content-Type: application/json" \
-                -d "$data" \
-                "${API_URL}${endpoint}")
-        fi
-
-        # Convert seconds to milliseconds
-        time_ms=$(echo "$time_ms * 1000" | bc)
-        total_time=$(echo "$total_time + $time_ms" | bc)
-    done
-
-    avg_time=$(echo "scale=2; $total_time / $iterations" | bc)
-    echo "$avg_time"
+  echo "scale=2; $total_ms / $iterations" | bc -l
 }
 
-echo "Testing search endpoint performance..."
-search_time=$(measure_response_time "/api/search?q=LATIN&limit=100")
-echo "  Average search time: ${search_time}ms"
+check_threshold() {
+  local description="$1"
+  local endpoint="$2"
+  local target_ms="$3"
+  local method="${4:-GET}"
+  local payload="${5:-}"
 
-# Target: < 50ms for search
-if (( $(echo "$search_time > 50" | bc -l) )); then
-    echo "  ⚠️  Search time exceeds 50ms target"
-else
-    echo "  ✅ Search performance meets target"
-fi
+  local avg_ms
+  avg_ms=$(measure_response_time "$endpoint" "$method" "$payload")
 
-echo "Testing character detail endpoint performance..."
-char_time=$(measure_response_time "/api/character/U+0041")
-echo "  Average character detail time: ${char_time}ms"
+  printf "📊 %s average latency: %sms\n" "$description" "$avg_ms"
 
-# Target: < 25ms for character detail
-if (( $(echo "$char_time > 25" | bc -l) )); then
-    echo "  ⚠️  Character detail time exceeds 25ms target"
-else
-    echo "  ✅ Character detail performance meets target"
-fi
+  if (( $(echo "$avg_ms <= $target_ms" | bc -l) )); then
+    testing::phase::add_test passed
+    return 0
+  fi
 
-echo "Testing categories endpoint performance..."
-categories_time=$(measure_response_time "/api/categories")
-echo "  Average categories time: ${categories_time}ms"
+  testing::phase::add_error "$description latency ${avg_ms}ms exceeds ${target_ms}ms target"
+  testing::phase::add_test failed
+  return 1
+}
 
-echo "Testing blocks endpoint performance..."
-blocks_time=$(measure_response_time "/api/blocks")
-echo "  Average blocks time: ${blocks_time}ms"
+testing::phase::check "API reachable for performance run" curl -sf "${API_URL}/health"
 
-echo "Testing bulk range endpoint performance..."
-bulk_data='{"ranges":[{"start":"U+0041","end":"U+005A"}]}'
-bulk_time=$(measure_response_time "/api/bulk/range" "POST" "$bulk_data")
-echo "  Average bulk range time: ${bulk_time}ms"
-
-# Target: < 200ms for bulk operations
-if (( $(echo "$bulk_time > 200" | bc -l) )); then
-    echo "  ⚠️  Bulk range time exceeds 200ms target"
-else
-    echo "  ✅ Bulk range performance meets target"
-fi
+check_threshold "Search endpoint" "/api/search?q=LATIN&limit=100" 50
+check_threshold "Character detail endpoint" "/api/character/U+0041" 25
+check_threshold "Categories endpoint" "/api/categories" 40
+check_threshold "Blocks endpoint" "/api/blocks" 40
+check_threshold "Bulk range endpoint" "/api/bulk/range" 200 POST '{"ranges":[{"start":"U+0041","end":"U+005A"}]}'
 
 testing::phase::end_with_summary "Performance tests completed"

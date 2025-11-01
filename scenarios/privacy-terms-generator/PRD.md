@@ -438,7 +438,6 @@ structure:
     - cli/privacy-terms-generator
     - cli/install.sh
     - initialization/postgres/schema.sql
-    - scenario-test.yaml
     
   required_dirs:
     - cli

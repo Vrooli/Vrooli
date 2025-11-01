@@ -121,8 +121,8 @@ main() {
     echo "  $CLI_NAME generate   - AI generate component"
     echo "  $CLI_NAME test       - Test components"
     echo
-    echo "Web interface: http://localhost:31012"
-    echo "API documentation: http://localhost:8090/api/docs"
+    echo "Web interface: http://localhost:36092"
+    echo "API documentation: http://localhost:15092/api/docs"
 }
 
 main "$@"

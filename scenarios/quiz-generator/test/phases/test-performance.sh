@@ -1,90 +1,62 @@
 #!/bin/bash
-# Performance testing phase for quiz-generator scenario
-# Tests response times and resource efficiency
-
+# Performance baselines for quiz-generator scenario
 set -euo pipefail
 
-# Determine APP_ROOT
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-
-# Source required libraries
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-# Initialize phase with target time
-testing::phase::init --target-time "120s"
+testing::phase::init --target-time "120s" --require-runtime
 
-# Change to scenario directory
-cd "$TESTING_PHASE_SCENARIO_DIR"
-
-# Get API port from environment or fallback
-API_PORT="${API_PORT:-16470}"
-
-echo "⚡ Testing Quiz Generator Performance..."
-echo ""
-
-# Test 1: Health endpoint response time
-echo "Test 1: Health endpoint response time (target: <200ms)"
-START=$(date +%s%N)
-curl -sf http://localhost:${API_PORT}/api/health > /dev/null || {
-  echo "❌ Health endpoint failed"
-  testing::phase::end_with_summary "Health check failed"
-  exit 1
-}
-END=$(date +%s%N)
-DURATION_MS=$(( (END - START) / 1000000 ))
-
-if [ $DURATION_MS -lt 200 ]; then
-  echo "✅ Health endpoint: ${DURATION_MS}ms (excellent)"
-elif [ $DURATION_MS -lt 500 ]; then
-  echo "⚠️  Health endpoint: ${DURATION_MS}ms (acceptable)"
-else
-  echo "❌ Health endpoint: ${DURATION_MS}ms (too slow)"
+API_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME" || true)
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Performance tests failed"
 fi
 
-# Test 2: Quiz generation performance
-echo "Test 2: Quiz generation response time (target: <5000ms)"
-START=$(date +%s%N)
-RESPONSE=$(curl -sf http://localhost:${API_PORT}/api/v1/quiz/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content": "Sample content for performance testing with multiple sentences to analyze.",
-    "question_count": 5,
-    "difficulty": "medium"
-  }' 2>/dev/null || echo "FAILED")
-END=$(date +%s%N)
-DURATION_MS=$(( (END - START) / 1000000 ))
+measure_latency() {
+  local command="$1"
+  local threshold_ms="$2"
+  local label="$3"
 
-if echo "$RESPONSE" | grep -q "quiz_id"; then
-  if [ $DURATION_MS -lt 5000 ]; then
-    echo "✅ Quiz generation: ${DURATION_MS}ms (within target)"
-  elif [ $DURATION_MS -lt 10000 ]; then
-    echo "⚠️  Quiz generation: ${DURATION_MS}ms (slower than target but acceptable)"
-  else
-    echo "❌ Quiz generation: ${DURATION_MS}ms (too slow)"
+  local start_ns end_ns duration_ms
+  start_ns=$(date +%s%N)
+  if ! eval "$command" >/dev/null 2>&1; then
+    testing::phase::add_error "${label} request failed"
+    testing::phase::add_test failed
+    return 1
   fi
-else
-  echo "⚠️  Quiz generation failed or timed out after ${DURATION_MS}ms"
-fi
+  end_ns=$(date +%s%N)
+  duration_ms=$(( (end_ns - start_ns) / 1000000 ))
 
-# Test 3: Concurrent request handling
-echo "Test 3: Concurrent request handling (5 parallel requests)"
-START=$(date +%s%N)
-for i in {1..5}; do
-  curl -sf http://localhost:${API_PORT}/api/health > /dev/null &
+  if [ "$duration_ms" -le "$threshold_ms" ]; then
+    log::success "✅ ${label}: ${duration_ms}ms"
+    testing::phase::add_test passed
+  else
+    testing::phase::add_warning "${label}: ${duration_ms}ms (threshold ${threshold_ms}ms)"
+    testing::phase::add_test skipped
+  fi
+}
+
+measure_latency "curl -sf ${API_URL}/api/health" 200 "Health endpoint latency"
+
+measure_latency "curl -sf -X POST ${API_URL}/api/v1/quiz/generate -H 'Content-Type: application/json' -d '{\"content\":\"Performance baseline.\",\"question_count\":3}'" 5000 "Quiz generation latency"
+
+start_ns=$(date +%s%N)
+for _ in 1 2 3 4 5; do
+  curl -sf "${API_URL}/api/health" >/dev/null 2>&1 &
 done
 wait
-END=$(date +%s%N)
-DURATION_MS=$(( (END - START) / 1000000 ))
-
-if [ $DURATION_MS -lt 1000 ]; then
-  echo "✅ Concurrent requests: ${DURATION_MS}ms total (good parallelism)"
+end_ns=$(date +%s%N)
+concurrent_ms=$(( (end_ns - start_ns) / 1000000 ))
+if [ "$concurrent_ms" -le 1000 ]; then
+  log::success "✅ Concurrent health probes completed in ${concurrent_ms}ms"
+  testing::phase::add_test passed
 else
-  echo "⚠️  Concurrent requests: ${DURATION_MS}ms total"
+  testing::phase::add_warning "Concurrent health probes took ${concurrent_ms}ms"
+  testing::phase::add_test skipped
 fi
 
-echo ""
-echo "✅ Performance tests completed"
-
-# End phase with summary
-testing::phase::end_with_summary "Performance tests completed"
+testing::phase::end_with_summary "Performance benchmarks completed"

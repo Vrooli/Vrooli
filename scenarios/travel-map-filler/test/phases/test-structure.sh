@@ -1,6 +1,8 @@
 #!/bin/bash
-# Structure test phase for travel-map-filler
-# Validates project structure and configuration
+# Structure validation phase for travel-map-filler.
+# Ensures key directories/files and configuration stay present and well-formed.
+
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
@@ -10,158 +12,72 @@ testing::phase::init --target-time "30s"
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "🏗️  Validating project structure..."
+log::info "🏗️  Validating project structure"
 
-EXIT_CODE=0
-
-# Check required files
-echo "Checking required files..."
-REQUIRED_FILES=(
-    ".vrooli/service.json"
-    "PRD.md"
-    "README.md"
-    "api/main.go"
-    "api/test_helpers.go"
-    "api/test_patterns.go"
+required_dirs=(
+  ".vrooli"
+  "api"
+  "cli"
+  "initialization"
+  "test/phases"
+  "ui"
 )
-
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ -f "$file" ]; then
-        echo "✅ $file"
-    else
-        echo "❌ Missing: $file"
-        EXIT_CODE=1
-    fi
+missing_dirs=()
+for dir in "${required_dirs[@]}"; do
+  if [ -d "$dir" ]; then
+    log::success "✅ Directory present: $dir"
+  else
+    log::error "❌ Missing directory: $dir"
+    missing_dirs+=("$dir")
+  fi
 done
+if [ ${#missing_dirs[@]} -eq 0 ]; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_error "Required directories missing: ${missing_dirs[*]}"
+  testing::phase::add_test failed
+fi
 
-# Check test files
-echo ""
-echo "Checking test files..."
-TEST_FILES=(
-    "api/main_test.go"
-    "api/comprehensive_test.go"
-    "api/integration_test.go"
-    "api/performance_test.go"
-    "test/phases/test-unit.sh"
-    "test/phases/test-integration.sh"
-    "test/phases/test-performance.sh"
+required_files=(
+  ".vrooli/service.json"
+  "PRD.md"
+  "README.md"
+  "api/main.go"
+  "api/main_test.go"
+  "api/test_helpers.go"
+  "api/test_patterns.go"
+  "test/phases/test-unit.sh"
+  "test/phases/test-integration.sh"
 )
-
-for file in "${TEST_FILES[@]}"; do
-    if [ -f "$file" ]; then
-        echo "✅ $file"
-    else
-        echo "⚠️  Missing test file: $file"
-    fi
+missing_files=()
+for file in "${required_files[@]}"; do
+  if [ -f "$file" ]; then
+    log::success "✅ File present: $file"
+  else
+    log::error "❌ Missing file: $file"
+    missing_files+=("$file")
+  fi
 done
-
-# Validate service.json
-echo ""
-echo "Validating service.json..."
-if [ -f ".vrooli/service.json" ]; then
-    if command -v jq &> /dev/null; then
-        jq empty .vrooli/service.json 2>&1
-        if [ $? -eq 0 ]; then
-            echo "✅ service.json is valid JSON"
-
-            # Check required fields
-            SERVICE_NAME=$(jq -r '.service.name' .vrooli/service.json)
-            if [ "$SERVICE_NAME" = "travel-map-filler" ]; then
-                echo "✅ Service name is correct"
-            else
-                echo "❌ Service name mismatch: $SERVICE_NAME"
-                EXIT_CODE=1
-            fi
-        else
-            echo "❌ service.json is invalid JSON"
-            EXIT_CODE=1
-        fi
-    else
-        echo "ℹ️  jq not available, skipping JSON validation"
-    fi
-fi
-
-# Check Go project structure
-echo ""
-echo "Checking Go project structure..."
-if [ -f "api/go.mod" ]; then
-    echo "✅ go.mod exists"
-
-    MODULE_NAME=$(grep -E "^module " api/go.mod | awk '{print $2}')
-    echo "   Module: $MODULE_NAME"
-
-    # Count Go files
-    GO_FILES=$(find api -name "*.go" -not -name "*_test.go" | wc -l)
-    TEST_FILES=$(find api -name "*_test.go" | wc -l)
-    echo "   Source files: $GO_FILES"
-    echo "   Test files: $TEST_FILES"
-
-    if [ $TEST_FILES -eq 0 ]; then
-        echo "⚠️  No test files found"
-    fi
+if [ ${#missing_files[@]} -eq 0 ]; then
+  testing::phase::add_test passed
 else
-    echo "❌ go.mod not found in api directory"
-    EXIT_CODE=1
+  testing::phase::add_error "Required files missing: ${missing_files[*]}"
+  testing::phase::add_test failed
 fi
 
-# Check initialization scripts
-echo ""
-echo "Checking initialization scripts..."
-INIT_DIRS=(
-    "initialization/postgres"
-    "initialization/qdrant"
-    "initialization/n8n"
-)
-
-for dir in "${INIT_DIRS[@]}"; do
-    if [ -d "$dir" ]; then
-        FILE_COUNT=$(find "$dir" -type f | wc -l)
-        echo "✅ $dir ($FILE_COUNT files)"
-    else
-        echo "ℹ️  Optional init directory not found: $dir"
-    fi
-done
-
-# Validate test helper structure
-echo ""
-echo "Validating test helper structure..."
-if [ -f "api/test_helpers.go" ]; then
-    # Check for required helper functions
-    HELPER_FUNCTIONS=(
-        "setupTestLogger"
-        "setupTestDB"
-        "makeHTTPRequest"
-        "assertJSONResponse"
-        "assertErrorResponse"
-    )
-
-    for func in "${HELPER_FUNCTIONS[@]}"; do
-        if grep -q "func $func" api/test_helpers.go; then
-            echo "✅ Helper function: $func"
-        else
-            echo "⚠️  Missing helper function: $func"
-        fi
-    done
-fi
-
-# Check documentation
-echo ""
-echo "Checking documentation..."
-if [ -f "PRD.md" ]; then
-    LINES=$(wc -l < PRD.md)
-    echo "✅ PRD.md ($LINES lines)"
+if command -v jq >/dev/null 2>&1; then
+  if jq empty .vrooli/service.json >/dev/null 2>&1; then
+    log::success "✅ .vrooli/service.json is valid JSON"
+    testing::phase::add_test passed
+  else
+    log::error "❌ .vrooli/service.json is invalid JSON"
+    testing::phase::add_error ".vrooli/service.json failed jq validation"
+    testing::phase::add_test failed
+  fi
 else
-    echo "❌ PRD.md missing"
-    EXIT_CODE=1
-fi
-
-if [ -f "README.md" ]; then
-    LINES=$(wc -l < README.md)
-    echo "✅ README.md ($LINES lines)"
-else
-    echo "⚠️  README.md missing"
+  log::warning "ℹ️  jq not available; skipping service.json validation"
+  testing::phase::add_warning "jq not installed"
+  testing::phase::add_test skipped
 fi
 
 testing::phase::end_with_summary "Structure validation completed"
-
-exit $EXIT_CODE

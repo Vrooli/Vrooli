@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, useId, type CSSProperties, type ReactNode } from 'react';
 import {
   Activity,
   Pause,
@@ -16,7 +16,14 @@ import {
   ChevronDown,
   Check,
   ListTree,
+  Download,
+  Clapperboard,
+  Film,
+  FileJson,
+  Copy,
+  FolderOutput,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import ReplayPlayer, {
@@ -25,6 +32,7 @@ import ReplayPlayer, {
   type ReplayBackgroundTheme,
   type ReplayCursorTheme,
   type ReplayCursorInitialPosition,
+  type ReplayCursorClickAnimation,
 } from './ReplayPlayer';
 import { useExecutionStore } from '../stores/executionStore';
 import type {
@@ -34,6 +42,8 @@ import type {
 } from '../stores/executionStore';
 import type { Screenshot, LogEntry } from '../stores/executionEventProcessor';
 import { toast } from 'react-hot-toast';
+import ResponsiveDialog from './ResponsiveDialog';
+import { getConfig } from '../config';
 import {
   toNumber,
   toBoundingBox,
@@ -90,6 +100,117 @@ const REPLAY_CHROME_OPTIONS: Array<{ id: ReplayChromeTheme; label: string; subti
 
 const CURSOR_SCALE_MIN = 0.6;
 const CURSOR_SCALE_MAX = 1.8;
+
+type ExportFormat = 'json' | 'mp4' | 'gif';
+
+type SaveFilePickerOptions = {
+  suggestedName?: string;
+  types?: Array<{
+    description?: string;
+    accept: Record<string, string[]>;
+  }>;
+};
+
+type FileSystemWritableFileStream = {
+  write: (data: BlobPart) => Promise<void>;
+  close: () => Promise<void>;
+};
+
+type FileSystemFileHandle = {
+  createWritable: () => Promise<FileSystemWritableFileStream>;
+};
+
+interface ReplayExportPackageSummary {
+  frame_count?: number;
+  screenshot_count?: number;
+  total_duration_ms?: number;
+  max_frame_duration_ms?: number;
+}
+
+interface ReplayExportExecutionMetadata {
+  execution_id?: string;
+  workflow_id?: string;
+  workflow_name?: string;
+  status?: string;
+  started_at?: string;
+  completed_at?: string | null;
+  progress?: number;
+  total_duration_ms?: number;
+}
+
+interface ReplayExportPackage {
+  version?: string;
+  generated_at?: string;
+  execution?: ReplayExportExecutionMetadata;
+  summary?: ReplayExportPackageSummary;
+  frames?: Array<Record<string, unknown>>;
+  assets?: Array<Record<string, unknown>>;
+  theme?: Record<string, unknown>;
+  cursor?: Record<string, unknown>;
+}
+
+interface ExecutionExportPreviewResponse {
+  execution_id?: string;
+  status?: string;
+  message?: string;
+  package?: ReplayExportPackage;
+}
+
+interface ExecutionExportPreview {
+  executionId: string;
+  status: string;
+  message?: string;
+  package?: ReplayExportPackage;
+}
+
+const EXPORT_EXTENSIONS: Record<ExportFormat, string> = {
+  json: 'json',
+  mp4: 'mp4',
+  gif: 'gif',
+};
+
+const EXPORT_FORMAT_OPTIONS: Array<{
+  id: ExportFormat;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  badge?: string;
+  disabled?: boolean;
+}> = [
+  {
+    id: 'mp4',
+    label: 'MP4 Video',
+    description: '1080p marketing reel (CLI render)',
+    icon: Clapperboard,
+    badge: 'Beta',
+  },
+  {
+    id: 'gif',
+    label: 'Animated GIF',
+    description: 'Looped shareable snippet (CLI + ffmpeg)',
+    icon: Film,
+    badge: 'Guide',
+  },
+  {
+    id: 'json',
+    label: 'JSON Package',
+    description: 'Raw replay bundle for tooling',
+    icon: FileJson,
+    badge: 'Default',
+  },
+];
+
+const sanitizeFileStem = (value: string, fallback: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  const sanitized = trimmed.replace(/[^a-zA-Z0-9-_]/g, '-');
+  if (!sanitized) {
+    return fallback;
+  }
+  return sanitized;
+};
 
 const REPLAY_BACKGROUND_OPTIONS: Array<{
   id: ReplayBackgroundTheme;
@@ -250,11 +371,19 @@ type CursorOption = {
   id: ReplayCursorTheme;
   label: string;
   subtitle: string;
-  group: 'hidden' | 'halo' | 'arrow';
+  group: 'hidden' | 'halo' | 'arrow' | 'hand';
   preview: ReactNode;
 };
 
 const ARROW_CURSOR_PATH = 'M6 3L6 22L10.4 18.1L13.1 26.4L15.9 25.2L13.1 17.5L22 17.5L6 3Z';
+
+const HAND_POINTER_PATHS = [
+  'M22 14a8 8 0 0 1-8 8',
+  'M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0',
+  'M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1',
+  'M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10',
+  'M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15',
+];
 
 const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
   {
@@ -366,13 +495,110 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
       </span>
     ),
   },
+  {
+    id: 'handNeutral',
+    group: 'hand',
+    label: 'Pointer Neutral',
+    subtitle: 'Classic hand cursor outline',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
+          {HAND_POINTER_PATHS.map((path, index) => (
+            <path
+              key={`hand-neutral-${index}`}
+              d={path}
+              stroke="rgba(241,245,249,0.92)"
+              strokeWidth={1.7}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+        </svg>
+      </span>
+    ),
+  },
+  {
+    id: 'handAura',
+    group: 'hand',
+    label: 'Pointer Aura',
+    subtitle: 'Gradient hand with halo',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
+          <defs>
+            <linearGradient id="cursor-hand-preview" x1="10%" y1="5%" x2="80%" y2="95%">
+              <stop offset="0%" stopColor="#38bdf8" />
+              <stop offset="50%" stopColor="#34d399" />
+              <stop offset="100%" stopColor="#a855f7" />
+            </linearGradient>
+          </defs>
+          {HAND_POINTER_PATHS.map((path, index) => (
+            <path
+              key={`hand-aura-${index}`}
+              d={path}
+              stroke="url(#cursor-hand-preview)"
+              strokeWidth={1.7}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+        </svg>
+        <span className="pointer-events-none absolute h-8 w-8 rounded-full bg-cyan-400/25 blur-lg" />
+      </span>
+    ),
+  },
 ];
 
 const CURSOR_GROUP_ORDER: Array<{ id: CursorOption['group']; label: string }> = [
   { id: 'hidden', label: 'Hidden' },
   { id: 'halo', label: 'Halo Cursors' },
   { id: 'arrow', label: 'Arrowhead Cursors' },
+  { id: 'hand', label: 'Pointing Hands' },
 ];
+
+const REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS: Array<{
+  id: ReplayCursorClickAnimation;
+  label: string;
+  subtitle: string;
+  preview: ReactNode;
+}> = [
+  {
+    id: 'none',
+    label: 'None',
+    subtitle: 'No click highlight',
+    preview: (
+      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+        Off
+      </span>
+    ),
+  },
+  {
+    id: 'pulse',
+    label: 'Pulse',
+    subtitle: 'Radial glow on click',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center">
+        <span className="absolute h-6 w-6 rounded-full border border-sky-300/60 bg-sky-400/20" />
+        <span className="absolute h-10 w-10 rounded-full border border-sky-400/30" />
+        <span className="relative h-2 w-2 rounded-full bg-white/80" />
+      </span>
+    ),
+  },
+  {
+    id: 'ripple',
+    label: 'Ripple',
+    subtitle: 'Expanding ring accent',
+    preview: (
+      <span className="relative inline-flex h-7 w-7 items-center justify-center">
+        <span className="absolute h-5 w-5 rounded-full border border-violet-300/70" />
+        <span className="absolute h-9 w-9 rounded-full border border-violet-400/40" />
+        <span className="relative h-1.5 w-1.5 rounded-full bg-violet-200" />
+      </span>
+    ),
+  },
+];
+
+type ClickAnimationOption = (typeof REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS)[number];
 
 const REPLAY_CURSOR_POSITIONS: Array<{
   id: ReplayCursorInitialPosition;
@@ -402,6 +628,11 @@ const isReplayCursorInitialPosition = (
   value: string | null | undefined,
 ): value is ReplayCursorInitialPosition =>
   Boolean(value && REPLAY_CURSOR_POSITIONS.some((option) => option.id === value));
+
+const isReplayCursorClickAnimation = (
+  value: string | null | undefined,
+): value is ReplayCursorClickAnimation =>
+  Boolean(value && REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.some((option) => option.id === value));
 
 function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: ExecutionProps) {
   const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
@@ -447,6 +678,14 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       const stored = window.localStorage.getItem('browserAutomation.replayCursorInitialPosition');
       return isReplayCursorInitialPosition(stored) ? stored : 'center';
     });
+  const [replayCursorClickAnimation, setReplayCursorClickAnimation] =
+    useState<ReplayCursorClickAnimation>(() => {
+      if (typeof window === 'undefined') {
+        return 'none';
+      }
+      const stored = window.localStorage.getItem('browserAutomation.replayCursorClickAnimation');
+      return isReplayCursorClickAnimation(stored) ? stored : 'none';
+    });
   const [replayCursorScale, setReplayCursorScale] = useState<number>(() => {
     if (typeof window === 'undefined') {
       return 1;
@@ -464,12 +703,80 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   const [isBackgroundMenuOpen, setIsBackgroundMenuOpen] = useState(false);
   const [isCursorMenuOpen, setIsCursorMenuOpen] = useState(false);
   const [isCursorPositionMenuOpen, setIsCursorPositionMenuOpen] = useState(false);
+  const [isCursorClickAnimationMenuOpen, setIsCursorClickAnimationMenuOpen] = useState(false);
   const [isCustomizationCollapsed, setIsCustomizationCollapsed] = useState(true);
   const screenshotRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const backgroundSelectorRef = useRef<HTMLDivElement | null>(null);
   const cursorSelectorRef = useRef<HTMLDivElement | null>(null);
   const cursorPositionSelectorRef = useRef<HTMLDivElement | null>(null);
+  const cursorClickAnimationSelectorRef = useRef<HTMLDivElement | null>(null);
   const preloadedWorkflowRef = useRef<string | null>(null);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('json');
+  const [exportFileStem, setExportFileStem] = useState<string>(() => `browser-automation-replay-${execution.id.slice(0, 8)}`);
+  const [useNativeFilePicker, setUseNativeFilePicker] = useState(false);
+  const [videoOutputDirectory, setVideoOutputDirectory] = useState<string>('~/Downloads');
+  const [exportPreview, setExportPreview] = useState<ExecutionExportPreview | null>(null);
+  const [exportPreviewExecutionId, setExportPreviewExecutionId] = useState<string | null>(null);
+  const [isExportPreviewLoading, setIsExportPreviewLoading] = useState(false);
+  const [exportPreviewError, setExportPreviewError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [copyInstructionsError, setCopyInstructionsError] = useState<string | null>(null);
+  const supportsFileSystemAccess =
+    typeof window !== 'undefined' &&
+    typeof (window as typeof window & { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function';
+
+  const defaultExportFileStem = useMemo(
+    () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
+    [execution.id],
+  );
+
+  const getSanitizedFileStem = useCallback(() => sanitizeFileStem(exportFileStem, defaultExportFileStem), [exportFileStem, defaultExportFileStem]);
+
+  const buildOutputFileName = useCallback(
+    (extension: string) => {
+      const stem = getSanitizedFileStem();
+      return `${stem}.${extension}`;
+    },
+    [getSanitizedFileStem],
+  );
+
+  const buildOutputPath = useCallback(
+    (extension: string) => {
+      const fileName = buildOutputFileName(extension);
+      const directory = videoOutputDirectory.trim();
+      if (!directory) {
+        return fileName;
+      }
+      if (directory.endsWith('/') || directory.endsWith('\\')) {
+        return `${directory}${fileName}`;
+      }
+      if (directory.includes('\\') && !directory.includes('/')) {
+        return `${directory}\\${fileName}`;
+      }
+      return `${directory}/${fileName}`;
+    },
+    [buildOutputFileName, videoOutputDirectory],
+  );
+
+  const finalFileName = useMemo(() => buildOutputFileName(EXPORT_EXTENSIONS[exportFormat]), [buildOutputFileName, exportFormat]);
+
+  const cliInstructions = useMemo(() => {
+    if (exportFormat === 'json') {
+      return [] as string[];
+    }
+    if (exportFormat === 'mp4') {
+      return [
+        `browser-automation-studio execution render-video ${execution.id} --format mp4 --output "${buildOutputPath(EXPORT_EXTENSIONS.mp4)}"`,
+      ];
+    }
+    const mp4Path = buildOutputPath(EXPORT_EXTENSIONS.mp4);
+    const gifPath = buildOutputPath(EXPORT_EXTENSIONS.gif);
+    return [
+      `browser-automation-studio execution render-video ${execution.id} --format mp4 --output "${mp4Path}"`,
+      `ffmpeg -i "${mp4Path}" -vf "fps=12,scale=1280:-1:flags=lanczos" "${gifPath}"`,
+    ];
+  }, [buildOutputPath, execution.id, exportFormat]);
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
   const executionError = execution.error ?? undefined;
@@ -493,6 +800,23 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   }, [execution.id]);
 
   useEffect(() => {
+    setIsExportDialogOpen(false);
+    setExportPreview(null);
+    setExportPreviewExecutionId(null);
+    setExportPreviewError(null);
+    setCopyInstructionsError(null);
+    setExportFileStem(defaultExportFileStem);
+    setVideoOutputDirectory('~/Downloads');
+    setUseNativeFilePicker(false);
+  }, [defaultExportFileStem]);
+
+  useEffect(() => {
+    if (exportFormat !== 'json' && useNativeFilePicker) {
+      setUseNativeFilePicker(false);
+    }
+  }, [exportFormat, useNativeFilePicker]);
+
+  useEffect(() => {
     if (!showExecutionSwitcher || !execution.workflowId) {
       return;
     }
@@ -508,6 +832,57 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       setActiveTab('replay');
     }
   }, [showExecutionSwitcher, activeTab]);
+
+  useEffect(() => {
+    if (!isExportDialogOpen) {
+      return;
+    }
+    if (exportPreview && exportPreviewExecutionId === execution.id) {
+      return;
+    }
+    let isCancelled = false;
+    setIsExportPreviewLoading(true);
+    setExportPreviewError(null);
+    void (async () => {
+      try {
+        const config = await getConfig();
+        const response = await fetch(`${config.API_URL}/executions/${execution.id}/export`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `Export request failed (${response.status})`);
+        }
+        const raw = (await response.json()) as ExecutionExportPreviewResponse;
+        if (isCancelled) {
+          return;
+        }
+        const parsed: ExecutionExportPreview = {
+          executionId: raw.execution_id ?? execution.id,
+          status: raw.status ?? 'unknown',
+          message: raw.message,
+          package: raw.package,
+        };
+        setExportPreview(parsed);
+        setExportPreviewExecutionId(parsed.executionId);
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : 'Failed to prepare export preview';
+        setExportPreviewError(message);
+        setExportPreview(null);
+      } finally {
+        if (!isCancelled) {
+          setIsExportPreviewLoading(false);
+        }
+      }
+    })();
+    return () => {
+      isCancelled = true;
+    };
+  }, [execution.id, exportPreview, exportPreviewExecutionId, isExportDialogOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -552,6 +927,17 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       console.warn('Failed to persist replay cursor initial position', err);
     }
   }, [replayCursorInitialPosition]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem('browserAutomation.replayCursorClickAnimation', replayCursorClickAnimation);
+    } catch (err) {
+      console.warn('Failed to persist replay cursor click animation', err);
+    }
+  }, [replayCursorClickAnimation]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -650,6 +1036,35 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isCursorPositionMenuOpen]);
+
+  useEffect(() => {
+    if (!isCursorClickAnimationMenuOpen) {
+      return;
+    }
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (cursorClickAnimationSelectorRef.current && !cursorClickAnimationSelectorRef.current.contains(target)) {
+        setIsCursorClickAnimationMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCursorClickAnimationMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCursorClickAnimationMenuOpen]);
 
   useEffect(() => {
     if (!hasAutoSwitchedToReplay && execution.timeline && execution.timeline.length > 0) {
@@ -877,6 +1292,18 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
 
   const hasTimeline = replayFrames.length > 0;
 
+  const exportDialogTitleId = useId();
+  const exportDialogDescriptionId = useId();
+  const exportSummary = exportPreview?.package?.summary;
+  const exportStatusMessage = isExportPreviewLoading
+    ? 'Preparing replay data…'
+    : exportPreviewError ?? exportPreview?.message ?? 'Replay export ready';
+  const estimatedFrameCount = exportSummary?.frame_count ?? replayFrames.length;
+  const estimatedDurationSeconds = exportSummary?.total_duration_ms != null
+    ? exportSummary.total_duration_ms / 1000
+    : null;
+  const isCliFormat = exportFormat !== 'json';
+
   const timelineScreenshots = useMemo(() => {
     const frames = execution.timeline ?? [];
     const items: Screenshot[] = [];
@@ -916,6 +1343,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       hidden: [],
       halo: [],
       arrow: [],
+      hand: [],
     };
     for (const option of REPLAY_CURSOR_OPTIONS) {
       base[option.group].push(option);
@@ -951,6 +1379,13 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     );
   }, [replayCursorInitialPosition]);
 
+  const selectedCursorClickAnimationOption = useMemo<ClickAnimationOption>(() => {
+    return (
+      REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.find((option) => option.id === replayCursorClickAnimation) ||
+      REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS[0]
+    );
+  }, [replayCursorClickAnimation]);
+
   useEffect(() => {
     if (!isCustomizationCollapsed) {
       return;
@@ -958,6 +1393,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     setIsBackgroundMenuOpen(false);
     setIsCursorMenuOpen(false);
     setIsCursorPositionMenuOpen(false);
+    setIsCursorClickAnimationMenuOpen(false);
   }, [isCustomizationCollapsed]);
 
   const handleBackgroundSelect = useCallback(
@@ -976,6 +1412,11 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   const handleCursorPositionSelect = useCallback((value: ReplayCursorInitialPosition) => {
     setReplayCursorInitialPosition(value);
     setIsCursorPositionMenuOpen(false);
+  }, []);
+
+  const handleCursorClickAnimationSelect = useCallback((value: ReplayCursorClickAnimation) => {
+    setReplayCursorClickAnimation(value);
+    setIsCursorClickAnimationMenuOpen(false);
   }, []);
 
   const handleCursorScaleChange = useCallback((value: number) => {
@@ -1088,6 +1529,159 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     }
   }, [execution.id, loadExecution]);
 
+  const buildLocalReplayPackage = useCallback(() => ({
+    executionId: execution.id,
+    workflowId: execution.workflowId ?? null,
+    status: execution.status,
+    startedAt: execution.startedAt ?? null,
+    completedAt: execution.completedAt ?? null,
+    generatedAt: new Date().toISOString(),
+    chromeTheme: replayChromeTheme,
+    backgroundTheme: replayBackgroundTheme,
+    cursor: {
+      theme: replayCursorTheme,
+      initialPosition: replayCursorInitialPosition,
+      scale: replayCursorScale,
+      clickAnimation: replayCursorClickAnimation,
+    },
+    frames: replayFrames,
+  }), [
+    execution.completedAt,
+    execution.id,
+    execution.startedAt,
+    execution.status,
+    execution.workflowId,
+    replayBackgroundTheme,
+    replayChromeTheme,
+    replayCursorClickAnimation,
+    replayCursorInitialPosition,
+    replayCursorScale,
+    replayCursorTheme,
+    replayFrames,
+  ]);
+
+  const handleOpenExportDialog = useCallback(() => {
+    if (replayFrames.length === 0) {
+      toast.error('Replay not ready to export yet');
+      return;
+    }
+    setExportFormat('json');
+    setExportFileStem(defaultExportFileStem);
+    setUseNativeFilePicker(false);
+    setVideoOutputDirectory('~/Downloads');
+    setCopyInstructionsError(null);
+    setIsExportDialogOpen(true);
+  }, [defaultExportFileStem, replayFrames.length]);
+
+  const handleCloseExportDialog = useCallback(() => {
+    setIsExportDialogOpen(false);
+  }, []);
+
+  const handleConfirmExport = useCallback(async () => {
+    if (exportFormat !== 'json') {
+      if (cliInstructions.length === 0) {
+        toast.error('Export instructions are not ready yet');
+        return;
+      }
+      const instructionsText = cliInstructions.join('\n');
+      const clipboard = navigator?.clipboard;
+      if (clipboard && typeof clipboard.writeText === 'function') {
+        try {
+          await clipboard.writeText(instructionsText);
+          toast.success('CLI instructions copied to clipboard');
+          setCopyInstructionsError(null);
+          setIsExportDialogOpen(false);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Clipboard copy failed';
+          setCopyInstructionsError(`${message}. Copy the commands manually below.`);
+          toast.error('Unable to copy to clipboard. Copy manually below.');
+        }
+      } else {
+        setCopyInstructionsError('Clipboard access is unavailable. Copy the commands manually below.');
+        toast.error('Clipboard access is unavailable in this browser');
+      }
+      return;
+    }
+
+    if (replayFrames.length === 0) {
+      toast.error('Replay not ready to export yet');
+      return;
+    }
+
+    if (useNativeFilePicker && !supportsFileSystemAccess) {
+      toast.error('This browser does not support choosing a destination. Disable “Choose save location”.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const payload = exportPreview?.package ?? buildLocalReplayPackage();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+
+      if (useNativeFilePicker && supportsFileSystemAccess) {
+        try {
+          const picker = await (window as typeof window & {
+            showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
+          }).showSaveFilePicker?.({
+            suggestedName: finalFileName,
+            types: [
+              {
+                description: 'Replay export (JSON)',
+                accept: { 'application/json': ['.json'] },
+              },
+            ],
+          });
+          if (!picker) {
+            throw new Error('Unable to open save dialog');
+          }
+          const writable = await picker.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          toast.success('Replay export saved');
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            setIsExporting(false);
+            return;
+          }
+          const message = error instanceof Error ? error.message : 'Failed to save replay export';
+          toast.error(message);
+          setIsExporting(false);
+          return;
+        }
+      } else {
+        const url = URL.createObjectURL(blob);
+        try {
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = finalFileName;
+          document.body.appendChild(anchor);
+          anchor.click();
+          document.body.removeChild(anchor);
+          toast.success('Replay download started');
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+
+      setIsExportDialogOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to export replay';
+      toast.error(message);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [
+    buildLocalReplayPackage,
+    cliInstructions,
+    exportFormat,
+    exportPreview,
+    finalFileName,
+    replayFrames.length,
+    supportsFileSystemAccess,
+    toast,
+    useNativeFilePicker,
+  ]);
+
   const getStatusIcon = () => {
     switch (execution.status) {
       case 'running':
@@ -1160,6 +1754,18 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
             disabled={!canRestart || isRestarting || isStopping}
           >
             {isRestarting ? <Loader size={14} className="animate-spin" /> : <RotateCw size={14} />}
+          </button>
+          <button
+            className="toolbar-button p-1.5 disabled:text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={
+              replayFrames.length === 0
+                ? 'Replay not ready to export'
+                : 'Export replay'
+            }
+            onClick={handleOpenExportDialog}
+            disabled={replayFrames.length === 0}
+          >
+            <Download size={14} />
           </button>
           <button
             className="toolbar-button p-1.5 text-red-400 disabled:text-red-400/50 disabled:cursor-not-allowed"
@@ -1274,6 +1880,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                     <span>Chrome • {selectedChromeOption.label}</span>
                     <span>Background • {selectedBackgroundOption.label}</span>
                     <span>Cursor • {selectedCursorOption.label}</span>
+                    <span>Click • {selectedCursorClickAnimationOption.label}</span>
                   </div>
                 </div>
                 <button
@@ -1332,11 +1939,12 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                             ? 'border-flow-accent/70 bg-slate-900/80 text-white'
                             : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
                         )}
-                        onClick={() => {
-                          setIsBackgroundMenuOpen((open) => !open);
-                          setIsCursorMenuOpen(false);
-                          setIsCursorPositionMenuOpen(false);
-                        }}
+                          onClick={() => {
+                            setIsBackgroundMenuOpen((open) => !open);
+                            setIsCursorMenuOpen(false);
+                            setIsCursorPositionMenuOpen(false);
+                            setIsCursorClickAnimationMenuOpen(false);
+                          }}
                         aria-haspopup="menu"
                         aria-expanded={isBackgroundMenuOpen}
                       >
@@ -1428,7 +2036,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                       <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Cursor</span>
                       <span className="text-[11px] text-slate-500">Style the virtual pointer overlay</span>
                     </div>
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between">
                       <div ref={cursorSelectorRef} className="relative flex-1 min-w-[220px]">
                         <button
                           type="button"
@@ -1442,6 +2050,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                             setIsCursorMenuOpen((open) => !open);
                             setIsBackgroundMenuOpen(false);
                             setIsCursorPositionMenuOpen(false);
+                            setIsCursorClickAnimationMenuOpen(false);
                           }}
                           aria-haspopup="menu"
                           aria-expanded={isCursorMenuOpen}
@@ -1529,6 +2138,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                             setIsCursorPositionMenuOpen((open) => !open);
                             setIsBackgroundMenuOpen(false);
                             setIsCursorMenuOpen(false);
+                            setIsCursorClickAnimationMenuOpen(false);
                           }}
                           aria-haspopup="menu"
                           aria-expanded={isCursorPositionMenuOpen}
@@ -1578,6 +2188,85 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                           </div>
                         )}
                       </div>
+                      <div ref={cursorClickAnimationSelectorRef} className="relative flex flex-1 flex-col gap-2 lg:max-w-xs">
+                        <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Click animation</span>
+                        <button
+                          type="button"
+                          className={clsx(
+                            'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                            isCursorClickAnimationMenuOpen
+                              ? 'border-flow-accent/70 bg-slate-900/80 text-white'
+                              : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                          )}
+                          onClick={() => {
+                            setIsCursorClickAnimationMenuOpen((open) => !open);
+                            setIsCursorMenuOpen(false);
+                            setIsCursorPositionMenuOpen(false);
+                            setIsBackgroundMenuOpen(false);
+                          }}
+                          aria-haspopup="menu"
+                          aria-expanded={isCursorClickAnimationMenuOpen}
+                        >
+                          <span className="flex items-center gap-3">
+                            <span className="relative flex h-10 w-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-900/60">
+                              {selectedCursorClickAnimationOption.preview}
+                            </span>
+                            <span className="flex flex-col text-xs leading-tight text-slate-300">
+                              <span className="text-sm font-medium text-white">
+                                {selectedCursorClickAnimationOption.label}
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                {selectedCursorClickAnimationOption.subtitle}
+                              </span>
+                            </span>
+                          </span>
+                          <ChevronDown
+                            size={14}
+                            className={clsx(
+                              'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
+                              isCursorClickAnimationMenuOpen ? 'rotate-180 text-white' : '',
+                            )}
+                          />
+                        </button>
+                        {isCursorClickAnimationMenuOpen && (
+                          <div
+                            role="menu"
+                            className="absolute right-0 z-30 mt-2 w-full min-w-[220px] rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.55)] backdrop-blur"
+                          >
+                            <div className="space-y-1">
+                              {REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.map((option) => {
+                                const isActive = replayCursorClickAnimation === option.id;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    type="button"
+                                    role="menuitemradio"
+                                    aria-checked={isActive}
+                                    onClick={() => handleCursorClickAnimationSelect(option.id)}
+                                    className={clsx(
+                                      'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                      isActive
+                                        ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_32px_rgba(59,130,246,0.28)]'
+                                        : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                    )}
+                                  >
+                                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/70">
+                                      {option.preview}
+                                    </span>
+                                    <span className="flex flex-1 flex-col text-xs text-slate-300">
+                                      <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                                        <span>{option.label}</span>
+                                        {isActive && <Check size={14} className="text-flow-accent" />}
+                                      </span>
+                                      <span className="text-[11px] text-slate-400">{option.subtitle}</span>
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col gap-2">
                       <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Cursor size</span>
@@ -1600,7 +2289,9 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                       </span>
                     </div>
                   </div>
+
                 </div>
+
               )}
             </div>
             <ReplayPlayer
@@ -1611,6 +2302,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
               cursorTheme={replayCursorTheme}
               cursorInitialPosition={replayCursorInitialPosition}
               cursorScale={replayCursorScale}
+              cursorClickAnimation={replayCursorClickAnimation}
             />
           </div>
         ) : activeTab === 'screenshots' ? (
@@ -1718,6 +2410,285 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
           </div>
         )}
       </div>
+
+      <ResponsiveDialog
+        isOpen={isExportDialogOpen}
+        onDismiss={handleCloseExportDialog}
+        ariaLabelledBy={exportDialogTitleId}
+        size="wide"
+        overlayClassName="z-50"
+        className="bg-flow-node border border-gray-800 shadow-2xl max-h-[90vh] flex flex-col"
+      >
+        <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-flow-accent/15 text-flow-accent">
+              <Download size={18} />
+            </span>
+            <div>
+              <h2 id={exportDialogTitleId} className="text-lg font-semibold text-white">
+                Export replay
+              </h2>
+              <p id={exportDialogDescriptionId} className="text-sm text-gray-400">
+                Choose format, naming, and destination for execution #{execution.id.slice(0, 8)}.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCloseExportDialog}
+            className="rounded-full p-2 text-gray-400 transition hover:bg-white/5 hover:text-white"
+            aria-label="Close export dialog"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6" aria-describedby={exportDialogDescriptionId}>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Format</h3>
+                <p className="text-xs text-gray-400">Pick the export target that fits your workflow.</p>
+              </div>
+              <span className="text-[11px] uppercase tracking-[0.2em] text-gray-500">
+                {isCliFormat ? 'CLI-focused' : 'Direct download'}
+              </span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {EXPORT_FORMAT_OPTIONS.map((option) => {
+                const isSelected = option.id === exportFormat;
+                const Icon = option.icon;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setExportFormat(option.id)}
+                    className={clsx(
+                      'flex flex-col items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900',
+                      isSelected
+                        ? 'border-flow-accent/70 bg-flow-accent/20 text-white shadow-[0_20px_45px_rgba(59,130,246,0.25)]'
+                        : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                    )}
+                  >
+                    <span className="flex w-full items-center justify-between">
+                      <span className={clsx('flex h-10 w-10 items-center justify-center rounded-lg', isSelected ? 'bg-flow-accent/80 text-white' : 'bg-slate-900/70 text-flow-accent')}>
+                        <Icon size={18} />
+                      </span>
+                      {option.badge && (
+                        <span className={clsx(
+                          'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]',
+                          isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300',
+                        )}
+                        >
+                          {option.badge}
+                        </span>
+                      )}
+                    </span>
+                    <div>
+                      <div className="text-sm font-semibold">{option.label}</div>
+                      <div className="text-xs text-slate-400">{option.description}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">File name</h3>
+              <span className="text-xs text-gray-500">Extension follows format</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={exportFileStem}
+                onChange={(event) => setExportFileStem(event.target.value)}
+                className="flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+                placeholder={defaultExportFileStem}
+              />
+              <span className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-xs text-gray-300">
+                .{EXPORT_EXTENSIONS[exportFormat]}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">
+              Final file name: <code className="text-gray-300">{finalFileName}</code>
+            </p>
+          </section>
+
+          {exportFormat === 'json' ? (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Destination</h3>
+                {!supportsFileSystemAccess && (
+                  <span className="text-xs text-amber-400">Browser will download to defaults</span>
+                )}
+              </div>
+              <label className={clsx(
+                'flex items-center gap-3 rounded-lg border px-4 py-3 text-sm transition',
+                useNativeFilePicker && supportsFileSystemAccess
+                  ? 'border-flow-accent/60 bg-flow-accent/10 text-white'
+                  : 'border-white/10 bg-slate-900/60 text-slate-300',
+                !supportsFileSystemAccess && 'opacity-60',
+              )}>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-white/20 bg-slate-900 text-flow-accent focus:ring-flow-accent"
+                  checked={useNativeFilePicker && supportsFileSystemAccess}
+                  onChange={(event) => setUseNativeFilePicker(event.target.checked)}
+                  disabled={!supportsFileSystemAccess}
+                />
+                <div className="flex flex-col">
+                  <span className="font-medium">
+                    {supportsFileSystemAccess ? 'Choose save location on export' : 'Use browser default download folder'}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {supportsFileSystemAccess
+                      ? 'Open your OS save dialog to pick the destination each time.'
+                      : 'Your browser will download using its configured destination.'}
+                  </span>
+                </div>
+              </label>
+            </section>
+          ) : (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Output path</h3>
+                <span className="text-xs text-gray-500">Used in CLI instructions</span>
+              </div>
+              <input
+                type="text"
+                value={videoOutputDirectory}
+                onChange={(event) => setVideoOutputDirectory(event.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+                placeholder="~/Downloads"
+              />
+              <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+                Target output: <code className="text-gray-100">{buildOutputPath(EXPORT_EXTENSIONS[exportFormat])}</code>
+              </div>
+            </section>
+          )}
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">Replay summary</h3>
+              <span className="text-xs text-gray-500">{execution.status}</span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2">
+                <div className="text-xs text-gray-400">Frames</div>
+                <div className="text-lg font-semibold text-white">{estimatedFrameCount}</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2">
+                <div className="text-xs text-gray-400">Duration</div>
+                <div className="text-lg font-semibold text-white">
+                  {estimatedDurationSeconds != null ? formatSeconds(estimatedDurationSeconds) : '—'}
+                </div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2">
+                <div className="text-xs text-gray-400">Status</div>
+                <div className="text-sm text-slate-300">{exportStatusMessage}</div>
+              </div>
+            </div>
+          </section>
+
+          {isCliFormat && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">CLI steps</h3>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (cliInstructions.length === 0) {
+                      toast.error('Instructions are not ready yet');
+                      return;
+                    }
+                    const text = cliInstructions.join('\n');
+                    const clipboard = navigator?.clipboard;
+                    if (clipboard && typeof clipboard.writeText === 'function') {
+                      try {
+                        await clipboard.writeText(text);
+                        toast.success('CLI instructions copied');
+                        setCopyInstructionsError(null);
+                      } catch (error) {
+                        const message = error instanceof Error ? error.message : 'Clipboard copy failed';
+                        setCopyInstructionsError(`${message}. Copy manually below.`);
+                        toast.error('Unable to copy to clipboard. Copy manually below.');
+                      }
+                    } else {
+                      setCopyInstructionsError('Clipboard access is unavailable. Copy manually below.');
+                      toast.error('Clipboard access is unavailable in this browser');
+                    }
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-white/15 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-flow-accent/40 hover:text-white"
+                >
+                  <Copy size={14} /> Copy steps
+                </button>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-slate-950/70 p-3">
+                <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-slate-200">
+                  <code>
+                    {cliInstructions.length > 0
+                      ? cliInstructions.join('\n')
+                      : '# CLI instructions appear here when a format is selected'}
+                  </code>
+                </pre>
+              </div>
+              {copyInstructionsError && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  {copyInstructionsError}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-gray-800 bg-flow-bg/60 px-6 py-4">
+          <div className="text-xs text-gray-400">
+            {exportFormat === 'json'
+              ? 'Exports the replay package with chosen theming so tooling can recreate animations.'
+              : 'Run these commands from the scenario root to generate marketing-ready assets.'}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCloseExportDialog}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm text-gray-300 transition hover:border-white/20 hover:text-white"
+              disabled={isExporting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmExport}
+              className={clsx(
+                'flex items-center gap-2 rounded-lg bg-flow-accent px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60',
+                exportFormat !== 'json' && 'bg-gradient-to-r from-flow-accent to-sky-500',
+              )}
+              disabled={exportFormat === 'json' ? (isExporting || isExportPreviewLoading) : cliInstructions.length === 0}
+            >
+              {exportFormat === 'json' ? (
+                isExporting || isExportPreviewLoading ? (
+                  <>
+                    <Loader size={16} className="animate-spin" />
+                    {isExportPreviewLoading ? 'Preparing…' : 'Exporting…'}
+                  </>
+                ) : (
+                  <>
+                    <FolderOutput size={16} />
+                    Export replay
+                  </>
+                )
+              ) : (
+                <>
+                  <Copy size={16} />
+                  Copy CLI steps
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </ResponsiveDialog>
     </div>
   );
 }

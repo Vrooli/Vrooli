@@ -487,87 +487,14 @@ style_references:
 
 ### Declarative Test Specification
 
-```yaml
-version: 1.0
-scenario: recommendation-engine
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/recommendation-engine
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/storage/qdrant/collections.json
-    - ui/index.html
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/storage
-    - ui
-
-resources:
-  required: [postgres, qdrant]
-  optional: [redis]
-  health_timeout: 60
-
-tests:
-  - name: "PostgreSQL is accessible"
-    type: http
-    service: postgres
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Qdrant is accessible"
-    type: http
-    service: qdrant
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "API ingestion endpoint works"
-    type: http
-    service: api
-    endpoint: /api/v1/recommendations/ingest
-    method: POST
-    body:
-      scenario_id: "test-scenario"
-      items: [
-        {
-          external_id: "test-item-1",
-          title: "Test Item",
-          description: "A test item for validation",
-          category: "test"
-        }
-      ]
-    expect:
-      status: 200
-      body:
-        success: true
-        
-  - name: "CLI recommendation command works"
-    type: exec
-    command: ./cli/recommendation-engine recommend test-user test-scenario
-    expect:
-      exit_code: 0
-      output_contains: ["recommendations"]
-      
-  - name: "Database schema initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('users', 'items', 'user_interactions')"
-    expect:
-      rows: 
-        - count: 3
-```
+- **Phased testing** is orchestrated by `test/run-tests.sh`, which drives the shared runner to execute scenario-specific phases:
+  - `test/phases/test-structure.sh` validates required files, directories, and service configuration.
+  - `test/phases/test-dependencies.sh` confirms resource CLIs and runtime prerequisites are healthy.
+  - `test/phases/test-unit.sh` runs Go unit tests through `testing::unit::run_all_tests` with coverage reporting.
+  - `test/phases/test-integration.sh` exercises ingest/recommend/similar endpoints against live PostgreSQL and Qdrant instances.
+  - `test/phases/test-business.sh` validates multi-algorithm recommendation workflows and data life-cycle behaviour.
+  - `test/phases/test-performance.sh` captures baseline response time metrics and highlights regressions.
+- Lifecycle `make test` / `vrooli scenario test recommendation-engine` delegate to the phased suite so CI and local workflows stay aligned.
 
 ### Performance Validation
 - [ ] API response times consistently under 100ms for recommendations

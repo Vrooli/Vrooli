@@ -1,0 +1,13 @@
+{
+  "status": "healthy",
+  "service": "react-component-library-ui",
+  "timestamp": "2025-11-01T19:52:35.424Z",
+  "readiness": true,
+  "api_connectivity": {
+    "connected": true,
+    "api_url": "http://localhost:15092",
+    "last_check": "2025-11-01T19:52:35.424Z",
+    "latency_ms": 2908,
+    "error": null
+  }
+}

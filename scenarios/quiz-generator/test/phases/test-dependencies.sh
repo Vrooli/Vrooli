@@ -1,83 +1,93 @@
 #!/bin/bash
-# Dependency testing phase for quiz-generator scenario
-# Validates all required and optional dependencies
-
+# Dependency validation for quiz-generator scenario
 set -euo pipefail
 
-# Determine APP_ROOT
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-
-# Source required libraries
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Initialize phase with target time
 testing::phase::init --target-time "60s"
 
-# Change to scenario directory
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "🔗 Testing Quiz Generator Dependencies..."
-echo ""
+check_resource() {
+  local label="$1"
+  local status_cmd="$2"
+  local required="$3"
 
-# Required dependencies
-DEPENDENCIES_OK=true
+  if eval "$status_cmd" >/dev/null 2>&1; then
+    log::success "✅ ${label} available"
+    testing::phase::add_test passed
+    return 0
+  fi
 
-# Test 1: PostgreSQL
-echo "Test 1: PostgreSQL (required)"
-if resource-postgres status &>/dev/null; then
-  echo "✅ PostgreSQL is running"
+  if [ "$required" = "true" ]; then
+    testing::phase::add_error "${label} unavailable"
+    testing::phase::add_test failed
+  else
+    testing::phase::add_warning "${label} unavailable (optional)"
+    testing::phase::add_test skipped
+  fi
+  return 1
+}
+
+if command -v resource-postgres >/dev/null 2>&1; then
+  check_resource "PostgreSQL resource" "resource-postgres status" true
 else
-  echo "❌ PostgreSQL is not running"
-  DEPENDENCIES_OK=false
+  testing::phase::add_warning "resource-postgres helper not found; skipping direct status check"
+  testing::phase::add_test skipped
 fi
 
-# Test 2: Ollama
-echo "Test 2: Ollama (required for AI generation)"
-if resource-ollama status &>/dev/null; then
-  echo "✅ Ollama is running"
+if command -v resource-ollama >/dev/null 2>&1; then
+  check_resource "Ollama resource" "resource-ollama status" true
 else
-  echo "⚠️  Ollama is not running (AI generation will fail)"
+  testing::phase::add_warning "resource-ollama helper not found; skipping direct status check"
+  testing::phase::add_test skipped
 fi
 
-# Optional dependencies
-echo ""
-echo "Optional Dependencies:"
-
-# Test 3: Redis
-echo "Test 3: Redis (optional - caching)"
-if resource-redis status &>/dev/null; then
-  echo "✅ Redis is available"
-else
-  echo "ℹ️  Redis not available (using in-memory cache)"
+if command -v resource-redis >/dev/null 2>&1; then
+  check_resource "Redis cache" "resource-redis status" false
 fi
 
-# Test 4: Qdrant
-echo "Test 4: Qdrant (optional - semantic search)"
-if resource-qdrant status &>/dev/null; then
-  echo "✅ Qdrant is available"
-else
-  echo "ℹ️  Qdrant not available (using PostgreSQL full-text search)"
+if command -v resource-qdrant >/dev/null 2>&1; then
+  check_resource "Qdrant vector store" "resource-qdrant status" false
 fi
 
-# Test 5: Database schema
-echo ""
-echo "Test 5: Database schema validation"
-SCHEMA_CHECK=$(resource-postgres query "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='quiz_generator' AND table_name IN ('quizzes', 'questions', 'quiz_results')" 2>/dev/null || echo "0")
-
-if echo "$SCHEMA_CHECK" | grep -q "3"; then
-  echo "✅ Database schema is initialized"
+if command -v go >/dev/null 2>&1; then
+  if testing::phase::check "Go module graph" bash -c 'cd api && go list ./... >/dev/null'; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_test failed
+  fi
 else
-  echo "❌ Database schema is incomplete"
-  DEPENDENCIES_OK=false
+  testing::phase::add_warning "Go toolchain not installed; skipping module check"
+  testing::phase::add_test skipped
 fi
 
-echo ""
-if [ "$DEPENDENCIES_OK" = true ]; then
-  echo "✅ All required dependencies are satisfied"
-  testing::phase::end_with_summary "Dependency tests passed"
+if command -v npm >/dev/null 2>&1; then
+  if testing::phase::check "UI dependency install --dry-run" bash -c 'cd ui && npm install --dry-run >/dev/null'; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_test failed
+  fi
 else
-  echo "❌ Some required dependencies are missing"
-  testing::phase::end_with_summary "Dependency tests failed"
-  exit 1
+  testing::phase::add_warning "npm not installed; skipping UI dependency check"
+  testing::phase::add_test skipped
 fi
+
+if command -v resource-postgres >/dev/null 2>&1; then
+  SCHEMA_RAW=$(resource-postgres query "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='quiz_generator' AND table_name IN ('quizzes','questions','quiz_results');" 2>/dev/null || echo "0")
+  SCHEMA_COUNT=$(printf '%s' "$SCHEMA_RAW" | tr -cd '0-9' || echo "0")
+  if [ "$SCHEMA_COUNT" = "3" ]; then
+    log::success "✅ Quiz schema tables present"
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Quiz schema tables missing (found ${SCHEMA_COUNT:-0})"
+    testing::phase::add_test failed
+  fi
+else
+  testing::phase::add_warning "resource-postgres helper not available; skipping schema validation"
+  testing::phase::add_test skipped
+fi
+
+testing::phase::end_with_summary "Dependency validation completed"

@@ -167,7 +167,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o travel-map-api .",
+          "run": "cd api && go mod download && go build -o travel-map-filler-api .",
           "description": "Build Go API binary"
         },
         {
@@ -182,7 +182,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Travel Map Filler initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${PORT} - CLI: travel-map --help'",
+          "run": "echo 'Travel Map Filler initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: travel-map --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -207,36 +207,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Travel Map Filler running - UI: http://localhost:${UI_PORT} - API: http://localhost:${PORT} - CLI: travel-map --help'",
+          "run": "echo 'Travel Map Filler running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: travel-map --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test Travel Map Filler API and CLI",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-travels-endpoint",
-          "run": "curl -sf http://localhost:$PORT/api/travels",
-          "description": "Test API travels endpoint"
-        },
-        {
-          "name": "test-cli-help",
-          "run": "travel-map --help",
-          "description": "Test CLI help command"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario tests"
         }
       ]
     },

@@ -390,7 +390,7 @@ structure:
     - cli/retro-game-launcher
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - scenario-test.yaml
+    - test/run-tests.sh
 
 tests:
   - name: "API health check"

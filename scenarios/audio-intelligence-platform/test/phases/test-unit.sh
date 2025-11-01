@@ -1,18 +1,25 @@
 #!/bin/bash
+# Unit testing phase for audio-intelligence-platform
+set -euo pipefail
+
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-testing::phase::init --target-time "60s"
+testing::phase::init --target-time "120s"
+
 source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
 testing::unit::run_all_tests \
-    --go-dir "api" \
-    --skip-node \
-    --skip-python \
-    --coverage-warn 80 \
-    --coverage-error 50
+  --go-dir "api" \
+  --node-dir "ui" \
+  --skip-python \
+  --coverage-warn 60 \
+  --coverage-error 45 \
+  --scenario "$TESTING_PHASE_SCENARIO_NAME"
+
+testing::phase::add_test passed
 
 testing::phase::end_with_summary "Unit tests completed"

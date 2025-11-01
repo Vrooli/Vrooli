@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"os/exec"
 	"time"
@@ -11,9 +12,9 @@ import (
 )
 
 type HealthHandler struct {
-	db *sql.DB
+	db        *sql.DB
 	startTime time.Time
-	metrics *APIMetrics
+	metrics   *APIMetrics
 }
 
 type APIMetrics struct {
@@ -29,7 +30,7 @@ type APIMetrics struct {
 
 func NewHealthHandler(db *sql.DB) *HealthHandler {
 	return &HealthHandler{
-		db: db,
+		db:        db,
 		startTime: time.Now(),
 		metrics: &APIMetrics{
 			ResponseTimes: make(map[string]float64),
@@ -40,22 +41,48 @@ func NewHealthHandler(db *sql.DB) *HealthHandler {
 
 // HealthCheck handles GET /health
 func (h *HealthHandler) HealthCheck(c *gin.Context) {
+	now := time.Now()
 	status := models.HealthStatus{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Uptime:    time.Since(h.startTime).String(),
-		Resources: make(map[string]string),
+		Status:        "healthy",
+		Service:       "react-component-library-api",
+		Timestamp:     now,
+		Readiness:     true,
+		Version:       "1.0.0",
+		UptimeSeconds: time.Since(h.startTime).Seconds(),
+		Dependencies:  make(map[string]models.DependencyStatus),
+		Resources:     make(map[string]string),
 	}
 
+	notes := []string{}
+
 	// Check database connection
+	dbStart := time.Now()
 	if err := h.db.Ping(); err != nil {
 		status.Status = "unhealthy"
-		status.Database = "failed: " + err.Error()
+		status.Readiness = false
+		notes = append(notes, "Database connectivity failure")
+		status.Dependencies["postgres"] = models.DependencyStatus{
+			Connected: false,
+			Error: &models.HealthError{
+				Code:      "DB_PING_FAILED",
+				Message:   err.Error(),
+				Category:  "resource",
+				Retryable: true,
+				Details: map[string]interface{}{
+					"endpoint": "Ping",
+				},
+			},
+		}
+		status.Resources["postgres"] = "unavailable"
 		c.JSON(http.StatusServiceUnavailable, status)
 		return
 	}
-	status.Database = "connected"
+	latency := float64(time.Since(dbStart).Milliseconds())
+	status.Dependencies["postgres"] = models.DependencyStatus{
+		Connected: true,
+		LatencyMs: &latency,
+	}
+	status.Resources["postgres"] = "connected"
 
 	// Check required resources
 	resources := []struct {
@@ -69,11 +96,23 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 
 	for _, resource := range resources {
 		if err := exec.Command("sh", "-c", resource.command).Run(); err != nil {
+			status.Dependencies[resource.name] = models.DependencyStatus{
+				Connected: false,
+				Error: &models.HealthError{
+					Code:      "RESOURCE_UNAVAILABLE",
+					Message:   err.Error(),
+					Category:  "resource",
+					Retryable: true,
+					Details:   map[string]interface{}{"check": resource.command},
+				},
+			}
 			status.Resources[resource.name] = "unavailable"
 			if status.Status == "healthy" {
-				status.Status = "degraded" // Don't fail entirely if optional resources are down
+				status.Status = "degraded"
+				notes = append(notes, fmt.Sprintf("%s unavailable", resource.name))
 			}
 		} else {
+			status.Dependencies[resource.name] = models.DependencyStatus{Connected: true}
 			status.Resources[resource.name] = "available"
 		}
 	}
@@ -89,10 +128,25 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 
 	for _, resource := range optionalResources {
 		if err := exec.Command("sh", "-c", resource.command).Run(); err != nil {
+			status.Dependencies[resource.name] = models.DependencyStatus{
+				Connected: false,
+				Error: &models.HealthError{
+					Code:      "RESOURCE_UNAVAILABLE",
+					Message:   err.Error(),
+					Category:  "resource",
+					Retryable: true,
+					Details:   map[string]interface{}{"check": resource.command, "optional": true},
+				},
+			}
 			status.Resources[resource.name] = "unavailable (optional)"
 		} else {
+			status.Dependencies[resource.name] = models.DependencyStatus{Connected: true}
 			status.Resources[resource.name] = "available"
 		}
+	}
+
+	if len(notes) > 0 {
+		status.StatusNotes = notes
 	}
 
 	// Return appropriate status code
@@ -109,7 +163,7 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 func (h *HealthHandler) Metrics(c *gin.Context) {
 	// Get database metrics
 	var componentCount, testCount, exportCount int64
-	
+
 	// Component metrics
 	h.db.QueryRow("SELECT COUNT(*) FROM components WHERE is_active = true").Scan(&componentCount)
 	h.db.QueryRow("SELECT COUNT(*) FROM test_results WHERE tested_at > NOW() - INTERVAL '24 hours'").Scan(&testCount)
@@ -124,14 +178,14 @@ func (h *HealthHandler) Metrics(c *gin.Context) {
 		AIGenerations:         h.metrics.AIGenerations,
 		ComponentExports:      h.metrics.ComponentExports,
 		ResponseTimes: map[string]float64{
-			"component_create": 150.5,
-			"component_search": 45.2,
+			"component_create":   150.5,
+			"component_search":   45.2,
 			"accessibility_test": 2500.0,
-			"ai_generation": 8000.0,
+			"ai_generation":      8000.0,
 		},
 		ErrorRates: map[string]float64{
-			"api_errors": 0.1,
-			"test_failures": 5.2,
+			"api_errors":          0.1,
+			"test_failures":       5.2,
 			"generation_failures": 2.8,
 		},
 	}

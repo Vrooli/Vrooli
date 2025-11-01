@@ -5,12 +5,11 @@
 CREATE SCHEMA IF NOT EXISTS react_component_library;
 SET search_path TO react_component_library;
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Components table
 CREATE TABLE IF NOT EXISTS components (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     category VARCHAR(50) NOT NULL,
     description TEXT NOT NULL,
@@ -38,7 +37,7 @@ CREATE TABLE IF NOT EXISTS components (
 
 -- Component versions table
 CREATE TABLE IF NOT EXISTS component_versions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     component_id UUID NOT NULL REFERENCES components(id) ON DELETE CASCADE,
     version VARCHAR(20) NOT NULL,
     code TEXT NOT NULL,
@@ -53,7 +52,7 @@ CREATE TABLE IF NOT EXISTS component_versions (
 
 -- Test results table
 CREATE TABLE IF NOT EXISTS test_results (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     component_id UUID NOT NULL REFERENCES components(id) ON DELETE CASCADE,
     test_type VARCHAR(50) NOT NULL,
     results JSONB NOT NULL,
@@ -69,7 +68,7 @@ CREATE TABLE IF NOT EXISTS test_results (
 
 -- Usage analytics table
 CREATE TABLE IF NOT EXISTS usage_analytics (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     component_id UUID NOT NULL REFERENCES components(id) ON DELETE CASCADE,
     scenario VARCHAR(100),
     context VARCHAR(100),
@@ -83,7 +82,7 @@ CREATE TABLE IF NOT EXISTS usage_analytics (
 
 -- AI generation logs table
 CREATE TABLE IF NOT EXISTS ai_generation_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     request_prompt TEXT NOT NULL,
     response_code TEXT,
     component_name VARCHAR(100),
@@ -98,7 +97,7 @@ CREATE TABLE IF NOT EXISTS ai_generation_logs (
 
 -- Component favorites/bookmarks (for future user system)
 CREATE TABLE IF NOT EXISTS component_favorites (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     component_id UUID NOT NULL REFERENCES components(id) ON DELETE CASCADE,
     user_id VARCHAR(100) NOT NULL, -- For future user system
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -109,7 +108,7 @@ CREATE TABLE IF NOT EXISTS component_favorites (
 
 -- Component ratings/reviews (for future marketplace features)
 CREATE TABLE IF NOT EXISTS component_reviews (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     component_id UUID NOT NULL REFERENCES components(id) ON DELETE CASCADE,
     user_id VARCHAR(100) NOT NULL, -- For future user system
     rating INTEGER NOT NULL,
@@ -147,11 +146,6 @@ CREATE INDEX IF NOT EXISTS idx_ai_generation_logs_created_at ON ai_generation_lo
 CREATE INDEX IF NOT EXISTS idx_ai_generation_logs_success ON ai_generation_logs(success);
 CREATE INDEX IF NOT EXISTS idx_ai_generation_logs_component_id ON ai_generation_logs(component_id);
 
--- Full-text search indexes
-CREATE INDEX IF NOT EXISTS idx_components_search ON components USING GIN(
-    to_tsvector('english', name || ' ' || description || ' ' || array_to_string(tags, ' '))
-);
-
 -- Triggers for updating timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -161,10 +155,12 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_components_updated_at ON components;
 CREATE TRIGGER update_components_updated_at 
     BEFORE UPDATE ON components 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_component_reviews_updated_at ON component_reviews;
 CREATE TRIGGER update_component_reviews_updated_at 
     BEFORE UPDATE ON component_reviews 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

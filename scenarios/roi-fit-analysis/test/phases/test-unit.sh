@@ -1,6 +1,5 @@
 #!/bin/bash
-# Unit test phase for roi-fit-analysis
-# This script integrates with Vrooli's centralized testing infrastructure
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"

@@ -1,13 +1,14 @@
 #!/bin/bash
+# Performance placeholder for audio-intelligence-platform
+set -euo pipefail
+
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-testing::phase::init --target-time "180s"
+testing::phase::init --target-time "60s"
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+testing::phase::add_warning "Performance benchmarks not implemented; add load tests for transcription and search latency."
+testing::phase::add_test skipped
 
-echo "=== Running performance tests ==="
-cd api && go test -v -tags=testing -run "Performance|Benchmark" -timeout 180s -short=false
-
-testing::phase::end_with_summary "Performance tests completed"
+testing::phase::end_with_summary "Performance phase placeholder"

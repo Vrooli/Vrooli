@@ -23,16 +23,16 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Text Tools API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Text Tools UI port",
-       "range": "35000-39999"
-     }
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Text Tools API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Text Tools UI port",
+      "range": "35000-39999"
+    }
   },
   "resources": {
     "postgres": {
@@ -121,16 +121,18 @@
       "description": "Initialize Text Tools platform",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/text-tools-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["text-tools"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/text-tools-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "text-tools"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -170,7 +172,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Text Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
+          "run": "echo '\ud83d\ude80 Text Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
           "description": "Display service access URLs"
         }
       ]
@@ -178,15 +180,15 @@
     "develop": {
       "description": "Start Text Tools services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./text-tools-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/text-tools-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./text-tools-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/text-tools-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev",
@@ -196,43 +198,20 @@
             "file_exists": "ui/package.json"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
-           "description": "Display running service URLs and examples"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
+          "description": "Display running service URLs and examples"
+        }
       ]
     },
     "test": {
-      "description": "Test Text Tools platform",
+      "description": "Comprehensive phased testing using modern testing architecture",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go test ./...",
-          "description": "Run Go unit tests"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health || exit 1",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-diff-endpoint",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/text/diff -H 'Content-Type: application/json' -d '{\"text1\":\"hello\",\"text2\":\"world\"}' || exit 1",
-          "description": "Test diff endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats text-tools.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/text-tools.bats"
-          }
-        },
-        {
-          "name": "test-ui-build",
-          "run": "cd ui && npm run build",
-          "description": "Test UI production build"
+          "name": "run-comprehensive-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased test suite"
         }
       ]
     },

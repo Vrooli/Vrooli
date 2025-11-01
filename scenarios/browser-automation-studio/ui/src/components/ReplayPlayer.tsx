@@ -154,7 +154,9 @@ export type ReplayCursorTheme =
   | 'aura'
   | 'arrowLight'
   | 'arrowDark'
-  | 'arrowNeon';
+  | 'arrowNeon'
+  | 'handNeutral'
+  | 'handAura';
 export type ReplayCursorInitialPosition =
   | 'center'
   | 'top-left'
@@ -162,6 +164,8 @@ export type ReplayCursorInitialPosition =
   | 'bottom-left'
   | 'bottom-right'
   | 'random';
+
+export type ReplayCursorClickAnimation = 'none' | 'pulse' | 'ripple';
 
 interface ReplayPlayerProps {
   frames: ReplayFrame[];
@@ -174,6 +178,7 @@ interface ReplayPlayerProps {
   cursorTheme?: ReplayCursorTheme;
   cursorInitialPosition?: ReplayCursorInitialPosition;
   cursorScale?: number;
+  cursorClickAnimation?: ReplayCursorClickAnimation;
 }
 
 const DEFAULT_DURATION = 1600;
@@ -198,6 +203,31 @@ const CURSOR_PATH_STYLE_OPTIONS: Array<{ id: CursorPathStyle; label: string; des
   { id: 'cubic', label: 'Cubic', description: 'Smooth S-curve with a gentle overshoot' },
   { id: 'pseudorandom', label: 'Pseudorandom', description: 'Organic path generated from deterministic random waypoints' },
 ];
+
+const FALLBACK_CLICK_COLOR: [string, string, string] = ['59', '130', '246'];
+
+const parseRgbaComponents = (value: string | undefined): [string, string, string] | null => {
+  if (!value) {
+    return null;
+  }
+  const match = value.match(/rgba?\(([^)]+)\)/i);
+  if (!match) {
+    return null;
+  }
+  const parts = match[1]
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length < 3) {
+    return null;
+  }
+  return [parts[0], parts[1], parts[2]];
+};
+
+const rgbaWithAlpha = (components: [string, string, string] | null, alpha: number) => {
+  const [r, g, b] = components ?? FALLBACK_CLICK_COLOR;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -831,9 +861,6 @@ const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => 
 type CursorDecor = {
   wrapperClass?: string;
   wrapperStyle?: CSSProperties;
-  showPing: boolean;
-  pingClass?: string;
-  pingStyle?: CSSProperties;
   renderBase: ReactNode | null;
   trailColor: string;
   trailWidth: number;
@@ -845,8 +872,6 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
   const buildHalo = (config: {
     wrapperClass?: string;
     wrapperStyle?: CSSProperties;
-    pingClass: string;
-    pingStyle?: CSSProperties;
     baseClass: string;
     baseStyle?: CSSProperties;
     dotClass?: string;
@@ -857,9 +882,6 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
   }): CursorDecor => ({
     wrapperClass: config.wrapperClass,
     wrapperStyle: config.wrapperStyle,
-    showPing: true,
-    pingClass: config.pingClass,
-    pingStyle: config.pingStyle,
     renderBase: (
       <span className={config.baseClass} style={config.baseStyle}>
         {config.showDot === false || !config.dotClass ? null : (
@@ -874,7 +896,6 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
   switch (theme) {
     case 'black':
       return buildHalo({
-        pingClass: 'absolute h-8 w-8 animate-ping rounded-full border border-black/40 bg-black/10',
         baseClass:
           'relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-black bg-slate-900 shadow-[0_10px_28px_rgba(15,23,42,0.55)]',
         dotClass: 'h-2 w-2 rounded-full bg-white/80',
@@ -884,11 +905,6 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
     case 'aura':
       return buildHalo({
         wrapperClass: 'drop-shadow-[0_18px_45px_rgba(14,165,233,0.45)]',
-        pingClass: 'absolute h-12 w-12 animate-ping rounded-full border-2 border-cyan-300/35',
-        pingStyle: {
-          background:
-            'radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(14,116,144,0.08) 60%, transparent 80%)',
-        },
         baseClass:
           'relative z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-cyan-200/80 bg-gradient-to-br from-sky-400 via-emerald-300 to-violet-400 shadow-[0_14px_38px_rgba(56,189,248,0.45)]',
         showDot: false,
@@ -897,14 +913,12 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
       });
     case 'disabled':
       return {
-        showPing: false,
         renderBase: null,
         trailColor: 'rgba(0,0,0,0)',
         trailWidth: 0,
       };
     case 'arrowLight':
       return {
-        showPing: false,
         wrapperClass: 'drop-shadow-[0_18px_32px_rgba(15,23,42,0.55)]',
         renderBase: (
           <span className="relative inline-flex h-8 w-8 items-center justify-center text-white">
@@ -926,7 +940,6 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
       };
     case 'arrowDark':
       return {
-        showPing: false,
         wrapperClass: 'drop-shadow-[0_20px_40px_rgba(15,23,42,0.6)]',
         renderBase: (
           <span className="relative inline-flex h-8 w-8 items-center justify-center text-white">
@@ -948,13 +961,7 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
       };
     case 'arrowNeon':
       return {
-        showPing: true,
         wrapperClass: 'drop-shadow-[0_22px_52px_rgba(59,130,246,0.55)]',
-        pingClass: 'absolute h-12 w-12 animate-ping rounded-full border-2 border-cyan-200/40',
-        pingStyle: {
-          background:
-            'radial-gradient(circle at 50% 50%, rgba(56,189,248,0.25) 0%, rgba(56,189,248,0.08) 55%, transparent 80%)',
-        },
         renderBase: (
           <span className="relative inline-flex h-8 w-8 items-center justify-center text-white">
             <svg viewBox="0 0 32 32" className="h-8 w-8">
@@ -981,10 +988,65 @@ const buildCursorDecor = (theme: ReplayCursorTheme): CursorDecor => {
         offset: { x: 8, y: 10 },
         transformOrigin: '18% 12%',
       };
+    case 'handAura':
+      return {
+        wrapperClass: 'drop-shadow-[0_20px_48px_rgba(56,189,248,0.4)]',
+        renderBase: (
+          <span className="relative inline-flex h-8 w-8 items-center justify-center">
+            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none">
+              <defs>
+                <linearGradient id="replay-hand-gradient" x1="10%" y1="10%" x2="80%" y2="80%">
+                  <stop offset="0%" stopColor="#38bdf8" />
+                  <stop offset="55%" stopColor="#34d399" />
+                  <stop offset="100%" stopColor="#a855f7" />
+                </linearGradient>
+              </defs>
+              <g stroke="url(#replay-hand-gradient)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 14a8 8 0 0 1-8 8" />
+                <path d="M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+                <path d="M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1" />
+                <path d="M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10" />
+                <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+              </g>
+              <circle
+                cx={18.5}
+                cy={12.5}
+                r={3.8}
+                fill="url(#replay-hand-gradient)"
+                opacity={0.12}
+              />
+            </svg>
+          </span>
+        ),
+        trailColor: 'rgba(56,189,248,0.72)',
+        trailWidth: 1.3,
+        offset: { x: 6, y: 12 },
+        transformOrigin: '46% 18%',
+      };
+    case 'handNeutral':
+      return {
+        wrapperClass: 'drop-shadow-[0_16px_36px_rgba(15,23,42,0.55)]',
+        renderBase: (
+          <span className="relative inline-flex h-8 w-8 items-center justify-center">
+            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none">
+              <g stroke="rgba(241,245,249,0.92)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 14a8 8 0 0 1-8 8" />
+                <path d="M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+                <path d="M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1" />
+                <path d="M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10" />
+                <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+              </g>
+            </svg>
+          </span>
+        ),
+        trailColor: 'rgba(148,163,184,0.75)',
+        trailWidth: 1.2,
+        offset: { x: 6, y: 12 },
+        transformOrigin: '46% 18%',
+      };
     case 'white':
     default:
       return buildHalo({
-        pingClass: 'absolute h-10 w-10 animate-ping rounded-full border border-white/35',
         baseClass:
           'relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/90 bg-white/85 shadow-[0_12px_32px_rgba(148,163,184,0.45)]',
         dotClass: 'h-1.5 w-1.5 rounded-full bg-slate-500/60',
@@ -1090,6 +1152,7 @@ export function ReplayPlayer({
   cursorTheme = 'white',
   cursorInitialPosition = 'center',
   cursorScale = 1,
+  cursorClickAnimation = 'none',
 }: ReplayPlayerProps) {
   const normalizedFrames = useMemo(() => {
     return frames
@@ -1109,6 +1172,7 @@ export function ReplayPlayer({
   const [cursorOverrides, setCursorOverrides] = useState<CursorOverrideMap>({});
   const randomSeedsRef = useRef<Record<string, NormalizedPoint>>({});
   const [cursorPosition, setCursorPosition] = useState<ReplayPoint | undefined>(undefined);
+  const [activeClickEffect, setActiveClickEffect] = useState<{ frameId: string; key: number } | null>(null);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<{ frameId: string; pointerId: number } | null>(null);
   const backgroundDecor = useMemo(
@@ -1331,6 +1395,52 @@ export function ReplayPlayer({
 
   // Compute current frame safely (use index 0 as fallback for empty arrays to satisfy hooks)
   const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
+
+  const currentFrameId = currentFrame?.id;
+  const currentStepType = currentFrame?.stepType;
+  const currentClickPosition = currentFrame?.clickPosition;
+
+  useEffect(() => {
+    if (cursorClickAnimation === 'none' || !isCursorEnabled || !currentFrameId) {
+      if (activeClickEffect !== null) {
+        setActiveClickEffect(null);
+      }
+      return;
+    }
+    const indicatesClick = Boolean(
+      (currentClickPosition &&
+        typeof currentClickPosition.x === 'number' &&
+        typeof currentClickPosition.y === 'number') ||
+        (typeof currentStepType === 'string' && currentStepType.toLowerCase().includes('click')),
+    );
+    if (!indicatesClick) {
+      return;
+    }
+    if (frameProgress === 0) {
+      setActiveClickEffect({ frameId: currentFrameId, key: Date.now() });
+    }
+  }, [
+    activeClickEffect,
+    cursorClickAnimation,
+    currentClickPosition?.x,
+    currentClickPosition?.y,
+    currentFrameId,
+    currentStepType,
+    frameProgress,
+    isCursorEnabled,
+  ]);
+
+  useEffect(() => {
+    if (!activeClickEffect) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setActiveClickEffect((prev) => (prev && prev.key === activeClickEffect.key ? null : prev));
+    }, cursorClickAnimation === 'ripple' ? 750 : 620);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [activeClickEffect, cursorClickAnimation]);
 
   const headerTitle = currentFrame
     ? currentFrame.finalUrl || currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`
@@ -1604,7 +1714,7 @@ export function ReplayPlayer({
     setDragState(null);
   };
 
-  const isDraggingCursor = dragState?.frameId === currentFrame?.id;
+  const isDraggingCursor = dragState?.frameId === currentFrameId;
 
   const currentOverride = currentCursorPlan ? cursorOverrides[currentCursorPlan.frameId] : undefined;
   const effectiveSpeedProfile = currentCursorPlan?.speedProfile ?? DEFAULT_SPEED_PROFILE;
@@ -1615,6 +1725,49 @@ export function ReplayPlayer({
   const selectedPathStyle = currentOverride?.pathStyle ?? DEFAULT_PATH_STYLE;
   const usingRecordedTrail = currentCursorPlan?.hasRecordedTrail ?? false;
   const pathStyleOption = CURSOR_PATH_STYLE_OPTIONS.find((option) => option.id === selectedPathStyle) ?? CURSOR_PATH_STYLE_OPTIONS[0];
+
+  const isClickEffectActive = Boolean(
+    cursorClickAnimation !== 'none' &&
+      isCursorEnabled &&
+      activeClickEffect &&
+      currentFrameId &&
+      activeClickEffect.frameId === currentFrameId,
+  );
+
+  let clickEffectElement: ReactNode = null;
+  if (isClickEffectActive && activeClickEffect) {
+    const rgbaComponents = parseRgbaComponents(cursorDecor.trailColor);
+    const strokeColor =
+      cursorClickAnimation === 'pulse'
+        ? rgbaWithAlpha(rgbaComponents, 0.82)
+        : rgbaWithAlpha(rgbaComponents, 0.68);
+    const haloColor = rgbaWithAlpha(rgbaComponents, cursorClickAnimation === 'pulse' ? 0.18 : 0.12);
+
+    if (cursorClickAnimation === 'pulse') {
+      clickEffectElement = (
+        <span
+          key={activeClickEffect.key}
+          className="pointer-events-none absolute -inset-3 rounded-full border-2 cursor-click-pulse"
+          style={{
+            borderColor: strokeColor,
+            backgroundColor: rgbaWithAlpha(rgbaComponents, 0.22),
+            boxShadow: `0 0 0 0.35rem ${haloColor}`,
+          }}
+        />
+      );
+    } else if (cursorClickAnimation === 'ripple') {
+      clickEffectElement = (
+        <span
+          key={activeClickEffect.key}
+          className="pointer-events-none absolute -inset-4 rounded-full border cursor-click-ripple"
+          style={{
+            borderColor: strokeColor,
+            boxShadow: `0 0 0 0.45rem ${haloColor}`,
+          }}
+        />
+      );
+    }
+  }
 
   const handleResetSpeedProfile = () => {
     if (!currentCursorPlan) {
@@ -1775,7 +1928,7 @@ export function ReplayPlayer({
                       <div
                         role="presentation"
                         className={clsx(
-                          'absolute transition-all duration-500 ease-out pointer-events-auto select-none',
+                          'absolute transition-all duration-500 ease-out pointer-events-auto select-none relative',
                           cursorDecor.wrapperClass,
                           isDraggingCursor ? 'cursor-grabbing' : 'cursor-grab',
                         )}
@@ -1790,12 +1943,7 @@ export function ReplayPlayer({
                           }
                         }}
                       >
-                        {cursorDecor.showPing && cursorDecor.pingClass && (
-                          <span
-                            className={cursorDecor.pingClass}
-                            style={cursorDecor.pingStyle}
-                          />
-                        )}
+                        {clickEffectElement}
                         {cursorDecor.renderBase}
                       </div>
                     )}

@@ -61,8 +61,8 @@ cd cli && ./install.sh
 ```
 
 ### Access Points
-- **Web Interface**: http://localhost:31012
-- **API Documentation**: http://localhost:8090/api/docs
+- **Web Interface**: http://localhost:36092
+- **API Documentation**: http://localhost:15092/api/docs
 - **CLI Help**: `react-component-library --help`
 
 ## 💻 Usage
@@ -101,15 +101,15 @@ react-component-library status --verbose
 Other scenarios can programmatically access components:
 ```bash
 # Search for components
-curl "http://localhost:8090/api/v1/components/search?query=button"
+curl "http://localhost:15092/api/v1/components/search?query=button"
 
 # Generate new component
-curl -X POST http://localhost:8090/api/v1/components/generate \
+curl -X POST http://localhost:15092/api/v1/components/generate \
   -H "Content-Type: application/json" \
   -d '{"description": "modal dialog with backdrop", "accessibility_level": "AA"}'
 
 # Run tests on component  
-curl -X POST http://localhost:8090/api/v1/components/{id}/test \
+curl -X POST http://localhost:15092/api/v1/components/{id}/test \
   -H "Content-Type: application/json" \
   -d '{"test_types": ["accessibility", "performance"]}'
 ```
@@ -297,8 +297,8 @@ Key endpoints:
 ### Getting Help
 - Check component library status: `react-component-library status`
 - View logs: `vrooli scenario logs react-component-library`
-- API health: `curl http://localhost:8090/health`
-- Web interface: http://localhost:31012
+- API health: `curl http://localhost:15092/health`
+- Web interface: http://localhost:36092
 
 ---
 

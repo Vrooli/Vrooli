@@ -9,36 +9,36 @@ import (
 
 // Component represents a React component in the library
 type Component struct {
-	ID                  uuid.UUID              `json:"id" db:"id"`
-	Name                string                 `json:"name" db:"name" validate:"required,min=1,max=100"`
-	Category            string                 `json:"category" db:"category" validate:"required"`
-	Description         string                 `json:"description" db:"description" validate:"required,min=10,max=1000"`
-	Code                string                 `json:"code" db:"code" validate:"required"`
-	PropsSchema         json.RawMessage        `json:"props_schema" db:"props_schema"`
-	CreatedAt           time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt           time.Time              `json:"updated_at" db:"updated_at"`
-	Version             string                 `json:"version" db:"version"`
-	Author              string                 `json:"author" db:"author"`
-	UsageCount          int                    `json:"usage_count" db:"usage_count"`
-	AccessibilityScore  *float64               `json:"accessibility_score" db:"accessibility_score"`
-	PerformanceMetrics  json.RawMessage        `json:"performance_metrics" db:"performance_metrics"`
-	Tags                []string               `json:"tags" db:"tags"`
-	IsActive            bool                   `json:"is_active" db:"is_active"`
-	Dependencies        []string               `json:"dependencies" db:"dependencies"`
-	Screenshots         []string               `json:"screenshots" db:"screenshots"`
-	ExampleUsage        string                 `json:"example_usage" db:"example_usage"`
+	ID                 uuid.UUID       `json:"id" db:"id"`
+	Name               string          `json:"name" db:"name" validate:"required,min=1,max=100"`
+	Category           string          `json:"category" db:"category" validate:"required"`
+	Description        string          `json:"description" db:"description" validate:"required,min=10,max=1000"`
+	Code               string          `json:"code" db:"code" validate:"required"`
+	PropsSchema        json.RawMessage `json:"props_schema" db:"props_schema"`
+	CreatedAt          time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at" db:"updated_at"`
+	Version            string          `json:"version" db:"version"`
+	Author             string          `json:"author" db:"author"`
+	UsageCount         int             `json:"usage_count" db:"usage_count"`
+	AccessibilityScore *float64        `json:"accessibility_score" db:"accessibility_score"`
+	PerformanceMetrics json.RawMessage `json:"performance_metrics" db:"performance_metrics"`
+	Tags               []string        `json:"tags" db:"tags"`
+	IsActive           bool            `json:"is_active" db:"is_active"`
+	Dependencies       []string        `json:"dependencies" db:"dependencies"`
+	Screenshots        []string        `json:"screenshots" db:"screenshots"`
+	ExampleUsage       string          `json:"example_usage" db:"example_usage"`
 }
 
 // ComponentVersion represents a version of a component
 type ComponentVersion struct {
-	ID              uuid.UUID   `json:"id" db:"id"`
-	ComponentID     uuid.UUID   `json:"component_id" db:"component_id"`
-	Version         string      `json:"version" db:"version"`
-	Code            string      `json:"code" db:"code"`
-	Changelog       string      `json:"changelog" db:"changelog"`
-	BreakingChanges []string    `json:"breaking_changes" db:"breaking_changes"`
-	Deprecated      bool        `json:"deprecated" db:"deprecated"`
-	CreatedAt       time.Time   `json:"created_at" db:"created_at"`
+	ID              uuid.UUID `json:"id" db:"id"`
+	ComponentID     uuid.UUID `json:"component_id" db:"component_id"`
+	Version         string    `json:"version" db:"version"`
+	Code            string    `json:"code" db:"code"`
+	Changelog       string    `json:"changelog" db:"changelog"`
+	BreakingChanges []string  `json:"breaking_changes" db:"breaking_changes"`
+	Deprecated      bool      `json:"deprecated" db:"deprecated"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 
 // TestResult represents the result of component testing
@@ -94,12 +94,12 @@ type ComponentSearchResponse struct {
 
 // ComponentGenerationRequest represents an AI generation request
 type ComponentGenerationRequest struct {
-	Description        string            `json:"description" validate:"required,min=10,max=1000"`
-	Requirements       []string          `json:"requirements,omitempty"`
-	StylePreferences   map[string]string `json:"style_preferences,omitempty"`
+	Description        string             `json:"description" validate:"required,min=10,max=1000"`
+	Requirements       []string           `json:"requirements,omitempty"`
+	StylePreferences   map[string]string  `json:"style_preferences,omitempty"`
 	AccessibilityLevel AccessibilityLevel `json:"accessibility_level,omitempty"`
-	Category           string            `json:"category,omitempty"`
-	Dependencies       []string          `json:"dependencies,omitempty"`
+	Category           string             `json:"category,omitempty"`
+	Dependencies       []string           `json:"dependencies,omitempty"`
 }
 
 // ComponentGenerationResponse represents an AI generation response
@@ -154,13 +154,13 @@ const (
 
 // ComponentExportResponse represents an export response
 type ComponentExportResponse struct {
-	ExportURL        string            `json:"export_url,omitempty"`
-	Code             string            `json:"code,omitempty"`
-	Dependencies     []string          `json:"dependencies"`
-	UsageInstructions string           `json:"usage_instructions"`
-	ExportType       ExportFormat      `json:"export_type"`
-	FileSize         int64             `json:"file_size,omitempty"`
-	Metadata         map[string]string `json:"metadata,omitempty"`
+	ExportURL         string            `json:"export_url,omitempty"`
+	Code              string            `json:"code,omitempty"`
+	Dependencies      []string          `json:"dependencies"`
+	UsageInstructions string            `json:"usage_instructions"`
+	ExportType        ExportFormat      `json:"export_type"`
+	FileSize          int64             `json:"file_size,omitempty"`
+	Metadata          map[string]string `json:"metadata,omitempty"`
 }
 
 // ComponentImprovementRequest represents an improvement request
@@ -197,25 +197,43 @@ type ImprovementSuggestion struct {
 	Effort      string           `json:"effort"`
 }
 
-// HealthStatus represents the API health status
+// HealthStatus represents the API health status aligned with platform schema
 type HealthStatus struct {
-	Status      string            `json:"status"`
-	Timestamp   time.Time         `json:"timestamp"`
-	Version     string            `json:"version"`
-	Database    string            `json:"database"`
-	Resources   map[string]string `json:"resources"`
-	Uptime      string            `json:"uptime"`
-	RequestsTotal int64           `json:"requests_total,omitempty"`
+	Status        string                      `json:"status"`
+	Service       string                      `json:"service"`
+	Timestamp     time.Time                   `json:"timestamp"`
+	Readiness     bool                        `json:"readiness"`
+	Version       string                      `json:"version"`
+	UptimeSeconds float64                     `json:"uptime_seconds"`
+	StatusNotes   []string                    `json:"status_notes,omitempty"`
+	Dependencies  map[string]DependencyStatus `json:"dependencies,omitempty"`
+	Resources     map[string]string           `json:"resources,omitempty"`
+}
+
+// DependencyStatus describes the health of a downstream dependency
+type DependencyStatus struct {
+	Connected bool         `json:"connected"`
+	LatencyMs *float64     `json:"latency_ms,omitempty"`
+	Error     *HealthError `json:"error,omitempty"`
+}
+
+// HealthError conveys structured error information for dependencies
+type HealthError struct {
+	Code      string                 `json:"code"`
+	Message   string                 `json:"message"`
+	Category  string                 `json:"category"`
+	Retryable bool                   `json:"retryable"`
+	Details   map[string]interface{} `json:"details,omitempty"`
 }
 
 // APIMetrics represents API metrics
 type APIMetrics struct {
-	ComponentCreations    int64             `json:"component_creations"`
-	SearchQueries         int64             `json:"search_queries"`
-	AccessibilityTests    int64             `json:"accessibility_tests"`
-	PerformanceBenchmarks int64             `json:"performance_benchmarks"`
-	AIGenerations         int64             `json:"ai_generations"`
-	ComponentExports      int64             `json:"component_exports"`
+	ComponentCreations    int64              `json:"component_creations"`
+	SearchQueries         int64              `json:"search_queries"`
+	AccessibilityTests    int64              `json:"accessibility_tests"`
+	PerformanceBenchmarks int64              `json:"performance_benchmarks"`
+	AIGenerations         int64              `json:"ai_generations"`
+	ComponentExports      int64              `json:"component_exports"`
 	ResponseTimes         map[string]float64 `json:"avg_response_times_ms"`
 	ErrorRates            map[string]float64 `json:"error_rates"`
 }

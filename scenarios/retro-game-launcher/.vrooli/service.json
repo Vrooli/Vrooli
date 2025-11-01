@@ -92,16 +92,18 @@
       "description": "Initialize Retro Game Launcher",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "retro-game-launcher-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["retro-game-launcher"]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "retro-game-launcher-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "retro-game-launcher"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -142,7 +144,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '\ud83d\ude80 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -170,7 +172,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '\ud83d\ude80 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -226,5 +228,15 @@
         }
       ]
     }
+  },
+  "test": {
+    "description": "Phased scenario test suite",
+    "steps": [
+      {
+        "name": "run-phased-tests",
+        "run": "test/run-tests.sh",
+        "description": "Execute phased scenario testing"
+      }
+    ]
   }
 }

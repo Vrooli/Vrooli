@@ -129,9 +129,6 @@ importers:
 
 packages:
 
-  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
-    resolution: {directory: ../../../packages/iframe-bridge, type: directory}
-
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
@@ -2440,6 +2437,9 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.1.0-beta.0
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
+    resolution: {directory: ../../../packages/iframe-bridge, type: directory}
 
   '@webassemblyjs/ast@1.14.1':
     resolution: {integrity: sha512-nuBEDgQfm1ccRp/8bCQrx1frohyufl4JlbMMZ4P1wpeOfDhF6FQkxZJ1b/e+PLwr6X1Nhw6OLme5usuBWYBvuQ==}
@@ -7631,8 +7631,6 @@ packages:
 
 snapshots:
 
-  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
-
   '@adobe/css-tools@4.4.4': {}
 
   '@alloc/quick-lru@5.2.0': {}
@@ -10624,6 +10622,8 @@ snapshots:
       vite: 4.5.14(@types/node@16.18.126)(terser@5.44.0)
     transitivePeerDependencies:
       - supports-color
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
   '@webassemblyjs/ast@1.14.1':
     dependencies:

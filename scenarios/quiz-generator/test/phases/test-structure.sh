@@ -1,28 +1,15 @@
 #!/bin/bash
-# Structure testing phase for quiz-generator scenario
-# Validates file structure and configuration
-
+# Structure validation for quiz-generator scenario
 set -euo pipefail
 
-# Determine APP_ROOT
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-
-# Source required libraries
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Initialize phase with target time
 testing::phase::init --target-time "30s"
 
-# Change to scenario directory
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "📁 Testing Quiz Generator Structure..."
-echo ""
-
-STRUCTURE_OK=true
-
-# Required files
 REQUIRED_FILES=(
   ".vrooli/service.json"
   "PRD.md"
@@ -38,19 +25,6 @@ REQUIRED_FILES=(
   "test/run-tests.sh"
 )
 
-echo "Checking required files..."
-for file in "${REQUIRED_FILES[@]}"; do
-  if [ -f "$file" ]; then
-    echo "✅ $file"
-  else
-    echo "❌ Missing: $file"
-    STRUCTURE_OK=false
-  fi
-done
-
-# Required directories
-echo ""
-echo "Checking required directories..."
 REQUIRED_DIRS=(
   "api"
   "cli"
@@ -61,57 +35,56 @@ REQUIRED_DIRS=(
   "test/phases"
 )
 
-for dir in "${REQUIRED_DIRS[@]}"; do
-  if [ -d "$dir" ]; then
-    echo "✅ $dir/"
+if testing::phase::check_files "${REQUIRED_FILES[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+if testing::phase::check_directories "${REQUIRED_DIRS[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+if command -v jq >/dev/null 2>&1; then
+  if testing::phase::check "service.json is valid" jq empty .vrooli/service.json; then
+    testing::phase::add_test passed
   else
-    echo "❌ Missing: $dir/"
-    STRUCTURE_OK=false
+    testing::phase::add_test failed
   fi
-done
-
-# Validate service.json
-echo ""
-echo "Validating service.json..."
-if jq . .vrooli/service.json >/dev/null 2>&1; then
-  echo "✅ service.json is valid JSON"
-
-  # Check required fields
-  if jq -e '.service.name' .vrooli/service.json >/dev/null 2>&1; then
-    echo "✅ service.name is present"
+  if testing::phase::check "service.name present" jq -e '.service.name' .vrooli/service.json; then
+    testing::phase::add_test passed
   else
-    echo "❌ service.name is missing"
-    STRUCTURE_OK=false
+    testing::phase::add_test failed
   fi
 else
-  echo "❌ service.json is invalid"
-  STRUCTURE_OK=false
+  testing::phase::add_warning "jq not available; skipping service.json validation"
+  testing::phase::add_test skipped
 fi
 
-# Validate API binary
-echo ""
-echo "Checking API binary..."
-if [ -f "api/quiz-generator-api" ] && [ -x "api/quiz-generator-api" ]; then
-  echo "✅ API binary exists and is executable"
+if testing::phase::check "CLI binary present" test -f "cli/quiz-generator"; then
+  testing::phase::add_test passed
 else
-  echo "⚠️  API binary not found (may need to run setup)"
+  testing::phase::add_test failed
 fi
 
-# Validate CLI
-echo ""
-echo "Checking CLI installation..."
-if command -v quiz-generator &>/dev/null; then
-  echo "✅ CLI is installed globally"
+if testing::phase::check "API binary executable" test -x "api/quiz-generator-api"; then
+  testing::phase::add_test passed
 else
-  echo "⚠️  CLI not installed globally (may need to run cli/install.sh)"
+  testing::phase::add_warning "API binary missing or not executable; run setup to build"
+  testing::phase::add_test skipped
 fi
 
-echo ""
-if [ "$STRUCTURE_OK" = true ]; then
-  echo "✅ All structure requirements met"
-  testing::phase::end_with_summary "Structure tests passed"
+if command -v quiz-generator >/dev/null 2>&1; then
+  if testing::phase::check "CLI --help command" quiz-generator --help >/dev/null; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_test failed
+  fi
 else
-  echo "❌ Some structure requirements are missing"
-  testing::phase::end_with_summary "Structure tests failed"
-  exit 1
+  testing::phase::add_warning "quiz-generator CLI not on PATH"
+  testing::phase::add_test skipped
 fi
+
+testing::phase::end_with_summary "Structure validation completed"

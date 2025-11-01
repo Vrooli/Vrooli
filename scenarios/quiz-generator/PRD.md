@@ -574,7 +574,10 @@ structure:
     - initialization/automation/n8n/quiz-generator-ai.json
     - ui/package.json
     - ui/src/main.tsx
-    - scenario-test.yaml
+    - test/run-tests.sh
+    - test/phases/test-structure.sh
+    - test/phases/test-dependencies.sh
+    - test/phases/test-unit.sh
     
   required_dirs:
     - api

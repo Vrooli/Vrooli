@@ -410,7 +410,7 @@ discovery:
 
 **Identified Gaps (Not Blocking):**
 - ⚠️ Unit tests are placeholder only (api/main.go has no *_test.go coverage)
-- ⚠️ Legacy scenario-test.yaml should migrate to phased testing architecture
+- ✅ Phased testing architecture adopted via shared runner (replaces legacy scenario-test.yaml)
 - ℹ️ n8n workflows exist but are optional (n8n resource not required to be running)
 
 **Overall Status:** Production-ready with minor technical debt. Core functionality complete and validated.
@@ -597,7 +597,7 @@ vrooli resource browserless screenshot --scenario qr-code-generator
 
 **Technical Debt (Non-Blocking):**
 - Test coverage at 58.3% (target: 80%+) - functionality fully verified
-- Legacy scenario-test.yaml file (phased tests already in use)
+- Legacy scenario-test.yaml removed; phased test suite now authoritative
 - Legacy cli/qr-code-generator placeholder (active CLI is qr-generator)
 
 **Overall Status:** Production-ready with excellent quality. All P0 requirements verified working. Configuration now accurately reflects optional resource dependencies. No functional issues. Documentation comprehensive and accurate. Ready for deployment and integration with other scenarios.

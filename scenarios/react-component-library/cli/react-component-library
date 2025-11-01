@@ -6,7 +6,8 @@
 set -e
 
 # Configuration
-API_BASE_URL="${API_BASE_URL:-http://localhost:8090}"
+API_BASE_URL="${API_BASE_URL:-http://localhost:15092}"
+UI_BASE_URL="${UI_BASE_URL:-http://localhost:36092}"
 CLI_NAME="react-component-library"
 CLI_VERSION="1.0.0"
 
@@ -83,7 +84,7 @@ ${YELLOW}EXAMPLES:${NC}
     ${CLI_NAME} export Button --format npm-package
 
 ${YELLOW}DOCUMENTATION:${NC}
-    For more information, visit: http://localhost:31012
+    For more information, visit: ${UI_BASE_URL}
 
 EOF
 }
@@ -105,9 +106,40 @@ show_status() {
     
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --json) json_output=true; shift ;;
-            --verbose) verbose=true; shift ;;
-            *) shift ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --help)
+                cat << EOF
+${CYAN}Status${NC}
+
+Display service health for the React Component Library
+
+${YELLOW}USAGE:${NC}
+    ${CLI_NAME} status [--json] [--verbose]
+
+${YELLOW}OPTIONS:${NC}
+    --json       Output raw JSON response
+    --verbose    Show detailed JSON alongside summary status
+
+EOF
+                return 0
+                ;;
+            -* )
+                log_error "Unknown option for status: $1"
+                log_info "Usage: ${CLI_NAME} status [--json] [--verbose]"
+                return 1
+                ;;
+            * )
+                log_error "Unexpected argument for status command: $1"
+                log_info "Usage: ${CLI_NAME} status [--json] [--verbose]"
+                return 1
+                ;;
         esac
     done
 
@@ -223,7 +255,7 @@ EOF
         if [[ "$component_id" != "unknown" && "$component_id" != "null" ]]; then
             log_success "Component '$name' created successfully!"
             log_info "Component ID: $component_id"
-            log_info "View at: http://localhost:31012/component/$component_id"
+            log_info "View at: ${UI_BASE_URL}/component/$component_id"
         else
             log_error "Failed to create component"
             echo "$response" | jq '.' 2>/dev/null || echo "$response"
@@ -246,6 +278,12 @@ test_component() {
     
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --all)
+                accessibility=true
+                performance=true
+                visual=true
+                shift
+                ;;
             --accessibility) accessibility=true; shift ;;
             --performance) performance=true; shift ;;
             --visual) visual=true; shift ;;
@@ -306,12 +344,12 @@ EOF
         log_info "Testing component: $component"
         # This would require a search/lookup first in a real implementation
         log_warn "Specific component testing not fully implemented in CLI yet"
-        log_info "Please use the web interface at http://localhost:31012"
+        log_info "Please use the web interface at ${UI_BASE_URL}"
     else
         # Test all components
         log_info "Running tests on all components"
         log_warn "Bulk testing not implemented in CLI yet"
-        log_info "Please use the web interface at http://localhost:31012"
+        log_info "Please use the web interface at ${UI_BASE_URL}"
     fi
 }
 
@@ -496,7 +534,7 @@ main() {
         "generate") shift; generate_component "$@" ;;
         "export"|"improve")
             log_warn "Command '$1' is not yet implemented in CLI"
-            log_info "Please use the web interface at http://localhost:31012"
+            log_info "Please use the web interface at ${UI_BASE_URL}"
             ;;
         *)
             log_error "Unknown command: $1"

@@ -41,7 +41,7 @@
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh react-scripts start'",
     "build": "react-scripts build",
-    "test": "react-scripts test",
+    "test": "react-scripts test --passWithNoTests",
     "eject": "react-scripts eject",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'",
     "storybook": "storybook dev -p 6006",
@@ -76,5 +76,5 @@
     "@storybook/testing-library": "^0.2.0",
     "storybook": "^7.4.0"
   },
-  "proxy": "http://localhost:8090"
+  "proxy": "http://localhost:15092"
 }

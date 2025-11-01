@@ -1,56 +1,40 @@
 #!/bin/bash
-# Integration test phase for retro-game-launcher
-# Tests end-to-end workflows and external service integration
+# Runs build-level and domain validation checks that stitch multiple components together.
 
 set -euo pipefail
 
-# Get app root (4 levels up from this script)
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-
-# Source required utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Initialize test phase
-testing::phase::init --target-time "120s"
+testing::phase::init --target-time "150s"
 
-# Change to scenario directory
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-testing::phase::log_info "Running integration tests..."
+TEMP_BUILD="$(mktemp -t retro-api-build-XXXXXX)"
+cleanup_build() {
+  rm -f "$TEMP_BUILD"
+}
+testing::phase::register_cleanup cleanup_build
 
-# Run Go integration tests
-if [[ -d "api" ]]; then
-    cd api
-
-    testing::phase::log_info "Running Go API integration tests..."
-
-    # Check if integration tests exist
-    if go list -tags=testing ./... 2>/dev/null | grep -q .; then
-        # Run integration tests with coverage
-        if go test -tags=testing -v -run "TestCheck|TestGenerate|Integration" -timeout 120s 2>&1; then
-            testing::phase::log_success "Go integration tests passed"
-        else
-            testing::phase::log_warning "Some integration tests failed (may be environment-dependent)"
-        fi
-    else
-        testing::phase::log_warning "No Go integration tests found"
-    fi
-
-    cd ..
+if command -v go >/dev/null 2>&1 && [ -f "api/main.go" ]; then
+  testing::phase::check "Go API builds" bash -c "cd api && go build -o '$TEMP_BUILD' main.go"
+else
+  testing::phase::add_warning "Skipping Go build check (toolchain or source missing)"
+  testing::phase::add_test skipped
 fi
 
-# Test API health check (if running)
-if command -v curl &> /dev/null; then
-    API_PORT="${API_PORT:-8080}"
-    testing::phase::log_info "Checking API health endpoint..."
+testing::phase::check "CLI exposes help output" bash -c 'cd cli && ./retro-game-launcher --help >/dev/null'
 
-    if curl -sf "http://localhost:${API_PORT}/health" &> /dev/null; then
-        testing::phase::log_success "API health check passed"
-    else
-        testing::phase::log_info "API not running (expected in test environment)"
-    fi
+testing::phase::check "Seed SQL includes game fixtures" grep -q "Neon Snake" initialization/storage/postgres/seed.sql
+
+testing::phase::check "Seed SQL defines prompt_templates" grep -q "prompt_templates" initialization/storage/postgres/seed.sql
+
+if [ -d "ui/src" ]; then
+  testing::phase::check "UI source contains App entry" bash -c 'cd ui && find src -maxdepth 1 -name "App.*" | grep -q .'
+else
+  testing::phase::add_warning "UI source directory missing"
+  testing::phase::add_test skipped
 fi
 
-# End test phase with summary
-testing::phase::end_with_summary "Integration tests completed"
+testing::phase::end_with_summary "Integration validation completed"

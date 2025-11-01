@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import './styles/index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
@@ -9,21 +8,35 @@ const BRIDGE_STATE_KEY = '__reactComponentLibraryBridgeInitialized';
 
 if (typeof window !== 'undefined' && window.parent !== window) {
   const globalWindow = window as typeof window & {
-    __reactComponentLibraryBridgeInitialized?: boolean;
+    [BRIDGE_STATE_KEY]?: boolean;
   };
 
-  if (!globalWindow.__reactComponentLibraryBridgeInitialized) {
-    let parentOrigin: string | undefined;
-    try {
-      if (document.referrer) {
-        parentOrigin = new URL(document.referrer).origin;
+  if (!globalWindow[BRIDGE_STATE_KEY]) {
+    const initializeBridge = async () => {
+      let parentOrigin: string | undefined;
+      try {
+        if (document.referrer) {
+          parentOrigin = new URL(document.referrer).origin;
+        }
+      } catch (error) {
+        console.warn('[ReactComponentLibrary] Unable to determine parent origin for iframe bridge', error);
       }
-    } catch (error) {
-      console.warn('[ReactComponentLibrary] Unable to determine parent origin for iframe bridge', error);
-    }
 
-    initIframeBridgeChild({ parentOrigin, appId: 'react-component-library' });
-    globalWindow.__reactComponentLibraryBridgeInitialized = true;
+      try {
+        const { initIframeBridgeChild } = await import('@vrooli/iframe-bridge/child');
+        initIframeBridgeChild({
+          parentOrigin,
+          appId: 'react-component-library',
+          captureLogs: { enabled: true, streaming: true },
+          captureNetwork: { enabled: true, streaming: true },
+        });
+        globalWindow[BRIDGE_STATE_KEY] = true;
+      } catch (error) {
+        console.error('[ReactComponentLibrary] Failed to initialize iframe bridge', error);
+      }
+    };
+
+    void initializeBridge();
   }
 }
 

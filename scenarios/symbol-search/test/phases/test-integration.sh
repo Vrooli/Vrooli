@@ -1,105 +1,67 @@
 #!/bin/bash
-# Integration testing phase for symbol-search scenario
+# Integration testing phase for the symbol-search scenario
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-testing::phase::init --target-time "120s"
+testing::phase::init --target-time "180s" --require-runtime
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+SCENARIO_NAME="${TESTING_PHASE_SCENARIO_NAME}"
+API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME" || true)
 
-echo "Running integration tests for symbol-search..."
-
-# Test database connectivity
-echo "Checking database connectivity..."
-if [ -z "$POSTGRES_URL" ]; then
-    echo "❌ POSTGRES_URL not set - integration tests require database"
-    exit 1
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL for $SCENARIO_NAME"
+  testing::phase::end_with_summary "Integration checks incomplete"
 fi
 
-# Test API endpoints
-echo "Testing API endpoints..."
-API_PORT="${API_PORT:-8080}"
-API_URL="http://localhost:${API_PORT}"
-
-# Wait for API to be ready
-max_wait=30
-waited=0
-while [ $waited -lt $max_wait ]; do
-    if curl -s "${API_URL}/health" > /dev/null 2>&1; then
-        echo "✅ API is ready"
-        break
+wait_for_endpoint() {
+  local url="$1"
+  local retries=30
+  while [ $retries -gt 0 ]; do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      return 0
     fi
     sleep 1
-    waited=$((waited + 1))
-done
+    retries=$((retries - 1))
+  done
+  return 1
+}
 
-if [ $waited -eq $max_wait ]; then
-    echo "❌ API did not become ready within ${max_wait}s"
-    exit 1
-fi
-
-# Test health endpoint
-echo "Testing /health endpoint..."
-response=$(curl -s "${API_URL}/health")
-if echo "$response" | grep -q '"status":"healthy"'; then
-    echo "✅ Health check passed"
+if wait_for_endpoint "${API_URL}/health"; then
+  testing::phase::add_test passed
 else
-    echo "❌ Health check failed: $response"
-    exit 1
+  testing::phase::add_error "API did not become healthy within timeout"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Integration checks incomplete"
 fi
 
-# Test search endpoint
-echo "Testing /api/search endpoint..."
-response=$(curl -s "${API_URL}/api/search?q=LATIN&limit=10")
-if echo "$response" | grep -q '"characters"'; then
-    echo "✅ Search endpoint passed"
+USE_JQ=true
+if ! command -v jq >/dev/null 2>&1; then
+  USE_JQ=false
+  testing::phase::add_warning "jq not available; falling back to simple string checks"
+  testing::phase::add_test skipped
+fi
+
+if [ "$USE_JQ" = true ]; then
+  testing::phase::check "Health endpoint reports healthy" bash -c "curl -sf '${API_URL}/health' | jq -e '.status==\"healthy\"' >/dev/null"
+  testing::phase::check "Search endpoint returns characters" bash -c "curl -sf '${API_URL}/api/search?q=LATIN&limit=5' | jq -e '.characters | length > 0' >/dev/null"
+  testing::phase::check "Category-filtered search returns results" bash -c "curl -sf '${API_URL}/api/search?category=So&limit=3' | jq -e '.characters | length > 0' >/dev/null"
+  testing::phase::check "Categories endpoint returns array" bash -c "curl -sf '${API_URL}/api/categories' | jq -e '.categories | length > 0' >/dev/null"
+  testing::phase::check "Blocks endpoint returns array" bash -c "curl -sf '${API_URL}/api/blocks' | jq -e '.blocks | length > 0' >/dev/null"
+  testing::phase::check "Character detail endpoint resolves U+0041" bash -c "curl -sf '${API_URL}/api/character/U+0041' | jq -e '.character.codepoint == \"U+0041\"' >/dev/null"
+  testing::phase::check "Bulk range endpoint returns symbols" bash -c "curl -sf -X POST '${API_URL}/api/bulk/range' -H 'Content-Type: application/json' -d '{\"ranges\":[{\"start\":\"U+0041\",\"end\":\"U+005A\"}]}' | jq -e '.characters | length > 0' >/dev/null"
+  testing::phase::check "Health endpoint reports database connected" bash -c "curl -sf '${API_URL}/health' | jq -e '.database==\"connected\"' >/dev/null"
 else
-    echo "❌ Search endpoint failed: $response"
-    exit 1
+  testing::phase::check "Health endpoint responds" curl -sf "${API_URL}/health"
+  testing::phase::check "Search endpoint returns payload" bash -c "curl -sf '${API_URL}/api/search?q=LATIN&limit=5' | grep -qi 'characters'"
+  testing::phase::check "Category-filtered search returns payload" bash -c "curl -sf '${API_URL}/api/search?category=So&limit=3' | grep -qi 'characters'"
+  testing::phase::check "Categories endpoint returns payload" bash -c "curl -sf '${API_URL}/api/categories' | grep -qi 'categories'"
+  testing::phase::check "Blocks endpoint returns payload" bash -c "curl -sf '${API_URL}/api/blocks' | grep -qi 'blocks'"
+  testing::phase::check "Character detail endpoint resolves U+0041" bash -c "curl -sf '${API_URL}/api/character/U+0041' | grep -qi 'U\\+0041'"
+  testing::phase::check "Bulk range endpoint returns symbols" bash -c "curl -sf -X POST '${API_URL}/api/bulk/range' -H 'Content-Type: application/json' -d '{\"ranges\":[{\"start\":\"U+0041\",\"end\":\"U+005A\"}]}' | grep -qi 'characters'"
 fi
 
-# Test categories endpoint
-echo "Testing /api/categories endpoint..."
-response=$(curl -s "${API_URL}/api/categories")
-if echo "$response" | grep -q '"categories"'; then
-    echo "✅ Categories endpoint passed"
-else
-    echo "❌ Categories endpoint failed: $response"
-    exit 1
-fi
-
-# Test blocks endpoint
-echo "Testing /api/blocks endpoint..."
-response=$(curl -s "${API_URL}/api/blocks")
-if echo "$response" | grep -q '"blocks"'; then
-    echo "✅ Blocks endpoint passed"
-else
-    echo "❌ Blocks endpoint failed: $response"
-    exit 1
-fi
-
-# Test character detail endpoint
-echo "Testing /api/character/:codepoint endpoint..."
-response=$(curl -s "${API_URL}/api/character/U+0041")
-if echo "$response" | grep -q '"character"'; then
-    echo "✅ Character detail endpoint passed"
-else
-    echo "❌ Character detail endpoint failed: $response"
-    exit 1
-fi
-
-# Test bulk range endpoint
-echo "Testing /api/bulk/range endpoint..."
-response=$(curl -s -X POST "${API_URL}/api/bulk/range" \
-    -H "Content-Type: application/json" \
-    -d '{"ranges":[{"start":"U+0041","end":"U+005A"}]}')
-if echo "$response" | grep -q '"characters"'; then
-    echo "✅ Bulk range endpoint passed"
-else
-    echo "❌ Bulk range endpoint failed: $response"
-    exit 1
-fi
-
+# Summarise results
 testing::phase::end_with_summary "Integration tests completed"

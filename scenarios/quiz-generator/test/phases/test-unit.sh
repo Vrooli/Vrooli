@@ -1,35 +1,25 @@
 #!/bin/bash
 # Unit testing phase for quiz-generator scenario
-# Integrates with centralized Vrooli testing infrastructure
-
 set -euo pipefail
 
-# Determine APP_ROOT
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-
-# Source required libraries
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Initialize phase with target time
-testing::phase::init --target-time "60s"
+testing::phase::init --target-time "120s"
 
-# Source centralized test runners
 source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Change to scenario directory
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-# Skip Ollama-dependent tests in unit tests for speed (they're tested in integration/business phases)
 export SKIP_OLLAMA_TESTS=1
 
-# Run all unit tests with coverage requirements
-testing::unit::run_all_tests \
-    --go-dir "api" \
-    --skip-node \
-    --skip-python \
-    --coverage-warn 80 \
-    --coverage-error 50
+if testing::unit::run_all_tests --go-dir "api" --skip-node --skip-python --coverage-warn 80 --coverage-error 50; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_error "Unit tests failed"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Unit tests failed"
+fi
 
-# End phase with summary
 testing::phase::end_with_summary "Unit tests completed"

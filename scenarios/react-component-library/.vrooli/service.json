@@ -23,12 +23,13 @@
     "api": {
       "env_var": "API_PORT",
       "range": "15000-19999",
-      "port": 8090,
+      "port": 15092,
       "description": "Component library API port for component CRUD and testing"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31012,
+      "range": "35000-39999",
+      "port": 36092,
       "description": "Component showcase and playground UI port"
     }
   },
@@ -77,7 +78,7 @@
       "description": "React Component Library health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/health",
+        "ui": "/health.json",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -92,7 +93,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
+          "target": "http://localhost:${UI_PORT}/health.json",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -155,7 +156,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && echo '📦 Installing UI dependencies...' && npm install --prefer-offline --no-audit --no-fund --loglevel error",
+          "run": "cd ui && echo '📦 Installing UI dependencies with pnpm...' && pnpm install --filter . --frozen-lockfile",
           "description": "Install React UI dependencies"
         },
         {
@@ -170,7 +171,7 @@
         },
         {
           "name": "setup-database",
-          "run": "echo '🗃️ Setting up PostgreSQL schema...' && resource-postgres execute --file initialization/storage/postgres/schema.sql",
+          "run": "echo '🗃️ Setting up PostgreSQL schema...' && resource-postgres content execute \"$(cat initialization/storage/postgres/schema.sql)\"",
           "description": "Initialize PostgreSQL schema for component storage"
         },
         {
@@ -203,7 +204,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && echo '⚛️ Starting React UI...' && npm start",
+          "run": "cd ui && echo '⚛️ Starting React UI...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && PORT=${UI_PORT} npm start",
           "background": true,
           "description": "Start React development server"
         },
@@ -225,7 +226,7 @@
         },
         {
           "name": "serve-ui",
-          "run": "cd ui && echo '🌐 Serving built UI...' && npx serve -s build -l ${UI_PORT}",
+          "run": "cd ui && echo '🌐 Serving built UI...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && npx serve -s build -l ${UI_PORT}",
           "background": true,
           "description": "Serve built React UI"
         },
@@ -312,7 +313,7 @@
     "api": {
       "enabled": true,
       "base_path": "/api/v1",
-      "health_endpoint": "/health",
+      "health_endpoint": "/health.json",
       "docs_endpoint": "/api/docs",
       "endpoints": [
         "/components",
@@ -404,9 +405,9 @@
     "test_runner": "test.sh",
     "coverage_target": 85
   },
-  "monitoring": {
-    "health_check": {
-      "endpoint": "/health",
+    "monitoring": {
+      "health_check": {
+        "endpoint": "/health.json",
       "interval": 30,
       "timeout": 5
     },

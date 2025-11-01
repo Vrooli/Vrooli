@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -56,13 +57,13 @@ func setupTestDB(t *testing.T) *TestEnvironment {
 	os.Setenv("POSTGRES_PASSWORD", "test_password")
 	os.Setenv("POSTGRES_DB", "prompt_injection_arena_test")
 
-	// Create test database connection
+	// Create test database connection using validated environment variables
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_DB"))
+		getEnv("POSTGRES_HOST", "localhost"),
+		getEnv("POSTGRES_PORT", "5432"),
+		getEnv("POSTGRES_USER", "test_user"),
+		getEnv("POSTGRES_PASSWORD", "test_password"),
+		getEnv("POSTGRES_DB", "prompt_injection_arena_test"))
 
 	testDB, err := sql.Open("postgres", psqlInfo)
 	if err != nil {

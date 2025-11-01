@@ -103,18 +103,18 @@
       "description": "Initialize Calendar system",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "calendar-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "calendar"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "calendar-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "calendar"
+            ]
+          },
           {
             "type": "directory",
             "path": "initialization/postgres"
@@ -142,7 +142,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Calendar system initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
+          "run": "echo '\ud83d\ude80 Calendar system initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -178,43 +178,20 @@
             "file_exists": "ui/package.json"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test calendar API and CLI",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-create-event",
-          "run": "TS=$(date +%s%N) && YEAR=$((2030 + RANDOM % 20)) && MONTH=$((1 + RANDOM % 12)) && DAY=$((1 + RANDOM % 28)) && HOUR=$((RANDOM % 24)) && MIN=$((RANDOM % 60)) && curl -sf -X POST http://localhost:${API_PORT}/api/v1/events -H 'Content-Type: application/json' -H 'Authorization: Bearer test' -H 'X-User-ID: test-user' -d \"{\\\"title\\\":\\\"Test Event ${TS}\\\",\\\"start_time\\\":\\\"${YEAR}-$(printf %02d $MONTH)-$(printf %02d $DAY)T$(printf %02d $HOUR):$(printf %02d $MIN):00Z\\\",\\\"end_time\\\":\\\"${YEAR}-$(printf %02d $MONTH)-$(printf %02d $DAY)T$(printf %02d $HOUR):$((MIN + 30 > 59 ? 59 : MIN + 30)):00Z\\\",\\\"timezone\\\":\\\"UTC\\\",\\\"location\\\":\\\"Test Room\\\",\\\"event_type\\\":\\\"meeting\\\"}\"",
-          "description": "Test event creation endpoint"
-        },
-        {
-          "name": "test-list-events",
-          "run": "curl -sf http://localhost:${API_PORT}/api/v1/events -H 'Authorization: Bearer test' -H 'X-User-ID: test-user'",
-          "description": "Test event listing endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "export CALENDAR_API_URL=http://localhost:${API_PORT} && calendar version && calendar help",
-          "description": "Test CLI basic commands"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute shared phased test suite"
         }
       ]
     },

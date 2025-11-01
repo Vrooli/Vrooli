@@ -1,76 +1,119 @@
 #!/bin/bash
-# Business logic testing phase for quiz-generator scenario
-# Tests core business requirements and user workflows
-
+# Business logic validation for quiz-generator scenario
 set -euo pipefail
 
-# Determine APP_ROOT
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-
-# Source required libraries
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-# Initialize phase with target time
-testing::phase::init --target-time "180s"
+testing::phase::init --target-time "180s" --require-runtime
 
-# Change to scenario directory
-cd "$TESTING_PHASE_SCENARIO_DIR"
-
-# Get API port from environment or fallback
-API_PORT="${API_PORT:-16470}"
-
-echo "🎓 Testing Quiz Generator Business Logic..."
-echo ""
-
-# Test 1: Quiz generation from content
-echo "Test 1: Quiz generation from content"
-RESPONSE=$(curl -sf http://localhost:${API_PORT}/api/v1/quiz/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content": "The Earth orbits the Sun once every 365.25 days. This period is called a year.",
-    "question_count": 3,
-    "difficulty": "medium"
-  }' || echo "FAILED")
-
-if echo "$RESPONSE" | grep -q "quiz_id"; then
-  echo "✅ Quiz generation works"
-else
-  echo "❌ Quiz generation failed"
-  testing::phase::end_with_summary "Business logic test failed"
-  exit 1
+if ! command -v jq >/dev/null 2>&1; then
+  testing::phase::add_warning "jq not installed; business validation requires JSON parsing"
+  testing::phase::add_test skipped
+  testing::phase::end_with_summary "Business tests skipped"
 fi
 
-# Test 2: Quiz retrieval
-QUIZ_ID=$(echo "$RESPONSE" | jq -r '.quiz_id' 2>/dev/null || echo "")
-if [ -n "$QUIZ_ID" ] && [ "$QUIZ_ID" != "null" ]; then
-  echo "Test 2: Quiz retrieval"
-  QUIZ=$(curl -sf http://localhost:${API_PORT}/api/v1/quiz/${QUIZ_ID} || echo "FAILED")
+API_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME" || true)
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Business tests failed"
+fi
 
-  if echo "$QUIZ" | grep -q "questions"; then
-    echo "✅ Quiz retrieval works"
+AI_QUIZ_ID=""
+MANUAL_QUIZ_ID=""
+
+cleanup_business_artifacts() {
+  if [ -n "$MANUAL_QUIZ_ID" ]; then
+    curl -s -X DELETE "${API_URL}/api/v1/quiz/${MANUAL_QUIZ_ID}" >/dev/null 2>&1 || true
+  fi
+  if [ -n "$AI_QUIZ_ID" ]; then
+    curl -s -X DELETE "${API_URL}/api/v1/quiz/${AI_QUIZ_ID}" >/dev/null 2>&1 || true
+  fi
+}
+
+testing::phase::register_cleanup cleanup_business_artifacts
+
+ollama_running=false
+if command -v resource-ollama >/dev/null 2>&1 && resource-ollama status >/dev/null 2>&1; then
+  ollama_running=true
+fi
+
+if $ollama_running; then
+  AI_RESPONSE=$(curl -sSf --max-time 90 -X POST "${API_URL}/api/v1/quiz/generate" \
+    -H "Content-Type: application/json" \
+    -d '{"content":"The Earth orbits the sun every 365.25 days.","question_count":3,"difficulty":"medium"}' 2>/dev/null || true)
+  if [ -n "$AI_RESPONSE" ]; then
+    AI_QUIZ_ID=$(echo "$AI_RESPONSE" | jq -r '.quiz_id // empty')
+    if [ -n "$AI_QUIZ_ID" ]; then
+      QUESTION_TOTAL=$(echo "$AI_RESPONSE" | jq '.questions | length' 2>/dev/null || echo 0)
+      if [ "$QUESTION_TOTAL" -ge 1 ]; then
+        testing::phase::add_test passed
+      else
+        testing::phase::add_error "AI generation returned no questions"
+        testing::phase::add_test failed
+      fi
+    else
+      testing::phase::add_error "AI quiz generation response missing quiz_id"
+      testing::phase::add_test failed
+    fi
   else
-    echo "❌ Quiz retrieval failed"
-    testing::phase::end_with_summary "Quiz retrieval test failed"
-    exit 1
+    testing::phase::add_error "AI quiz generation request failed"
+    testing::phase::add_test failed
   fi
 else
-  echo "⚠️  Skipping quiz retrieval test (no quiz ID)"
+  testing::phase::add_warning "Ollama resource unavailable; skipping AI generation test"
+  testing::phase::add_test skipped
 fi
 
-# Test 3: Question quality validation
-echo "Test 3: Question quality validation"
-QUESTION_COUNT=$(echo "$QUIZ" | jq '.questions | length' 2>/dev/null || echo "0")
-if [ "$QUESTION_COUNT" -ge 1 ]; then
-  echo "✅ Generated $QUESTION_COUNT questions"
+MANUAL_RESPONSE=$(curl -sSf -X POST "${API_URL}/api/v1/quiz" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Business Flow Quiz","description":"Workflow validation","questions":[{"type":"mcq","question":"Which planet is known as the Red Planet?","options":["Earth","Mars","Venus","Jupiter"],"correct_answer":"Mars","difficulty":"easy","points":2},{"type":"true_false","question":"The moon is a planet.","correct_answer":"false","difficulty":"easy","points":1}],"passing_score":50}' 2>/dev/null || true)
+if [ -n "$MANUAL_RESPONSE" ]; then
+  MANUAL_QUIZ_ID=$(echo "$MANUAL_RESPONSE" | jq -r '.id // empty')
+  if [ -n "$MANUAL_QUIZ_ID" ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Manual quiz creation response missing id"
+    testing::phase::add_test failed
+  fi
 else
-  echo "❌ No questions generated"
-  testing::phase::end_with_summary "Question generation quality test failed"
-  exit 1
+  testing::phase::add_error "Manual quiz creation failed"
+  testing::phase::add_test failed
 fi
 
-echo ""
-echo "✅ All business logic tests passed"
+if [ -n "$MANUAL_QUIZ_ID" ]; then
+  QUIZ_PAYLOAD=$(curl -sSf "${API_URL}/api/v1/quiz/${MANUAL_QUIZ_ID}" 2>/dev/null || true)
+  if [ -n "$QUIZ_PAYLOAD" ] && [ "$(echo "$QUIZ_PAYLOAD" | jq '.questions | length')" -ge 2 ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Quiz retrieval did not return expected questions"
+    testing::phase::add_test failed
+  fi
+else
+  testing::phase::add_warning "Skipping retrieval validation (manual quiz creation failed)"
+  testing::phase::add_test skipped
+fi
 
-# End phase with summary
-testing::phase::end_with_summary "Business logic tests completed successfully"
+if [ -n "$MANUAL_QUIZ_ID" ]; then
+  SUBMIT_REQUEST=$(jq -n --arg id "$MANUAL_QUIZ_ID" '{responses: [], time_taken: 90}')
+  SUBMIT_RESPONSE=$(curl -sSf -X POST "${API_URL}/api/v1/quiz/${MANUAL_QUIZ_ID}/submit" \
+    -H "Content-Type: application/json" \
+    -d "$SUBMIT_REQUEST" 2>/dev/null || true)
+  if [ -n "$SUBMIT_RESPONSE" ]; then
+    SCORE=$(echo "$SUBMIT_RESPONSE" | jq -r '.score // empty')
+    if [ -n "$SCORE" ]; then
+      testing::phase::add_test passed
+    else
+      testing::phase::add_warning "Submit response missing score"
+      testing::phase::add_test skipped
+    fi
+  else
+    testing::phase::add_warning "Submit endpoint not yet implemented"
+    testing::phase::add_test skipped
+  fi
+fi
+
+testing::phase::end_with_summary "Business logic validation completed"

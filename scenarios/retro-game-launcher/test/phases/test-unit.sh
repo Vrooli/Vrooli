@@ -1,32 +1,27 @@
 #!/bin/bash
-# Unit test phase for retro-game-launcher
-# Integrates with centralized Vrooli testing infrastructure
+# Unit tests for retro-game-launcher using the centralized test runner
 
 set -euo pipefail
 
-# Get app root (4 levels up from this script)
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-
-# Source required utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Initialize test phase
-testing::phase::init --target-time "60s"
+testing::phase::init --target-time "90s"
 
-# Source centralized test runners
 source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Change to scenario directory
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-# Run all unit tests with coverage thresholds
-testing::unit::run_all_tests \
+if testing::unit::run_all_tests \
     --go-dir "api" \
     --skip-node \
     --skip-python \
     --coverage-warn 80 \
-    --coverage-error 50
+    --coverage-error 50; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-# End test phase with summary
 testing::phase::end_with_summary "Unit tests completed"

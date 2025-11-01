@@ -719,7 +719,7 @@ versioning:
 | PDF generation failures | Medium | Low | Retry logic with HTML fallback |
 
 ### Operational Risks
-- **Drift Prevention**: PRD as single source of truth, validated by scenario-test.yaml every deployment
+- **Drift Prevention**: PRD as single source of truth, validated by phased tests (`test/run-tests.sh`) every deployment
 - **Version Compatibility**: Semantic versioning with API v1 stability guarantee
 - **Resource Conflicts**: Service.json priorities manage resource allocation (research > other scenarios)
 - **Style Drift**: Windmill UI components validated against style guide in PRD
@@ -728,140 +728,16 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# File: scenario-test.yaml
-version: 1.0
-scenario: research-assistant
+Testing is executed through the shared phased runner (`test/run-tests.sh`), which registers the six standard phases:
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - README.md
-    - IMPLEMENTATION_PLAN.md
-    - api/main.go
-    - api/go.mod
-    - cli/research-assistant
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/storage/postgres/seed.sql
-    - initialization/automation/n8n/research-orchestrator.json
-    - initialization/automation/n8n/scheduled-reports.json
-    - initialization/automation/n8n/chat-rag-workflow.json
-    - initialization/automation/windmill/dashboard-app.json
-    - initialization/storage/qdrant/collections.json
-    - initialization/storage/minio/buckets.json
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization/storage/postgres
-    - initialization/storage/qdrant
-    - initialization/storage/minio
-    - initialization/automation/n8n
-    - initialization/automation/windmill
-    - initialization/configuration
-    - initialization/search/searxng
+- **Structure** – validates required files, directories, and project scaffolding (`test/phases/test-structure.sh`)
+- **Dependencies** – verifies Go/Node dependencies and tooling availability (`test/phases/test-dependencies.sh`)
+- **Unit** – runs centralized Go unit tests with coverage aggregation (`test/phases/test-unit.sh`)
+- **Integration** – exercises CLI BATS suites plus custom workflow validation with managed runtime support (`test/phases/test-integration.sh`)
+- **Business** – parses configuration/workflow JSON and sanity-checks core business rules (`test/phases/test-business.sh`)
+- **Performance** – executes lightweight build-time benchmarks for API and UI artefacts (`test/phases/test-performance.sh`)
 
-resources:
-  required: [ollama, qdrant, postgres, searxng, n8n, windmill, unstructured-io, browserless, minio]
-  optional: [redis]
-  health_timeout: 60
-
-tests:
-  # Resource health checks:
-  - name: "Ollama AI Models Ready"
-    type: http
-    service: ollama
-    endpoint: /api/tags
-    method: GET
-    expect:
-      status: 200
-      body_contains: ["qwen2.5:32b", "nomic-embed-text"]
-      
-  - name: "SearXNG Search Engine Active"
-    type: http
-    service: searxng
-    endpoint: /search?q=test
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Qdrant Vector Database Ready"
-    type: http
-    service: qdrant
-    endpoint: /collections
-    method: GET
-    expect:
-      status: 200
-      
-  # API endpoint tests:
-  - name: "Research Creation Endpoint"
-    type: http
-    service: api
-    endpoint: /api/v1/research/create
-    method: POST
-    body:
-      topic: "test research"
-      depth: "quick"
-    expect:
-      status: 201
-      body:
-        report_id: "*"
-        status: "pending"
-        
-  # CLI command tests:
-  - name: "CLI Status Command"
-    type: exec
-    command: ./cli/research-assistant status --json
-    expect:
-      exit_code: 0
-      output_contains: ["healthy", "resources"]
-      
-  - name: "CLI Help Command"
-    type: exec
-    command: ./cli/research-assistant help
-    expect:
-      exit_code: 0
-      output_contains: ["create", "get", "chat", "list"]
-      
-  # Database tests:
-  - name: "Database Schema Initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
-    expect:
-      rows:
-        - count: 7  # reports, sources, schedules, chat_history, etc.
-        
-  # Workflow tests:
-  - name: "Research Orchestrator Workflow Active"
-    type: n8n
-    workflow: research-orchestrator
-    expect:
-      active: true
-      node_count: 12  # Expected nodes in workflow
-      
-  - name: "Chat RAG Workflow Ready"
-    type: n8n  
-    workflow: chat-rag-workflow
-    expect:
-      active: true
-      has_webhook: true
-```
-
-### Test Execution Gates
-```bash
-# Full validation suite:
-./test.sh --scenario research-assistant --validation complete
-
-# Component tests:
-./test.sh --structure    # Verify all files/dirs exist
-./test.sh --resources    # Check all 9 resources healthy
-./test.sh --integration  # Run API/CLI integration tests
-./test.sh --performance  # Validate < 5min research completion
-```
+The runner writes phase summaries to `coverage/phase-results/*.json`, enabling requirements coverage reporting via `node ../../scripts/requirements/report.js --scenario research-assistant`.
 
 ### Performance Validation
 - [x] API response times < 500ms (95th percentile) - Verified: health endpoint responds in <50ms

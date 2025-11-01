@@ -845,7 +845,7 @@ go test -v
 
 3. ✅ Clarified Test Framework Status
    - Phased tests (structure, dependencies, unit, integration): ✅ All passing
-   - Declarative tests (16 tests in scenario-test.yaml): Framework limitation
+   - Phased test suite (`test/run-tests.sh`) with 6 phases: preserves declarative coverage without legacy framework
    - Missing handlers for: http, integration, database test types
    - This is a framework issue, not a scenario issue
    - Scenario is fully functional and validated via phased tests

@@ -1,166 +1,134 @@
 #!/bin/bash
+# Integration validation for quiz-generator scenario
 set -euo pipefail
 
-# Integration tests for quiz-generator scenario
-# Tests interactions between components and with resources
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-echo "🔗 Running integration tests for quiz-generator..."
+testing::phase::init --target-time "240s" --require-runtime
 
-# Use ports from environment (set by lifecycle) with fallbacks for standalone testing
-API_PORT="${API_PORT:-16470}"
-API_URL="http://localhost:${API_PORT}"
-
-echo "Testing against API: ${API_URL}"
-
-# Test 1: Database integration
-echo -n "Testing database connectivity... "
-HEALTH_RESPONSE=$(curl -sf "${API_URL}/api/health")
-DB_STATUS=$(echo "$HEALTH_RESPONSE" | jq -r '.database // "unknown"')
-
-if [[ "$DB_STATUS" == "connected" ]]; then
-    echo "✅ PASS"
-else
-    echo "❌ FAIL: Database not connected (status: ${DB_STATUS})"
-    exit 1
+if ! command -v jq >/dev/null 2>&1; then
+  testing::phase::add_warning "jq not installed; integration tests require JSON parsing"
+  testing::phase::add_test skipped
+  testing::phase::end_with_summary "Integration tests skipped"
 fi
 
-# Test 2: Full quiz lifecycle
-echo "Testing full quiz lifecycle..."
+API_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME" || true)
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Integration tests failed"
+fi
 
-# Create a quiz
-echo -n "  Creating quiz... "
-CREATE_RESPONSE=$(curl -sf -X POST "${API_URL}/api/v1/quiz" \
+QUIZ_ID=""
+
+testing::phase::register_cleanup cleanup_integration_resources
+cleanup_integration_resources() {
+  if [ -n "$QUIZ_ID" ]; then
+    curl -s -X DELETE "${API_URL}/api/v1/quiz/${QUIZ_ID}" >/dev/null 2>&1 || true
+  fi
+}
+
+if testing::phase::check "API health endpoint" curl -sf "${API_URL}/api/health"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+CREATE_RESPONSE=$(curl -sSf -X POST "${API_URL}/api/v1/quiz" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Integration Test Quiz","description":"Testing quiz lifecycle","questions":[{"type":"mcq","question":"Capital of France?","options":["London","Berlin","Paris","Madrid"],"correct_answer":"Paris","difficulty":"easy","points":2}],"passing_score":60}' 2>/dev/null || true)
+if [ -n "$CREATE_RESPONSE" ]; then
+  QUIZ_ID=$(echo "$CREATE_RESPONSE" | jq -r '.id // empty')
+  if [ -n "$QUIZ_ID" ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Quiz creation response missing id"
+    testing::phase::add_test failed
+  fi
+else
+  testing::phase::add_error "Quiz creation failed"
+  testing::phase::add_test failed
+fi
+
+if [ -n "$QUIZ_ID" ]; then
+  UPDATE_RESPONSE=$(curl -sSf -X PUT "${API_URL}/api/v1/quiz/${QUIZ_ID}" \
     -H "Content-Type: application/json" \
-    -d '{
-        "title": "Integration Test Quiz",
-        "description": "Testing quiz lifecycle",
-        "questions": [
-            {
-                "type": "mcq",
-                "question": "What is the capital of France?",
-                "options": ["London", "Berlin", "Paris", "Madrid"],
-                "correct_answer": "Paris",
-                "difficulty": "easy",
-                "points": 2
-            },
-            {
-                "type": "true_false",
-                "question": "The Earth is flat.",
-                "correct_answer": "false",
-                "difficulty": "easy",
-                "points": 1
-            }
-        ],
-        "passing_score": 60
-    }')
-
-QUIZ_ID=$(echo "$CREATE_RESPONSE" | jq -r '.id // empty')
-if [[ -n "$QUIZ_ID" ]]; then
-    echo "✅ PASS"
+    -d '{"passing_score":70}' 2>/dev/null || true)
+  if [ -n "$UPDATE_RESPONSE" ] && [ "$(echo "$UPDATE_RESPONSE" | jq -r '.passing_score // 0')" = "70" ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Quiz update did not return expected payload"
+    testing::phase::add_test failed
+  fi
 else
-    echo "❌ FAIL: Quiz creation failed"
-    exit 1
+  testing::phase::add_warning "Skipping update test (quiz creation failed)"
+  testing::phase::add_test skipped
 fi
 
-# Update the quiz
-echo -n "  Updating quiz... "
-UPDATE_RESPONSE=$(curl -sf -X PUT "${API_URL}/api/v1/quiz/${QUIZ_ID}" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "title": "Updated Integration Test Quiz",
-        "passing_score": 70
-    }')
-
-UPDATED_TITLE=$(echo "$UPDATE_RESPONSE" | jq -r '.title // empty')
-if [[ "$UPDATED_TITLE" == "Updated Integration Test Quiz" ]]; then
-    echo "✅ PASS"
+LIST_RESPONSE=$(curl -sSf "${API_URL}/api/v1/quizzes" 2>/dev/null || true)
+if [ -n "$LIST_RESPONSE" ]; then
+  if [ "$(echo "$LIST_RESPONSE" | jq 'length')" -ge 1 ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Quiz list returned no entries"
+    testing::phase::add_test failed
+  fi
 else
-    echo "❌ FAIL: Quiz update failed"
-    exit 1
+  testing::phase::add_error "Failed to list quizzes"
+  testing::phase::add_test failed
 fi
 
-# List quizzes
-echo -n "  Listing quizzes... "
-LIST_RESPONSE=$(curl -sf "${API_URL}/api/v1/quizzes")
-QUIZ_COUNT=$(echo "$LIST_RESPONSE" | jq 'length // 0')
-
-if [[ "$QUIZ_COUNT" -gt 0 ]]; then
-    echo "✅ PASS (Found ${QUIZ_COUNT} quizzes)"
+if [ -n "$QUIZ_ID" ]; then
+  if testing::phase::check "Retrieve quiz" curl -sf "${API_URL}/api/v1/quiz/${QUIZ_ID}"; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_test failed
+  fi
 else
-    echo "❌ FAIL: No quizzes found"
-    exit 1
+  testing::phase::add_warning "Skipping retrieval test (quiz creation failed)"
+  testing::phase::add_test skipped
 fi
 
-# Submit quiz answers
-echo -n "  Submitting quiz answers... "
-SUBMIT_RESPONSE=$(curl -sf -X POST "${API_URL}/api/v1/quiz/${QUIZ_ID}/submit" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "responses": [
-            {
-                "question_id": "q1",
-                "answer": "Paris"
-            },
-            {
-                "question_id": "q2",
-                "answer": "false"
-            }
-        ],
-        "time_taken": 120
-    }' || echo "FAILED")
-
-if [[ "$SUBMIT_RESPONSE" != "FAILED" ]]; then
-    SCORE=$(echo "$SUBMIT_RESPONSE" | jq -r '.score // -1')
-    if [[ "$SCORE" -ge 0 ]]; then
-        echo "✅ PASS (Score: ${SCORE})"
-    else
-        echo "❌ FAIL: Invalid score returned"
-        exit 1
-    fi
-else
-    echo "❌ FAIL: Submit failed"
-    exit 1
+if [ -n "$QUIZ_ID" ]; then
+  DELETE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API_URL}/api/v1/quiz/${QUIZ_ID}" 2>/dev/null || echo "000")
+  if [ "$DELETE_CODE" = "200" ] || [ "$DELETE_CODE" = "204" ]; then
+    testing::phase::add_test passed
+    QUIZ_ID=""
+  else
+    testing::phase::add_warning "Quiz delete endpoint returned ${DELETE_CODE}"
+    testing::phase::add_test skipped
+  fi
 fi
 
-# Delete the quiz
-echo -n "  Deleting quiz... "
-if curl -sf -X DELETE "${API_URL}/api/v1/quiz/${QUIZ_ID}"; then
-    echo "✅ PASS"
+if command -v quiz-generator >/dev/null 2>&1; then
+  if testing::phase::check "CLI status command" quiz-generator status >/dev/null; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_test failed
+  fi
 else
-    echo "⚠️  WARNING: Delete may not be implemented"
+  testing::phase::add_warning "quiz-generator CLI not installed"
+  testing::phase::add_test skipped
 fi
 
-# Test 3: Question bank search
-echo -n "Testing question bank search... "
-SEARCH_RESPONSE=$(curl -sf -X POST "${API_URL}/api/v1/question-bank/search" \
-    -H "Content-Type: application/json" \
-    -d '{"query": "capital", "limit": 5}' || echo "FAILED")
-
-if [[ "$SEARCH_RESPONSE" != "FAILED" ]]; then
-    echo "✅ PASS"
-else
-    echo "⚠️  WARNING: Question bank search may not be fully implemented"
+if command -v resource-postgres >/dev/null 2>&1; then
+  if testing::phase::check "PostgreSQL resource healthy" resource-postgres status; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_test failed
+  fi
 fi
 
-# Test 4: CLI integration
-echo -n "Testing CLI integration... "
-if quiz-generator status 2>/dev/null | grep -q "Quiz Generator"; then
-    echo "✅ PASS"
-else
-    echo "⚠️  WARNING: CLI status command may need implementation"
+if command -v resource-ollama >/dev/null 2>&1; then
+  if testing::phase::check "Ollama resource healthy" resource-ollama status; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_warning "Ollama resource not running"
+    testing::phase::add_test skipped
+  fi
 fi
 
-# Test 5: Resource dependencies
-echo "Testing resource dependencies..."
-
-# Check PostgreSQL
-echo -n "  PostgreSQL availability... "
-if vrooli resource status postgres --json 2>/dev/null | jq -e '.status == "running"' > /dev/null; then
-    echo "✅ PASS"
-else
-    echo "⚠️  WARNING: PostgreSQL may not be running"
-fi
-
-echo ""
-echo "✅ Integration tests completed!"
-exit 0
+testing::phase::end_with_summary "Integration tests completed"

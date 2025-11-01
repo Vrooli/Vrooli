@@ -158,43 +158,12 @@
       ]
     },
     "test": {
-      "description": "Test symbol search API, CLI, and performance",
+      "description": "Run phased test suite",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-search-endpoint",
-          "run": "curl -sf \"http://localhost:$API_PORT/api/search?q=heart\"",
-          "description": "Test search functionality"
-        },
-        {
-          "name": "test-categories-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/categories",
-          "description": "Test categories endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats symbol-search.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/symbol-search.bats"
-          }
-        },
-        {
-          "name": "test-performance",
-          "run": "bash test/performance-test.sh",
-          "description": "Run performance tests for large datasets"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute structure, dependency, unit, integration, business, and performance phases"
         }
       ]
     },
