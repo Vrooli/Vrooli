@@ -236,30 +236,12 @@
       ]
     },
     "test": {
-      "description": "Test Study Buddy API and CLI",
+      "description": "Comprehensive phased testing for Study Buddy",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-study-materials",
-          "run": "curl -sf http://localhost:$API_PORT/api/study/materials",
-          "description": "Test API study materials endpoint"
-        },
-        {
-          "name": "test-cli-help",
-          "run": "study-buddy --help",
-          "description": "Test CLI help command"
+          "name": "run-phased-tests",
+          "description": "Execute study-buddy's phased test suite",
+          "run": "test/run-tests.sh"
         }
       ]
     },

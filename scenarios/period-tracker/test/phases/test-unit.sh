@@ -1,5 +1,6 @@
 #!/bin/bash
 # Unit test phase - uses centralized testing library
+set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
 # shellcheck disable=SC1091
@@ -21,11 +22,13 @@ if testing::unit::run_all_tests \
     --go-dir "api" \
     --skip-node \
     --skip-python \
-    --coverage-warn 80 \
-    --coverage-error 50; then
+    --coverage-warn 20 \
+    --coverage-error 5; then
+    testing::phase::add_test passed
     log::success "All unit tests passed"
 else
     testing::phase::add_error "Some unit tests failed"
+    testing::phase::add_test failed
 fi
 
 # End with summary

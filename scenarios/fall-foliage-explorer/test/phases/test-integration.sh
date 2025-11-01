@@ -1,96 +1,75 @@
-#!/usr/bin/env bash
-# Integration tests for Fall Foliage Explorer
-# Tests API endpoints and data flow
+#!/bin/bash
+# Integration validation for Fall Foliage Explorer
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Use registered ports for fall-foliage-explorer
-FOLIAGE_API_PORT=17175
-API_BASE="http://localhost:${FOLIAGE_API_PORT}"
-FAIL_COUNT=0
+testing::phase::init --target-time "240s" --require-runtime
 
-echo "🔗 Running integration tests..."
-
-# Test 1: Get all regions
-echo "  [1/7] Testing GET /api/regions..."
-REGIONS=$(curl -sf "$API_BASE/api/regions" | jq -r '.status')
-if [[ "$REGIONS" != "success" ]]; then
-    echo "    ❌ Failed to get regions"
-    ((FAIL_COUNT++))
-else
-    echo "    ✅ Regions retrieved successfully"
+API_BASE_URL=""
+if ! API_BASE_URL=$(testing::connectivity::get_api_url "${TESTING_PHASE_SCENARIO_NAME}"); then
+  testing::phase::add_error "Unable to determine API base URL"
+  testing::phase::end_with_summary "Integration tests incomplete"
 fi
 
-# Test 2: Get foliage data for a region
-echo "  [2/7] Testing GET /api/foliage?region_id=1..."
-FOLIAGE=$(curl -sf "$API_BASE/api/foliage?region_id=1" | jq -r '.status')
-if [[ "$FOLIAGE" != "success" ]]; then
-    echo "    ❌ Failed to get foliage data"
-    ((FAIL_COUNT++))
+HAS_JQ=false
+if command -v jq >/dev/null 2>&1; then
+  HAS_JQ=true
 else
-    echo "    ✅ Foliage data retrieved successfully"
+  testing::phase::add_warning "jq not available; response-content checks will be skipped"
 fi
 
-# Test 3: Get weather data
-echo "  [3/7] Testing GET /api/weather?region_id=1..."
-WEATHER=$(curl -sf "$API_BASE/api/weather?region_id=1" | jq -r '.status')
-if [[ "$WEATHER" != "success" ]]; then
-    echo "    ❌ Failed to get weather data"
-    ((FAIL_COUNT++))
+testing::phase::check "API health endpoint" curl -sf "$API_BASE_URL/health"
+
+testing::phase::check "Regions endpoint reachable" curl -sf "$API_BASE_URL/api/regions"
+
+if [ "$HAS_JQ" = true ]; then
+  testing::phase::check "Regions endpoint returns success" bash -lc 'curl -sf "$0" | jq -r ".status" | grep -q "success"' "$API_BASE_URL/api/regions"
 else
-    echo "    ✅ Weather data retrieved successfully"
+  testing::phase::add_test skipped
 fi
 
-# Test 4: Submit user report
-echo "  [4/7] Testing POST /api/reports..."
-REPORT_DATA='{"region_id":1,"foliage_status":"peak","description":"Beautiful colors today!"}'
-REPORT=$(curl -sf -X POST "$API_BASE/api/reports" \
-    -H "Content-Type: application/json" \
-    -d "$REPORT_DATA" | jq -r '.status')
-if [[ "$REPORT" != "success" ]]; then
-    echo "    ❌ Failed to submit user report"
-    ((FAIL_COUNT++))
+if [ "$HAS_JQ" = true ]; then
+  testing::phase::check "Foliage endpoint returns success" bash -lc 'curl -sf "$0" | jq -r ".status" | grep -q "success"' "$API_BASE_URL/api/foliage?region_id=1"
 else
-    echo "    ✅ User report submitted successfully"
+  testing::phase::add_test skipped
 fi
 
-# Test 5: Get user reports
-echo "  [5/7] Testing GET /api/reports?region_id=1..."
-REPORTS=$(curl -sf "$API_BASE/api/reports?region_id=1" | jq -r '.status')
-if [[ "$REPORTS" != "success" ]]; then
-    echo "    ❌ Failed to get user reports"
-    ((FAIL_COUNT++))
+if [ "$HAS_JQ" = true ]; then
+  testing::phase::check "Weather endpoint returns success" bash -lc 'curl -sf "$0" | jq -r ".status" | grep -q "success"' "$API_BASE_URL/api/weather?region_id=1"
 else
-    echo "    ✅ User reports retrieved successfully"
+  testing::phase::add_test skipped
 fi
 
-# Test 6: Trigger prediction
-echo "  [6/7] Testing POST /api/predict..."
-PREDICT_DATA='{"region_id":1}'
-PREDICT=$(curl -sf -X POST "$API_BASE/api/predict" \
-    -H "Content-Type: application/json" \
-    -d "$PREDICT_DATA" | jq -r '.status')
-if [[ "$PREDICT" != "success" ]]; then
-    echo "    ❌ Failed to trigger prediction"
-    ((FAIL_COUNT++))
+if [ "$HAS_JQ" = true ]; then
+  testing::phase::check "Report submission persists" bash -lc '
+    payload="{\"region_id\":1,\"foliage_status\":\"peak\",\"description\":\"Integration test\"}"
+    curl -sf -X POST "$0" -H "Content-Type: application/json" -d "$payload" | jq -r ".status" | grep -q "success"
+  ' "$API_BASE_URL/api/reports"
+  testing::phase::check "Report listing returns success" bash -lc 'curl -sf "$0" | jq -r ".status" | grep -q "success"' "$API_BASE_URL/api/reports?region_id=1"
 else
-    echo "    ✅ Prediction triggered successfully"
+  testing::phase::add_test skipped
+  testing::phase::add_test skipped
 fi
 
-# Test 7: Verify foliage data contains actual observations
-echo "  [7/7] Testing foliage data quality..."
-INTENSITY=$(curl -sf "$API_BASE/api/foliage?region_id=2" | jq -r '.data.color_intensity')
-if [[ "$INTENSITY" =~ ^[0-9]+$ ]] && [[ "$INTENSITY" -ge 0 ]] && [[ "$INTENSITY" -le 10 ]]; then
-    echo "    ✅ Foliage data quality check passed (intensity: $INTENSITY)"
+if [ "$HAS_JQ" = true ]; then
+  testing::phase::check "Prediction endpoint returns success" bash -lc '
+    payload="{\"region_id\":1}"
+    curl -sf -X POST "$0" -H "Content-Type: application/json" -d "$payload" | jq -r ".status" | grep -q "success"
+  ' "$API_BASE_URL/api/predict"
 else
-    echo "    ❌ Invalid foliage data quality"
-    ((FAIL_COUNT++))
+  testing::phase::add_test skipped
 fi
 
-if [[ $FAIL_COUNT -eq 0 ]]; then
-    echo "✅ All integration tests passed!"
-    exit 0
+if [ "$HAS_JQ" = true ]; then
+  testing::phase::check "Foliage intensity within expected range" bash -lc '
+    response=$(curl -sf "$0") || exit 1
+    intensity=$(echo "$response" | jq -r ".data.color_intensity")
+    [[ "$intensity" =~ ^[0-9]+$ ]] && [ "$intensity" -ge 0 ] && [ "$intensity" -le 10 ]
+  ' "$API_BASE_URL/api/foliage?region_id=2"
 else
-    echo "❌ $FAIL_COUNT integration test(s) failed"
-    exit 1
+  testing::phase::add_test skipped
 fi
+
+testing::phase::end_with_summary "Integration validation completed"

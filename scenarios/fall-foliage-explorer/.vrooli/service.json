@@ -179,12 +179,12 @@
               "fall-foliage-explorer-api"
             ]
           },
-            {
-              "type": "cli",
-              "targets": [
-                "fall-foliage-explorer"
-              ]
-            },
+          {
+            "type": "cli",
+            "targets": [
+              "fall-foliage-explorer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -222,15 +222,15 @@
     "develop": {
       "description": "Start Fall Foliage Explorer app",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./fall-foliage-explorer-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/fall-foliage-explorer-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./fall-foliage-explorer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/fall-foliage-explorer-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -245,17 +245,12 @@
       ]
     },
     "test": {
-      "description": "Test Fall Foliage Explorer",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-api-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased test suite"
         }
       ]
     },

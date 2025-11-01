@@ -1,65 +1,40 @@
-#!/usr/bin/env bash
-# Main test runner for study-buddy scenario
-
+#!/bin/bash
+# Shared phased test orchestrator for the study-buddy scenario
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Load environment
-if [ -f "$SCENARIO_DIR/.env" ]; then
-    export $(grep -v '^#' "$SCENARIO_DIR/.env" | xargs)
-fi
+# Initialise runner with managed runtime so integration/business phases can rely on the services
+# being available without bespoke setup in each script.
+testing::runner::init \
+  --scenario-name "study-buddy" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$TEST_DIR/artifacts" \
+  --default-manage-runtime true
 
-echo -e "${BLUE}🧪 Running study-buddy tests...${NC}"
+# Phase registration matches the standard six-phase cadence. Timeouts reflect the historical
+# behaviour of the old scripts while providing enough headroom for API/CLI checks.
+testing::runner::register_phase --name structure     --script "$TEST_DIR/phases/test-structure.sh"     --timeout 30
 
-# Track test results
-TESTS_PASSED=0
-TESTS_FAILED=0
+testing::runner::register_phase --name dependencies --script "$TEST_DIR/phases/test-dependencies.sh" --timeout 60
 
-# Function to run a test phase
-run_test() {
-    local phase=$1
-    local script="$SCRIPT_DIR/phases/$phase"
+testing::runner::register_phase --name unit         --script "$TEST_DIR/phases/test-unit.sh"          --timeout 120
 
-    if [ -f "$script" ]; then
-        echo -e "${BLUE}▶ Running $phase...${NC}"
-        if bash "$script"; then
-            echo -e "${GREEN}✅ $phase passed${NC}"
-            ((TESTS_PASSED++))
-        else
-            echo -e "${RED}❌ $phase failed${NC}"
-            ((TESTS_FAILED++))
-        fi
-    else
-        echo -e "${YELLOW}⚠️ Skipping $phase (not found)${NC}"
-    fi
-}
+testing::runner::register_phase --name integration  --script "$TEST_DIR/phases/test-integration.sh"   --timeout 180 --requires-runtime true
 
-# Run test phases in order
-run_test "test-smoke.sh"
-run_test "test-unit.sh"
-run_test "test-integration.sh"
-run_test "test-api.sh"
-run_test "test-cli.sh"
-run_test "test-ui.sh"
+testing::runner::register_phase --name business     --script "$TEST_DIR/phases/test-business.sh"      --timeout 150 --requires-runtime true
 
-# Print summary
-echo ""
-echo -e "${BLUE}📊 Test Summary${NC}"
-echo -e "Tests passed: ${GREEN}$TESTS_PASSED${NC}"
-echo -e "Tests failed: ${RED}$TESTS_FAILED${NC}"
+testing::runner::register_phase --name performance  --script "$TEST_DIR/phases/test-performance.sh"   --timeout 60  --requires-runtime true
 
-if [ $TESTS_FAILED -gt 0 ]; then
-    exit 1
-fi
+# Handy presets for day-to-day iteration.
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure dependencies integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
 
-echo -e "${GREEN}✅ All tests passed!${NC}"
-exit 0
+testing::runner::execute "$@"

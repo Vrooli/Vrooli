@@ -1,6 +1,13 @@
 #!/bin/bash
-set -e
-echo "=== Business Logic Tests ==="
-# Test core business rules, e.g., error logging, session creation
-python3 -c "print('Basic business logic validation passed')"  # Placeholder
-echo "✅ Business tests completed"
+# Business workflow validation placeholder for app-debugger
+
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+testing::phase::init --target-time "120s"
+
+testing::phase::add_warning "Business workflow tests not yet implemented"
+testing::phase::add_test skipped
+
+testing::phase::end_with_summary "Business validation placeholder"

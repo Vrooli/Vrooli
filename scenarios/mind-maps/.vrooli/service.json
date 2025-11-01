@@ -184,17 +184,12 @@
       ]
     },
     "test": {
-      "description": "Test Mind Maps services",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "mind-maps --help",
-          "description": "Test CLI basic commands"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario validation"
         }
       ]
     },

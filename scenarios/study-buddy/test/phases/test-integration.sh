@@ -1,88 +1,86 @@
-#!/usr/bin/env bash
-# Integration tests for study-buddy scenario
+#!/bin/bash
+# Scenario integration tests validating core API workflows that require the runtime.
 
 set -euo pipefail
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Load environment
-if [ -f "$SCENARIO_DIR/.env" ]; then
-    export $(grep -v '^#' "$SCENARIO_DIR/.env" | xargs)
+# connectivity.sh is sourced by phase::init, giving us helper functions for ports/URLs.
+testing::phase::init --target-time "180s" --require-runtime
+
+API_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME")
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL for integration tests"
+  testing::phase::end_with_summary "Integration tests aborted"
 fi
 
-API_PORT="${API_PORT:-18775}"
-API_URL="http://localhost:$API_PORT"
+validate_flashcard_creation() {
+  local payload card_id
+  payload=$(jq -n \
+    --arg user "itest-$(date +%s)" \
+    '{
+      user_id: $user,
+      subject_id: "integration-subject",
+      front: "What is spaced repetition?",
+      back: "A technique that increases intervals between reviews.",
+      difficulty: 2
+    }')
 
-echo "🔗 Running integration tests..."
-
-# Test spaced repetition algorithm (P0 requirement)
-echo -n "Testing spaced repetition calculation... "
-# Create a flashcard and test the review functionality
-response=$(curl -sf -X POST "$API_URL/api/flashcards" \
+  card_id=$(curl -sf -X POST "$API_URL/api/flashcards" \
     -H "Content-Type: application/json" \
-    -d '{
-        "user_id": "test-user",
-        "subject_id": "test-subject",
-        "front": "What is spaced repetition?",
-        "back": "A learning technique that incorporates increasing intervals of time between subsequent review",
-        "difficulty": 2
-    }' 2>/dev/null || echo '{}')
+    -d "$payload" | jq -r '.id // empty' 2>/dev/null)
 
-if [ ! -z "$response" ]; then
-    echo "✅ PASS"
-else
-    echo "❌ FAIL"
-    exit 1
-fi
+  [[ -n "$card_id" ]]
+}
 
-# Test progress tracking with XP (P0 requirement)
-echo -n "Testing XP and progress tracking... "
-response=$(curl -sf -X POST "$API_URL/api/study/answer" \
+validate_xp_tracking() {
+  local payload response
+  payload=$(jq -n '{
+      session_id: "itest-session",
+      flashcard_id: "itest-card",
+      user_response: "good",
+      response_time: 4200,
+      user_id: "itest-user"
+    }')
+
+  response=$(curl -sf -X POST "$API_URL/api/study/answer" \
     -H "Content-Type: application/json" \
-    -d '{
-        "session_id": "test-session",
-        "flashcard_id": "test-card",
-        "user_response": "easy",
-        "response_time": 3000,
-        "user_id": "test-user"
-    }' 2>/dev/null || echo '{}')
+    -d "$payload" 2>/dev/null || true)
 
-if echo "$response" | grep -q '"xp_earned"' && echo "$response" | grep -q '"total_xp"'; then
-    echo "✅ PASS"
-else
-    echo "❌ FAIL"
-    echo "Response: $response"
-    exit 1
-fi
+  echo "$response" | jq -e '.xp_earned' >/dev/null 2>&1
+}
 
-# Test streak tracking (P0 requirement)
-echo -n "Testing streak tracking... "
-response=$(curl -sf "$API_URL/api/sessions/test-user/stats" 2>/dev/null || echo '{}')
+validate_study_session_stats() {
+  curl -sf "$API_URL/api/sessions/itest-user/stats" >/dev/null
+}
 
-if echo "$response" | grep -q '"current_streak"' || [ ! -z "$response" ]; then
-    echo "✅ PASS"
-else
-    echo "❌ FAIL"
-    exit 1
-fi
+validate_subject_creation() {
+  local payload subject_id
+  payload=$(jq -n '{
+      user_id: "itest-user",
+      name: "Integration Biology",
+      description: "Cell structure and genetics",
+      color: "#8B5A96"
+    }')
 
-# Test subject organization (P0 requirement)
-echo -n "Testing subject management... "
-response=$(curl -sf -X POST "$API_URL/api/subjects" \
+  subject_id=$(curl -sf -X POST "$API_URL/api/subjects" \
     -H "Content-Type: application/json" \
-    -d '{
-        "user_id": "test-user",
-        "name": "Biology",
-        "description": "Cell biology and genetics",
-        "color": "#8B5A96"
-    }' 2>/dev/null || echo '{}')
+    -d "$payload" | jq -r '.id // empty' 2>/dev/null)
 
-if echo "$response" | grep -q '"id"' || [ ! -z "$response" ]; then
-    echo "✅ PASS"
-else
-    echo "❌ FAIL"
-    exit 1
+  [[ -n "$subject_id" ]]
+}
+
+# jq is required for the JSON assertions above.
+if ! command -v jq >/dev/null 2>&1; then
+  testing::phase::add_error "jq is required for integration assertions"
+  testing::phase::end_with_summary "Integration tests cannot run without jq"
 fi
 
-echo "✅ All integration tests passed!"
-exit 0
+testing::phase::check "Create flashcard via API" validate_flashcard_creation
+testing::phase::check "XP tracking endpoint" validate_xp_tracking
+testing::phase::check "Study session statistics" validate_study_session_stats
+testing::phase::check "Subject creation endpoint" validate_subject_creation
+
+testing::phase::end_with_summary "Integration tests completed"

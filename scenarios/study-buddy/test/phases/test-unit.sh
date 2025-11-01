@@ -19,13 +19,17 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 
 echo "🧪 Running study-buddy unit tests..."
 
-# Run all tests with coverage
-testing::unit::run_all_tests \
+# Run all tests with coverage and record the outcome for phase reporting
+if testing::unit::run_all_tests \
     --go-dir "api" \
     --skip-node \
     --skip-python \
     --coverage-warn 80 \
-    --coverage-error 50
+    --coverage-error 50; then
+    testing::phase::add_test passed
+else
+    testing::phase::add_test failed
+    testing::phase::end_with_summary "Unit test suite reported failures"
+fi
 
-# End phase with summary
 testing::phase::end_with_summary "Unit tests completed"

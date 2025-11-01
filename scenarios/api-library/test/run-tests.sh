@@ -1,42 +1,59 @@
 #!/bin/bash
-# Test runner for api-library scenario
+# Phased test orchestrator for the api-library scenario
+set -euo pipefail
 
-set -e
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-# Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-echo -e "${GREEN}Starting api-library test suite${NC}"
+# Initialise shared runner; allow runtime-dependent phases to auto-manage the scenario.
+testing::runner::init \
+  --scenario-name "api-library" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$TEST_DIR/artifacts" \
+  --default-manage-runtime true
 
-# Get API port
-API_PORT=$(vrooli scenario port api-library api 2>/dev/null || echo "18904")
-export API_PORT
+PHASES_DIR="$TEST_DIR/phases"
 
-# Phase 1: Unit Tests
-echo -e "\n${YELLOW}Phase 1: Unit Tests${NC}"
-if [ -f test/phases/test-unit.sh ]; then
-    bash test/phases/test-unit.sh
-else
-    echo "No unit tests found"
-fi
+testing::runner::register_phase \
+  --name structure \
+  --script "$PHASES_DIR/test-structure.sh" \
+  --timeout 30
 
-# Phase 2: Integration Tests
-echo -e "\n${YELLOW}Phase 2: Integration Tests${NC}"
-if [ -f test/phases/test-integration.sh ]; then
-    bash test/phases/test-integration.sh
-else
-    echo "No integration tests found"
-fi
+testing::runner::register_phase \
+  --name dependencies \
+  --script "$PHASES_DIR/test-dependencies.sh" \
+  --timeout 60
 
-# Phase 3: Smoke Tests
-echo -e "\n${YELLOW}Phase 3: Smoke Tests${NC}"
-if [ -f test/phases/test-smoke.sh ]; then
-    bash test/phases/test-smoke.sh
-else
-    echo "No smoke tests found"
-fi
+testing::runner::register_phase \
+  --name unit \
+  --script "$PHASES_DIR/test-unit.sh" \
+  --timeout 120
 
-echo -e "\n${GREEN}All tests completed successfully!${NC}"
+testing::runner::register_phase \
+  --name integration \
+  --script "$PHASES_DIR/test-integration.sh" \
+  --timeout 240 \
+  --requires-runtime true
+
+testing::runner::register_phase \
+  --name business \
+  --script "$PHASES_DIR/test-business.sh" \
+  --timeout 180 \
+  --requires-runtime true
+
+testing::runner::register_phase \
+  --name performance \
+  --script "$PHASES_DIR/test-performance.sh" \
+  --timeout 60
+
+# Presets for faster feedback loops.
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+testing::runner::execute "$@"

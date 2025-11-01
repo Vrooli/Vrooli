@@ -26,16 +26,16 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Period Tracker API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Period Tracker UI port",
-       "range": "35000-39999"
-     }
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Period Tracker API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Period Tracker UI port",
+      "range": "35000-39999"
+    }
   },
   "resources": {
     "postgres": {
@@ -126,20 +126,20 @@
     },
     "setup": {
       "description": "Initialize Period Tracker with encrypted health data storage",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "period-tracker-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "period-tracker"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "period-tracker-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "period-tracker"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -185,7 +185,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🩸 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
+          "run": "echo '\ud83e\ude78 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
           "description": "Display service URLs and privacy notice"
         }
       ]
@@ -193,14 +193,14 @@
     "develop": {
       "description": "Start Period Tracker services with privacy-first configuration",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./period-tracker-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/period-tracker-api"
-           },
+        {
+          "name": "start-api",
+          "run": "cd api && ./period-tracker-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/period-tracker-api"
+          },
           "environment": {
             "PRIVACY_MODE": "strict",
             "ENCRYPTION_ENABLED": "true",
@@ -213,35 +213,20 @@
           "description": "Start privacy-focused UI server",
           "background": true
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  🔐 All health data encrypted and stored locally only'",
-           "description": "Display running services with privacy notice"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  \ud83d\udd10 All health data encrypted and stored locally only'",
+          "description": "Display running services with privacy notice"
+        }
       ]
     },
     "test": {
-      "description": "Test Period Tracker services and data privacy",
+      "description": "Run phased scenario tests",
       "steps": [
         {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$PERIOD_TRACKER_API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-encryption",
-          "run": "curl -sf -H 'Content-Type: application/json' http://localhost:$PERIOD_TRACKER_API_PORT/api/v1/health/encryption",
-          "description": "Verify encryption is active"
-        },
-        {
-          "name": "test-auth-integration",
-          "run": "curl -sf http://localhost:$PERIOD_TRACKER_API_PORT/api/v1/auth/status",
-          "description": "Test authentication integration"
-        },
-        {
-          "name": "test-database-isolation",
-          "run": "cd api && go run -ldflags '-X main.mode=test-isolation' .",
-          "description": "Test multi-tenant data isolation"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario validation"
         }
       ]
     },

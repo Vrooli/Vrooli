@@ -1,29 +1,29 @@
- {
-   "$schema": "../../../.vrooli/schemas/service.schema.json",
-   "version": "1.0.0",
-   "service": {
-     "name": "api-library",
-     "displayName": "API Library",
-     "description": "Semantic API discovery with pricing, gotchas, and integration patterns",
-     "version": "1.0.0",
-     "tags": [
-       "api",
-       "discovery",
-       "integration",
-       "pricing",
-       "search"
-     ]
-   },
-   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "range": "35000-39999"
-     }
-   },
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "api-library",
+    "displayName": "API Library",
+    "description": "Semantic API discovery with pricing, gotchas, and integration patterns",
+    "version": "1.0.0",
+    "tags": [
+      "api",
+      "discovery",
+      "integration",
+      "pricing",
+      "search"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999"
+    }
+  },
   "dependencies": {
     "required": [
       "postgres",
@@ -61,70 +61,70 @@
       "purpose": "Generate embeddings for semantic search"
     }
   },
-   "lifecycle": {
-     "version": "2.0.0",
-     "health": {
-       "description": "API Library health check configuration",
-       "endpoints": {
-         "api": "/health",
-         "ui": "/health"
-       },
-       "checks": [
-         {
-           "name": "api_endpoint",
-           "type": "http",
-           "target": "http://localhost:${API_PORT}/health",
-           "critical": true,
-           "timeout": 5000,
-           "interval": 30000
-         },
-         {
-           "name": "ui_endpoint",
-           "type": "http",
-           "target": "http://localhost:${UI_PORT}/health",
-           "critical": false,
-           "timeout": 5000,
-           "interval": 30000
-         }
-       ]
-     },
-     "setup": {
-       "description": "Initialize API Library",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api-library-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "api-library"
-              ]
-            }
-         ]
-       },
-       "steps": [
-         {
-           "name": "build-api",
-           "run": "cd api && go mod download && go build -o api-library-api .",
-           "description": "Build Go API binary"
-         },
-         {
-           "name": "install-cli",
-           "run": "cd cli && ./install.sh",
-           "description": "Install CLI command globally"
-         },
-         {
-           "name": "show-urls",
-           "run": "echo \"🚀 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
-           "description": "Display service access URLs"
-         }
-       ]
-     },
-     "startup": {
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "API Library health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ]
+    },
+    "setup": {
+      "description": "Initialize API Library",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api-library-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "api-library"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o api-library-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"\ud83d\ude80 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "startup": {
       "order": [
         "postgres",
         "qdrant",
@@ -174,31 +174,31 @@
         }
       ]
     },
-     "develop": {
-       "description": "Development mode",
-       "steps": [
-          {
-            "name": "start-api",
-             "run": "cd api && unset POSTGRES_URL && VROOLI_LIFECYCLE_MANAGED=true API_PORT=${API_PORT:-15100} POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=lUq9qvemypKpuEeXCV6Vnxak1 POSTGRES_DB=api_library QDRANT_URL=http://localhost:6333 OLLAMA_URL=http://localhost:11434 ./api-library-api",
-            "description": "Start Go API server in background",
-            "background": true,
-            "condition": {
-               "file_exists": "api/api-library-api"
-            }
-          },
-         {
-           "name": "start-ui",
-           "run": "cd ui && PORT=${UI_PORT:-35100} REACT_APP_API_URL=http://localhost:${API_PORT:-15100}/api/v1 npm start",
-           "description": "Start UI development server",
-           "background": true
-         },
-         {
-           "name": "show-urls",
-           "run": "echo \"🚀 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
-           "description": "Display running service URLs"
-         }
-       ]
-     },
+    "develop": {
+      "description": "Development mode",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && unset POSTGRES_URL && VROOLI_LIFECYCLE_MANAGED=true API_PORT=${API_PORT:-15100} POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=lUq9qvemypKpuEeXCV6Vnxak1 POSTGRES_DB=api_library QDRANT_URL=http://localhost:6333 OLLAMA_URL=http://localhost:11434 ./api-library-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/api-library-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && PORT=${UI_PORT:-35100} REACT_APP_API_URL=http://localhost:${API_PORT:-15100}/api/v1 npm start",
+          "description": "Start UI development server",
+          "background": true
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"\ud83d\ude80 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
     "test": {
       "description": "Run test suite",
       "steps": [
@@ -351,6 +351,16 @@
     "created": "2024-01-09",
     "lastModified": "2024-01-09",
     "prdLink": "PRD.md",
-    "testSuite": "scenario-test.yaml"
+    "testSuite": "test/run-tests.sh"
+  },
+  "test": {
+    "description": "Phased scenario validation",
+    "steps": [
+      {
+        "name": "run-phased-tests",
+        "run": "test/run-tests.sh",
+        "description": "Execute phased testing suite"
+      }
+    ]
   }
 }
