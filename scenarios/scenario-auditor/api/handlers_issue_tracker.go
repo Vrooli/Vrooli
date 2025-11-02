@@ -36,9 +36,9 @@ type createRuleRequest struct {
 }
 
 type issueTrackerResponse struct {
-	Success bool                   `json:"success"`
-	Message string                 `json:"message"`
-	Error   string                 `json:"error"`
+	Success bool           `json:"success"`
+	Message string         `json:"message"`
+	Error   string         `json:"error"`
 	Data    map[string]any `json:"data"`
 }
 
@@ -201,18 +201,26 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 		})
 	}
 
+	targets := buildScenarioTargets("scenario-auditor", req.SelectedScenarios)
+	if len(targets) == 0 {
+		return nil, errors.New("no valid targets available for issue payload")
+	}
+
+	metadata["target_primary"] = targets[0]["id"]
+	metadata["target_count"] = strconv.Itoa(len(targets))
+
 	payload := map[string]any{
 		"title":          title,
 		"description":    description,
 		"type":           issueType,
 		"priority":       priority,
-		"app_id":         "scenario-auditor",
 		"status":         "open",
 		"tags":           tags,
 		"metadata_extra": metadata,
 		"environment":    environment,
 		"reporter_name":  "Scenario Auditor",
 		"reporter_email": "auditor@vrooli.local",
+		"targets":        targets,
 	}
 
 	if len(artifacts) > 0 {
@@ -1252,12 +1260,15 @@ func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]any, error) 
 		},
 	}
 
+	targets := buildScenarioTargets("scenario-auditor", nil)
+	metadata["target_primary"] = targets[0]["id"]
+	metadata["target_count"] = strconv.Itoa(len(targets))
+
 	payload := map[string]any{
 		"title":          title,
 		"description":    description,
 		"type":           "task",
 		"priority":       "medium",
-		"app_id":         "scenario-auditor",
 		"status":         "open",
 		"tags":           []string{"scenario-auditor", "rule-creation", "ai-task"},
 		"metadata_extra": metadata,
@@ -1265,9 +1276,39 @@ func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]any, error) 
 		"artifacts":      artifacts,
 		"reporter_name":  "Scenario Auditor",
 		"reporter_email": "auditor@vrooli.local",
+		"targets":        targets,
 	}
 
 	return payload, nil
+}
+
+func buildScenarioTargets(primary string, additional []string) []map[string]string {
+	seen := make(map[string]struct{})
+	var targets []map[string]string
+
+	add := func(id string) {
+		trimmed := strings.TrimSpace(id)
+		if trimmed == "" {
+			return
+		}
+		key := strings.ToLower(trimmed)
+		if _, exists := seen[key]; exists {
+			return
+		}
+		seen[key] = struct{}{}
+		targets = append(targets, map[string]string{
+			"type": "scenario",
+			"id":   trimmed,
+			"name": trimmed,
+		})
+	}
+
+	add(primary)
+	for _, candidate := range additional {
+		add(candidate)
+	}
+
+	return targets
 }
 
 // buildCreateRuleDescription builds the detailed description for rule creation issue

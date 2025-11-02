@@ -130,6 +130,32 @@ type User struct {
 	Timezone    string `json:"timezone"`
 }
 
+type contextKey string
+
+const authUserContextKey contextKey = "calendar_auth_user"
+
+func attachUserToContext(r *http.Request, user *User) *http.Request {
+	if r == nil || user == nil {
+		return r
+	}
+
+	ctx := context.WithValue(r.Context(), authUserContextKey, user)
+	return r.WithContext(ctx)
+}
+
+func getAuthenticatedUser(r *http.Request) (*User, bool) {
+	if r == nil {
+		return nil, false
+	}
+
+	user, ok := r.Context().Value(authUserContextKey).(*User)
+	if !ok || user == nil {
+		return nil, false
+	}
+
+	return user, true
+}
+
 // Initialize configuration
 func initConfig() *Config {
 	// Load .env file if it exists
@@ -673,23 +699,43 @@ func authMiddleware(next http.Handler) http.Handler {
 		// Check if auth service is configured
 		authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 		if authServiceURL == "" {
-			// Single-user mode - use default user
-			r.Header.Set("X-User-ID", "default-user")
-			r.Header.Set("X-Auth-User-ID", "default-user")
-			r.Header.Set("X-User-Email", "user@localhost")
-			next.ServeHTTP(w, r)
+			defaultUser := &User{
+				ID:          "default-user",
+				AuthUserID:  "default-user",
+				Email:       "user@localhost",
+				DisplayName: "Default User",
+				Timezone:    "UTC",
+			}
+
+			r.Header.Set("X-User-ID", defaultUser.ID)
+			r.Header.Set("X-Auth-User-ID", defaultUser.AuthUserID)
+			r.Header.Set("X-User-Email", defaultUser.Email)
+			r.Header.Set("X-User-Display-Name", defaultUser.DisplayName)
+			r.Header.Set("X-User-Timezone", defaultUser.Timezone)
+
+			next.ServeHTTP(w, attachUserToContext(r, defaultUser))
 			return
 		}
 
 		authHeader := r.Header.Get("Authorization")
 		// Development/test mode bypass - only in development environment
-		if os.Getenv("ENVIRONMENT") == "development" || os.Getenv("ENVIRONMENT") == "test" {
+		if env := os.Getenv("ENVIRONMENT"); env == "development" || env == "test" {
 			if authHeader == "Bearer test-token" || authHeader == "Bearer test" || authHeader == "Bearer mock-token-for-testing" {
-				// Use test user for development
-				r.Header.Set("X-User-ID", "test-user")
-				r.Header.Set("X-Auth-User-ID", "test-user")
-				r.Header.Set("X-User-Email", "test@localhost")
-				next.ServeHTTP(w, r)
+				testUser := &User{
+					ID:          "test-user",
+					AuthUserID:  "test-user",
+					Email:       "test@localhost",
+					DisplayName: "Test User",
+					Timezone:    "UTC",
+				}
+
+				r.Header.Set("X-User-ID", testUser.ID)
+				r.Header.Set("X-Auth-User-ID", testUser.AuthUserID)
+				r.Header.Set("X-User-Email", testUser.Email)
+				r.Header.Set("X-User-Display-Name", testUser.DisplayName)
+				r.Header.Set("X-User-Timezone", testUser.Timezone)
+
+				next.ServeHTTP(w, attachUserToContext(r, testUser))
 				return
 			}
 		}
@@ -722,12 +768,28 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Add user to request context
+		if user.AuthUserID == "" {
+			user.AuthUserID = user.ID
+		}
+		if user.DisplayName == "" {
+			if user.Email != "" {
+				user.DisplayName = user.Email
+			} else {
+				user.DisplayName = user.ID
+			}
+		}
+		if user.Timezone == "" {
+			user.Timezone = "UTC"
+		}
+
 		r.Header.Set("X-User-ID", user.ID)
 		r.Header.Set("X-Auth-User-ID", user.AuthUserID)
 		r.Header.Set("X-User-Email", user.Email)
+		r.Header.Set("X-User-Display-Name", user.DisplayName)
+		r.Header.Set("X-User-Timezone", user.Timezone)
 
-		next.ServeHTTP(w, r)
+		// Add user to request context
+		next.ServeHTTP(w, attachUserToContext(r, user))
 	})
 }
 
@@ -1280,6 +1342,66 @@ func getCalendarStats() map[string]interface{} {
 	}
 
 	return stats
+}
+
+func authValidateHandler(w http.ResponseWriter, r *http.Request) {
+	user, ok := getAuthenticatedUser(r)
+	if !ok {
+		errorHandler.HandleError(w, r, UnauthorizedError("User authentication required"))
+		return
+	}
+
+	authUserID := user.AuthUserID
+	if authUserID == "" {
+		authUserID = user.ID
+	}
+
+	displayName := user.DisplayName
+	if displayName == "" {
+		if user.Email != "" {
+			displayName = user.Email
+		} else {
+			displayName = user.ID
+		}
+	}
+
+	timezone := user.Timezone
+	if timezone == "" {
+		timezone = "UTC"
+	}
+
+	email := user.Email
+	if email == "" {
+		email = r.Header.Get("X-User-Email")
+	}
+
+	response := struct {
+		ID          string `json:"id"`
+		AuthUserID  string `json:"authUserId"`
+		Email       string `json:"email"`
+		DisplayName string `json:"displayName"`
+		Timezone    string `json:"timezone"`
+		CreatedAt   string `json:"createdAt"`
+		UpdatedAt   string `json:"updatedAt"`
+	}{
+		ID:          user.ID,
+		AuthUserID:  authUserID,
+		Email:       email,
+		DisplayName: displayName,
+		Timezone:    timezone,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:   time.Now().UTC().Format(time.RFC3339),
+	}
+
+	if createdAt := r.Header.Get("X-User-Created-At"); createdAt != "" {
+		response.CreatedAt = createdAt
+	}
+	if updatedAt := r.Header.Get("X-User-Updated-At"); updatedAt != "" {
+		response.UpdatedAt = updatedAt
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // Event handlers
@@ -3697,6 +3819,8 @@ func main() {
 	// API routes (with auth middleware)
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.Use(authMiddleware)
+
+	api.HandleFunc("/auth/validate", authValidateHandler).Methods("GET")
 
 	// Event management
 	api.HandleFunc("/events", createEventHandler).Methods("POST")

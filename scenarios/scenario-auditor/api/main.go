@@ -2121,36 +2121,4 @@ func validateLifecycleProtectionHandler(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// Helper functions for health monitoring
-func calculateHealthScore(critical, high, medium, low int) float64 {
-	// Health score calculation (0-100)
-	totalIssues := critical + high + medium + low
-	if totalIssues == 0 {
-		return 100.0
-	}
-
-	// Weighted scoring: critical=-20, high=-10, medium=-5, low=-1
-	weightedScore := 100.0 - (float64(critical)*20 + float64(high)*10 + float64(medium)*5 + float64(low)*1)
-
-	if weightedScore < 0 {
-		return 0.0
-	}
-	// Round to 1 decimal place
-	return math.Round(weightedScore*10) / 10
-}
-
-func calculateSystemHealthScore(totalScenarios, criticalScenarios, criticalVulns int) float64 {
-	if totalScenarios == 0 {
-		return 100.0
-	}
-
-	// System health based on critical scenarios and vulnerabilities
-	criticalRatio := float64(criticalScenarios) / float64(totalScenarios)
-	healthScore := 100.0 - (criticalRatio*50 + float64(criticalVulns)*5)
-
-	if healthScore < 0 {
-		return 0.0
-	}
-	// Round to 1 decimal place
-	return math.Round(healthScore*10) / 10
-}
+// Health score calculation functions are in health_utils.go

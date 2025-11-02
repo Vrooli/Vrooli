@@ -1,175 +1,161 @@
 #!/bin/bash
-set -euo pipefail
-
-# Integration Testing Phase for personal-digital-twin
-# This script runs integration tests that verify end-to-end functionality
+# Runs API-centric integration checks covering persona, data, and chat surfaces.
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-testing::phase::init --target-time "120s"
+testing::phase::init --target-time "300s" --require-runtime
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
-
-echo "🔗 Running integration tests for personal-digital-twin..."
-
-# Ensure scenario is running
-SCENARIO_NAME="personal-digital-twin"
-
-# Check if scenario is running via lifecycle
-if ! pgrep -f "personal-digital-twin-api" > /dev/null; then
-    echo "⚠️  Scenario not running, attempting to start..."
-    vrooli scenario start "$SCENARIO_NAME" || {
-        echo "❌ Failed to start scenario for integration tests"
-        exit 1
-    }
-    sleep 5
-fi
-
-# Get API port from environment or default
-API_PORT="${API_PORT:-8080}"
-CHAT_PORT="${CHAT_PORT:-8081}"
-
-# Wait for API to be ready
-echo "⏳ Waiting for API to be ready..."
-for i in {1..30}; do
-    if curl -s "http://localhost:${API_PORT}/health" > /dev/null 2>&1; then
-        echo "✅ API is ready"
-        break
-    fi
-    if [ $i -eq 30 ]; then
-        echo "❌ API failed to become ready"
-        exit 1
-    fi
-    sleep 1
+missing_tools=()
+for tool in curl jq; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    missing_tools+=("$tool")
+  fi
 done
 
-# Run integration tests
-echo "🧪 Running API integration tests..."
-
-# Test 1: Health check
-echo "  → Testing health endpoint..."
-HEALTH_RESPONSE=$(curl -s "http://localhost:${API_PORT}/health")
-if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
-    echo "  ✅ Health check passed"
-else
-    echo "  ❌ Health check failed"
-    exit 1
+if [ ${#missing_tools[@]} -gt 0 ]; then
+  testing::phase::add_error "Required tooling missing: ${missing_tools[*]}"
+  testing::phase::end_with_summary "Integration checks blocked"
 fi
 
-# Test 2: Create persona
-echo "  → Testing persona creation..."
-PERSONA_RESPONSE=$(curl -s -X POST "http://localhost:${API_PORT}/api/persona/create" \
+SCENARIO_NAME="$TESTING_PHASE_SCENARIO_NAME"
+API_BASE_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME" || true)
+if [ -z "$API_BASE_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL for $SCENARIO_NAME"
+  testing::phase::end_with_summary "Integration checks blocked"
+fi
+
+CHAT_PORT_OUTPUT=$(vrooli scenario port "$SCENARIO_NAME" CHAT_PORT 2>/dev/null || true)
+CHAT_PORT=$(echo "$CHAT_PORT_OUTPUT" | awk -F= '/=/{print $2}' | tr -d ' ')
+if [ -z "$CHAT_PORT" ]; then
+  CHAT_BASE_URL="$API_BASE_URL"
+else
+  CHAT_BASE_URL="http://localhost:${CHAT_PORT}"
+fi
+
+PERSONA_ID=""
+DATA_SOURCE_ID=""
+SESSION_ID=""
+
+check_api_health() {
+  local response
+  response=$(curl -s "$API_BASE_URL/health") || return 1
+  if echo "$response" | grep -qi "healthy"; then
+    return 0
+  fi
+  log::error "Health response: $response"
+  return 1
+}
+
+create_persona() {
+  local response
+  response=$(curl -s -X POST "$API_BASE_URL/api/persona/create" \
     -H "Content-Type: application/json" \
-    -d '{"name": "Integration Test Persona", "description": "Test persona for integration testing"}')
+    -d '{"name": "Integration Test Persona", "description": "Scenario integration validation"}') || return 1
+  PERSONA_ID=$(echo "$response" | jq -r '.id // empty')
+  if [ -z "$PERSONA_ID" ]; then
+    log::error "Persona creation response: $response"
+    return 1
+  fi
+  log::info "Created persona $PERSONA_ID"
+}
 
-if echo "$PERSONA_RESPONSE" | grep -q "id"; then
-    PERSONA_ID=$(echo "$PERSONA_RESPONSE" | jq -r '.id')
-    echo "  ✅ Persona created: $PERSONA_ID"
-else
-    echo "  ❌ Persona creation failed"
-    echo "  Response: $PERSONA_RESPONSE"
-    exit 1
-fi
+fetch_persona() {
+  local response
+  response=$(curl -s "$API_BASE_URL/api/persona/${PERSONA_ID}") || return 1
+  echo "$response" | jq -e '.id == env.PERSONA_ID' >/dev/null 2>&1
+}
 
-# Test 3: Get persona
-echo "  → Testing persona retrieval..."
-GET_PERSONA_RESPONSE=$(curl -s "http://localhost:${API_PORT}/api/persona/${PERSONA_ID}")
-if echo "$GET_PERSONA_RESPONSE" | grep -q "Integration Test Persona"; then
-    echo "  ✅ Persona retrieval passed"
-else
-    echo "  ❌ Persona retrieval failed"
-    exit 1
-fi
+list_personas() {
+  curl -s "$API_BASE_URL/api/personas" | jq -e '.personas | length >= 1' >/dev/null 2>&1
+}
 
-# Test 4: List personas
-echo "  → Testing persona list..."
-LIST_RESPONSE=$(curl -s "http://localhost:${API_PORT}/api/personas")
-if echo "$LIST_RESPONSE" | grep -q "personas"; then
-    echo "  ✅ Persona list passed"
-else
-    echo "  ❌ Persona list failed"
-    exit 1
-fi
-
-# Test 5: Connect data source
-echo "  → Testing data source connection..."
-DS_RESPONSE=$(curl -s -X POST "http://localhost:${API_PORT}/api/datasource/connect" \
+connect_data_source() {
+  local response
+  local payload
+  payload=$(jq -cn --arg persona "$PERSONA_ID" '{persona_id: $persona, source_type: "file", source_config: {path: "/test/data"}}')
+  response=$(curl -s -X POST "$API_BASE_URL/api/datasource/connect" \
     -H "Content-Type: application/json" \
-    -d "{\"persona_id\": \"${PERSONA_ID}\", \"source_type\": \"file\", \"source_config\": {\"path\": \"/test/data\"}}")
+    -d "$payload") || return 1
+  DATA_SOURCE_ID=$(echo "$response" | jq -r '.source_id // empty')
+  if [ -z "$DATA_SOURCE_ID" ]; then
+    log::error "Data source response: $response"
+    return 1
+  fi
+  curl -s "$API_BASE_URL/api/datasources/${PERSONA_ID}" | jq -e '.data_sources | length >= 1' >/dev/null 2>&1
+}
 
-if echo "$DS_RESPONSE" | grep -q "source_id"; then
-    echo "  ✅ Data source connection passed"
-else
-    echo "  ❌ Data source connection failed"
-    exit 1
-fi
-
-# Test 6: Start training
-echo "  → Testing training job creation..."
-TRAIN_RESPONSE=$(curl -s -X POST "http://localhost:${API_PORT}/api/train/start" \
+start_training_job() {
+  local response
+  local payload
+  payload=$(jq -cn --arg persona "$PERSONA_ID" '{persona_id: $persona, model: "llama3", technique: "fine-tune"}')
+  response=$(curl -s -X POST "$API_BASE_URL/api/train/start" \
     -H "Content-Type: application/json" \
-    -d "{\"persona_id\": \"${PERSONA_ID}\", \"model\": \"llama2\", \"technique\": \"fine-tuning\"}")
+    -d "$payload") || return 1
+  echo "$response" | jq -e '.job_id' >/dev/null 2>&1
+}
 
-if echo "$TRAIN_RESPONSE" | grep -q "job_id"; then
-    echo "  ✅ Training job creation passed"
-else
-    echo "  ❌ Training job creation failed"
-    exit 1
-fi
-
-# Test 7: Create API token
-echo "  → Testing API token creation..."
-TOKEN_RESPONSE=$(curl -s -X POST "http://localhost:${API_PORT}/api/tokens/create" \
+create_api_token() {
+  local response
+  local payload
+  payload=$(jq -cn --arg persona "$PERSONA_ID" '{persona_id: $persona, name: "integration-token", permissions: ["read", "write"]}')
+  response=$(curl -s -X POST "$API_BASE_URL/api/tokens/create" \
     -H "Content-Type: application/json" \
-    -d "{\"persona_id\": \"${PERSONA_ID}\", \"name\": \"integration-test-token\", \"permissions\": [\"read\", \"write\"]}")
+    -d "$payload") || return 1
+  echo "$response" | jq -e '.token' >/dev/null 2>&1
+}
 
-if echo "$TOKEN_RESPONSE" | grep -q "token"; then
-    echo "  ✅ API token creation passed"
-else
-    echo "  ❌ API token creation failed"
-    exit 1
-fi
-
-# Test 8: Search documents
-echo "  → Testing document search..."
-SEARCH_RESPONSE=$(curl -s -X POST "http://localhost:${API_PORT}/api/search" \
+search_documents() {
+  local response
+  local payload
+  payload=$(jq -cn --arg persona "$PERSONA_ID" '{persona_id: $persona, query: "integration test query", limit: 5}')
+  response=$(curl -s -X POST "$API_BASE_URL/api/search" \
     -H "Content-Type: application/json" \
-    -d "{\"persona_id\": \"${PERSONA_ID}\", \"query\": \"test query\", \"limit\": 5}")
+    -d "$payload") || return 1
+  echo "$response" | jq -e '.results' >/dev/null 2>&1
+}
 
-if echo "$SEARCH_RESPONSE" | grep -q "results"; then
-    echo "  ✅ Document search passed"
-else
-    echo "  ❌ Document search failed"
-    exit 1
-fi
-
-# Test 9: Chat endpoint
-echo "  → Testing chat functionality..."
-CHAT_RESPONSE=$(curl -s -X POST "http://localhost:${CHAT_PORT}/api/chat" \
+chat_interaction() {
+  local response
+  local payload
+  payload=$(jq -cn --arg persona "$PERSONA_ID" '{persona_id: $persona, message: "Hello from integration tests"}')
+  response=$(curl -s -X POST "$CHAT_BASE_URL/api/chat" \
     -H "Content-Type: application/json" \
-    -d "{\"persona_id\": \"${PERSONA_ID}\", \"message\": \"Hello, how are you?\"}")
+    -d "$payload") || return 1
+  SESSION_ID=$(echo "$response" | jq -r '.session_id // empty')
+  if [ -z "$SESSION_ID" ]; then
+    log::error "Chat response: $response"
+    return 1
+  fi
+  followup_chat
+}
 
-if echo "$CHAT_RESPONSE" | grep -q "response"; then
-    SESSION_ID=$(echo "$CHAT_RESPONSE" | jq -r '.session_id')
-    echo "  ✅ Chat functionality passed"
-else
-    echo "  ❌ Chat functionality failed"
-    exit 1
-fi
+followup_chat() {
+  local response
+  local payload
+  payload=$(jq -cn --arg persona "$PERSONA_ID" --arg session "$SESSION_ID" '{persona_id: $persona, message: "Thanks!", session_id: $session}')
+  response=$(curl -s -X POST "$CHAT_BASE_URL/api/chat" \
+    -H "Content-Type: application/json" \
+    -d "$payload") || return 1
+  local history
+  history=$(curl -s "$CHAT_BASE_URL/api/chat/history/${SESSION_ID}?persona_id=${PERSONA_ID}") || return 1
+  echo "$history" | jq -e '.messages | length >= 2' >/dev/null 2>&1
+}
 
-# Test 10: Chat history
-echo "  → Testing chat history retrieval..."
-HISTORY_RESPONSE=$(curl -s "http://localhost:${CHAT_PORT}/api/chat/history/${SESSION_ID}?persona_id=${PERSONA_ID}")
+orchestrate_checks() {
+  testing::phase::check "API health endpoint" check_api_health
+  testing::phase::check "Create persona" create_persona
+  testing::phase::check "Retrieve persona" fetch_persona
+  testing::phase::check "List personas" list_personas
+  testing::phase::check "Connect data source" connect_data_source
+  testing::phase::check "Launch training job" start_training_job
+  testing::phase::check "Create API token" create_api_token
+  testing::phase::check "Search documents" search_documents
+  testing::phase::check "Handle chat interaction" chat_interaction
+}
 
-if echo "$HISTORY_RESPONSE" | grep -q "messages"; then
-    echo "  ✅ Chat history retrieval passed"
-else
-    echo "  ❌ Chat history retrieval failed"
-    exit 1
-fi
+orchestrate_checks
 
-echo "🎉 All integration tests passed!"
-
-testing::phase::end_with_summary "Integration tests completed successfully"
+testing::phase::end_with_summary "Integration workflows validated"

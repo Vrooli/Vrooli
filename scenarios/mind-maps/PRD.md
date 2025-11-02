@@ -631,99 +631,20 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# File: scenario-test.yaml
-version: 1.0
-scenario: mind-maps
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - README.md
-    - api/main.go
-    - api/go.mod
-    - cli/mind-maps
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/storage/qdrant/collections.json
-    - initialization/automation/n8n/auto-organizer.json
-    - ui/index.html
-    - ui/canvas.js
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization/storage/postgres
-    - initialization/storage/qdrant
-    - initialization/automation/n8n
-    - ui
-
-resources:
-  required: [postgres, qdrant, redis, n8n]
-  optional: [ollama]
-  health_timeout: 60
-
-tests:
-  - name: "Create Mind Map API"
-    type: http
-    service: api
-    endpoint: /api/mindmaps
-    method: POST
-    body:
-      title: "Test Map"
-      campaign: "test"
-    expect:
-      status: 201
-      body:
-        id: "*"
-        canvas_url: "*"
-        
-  - name: "Semantic Search API"
-    type: http
-    service: api
-    endpoint: /api/search
-    method: POST
-    body:
-      query: "test concept"
-      limit: 5
-    expect:
-      status: 200
-      body:
-        results: "*"
-        
-  - name: "CLI Create Command"
-    type: exec
-    command: ./cli/mind-maps create "Test Map" --campaign test
-    expect:
-      exit_code: 0
-      output_contains: ["created", "id"]
-      
-  - name: "Qdrant Collection Exists"
-    type: http
-    service: qdrant
-    endpoint: /collections/mind-maps
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "WebSocket Collaboration"
-    type: websocket
-    service: ui
-    endpoint: /collaborate
-    send: {"type": "join", "map_id": "test"}
-    expect:
-      message_contains: ["connected", "presence"]
-```
+- `.vrooli/service.json` delegates lifecycle testing to `test/run-tests.sh`, which uses the shared runner to execute structure, dependencies, unit, integration, business, and performance phases.
+- Phase scripts in `test/phases/test-*.sh` source `testing::phase::init`, emit JSON summaries in `coverage/phase-results/`, and cover CRUD flows, collaboration, semantic search, and latency benchmarks against the live runtime.
+- Integration and business phases coordinate API CRUD plus collaboration workflows, while the performance phase records latency for API/UI endpoints and runs tagged Go performance tests.
 
 ### Test Execution Gates
 ```bash
-./test.sh --scenario mind-maps --validation complete
-./test.sh --canvas       # Test canvas rendering
-./test.sh --search       # Verify semantic search
-./test.sh --collaborate  # Test real-time features
-./test.sh --performance  # Validate 500+ nodes
+# Full suite through lifecycle automation
+vrooli scenario test mind-maps
+
+# Local quick pass (structure + dependencies + unit)
+test/run-tests.sh quick
+
+# Focus on a single phase
+./test/phases/test-integration.sh
 ```
 
 ### Performance Validation

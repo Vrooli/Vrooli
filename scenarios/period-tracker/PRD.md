@@ -534,90 +534,19 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# REQUIRED: scenario-test.yaml in scenario root
-version: 1.0
-scenario: period-tracker
+Period Tracker now relies on Vrooli's phased testing architecture (`test/run-tests.sh`). Each phase provides targeted validation:
+- **Structure** – confirms critical directories/files exist (.vrooli/service.json, API/UI entry points, run-tests wiring).
+- **Dependencies** – dry-runs Go module resolution and npm installs so local builds surface issues early.
+- **Unit** – executes centralized Go unit coverage through `testing::unit::run_all_tests` with the same thresholds enforced platform-wide.
+- **Integration** – auto-starts the scenario (if needed) and hits the live `/health`, `/api/v1/health/encryption`, and `/api/v1/auth/status` endpoints to guarantee runtime wiring.
+- **Business** – guards the presence of core REST routes and seeded privacy safeguards to catch accidental deletions during refactors.
+- **Performance** – currently records a skipped placeholder until telemetry hooks come online, keeping the phase visible in dashboards.
 
-# Structure validation:
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/period-tracker
-    - cli/install.sh
-    - initialization/postgres/schema.sql
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/postgres
-    - ui
-
-# Resource validation:
-resources:
-  required: [postgres, scenario-authenticator]
-  optional: [redis, ollama]
-  health_timeout: 60
-
-# Declarative tests:
-tests:
-  # Database tests:
-  - name: "Database schema is initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'cycles', 'daily_symptoms', 'predictions')"
-    expect:
-      rows: 
-        - count: 4
-        
-  # API endpoint tests:
-  - name: "API health endpoint responds"
-    type: http
-    service: api
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Cycle creation endpoint works"
-    type: http
-    service: api
-    endpoint: /api/v1/cycles
-    method: POST
-    headers:
-      Content-Type: application/json
-    body:
-      user_id: "test-user-id"
-      start_date: "2024-01-15"
-      flow_intensity: "medium"
-    expect:
-      status: 201
-      body:
-        cycle_id: "*"
-        predictions: "*"
-        
-  # CLI command tests:
-  - name: "CLI status command executes"
-    type: exec
-    command: ./cli/period-tracker status --json
-    expect:
-      exit_code: 0
-      output_contains: ["healthy"]
-      
-  # Authentication tests:
-  - name: "Multi-tenant isolation works"
-    type: custom
-    description: "Verify users can only access their own data"
-    
-  # Privacy tests:
-  - name: "Data encryption at rest"
-    type: custom
-    description: "Verify sensitive fields are encrypted in database"
+```bash
+cd scenarios/period-tracker
+./test/run-tests.sh            # run all phases
+./test/run-tests.sh quick      # structure + dependencies + unit
+./test/run-tests.sh integration
 ```
 
 ### Performance Validation

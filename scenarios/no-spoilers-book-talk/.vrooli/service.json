@@ -193,44 +193,12 @@
       ]
     },
     "test": {
-      "description": "Test No Spoilers Book Talk API and CLI",
+      "description": "Phased scenario testing suite",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "timeout 10 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 1; done'",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-upload-endpoint",
-          "run": "bash test/test-book-upload.sh",
-          "description": "Test book upload functionality",
-          "condition": {
-            "file_exists": "test/test-book-upload.sh"
-          }
-        },
-        {
-          "name": "test-spoiler-prevention",
-          "run": "bash test/test-spoiler-prevention.sh",
-          "description": "Test position-based spoiler filtering",
-          "condition": {
-            "file_exists": "test/test-spoiler-prevention.sh"
-          }
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats no-spoilers-book-talk.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/no-spoilers-book-talk.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased tests (structure, dependencies, unit, integration, business, performance)"
         }
       ]
     },

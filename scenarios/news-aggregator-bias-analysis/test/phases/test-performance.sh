@@ -1,39 +1,33 @@
 #!/bin/bash
 # Performance tests for news-aggregator-bias-analysis scenario
 
-set -euo pipefail
-
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 testing::phase::init --target-time "180s"
 
-cd "$TESTING_PHASE_SCENARIO_DIR/api"
+cd "$TESTING_PHASE_SCENARIO_DIR/api" || testing::phase::end_with_summary "Performance phase skipped"
 
 echo "⚡ Running performance tests..."
 
-# Run performance tests
 if [ -f "performance_test.go" ]; then
-    echo "Running Go performance tests..."
-
-    # Run performance tests with benchmarks
+    echo "Running Go performance test suite"
     if go test -tags=testing -run=TestPerformance -v -timeout 180s; then
-        echo "  ✓ Performance tests passed"
+        testing::phase::add_test passed
     else
-        echo "  ⚠️  Some performance tests failed"
+        testing::phase::add_test failed
     fi
 
-    # Run benchmarks
-    echo ""
-    echo "Running benchmarks..."
-    if go test -tags=testing -bench=. -benchmem -run=^$ -timeout 180s 2>&1 | tee benchmark-results.txt; then
-        echo "  ✓ Benchmarks completed"
+    echo "Running Go benchmarks"
+    if go test -tags=testing -bench=. -benchmem -run=^$ -timeout 180s 2>&1 | tee benchmark-results.txt >/dev/null; then
+        testing::phase::add_test passed
     else
-        echo "  ⚠️  Benchmarks encountered issues"
+        testing::phase::add_test failed
     fi
 else
-    echo "⚠️  No performance tests found"
+    testing::phase::add_warning "⚠️  No performance tests found"
+    testing::phase::add_test skipped
 fi
 
 cd "$TESTING_PHASE_SCENARIO_DIR"

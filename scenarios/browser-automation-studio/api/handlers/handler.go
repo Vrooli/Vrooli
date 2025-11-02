@@ -56,6 +56,7 @@ type Handler struct {
 	storage          *storage.MinIOClient
 	recordingService *services.RecordingService
 	recordingsRoot   string
+	replayRenderer   *services.ReplayRenderer
 	log              *logrus.Logger
 	upgrader         websocket.Upgrader
 
@@ -100,6 +101,7 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 	recordingsRoot := resolveRecordingsRoot(log)
 	recordingService := services.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
 	workflowSvc := services.NewWorkflowService(repo, browserless, wsHub, log)
+ 	replayRenderer := services.NewReplayRenderer(log, recordingsRoot)
 
 	handler := &Handler{
 		workflowService:  workflowSvc,
@@ -109,6 +111,7 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 		storage:          storageClient,
 		recordingService: recordingService,
 		recordingsRoot:   recordingsRoot,
+		replayRenderer:   replayRenderer,
 		log:              log,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {

@@ -73,6 +73,9 @@ type ExportCursorSpec struct {
 	AccentColor string            `json:"accent_color"`
 	Trail       ExportCursorTrail `json:"trail"`
 	ClickPulse  ExportClickPulse  `json:"click_pulse"`
+	Scale       float64           `json:"scale,omitempty"`
+	InitialPos  string            `json:"initial_position,omitempty"`
+	ClickAnim   string            `json:"click_animation,omitempty"`
 }
 
 // ExportCursorTrail describes cursor trail animation.
@@ -395,6 +398,9 @@ func defaultCursorSpec(accent string) ExportCursorSpec {
 			DurationMs: 420,
 			Opacity:    0.65,
 		},
+		Scale:     1.0,
+		InitialPos: "center",
+		ClickAnim:  "pulse",
 	}
 }
 

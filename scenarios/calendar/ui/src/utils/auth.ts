@@ -34,50 +34,268 @@ const resolveExplicitAuthBase = (): string | undefined => {
   return undefined
 }
 
-const resolveAppMonitorAuthBase = (): string | undefined => {
-  if (typeof window === 'undefined') {
-    return undefined
+const LOCAL_HOST_PATTERN = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/iu
+
+const isLocalHostname = (value?: string | null): boolean => {
+  if (!value) {
+    return false
   }
 
-  const pathname = window.location?.pathname || ''
-  const match = pathname.match(/^\/apps\/[^/]+\/proxy/iu)
-  if (!match) {
-    return undefined
+  const trimmed = value.trim().toLowerCase()
+  if (!trimmed) {
+    return false
   }
 
-  return stripTrailingSlash(`${window.location.origin}/apps/scenario-authenticator/proxy`)
-}
-
-const resolveLocalAuthBase = (): string => {
-  if (typeof window === 'undefined') {
-    return `http://localhost:${DEFAULT_AUTH_PORT}`
+  if (LOCAL_HOST_PATTERN.test(trimmed)) {
+    return true
   }
-
-  const envPort = readEnvCandidate('VITE_AUTH_PORT')
-  const port = envPort || DEFAULT_AUTH_PORT
 
   try {
-    const url = new URL(window.location.origin)
-    url.port = port
-    return stripTrailingSlash(url.toString())
-  } catch (error) {
-    console.warn('[Calendar] Unable to construct auth base from origin, falling back to localhost:', error)
-    return `http://localhost:${port}`
+    const parsed = new URL(trimmed)
+    return LOCAL_HOST_PATTERN.test(parsed.hostname)
+  } catch {
+    const fromString = trimmed.replace(/^[a-zA-Z]+:\/\//u, '').split(/[/?#:]/u)[0]
+    return LOCAL_HOST_PATTERN.test(fromString)
   }
+}
+
+const normalizeCandidate = (candidate?: string | null): string | undefined => {
+  if (!candidate) {
+    return undefined
+  }
+
+  const trimmed = candidate.trim()
+  if (!trimmed) {
+    return undefined
+  }
+
+  if (/^[a-zA-Z][a-zA-Z0-9+-.]*:\/\//u.test(trimmed)) {
+    return stripTrailingSlash(trimmed)
+  }
+
+  if (trimmed.startsWith('//')) {
+    const protocol =
+      (typeof window !== 'undefined' && window.location?.protocol) || 'https:'
+    return stripTrailingSlash(`${protocol}${trimmed}`)
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const origin = stripTrailingSlash(window.location.origin)
+    const prefix = trimmed.startsWith('/') ? '' : '/'
+    return stripTrailingSlash(`${origin}${prefix}${trimmed}`)
+  }
+
+  return stripTrailingSlash(trimmed)
+}
+
+const extractHostname = (value: string): string | undefined => {
+  if (!value) {
+    return undefined
+  }
+
+  try {
+    const parsed = new URL(value)
+    return parsed.hostname
+  } catch {
+    if (value.startsWith('//')) {
+      try {
+        const parsed = new URL(`https:${value}`)
+        return parsed.hostname
+      } catch {
+        return undefined
+      }
+    }
+
+    if (/^[a-zA-Z][a-zA-Z0-9+-.]*:/u.test(value)) {
+      try {
+        const parsed = new URL(value)
+        return parsed.hostname
+      } catch {
+        return undefined
+      }
+    }
+
+    const normalized = value.replace(/^[a-zA-Z]+:\/\//u, '').split(/[/?#:]/u)[0]
+    return normalized || undefined
+  }
+}
+
+type ProxyAwareWindow = Window & {
+  __APP_MONITOR_PROXY_INFO__?: unknown
+  __APP_MONITOR_PROXY_INDEX__?: unknown
+}
+
+const collectAuthenticatorCandidates = (
+  source: unknown,
+  results: Set<string>,
+  visited: Set<unknown>
+): void => {
+  if (!source || visited.has(source)) {
+    return
+  }
+
+  visited.add(source)
+
+  if (typeof source === 'string') {
+    const trimmed = source.trim()
+    if (trimmed && /scenario-authenticator/iu.test(trimmed)) {
+      results.add(trimmed)
+    }
+    return
+  }
+
+  if (Array.isArray(source)) {
+    source.forEach(entry => collectAuthenticatorCandidates(entry, results, visited))
+    return
+  }
+
+  if (source instanceof Map) {
+    source.forEach(entry => collectAuthenticatorCandidates(entry, results, visited))
+    return
+  }
+
+  if (typeof source === 'object') {
+    const record = source as Record<string, unknown>
+    const prioritizedKeys = ['url', 'path', 'target', 'href', 'value', 'endpoint']
+    prioritizedKeys.forEach(key => {
+      if (key in record) {
+        collectAuthenticatorCandidates(record[key], results, visited)
+      }
+    })
+
+    Object.keys(record).forEach(key => {
+      if (prioritizedKeys.includes(key)) {
+        return
+      }
+      collectAuthenticatorCandidates(record[key], results, visited)
+    })
+  }
+}
+
+const scoreProxyCandidate = (value: string): number => {
+  const normalized = value.trim().toLowerCase()
+  let score = 0
+
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    score += 4
+  }
+  if (normalized.includes('/proxy')) {
+    score += 3
+  }
+  if (normalized.includes('/apps/')) {
+    score += 2
+  }
+  if (normalized.includes('auth')) {
+    score += 1
+  }
+
+  return score
+}
+
+const resolveProxyAuthBase = (): string | undefined => {
+  if (typeof window === 'undefined') {
+    return undefined
+  }
+
+  const results = new Set<string>()
+  const visited = new Set<unknown>()
+
+  const collectFromWindow = (candidate?: Window | null): void => {
+    if (!candidate) {
+      return
+    }
+
+    try {
+      const scoped = candidate as ProxyAwareWindow
+      collectAuthenticatorCandidates(scoped.__APP_MONITOR_PROXY_INFO__, results, visited)
+      collectAuthenticatorCandidates(scoped.__APP_MONITOR_PROXY_INDEX__, results, visited)
+    } catch {
+      // Accessing parent/top windows can throw for cross-origin frames.
+    }
+  }
+
+  collectFromWindow(window)
+  collectFromWindow(window.parent)
+  collectFromWindow(window.top)
+
+  const candidates = Array.from(results).sort((a, b) => scoreProxyCandidate(b) - scoreProxyCandidate(a))
+  for (const raw of candidates) {
+    const normalized = normalizeCandidate(raw)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  const origin = window.location?.origin
+  const pathname = window.location?.pathname || ''
+  if (origin && pathname.includes('/apps/')) {
+    return stripTrailingSlash(`${stripTrailingSlash(origin)}/apps/scenario-authenticator/proxy`)
+  }
+
+  return undefined
+}
+
+const normalizePort = (value?: string | null): string | undefined => {
+  if (!value) {
+    return undefined
+  }
+
+  const trimmed = value.trim()
+  return /^\d+$/u.test(trimmed) ? trimmed : undefined
+}
+
+const resolveAuthPort = (): string => {
+  const envPort = normalizePort(readEnvCandidate('VITE_AUTH_PORT'))
+  return envPort ?? DEFAULT_AUTH_PORT
+}
+
+const resolveLoopbackAuthBase = (): string => {
+  const port = resolveAuthPort()
+
+  if (typeof window === 'undefined') {
+    return `http://127.0.0.1:${port}`
+  }
+
+  const { origin, protocol, hostname } = window.location ?? {}
+  const normalizedOrigin = origin ? stripTrailingSlash(origin) : undefined
+
+  if (normalizedOrigin && hostname && isLocalHostname(hostname)) {
+    try {
+      const url = new URL(normalizedOrigin)
+      url.port = port
+      return stripTrailingSlash(url.toString())
+    } catch (error) {
+      console.warn('[Calendar] Failed to reuse window origin for auth base:', error)
+    }
+  }
+
+  const scheme = protocol === 'https:' ? 'https' : 'http'
+  return `${scheme}://127.0.0.1:${port}`
 }
 
 export const resolveAuthenticatorBaseUrl = (): string => {
   const explicit = resolveExplicitAuthBase()
-  if (explicit) {
-    return explicit
+  const proxyBase = resolveProxyAuthBase()
+  const normalizedExplicit = normalizeCandidate(explicit)
+  const remoteHost = typeof window !== 'undefined' && !isLocalHostname(window.location?.hostname)
+  const explicitHostname = normalizedExplicit ? extractHostname(normalizedExplicit) : undefined
+
+  if (
+    normalizedExplicit &&
+    (!remoteHost || (explicitHostname && !isLocalHostname(explicitHostname)))
+  ) {
+    return normalizedExplicit
   }
 
-  const monitorBase = resolveAppMonitorAuthBase()
-  if (monitorBase) {
-    return monitorBase
+  if (proxyBase) {
+    return proxyBase
   }
 
-  return resolveLocalAuthBase()
+  if (normalizedExplicit) {
+    return normalizedExplicit
+  }
+
+  return resolveLoopbackAuthBase()
 }
 
 export const resolveAuthenticatorLoginUrl = (options?: { redirectTo?: string }): string => {

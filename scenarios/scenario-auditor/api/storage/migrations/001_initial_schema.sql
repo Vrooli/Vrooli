@@ -87,19 +87,6 @@ CREATE TABLE rule_violations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- User preferences table - Audit configuration preferences
-CREATE TABLE user_preferences (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    preference_type VARCHAR(50) NOT NULL,
-    enabled_rules TEXT[],
-    disabled_categories TEXT[],
-    scan_options JSONB,
-    ui_settings JSONB,
-    notification_settings JSONB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 -- AI fixes table - AI-generated fixes for violations
 CREATE TABLE ai_fixes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -161,7 +148,6 @@ $$ language 'plpgsql';
 
 CREATE TRIGGER update_scenarios_updated_at BEFORE UPDATE ON scenarios FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_rules_updated_at BEFORE UPDATE ON rules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert initial rule categories
 INSERT INTO rule_categories (id, name, description, color, icon, display_order) VALUES

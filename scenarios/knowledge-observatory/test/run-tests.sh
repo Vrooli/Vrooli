@@ -1,35 +1,43 @@
 #!/bin/bash
-#
-# Test Orchestrator for knowledge-observatory
-# Executes all test phases in sequence
-#
+# Knowledge Observatory phased test orchestrator
+set -euo pipefail
 
-set -e
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-echo "=== Running all test phases for knowledge-observatory ==="
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Change to test phases directory
-if [ -d "test/phases" ]; then
-  cd test/phases
+LOG_DIR="$TEST_DIR/artifacts"
+mkdir -p "$LOG_DIR"
 
-  # Run each test phase in order
-  for test in test-*.sh; do
-    if [ -f "$test" ]; then
-      echo ""
-      echo "=========================================="
-      echo "Running $test"
-      echo "=========================================="
-      ./"$test"
-    fi
-  done
+testing::runner::init \
+  --scenario-name "knowledge-observatory" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$LOG_DIR" \
+  --default-manage-runtime true
 
-  cd ../..
-else
-  echo "❌ No test phases directory found at test/phases"
-  exit 1
-fi
+PHASES_DIR="$TEST_DIR/phases"
 
-echo ""
-echo "=========================================="
-echo "✅ All test phases completed successfully"
-echo "=========================================="
+testing::runner::register_phase --name structure --script "$PHASES_DIR/test-structure.sh" --timeout 45
+
+testing::runner::register_phase --name docs --script "$PHASES_DIR/test-docs.sh" --timeout 45
+
+testing::runner::register_phase --name dependencies --script "$PHASES_DIR/test-dependencies.sh" --timeout 90
+
+testing::runner::register_phase --name unit --script "$PHASES_DIR/test-unit.sh" --timeout 120
+
+testing::runner::register_phase --name integration --script "$PHASES_DIR/test-integration.sh" --timeout 180 --requires-runtime true
+
+testing::runner::register_phase --name business --script "$PHASES_DIR/test-business.sh" --timeout 180 --requires-runtime true
+
+testing::runner::register_phase --name performance --script "$PHASES_DIR/test-performance.sh" --timeout 180 --requires-runtime true
+
+# Quick feedback presets
+testing::runner::define_preset quick "structure docs unit"
+testing::runner::define_preset smoke "structure integration"
+testing::runner::define_preset comprehensive "structure docs dependencies unit integration business performance"
+
+testing::runner::execute "$@"

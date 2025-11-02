@@ -1,4 +1,13 @@
-import { useState, useEffect, useMemo, useCallback, useRef, useId, type CSSProperties, type ReactNode } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  useId,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import {
   Activity,
   Pause,
@@ -20,12 +29,11 @@ import {
   Clapperboard,
   Film,
   FileJson,
-  Copy,
   FolderOutput,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import clsx from 'clsx';
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { format } from "date-fns";
+import clsx from "clsx";
 import ReplayPlayer, {
   ReplayFrame,
   type ReplayChromeTheme,
@@ -33,17 +41,17 @@ import ReplayPlayer, {
   type ReplayCursorTheme,
   type ReplayCursorInitialPosition,
   type ReplayCursorClickAnimation,
-} from './ReplayPlayer';
-import { useExecutionStore } from '../stores/executionStore';
+} from "./ReplayPlayer";
+import { useExecutionStore } from "../stores/executionStore";
 import type {
   Execution,
   TimelineFrame,
   TimelineArtifact,
-} from '../stores/executionStore';
-import type { Screenshot, LogEntry } from '../stores/executionEventProcessor';
-import { toast } from 'react-hot-toast';
-import ResponsiveDialog from './ResponsiveDialog';
-import { getConfig } from '../config';
+} from "../stores/executionStore";
+import type { Screenshot, LogEntry } from "../stores/executionEventProcessor";
+import { toast } from "react-hot-toast";
+import ResponsiveDialog from "./ResponsiveDialog";
+import { getConfig } from "../config";
 import {
   toNumber,
   toBoundingBox,
@@ -53,8 +61,8 @@ import {
   mapRetryHistory,
   mapAssertion,
   resolveUrl,
-} from '../utils/executionTypeMappers';
-import ExecutionHistory from './ExecutionHistory';
+} from "../utils/executionTypeMappers";
+import ExecutionHistory from "./ExecutionHistory";
 // Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
 const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
@@ -62,12 +70,12 @@ const withAssetBasePath = (value: string) => {
   if (!value || ABSOLUTE_URL_PATTERN.test(value)) {
     return value;
   }
-  const base = import.meta.env.BASE_URL || '/';
-  if (base === '/' || value.startsWith(base)) {
+  const base = import.meta.env.BASE_URL || "/";
+  if (base === "/" || value.startsWith(base)) {
     return value;
   }
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-  const normalizedValue = value.startsWith('/') ? value.slice(1) : value;
+  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+  const normalizedValue = value.startsWith("/") ? value.slice(1) : value;
   return `${normalizedBase}${normalizedValue}`;
 };
 
@@ -76,9 +84,15 @@ const resolveBackgroundAsset = (relativePath: string) => {
   return withAssetBasePath(url.pathname || url.href);
 };
 
-const geometricPrismUrl = resolveBackgroundAsset('../assets/replay-backgrounds/geometric-prism.jpg');
-const geometricOrbitUrl = resolveBackgroundAsset('../assets/replay-backgrounds/geometric-orbit.jpg');
-const geometricMosaicUrl = resolveBackgroundAsset('../assets/replay-backgrounds/geometric-mosaic.jpg');
+const geometricPrismUrl = resolveBackgroundAsset(
+  "../assets/replay-backgrounds/geometric-prism.jpg",
+);
+const geometricOrbitUrl = resolveBackgroundAsset(
+  "../assets/replay-backgrounds/geometric-orbit.jpg",
+);
+const geometricMosaicUrl = resolveBackgroundAsset(
+  "../assets/replay-backgrounds/geometric-mosaic.jpg",
+);
 
 interface ExecutionProps {
   execution: Execution;
@@ -86,22 +100,26 @@ interface ExecutionProps {
   showExecutionSwitcher?: boolean;
 }
 
-type ViewerTab = 'replay' | 'screenshots' | 'logs' | 'executions';
+type ViewerTab = "replay" | "screenshots" | "logs" | "executions";
 
 const HEARTBEAT_WARN_SECONDS = 8;
 const HEARTBEAT_STALL_SECONDS = 15;
 
-const REPLAY_CHROME_OPTIONS: Array<{ id: ReplayChromeTheme; label: string; subtitle: string }> = [
-  { id: 'aurora', label: 'Aurora', subtitle: 'macOS-inspired chrome' },
-  { id: 'chromium', label: 'Chromium', subtitle: 'Modern minimal controls' },
-  { id: 'midnight', label: 'Midnight', subtitle: 'Gradient showcase frame' },
-  { id: 'minimal', label: 'Minimal', subtitle: 'Hide browser chrome' },
+const REPLAY_CHROME_OPTIONS: Array<{
+  id: ReplayChromeTheme;
+  label: string;
+  subtitle: string;
+}> = [
+  { id: "aurora", label: "Aurora", subtitle: "macOS-inspired chrome" },
+  { id: "chromium", label: "Chromium", subtitle: "Modern minimal controls" },
+  { id: "midnight", label: "Midnight", subtitle: "Gradient showcase frame" },
+  { id: "minimal", label: "Minimal", subtitle: "Hide browser chrome" },
 ];
 
 const CURSOR_SCALE_MIN = 0.6;
 const CURSOR_SCALE_MAX = 1.8;
 
-type ExportFormat = 'json' | 'mp4' | 'gif';
+type ExportFormat = "json" | "mp4" | "gif";
 
 type SaveFilePickerOptions = {
   suggestedName?: string;
@@ -164,9 +182,9 @@ interface ExecutionExportPreview {
 }
 
 const EXPORT_EXTENSIONS: Record<ExportFormat, string> = {
-  json: 'json',
-  mp4: 'mp4',
-  gif: 'gif',
+  json: "json",
+  mp4: "mp4",
+  gif: "gif",
 };
 
 const EXPORT_FORMAT_OPTIONS: Array<{
@@ -178,25 +196,25 @@ const EXPORT_FORMAT_OPTIONS: Array<{
   disabled?: boolean;
 }> = [
   {
-    id: 'mp4',
-    label: 'MP4 Video',
-    description: '1080p marketing reel (CLI render)',
+    id: "mp4",
+    label: "MP4 Video",
+    description: "1080p marketing reel (server render)",
     icon: Clapperboard,
-    badge: 'Beta',
+    badge: "Default",
   },
   {
-    id: 'gif',
-    label: 'Animated GIF',
-    description: 'Looped shareable snippet (CLI + ffmpeg)',
+    id: "gif",
+    label: "Animated GIF",
+    description: "Looped shareable highlight",
     icon: Film,
-    badge: 'Guide',
+    badge: "Guide",
   },
   {
-    id: 'json',
-    label: 'JSON Package',
-    description: 'Raw replay bundle for tooling',
+    id: "json",
+    label: "JSON Package",
+    description: "Raw replay bundle for tooling",
     icon: FileJson,
-    badge: 'Default',
+    badge: "Data",
   },
 ];
 
@@ -205,7 +223,7 @@ const sanitizeFileStem = (value: string, fallback: string): string => {
   if (!trimmed) {
     return fallback;
   }
-  const sanitized = trimmed.replace(/[^a-zA-Z0-9-_]/g, '-');
+  const sanitized = trimmed.replace(/[^a-zA-Z0-9-_]/g, "-");
   if (!sanitized) {
     return fallback;
   }
@@ -218,151 +236,170 @@ const REPLAY_BACKGROUND_OPTIONS: Array<{
   subtitle: string;
   previewStyle: CSSProperties;
   previewNode?: ReactNode;
-  kind: 'abstract' | 'solid' | 'minimal' | 'geometric';
+  kind: "abstract" | "solid" | "minimal" | "geometric";
 }> = [
   {
-    id: 'aurora',
-    label: 'Aurora Glow',
-    subtitle: 'Iridescent gradient wash',
+    id: "aurora",
+    label: "Aurora Glow",
+    subtitle: "Iridescent gradient wash",
     previewStyle: {
-      backgroundImage: 'linear-gradient(135deg, rgba(56,189,248,0.7), rgba(129,140,248,0.7))',
-    },
-    kind: 'abstract',
-  },
-  {
-    id: 'sunset',
-    label: 'Sunset Bloom',
-    subtitle: 'Fuchsia → amber ambience',
-    previewStyle: {
-      backgroundImage: 'linear-gradient(135deg, rgba(244,114,182,0.9), rgba(251,191,36,0.88))',
-      backgroundColor: '#43112d',
-    },
-    kind: 'abstract',
-  },
-  {
-    id: 'ocean',
-    label: 'Ocean Depths',
-    subtitle: 'Cerulean blue gradient',
-    previewStyle: {
-      backgroundImage: 'linear-gradient(135deg, rgba(14,165,233,0.78), rgba(30,64,175,0.82))',
-    },
-    kind: 'abstract',
-  },
-  {
-    id: 'nebula',
-    label: 'Nebula Drift',
-    subtitle: 'Cosmic violet haze',
-    previewStyle: {
-      backgroundImage: 'linear-gradient(135deg, rgba(147,51,234,0.78), rgba(99,102,241,0.78))',
-    },
-    kind: 'abstract',
-  },
-  {
-    id: 'grid',
-    label: 'Tech Grid',
-    subtitle: 'Futuristic lattice backdrop',
-    previewStyle: {
-      backgroundColor: '#0f172a',
       backgroundImage:
-        'linear-gradient(rgba(96,165,250,0.34) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,0.31) 1px, transparent 1px)',
-      backgroundSize: '14px 14px',
+        "linear-gradient(135deg, rgba(56,189,248,0.7), rgba(129,140,248,0.7))",
     },
-    kind: 'abstract',
+    kind: "abstract",
   },
   {
-    id: 'charcoal',
-    label: 'Charcoal',
-    subtitle: 'Deep neutral tone',
+    id: "sunset",
+    label: "Sunset Bloom",
+    subtitle: "Fuchsia → amber ambience",
     previewStyle: {
-      backgroundColor: '#0f172a',
-    },
-    kind: 'solid',
-  },
-  {
-    id: 'steel',
-    label: 'Steel Slate',
-    subtitle: 'Cool slate finish',
-    previewStyle: {
-      backgroundColor: '#1f2937',
-    },
-    kind: 'solid',
-  },
-  {
-    id: 'emerald',
-    label: 'Evergreen',
-    subtitle: 'Saturated green solid',
-    previewStyle: {
-      backgroundColor: '#064e3b',
-    },
-    kind: 'solid',
-  },
-  {
-    id: 'none',
-    label: 'No Background',
-    subtitle: 'Edge-to-edge browser',
-    previewStyle: {
-      backgroundColor: 'transparent',
       backgroundImage:
-        'linear-gradient(45deg, rgba(148,163,184,0.35) 25%, transparent 25%, transparent 50%, rgba(148,163,184,0.35) 50%, rgba(148,163,184,0.35) 75%, transparent 75%, transparent)',
-      backgroundSize: '10px 10px',
+        "linear-gradient(135deg, rgba(244,114,182,0.9), rgba(251,191,36,0.88))",
+      backgroundColor: "#43112d",
     },
-    kind: 'minimal',
+    kind: "abstract",
   },
   {
-    id: 'geoPrism',
-    label: 'Prismatic Peaks',
-    subtitle: 'Layered neon triangles',
+    id: "ocean",
+    label: "Ocean Depths",
+    subtitle: "Cerulean blue gradient",
     previewStyle: {
-      backgroundColor: '#0f172a',
+      backgroundImage:
+        "linear-gradient(135deg, rgba(14,165,233,0.78), rgba(30,64,175,0.82))",
+    },
+    kind: "abstract",
+  },
+  {
+    id: "nebula",
+    label: "Nebula Drift",
+    subtitle: "Cosmic violet haze",
+    previewStyle: {
+      backgroundImage:
+        "linear-gradient(135deg, rgba(147,51,234,0.78), rgba(99,102,241,0.78))",
+    },
+    kind: "abstract",
+  },
+  {
+    id: "grid",
+    label: "Tech Grid",
+    subtitle: "Futuristic lattice backdrop",
+    previewStyle: {
+      backgroundColor: "#0f172a",
+      backgroundImage:
+        "linear-gradient(rgba(96,165,250,0.34) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,0.31) 1px, transparent 1px)",
+      backgroundSize: "14px 14px",
+    },
+    kind: "abstract",
+  },
+  {
+    id: "charcoal",
+    label: "Charcoal",
+    subtitle: "Deep neutral tone",
+    previewStyle: {
+      backgroundColor: "#0f172a",
+    },
+    kind: "solid",
+  },
+  {
+    id: "steel",
+    label: "Steel Slate",
+    subtitle: "Cool slate finish",
+    previewStyle: {
+      backgroundColor: "#1f2937",
+    },
+    kind: "solid",
+  },
+  {
+    id: "emerald",
+    label: "Evergreen",
+    subtitle: "Saturated green solid",
+    previewStyle: {
+      backgroundColor: "#064e3b",
+    },
+    kind: "solid",
+  },
+  {
+    id: "none",
+    label: "No Background",
+    subtitle: "Edge-to-edge browser",
+    previewStyle: {
+      backgroundColor: "transparent",
+      backgroundImage:
+        "linear-gradient(45deg, rgba(148,163,184,0.35) 25%, transparent 25%, transparent 50%, rgba(148,163,184,0.35) 50%, rgba(148,163,184,0.35) 75%, transparent 75%, transparent)",
+      backgroundSize: "10px 10px",
+    },
+    kind: "minimal",
+  },
+  {
+    id: "geoPrism",
+    label: "Prismatic Peaks",
+    subtitle: "Layered neon triangles",
+    previewStyle: {
+      backgroundColor: "#0f172a",
     },
     previewNode: (
       <span className="absolute inset-0 overflow-hidden">
-        <img src={geometricPrismUrl} alt="" className="h-full w-full object-cover" />
+        <img
+          src={geometricPrismUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
         <span className="absolute inset-0 bg-gradient-to-br from-cyan-400/30 via-transparent to-indigo-500/24 mix-blend-screen" />
         <span className="absolute inset-0 bg-slate-950/45" />
       </span>
     ),
-    kind: 'geometric',
+    kind: "geometric",
   },
   {
-    id: 'geoOrbit',
-    label: 'Orbital Glow',
-    subtitle: 'Concentric energy orbits',
+    id: "geoOrbit",
+    label: "Orbital Glow",
+    subtitle: "Concentric energy orbits",
     previewStyle: {
-      backgroundColor: '#0b1120',
+      backgroundColor: "#0b1120",
     },
     previewNode: (
       <span className="absolute inset-0 overflow-hidden">
-        <img src={geometricOrbitUrl} alt="" className="h-full w-full object-cover" />
+        <img
+          src={geometricOrbitUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
         <span className="absolute inset-0 bg-gradient-to-br from-sky-300/28 via-transparent to-amber-300/20 mix-blend-screen" />
         <span className="absolute inset-0 bg-slate-950/45" />
       </span>
     ),
-    kind: 'geometric',
+    kind: "geometric",
   },
   {
-    id: 'geoMosaic',
-    label: 'Isometric Mosaic',
-    subtitle: 'Staggered tile lattice',
+    id: "geoMosaic",
+    label: "Isometric Mosaic",
+    subtitle: "Staggered tile lattice",
     previewStyle: {
-      backgroundColor: '#0b1526',
+      backgroundColor: "#0b1526",
     },
     previewNode: (
       <span className="absolute inset-0 overflow-hidden">
-        <img src={geometricMosaicUrl} alt="" className="h-full w-full object-cover" />
+        <img
+          src={geometricMosaicUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
         <span className="absolute inset-0 bg-gradient-to-tr from-sky-400/28 via-transparent to-indigo-400/22 mix-blend-screen" />
         <span className="absolute inset-0 bg-slate-950/45" />
       </span>
     ),
-    kind: 'geometric',
+    kind: "geometric",
   },
 ];
 
-const BACKGROUND_GROUP_ORDER: Array<{ id: (typeof REPLAY_BACKGROUND_OPTIONS)[number]['kind']; label: string }> = [
-  { id: 'abstract', label: 'Abstract' },
-  { id: 'solid', label: 'Solid' },
-  { id: 'minimal', label: 'Minimal' },
-  { id: 'geometric', label: 'Geometric' },
+const BACKGROUND_GROUP_ORDER: Array<{
+  id: (typeof REPLAY_BACKGROUND_OPTIONS)[number]["kind"];
+  label: string;
+}> = [
+  { id: "abstract", label: "Abstract" },
+  { id: "solid", label: "Solid" },
+  { id: "minimal", label: "Minimal" },
+  { id: "geometric", label: "Geometric" },
 ];
 
 type BackgroundOption = (typeof REPLAY_BACKGROUND_OPTIONS)[number];
@@ -371,26 +408,27 @@ type CursorOption = {
   id: ReplayCursorTheme;
   label: string;
   subtitle: string;
-  group: 'hidden' | 'halo' | 'arrow' | 'hand';
+  group: "hidden" | "halo" | "arrow" | "hand";
   preview: ReactNode;
 };
 
-const ARROW_CURSOR_PATH = 'M6 3L6 22L10.4 18.1L13.1 26.4L15.9 25.2L13.1 17.5L22 17.5L6 3Z';
+const ARROW_CURSOR_PATH =
+  "M6 3L6 22L10.4 18.1L13.1 26.4L15.9 25.2L13.1 17.5L22 17.5L6 3Z";
 
 const HAND_POINTER_PATHS = [
-  'M22 14a8 8 0 0 1-8 8',
-  'M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0',
-  'M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1',
-  'M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10',
-  'M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15',
+  "M22 14a8 8 0 0 1-8 8",
+  "M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0",
+  "M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1",
+  "M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10",
+  "M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15",
 ];
 
 const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
   {
-    id: 'disabled',
-    group: 'hidden',
-    label: 'Hidden',
-    subtitle: 'No virtual cursor overlay',
+    id: "disabled",
+    group: "hidden",
+    label: "Hidden",
+    subtitle: "No virtual cursor overlay",
     preview: (
       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-[10px] uppercase tracking-[0.18em] text-slate-400">
         Off
@@ -398,10 +436,10 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
     ),
   },
   {
-    id: 'white',
-    group: 'halo',
-    label: 'Soft White',
-    subtitle: 'Clean highlight for dark scenes',
+    id: "white",
+    group: "halo",
+    label: "Soft White",
+    subtitle: "Clean highlight for dark scenes",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-white/85 bg-white/90 shadow-[0_8px_20px_rgba(148,163,184,0.4)]">
         <span className="h-1.5 w-1.5 rounded-full bg-slate-500/60" />
@@ -409,10 +447,10 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
     ),
   },
   {
-    id: 'black',
-    group: 'halo',
-    label: 'Carbon Dark',
-    subtitle: 'High contrast for bright scenes',
+    id: "black",
+    group: "halo",
+    label: "Carbon Dark",
+    subtitle: "High contrast for bright scenes",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-black bg-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.55)]">
         <span className="h-2 w-2 rounded-full bg-white/80" />
@@ -420,10 +458,10 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
     ),
   },
   {
-    id: 'aura',
-    group: 'halo',
-    label: 'Aura Glow',
-    subtitle: 'Brand accent trail',
+    id: "aura",
+    group: "halo",
+    label: "Aura Glow",
+    subtitle: "Brand accent trail",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-cyan-200/80 bg-gradient-to-br from-sky-400 via-emerald-300 to-violet-400 shadow-[0_10px_22px_rgba(56,189,248,0.45)]">
         <span className="absolute -inset-0.5 rounded-full border border-cyan-300/50 opacity-70" />
@@ -431,10 +469,10 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
     ),
   },
   {
-    id: 'arrowLight',
-    group: 'arrow',
-    label: 'Classic Light',
-    subtitle: 'OS-style white arrow',
+    id: "arrowLight",
+    group: "arrow",
+    label: "Classic Light",
+    subtitle: "OS-style white arrow",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center text-white">
         <svg viewBox="0 0 32 32" className="h-6 w-6">
@@ -450,10 +488,10 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
     ),
   },
   {
-    id: 'arrowDark',
-    group: 'arrow',
-    label: 'Noir Precision',
-    subtitle: 'Deep slate pointer with halo',
+    id: "arrowDark",
+    group: "arrow",
+    label: "Noir Precision",
+    subtitle: "Deep slate pointer with halo",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center text-white">
         <svg viewBox="0 0 32 32" className="h-6 w-6">
@@ -469,15 +507,21 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
     ),
   },
   {
-    id: 'arrowNeon',
-    group: 'arrow',
-    label: 'Neon Signal',
-    subtitle: 'Gradient arrow with glow',
+    id: "arrowNeon",
+    group: "arrow",
+    label: "Neon Signal",
+    subtitle: "Gradient arrow with glow",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center text-white">
         <svg viewBox="0 0 32 32" className="h-6 w-6">
           <defs>
-            <linearGradient id="cursor-neon-preview" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient
+              id="cursor-neon-preview"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <stop offset="0%" stopColor="#38bdf8" />
               <stop offset="45%" stopColor="#34d399" />
               <stop offset="100%" stopColor="#a855f7" />
@@ -496,10 +540,10 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
     ),
   },
   {
-    id: 'handNeutral',
-    group: 'hand',
-    label: 'Pointer Neutral',
-    subtitle: 'Classic hand cursor outline',
+    id: "handNeutral",
+    group: "hand",
+    label: "Pointer Neutral",
+    subtitle: "Classic hand cursor outline",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center">
         <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
@@ -518,15 +562,21 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
     ),
   },
   {
-    id: 'handAura',
-    group: 'hand',
-    label: 'Pointer Aura',
-    subtitle: 'Gradient hand with halo',
+    id: "handAura",
+    group: "hand",
+    label: "Pointer Aura",
+    subtitle: "Gradient hand with halo",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center">
         <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
           <defs>
-            <linearGradient id="cursor-hand-preview" x1="10%" y1="5%" x2="80%" y2="95%">
+            <linearGradient
+              id="cursor-hand-preview"
+              x1="10%"
+              y1="5%"
+              x2="80%"
+              y2="95%"
+            >
               <stop offset="0%" stopColor="#38bdf8" />
               <stop offset="50%" stopColor="#34d399" />
               <stop offset="100%" stopColor="#a855f7" />
@@ -549,12 +599,13 @@ const REPLAY_CURSOR_OPTIONS: CursorOption[] = [
   },
 ];
 
-const CURSOR_GROUP_ORDER: Array<{ id: CursorOption['group']; label: string }> = [
-  { id: 'hidden', label: 'Hidden' },
-  { id: 'halo', label: 'Halo Cursors' },
-  { id: 'arrow', label: 'Arrowhead Cursors' },
-  { id: 'hand', label: 'Pointing Hands' },
-];
+const CURSOR_GROUP_ORDER: Array<{ id: CursorOption["group"]; label: string }> =
+  [
+    { id: "hidden", label: "Hidden" },
+    { id: "halo", label: "Halo Cursors" },
+    { id: "arrow", label: "Arrowhead Cursors" },
+    { id: "hand", label: "Pointing Hands" },
+  ];
 
 const REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS: Array<{
   id: ReplayCursorClickAnimation;
@@ -563,9 +614,9 @@ const REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS: Array<{
   preview: ReactNode;
 }> = [
   {
-    id: 'none',
-    label: 'None',
-    subtitle: 'No click highlight',
+    id: "none",
+    label: "None",
+    subtitle: "No click highlight",
     preview: (
       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-[10px] uppercase tracking-[0.18em] text-slate-400">
         Off
@@ -573,9 +624,9 @@ const REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS: Array<{
     ),
   },
   {
-    id: 'pulse',
-    label: 'Pulse',
-    subtitle: 'Radial glow on click',
+    id: "pulse",
+    label: "Pulse",
+    subtitle: "Radial glow on click",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center">
         <span className="absolute h-6 w-6 rounded-full border border-sky-300/60 bg-sky-400/20" />
@@ -585,9 +636,9 @@ const REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS: Array<{
     ),
   },
   {
-    id: 'ripple',
-    label: 'Ripple',
-    subtitle: 'Expanding ring accent',
+    id: "ripple",
+    label: "Ripple",
+    subtitle: "Expanding ring accent",
     preview: (
       <span className="relative inline-flex h-7 w-7 items-center justify-center">
         <span className="absolute h-5 w-5 rounded-full border border-violet-300/70" />
@@ -598,99 +649,152 @@ const REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS: Array<{
   },
 ];
 
-type ClickAnimationOption = (typeof REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS)[number];
+type ClickAnimationOption =
+  (typeof REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS)[number];
 
 const REPLAY_CURSOR_POSITIONS: Array<{
   id: ReplayCursorInitialPosition;
   label: string;
   subtitle: string;
 }> = [
-  { id: 'center', label: 'Center', subtitle: 'Start replay from the middle' },
-  { id: 'top-left', label: 'Top Left', subtitle: 'Anchor to the navigation corner' },
-  { id: 'top-right', label: 'Top Right', subtitle: 'Anchor to utility corner' },
-  { id: 'bottom-left', label: 'Bottom Left', subtitle: 'Anchor to lower control area' },
-  { id: 'bottom-right', label: 'Bottom Right', subtitle: 'Anchor to lower action edge' },
-  { id: 'random', label: 'Randomized', subtitle: 'Fresh placement each replay' },
+  { id: "center", label: "Center", subtitle: "Start replay from the middle" },
+  {
+    id: "top-left",
+    label: "Top Left",
+    subtitle: "Anchor to the navigation corner",
+  },
+  { id: "top-right", label: "Top Right", subtitle: "Anchor to utility corner" },
+  {
+    id: "bottom-left",
+    label: "Bottom Left",
+    subtitle: "Anchor to lower control area",
+  },
+  {
+    id: "bottom-right",
+    label: "Bottom Right",
+    subtitle: "Anchor to lower action edge",
+  },
+  {
+    id: "random",
+    label: "Randomized",
+    subtitle: "Fresh placement each replay",
+  },
 ];
 
-const isReplayChromeTheme = (value: string | null | undefined): value is ReplayChromeTheme =>
+const isReplayChromeTheme = (
+  value: string | null | undefined,
+): value is ReplayChromeTheme =>
   Boolean(value && REPLAY_CHROME_OPTIONS.some((option) => option.id === value));
 
 const isReplayBackgroundTheme = (
   value: string | null | undefined,
 ): value is ReplayBackgroundTheme =>
-  Boolean(value && REPLAY_BACKGROUND_OPTIONS.some((option) => option.id === value));
+  Boolean(
+    value && REPLAY_BACKGROUND_OPTIONS.some((option) => option.id === value),
+  );
 
-const isReplayCursorTheme = (value: string | null | undefined): value is ReplayCursorTheme =>
+const isReplayCursorTheme = (
+  value: string | null | undefined,
+): value is ReplayCursorTheme =>
   Boolean(value && REPLAY_CURSOR_OPTIONS.some((option) => option.id === value));
 
 const isReplayCursorInitialPosition = (
   value: string | null | undefined,
 ): value is ReplayCursorInitialPosition =>
-  Boolean(value && REPLAY_CURSOR_POSITIONS.some((option) => option.id === value));
+  Boolean(
+    value && REPLAY_CURSOR_POSITIONS.some((option) => option.id === value),
+  );
 
 const isReplayCursorClickAnimation = (
   value: string | null | undefined,
 ): value is ReplayCursorClickAnimation =>
-  Boolean(value && REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.some((option) => option.id === value));
+  Boolean(
+    value &&
+      REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.some(
+        (option) => option.id === value,
+      ),
+  );
 
-function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: ExecutionProps) {
+function ExecutionViewer({
+  execution,
+  onClose,
+  showExecutionSwitcher = false,
+}: ExecutionProps) {
   const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
   const stopExecution = useExecutionStore((state) => state.stopExecution);
   const startExecution = useExecutionStore((state) => state.startExecution);
   const loadExecution = useExecutionStore((state) => state.loadExecution);
   const loadExecutions = useExecutionStore((state) => state.loadExecutions);
-  const [activeTab, setActiveTab] = useState<ViewerTab>('replay');
-  const [hasAutoSwitchedToReplay, setHasAutoSwitchedToReplay] = useState<boolean>(
-    Boolean(execution.timeline && execution.timeline.length > 0)
-  );
-  const [selectedScreenshot, setSelectedScreenshot] = useState<Screenshot | null>(null);
+  const [activeTab, setActiveTab] = useState<ViewerTab>("replay");
+  const [hasAutoSwitchedToReplay, setHasAutoSwitchedToReplay] =
+    useState<boolean>(
+      Boolean(execution.timeline && execution.timeline.length > 0),
+    );
+  const [selectedScreenshot, setSelectedScreenshot] =
+    useState<Screenshot | null>(null);
   const [, setHeartbeatTick] = useState(0);
   const [isStopping, setIsStopping] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [isSwitchingExecution, setIsSwitchingExecution] = useState(false);
-  const [replayChromeTheme, setReplayChromeTheme] = useState<ReplayChromeTheme>(() => {
-    if (typeof window === 'undefined') {
-      return 'aurora';
-    }
-    const stored = window.localStorage.getItem('browserAutomation.replayChromeTheme');
-    return isReplayChromeTheme(stored) ? stored : 'aurora';
-  });
-  const [replayBackgroundTheme, setReplayBackgroundTheme] = useState<ReplayBackgroundTheme>(() => {
-    if (typeof window === 'undefined') {
-      return 'aurora';
-    }
-    const stored = window.localStorage.getItem('browserAutomation.replayBackgroundTheme');
-    return isReplayBackgroundTheme(stored) ? stored : 'aurora';
-  });
-  const [replayCursorTheme, setReplayCursorTheme] = useState<ReplayCursorTheme>(() => {
-    if (typeof window === 'undefined') {
-      return 'white';
-    }
-    const stored = window.localStorage.getItem('browserAutomation.replayCursorTheme');
-    return isReplayCursorTheme(stored) ? stored : 'white';
-  });
+  const [replayChromeTheme, setReplayChromeTheme] = useState<ReplayChromeTheme>(
+    () => {
+      if (typeof window === "undefined") {
+        return "aurora";
+      }
+      const stored = window.localStorage.getItem(
+        "browserAutomation.replayChromeTheme",
+      );
+      return isReplayChromeTheme(stored) ? stored : "aurora";
+    },
+  );
+  const [replayBackgroundTheme, setReplayBackgroundTheme] =
+    useState<ReplayBackgroundTheme>(() => {
+      if (typeof window === "undefined") {
+        return "aurora";
+      }
+      const stored = window.localStorage.getItem(
+        "browserAutomation.replayBackgroundTheme",
+      );
+      return isReplayBackgroundTheme(stored) ? stored : "aurora";
+    });
+  const [replayCursorTheme, setReplayCursorTheme] = useState<ReplayCursorTheme>(
+    () => {
+      if (typeof window === "undefined") {
+        return "white";
+      }
+      const stored = window.localStorage.getItem(
+        "browserAutomation.replayCursorTheme",
+      );
+      return isReplayCursorTheme(stored) ? stored : "white";
+    },
+  );
   const [replayCursorInitialPosition, setReplayCursorInitialPosition] =
     useState<ReplayCursorInitialPosition>(() => {
-      if (typeof window === 'undefined') {
-        return 'center';
+      if (typeof window === "undefined") {
+        return "center";
       }
-      const stored = window.localStorage.getItem('browserAutomation.replayCursorInitialPosition');
-      return isReplayCursorInitialPosition(stored) ? stored : 'center';
+      const stored = window.localStorage.getItem(
+        "browserAutomation.replayCursorInitialPosition",
+      );
+      return isReplayCursorInitialPosition(stored) ? stored : "center";
     });
   const [replayCursorClickAnimation, setReplayCursorClickAnimation] =
     useState<ReplayCursorClickAnimation>(() => {
-      if (typeof window === 'undefined') {
-        return 'none';
+      if (typeof window === "undefined") {
+        return "none";
       }
-      const stored = window.localStorage.getItem('browserAutomation.replayCursorClickAnimation');
-      return isReplayCursorClickAnimation(stored) ? stored : 'none';
+      const stored = window.localStorage.getItem(
+        "browserAutomation.replayCursorClickAnimation",
+      );
+      return isReplayCursorClickAnimation(stored) ? stored : "none";
     });
   const [replayCursorScale, setReplayCursorScale] = useState<number>(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return 1;
     }
-    const stored = window.localStorage.getItem('browserAutomation.replayCursorScale');
+    const stored = window.localStorage.getItem(
+      "browserAutomation.replayCursorScale",
+    );
     if (!stored) {
       return 1;
     }
@@ -702,9 +806,12 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   });
   const [isBackgroundMenuOpen, setIsBackgroundMenuOpen] = useState(false);
   const [isCursorMenuOpen, setIsCursorMenuOpen] = useState(false);
-  const [isCursorPositionMenuOpen, setIsCursorPositionMenuOpen] = useState(false);
-  const [isCursorClickAnimationMenuOpen, setIsCursorClickAnimationMenuOpen] = useState(false);
-  const [isCustomizationCollapsed, setIsCustomizationCollapsed] = useState(true);
+  const [isCursorPositionMenuOpen, setIsCursorPositionMenuOpen] =
+    useState(false);
+  const [isCursorClickAnimationMenuOpen, setIsCursorClickAnimationMenuOpen] =
+    useState(false);
+  const [isCustomizationCollapsed, setIsCustomizationCollapsed] =
+    useState(true);
   const screenshotRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const backgroundSelectorRef = useRef<HTMLDivElement | null>(null);
   const cursorSelectorRef = useRef<HTMLDivElement | null>(null);
@@ -712,26 +819,35 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   const cursorClickAnimationSelectorRef = useRef<HTMLDivElement | null>(null);
   const preloadedWorkflowRef = useRef<string | null>(null);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('json');
-  const [exportFileStem, setExportFileStem] = useState<string>(() => `browser-automation-replay-${execution.id.slice(0, 8)}`);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("mp4");
+  const [exportFileStem, setExportFileStem] = useState<string>(
+    () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
+  );
   const [useNativeFilePicker, setUseNativeFilePicker] = useState(false);
-  const [videoOutputDirectory, setVideoOutputDirectory] = useState<string>('~/Downloads');
-  const [exportPreview, setExportPreview] = useState<ExecutionExportPreview | null>(null);
-  const [exportPreviewExecutionId, setExportPreviewExecutionId] = useState<string | null>(null);
+  const [exportPreview, setExportPreview] =
+    useState<ExecutionExportPreview | null>(null);
+  const [exportPreviewExecutionId, setExportPreviewExecutionId] = useState<
+    string | null
+  >(null);
   const [isExportPreviewLoading, setIsExportPreviewLoading] = useState(false);
-  const [exportPreviewError, setExportPreviewError] = useState<string | null>(null);
+  const [exportPreviewError, setExportPreviewError] = useState<string | null>(
+    null,
+  );
   const [isExporting, setIsExporting] = useState(false);
-  const [copyInstructionsError, setCopyInstructionsError] = useState<string | null>(null);
   const supportsFileSystemAccess =
-    typeof window !== 'undefined' &&
-    typeof (window as typeof window & { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function';
+    typeof window !== "undefined" &&
+    typeof (window as typeof window & { showSaveFilePicker?: unknown })
+      .showSaveFilePicker === "function";
 
   const defaultExportFileStem = useMemo(
     () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
     [execution.id],
   );
 
-  const getSanitizedFileStem = useCallback(() => sanitizeFileStem(exportFileStem, defaultExportFileStem), [exportFileStem, defaultExportFileStem]);
+  const getSanitizedFileStem = useCallback(
+    () => sanitizeFileStem(exportFileStem, defaultExportFileStem),
+    [exportFileStem, defaultExportFileStem],
+  );
 
   const buildOutputFileName = useCallback(
     (extension: string) => {
@@ -741,48 +857,16 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     [getSanitizedFileStem],
   );
 
-  const buildOutputPath = useCallback(
-    (extension: string) => {
-      const fileName = buildOutputFileName(extension);
-      const directory = videoOutputDirectory.trim();
-      if (!directory) {
-        return fileName;
-      }
-      if (directory.endsWith('/') || directory.endsWith('\\')) {
-        return `${directory}${fileName}`;
-      }
-      if (directory.includes('\\') && !directory.includes('/')) {
-        return `${directory}\\${fileName}`;
-      }
-      return `${directory}/${fileName}`;
-    },
-    [buildOutputFileName, videoOutputDirectory],
+  const finalFileName = useMemo(
+    () => buildOutputFileName(EXPORT_EXTENSIONS[exportFormat]),
+    [buildOutputFileName, exportFormat],
   );
-
-  const finalFileName = useMemo(() => buildOutputFileName(EXPORT_EXTENSIONS[exportFormat]), [buildOutputFileName, exportFormat]);
-
-  const cliInstructions = useMemo(() => {
-    if (exportFormat === 'json') {
-      return [] as string[];
-    }
-    if (exportFormat === 'mp4') {
-      return [
-        `browser-automation-studio execution render-video ${execution.id} --format mp4 --output "${buildOutputPath(EXPORT_EXTENSIONS.mp4)}"`,
-      ];
-    }
-    const mp4Path = buildOutputPath(EXPORT_EXTENSIONS.mp4);
-    const gifPath = buildOutputPath(EXPORT_EXTENSIONS.gif);
-    return [
-      `browser-automation-studio execution render-video ${execution.id} --format mp4 --output "${mp4Path}"`,
-      `ffmpeg -i "${mp4Path}" -vf "fps=12,scale=1280:-1:flags=lanczos" "${gifPath}"`,
-    ];
-  }, [buildOutputPath, execution.id, exportFormat]);
 
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
   const executionError = execution.error ?? undefined;
 
   useEffect(() => {
-    if (execution.status !== 'running' || !heartbeatTimestamp) {
+    if (execution.status !== "running" || !heartbeatTimestamp) {
       return;
     }
     const interval = window.setInterval(() => {
@@ -794,8 +878,10 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   }, [execution.status, heartbeatTimestamp]);
 
   useEffect(() => {
-    setHasAutoSwitchedToReplay(Boolean(execution.timeline && execution.timeline.length > 0));
-    setActiveTab('replay');
+    setHasAutoSwitchedToReplay(
+      Boolean(execution.timeline && execution.timeline.length > 0),
+    );
+    setActiveTab("replay");
     setSelectedScreenshot(null);
   }, [execution.id]);
 
@@ -804,14 +890,12 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     setExportPreview(null);
     setExportPreviewExecutionId(null);
     setExportPreviewError(null);
-    setCopyInstructionsError(null);
     setExportFileStem(defaultExportFileStem);
-    setVideoOutputDirectory('~/Downloads');
     setUseNativeFilePicker(false);
   }, [defaultExportFileStem]);
 
   useEffect(() => {
-    if (exportFormat !== 'json' && useNativeFilePicker) {
+    if (exportFormat !== "json" && useNativeFilePicker) {
       setUseNativeFilePicker(false);
     }
   }, [exportFormat, useNativeFilePicker]);
@@ -828,8 +912,8 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   }, [execution.workflowId, loadExecutions, showExecutionSwitcher]);
 
   useEffect(() => {
-    if (!showExecutionSwitcher && activeTab === 'executions') {
-      setActiveTab('replay');
+    if (!showExecutionSwitcher && activeTab === "executions") {
+      setActiveTab("replay");
     }
   }, [showExecutionSwitcher, activeTab]);
 
@@ -846,10 +930,14 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     void (async () => {
       try {
         const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/executions/${execution.id}/export`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
+        const configData = await getConfig();
+        const response = await fetch(
+          `${configData.API_URL}/executions/${execution.id}/export`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          },
+        );
         if (!response.ok) {
           const text = await response.text();
           throw new Error(text || `Export request failed (${response.status})`);
@@ -860,7 +948,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
         }
         const parsed: ExecutionExportPreview = {
           executionId: raw.execution_id ?? execution.id,
-          status: raw.status ?? 'unknown',
+          status: raw.status ?? "unknown",
           message: raw.message,
           package: raw.package,
         };
@@ -870,7 +958,10 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
         if (isCancelled) {
           return;
         }
-        const message = error instanceof Error ? error.message : 'Failed to prepare export preview';
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to prepare export preview";
         setExportPreviewError(message);
         setExportPreview(null);
       } finally {
@@ -882,71 +973,94 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     return () => {
       isCancelled = true;
     };
-  }, [execution.id, exportPreview, exportPreviewExecutionId, isExportDialogOpen]);
+  }, [
+    execution.id,
+    exportPreview,
+    exportPreviewExecutionId,
+    isExportDialogOpen,
+  ]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return;
     }
     try {
-      window.localStorage.setItem('browserAutomation.replayChromeTheme', replayChromeTheme);
+      window.localStorage.setItem(
+        "browserAutomation.replayChromeTheme",
+        replayChromeTheme,
+      );
     } catch (err) {
-      console.warn('Failed to persist replay chrome theme', err);
+      console.warn("Failed to persist replay chrome theme", err);
     }
   }, [replayChromeTheme]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return;
     }
     try {
-      window.localStorage.setItem('browserAutomation.replayBackgroundTheme', replayBackgroundTheme);
+      window.localStorage.setItem(
+        "browserAutomation.replayBackgroundTheme",
+        replayBackgroundTheme,
+      );
     } catch (err) {
-      console.warn('Failed to persist replay background theme', err);
+      console.warn("Failed to persist replay background theme", err);
     }
   }, [replayBackgroundTheme]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return;
     }
     try {
-      window.localStorage.setItem('browserAutomation.replayCursorTheme', replayCursorTheme);
+      window.localStorage.setItem(
+        "browserAutomation.replayCursorTheme",
+        replayCursorTheme,
+      );
     } catch (err) {
-      console.warn('Failed to persist replay cursor theme', err);
+      console.warn("Failed to persist replay cursor theme", err);
     }
   }, [replayCursorTheme]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return;
     }
     try {
-      window.localStorage.setItem('browserAutomation.replayCursorInitialPosition', replayCursorInitialPosition);
+      window.localStorage.setItem(
+        "browserAutomation.replayCursorInitialPosition",
+        replayCursorInitialPosition,
+      );
     } catch (err) {
-      console.warn('Failed to persist replay cursor initial position', err);
+      console.warn("Failed to persist replay cursor initial position", err);
     }
   }, [replayCursorInitialPosition]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return;
     }
     try {
-      window.localStorage.setItem('browserAutomation.replayCursorClickAnimation', replayCursorClickAnimation);
+      window.localStorage.setItem(
+        "browserAutomation.replayCursorClickAnimation",
+        replayCursorClickAnimation,
+      );
     } catch (err) {
-      console.warn('Failed to persist replay cursor click animation', err);
+      console.warn("Failed to persist replay cursor click animation", err);
     }
   }, [replayCursorClickAnimation]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return;
     }
     try {
-      window.localStorage.setItem('browserAutomation.replayCursorScale', replayCursorScale.toFixed(2));
+      window.localStorage.setItem(
+        "browserAutomation.replayCursorScale",
+        replayCursorScale.toFixed(2),
+      );
     } catch (err) {
-      console.warn('Failed to persist replay cursor scale', err);
+      console.warn("Failed to persist replay cursor scale", err);
     }
   }, [replayCursorScale]);
 
@@ -954,7 +1068,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     if (!isBackgroundMenuOpen) {
       return;
     }
-    if (typeof document === 'undefined') {
+    if (typeof document === "undefined") {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -962,20 +1076,23 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       if (!target) {
         return;
       }
-      if (backgroundSelectorRef.current && !backgroundSelectorRef.current.contains(target)) {
+      if (
+        backgroundSelectorRef.current &&
+        !backgroundSelectorRef.current.contains(target)
+      ) {
         setIsBackgroundMenuOpen(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsBackgroundMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isBackgroundMenuOpen]);
 
@@ -983,7 +1100,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     if (!isCursorMenuOpen) {
       return;
     }
-    if (typeof document === 'undefined') {
+    if (typeof document === "undefined") {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -991,20 +1108,23 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       if (!target) {
         return;
       }
-      if (cursorSelectorRef.current && !cursorSelectorRef.current.contains(target)) {
+      if (
+        cursorSelectorRef.current &&
+        !cursorSelectorRef.current.contains(target)
+      ) {
         setIsCursorMenuOpen(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsCursorMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isCursorMenuOpen]);
 
@@ -1012,7 +1132,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     if (!isCursorPositionMenuOpen) {
       return;
     }
-    if (typeof document === 'undefined') {
+    if (typeof document === "undefined") {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -1020,20 +1140,23 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       if (!target) {
         return;
       }
-      if (cursorPositionSelectorRef.current && !cursorPositionSelectorRef.current.contains(target)) {
+      if (
+        cursorPositionSelectorRef.current &&
+        !cursorPositionSelectorRef.current.contains(target)
+      ) {
         setIsCursorPositionMenuOpen(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsCursorPositionMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isCursorPositionMenuOpen]);
 
@@ -1041,7 +1164,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     if (!isCursorClickAnimationMenuOpen) {
       return;
     }
-    if (typeof document === 'undefined') {
+    if (typeof document === "undefined") {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -1049,26 +1172,33 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       if (!target) {
         return;
       }
-      if (cursorClickAnimationSelectorRef.current && !cursorClickAnimationSelectorRef.current.contains(target)) {
+      if (
+        cursorClickAnimationSelectorRef.current &&
+        !cursorClickAnimationSelectorRef.current.contains(target)
+      ) {
         setIsCursorClickAnimationMenuOpen(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsCursorClickAnimationMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isCursorClickAnimationMenuOpen]);
 
   useEffect(() => {
-    if (!hasAutoSwitchedToReplay && execution.timeline && execution.timeline.length > 0) {
-      setActiveTab('replay');
+    if (
+      !hasAutoSwitchedToReplay &&
+      execution.timeline &&
+      execution.timeline.length > 0
+    ) {
+      setActiveTab("replay");
       setHasAutoSwitchedToReplay(true);
     }
   }, [execution.timeline, hasAutoSwitchedToReplay]);
@@ -1077,17 +1207,19 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     if (!execution.lastHeartbeat || !execution.lastHeartbeat.timestamp) {
       return null;
     }
-    const age = (Date.now() - execution.lastHeartbeat.timestamp.getTime()) / 1000;
+    const age =
+      (Date.now() - execution.lastHeartbeat.timestamp.getTime()) / 1000;
     return age < 0 ? 0 : age;
   }, [execution.lastHeartbeat]);
 
-  const inStepSeconds = execution.lastHeartbeat?.elapsedMs != null
-    ? Math.max(0, execution.lastHeartbeat.elapsedMs / 1000)
-    : null;
+  const inStepSeconds =
+    execution.lastHeartbeat?.elapsedMs != null
+      ? Math.max(0, execution.lastHeartbeat.elapsedMs / 1000)
+      : null;
 
   const formatSeconds = (value: number) => {
     if (Number.isNaN(value) || !Number.isFinite(value)) {
-      return '0s';
+      return "0s";
     }
     if (value >= 10) {
       return `${Math.round(value)}s`;
@@ -1095,65 +1227,67 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     return `${value.toFixed(1)}s`;
   };
 
-  const heartbeatAgeLabel = heartbeatAgeSeconds == null
-    ? null
-    : heartbeatAgeSeconds < 0.75
-      ? 'just now'
-      : `${formatSeconds(heartbeatAgeSeconds)} ago`;
+  const heartbeatAgeLabel =
+    heartbeatAgeSeconds == null
+      ? null
+      : heartbeatAgeSeconds < 0.75
+        ? "just now"
+        : `${formatSeconds(heartbeatAgeSeconds)} ago`;
 
-  const inStepLabel = inStepSeconds != null ? formatSeconds(inStepSeconds) : null;
+  const inStepLabel =
+    inStepSeconds != null ? formatSeconds(inStepSeconds) : null;
 
-  type HeartbeatState = 'idle' | 'awaiting' | 'healthy' | 'delayed' | 'stalled';
+  type HeartbeatState = "idle" | "awaiting" | "healthy" | "delayed" | "stalled";
 
   const heartbeatState: HeartbeatState = useMemo(() => {
-    if (execution.status !== 'running') {
-      return 'idle';
+    if (execution.status !== "running") {
+      return "idle";
     }
     if (!execution.lastHeartbeat) {
-      return 'awaiting';
+      return "awaiting";
     }
     if (heartbeatAgeSeconds == null) {
-      return 'awaiting';
+      return "awaiting";
     }
     if (heartbeatAgeSeconds >= HEARTBEAT_STALL_SECONDS) {
-      return 'stalled';
+      return "stalled";
     }
     if (heartbeatAgeSeconds >= HEARTBEAT_WARN_SECONDS) {
-      return 'delayed';
+      return "delayed";
     }
-    return 'healthy';
+    return "healthy";
   }, [execution.status, execution.lastHeartbeat, heartbeatAgeSeconds]);
 
   const heartbeatDescriptor = useMemo(() => {
     switch (heartbeatState) {
-      case 'idle':
+      case "idle":
         return null;
-      case 'awaiting':
+      case "awaiting":
         return {
-          tone: 'awaiting' as const,
-          iconClass: 'text-amber-400',
-          textClass: 'text-amber-200/90',
-          label: 'Awaiting first heartbeat…',
+          tone: "awaiting" as const,
+          iconClass: "text-amber-400",
+          textClass: "text-amber-200/90",
+          label: "Awaiting first heartbeat…",
         };
-      case 'healthy':
+      case "healthy":
         return {
-          tone: 'healthy' as const,
-          iconClass: 'text-blue-400',
-          textClass: 'text-blue-200',
-          label: `Heartbeat ${heartbeatAgeLabel ?? 'just now'}`,
+          tone: "healthy" as const,
+          iconClass: "text-blue-400",
+          textClass: "text-blue-200",
+          label: `Heartbeat ${heartbeatAgeLabel ?? "just now"}`,
         };
-      case 'delayed':
+      case "delayed":
         return {
-          tone: 'delayed' as const,
-          iconClass: 'text-amber-400',
-          textClass: 'text-amber-200',
+          tone: "delayed" as const,
+          iconClass: "text-amber-400",
+          textClass: "text-amber-200",
           label: `Heartbeat delayed (${formatSeconds(heartbeatAgeSeconds ?? 0)} since last update)`,
         };
-      case 'stalled':
+      case "stalled":
         return {
-          tone: 'stalled' as const,
-          iconClass: 'text-red-400',
-          textClass: 'text-red-200',
+          tone: "stalled" as const,
+          iconClass: "text-red-400",
+          textClass: "text-red-200",
           label: `Heartbeat stalled (${formatSeconds(heartbeatAgeSeconds ?? 0)} without update)`,
         };
       default:
@@ -1162,34 +1296,44 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   }, [heartbeatState, heartbeatAgeLabel, heartbeatAgeSeconds]);
 
   const statusMessage = useMemo(() => {
-    const label = typeof execution.currentStep === 'string' ? execution.currentStep.trim() : '';
+    const label =
+      typeof execution.currentStep === "string"
+        ? execution.currentStep.trim()
+        : "";
     if (label.length > 0) {
       return label;
     }
     switch (execution.status) {
-      case 'pending':
-        return 'Pending...';
-      case 'running':
-        return 'Running...';
-      case 'completed':
-        return 'Completed';
-      case 'failed':
-        return execution.error ? 'Failed' : 'Failed';
+      case "pending":
+        return "Pending...";
+      case "running":
+        return "Running...";
+      case "completed":
+        return "Completed";
+      case "failed":
+        return execution.error ? "Failed" : "Failed";
       default:
-        return 'Initializing...';
+        return "Initializing...";
     }
   }, [execution.currentStep, execution.status, execution.error]);
 
-  const isRunning = execution.status === 'running';
-  const canRestart = Boolean(execution.workflowId) && execution.status !== 'running';
+  const isRunning = execution.status === "running";
+  const canRestart =
+    Boolean(execution.workflowId) && execution.status !== "running";
 
   const timelineForReplay = useMemo(() => {
     return (execution.timeline ?? []).filter((frame) => {
       if (!frame) {
         return false;
       }
-      const type = (typeof frame.step_type === 'string' ? frame.step_type : typeof frame.stepType === 'string' ? frame.stepType : '').toLowerCase();
-      return type !== 'screenshot';
+      const type = (
+        typeof frame.step_type === "string"
+          ? frame.step_type
+          : typeof frame.stepType === "string"
+            ? frame.stepType
+            : ""
+      ).toLowerCase();
+      return type !== "screenshot";
     });
   }, [execution.timeline]);
 
@@ -1200,55 +1344,96 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       const thumbnailUrl = resolveUrl(screenshotData?.thumbnail_url);
 
       const focused = frame?.focused_element ?? frame?.focusedElement;
-      const focusedRaw = (focused ?? undefined) as (Record<string, unknown> | undefined);
+      const focusedRaw = (focused ?? undefined) as
+        | Record<string, unknown>
+        | undefined;
       const focusedBoundingBox = toBoundingBox(
-        (focusedRaw?.bounding_box as unknown) ?? (focusedRaw?.boundingBox as unknown)
+        (focusedRaw?.bounding_box as unknown) ??
+          (focusedRaw?.boundingBox as unknown),
       );
       const normalizedFocusedBoundingBox = focusedBoundingBox ?? undefined;
-      const totalDuration = toNumber(frame?.total_duration_ms ?? frame?.totalDurationMs);
-      const retryAttempt = toNumber(frame?.retry_attempt ?? frame?.retryAttempt);
-      const retryMaxAttempts = toNumber(frame?.retry_max_attempts ?? frame?.retryMaxAttempts);
-      const retryConfigured = toNumber(frame?.retry_configured ?? frame?.retryConfigured);
-      const retryDelayMs = toNumber(frame?.retry_delay_ms ?? frame?.retryDelayMs);
-      const retryBackoffFactor = toNumber(frame?.retry_backoff_factor ?? frame?.retryBackoffFactor);
-      const retryHistory = mapRetryHistory(frame?.retry_history ?? frame?.retryHistory);
+      const totalDuration = toNumber(
+        frame?.total_duration_ms ?? frame?.totalDurationMs,
+      );
+      const retryAttempt = toNumber(
+        frame?.retry_attempt ?? frame?.retryAttempt,
+      );
+      const retryMaxAttempts = toNumber(
+        frame?.retry_max_attempts ?? frame?.retryMaxAttempts,
+      );
+      const retryConfigured = toNumber(
+        frame?.retry_configured ?? frame?.retryConfigured,
+      );
+      const retryDelayMs = toNumber(
+        frame?.retry_delay_ms ?? frame?.retryDelayMs,
+      );
+      const retryBackoffFactor = toNumber(
+        frame?.retry_backoff_factor ?? frame?.retryBackoffFactor,
+      );
+      const retryHistory = mapRetryHistory(
+        frame?.retry_history ?? frame?.retryHistory,
+      );
       const domSnapshotArtifact = Array.isArray(frame?.artifacts)
-        ? frame.artifacts.find((artifact: TimelineArtifact) => artifact?.type === 'dom_snapshot')
+        ? frame.artifacts.find(
+            (artifact: TimelineArtifact) => artifact?.type === "dom_snapshot",
+          )
         : undefined;
-      const domSnapshotHtml = domSnapshotArtifact?.payload && typeof domSnapshotArtifact.payload === 'object'
-        ? (() => {
-            const payload = domSnapshotArtifact.payload as Record<string, unknown>;
-            const html = payload?.html;
-            return typeof html === 'string' ? html : undefined;
-          })()
-        : undefined;
-      const domSnapshotPreview = typeof (frame?.dom_snapshot_preview ?? frame?.domSnapshotPreview) === 'string'
-        ? (frame.dom_snapshot_preview ?? frame.domSnapshotPreview)
-        : undefined;
-      const domSnapshotArtifactId = typeof (frame?.dom_snapshot_artifact_id ?? frame?.domSnapshotArtifactId) === 'string'
-        ? (frame.dom_snapshot_artifact_id ?? frame.domSnapshotArtifactId)
-        : (typeof domSnapshotArtifact?.id === 'string' ? domSnapshotArtifact.id : undefined);
+      const domSnapshotHtml =
+        domSnapshotArtifact?.payload &&
+        typeof domSnapshotArtifact.payload === "object"
+          ? (() => {
+              const payload = domSnapshotArtifact.payload as Record<
+                string,
+                unknown
+              >;
+              const html = payload?.html;
+              return typeof html === "string" ? html : undefined;
+            })()
+          : undefined;
+      const domSnapshotPreview =
+        typeof (frame?.dom_snapshot_preview ?? frame?.domSnapshotPreview) ===
+        "string"
+          ? (frame.dom_snapshot_preview ?? frame.domSnapshotPreview)
+          : undefined;
+      const domSnapshotArtifactId =
+        typeof (
+          frame?.dom_snapshot_artifact_id ?? frame?.domSnapshotArtifactId
+        ) === "string"
+          ? (frame.dom_snapshot_artifact_id ?? frame.domSnapshotArtifactId)
+          : typeof domSnapshotArtifact?.id === "string"
+            ? domSnapshotArtifact.id
+            : undefined;
 
       const mappedFrame: ReplayFrame = {
-        id: screenshotData?.artifact_id || frame?.timeline_artifact_id || `frame-${index}`,
-        stepIndex: typeof frame?.step_index === 'number' ? frame.step_index : index,
-        nodeId: typeof frame?.node_id === 'string' ? frame.node_id : undefined,
-        stepType: typeof frame?.step_type === 'string' ? frame.step_type : undefined,
-        status: typeof frame?.status === 'string' ? frame.status : undefined,
+        id:
+          screenshotData?.artifact_id ||
+          frame?.timeline_artifact_id ||
+          `frame-${index}`,
+        stepIndex:
+          typeof frame?.step_index === "number" ? frame.step_index : index,
+        nodeId: typeof frame?.node_id === "string" ? frame.node_id : undefined,
+        stepType:
+          typeof frame?.step_type === "string" ? frame.step_type : undefined,
+        status: typeof frame?.status === "string" ? frame.status : undefined,
         success: Boolean(frame?.success),
         durationMs: toNumber(frame?.duration_ms ?? frame?.durationMs),
         totalDurationMs: totalDuration,
         progress: toNumber(frame?.progress),
         finalUrl:
-          typeof frame?.final_url === 'string'
+          typeof frame?.final_url === "string"
             ? frame.final_url
-            : typeof frame?.finalUrl === 'string'
+            : typeof frame?.finalUrl === "string"
               ? frame.finalUrl
               : undefined,
-        error: typeof frame?.error === 'string' ? frame.error : undefined,
-        extractedDataPreview: frame?.extracted_data_preview ?? frame?.extractedDataPreview,
-        consoleLogCount: toNumber(frame?.console_log_count ?? frame?.consoleLogCount),
-        networkEventCount: toNumber(frame?.network_event_count ?? frame?.networkEventCount),
+        error: typeof frame?.error === "string" ? frame.error : undefined,
+        extractedDataPreview:
+          frame?.extracted_data_preview ?? frame?.extractedDataPreview,
+        consoleLogCount: toNumber(
+          frame?.console_log_count ?? frame?.consoleLogCount,
+        ),
+        networkEventCount: toNumber(
+          frame?.network_event_count ?? frame?.networkEventCount,
+        ),
         screenshot: screenshotData
           ? {
               artifactId: screenshotData.artifact_id || `artifact-${index}`,
@@ -1256,21 +1441,33 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
               thumbnailUrl,
               width: toNumber(screenshotData.width),
               height: toNumber(screenshotData.height),
-              contentType: typeof screenshotData.content_type === 'string' ? screenshotData.content_type : undefined,
+              contentType:
+                typeof screenshotData.content_type === "string"
+                  ? screenshotData.content_type
+                  : undefined,
               sizeBytes: toNumber(screenshotData.size_bytes),
             }
           : undefined,
-        highlightRegions: mapRegions(frame?.highlight_regions ?? frame?.highlightRegions),
+        highlightRegions: mapRegions(
+          frame?.highlight_regions ?? frame?.highlightRegions,
+        ),
         maskRegions: mapRegions(frame?.mask_regions ?? frame?.maskRegions),
         focusedElement:
           focused || normalizedFocusedBoundingBox
             ? {
-                selector: typeof focused?.selector === 'string' ? focused.selector : undefined,
+                selector:
+                  typeof focused?.selector === "string"
+                    ? focused.selector
+                    : undefined,
                 boundingBox: normalizedFocusedBoundingBox,
               }
             : null,
-        elementBoundingBox: toBoundingBox(frame?.element_bounding_box ?? frame?.elementBoundingBox) ?? null,
-        clickPosition: toPoint(frame?.click_position ?? frame?.clickPosition) ?? null,
+        elementBoundingBox:
+          toBoundingBox(
+            frame?.element_bounding_box ?? frame?.elementBoundingBox,
+          ) ?? null,
+        clickPosition:
+          toPoint(frame?.click_position ?? frame?.clickPosition) ?? null,
         cursorTrail: mapTrail(frame?.cursor_trail ?? frame?.cursorTrail),
         zoomFactor: toNumber(frame?.zoom_factor ?? frame?.zoomFactor),
         assertion: mapAssertion(frame?.assertion) ?? undefined,
@@ -1285,8 +1482,12 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
         domSnapshotArtifactId,
       };
 
-      const hasScreenshot = Boolean(mappedFrame.screenshot?.url || mappedFrame.screenshot?.thumbnailUrl);
-      return hasScreenshot ? mappedFrame : { ...mappedFrame, screenshot: undefined };
+      const hasScreenshot = Boolean(
+        mappedFrame.screenshot?.url || mappedFrame.screenshot?.thumbnailUrl,
+      );
+      return hasScreenshot
+        ? mappedFrame
+        : { ...mappedFrame, screenshot: undefined };
     });
   }, [timelineForReplay]);
 
@@ -1296,13 +1497,14 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   const exportDialogDescriptionId = useId();
   const exportSummary = exportPreview?.package?.summary;
   const exportStatusMessage = isExportPreviewLoading
-    ? 'Preparing replay data…'
-    : exportPreviewError ?? exportPreview?.message ?? 'Replay export ready';
+    ? "Preparing replay data…"
+    : (exportPreviewError ?? exportPreview?.message ?? "Replay export ready");
   const estimatedFrameCount = exportSummary?.frame_count ?? replayFrames.length;
-  const estimatedDurationSeconds = exportSummary?.total_duration_ms != null
-    ? exportSummary.total_duration_ms / 1000
-    : null;
-  const isCliFormat = exportFormat !== 'json';
+  const estimatedDurationSeconds =
+    exportSummary?.total_duration_ms != null
+      ? exportSummary.total_duration_ms / 1000
+      : null;
+  const isBinaryExport = exportFormat !== "json";
 
   const timelineScreenshots = useMemo(() => {
     const frames = execution.timeline ?? [];
@@ -1318,7 +1520,9 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
         stepName:
           frame?.node_id ||
           frame?.step_type ||
-          (typeof frame?.step_index === 'number' ? `Step ${frame.step_index + 1}` : 'Step'),
+          (typeof frame?.step_index === "number"
+            ? `Step ${frame.step_index + 1}`
+            : "Step"),
         timestamp: frame?.started_at ? new Date(frame.started_at) : new Date(),
       });
     });
@@ -1326,7 +1530,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   }, [execution.timeline]);
 
   const backgroundOptionsByGroup = useMemo(() => {
-    const base: Record<BackgroundOption['kind'], BackgroundOption[]> = {
+    const base: Record<BackgroundOption["kind"], BackgroundOption[]> = {
       abstract: [],
       solid: [],
       minimal: [],
@@ -1339,7 +1543,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   }, []);
 
   const cursorOptionsByGroup = useMemo(() => {
-    const base: Record<CursorOption['group'], CursorOption[]> = {
+    const base: Record<CursorOption["group"], CursorOption[]> = {
       hidden: [],
       halo: [],
       arrow: [],
@@ -1360,8 +1564,9 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
 
   const selectedBackgroundOption = useMemo<BackgroundOption>(() => {
     return (
-      REPLAY_BACKGROUND_OPTIONS.find((option) => option.id === replayBackgroundTheme) ||
-      REPLAY_BACKGROUND_OPTIONS[0]
+      REPLAY_BACKGROUND_OPTIONS.find(
+        (option) => option.id === replayBackgroundTheme,
+      ) || REPLAY_BACKGROUND_OPTIONS[0]
     );
   }, [replayBackgroundTheme]);
 
@@ -1374,17 +1579,20 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
 
   const selectedCursorPositionOption = useMemo(() => {
     return (
-      REPLAY_CURSOR_POSITIONS.find((option) => option.id === replayCursorInitialPosition) ||
-      REPLAY_CURSOR_POSITIONS[0]
+      REPLAY_CURSOR_POSITIONS.find(
+        (option) => option.id === replayCursorInitialPosition,
+      ) || REPLAY_CURSOR_POSITIONS[0]
     );
   }, [replayCursorInitialPosition]);
 
-  const selectedCursorClickAnimationOption = useMemo<ClickAnimationOption>(() => {
-    return (
-      REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.find((option) => option.id === replayCursorClickAnimation) ||
-      REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS[0]
-    );
-  }, [replayCursorClickAnimation]);
+  const selectedCursorClickAnimationOption =
+    useMemo<ClickAnimationOption>(() => {
+      return (
+        REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.find(
+          (option) => option.id === replayCursorClickAnimation,
+        ) || REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS[0]
+      );
+    }, [replayCursorClickAnimation]);
 
   useEffect(() => {
     if (!isCustomizationCollapsed) {
@@ -1409,31 +1617,45 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     setIsCursorMenuOpen(false);
   }, []);
 
-  const handleCursorPositionSelect = useCallback((value: ReplayCursorInitialPosition) => {
-    setReplayCursorInitialPosition(value);
-    setIsCursorPositionMenuOpen(false);
-  }, []);
+  const handleCursorPositionSelect = useCallback(
+    (value: ReplayCursorInitialPosition) => {
+      setReplayCursorInitialPosition(value);
+      setIsCursorPositionMenuOpen(false);
+    },
+    [],
+  );
 
-  const handleCursorClickAnimationSelect = useCallback((value: ReplayCursorClickAnimation) => {
-    setReplayCursorClickAnimation(value);
-    setIsCursorClickAnimationMenuOpen(false);
-  }, []);
+  const handleCursorClickAnimationSelect = useCallback(
+    (value: ReplayCursorClickAnimation) => {
+      setReplayCursorClickAnimation(value);
+      setIsCursorClickAnimationMenuOpen(false);
+    },
+    [],
+  );
 
   const handleCursorScaleChange = useCallback((value: number) => {
     if (!Number.isFinite(value)) {
       return;
     }
-    const clamped = Math.min(CURSOR_SCALE_MAX, Math.max(CURSOR_SCALE_MIN, value));
+    const clamped = Math.min(
+      CURSOR_SCALE_MAX,
+      Math.max(CURSOR_SCALE_MIN, value),
+    );
     setReplayCursorScale(clamped);
   }, []);
 
-  const screenshots = timelineScreenshots.length > 0 ? timelineScreenshots : execution.screenshots;
+  const screenshots =
+    timelineScreenshots.length > 0
+      ? timelineScreenshots
+      : execution.screenshots;
 
   useEffect(() => {
     if (screenshots.length === 0) {
       return;
     }
-    const alreadySelected = selectedScreenshot && screenshots.some((shot) => shot.id === selectedScreenshot.id);
+    const alreadySelected =
+      selectedScreenshot &&
+      screenshots.some((shot) => shot.id === selectedScreenshot.id);
     if (!alreadySelected) {
       setSelectedScreenshot(screenshots[screenshots.length - 1]);
     }
@@ -1445,23 +1667,34 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     }
     const element = screenshotRefs.current[selectedScreenshot.id];
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+        inline: "nearest",
+      });
     }
   }, [selectedScreenshot]);
 
   useEffect(() => {
-    if (activeTab === 'screenshots' && screenshots.length === 0 && replayFrames.length > 0) {
-      setActiveTab('replay');
+    if (
+      activeTab === "screenshots" &&
+      screenshots.length === 0 &&
+      replayFrames.length > 0
+    ) {
+      setActiveTab("replay");
     }
   }, [activeTab, screenshots.length, replayFrames.length]);
 
   useEffect(() => {
     let interval: number | undefined;
-    if (execution.status === 'running') {
+    if (execution.status === "running") {
       interval = window.setInterval(() => {
         void refreshTimeline(execution.id);
       }, 2000);
-    } else if (execution.status === 'completed' || execution.status === 'failed') {
+    } else if (
+      execution.status === "completed" ||
+      execution.status === "failed"
+    ) {
       void refreshTimeline(execution.id);
     }
 
@@ -1479,10 +1712,11 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
     setIsStopping(true);
     try {
       await stopExecution(execution.id);
-      toast.success('Execution stopped');
+      toast.success("Execution stopped");
       await refreshTimeline(execution.id);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to stop execution';
+      const message =
+        error instanceof Error ? error.message : "Failed to stop execution";
       toast.error(message);
     } finally {
       setIsStopping(false);
@@ -1494,82 +1728,88 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       return;
     }
     if (!execution.workflowId) {
-      toast.error('Workflow identifier missing for restart');
+      toast.error("Workflow identifier missing for restart");
       return;
     }
     setIsRestarting(true);
     try {
       await startExecution(execution.workflowId);
-      toast.success('Workflow restarted');
+      toast.success("Workflow restarted");
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to restart workflow';
+      const message =
+        error instanceof Error ? error.message : "Failed to restart workflow";
       toast.error(message);
     } finally {
       setIsRestarting(false);
     }
   }, [canRestart, execution.workflowId, isRestarting, startExecution]);
 
-  const handleExecutionSwitch = useCallback(async (candidate: { id: string }) => {
-    if (!candidate?.id) {
-      return;
-    }
-    if (candidate.id === execution.id) {
-      setActiveTab('replay');
-      return;
-    }
-    setIsSwitchingExecution(true);
-    try {
-      await loadExecution(candidate.id);
-      setActiveTab('replay');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load execution';
-      toast.error(message);
-    } finally {
-      setIsSwitchingExecution(false);
-    }
-  }, [execution.id, loadExecution]);
-
-  const buildLocalReplayPackage = useCallback(() => ({
-    executionId: execution.id,
-    workflowId: execution.workflowId ?? null,
-    status: execution.status,
-    startedAt: execution.startedAt ?? null,
-    completedAt: execution.completedAt ?? null,
-    generatedAt: new Date().toISOString(),
-    chromeTheme: replayChromeTheme,
-    backgroundTheme: replayBackgroundTheme,
-    cursor: {
-      theme: replayCursorTheme,
-      initialPosition: replayCursorInitialPosition,
-      scale: replayCursorScale,
-      clickAnimation: replayCursorClickAnimation,
+  const handleExecutionSwitch = useCallback(
+    async (candidate: { id: string }) => {
+      if (!candidate?.id) {
+        return;
+      }
+      if (candidate.id === execution.id) {
+        setActiveTab("replay");
+        return;
+      }
+      setIsSwitchingExecution(true);
+      try {
+        await loadExecution(candidate.id);
+        setActiveTab("replay");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to load execution";
+        toast.error(message);
+      } finally {
+        setIsSwitchingExecution(false);
+      }
     },
-    frames: replayFrames,
-  }), [
-    execution.completedAt,
-    execution.id,
-    execution.startedAt,
-    execution.status,
-    execution.workflowId,
-    replayBackgroundTheme,
-    replayChromeTheme,
-    replayCursorClickAnimation,
-    replayCursorInitialPosition,
-    replayCursorScale,
-    replayCursorTheme,
-    replayFrames,
-  ]);
+    [execution.id, loadExecution],
+  );
+
+  const buildLocalReplayPackage = useCallback(
+    () => ({
+      executionId: execution.id,
+      workflowId: execution.workflowId ?? null,
+      status: execution.status,
+      startedAt: execution.startedAt ?? null,
+      completedAt: execution.completedAt ?? null,
+      generatedAt: new Date().toISOString(),
+      chromeTheme: replayChromeTheme,
+      backgroundTheme: replayBackgroundTheme,
+      cursor: {
+        theme: replayCursorTheme,
+        initialPosition: replayCursorInitialPosition,
+        scale: replayCursorScale,
+        clickAnimation: replayCursorClickAnimation,
+      },
+      frames: replayFrames,
+    }),
+    [
+      execution.completedAt,
+      execution.id,
+      execution.startedAt,
+      execution.status,
+      execution.workflowId,
+      replayBackgroundTheme,
+      replayChromeTheme,
+      replayCursorClickAnimation,
+      replayCursorInitialPosition,
+      replayCursorScale,
+      replayCursorTheme,
+      replayFrames,
+    ],
+  );
 
   const handleOpenExportDialog = useCallback(() => {
     if (replayFrames.length === 0) {
-      toast.error('Replay not ready to export yet');
+      toast.error("Replay not ready to export yet");
       return;
     }
-    setExportFormat('json');
+    setExportFormat("mp4");
     setExportFileStem(defaultExportFileStem);
     setUseNativeFilePicker(false);
-    setVideoOutputDirectory('~/Downloads');
-    setCopyInstructionsError(null);
     setIsExportDialogOpen(true);
   }, [defaultExportFileStem, replayFrames.length]);
 
@@ -1578,72 +1818,123 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
   }, []);
 
   const handleConfirmExport = useCallback(async () => {
-    if (exportFormat !== 'json') {
-      if (cliInstructions.length === 0) {
-        toast.error('Export instructions are not ready yet');
+    if (exportFormat !== "json") {
+      if (replayFrames.length === 0) {
+        toast.error("Replay not ready to export yet");
         return;
       }
-      const instructionsText = cliInstructions.join('\n');
-      const clipboard = navigator?.clipboard;
-      if (clipboard && typeof clipboard.writeText === 'function') {
-        try {
-          await clipboard.writeText(instructionsText);
-          toast.success('CLI instructions copied to clipboard');
-          setCopyInstructionsError(null);
-          setIsExportDialogOpen(false);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Clipboard copy failed';
-          setCopyInstructionsError(`${message}. Copy the commands manually below.`);
-          toast.error('Unable to copy to clipboard. Copy manually below.');
+
+      setIsExporting(true);
+      try {
+        const { API_URL } = await getConfig();
+        const requestPayload = {
+          format: exportFormat,
+          file_name: finalFileName,
+          overrides: {
+            theme_preset: {
+              chrome_theme: replayChromeTheme,
+              background_theme: replayBackgroundTheme,
+            },
+            cursor_preset: {
+              theme: replayCursorTheme,
+              initial_position: replayCursorInitialPosition,
+              scale: Number.isFinite(replayCursorScale) ? replayCursorScale : 1,
+              click_animation: replayCursorClickAnimation,
+            },
+          },
+        } as const;
+
+        const response = await fetch(
+          `${API_URL}/executions/${execution.id}/export`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: exportFormat === "gif" ? "image/gif" : "video/mp4",
+            },
+            body: JSON.stringify(requestPayload),
+          },
+        );
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `Export request failed (${response.status})`);
         }
-      } else {
-        setCopyInstructionsError('Clipboard access is unavailable. Copy the commands manually below.');
-        toast.error('Clipboard access is unavailable in this browser');
+
+        const blob = await response.blob();
+        const downloadUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = downloadUrl;
+        anchor.download = finalFileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(downloadUrl);
+
+        toast.success("Replay export ready");
+        setIsExportDialogOpen(false);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to export replay";
+        toast.error(message);
+      } finally {
+        setIsExporting(false);
       }
       return;
     }
 
     if (replayFrames.length === 0) {
-      toast.error('Replay not ready to export yet');
+      toast.error("Replay not ready to export yet");
       return;
     }
 
     if (useNativeFilePicker && !supportsFileSystemAccess) {
-      toast.error('This browser does not support choosing a destination. Disable “Choose save location”.');
+      toast.error(
+        "This browser does not support choosing a destination. Disable “Choose save location”.",
+      );
       return;
     }
 
     setIsExporting(true);
     try {
       const payload = exportPreview?.package ?? buildLocalReplayPackage();
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
 
       if (useNativeFilePicker && supportsFileSystemAccess) {
         try {
-          const picker = await (window as typeof window & {
-            showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
-          }).showSaveFilePicker?.({
+          const picker = await (
+            window as typeof window & {
+              showSaveFilePicker?: (
+                options?: SaveFilePickerOptions,
+              ) => Promise<FileSystemFileHandle>;
+            }
+          ).showSaveFilePicker?.({
             suggestedName: finalFileName,
             types: [
               {
-                description: 'Replay export (JSON)',
-                accept: { 'application/json': ['.json'] },
+                description: "Replay export (JSON)",
+                accept: { "application/json": [".json"] },
               },
             ],
           });
           if (!picker) {
-            throw new Error('Unable to open save dialog');
+            throw new Error("Unable to open save dialog");
           }
           const writable = await picker.createWritable();
           await writable.write(blob);
           await writable.close();
-          toast.success('Replay export saved');
+          toast.success("Replay export saved");
         } catch (error) {
-          if (error instanceof DOMException && error.name === 'AbortError') {
+          if (error instanceof DOMException && error.name === "AbortError") {
             setIsExporting(false);
             return;
           }
-          const message = error instanceof Error ? error.message : 'Failed to save replay export';
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to save replay export";
           toast.error(message);
           setIsExporting(false);
           return;
@@ -1651,13 +1942,13 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       } else {
         const url = URL.createObjectURL(blob);
         try {
-          const anchor = document.createElement('a');
+          const anchor = document.createElement("a");
           anchor.href = url;
           anchor.download = finalFileName;
           document.body.appendChild(anchor);
           anchor.click();
           document.body.removeChild(anchor);
-          toast.success('Replay download started');
+          toast.success("Replay download started");
         } finally {
           URL.revokeObjectURL(url);
         }
@@ -1665,14 +1956,14 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
 
       setIsExportDialogOpen(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to export replay';
+      const message =
+        error instanceof Error ? error.message : "Failed to export replay";
       toast.error(message);
     } finally {
       setIsExporting(false);
     }
   }, [
     buildLocalReplayPackage,
-    cliInstructions,
     exportFormat,
     exportPreview,
     finalFileName,
@@ -1684,27 +1975,27 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
 
   const getStatusIcon = () => {
     switch (execution.status) {
-      case 'running':
+      case "running":
         return <Loader size={16} className="animate-spin text-blue-400" />;
-      case 'completed':
+      case "completed":
         return <CheckCircle size={16} className="text-green-400" />;
-      case 'failed':
+      case "failed":
         return <XCircle size={16} className="text-red-400" />;
       default:
         return <Clock size={16} className="text-gray-400" />;
     }
   };
 
-  const getLogColor = (level: LogEntry['level']) => {
+  const getLogColor = (level: LogEntry["level"]) => {
     switch (level) {
-      case 'error':
-        return 'text-red-400';
-      case 'warning':
-        return 'text-yellow-400';
-      case 'success':
-        return 'text-green-400';
+      case "error":
+        return "text-red-400";
+      case "warning":
+        return "text-yellow-400";
+      case "success":
+        return "text-green-400";
       default:
-        return 'text-gray-300';
+        return "text-gray-300";
     }
   };
 
@@ -1719,17 +2010,25 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
             </div>
             <div className="text-xs text-gray-500">{statusMessage}</div>
             {heartbeatDescriptor && (
-              <div
-                className="mt-1 flex items-center gap-2 text-[11px]"
-              >
-                {heartbeatDescriptor.tone === 'stalled' ? (
-                  <AlertTriangle size={12} className={heartbeatDescriptor.iconClass} />
+              <div className="mt-1 flex items-center gap-2 text-[11px]">
+                {heartbeatDescriptor.tone === "stalled" ? (
+                  <AlertTriangle
+                    size={12}
+                    className={heartbeatDescriptor.iconClass}
+                  />
                 ) : (
-                  <Activity size={12} className={heartbeatDescriptor.iconClass} />
+                  <Activity
+                    size={12}
+                    className={heartbeatDescriptor.iconClass}
+                  />
                 )}
-                <span className={heartbeatDescriptor.textClass}>{heartbeatDescriptor.label}</span>
+                <span className={heartbeatDescriptor.textClass}>
+                  {heartbeatDescriptor.label}
+                </span>
                 {inStepLabel && execution.lastHeartbeat && (
-                  <span className={`${heartbeatDescriptor.textClass} opacity-80`}>
+                  <span
+                    className={`${heartbeatDescriptor.textClass} opacity-80`}
+                  >
                     • {inStepLabel} in step
                   </span>
                 )}
@@ -1749,18 +2048,26 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
           </button>
           <button
             className="toolbar-button p-1.5"
-            title={canRestart ? 'Restart workflow' : 'Stop execution before restarting'}
+            title={
+              canRestart
+                ? "Restart workflow"
+                : "Stop execution before restarting"
+            }
             onClick={handleRestart}
             disabled={!canRestart || isRestarting || isStopping}
           >
-            {isRestarting ? <Loader size={14} className="animate-spin" /> : <RotateCw size={14} />}
+            {isRestarting ? (
+              <Loader size={14} className="animate-spin" />
+            ) : (
+              <RotateCw size={14} />
+            )}
           </button>
           <button
             className="toolbar-button p-1.5 disabled:text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
             title={
               replayFrames.length === 0
-                ? 'Replay not ready to export'
-                : 'Export replay'
+                ? "Replay not ready to export"
+                : "Export replay"
             }
             onClick={handleOpenExportDialog}
             disabled={replayFrames.length === 0}
@@ -1769,11 +2076,15 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
           </button>
           <button
             className="toolbar-button p-1.5 text-red-400 disabled:text-red-400/50 disabled:cursor-not-allowed"
-            title={isRunning ? 'Stop execution' : 'Execution not running'}
+            title={isRunning ? "Stop execution" : "Execution not running"}
             onClick={handleStop}
             disabled={!isRunning || isStopping}
           >
-            {isStopping ? <Loader size={14} className="animate-spin" /> : <Square size={14} />}
+            {isStopping ? (
+              <Loader size={14} className="animate-spin" />
+            ) : (
+              <Square size={14} />
+            )}
           </button>
           {onClose && (
             <button
@@ -1797,35 +2108,35 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
       <div className="flex border-b border-gray-800">
         <button
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            activeTab === 'replay'
-              ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
+            activeTab === "replay"
+              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
               : hasTimeline
-                ? 'text-gray-400 hover:text-white'
-                : 'text-gray-500 hover:text-white/80'
+                ? "text-gray-400 hover:text-white"
+                : "text-gray-500 hover:text-white/80"
           }`}
-          onClick={() => setActiveTab('replay')}
+          onClick={() => setActiveTab("replay")}
         >
           <PlayCircle size={14} />
           Replay ({replayFrames.length})
         </button>
         <button
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            activeTab === 'screenshots'
-              ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
-              : 'text-gray-400 hover:text-white'
+            activeTab === "screenshots"
+              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
+              : "text-gray-400 hover:text-white"
           }`}
-          onClick={() => setActiveTab('screenshots')}
+          onClick={() => setActiveTab("screenshots")}
         >
           <Image size={14} />
           Screenshots ({screenshots.length})
         </button>
         <button
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-            activeTab === 'logs'
-              ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
-              : 'text-gray-400 hover:text-white'
+            activeTab === "logs"
+              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
+              : "text-gray-400 hover:text-white"
           }`}
-          onClick={() => setActiveTab('logs')}
+          onClick={() => setActiveTab("logs")}
         >
           <Terminal size={14} />
           Logs ({execution.logs.length})
@@ -1833,36 +2144,45 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
         {showExecutionSwitcher && (
           <button
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'executions'
-                ? 'bg-flow-bg text-white border-b-2 border-flow-accent'
-                : 'text-gray-400 hover:text-white'
+              activeTab === "executions"
+                ? "bg-flow-bg text-white border-b-2 border-flow-accent"
+                : "text-gray-400 hover:text-white"
             }`}
-            onClick={() => setActiveTab('executions')}
+            onClick={() => setActiveTab("executions")}
           >
-            {isSwitchingExecution ? <Loader size={14} className="animate-spin" /> : <ListTree size={14} />}
+            {isSwitchingExecution ? (
+              <Loader size={14} className="animate-spin" />
+            ) : (
+              <ListTree size={14} />
+            )}
             Executions
           </button>
         )}
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-        {activeTab === 'replay' ? (
+        {activeTab === "replay" ? (
           <div className="flex-1 overflow-auto p-3 space-y-3">
             {!hasTimeline && (
               <div className="rounded-lg border border-dashed border-slate-700/60 bg-slate-900/60 px-4 py-3 text-sm text-slate-200/80">
-                Replay frames stream in as each action runs. Leave this tab open to tailor the final cut in real time.
+                Replay frames stream in as each action runs. Leave this tab open
+                to tailor the final cut in real time.
               </div>
             )}
-            {execution.status === 'failed' && execution.progress < 100 && (
+            {execution.status === "failed" && execution.progress < 100 && (
               <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 flex items-start gap-3">
-                <AlertTriangle size={18} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                <AlertTriangle
+                  size={18}
+                  className="text-rose-400 flex-shrink-0 mt-0.5"
+                />
                 <div className="flex-1 text-sm">
                   <div className="font-medium text-rose-200 mb-1">
                     Execution Failed - Replay Incomplete
                   </div>
                   <div className="text-rose-100/80">
-                    This replay shows only {replayFrames.length} of the workflow's steps.
-                    Execution failed at: {execution.currentStep || 'unknown step'}
+                    This replay shows only {replayFrames.length} of the
+                    workflow's steps. Execution failed at:{" "}
+                    {execution.currentStep || "unknown step"}
                   </div>
                   {executionError && (
                     <div className="mt-2 text-xs font-mono text-rose-100/70 bg-rose-950/30 px-2 py-1 rounded">
@@ -1875,12 +2195,16 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
             <div className="rounded-2xl border border-white/5 bg-slate-950/40 px-4 py-3 shadow-inner">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Replay customization</span>
+                  <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                    Replay customization
+                  </span>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                     <span>Chrome • {selectedChromeOption.label}</span>
                     <span>Background • {selectedBackgroundOption.label}</span>
                     <span>Cursor • {selectedCursorOption.label}</span>
-                    <span>Click • {selectedCursorClickAnimationOption.label}</span>
+                    <span>
+                      Click • {selectedCursorClickAnimationOption.label}
+                    </span>
                   </div>
                 </div>
                 <button
@@ -1888,12 +2212,16 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                   onClick={() => setIsCustomizationCollapsed((prev) => !prev)}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition-colors transition-transform hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900"
                   aria-expanded={!isCustomizationCollapsed}
-                  aria-label={isCustomizationCollapsed ? 'Expand replay customization' : 'Collapse replay customization'}
+                  aria-label={
+                    isCustomizationCollapsed
+                      ? "Expand replay customization"
+                      : "Collapse replay customization"
+                  }
                 >
                   <ChevronDown
                     size={16}
-                    className={clsx('transition-transform duration-200', {
-                      '-rotate-180': !isCustomizationCollapsed,
+                    className={clsx("transition-transform duration-200", {
+                      "-rotate-180": !isCustomizationCollapsed,
                     })}
                   />
                 </button>
@@ -1902,8 +2230,12 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                 <div className="mt-4 space-y-4">
                   <div>
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Browser frame</span>
-                      <span className="text-[11px] text-slate-500">Customize the replay window</span>
+                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                        Browser frame
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Customize the replay window
+                      </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {REPLAY_CHROME_OPTIONS.map((option) => (
@@ -1913,10 +2245,10 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                           onClick={() => setReplayChromeTheme(option.id)}
                           title={option.subtitle}
                           className={clsx(
-                            'rounded-full px-3 py-1.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                            "rounded-full px-3 py-1.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900",
                             replayChromeTheme === option.id
-                              ? 'bg-flow-accent text-white shadow-[0_12px_35px_rgba(59,130,246,0.45)]'
-                              : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900/80',
+                              ? "bg-flow-accent text-white shadow-[0_12px_35px_rgba(59,130,246,0.45)]"
+                              : "bg-slate-900/60 text-slate-300 hover:bg-slate-900/80",
                           )}
                         >
                           {option.label}
@@ -1927,24 +2259,28 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
 
                   <div className="border-t border-white/5 pt-3 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Background</span>
-                      <span className="text-[11px] text-slate-500">Set the stage behind the browser</span>
+                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                        Background
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Set the stage behind the browser
+                      </span>
                     </div>
                     <div ref={backgroundSelectorRef} className="relative">
                       <button
                         type="button"
                         className={clsx(
-                          'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                          "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900",
                           isBackgroundMenuOpen
-                            ? 'border-flow-accent/70 bg-slate-900/80 text-white'
-                            : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                            ? "border-flow-accent/70 bg-slate-900/80 text-white"
+                            : "border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white",
                         )}
-                          onClick={() => {
-                            setIsBackgroundMenuOpen((open) => !open);
-                            setIsCursorMenuOpen(false);
-                            setIsCursorPositionMenuOpen(false);
-                            setIsCursorClickAnimationMenuOpen(false);
-                          }}
+                        onClick={() => {
+                          setIsBackgroundMenuOpen((open) => !open);
+                          setIsCursorMenuOpen(false);
+                          setIsCursorPositionMenuOpen(false);
+                          setIsCursorClickAnimationMenuOpen(false);
+                        }}
                         aria-haspopup="menu"
                         aria-expanded={isBackgroundMenuOpen}
                       >
@@ -1968,8 +2304,8 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                         <ChevronDown
                           size={14}
                           className={clsx(
-                            'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
-                            isBackgroundMenuOpen ? 'rotate-180 text-white' : '',
+                            "ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150",
+                            isBackgroundMenuOpen ? "rotate-180 text-white" : "",
                           )}
                         />
                       </button>
@@ -1991,19 +2327,22 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                                 </div>
                                 <div className="space-y-1">
                                   {options.map((option) => {
-                                    const isActive = replayBackgroundTheme === option.id;
+                                    const isActive =
+                                      replayBackgroundTheme === option.id;
                                     return (
                                       <button
                                         key={option.id}
                                         type="button"
                                         role="menuitemradio"
                                         aria-checked={isActive}
-                                        onClick={() => handleBackgroundSelect(option)}
+                                        onClick={() =>
+                                          handleBackgroundSelect(option)
+                                        }
                                         className={clsx(
-                                          'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                          "flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950",
                                           isActive
-                                            ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
-                                            : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                            ? "border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]"
+                                            : "border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white",
                                         )}
                                       >
                                         <span
@@ -2015,9 +2354,16 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                                         <span className="flex flex-1 flex-col text-xs text-slate-300">
                                           <span className="flex items-center justify-between gap-2 text-sm font-medium">
                                             <span>{option.label}</span>
-                                            {isActive && <Check size={14} className="text-flow-accent" />}
+                                            {isActive && (
+                                              <Check
+                                                size={14}
+                                                className="text-flow-accent"
+                                              />
+                                            )}
                                           </span>
-                                          <span className="text-[11px] text-slate-400">{option.subtitle}</span>
+                                          <span className="text-[11px] text-slate-400">
+                                            {option.subtitle}
+                                          </span>
                                         </span>
                                       </button>
                                     );
@@ -2033,18 +2379,25 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
 
                   <div className="border-t border-white/5 pt-3 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Cursor</span>
-                      <span className="text-[11px] text-slate-500">Style the virtual pointer overlay</span>
+                      <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                        Cursor
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Style the virtual pointer overlay
+                      </span>
                     </div>
                     <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between">
-                      <div ref={cursorSelectorRef} className="relative flex-1 min-w-[220px]">
+                      <div
+                        ref={cursorSelectorRef}
+                        className="relative flex-1 min-w-[220px]"
+                      >
                         <button
                           type="button"
                           className={clsx(
-                            'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                            "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900",
                             isCursorMenuOpen
-                              ? 'border-flow-accent/70 bg-slate-900/80 text-white'
-                              : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                              ? "border-flow-accent/70 bg-slate-900/80 text-white"
+                              : "border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white",
                           )}
                           onClick={() => {
                             setIsCursorMenuOpen((open) => !open);
@@ -2060,15 +2413,19 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                               {selectedCursorOption.preview}
                             </span>
                             <span className="flex flex-col text-xs leading-tight text-slate-300">
-                              <span className="text-sm font-medium text-white">{selectedCursorOption.label}</span>
-                              <span className="text-[11px] text-slate-400">{selectedCursorOption.subtitle}</span>
+                              <span className="text-sm font-medium text-white">
+                                {selectedCursorOption.label}
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                {selectedCursorOption.subtitle}
+                              </span>
                             </span>
                           </span>
                           <ChevronDown
                             size={14}
                             className={clsx(
-                              'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
-                              isCursorMenuOpen ? 'rotate-180 text-white' : '',
+                              "ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150",
+                              isCursorMenuOpen ? "rotate-180 text-white" : "",
                             )}
                           />
                         </button>
@@ -2089,19 +2446,22 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                                   </div>
                                   <div className="space-y-1">
                                     {options.map((option) => {
-                                      const isActive = replayCursorTheme === option.id;
+                                      const isActive =
+                                        replayCursorTheme === option.id;
                                       return (
                                         <button
                                           key={option.id}
                                           type="button"
                                           role="menuitemradio"
                                           aria-checked={isActive}
-                                          onClick={() => handleCursorThemeSelect(option.id)}
+                                          onClick={() =>
+                                            handleCursorThemeSelect(option.id)
+                                          }
                                           className={clsx(
-                                            'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                            "flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950",
                                             isActive
-                                              ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]'
-                                              : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                              ? "border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_35px_rgba(59,130,246,0.32)]"
+                                              : "border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white",
                                           )}
                                         >
                                           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/70">
@@ -2110,9 +2470,16 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                                           <span className="flex flex-1 flex-col text-xs text-slate-300">
                                             <span className="flex items-center justify-between gap-2 text-sm font-medium">
                                               <span>{option.label}</span>
-                                              {isActive && <Check size={14} className="text-flow-accent" />}
+                                              {isActive && (
+                                                <Check
+                                                  size={14}
+                                                  className="text-flow-accent"
+                                                />
+                                              )}
                                             </span>
-                                            <span className="text-[11px] text-slate-400">{option.subtitle}</span>
+                                            <span className="text-[11px] text-slate-400">
+                                              {option.subtitle}
+                                            </span>
                                           </span>
                                         </button>
                                       );
@@ -2124,15 +2491,20 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                           </div>
                         )}
                       </div>
-                      <div ref={cursorPositionSelectorRef} className="relative flex flex-1 flex-col gap-2 lg:max-w-xs">
-                        <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Initial placement</span>
+                      <div
+                        ref={cursorPositionSelectorRef}
+                        className="relative flex flex-1 flex-col gap-2 lg:max-w-xs"
+                      >
+                        <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                          Initial placement
+                        </span>
                         <button
                           type="button"
                           className={clsx(
-                            'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                            "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900",
                             isCursorPositionMenuOpen
-                              ? 'border-flow-accent/70 bg-slate-900/80 text-white'
-                              : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                              ? "border-flow-accent/70 bg-slate-900/80 text-white"
+                              : "border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white",
                           )}
                           onClick={() => {
                             setIsCursorPositionMenuOpen((open) => !open);
@@ -2144,14 +2516,20 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                           aria-expanded={isCursorPositionMenuOpen}
                         >
                           <span className="flex flex-col text-xs leading-tight text-slate-300">
-                            <span className="text-sm font-medium text-white">{selectedCursorPositionOption.label}</span>
-                            <span className="text-[11px] text-slate-400">{selectedCursorPositionOption.subtitle}</span>
+                            <span className="text-sm font-medium text-white">
+                              {selectedCursorPositionOption.label}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {selectedCursorPositionOption.subtitle}
+                            </span>
                           </span>
                           <ChevronDown
                             size={14}
                             className={clsx(
-                              'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
-                              isCursorPositionMenuOpen ? 'rotate-180 text-white' : '',
+                              "ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150",
+                              isCursorPositionMenuOpen
+                                ? "rotate-180 text-white"
+                                : "",
                             )}
                           />
                         </button>
@@ -2162,25 +2540,30 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                           >
                             <div className="space-y-1">
                               {REPLAY_CURSOR_POSITIONS.map((option) => {
-                                const isActive = replayCursorInitialPosition === option.id;
+                                const isActive =
+                                  replayCursorInitialPosition === option.id;
                                 return (
                                   <button
                                     key={option.id}
                                     type="button"
                                     role="menuitemradio"
                                     aria-checked={isActive}
-                                    onClick={() => handleCursorPositionSelect(option.id)}
+                                    onClick={() =>
+                                      handleCursorPositionSelect(option.id)
+                                    }
                                     className={clsx(
-                                      'w-full rounded-lg border px-2.5 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
+                                      "w-full rounded-lg border px-2.5 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950",
                                       isActive
-                                        ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_10px_28px_rgba(59,130,246,0.3)]'
-                                        : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                                        ? "border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_10px_28px_rgba(59,130,246,0.3)]"
+                                        : "border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white",
                                     )}
                                   >
                                     <span className="block text-[11px] uppercase tracking-[0.22em] text-slate-400">
                                       {option.label}
                                     </span>
-                                    <span className="text-[11px] text-slate-400/90">{option.subtitle}</span>
+                                    <span className="text-[11px] text-slate-400/90">
+                                      {option.subtitle}
+                                    </span>
                                   </button>
                                 );
                               })}
@@ -2188,15 +2571,20 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                           </div>
                         )}
                       </div>
-                      <div ref={cursorClickAnimationSelectorRef} className="relative flex flex-1 flex-col gap-2 lg:max-w-xs">
-                        <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Click animation</span>
+                      <div
+                        ref={cursorClickAnimationSelectorRef}
+                        className="relative flex flex-1 flex-col gap-2 lg:max-w-xs"
+                      >
+                        <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                          Click animation
+                        </span>
                         <button
                           type="button"
                           className={clsx(
-                            'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900',
+                            "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-slate-900",
                             isCursorClickAnimationMenuOpen
-                              ? 'border-flow-accent/70 bg-slate-900/80 text-white'
-                              : 'border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white',
+                              ? "border-flow-accent/70 bg-slate-900/80 text-white"
+                              : "border-white/10 bg-slate-900/60 text-slate-200 hover:border-flow-accent/40 hover:text-white",
                           )}
                           onClick={() => {
                             setIsCursorClickAnimationMenuOpen((open) => !open);
@@ -2223,8 +2611,10 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                           <ChevronDown
                             size={14}
                             className={clsx(
-                              'ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150',
-                              isCursorClickAnimationMenuOpen ? 'rotate-180 text-white' : '',
+                              "ml-3 flex-shrink-0 text-slate-400 transition-transform duration-150",
+                              isCursorClickAnimationMenuOpen
+                                ? "rotate-180 text-white"
+                                : "",
                             )}
                           />
                         </button>
@@ -2234,42 +2624,58 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                             className="absolute right-0 z-30 mt-2 w-full min-w-[220px] rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_18px_45px_rgba(15,23,42,0.55)] backdrop-blur"
                           >
                             <div className="space-y-1">
-                              {REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.map((option) => {
-                                const isActive = replayCursorClickAnimation === option.id;
-                                return (
-                                  <button
-                                    key={option.id}
-                                    type="button"
-                                    role="menuitemradio"
-                                    aria-checked={isActive}
-                                    onClick={() => handleCursorClickAnimationSelect(option.id)}
-                                    className={clsx(
-                                      'flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950',
-                                      isActive
-                                        ? 'border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_32px_rgba(59,130,246,0.28)]'
-                                        : 'border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
-                                    )}
-                                  >
-                                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/70">
-                                      {option.preview}
-                                    </span>
-                                    <span className="flex flex-1 flex-col text-xs text-slate-300">
-                                      <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                                        <span>{option.label}</span>
-                                        {isActive && <Check size={14} className="text-flow-accent" />}
+                              {REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.map(
+                                (option) => {
+                                  const isActive =
+                                    replayCursorClickAnimation === option.id;
+                                  return (
+                                    <button
+                                      key={option.id}
+                                      type="button"
+                                      role="menuitemradio"
+                                      aria-checked={isActive}
+                                      onClick={() =>
+                                        handleCursorClickAnimationSelect(
+                                          option.id,
+                                        )
+                                      }
+                                      className={clsx(
+                                        "flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-950",
+                                        isActive
+                                          ? "border-flow-accent/80 bg-flow-accent/20 text-white shadow-[0_12px_32px_rgba(59,130,246,0.28)]"
+                                          : "border-white/5 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white",
+                                      )}
+                                    >
+                                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/70">
+                                        {option.preview}
                                       </span>
-                                      <span className="text-[11px] text-slate-400">{option.subtitle}</span>
-                                    </span>
-                                  </button>
-                                );
-                              })}
+                                      <span className="flex flex-1 flex-col text-xs text-slate-300">
+                                        <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                                          <span>{option.label}</span>
+                                          {isActive && (
+                                            <Check
+                                              size={14}
+                                              className="text-flow-accent"
+                                            />
+                                          )}
+                                        </span>
+                                        <span className="text-[11px] text-slate-400">
+                                          {option.subtitle}
+                                        </span>
+                                      </span>
+                                    </button>
+                                  );
+                                },
+                              )}
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Cursor size</span>
+                      <span className="text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                        Cursor size
+                      </span>
                       <div className="flex items-center gap-3">
                         <input
                           type="range"
@@ -2277,7 +2683,11 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                           max={CURSOR_SCALE_MAX}
                           step={0.05}
                           value={replayCursorScale}
-                          onChange={(event) => handleCursorScaleChange(Number.parseFloat(event.target.value))}
+                          onChange={(event) =>
+                            handleCursorScaleChange(
+                              Number.parseFloat(event.target.value),
+                            )
+                          }
                           className="flex-1 accent-flow-accent"
                         />
                         <span className="w-12 text-right text-xs text-slate-300">
@@ -2289,9 +2699,7 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                       </span>
                     </div>
                   </div>
-
                 </div>
-
               )}
             </div>
             <ReplayPlayer
@@ -2305,18 +2713,20 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
               cursorClickAnimation={replayCursorClickAnimation}
             />
           </div>
-        ) : activeTab === 'screenshots' ? (
+        ) : activeTab === "screenshots" ? (
           screenshots.length === 0 ? (
             <div className="flex flex-1 items-center justify-center p-6 text-center">
               <div>
                 <Image size={32} className="mx-auto mb-3 text-gray-600" />
-                <div className="text-sm text-gray-400 mb-1">No screenshots captured</div>
-                {execution.status === 'failed' && (
+                <div className="text-sm text-gray-400 mb-1">
+                  No screenshots captured
+                </div>
+                {execution.status === "failed" && (
                   <div className="text-xs text-gray-500">
                     Execution failed before screenshot steps could run
                   </div>
                 )}
-                {execution.status === 'completed' && (
+                {execution.status === "completed" && (
                   <div className="text-xs text-gray-500">
                     This workflow does not include screenshot steps
                   </div>
@@ -2339,15 +2749,19 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                       }}
                       onClick={() => setSelectedScreenshot(screenshot)}
                       className={clsx(
-                        'cursor-pointer overflow-hidden rounded-xl border transition-all duration-200',
+                        "cursor-pointer overflow-hidden rounded-xl border transition-all duration-200",
                         selectedScreenshot?.id === screenshot.id
-                          ? 'border-flow-accent/80 shadow-[0_22px_50px_rgba(59,130,246,0.35)]'
-                          : 'border-gray-800 hover:border-flow-accent/50 hover:shadow-[0_15px_40px_rgba(59,130,246,0.2)]',
+                          ? "border-flow-accent/80 shadow-[0_22px_50px_rgba(59,130,246,0.35)]"
+                          : "border-gray-800 hover:border-flow-accent/50 hover:shadow-[0_15px_40px_rgba(59,130,246,0.2)]",
                       )}
                     >
                       <div className="bg-slate-900/80 px-3 py-2 flex items-center justify-between text-xs text-slate-300">
-                        <span className="truncate font-medium">{screenshot.stepName}</span>
-                        <span className="text-slate-400">{format(screenshot.timestamp, 'HH:mm:ss.SSS')}</span>
+                        <span className="truncate font-medium">
+                          {screenshot.stepName}
+                        </span>
+                        <span className="text-slate-400">
+                          {format(screenshot.timestamp, "HH:mm:ss.SSS")}
+                        </span>
                       </div>
                       <img
                         src={screenshot.url}
@@ -2366,10 +2780,10 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                       key={screenshot.id}
                       onClick={() => setSelectedScreenshot(screenshot)}
                       className={clsx(
-                        'flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-150',
+                        "flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-150",
                         selectedScreenshot?.id === screenshot.id
-                          ? 'border-flow-accent shadow-[0_12px_30px_rgba(59,130,246,0.35)]'
-                          : 'border-gray-700 hover:border-flow-accent/60',
+                          ? "border-flow-accent shadow-[0_12px_30px_rgba(59,130,246,0.35)]"
+                          : "border-gray-700 hover:border-flow-accent/60",
                       )}
                     >
                       <img
@@ -2383,11 +2797,14 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
               </div>
             </>
           )
-        ) : activeTab === 'executions' ? (
+        ) : activeTab === "executions" ? (
           <div className="flex-1 overflow-hidden p-3">
             {execution.workflowId ? (
               <div className="h-full overflow-hidden rounded-xl border border-gray-800 bg-flow-node/40">
-                <ExecutionHistory workflowId={execution.workflowId} onSelectExecution={handleExecutionSwitch} />
+                <ExecutionHistory
+                  workflowId={execution.workflowId}
+                  onSelectExecution={handleExecutionSwitch}
+                />
               </div>
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-gray-400">
@@ -2400,7 +2817,9 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
             <div className="terminal-output">
               {execution.logs.map((log) => (
                 <div key={log.id} className="flex gap-2 mb-1">
-                  <span className="text-xs text-gray-600">{format(log.timestamp, 'HH:mm:ss')}</span>
+                  <span className="text-xs text-gray-600">
+                    {format(log.timestamp, "HH:mm:ss")}
+                  </span>
                   <span className={`flex-1 text-xs ${getLogColor(log.level)}`}>
                     {log.message}
                   </span>
@@ -2425,11 +2844,18 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
               <Download size={18} />
             </span>
             <div>
-              <h2 id={exportDialogTitleId} className="text-lg font-semibold text-white">
+              <h2
+                id={exportDialogTitleId}
+                className="text-lg font-semibold text-white"
+              >
                 Export replay
               </h2>
-              <p id={exportDialogDescriptionId} className="text-sm text-gray-400">
-                Choose format, naming, and destination for execution #{execution.id.slice(0, 8)}.
+              <p
+                id={exportDialogDescriptionId}
+                className="text-sm text-gray-400"
+              >
+                Choose format, naming, and destination for execution #
+                {execution.id.slice(0, 8)}.
               </p>
             </div>
           </div>
@@ -2443,15 +2869,20 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6" aria-describedby={exportDialogDescriptionId}>
+        <div
+          className="flex-1 overflow-y-auto px-6 py-5 space-y-6"
+          aria-describedby={exportDialogDescriptionId}
+        >
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-white">Format</h3>
-                <p className="text-xs text-gray-400">Pick the export target that fits your workflow.</p>
+                <p className="text-xs text-gray-400">
+                  Pick the export target that fits your workflow.
+                </p>
               </div>
               <span className="text-[11px] uppercase tracking-[0.2em] text-gray-500">
-                {isCliFormat ? 'CLI-focused' : 'Direct download'}
+                {isBinaryExport ? "Direct download" : "Data bundle"}
               </span>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
@@ -2464,29 +2895,43 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                     type="button"
                     onClick={() => setExportFormat(option.id)}
                     className={clsx(
-                      'flex flex-col items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900',
+                      "flex flex-col items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900",
                       isSelected
-                        ? 'border-flow-accent/70 bg-flow-accent/20 text-white shadow-[0_20px_45px_rgba(59,130,246,0.25)]'
-                        : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white',
+                        ? "border-flow-accent/70 bg-flow-accent/20 text-white shadow-[0_20px_45px_rgba(59,130,246,0.25)]"
+                        : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white",
                     )}
                   >
                     <span className="flex w-full items-center justify-between">
-                      <span className={clsx('flex h-10 w-10 items-center justify-center rounded-lg', isSelected ? 'bg-flow-accent/80 text-white' : 'bg-slate-900/70 text-flow-accent')}>
+                      <span
+                        className={clsx(
+                          "flex h-10 w-10 items-center justify-center rounded-lg",
+                          isSelected
+                            ? "bg-flow-accent/80 text-white"
+                            : "bg-slate-900/70 text-flow-accent",
+                        )}
+                      >
                         <Icon size={18} />
                       </span>
                       {option.badge && (
-                        <span className={clsx(
-                          'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]',
-                          isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300',
-                        )}
+                        <span
+                          className={clsx(
+                            "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]",
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : "bg-slate-800 text-slate-300",
+                          )}
                         >
                           {option.badge}
                         </span>
                       )}
                     </span>
                     <div>
-                      <div className="text-sm font-semibold">{option.label}</div>
-                      <div className="text-xs text-slate-400">{option.description}</div>
+                      <div className="text-sm font-semibold">
+                        {option.label}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {option.description}
+                      </div>
                     </div>
                   </button>
                 );
@@ -2497,7 +2942,9 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-white">File name</h3>
-              <span className="text-xs text-gray-500">Extension follows format</span>
+              <span className="text-xs text-gray-500">
+                Extension follows format
+              </span>
             </div>
             <div className="flex items-center gap-3">
               <input
@@ -2512,40 +2959,51 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
               </span>
             </div>
             <p className="text-xs text-gray-500">
-              Final file name: <code className="text-gray-300">{finalFileName}</code>
+              Final file name:{" "}
+              <code className="text-gray-300">{finalFileName}</code>
             </p>
           </section>
 
-          {exportFormat === 'json' ? (
+          {exportFormat === "json" ? (
             <section className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Destination</h3>
+                <h3 className="text-sm font-semibold text-white">
+                  Destination
+                </h3>
                 {!supportsFileSystemAccess && (
-                  <span className="text-xs text-amber-400">Browser will download to defaults</span>
+                  <span className="text-xs text-amber-400">
+                    Browser will download to defaults
+                  </span>
                 )}
               </div>
-              <label className={clsx(
-                'flex items-center gap-3 rounded-lg border px-4 py-3 text-sm transition',
-                useNativeFilePicker && supportsFileSystemAccess
-                  ? 'border-flow-accent/60 bg-flow-accent/10 text-white'
-                  : 'border-white/10 bg-slate-900/60 text-slate-300',
-                !supportsFileSystemAccess && 'opacity-60',
-              )}>
+              <label
+                className={clsx(
+                  "flex items-center gap-3 rounded-lg border px-4 py-3 text-sm transition",
+                  useNativeFilePicker && supportsFileSystemAccess
+                    ? "border-flow-accent/60 bg-flow-accent/10 text-white"
+                    : "border-white/10 bg-slate-900/60 text-slate-300",
+                  !supportsFileSystemAccess && "opacity-60",
+                )}
+              >
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-white/20 bg-slate-900 text-flow-accent focus:ring-flow-accent"
                   checked={useNativeFilePicker && supportsFileSystemAccess}
-                  onChange={(event) => setUseNativeFilePicker(event.target.checked)}
+                  onChange={(event) =>
+                    setUseNativeFilePicker(event.target.checked)
+                  }
                   disabled={!supportsFileSystemAccess}
                 />
                 <div className="flex flex-col">
                   <span className="font-medium">
-                    {supportsFileSystemAccess ? 'Choose save location on export' : 'Use browser default download folder'}
+                    {supportsFileSystemAccess
+                      ? "Choose save location on export"
+                      : "Use browser default download folder"}
                   </span>
                   <span className="text-xs text-slate-400">
                     {supportsFileSystemAccess
-                      ? 'Open your OS save dialog to pick the destination each time.'
-                      : 'Your browser will download using its configured destination.'}
+                      ? "Open your OS save dialog to pick the destination each time."
+                      : "Your browser will download using its configured destination."}
                   </span>
                 </div>
               </label>
@@ -2553,101 +3011,59 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
           ) : (
             <section className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Output path</h3>
-                <span className="text-xs text-gray-500">Used in CLI instructions</span>
+                <h3 className="text-sm font-semibold text-white">Download</h3>
+                <span className="text-xs text-slate-400">Server-rendered</span>
               </div>
-              <input
-                type="text"
-                value={videoOutputDirectory}
-                onChange={(event) => setVideoOutputDirectory(event.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
-                placeholder="~/Downloads"
-              />
-              <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-                Target output: <code className="text-gray-100">{buildOutputPath(EXPORT_EXTENSIONS[exportFormat])}</code>
+              <div className="space-y-2 rounded-lg border border-white/10 bg-slate-900/60 p-3 text-xs text-slate-300">
+                <p>
+                  Your replay renders on the API using the same metadata that
+                  powers the in-app player.
+                </p>
+                <p>
+                  We’ll trigger a download automatically once rendering
+                  finishes.
+                </p>
               </div>
             </section>
           )}
 
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white">Replay summary</h3>
+              <h3 className="text-sm font-semibold text-white">
+                Replay summary
+              </h3>
               <span className="text-xs text-gray-500">{execution.status}</span>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2">
                 <div className="text-xs text-gray-400">Frames</div>
-                <div className="text-lg font-semibold text-white">{estimatedFrameCount}</div>
+                <div className="text-lg font-semibold text-white">
+                  {estimatedFrameCount}
+                </div>
               </div>
               <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2">
                 <div className="text-xs text-gray-400">Duration</div>
                 <div className="text-lg font-semibold text-white">
-                  {estimatedDurationSeconds != null ? formatSeconds(estimatedDurationSeconds) : '—'}
+                  {estimatedDurationSeconds != null
+                    ? formatSeconds(estimatedDurationSeconds)
+                    : "—"}
                 </div>
               </div>
               <div className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2">
                 <div className="text-xs text-gray-400">Status</div>
-                <div className="text-sm text-slate-300">{exportStatusMessage}</div>
+                <div className="text-sm text-slate-300">
+                  {exportStatusMessage}
+                </div>
               </div>
             </div>
           </section>
-
-          {isCliFormat && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">CLI steps</h3>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (cliInstructions.length === 0) {
-                      toast.error('Instructions are not ready yet');
-                      return;
-                    }
-                    const text = cliInstructions.join('\n');
-                    const clipboard = navigator?.clipboard;
-                    if (clipboard && typeof clipboard.writeText === 'function') {
-                      try {
-                        await clipboard.writeText(text);
-                        toast.success('CLI instructions copied');
-                        setCopyInstructionsError(null);
-                      } catch (error) {
-                        const message = error instanceof Error ? error.message : 'Clipboard copy failed';
-                        setCopyInstructionsError(`${message}. Copy manually below.`);
-                        toast.error('Unable to copy to clipboard. Copy manually below.');
-                      }
-                    } else {
-                      setCopyInstructionsError('Clipboard access is unavailable. Copy manually below.');
-                      toast.error('Clipboard access is unavailable in this browser');
-                    }
-                  }}
-                  className="flex items-center gap-2 rounded-lg border border-white/15 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-flow-accent/40 hover:text-white"
-                >
-                  <Copy size={14} /> Copy steps
-                </button>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-950/70 p-3">
-                <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-slate-200">
-                  <code>
-                    {cliInstructions.length > 0
-                      ? cliInstructions.join('\n')
-                      : '# CLI instructions appear here when a format is selected'}
-                  </code>
-                </pre>
-              </div>
-              {copyInstructionsError && (
-                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                  {copyInstructionsError}
-                </div>
-              )}
-            </section>
-          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-gray-800 bg-flow-bg/60 px-6 py-4">
           <div className="text-xs text-gray-400">
-            {exportFormat === 'json'
-              ? 'Exports the replay package with chosen theming so tooling can recreate animations.'
-              : 'Run these commands from the scenario root to generate marketing-ready assets.'}
+            {exportFormat === "json"
+              ? "Exports the replay package with chosen theming so tooling can recreate animations."
+              : "Rendering runs on the API and downloads the finished media when ready."}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -2662,16 +3078,21 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
               type="button"
               onClick={handleConfirmExport}
               className={clsx(
-                'flex items-center gap-2 rounded-lg bg-flow-accent px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60',
-                exportFormat !== 'json' && 'bg-gradient-to-r from-flow-accent to-sky-500',
+                "flex items-center gap-2 rounded-lg bg-flow-accent px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60",
+                exportFormat !== "json" &&
+                  "bg-gradient-to-r from-flow-accent to-sky-500",
               )}
-              disabled={exportFormat === 'json' ? (isExporting || isExportPreviewLoading) : cliInstructions.length === 0}
+              disabled={
+                exportFormat === "json"
+                  ? isExporting || isExportPreviewLoading
+                  : isExporting || replayFrames.length === 0
+              }
             >
-              {exportFormat === 'json' ? (
+              {exportFormat === "json" ? (
                 isExporting || isExportPreviewLoading ? (
                   <>
                     <Loader size={16} className="animate-spin" />
-                    {isExportPreviewLoading ? 'Preparing…' : 'Exporting…'}
+                    {isExportPreviewLoading ? "Preparing…" : "Exporting…"}
                   </>
                 ) : (
                   <>
@@ -2679,10 +3100,15 @@ function ExecutionViewer({ execution, onClose, showExecutionSwitcher = false }: 
                     Export replay
                   </>
                 )
+              ) : isExporting ? (
+                <>
+                  <Loader size={16} className="animate-spin" />
+                  Rendering…
+                </>
               ) : (
                 <>
-                  <Copy size={16} />
-                  Copy CLI steps
+                  <Download size={16} />
+                  Export replay
                 </>
               )}
             </button>

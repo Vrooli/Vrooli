@@ -23,6 +23,7 @@ testing::unit::run_all_tests \
     --skip-node \
     --skip-python \
     --coverage-warn 80 \
-    --coverage-error 50
+    --coverage-error 50 \
+    --scenario "personal-digital-twin"
 
 testing::phase::end_with_summary "Unit tests completed"

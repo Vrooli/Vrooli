@@ -481,70 +481,15 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: no-spoilers-book-talk
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/no-spoilers-book-talk
-    - cli/install.sh
-    - initialization/postgres/schema.sql
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/postgres
-    - test
-
-resources:
-  required: [postgres, qdrant, ollama]
-  optional: [minio]
-  health_timeout: 60
-
-tests:
-  - name: "API health check responds"
-    type: http
-    service: api
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Book upload endpoint accepts files"
-    type: http
-    service: api
-    endpoint: /api/v1/books/upload
-    method: POST
-    body:
-      file: test_book.txt
-      user_id: test-user
-    expect:
-      status: 201
-      body:
-        book_id: exists
-        
-  - name: "Position-based chat prevents spoilers"
-    type: exec
-    command: ./test/test-spoiler-prevention.sh
-    expect:
-      exit_code: 0
-      output_contains: ["position boundary respected"]
-      
-  - name: "Database schema is complete"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('books', 'user_progress', 'conversations')"
-    expect:
-      rows: 
-        - count: 3
-```
+- **Phased test suite** driven by `test/run-tests.sh`, using the shared runner to execute structure, dependencies, unit, integration, business, and performance phases.
+- **Structure phase** validates required files (`.vrooli/service.json`, `PRD.md`, `api/main.go`, CLI assets, initialization SQL) and directories (`api`, `cli`, `initialization`, `test`).
+- **Dependencies phase** confirms Go modules build locally and tooling (`curl`, `jq`, `bats`) needed for downstream smoke tests is present.
+- **Unit phase** runs Go unit tests with coverage thresholds via `testing::unit::run_all_tests`.
+- **Integration phase** auto-starts the scenario (if needed), resolves dynamic ports, and executes `test/test-book-upload.sh` to upload and process a book end-to-end.
+- **Business phase** reuses the seeded/uploaded content to run spoiler-prevention checks (`test/test-spoiler-prevention.sh`) and the CLI BATS suite.
+- **Performance phase** currently records a placeholder (benchmarks pending).
+- CI/lifecycle entrypoint: `.vrooli/service.json:test.steps[0]` invokes `test/run-tests.sh` to keep lifecycle and local workflows aligned.
 
 ### Performance Validation
 - [x] Book processing completes within 30 seconds for typical novel

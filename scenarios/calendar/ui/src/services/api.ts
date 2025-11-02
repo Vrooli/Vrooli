@@ -73,67 +73,67 @@ class CalendarAPI {
   }
 
   // Auth
-  async validateToken(): Promise<User> {
+  validateToken = async (): Promise<User> => {
     const response = await this.client.get('/auth/validate')
     return response.data
   }
 
   // Events
-  async createEvent(data: CreateEventRequest): Promise<Event> {
+  createEvent = async (data: CreateEventRequest): Promise<Event> => {
     const response = await this.client.post('/events', data)
     return response.data
   }
 
-  async getEvents(params?: {
+  getEvents = async (params?: {
     startDate?: string
     endDate?: string
     eventType?: string
     status?: string
     limit?: number
-  }): Promise<{ events: Event[]; totalCount: number; hasMore: boolean }> {
+  }): Promise<{ events: Event[]; totalCount: number; hasMore: boolean }> => {
     const response = await this.client.get('/events', { params })
     return response.data
   }
 
-  async getEvent(id: string): Promise<Event> {
+  getEvent = async (id: string): Promise<Event> => {
     const response = await this.client.get(`/events/${id}`)
     return response.data
   }
 
-  async updateEvent(id: string, data: Partial<CreateEventRequest>): Promise<Event> {
+  updateEvent = async (id: string, data: Partial<CreateEventRequest>): Promise<Event> => {
     const response = await this.client.put(`/events/${id}`, data)
     return response.data
   }
 
-  async deleteEvent(id: string): Promise<void> {
+  deleteEvent = async (id: string): Promise<void> => {
     await this.client.delete(`/events/${id}`)
   }
 
   // Chat & NLP
-  async sendChatMessage(data: ChatRequest): Promise<ChatResponse> {
+  sendChatMessage = async (data: ChatRequest): Promise<ChatResponse> => {
     const response = await this.client.post('/schedule/chat', data)
     return response.data
   }
 
   // Schedule Optimization
-  async optimizeSchedule(data: OptimizationRequest): Promise<OptimizationResponse> {
+  optimizeSchedule = async (data: OptimizationRequest): Promise<OptimizationResponse> => {
     const response = await this.client.post('/schedule/optimize', data)
     return response.data
   }
 
   // Reminders
-  async processReminders(): Promise<{ status: string; message: string }> {
+  processReminders = async (): Promise<{ status: string; message: string }> => {
     const response = await this.client.post('/reminders/process')
     return response.data
   }
 
   // Health check
-  async healthCheck(): Promise<{
+  healthCheck = async (): Promise<{
     status: string
     timestamp: string
     version: string
     services: Record<string, string>
-  }> {
+  }> => {
     const response = await this.client.get('/health')
     return response.data
   }
