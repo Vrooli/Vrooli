@@ -134,9 +134,10 @@ func (m *mockRepository) ListFolders(ctx context.Context) ([]*database.WorkflowF
 var _ database.Repository = (*mockRepository)(nil)
 
 type workflowServiceMock struct {
-	listWorkflowVersionsFn   func(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error)
-	getWorkflowVersionFn     func(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error)
-	restoreWorkflowVersionFn func(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
+	listWorkflowVersionsFn    func(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error)
+	getWorkflowVersionFn      func(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error)
+	restoreWorkflowVersionFn  func(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
+	describeExecutionExportFn func(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error)
 }
 
 func (m *workflowServiceMock) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
@@ -193,6 +194,9 @@ func (m *workflowServiceMock) GetExecutionTimeline(ctx context.Context, executio
 }
 
 func (m *workflowServiceMock) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error) {
+	if m.describeExecutionExportFn != nil {
+		return m.describeExecutionExportFn(ctx, executionID)
+	}
 	return nil, errors.New("not implemented")
 }
 

@@ -52,7 +52,7 @@ COMMANDS:
     execution stop          Stop a running execution
     execution export        Generate replay export metadata for an execution
     execution render        Build a marketing-style HTML replay package for an execution
-    execution render-video  Generate an MP4/WEBM replay video from captured timeline metadata
+    execution render-video  Generate an MP4/WEBM replay video via the API's Browserless renderer
     recording import        Import a Chrome extension recording archive
     help                    Display this help message
     version                 Show CLI and API version information
@@ -1426,7 +1426,6 @@ NODE
                 execution_id=""
                 output_file=""
                 format="mp4"
-                work_dir=""
                 overwrite_flag=0
 
                 i=0
@@ -1458,19 +1457,6 @@ NODE
                             ;;
                         --format=*|--video-format=*)
                             format="${token#*=}"
-                            ;;
-                        --work-dir)
-                            next=$((i + 1))
-                            if [ $next -ge ${#args[@]} ]; then
-                                echo -e "${RED}Error:${NC} --work-dir flag requires a directory path"
-                                exit 1
-                            fi
-                            work_dir="${args[$next]}"
-                            i=$((i + 2))
-                            continue
-                            ;;
-                        --work-dir=*)
-                            work_dir="${token#*=}"
                             ;;
                         --overwrite|-f)
                             overwrite_flag=1
@@ -1505,7 +1491,9 @@ NODE
                 fi
 
                 tmp_json=$(mktemp)
-                status_code=$(curl -s -o "$tmp_json" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export")
+                status_code=$(curl -s -o "$tmp_json" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export" \
+                    -H 'Content-Type: application/json' \
+                    -d '{"format":"json"}')
                 if [ "$status_code" = "404" ]; then
                     rm -f "$tmp_json"
                     echo -e "${RED}✗ Execution not found${NC}"
@@ -1528,29 +1516,45 @@ NODE
                     output_file="bas-replay-${execution_id}.${format}"
                 fi
 
-                renderer="${SCRIPT_DIR}/render-video.js"
-                if [ ! -f "$renderer" ]; then
+                if [ -f "$output_file" ] && [ "$overwrite_flag" -eq 0 ]; then
                     rm -f "$tmp_json"
-                    echo -e "${RED}Video renderer script missing:${NC} ${renderer}"
+                    echo -e "${RED}Error:${NC} ${output_file} already exists (use --overwrite)"
                     exit 1
                 fi
 
-                base_url="${API_URL%/api/v1}"
-                node_args=("$renderer" --input "$tmp_json" --output "$output_file" --base-url "$base_url" --format "$format")
-                if [ "$overwrite_flag" -eq 1 ]; then
-                    node_args+=("--overwrite")
-                fi
-                if [ -n "$work_dir" ]; then
-                    node_args+=("--work-dir" "$work_dir")
+                tmp_video="${output_file}.download"
+                accept_header="video/mp4"
+                if [ "$format" = "webm" ]; then
+                    accept_header="video/webm"
                 fi
 
-                if ! node "${node_args[@]}"; then
-                    rm -f "$tmp_json"
-                    echo -e "${RED}✗ Failed to render replay video${NC}"
-                    exit 1
-                fi
+                render_body=$(printf '{"format":"%s","file_name":"%s"}' "$format" "$(basename "$output_file")")
+                status_code=$(curl -s -o "$tmp_video" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export" \
+                    -H 'Content-Type: application/json' \
+                    -H "Accept: ${accept_header}" \
+                    -d "$render_body")
 
                 rm -f "$tmp_json"
+
+                if [ "$status_code" = "404" ]; then
+                    rm -f "$tmp_video"
+                    echo -e "${RED}✗ Execution not found${NC}"
+                    exit 1
+                fi
+
+                if [ "$status_code" != "200" ]; then
+                    error_body=$(cat "$tmp_video")
+                    rm -f "$tmp_video"
+                    if command -v jq >/dev/null 2>&1; then
+                        message=$(printf '%s' "$error_body" | jq -r '.message // empty' 2>/dev/null)
+                    else
+                        message=$(printf '%s' "$error_body" | grep -o '"message":"[^"]*' | head -n1 | cut -d'"' -f4)
+                    fi
+                    echo -e "${RED}Failed to render replay:${NC} ${message:-$error_body}"
+                    exit 1
+                fi
+
+                mv "$tmp_video" "$output_file"
                 echo -e "${GREEN}✓ Replay video ready${NC}: ${output_file}"
                 ;;
             *)

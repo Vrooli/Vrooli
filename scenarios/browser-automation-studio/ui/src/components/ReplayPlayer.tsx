@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type CSSProperties } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 
@@ -55,8 +55,8 @@ interface NormalizedPoint {
   y: number;
 }
 
-type CursorSpeedProfile = 'instant' | 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
-type CursorPathStyle = 'linear' | 'parabolicUp' | 'parabolicDown' | 'cubic' | 'pseudorandom';
+export type CursorSpeedProfile = 'instant' | 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
+export type CursorPathStyle = 'linear' | 'parabolicUp' | 'parabolicDown' | 'cubic' | 'pseudorandom';
 
 interface CursorAnimationOverride {
   target?: NormalizedPoint;
@@ -167,11 +167,20 @@ export type ReplayCursorInitialPosition =
 
 export type ReplayCursorClickAnimation = 'none' | 'pulse' | 'ripple';
 
+export interface ReplayPlayerController {
+  seek: (options: { frameIndex: number; progress?: number }) => void;
+  play: () => void;
+  pause: () => void;
+  getViewportElement: () => HTMLElement | null;
+  getFrameCount: () => number;
+}
+
 interface ReplayPlayerProps {
   frames: ReplayFrame[];
   autoPlay?: boolean;
   loop?: boolean;
   onFrameChange?: (frame: ReplayFrame, index: number) => void;
+  onFrameProgressChange?: (frameIndex: number, progress: number) => void;
   executionStatus?: 'pending' | 'running' | 'completed' | 'failed';
   chromeTheme?: ReplayChromeTheme;
   backgroundTheme?: ReplayBackgroundTheme;
@@ -179,6 +188,9 @@ interface ReplayPlayerProps {
   cursorInitialPosition?: ReplayCursorInitialPosition;
   cursorScale?: number;
   cursorClickAnimation?: ReplayCursorClickAnimation;
+  cursorDefaultSpeedProfile?: CursorSpeedProfile;
+  cursorDefaultPathStyle?: CursorPathStyle;
+  exposeController?: (controller: ReplayPlayerController | null) => void;
 }
 
 const DEFAULT_DURATION = 1600;
@@ -532,7 +544,11 @@ const generateStylizedPath = (
   return generateCatmullRomPath(controlPoints, 6);
 };
 
-const normalizeOverride = (override?: CursorAnimationOverride | null): CursorAnimationOverride | undefined => {
+const normalizeOverride = (
+  override: CursorAnimationOverride | null | undefined,
+  defaultPathStyle: CursorPathStyle = DEFAULT_PATH_STYLE,
+  defaultSpeedProfile: CursorSpeedProfile = DEFAULT_SPEED_PROFILE,
+): CursorAnimationOverride | undefined => {
   if (!override) {
     return undefined;
   }
@@ -540,10 +556,10 @@ const normalizeOverride = (override?: CursorAnimationOverride | null): CursorAni
   if (override.target) {
     next.target = clampNormalizedPoint(override.target);
   }
-  if (override.pathStyle && override.pathStyle !== DEFAULT_PATH_STYLE) {
+  if (override.pathStyle && override.pathStyle !== defaultPathStyle) {
     next.pathStyle = override.pathStyle;
   }
-  if (override.speedProfile && override.speedProfile !== DEFAULT_SPEED_PROFILE) {
+  if (override.speedProfile && override.speedProfile !== defaultSpeedProfile) {
     next.speedProfile = override.speedProfile;
   }
   if (next.pathStyle || next.target || next.speedProfile) {
@@ -1146,6 +1162,7 @@ export function ReplayPlayer({
   autoPlay = true,
   loop = true,
   onFrameChange,
+  onFrameProgressChange,
   executionStatus,
   chromeTheme = 'aurora',
   backgroundTheme = 'aurora',
@@ -1153,6 +1170,9 @@ export function ReplayPlayer({
   cursorInitialPosition = 'center',
   cursorScale = 1,
   cursorClickAnimation = 'none',
+  cursorDefaultSpeedProfile,
+  cursorDefaultPathStyle,
+  exposeController,
 }: ReplayPlayerProps) {
   const normalizedFrames = useMemo(() => {
     return frames
@@ -1163,17 +1183,24 @@ export function ReplayPlayer({
       }));
   }, [frames]);
 
+  const isExternallyControlled = typeof exposeController === 'function';
+
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(autoPlay && normalizedFrames.length > 1);
+  const [isPlaying, setIsPlaying] = useState(() => !isExternallyControlled && autoPlay && normalizedFrames.length > 1);
   const [frameProgress, setFrameProgress] = useState(0);
   const [isMetadataCollapsed, setIsMetadataCollapsed] = useState(true);
   const rafRef = useRef<number | null>(null);
   const durationRef = useRef<number>(DEFAULT_DURATION);
   const [cursorOverrides, setCursorOverrides] = useState<CursorOverrideMap>({});
+  const normalizedFramesRef = useRef(normalizedFrames);
+  useEffect(() => {
+    normalizedFramesRef.current = normalizedFrames;
+  }, [normalizedFrames]);
   const randomSeedsRef = useRef<Record<string, NormalizedPoint>>({});
   const [cursorPosition, setCursorPosition] = useState<ReplayPoint | undefined>(undefined);
   const [activeClickEffect, setActiveClickEffect] = useState<{ frameId: string; key: number } | null>(null);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
+  const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<{ frameId: string; pointerId: number } | null>(null);
   const backgroundDecor = useMemo(
     () => buildBackgroundDecor(backgroundTheme ?? 'aurora'),
@@ -1187,6 +1214,8 @@ export function ReplayPlayer({
       ? Math.min(MAX_CURSOR_SCALE, Math.max(MIN_CURSOR_SCALE, cursorScale))
       : 1;
   const cursorTrailStrokeWidth = cursorDecor.trailWidth * pointerScale;
+  const baseSpeedProfile = cursorDefaultSpeedProfile ?? DEFAULT_SPEED_PROFILE;
+  const basePathStyle = cursorDefaultPathStyle ?? DEFAULT_PATH_STYLE;
 
   const updateCursorOverride = (
     frameId: string,
@@ -1194,7 +1223,7 @@ export function ReplayPlayer({
   ) => {
     setCursorOverrides((prev) => {
       const previous = prev[frameId];
-      const next = normalizeOverride(mutator(previous));
+      const next = normalizeOverride(mutator(previous), basePathStyle, baseSpeedProfile);
       if (!next) {
         if (previous === undefined) {
           return prev;
@@ -1241,9 +1270,15 @@ export function ReplayPlayer({
   };
 
   useEffect(() => {
+    if (isExternallyControlled) {
+      setCurrentIndex(0);
+      setFrameProgress(0);
+      setIsPlaying(false);
+      return;
+    }
     setCurrentIndex(0);
     setIsPlaying(autoPlay && normalizedFrames.length > 1);
-  }, [autoPlay, normalizedFrames.length]);
+  }, [autoPlay, normalizedFrames.length, isExternallyControlled]);
 
   useEffect(() => {
     randomSeedsRef.current = {};
@@ -1257,7 +1292,11 @@ export function ReplayPlayer({
   }, [currentIndex, normalizedFrames, onFrameChange]);
 
   useEffect(() => {
-    if (!isPlaying || normalizedFrames.length <= 1) {
+    onFrameProgressChange?.(currentIndex, frameProgress);
+  }, [currentIndex, frameProgress, onFrameProgressChange]);
+
+  useEffect(() => {
+    if (!isPlaying || normalizedFrames.length <= 1 || isExternallyControlled) {
       setFrameProgress(0);
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -1302,7 +1341,7 @@ export function ReplayPlayer({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [isPlaying, currentIndex, normalizedFrames, loop]);
+  }, [isPlaying, currentIndex, normalizedFrames, loop, isExternallyControlled]);
 
   useEffect(() => {
     return () => {
@@ -1370,7 +1409,7 @@ export function ReplayPlayer({
 
       const overridePathStyle = override?.pathStyle;
       const usingRecordedTrail = !overridePathStyle && recordedIntermediate.length > 0;
-      const effectivePathStyle = overridePathStyle ?? DEFAULT_PATH_STYLE;
+      const effectivePathStyle = overridePathStyle ?? basePathStyle;
       const generatedPath = usingRecordedTrail
         ? recordedIntermediate
         : generateStylizedPath(effectivePathStyle, startNormalized, targetNormalized, frame.id);
@@ -1381,7 +1420,7 @@ export function ReplayPlayer({
         startNormalized,
         targetNormalized,
         pathNormalized: generatedPath,
-        speedProfile: override?.speedProfile ?? DEFAULT_SPEED_PROFILE,
+        speedProfile: override?.speedProfile ?? baseSpeedProfile,
         pathStyle: effectivePathStyle,
         hasRecordedTrail: usingRecordedTrail,
         previousTargetNormalized: previousNormalized,
@@ -1391,7 +1430,7 @@ export function ReplayPlayer({
     });
 
     return plans;
-  }, [normalizedFrames, cursorOverrides, cursorInitialPosition]);
+  }, [normalizedFrames, cursorOverrides, cursorInitialPosition, basePathStyle, baseSpeedProfile]);
 
   // Compute current frame safely (use index 0 as fallback for empty arrays to satisfy hooks)
   const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
@@ -1450,6 +1489,79 @@ export function ReplayPlayer({
     () => buildChromeDecor(chromeVariant, headerTitle),
     [chromeVariant, headerTitle],
   );
+
+  const seekToFrame = useCallback(
+    (frameIndex: number, progress: number | undefined) => {
+      const frames = normalizedFramesRef.current;
+      if (frames.length === 0) {
+        return;
+      }
+      const clampedIndex = Math.min(Math.max(frameIndex, 0), frames.length - 1);
+      const clampedProgress = Number.isFinite(progress) ? Math.min(Math.max(progress ?? 0, 0), 1) : 0;
+      setIsPlaying(false);
+      setCurrentIndex(clampedIndex);
+      setFrameProgress(clampedProgress);
+    },
+    [],
+  );
+
+  const changeFrame = useCallback(
+    (index: number, progress?: number) => {
+      seekToFrame(index, progress);
+    },
+    [seekToFrame],
+  );
+
+  const handleNext = useCallback(() => {
+    const frames = normalizedFramesRef.current;
+    if (frames.length === 0) {
+      return;
+    }
+    if (currentIndex >= frames.length - 1) {
+      if (loop) {
+        changeFrame(0);
+      }
+      return;
+    }
+    changeFrame(currentIndex + 1);
+  }, [changeFrame, currentIndex, loop]);
+
+  const handlePrevious = useCallback(() => {
+    const frames = normalizedFramesRef.current;
+    if (frames.length === 0) {
+      return;
+    }
+    if (currentIndex === 0) {
+      if (loop) {
+        changeFrame(frames.length - 1);
+      }
+      return;
+    }
+    changeFrame(currentIndex - 1);
+  }, [changeFrame, currentIndex, loop]);
+
+  const controller = useMemo<ReplayPlayerController | null>(() => {
+    if (!exposeController) {
+      return null;
+    }
+    return {
+      seek: ({ frameIndex, progress }) => seekToFrame(frameIndex, progress),
+      play: () => setIsPlaying(true),
+      pause: () => setIsPlaying(false),
+      getViewportElement: () => playerContainerRef.current ?? screenshotRef.current,
+      getFrameCount: () => normalizedFramesRef.current.length,
+    };
+  }, [exposeController, seekToFrame]);
+
+  useEffect(() => {
+    if (!exposeController) {
+      return;
+    }
+    exposeController(controller);
+    return () => {
+      exposeController(null);
+    };
+  }, [controller, exposeController]);
 
   // Hooks must run unconditionally - compute with safe fallbacks when no frames exist
   const extractedPreview = useMemo(() => {
@@ -1717,12 +1829,12 @@ export function ReplayPlayer({
   const isDraggingCursor = dragState?.frameId === currentFrameId;
 
   const currentOverride = currentCursorPlan ? cursorOverrides[currentCursorPlan.frameId] : undefined;
-  const effectiveSpeedProfile = currentCursorPlan?.speedProfile ?? DEFAULT_SPEED_PROFILE;
+  const effectiveSpeedProfile = currentCursorPlan?.speedProfile ?? baseSpeedProfile;
   const currentTargetPoint = currentCursorPlan ? toAbsolutePoint(currentCursorPlan.targetNormalized, currentCursorPlan.dims) : undefined;
   const currentCursorNormalized = currentCursorPlan && cursorPosition
     ? toNormalizedPoint(cursorPosition, currentCursorPlan.dims)
     : undefined;
-  const selectedPathStyle = currentOverride?.pathStyle ?? DEFAULT_PATH_STYLE;
+  const selectedPathStyle = currentOverride?.pathStyle ?? basePathStyle;
   const usingRecordedTrail = currentCursorPlan?.hasRecordedTrail ?? false;
   const pathStyleOption = CURSOR_PATH_STYLE_OPTIONS.find((option) => option.id === selectedPathStyle) ?? CURSOR_PATH_STYLE_OPTIONS[0];
 
@@ -1804,37 +1916,10 @@ export function ReplayPlayer({
     updateCursorOverride(currentCursorPlan.frameId, () => undefined);
   };
 
-  const changeFrame = (index: number) => {
-    if (index < 0 || index >= normalizedFrames.length) {
-      return;
-    }
-    setCurrentIndex(index);
-    setFrameProgress(0);
-  };
-
-  const handleNext = () => {
-    if (currentIndex >= normalizedFrames.length - 1) {
-      if (loop) {
-        changeFrame(0);
-      }
-      return;
-    }
-    changeFrame(currentIndex + 1);
-  };
-
-  const handlePrevious = () => {
-    if (currentIndex === 0) {
-      if (loop) {
-        changeFrame(normalizedFrames.length - 1);
-      }
-      return;
-    }
-    changeFrame(currentIndex - 1);
-  };
-
   return (
     <div className="flex flex-col gap-4">
       <div
+        ref={playerContainerRef}
         className={clsx(
           'relative overflow-hidden rounded-3xl transition-all duration-500',
           backgroundDecor.containerClass,
@@ -2152,7 +2237,7 @@ export function ReplayPlayer({
                     <label htmlFor="cursor-speed-profile" className="cursor-pointer">
                       Speed profile
                     </label>
-                    {currentOverride?.speedProfile && currentOverride.speedProfile !== DEFAULT_SPEED_PROFILE && (
+                    {currentOverride?.speedProfile && currentOverride.speedProfile !== baseSpeedProfile && (
                       <button
                         type="button"
                         className="rounded-full border border-slate-600/60 bg-slate-900/60 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-300 hover:border-flow-accent/40 hover:text-white"
@@ -2186,7 +2271,7 @@ export function ReplayPlayer({
                     <label htmlFor="cursor-path-style" className="cursor-pointer">
                       Path shape
                     </label>
-                    {currentOverride?.pathStyle && currentOverride.pathStyle !== DEFAULT_PATH_STYLE && (
+                    {currentOverride?.pathStyle && currentOverride.pathStyle !== basePathStyle && (
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 rounded-full border border-slate-600/60 bg-slate-900/60 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-300 hover:border-flow-accent/40 hover:text-white"

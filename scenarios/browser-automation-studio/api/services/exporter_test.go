@@ -9,7 +9,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
-func TestBuildReplayExportGeneratesPackage(t *testing.T) {
+func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 	executionID := uuid.New()
 	workflowID := uuid.New()
 
@@ -89,9 +89,9 @@ func TestBuildReplayExportGeneratesPackage(t *testing.T) {
 		},
 	}
 
-	pkg, err := BuildReplayExport(exec, workflow, timeline)
+	pkg, err := BuildReplayMovieSpec(exec, workflow, timeline)
 	if err != nil {
-		t.Fatalf("BuildReplayExport returned error: %v", err)
+		t.Fatalf("BuildReplayMovieSpec returned error: %v", err)
 	}
 
 	if pkg == nil {
@@ -154,5 +154,18 @@ func TestBuildReplayExportGeneratesPackage(t *testing.T) {
 
 	if pkg.Theme.BrowserChrome.Title != workflow.Name {
 		t.Errorf("expected chrome title %q, got %q", workflow.Name, pkg.Theme.BrowserChrome.Title)
+	}
+
+	if pkg.Decor.ChromeTheme == "" {
+		t.Errorf("expected decor chrome theme to be populated")
+	}
+	if pkg.Decor.BackgroundTheme == "" {
+		t.Errorf("expected decor background theme to be populated")
+	}
+	if pkg.Decor.CursorTheme == "" {
+		t.Errorf("expected decor cursor theme to be populated")
+	}
+	if pkg.Decor.CursorScale <= 0 {
+		t.Errorf("expected decor cursor scale to be positive, got %f", pkg.Decor.CursorScale)
 	}
 }

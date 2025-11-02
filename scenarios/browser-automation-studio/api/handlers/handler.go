@@ -48,6 +48,11 @@ type WorkflowService interface {
 }
 
 // Handler contains all HTTP handlers
+type replayRenderer interface {
+	Render(ctx context.Context, spec *services.ReplayMovieSpec, format services.RenderFormat, filename string) (*services.RenderedMedia, error)
+}
+
+// Handler contains all HTTP handlers
 type Handler struct {
 	workflowService  WorkflowService
 	repo             database.Repository
@@ -56,7 +61,7 @@ type Handler struct {
 	storage          *storage.MinIOClient
 	recordingService *services.RecordingService
 	recordingsRoot   string
-	replayRenderer   *services.ReplayRenderer
+	replayRenderer   replayRenderer
 	log              *logrus.Logger
 	upgrader         websocket.Upgrader
 
@@ -101,7 +106,7 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 	recordingsRoot := resolveRecordingsRoot(log)
 	recordingService := services.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
 	workflowSvc := services.NewWorkflowService(repo, browserless, wsHub, log)
- 	replayRenderer := services.NewReplayRenderer(log, recordingsRoot)
+	replayRenderer := services.NewReplayRenderer(log, recordingsRoot)
 
 	handler := &Handler{
 		workflowService:  workflowSvc,

@@ -34,13 +34,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { format } from "date-fns";
 import clsx from "clsx";
-import ReplayPlayer, {
+import type {
   ReplayFrame,
-  type ReplayChromeTheme,
-  type ReplayBackgroundTheme,
-  type ReplayCursorTheme,
-  type ReplayCursorInitialPosition,
-  type ReplayCursorClickAnimation,
+  ReplayChromeTheme,
+  ReplayBackgroundTheme,
+  ReplayCursorTheme,
+  ReplayCursorInitialPosition,
+  ReplayCursorClickAnimation,
 } from "./ReplayPlayer";
 import { useExecutionStore } from "../stores/executionStore";
 import type {
@@ -52,6 +52,8 @@ import type { Screenshot, LogEntry } from "../stores/executionEventProcessor";
 import { toast } from "react-hot-toast";
 import ResponsiveDialog from "./ResponsiveDialog";
 import { getConfig } from "../config";
+import { logger } from "../utils/logger";
+import type { ReplayMovieSpec } from "../types/export";
 import {
   toNumber,
   toBoundingBox,
@@ -65,6 +67,7 @@ import {
 import ExecutionHistory from "./ExecutionHistory";
 // Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
 const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
+const MOVIE_SPEC_POLL_INTERVAL_MS = 4000;
 
 const withAssetBasePath = (value: string) => {
   if (!value || ABSOLUTE_URL_PATTERN.test(value)) {
@@ -77,6 +80,38 @@ const withAssetBasePath = (value: string) => {
   const normalizedBase = base.endsWith("/") ? base : `${base}/`;
   const normalizedValue = value.startsWith("/") ? value.slice(1) : value;
   return `${normalizedBase}${normalizedValue}`;
+};
+
+const normalizePreviewStatus = (value?: string | null): string => {
+  if (!value) {
+    return "";
+  }
+  return value.trim().toLowerCase();
+};
+
+const describePreviewStatusMessage = (
+  status: string,
+  fallback?: string | null,
+  metrics?: { capturedFrames?: number; assetCount?: number },
+): string => {
+  if (fallback && fallback.trim().length > 0) {
+    return fallback.trim();
+  }
+  const capturedFrames = metrics?.capturedFrames ?? 0;
+  switch (status) {
+    case "pending":
+      if (capturedFrames > 0) {
+        return `Replay export pending – ${formatCapturedLabel(capturedFrames, "frame")} captured so far`;
+      }
+      return "Replay export pending – timeline frames not captured yet";
+    case "unavailable":
+      if (capturedFrames > 0) {
+        return `Replay export unavailable – ${formatCapturedLabel(capturedFrames, "frame")} captured but not yet playable`;
+      }
+      return "Replay export unavailable – execution did not capture any timeline frames";
+    default:
+      return "Replay export unavailable";
+  }
 };
 
 const resolveBackgroundAsset = (relativePath: string) => {
@@ -138,47 +173,32 @@ type FileSystemFileHandle = {
   createWritable: () => Promise<FileSystemWritableFileStream>;
 };
 
-interface ReplayExportPackageSummary {
-  frame_count?: number;
-  screenshot_count?: number;
-  total_duration_ms?: number;
-  max_frame_duration_ms?: number;
-}
-
-interface ReplayExportExecutionMetadata {
-  execution_id?: string;
-  workflow_id?: string;
-  workflow_name?: string;
-  status?: string;
-  started_at?: string;
-  completed_at?: string | null;
-  progress?: number;
-  total_duration_ms?: number;
-}
-
-interface ReplayExportPackage {
-  version?: string;
-  generated_at?: string;
-  execution?: ReplayExportExecutionMetadata;
-  summary?: ReplayExportPackageSummary;
-  frames?: Array<Record<string, unknown>>;
-  assets?: Array<Record<string, unknown>>;
-  theme?: Record<string, unknown>;
-  cursor?: Record<string, unknown>;
-}
-
 interface ExecutionExportPreviewResponse {
   execution_id?: string;
+  spec_id?: string;
   status?: string;
   message?: string;
-  package?: ReplayExportPackage;
+  captured_frame_count?: number;
+  available_asset_count?: number;
+  total_duration_ms?: number;
+  package?: ReplayMovieSpec;
 }
 
 interface ExecutionExportPreview {
   executionId: string;
+  specId?: string;
   status: string;
   message?: string;
-  package?: ReplayExportPackage;
+  capturedFrameCount: number;
+  availableAssetCount: number;
+  totalDurationMs: number;
+  package?: ReplayMovieSpec;
+}
+
+interface ExportPreviewMetrics {
+  capturedFrames: number;
+  assetCount: number;
+  totalDurationMs: number;
 }
 
 const EXPORT_EXTENSIONS: Record<ExportFormat, string> = {
@@ -228,6 +248,25 @@ const sanitizeFileStem = (value: string, fallback: string): string => {
     return fallback;
   }
   return sanitized;
+};
+
+const coerceMetricNumber = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return 0;
+};
+
+const formatCapturedLabel = (count: number, noun: string): string => {
+  const rounded = Math.round(count);
+  const suffix = rounded === 1 ? "" : "s";
+  return `${rounded} ${noun}${suffix}`;
 };
 
 const REPLAY_BACKGROUND_OPTIONS: Array<{
@@ -833,6 +872,23 @@ function ExecutionViewer({
   const [exportPreviewError, setExportPreviewError] = useState<string | null>(
     null,
   );
+  const [previewMetrics, setPreviewMetrics] =
+    useState<ExportPreviewMetrics>({
+      capturedFrames: 0,
+      assetCount: 0,
+      totalDurationMs: 0,
+    });
+  const [activeSpecId, setActiveSpecId] = useState<string | null>(null);
+  const [movieSpec, setMovieSpec] = useState<ReplayMovieSpec | null>(null);
+  const [isMovieSpecLoading, setIsMovieSpecLoading] = useState(false);
+  const [movieSpecError, setMovieSpecError] = useState<string | null>(null);
+  const composerRef = useRef<HTMLIFrameElement | null>(null);
+  const composerWindowRef = useRef<Window | null>(null);
+  const composerOriginRef = useRef<string | null>(null);
+  const [isComposerReady, setIsComposerReady] = useState(false);
+  const composerFrameStateRef = useRef({ frameIndex: 0, progress: 0 });
+  const movieSpecRetryTimeoutRef = useRef<number | null>(null);
+  const movieSpecAbortControllerRef = useRef<AbortController | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const supportsFileSystemAccess =
     typeof window !== "undefined" &&
@@ -843,6 +899,37 @@ function ExecutionViewer({
     () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
     [execution.id],
   );
+
+  const composerUrl = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "/export/composer.html?mode=embedded";
+    }
+    const url = new URL("/export/composer.html", window.location.origin);
+    url.searchParams.set("mode", "embedded");
+    url.searchParams.set("executionId", execution.id);
+    url.searchParams.set("apiBase", window.location.origin);
+    return url.toString();
+  }, [execution.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      composerOriginRef.current = null;
+      return;
+    }
+    try {
+      composerOriginRef.current = new URL(
+        composerUrl,
+        window.location.href,
+      ).origin;
+    } catch (error) {
+      composerOriginRef.current = null;
+      logger.warn(
+        "Failed to derive composer origin",
+        { component: "ExecutionViewer", executionId: execution.id },
+        error,
+      );
+    }
+  }, [composerUrl, execution.id]);
 
   const getSanitizedFileStem = useCallback(
     () => sanitizeFileStem(exportFileStem, defaultExportFileStem),
@@ -895,6 +982,188 @@ function ExecutionViewer({
   }, [defaultExportFileStem]);
 
   useEffect(() => {
+    if (!movieSpec) {
+      return;
+    }
+    setPreviewMetrics((current) => {
+      const frameCount =
+        movieSpec.summary?.frame_count ?? movieSpec.frames?.length ?? current.capturedFrames;
+      const assetCount =
+        Array.isArray(movieSpec.assets) && movieSpec.assets.length >= 0
+          ? movieSpec.assets.length
+          : current.assetCount;
+      const totalDuration =
+        movieSpec.summary?.total_duration_ms ??
+        movieSpec.playback?.duration_ms ??
+        current.totalDurationMs;
+      return {
+        capturedFrames: frameCount,
+        assetCount,
+        totalDurationMs: totalDuration,
+      };
+    });
+    const specIdFromSpec = movieSpec.execution?.execution_id;
+    if (specIdFromSpec && specIdFromSpec !== activeSpecId) {
+      setActiveSpecId(specIdFromSpec);
+    }
+  }, [movieSpec, activeSpecId]);
+
+  const clearMovieSpecRetryTimeout = useCallback(() => {
+    if (movieSpecRetryTimeoutRef.current != null) {
+      window.clearTimeout(movieSpecRetryTimeoutRef.current);
+      movieSpecRetryTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearMovieSpecRetryTimeout();
+      if (movieSpecAbortControllerRef.current) {
+        movieSpecAbortControllerRef.current.abort();
+        movieSpecAbortControllerRef.current = null;
+      }
+    };
+  }, [clearMovieSpecRetryTimeout]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (movieSpecAbortControllerRef.current) {
+      movieSpecAbortControllerRef.current.abort();
+      movieSpecAbortControllerRef.current = null;
+    }
+    clearMovieSpecRetryTimeout();
+
+    async function fetchMovieSpec() {
+      if (isCancelled) {
+        return;
+      }
+
+      if (movieSpecAbortControllerRef.current) {
+        movieSpecAbortControllerRef.current.abort();
+      }
+      const abortController = new AbortController();
+      movieSpecAbortControllerRef.current = abortController;
+
+      let shouldRetry = false;
+      try {
+        setIsMovieSpecLoading(true);
+        const configData = await getConfig();
+        const response = await fetch(
+          `${configData.API_URL}/executions/${execution.id}/export`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ format: "json" }),
+            signal: abortController.signal,
+          },
+        );
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `Export request failed (${response.status})`);
+        }
+        const raw = (await response.json()) as ExecutionExportPreviewResponse;
+        if (isCancelled) {
+          return;
+        }
+        const status = normalizePreviewStatus(raw.status);
+        const capturedFramesRaw =
+          raw.captured_frame_count ??
+          raw.package?.summary?.frame_count ??
+          raw.package?.frames?.length ??
+          0;
+        const availableAssetRaw =
+          raw.available_asset_count ?? raw.package?.assets?.length ?? 0;
+        const totalDurationRaw =
+          raw.total_duration_ms ??
+          raw.package?.summary?.total_duration_ms ??
+          raw.package?.playback?.duration_ms ??
+          0;
+        const specId =
+          (typeof raw.spec_id === "string" && raw.spec_id.trim()) ||
+          raw.execution_id ||
+          execution.id;
+        const metrics: ExportPreviewMetrics = {
+          capturedFrames: coerceMetricNumber(capturedFramesRaw),
+          assetCount: coerceMetricNumber(availableAssetRaw),
+          totalDurationMs: coerceMetricNumber(totalDurationRaw),
+        };
+        setPreviewMetrics(metrics);
+        setActiveSpecId(specId);
+        const message = describePreviewStatusMessage(status, raw.message, metrics);
+        if (status && status !== "ready") {
+          setMovieSpec(null);
+          setMovieSpecError(message);
+          shouldRetry = status === "pending";
+          return;
+        }
+        if (!raw.package) {
+          setMovieSpec(null);
+          setMovieSpecError(
+            "Replay export unavailable – missing export package",
+          );
+          return;
+        }
+        clearMovieSpecRetryTimeout();
+        setMovieSpec(raw.package);
+        setMovieSpecError(null);
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        const message =
+          error instanceof Error ? error.message : "Failed to load replay spec";
+        setMovieSpecError(message);
+        setMovieSpec(null);
+        logger.error(
+          "Failed to load replay movie spec",
+          { component: "ExecutionViewer", executionId: execution.id },
+          error,
+        );
+        shouldRetry = execution.status === "running";
+      } finally {
+        if (!isCancelled) {
+          setIsMovieSpecLoading(false);
+        }
+        if (!isCancelled) {
+          movieSpecAbortControllerRef.current = null;
+        }
+        if (!isCancelled && shouldRetry) {
+          clearMovieSpecRetryTimeout();
+          movieSpecRetryTimeoutRef.current = window.setTimeout(() => {
+            void fetchMovieSpec();
+          }, MOVIE_SPEC_POLL_INTERVAL_MS);
+        }
+      }
+    }
+
+    setMovieSpecError(null);
+    setMovieSpec(null);
+    setIsMovieSpecLoading(true);
+    void fetchMovieSpec();
+
+    return () => {
+      isCancelled = true;
+      clearMovieSpecRetryTimeout();
+      if (movieSpecAbortControllerRef.current) {
+        movieSpecAbortControllerRef.current.abort();
+        movieSpecAbortControllerRef.current = null;
+      }
+    };
+  }, [
+    execution.id,
+    execution.status,
+    execution.timeline?.length,
+    clearMovieSpecRetryTimeout,
+  ]);
+
+  useEffect(() => {
     if (exportFormat !== "json" && useNativeFilePicker) {
       setUseNativeFilePicker(false);
     }
@@ -929,13 +1198,13 @@ function ExecutionViewer({
     setExportPreviewError(null);
     void (async () => {
       try {
-        const config = await getConfig();
         const configData = await getConfig();
         const response = await fetch(
           `${configData.API_URL}/executions/${execution.id}/export`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ format: "json" }),
           },
         );
         if (!response.ok) {
@@ -946,13 +1215,41 @@ function ExecutionViewer({
         if (isCancelled) {
           return;
         }
+        const executionIdForPreview = raw.execution_id ?? execution.id;
+        const specId =
+          (typeof raw.spec_id === "string" && raw.spec_id.trim()) ||
+          executionIdForPreview;
+        const status = normalizePreviewStatus(raw.status) || "unknown";
+        const capturedFramesRaw =
+          raw.captured_frame_count ??
+          raw.package?.summary?.frame_count ??
+          raw.package?.frames?.length ??
+          0;
+        const availableAssetRaw =
+          raw.available_asset_count ?? raw.package?.assets?.length ?? 0;
+        const totalDurationRaw =
+          raw.total_duration_ms ??
+          raw.package?.summary?.total_duration_ms ??
+          raw.package?.playback?.duration_ms ??
+          0;
+        const metrics: ExportPreviewMetrics = {
+          capturedFrames: coerceMetricNumber(capturedFramesRaw),
+          assetCount: coerceMetricNumber(availableAssetRaw),
+          totalDurationMs: coerceMetricNumber(totalDurationRaw),
+        };
         const parsed: ExecutionExportPreview = {
-          executionId: raw.execution_id ?? execution.id,
-          status: raw.status ?? "unknown",
-          message: raw.message,
+          executionId: executionIdForPreview,
+          specId,
+          status,
+          message: describePreviewStatusMessage(status, raw.message, metrics),
+          capturedFrameCount: metrics.capturedFrames,
+          availableAssetCount: metrics.assetCount,
+          totalDurationMs: metrics.totalDurationMs,
           package: raw.package,
         };
         setExportPreview(parsed);
+        setPreviewMetrics(metrics);
+        setActiveSpecId(specId);
         setExportPreviewExecutionId(parsed.executionId);
       } catch (error) {
         if (isCancelled) {
@@ -990,7 +1287,11 @@ function ExecutionViewer({
         replayChromeTheme,
       );
     } catch (err) {
-      console.warn("Failed to persist replay chrome theme", err);
+      logger.warn(
+        "Failed to persist replay chrome theme",
+        { component: "ExecutionViewer" },
+        err,
+      );
     }
   }, [replayChromeTheme]);
 
@@ -1004,7 +1305,11 @@ function ExecutionViewer({
         replayBackgroundTheme,
       );
     } catch (err) {
-      console.warn("Failed to persist replay background theme", err);
+      logger.warn(
+        "Failed to persist replay background theme",
+        { component: "ExecutionViewer" },
+        err,
+      );
     }
   }, [replayBackgroundTheme]);
 
@@ -1018,7 +1323,11 @@ function ExecutionViewer({
         replayCursorTheme,
       );
     } catch (err) {
-      console.warn("Failed to persist replay cursor theme", err);
+      logger.warn(
+        "Failed to persist replay cursor theme",
+        { component: "ExecutionViewer" },
+        err,
+      );
     }
   }, [replayCursorTheme]);
 
@@ -1032,7 +1341,11 @@ function ExecutionViewer({
         replayCursorInitialPosition,
       );
     } catch (err) {
-      console.warn("Failed to persist replay cursor initial position", err);
+      logger.warn(
+        "Failed to persist replay cursor initial position",
+        { component: "ExecutionViewer" },
+        err,
+      );
     }
   }, [replayCursorInitialPosition]);
 
@@ -1046,7 +1359,11 @@ function ExecutionViewer({
         replayCursorClickAnimation,
       );
     } catch (err) {
-      console.warn("Failed to persist replay cursor click animation", err);
+      logger.warn(
+        "Failed to persist replay cursor click animation",
+        { component: "ExecutionViewer" },
+        err,
+      );
     }
   }, [replayCursorClickAnimation]);
 
@@ -1060,7 +1377,11 @@ function ExecutionViewer({
         replayCursorScale.toFixed(2),
       );
     } catch (err) {
-      console.warn("Failed to persist replay cursor scale", err);
+      logger.warn(
+        "Failed to persist replay cursor scale",
+        { component: "ExecutionViewer" },
+        err,
+      );
     }
   }, [replayCursorScale]);
 
@@ -1495,14 +1816,44 @@ function ExecutionViewer({
 
   const exportDialogTitleId = useId();
   const exportDialogDescriptionId = useId();
-  const exportSummary = exportPreview?.package?.summary;
+  const exportSummary =
+    exportPreview?.package?.summary ?? movieSpec?.summary ?? null;
+  const normalizedExportStatus = exportPreview
+    ? normalizePreviewStatus(exportPreview.status)
+    : movieSpec
+      ? "ready"
+      : "";
   const exportStatusMessage = isExportPreviewLoading
     ? "Preparing replay data…"
-    : (exportPreviewError ?? exportPreview?.message ?? "Replay export ready");
-  const estimatedFrameCount = exportSummary?.frame_count ?? replayFrames.length;
+    : describePreviewStatusMessage(
+        normalizedExportStatus,
+        exportPreviewError ?? exportPreview?.message,
+        previewMetrics,
+      );
+  const movieSpecFrameCount =
+    movieSpec?.frames != null ? movieSpec.frames.length : undefined;
+  const previewFrameCount =
+    previewMetrics.capturedFrames || previewMetrics.capturedFrames === 0
+      ? previewMetrics.capturedFrames
+      : undefined;
+  const estimatedFrameCount =
+    exportSummary?.frame_count ??
+    movieSpecFrameCount ??
+    previewFrameCount ??
+    replayFrames.length;
+  const previewDurationMs =
+    previewMetrics.totalDurationMs || previewMetrics.totalDurationMs === 0
+      ? previewMetrics.totalDurationMs
+      : undefined;
+  const specDurationMs = movieSpec?.playback?.duration_ms;
+  const estimatedTotalDurationMs =
+    exportSummary?.total_duration_ms ??
+    specDurationMs ??
+    previewDurationMs ??
+    null;
   const estimatedDurationSeconds =
-    exportSummary?.total_duration_ms != null
-      ? exportSummary.total_duration_ms / 1000
+    estimatedTotalDurationMs != null
+      ? estimatedTotalDurationMs / 1000
       : null;
   const isBinaryExport = exportFormat !== "json";
 
@@ -1593,6 +1944,259 @@ function ExecutionViewer({
         ) || REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS[0]
       );
     }, [replayCursorClickAnimation]);
+
+  const decoratedMovieSpec = useMemo<ReplayMovieSpec | null>(() => {
+    if (!movieSpec) {
+      return null;
+    }
+    const cursorSpec = movieSpec.cursor ?? {};
+    const decor = movieSpec.decor ?? {};
+    return {
+      ...movieSpec,
+      cursor: {
+        ...cursorSpec,
+        scale: replayCursorScale,
+        initial_position: replayCursorInitialPosition,
+        click_animation: replayCursorClickAnimation,
+      },
+      decor: {
+        ...decor,
+        chrome_theme: replayChromeTheme,
+        background_theme: replayBackgroundTheme,
+        cursor_theme: replayCursorTheme,
+        cursor_initial_position: replayCursorInitialPosition,
+        cursor_click_animation: replayCursorClickAnimation,
+        cursor_scale: replayCursorScale,
+      },
+    };
+  }, [
+    movieSpec,
+    replayBackgroundTheme,
+    replayChromeTheme,
+    replayCursorTheme,
+    replayCursorInitialPosition,
+    replayCursorClickAnimation,
+    replayCursorScale,
+  ]);
+
+  const postToComposer = useCallback(
+    (message: Record<string, unknown>) => {
+      if (!composerWindowRef.current) {
+        return;
+      }
+      let targetOrigin = composerOriginRef.current;
+      if (!targetOrigin && typeof window !== "undefined") {
+        try {
+          targetOrigin = new URL(composerUrl, window.location.href).origin;
+        } catch (error) {
+          logger.warn(
+            "Failed to resolve composer origin",
+            { component: "ExecutionViewer", executionId: execution.id },
+            error,
+          );
+        }
+      }
+      try {
+        composerWindowRef.current.postMessage(message, targetOrigin ?? "*");
+      } catch (error) {
+        logger.warn(
+          "Failed to post message to composer",
+          { component: "ExecutionViewer" },
+          error,
+        );
+      }
+    },
+    [composerUrl, execution.id],
+  );
+
+  const sendSpecToComposer = useCallback(
+    (spec: ReplayMovieSpec | null) => {
+      if (!spec) {
+        return;
+      }
+      const specId =
+        spec.execution?.execution_id ?? activeSpecId ?? execution.id;
+      const summaryFrames =
+        spec.summary?.frame_count ?? spec.frames?.length ?? 0;
+      const summaryDuration =
+        spec.summary?.total_duration_ms ?? spec.playback?.duration_ms ?? 0;
+      const summaryAssets = Array.isArray(spec.assets) ? spec.assets.length : 0;
+      postToComposer({
+        type: "bas:spec:set",
+        spec,
+        executionId: execution.id,
+        specId,
+        summary: {
+          frames: summaryFrames,
+          totalDurationMs: summaryDuration,
+          assets: summaryAssets,
+        },
+      });
+    },
+    [activeSpecId, execution.id, postToComposer],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== composerWindowRef.current) {
+        return;
+      }
+      const payload = event.data;
+      if (!payload || typeof payload !== "object") {
+        return;
+      }
+      const { type } = payload as { type?: unknown };
+      if (typeof type !== "string" || !type.startsWith("bas:")) {
+        return;
+      }
+      if (type === "bas:ready") {
+        setIsComposerReady(true);
+        setMovieSpecError(null);
+        composerOriginRef.current = event.origin || composerOriginRef.current;
+        if (decoratedMovieSpec) {
+          sendSpecToComposer(decoratedMovieSpec);
+        }
+      } else if (type === "bas:state") {
+        const data = payload as { frameIndex?: unknown; progress?: unknown };
+        const frameIndex =
+          typeof data.frameIndex === "number" ? data.frameIndex : 0;
+        const progress = typeof data.progress === "number" ? data.progress : 0;
+        composerFrameStateRef.current = { frameIndex, progress };
+      } else if (type === "bas:error") {
+        const data = payload as {
+          message?: unknown;
+          status?: unknown;
+          frames?: unknown;
+          assets?: unknown;
+          totalDurationMs?: unknown;
+          specId?: unknown;
+        };
+        const status = normalizePreviewStatus(
+          typeof data.status === "string" ? data.status : undefined,
+        );
+        const message = describePreviewStatusMessage(
+          status,
+          typeof data.message === "string" ? data.message : undefined,
+          {
+            capturedFrames:
+              typeof data.frames !== "undefined"
+                ? coerceMetricNumber(data.frames)
+                : previewMetrics.capturedFrames,
+            assetCount:
+              typeof data.assets !== "undefined"
+                ? coerceMetricNumber(data.assets)
+                : previewMetrics.assetCount,
+          },
+        );
+        setIsComposerReady(false);
+        setMovieSpecError(message);
+        const framesValue =
+          typeof data.frames !== "undefined"
+            ? coerceMetricNumber(data.frames)
+            : null;
+        const assetsValue =
+          typeof data.assets !== "undefined"
+            ? coerceMetricNumber(data.assets)
+            : null;
+        const durationValue =
+          typeof data.totalDurationMs !== "undefined"
+            ? coerceMetricNumber(data.totalDurationMs)
+            : null;
+        if (
+          framesValue !== null ||
+          assetsValue !== null ||
+          durationValue !== null
+        ) {
+          setPreviewMetrics((current) => {
+            const next = { ...current };
+            let changed = false;
+            if (framesValue !== null) {
+              next.capturedFrames = framesValue;
+              changed = true;
+            }
+            if (assetsValue !== null) {
+              next.assetCount = assetsValue;
+              changed = true;
+            }
+            if (durationValue !== null) {
+              next.totalDurationMs = durationValue;
+              changed = true;
+            }
+            return changed ? next : current;
+          });
+        }
+        if (typeof data.specId === "string" && data.specId.trim()) {
+          setActiveSpecId(data.specId.trim());
+        }
+      } else if (type === "bas:error-clear") {
+        setMovieSpecError(null);
+      } else if (type === "bas:metrics") {
+        const data = payload as {
+          frames?: unknown;
+          assets?: unknown;
+          totalDurationMs?: unknown;
+          specId?: unknown;
+        };
+        const framesValue =
+          typeof data.frames !== "undefined"
+            ? coerceMetricNumber(data.frames)
+            : null;
+        const assetsValue =
+          typeof data.assets !== "undefined"
+            ? coerceMetricNumber(data.assets)
+            : null;
+        const durationValue =
+          typeof data.totalDurationMs !== "undefined"
+            ? coerceMetricNumber(data.totalDurationMs)
+            : null;
+        if (
+          framesValue !== null ||
+          assetsValue !== null ||
+          durationValue !== null
+        ) {
+          setPreviewMetrics((current) => {
+            const next = { ...current };
+            let changed = false;
+            if (framesValue !== null) {
+              next.capturedFrames = framesValue;
+              changed = true;
+            }
+            if (assetsValue !== null) {
+              next.assetCount = assetsValue;
+              changed = true;
+            }
+            if (durationValue !== null) {
+              next.totalDurationMs = durationValue;
+              changed = true;
+            }
+            return changed ? next : current;
+          });
+        }
+        if (typeof data.specId === "string" && data.specId.trim()) {
+          setActiveSpecId(data.specId.trim());
+        }
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [decoratedMovieSpec, previewMetrics, sendSpecToComposer]);
+
+  useEffect(() => {
+    setIsComposerReady(false);
+    composerFrameStateRef.current = { frameIndex: 0, progress: 0 };
+  }, [execution.id]);
+
+  useEffect(() => {
+    if (!isComposerReady || !decoratedMovieSpec) {
+      return;
+    }
+    sendSpecToComposer(decoratedMovieSpec);
+  }, [decoratedMovieSpec, isComposerReady, sendSpecToComposer]);
 
   useEffect(() => {
     if (!isCustomizationCollapsed) {
@@ -1768,40 +2372,6 @@ function ExecutionViewer({
     [execution.id, loadExecution],
   );
 
-  const buildLocalReplayPackage = useCallback(
-    () => ({
-      executionId: execution.id,
-      workflowId: execution.workflowId ?? null,
-      status: execution.status,
-      startedAt: execution.startedAt ?? null,
-      completedAt: execution.completedAt ?? null,
-      generatedAt: new Date().toISOString(),
-      chromeTheme: replayChromeTheme,
-      backgroundTheme: replayBackgroundTheme,
-      cursor: {
-        theme: replayCursorTheme,
-        initialPosition: replayCursorInitialPosition,
-        scale: replayCursorScale,
-        clickAnimation: replayCursorClickAnimation,
-      },
-      frames: replayFrames,
-    }),
-    [
-      execution.completedAt,
-      execution.id,
-      execution.startedAt,
-      execution.status,
-      execution.workflowId,
-      replayBackgroundTheme,
-      replayChromeTheme,
-      replayCursorClickAnimation,
-      replayCursorInitialPosition,
-      replayCursorScale,
-      replayCursorTheme,
-      replayFrames,
-    ],
-  );
-
   const handleOpenExportDialog = useCallback(() => {
     if (replayFrames.length === 0) {
       toast.error("Replay not ready to export yet");
@@ -1827,10 +2397,20 @@ function ExecutionViewer({
       setIsExporting(true);
       try {
         const { API_URL } = await getConfig();
-        const requestPayload = {
+        const exportSpec =
+          exportPreview?.package ?? decoratedMovieSpec ?? movieSpec;
+        const hasExportFrames =
+          exportSpec && Array.isArray(exportSpec.frames)
+            ? exportSpec.frames.length > 0
+            : false;
+        const requestPayload: Record<string, unknown> = {
           format: exportFormat,
           file_name: finalFileName,
-          overrides: {
+        };
+        if (hasExportFrames && exportSpec) {
+          requestPayload.movie_spec = exportSpec;
+        } else {
+          requestPayload.overrides = {
             theme_preset: {
               chrome_theme: replayChromeTheme,
               background_theme: replayBackgroundTheme,
@@ -1841,8 +2421,8 @@ function ExecutionViewer({
               scale: Number.isFinite(replayCursorScale) ? replayCursorScale : 1,
               click_animation: replayCursorClickAnimation,
             },
-          },
-        } as const;
+          } satisfies Record<string, unknown>;
+        }
 
         const response = await fetch(
           `${API_URL}/executions/${execution.id}/export`,
@@ -1897,7 +2477,13 @@ function ExecutionViewer({
 
     setIsExporting(true);
     try {
-      const payload = exportPreview?.package ?? buildLocalReplayPackage();
+      const payload = exportPreview?.package ?? decoratedMovieSpec ?? movieSpec;
+      if (!payload) {
+        toast.error("Replay not ready to export yet");
+        setIsExporting(false);
+        return;
+      }
+
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
       });
@@ -1963,13 +2549,20 @@ function ExecutionViewer({
       setIsExporting(false);
     }
   }, [
-    buildLocalReplayPackage,
+    decoratedMovieSpec,
     exportFormat,
     exportPreview,
+    execution.id,
     finalFileName,
+    movieSpec,
+    replayBackgroundTheme,
+    replayChromeTheme,
+    replayCursorClickAnimation,
+    replayCursorInitialPosition,
+    replayCursorScale,
+    replayCursorTheme,
     replayFrames.length,
     supportsFileSystemAccess,
-    toast,
     useNativeFilePicker,
   ]);
 
@@ -2702,16 +3295,68 @@ function ExecutionViewer({
                 </div>
               )}
             </div>
-            <ReplayPlayer
-              frames={replayFrames}
-              executionStatus={execution.status}
-              chromeTheme={replayChromeTheme}
-              backgroundTheme={replayBackgroundTheme}
-              cursorTheme={replayCursorTheme}
-              cursorInitialPosition={replayCursorInitialPosition}
-              cursorScale={replayCursorScale}
-              cursorClickAnimation={replayCursorClickAnimation}
-            />
+            <div className="relative w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 shadow-[0_25px_70px_rgba(15,23,42,0.45)]">
+              <iframe
+                key={execution.id}
+                ref={(node) => {
+                  composerRef.current = node;
+                  composerWindowRef.current = node?.contentWindow ?? null;
+                }}
+                src={composerUrl}
+                title="Replay Composer"
+                className="h-[640px] w-full border-0"
+                allow="clipboard-read; clipboard-write"
+              />
+              {(isMovieSpecLoading || !isComposerReady) && !movieSpecError && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/55">
+                  <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    {isMovieSpecLoading
+                      ? "Loading replay spec…"
+                      : "Initialising player…"}
+                  </span>
+                </div>
+              )}
+              {movieSpecError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/65 p-6 text-center">
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-6 py-4 text-sm text-slate-200 shadow-[0_15px_45px_rgba(15,23,42,0.5)]">
+                    <div className="mb-1 font-semibold text-slate-100">
+                      Failed to load replay spec
+                    </div>
+                    <div className="text-xs text-slate-300/80">
+                      {movieSpecError}
+                    </div>
+                    {(previewMetrics.capturedFrames > 0 ||
+                      previewMetrics.totalDurationMs > 0) && (
+                      <div className="mt-3 text-[11px] text-slate-400">
+                        {previewMetrics.capturedFrames > 0 && (
+                          <span>
+                            {formatCapturedLabel(
+                              previewMetrics.capturedFrames,
+                              "frame",
+                            )}
+                          </span>
+                        )}
+                        {previewMetrics.capturedFrames > 0 &&
+                          previewMetrics.totalDurationMs > 0 && <span> • </span>}
+                        {previewMetrics.totalDurationMs > 0 && (
+                          <span>
+                            {formatSeconds(
+                              previewMetrics.totalDurationMs / 1000,
+                            )}{" "}
+                            recorded
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {activeSpecId && (
+                      <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                        Spec {activeSpecId.slice(0, 8)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : activeTab === "screenshots" ? (
           screenshots.length === 0 ? (
@@ -3054,6 +3699,16 @@ function ExecutionViewer({
                 <div className="text-sm text-slate-300">
                   {exportStatusMessage}
                 </div>
+                {activeSpecId && (
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                    Spec {activeSpecId.slice(0, 8)}
+                  </div>
+                )}
+                {previewMetrics.assetCount > 0 && (
+                  <div className="mt-1 text-[11px] text-slate-500">
+                    {formatCapturedLabel(previewMetrics.assetCount, "asset")}
+                  </div>
+                )}
               </div>
             </div>
           </section>

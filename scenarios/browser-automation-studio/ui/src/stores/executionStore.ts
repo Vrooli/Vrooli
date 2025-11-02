@@ -197,21 +197,28 @@ interface ExecutionStore {
   clearCurrentExecution: () => void;
 }
 
-const normalizeExecution = (raw: any): Execution => {
-  const startedAt = raw.started_at ?? raw.startedAt;
-  const completedAt = raw.completed_at ?? raw.completedAt;
+const normalizeExecution = (raw: unknown): Execution => {
+  const rawData = raw as Record<string, unknown>;
+  const startedAt = rawData.started_at ?? rawData.startedAt;
+  const completedAt = rawData.completed_at ?? rawData.completedAt;
+  const statusValue = rawData.status;
+  const currentStepValue = rawData.current_step ?? rawData.currentStep;
+  const errorValue = rawData.error;
+
   return {
-    id: raw.id ?? raw.execution_id ?? '',
-    workflowId: raw.workflow_id ?? raw.workflowId ?? '',
-    status: raw.status ?? 'pending',
-    startedAt: startedAt ? new Date(startedAt) : new Date(),
-    completedAt: completedAt ? new Date(completedAt) : undefined,
-    screenshots: Array.isArray(raw.screenshots) ? raw.screenshots : [],
-    timeline: Array.isArray(raw.timeline) ? (raw.timeline as TimelineFrame[]) : [],
-    logs: Array.isArray(raw.logs) ? raw.logs : [],
-    currentStep: raw.current_step ?? raw.currentStep,
-    progress: typeof raw.progress === 'number' ? raw.progress : 0,
-    error: raw.error ?? undefined,
+    id: String(rawData.id ?? rawData.execution_id ?? ''),
+    workflowId: String(rawData.workflow_id ?? rawData.workflowId ?? ''),
+    status: (typeof statusValue === 'string' && ['pending', 'running', 'completed', 'failed'].includes(statusValue))
+      ? statusValue as 'pending' | 'running' | 'completed' | 'failed'
+      : 'pending',
+    startedAt: (typeof startedAt === 'string' || typeof startedAt === 'number' || startedAt instanceof Date) ? new Date(startedAt) : new Date(),
+    completedAt: (typeof completedAt === 'string' || typeof completedAt === 'number' || completedAt instanceof Date) ? new Date(completedAt) : undefined,
+    screenshots: Array.isArray(rawData.screenshots) ? rawData.screenshots : [],
+    timeline: Array.isArray(rawData.timeline) ? (rawData.timeline as TimelineFrame[]) : [],
+    logs: Array.isArray(rawData.logs) ? rawData.logs : [],
+    currentStep: typeof currentStepValue === 'string' ? currentStepValue : undefined,
+    progress: typeof rawData.progress === 'number' ? rawData.progress : 0,
+    error: typeof errorValue === 'string' ? errorValue : undefined,
     lastHeartbeat: undefined,
   };
 };

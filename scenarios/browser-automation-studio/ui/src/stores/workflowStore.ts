@@ -308,14 +308,16 @@ const ensureArray = <T>(value: unknown, fallback: T[] = []): T[] => {
   return [...fallback];
 };
 
-const normalizeWorkflowResponse = (workflow: any): Workflow => {
-  const rawNodes = workflow?.nodes ?? workflow?.flow_definition?.nodes ?? workflow?.flowDefinition?.nodes ?? [];
-  const rawEdges = workflow?.edges ?? workflow?.flow_definition?.edges ?? workflow?.flowDefinition?.edges ?? [];
-  const normalizedNodesRaw = normalizeNodes(rawNodes ?? []);
+const normalizeWorkflowResponse = (workflow: unknown): Workflow => {
+  const workflowData = workflow as Record<string, unknown>;
+  const flowDef = (workflowData.flow_definition ?? workflowData.flowDefinition) as Record<string, unknown> | undefined;
+  const rawNodes = workflowData.nodes ?? flowDef?.nodes ?? [];
+  const rawEdges = workflowData.edges ?? flowDef?.edges ?? [];
+  const normalizedNodesRaw = normalizeNodes(Array.isArray(rawNodes) ? rawNodes : []);
   const normalizedNodes = stripPreviewDataFromNodes(normalizedNodesRaw);
-  const normalizedEdges = normalizeEdges(rawEdges ?? []);
+  const normalizedEdges = normalizeEdges(Array.isArray(rawEdges) ? rawEdges : []);
 
-  const rawDefinition = workflow?.flow_definition ?? workflow?.flowDefinition ?? {};
+  const rawDefinition = flowDef ?? {};
   const executionViewport = sanitizeViewportSettings(extractExecutionViewport(rawDefinition));
   const flowDefinition = buildFlowDefinition(
     rawDefinition,
@@ -324,46 +326,47 @@ const normalizeWorkflowResponse = (workflow: any): Workflow => {
     executionViewport,
   );
 
-  const versionValue = workflow?.version;
+  const versionValue = workflowData.version;
   const version = typeof versionValue === 'number'
     ? versionValue
     : parseInt(String(versionValue ?? '1'), 10) || 1;
 
   return {
-    id: workflow?.id ?? '',
-    projectId: workflow?.project_id ?? workflow?.projectId,
-    name: workflow?.name ?? '',
-    description: workflow?.description ?? '',
-    folderPath: workflow?.folder_path ?? workflow?.folderPath ?? '/',
+    id: workflowData.id ?? '',
+    projectId: workflowData.project_id ?? workflowData.projectId,
+    name: workflowData.name ?? '',
+    description: workflowData.description ?? '',
+    folderPath: workflowData.folder_path ?? workflowData.folderPath ?? '/',
     nodes: normalizedNodes,
     edges: normalizedEdges,
-    tags: ensureArray<string>(workflow?.tags),
+    tags: ensureArray<string>(workflowData.tags),
     version,
-    lastChangeSource: workflow?.last_change_source ?? workflow?.lastChangeSource ?? 'manual',
-    lastChangeDescription: workflow?.last_change_description ?? workflow?.lastChangeDescription ?? '',
-    createdAt: parseDate(workflow?.created_at ?? workflow?.createdAt),
-    updatedAt: parseDate(workflow?.updated_at ?? workflow?.updatedAt),
+    lastChangeSource: workflowData.last_change_source ?? workflowData.lastChangeSource ?? 'manual',
+    lastChangeDescription: workflowData.last_change_description ?? workflowData.lastChangeDescription ?? '',
+    createdAt: parseDate(workflowData.created_at ?? workflowData.createdAt),
+    updatedAt: parseDate(workflowData.updated_at ?? workflowData.updatedAt),
     flow_definition: flowDefinition,
     flowDefinition,
     executionViewport,
   } as Workflow;
 };
 
-const normalizeVersionSummary = (summary: any): WorkflowVersionSummary => {
-  const versionNumber = typeof summary?.version === 'number'
-    ? summary.version
-    : parseInt(String(summary?.version ?? '0'), 10) || 0;
+const normalizeVersionSummary = (summary: unknown): WorkflowVersionSummary => {
+  const summaryData = summary as Record<string, unknown>;
+  const versionNumber = typeof summaryData.version === 'number'
+    ? summaryData.version
+    : parseInt(String(summaryData.version ?? '0'), 10) || 0;
 
   return {
     version: versionNumber,
-    workflowId: summary?.workflow_id ?? summary?.workflowId ?? '',
-    createdAt: parseDate(summary?.created_at ?? summary?.createdAt),
-    createdBy: summary?.created_by ?? summary?.createdBy ?? '',
-    changeDescription: summary?.change_description ?? summary?.changeDescription ?? '',
-    definitionHash: summary?.definition_hash ?? summary?.definitionHash ?? '',
-    nodeCount: typeof summary?.node_count === 'number' ? summary.node_count : 0,
-    edgeCount: typeof summary?.edge_count === 'number' ? summary.edge_count : 0,
-    flowDefinition: summary?.flow_definition ?? summary?.flowDefinition ?? {},
+    workflowId: summaryData.workflow_id ?? summaryData.workflowId ?? '',
+    createdAt: parseDate(summaryData.created_at ?? summaryData.createdAt),
+    createdBy: summaryData.created_by ?? summaryData.createdBy ?? '',
+    changeDescription: summaryData.change_description ?? summaryData.changeDescription ?? '',
+    definitionHash: summaryData.definition_hash ?? summaryData.definitionHash ?? '',
+    nodeCount: typeof summaryData.node_count === 'number' ? summaryData.node_count : 0,
+    edgeCount: typeof summaryData.edge_count === 'number' ? summaryData.edge_count : 0,
+    flowDefinition: summaryData.flow_definition ?? summaryData.flowDefinition ?? {},
   } as WorkflowVersionSummary;
 };
 
@@ -627,8 +630,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         conflictMetadata: null,
       }));
     } catch (error) {
-      const status = typeof (error as any)?.status === 'number' ? (error as any).status as number : undefined;
-      const message = (error as Error).message || (typeof (error as any)?.message === 'string' ? (error as any).message : 'Failed to save workflow');
+      const errorObj = error as { status?: unknown; message?: unknown };
+      const status = typeof errorObj.status === 'number' ? errorObj.status : undefined;
+      const message =
+        (error instanceof Error && error.message) ||
+        (typeof errorObj.message === 'string' ? errorObj.message : 'Failed to save workflow');
       const errorType: SaveErrorType = status === 409
         ? 'conflict'
         : typeof status === 'number'

@@ -300,6 +300,10 @@ function createApp({ apiPort } = {}) {
         res.json(healthResponse);
     });
 
+    app.get('/export/composer.html', (_req, res) => {
+        res.sendFile(path.join(__dirname, 'dist', 'export', 'composer.html'));
+    });
+
     app.get('/', (_req, res) => {
         res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     });

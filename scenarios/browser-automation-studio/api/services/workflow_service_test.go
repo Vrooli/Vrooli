@@ -159,6 +159,157 @@ func (m *workflowUpdateRepoMock) GetWorkflowVersion(ctx context.Context, workflo
 	return nil, database.ErrNotFound
 }
 
+func TestDescribeExecutionExportHandlesZeroFrameExecutions(t *testing.T) {
+	executionID := uuid.New()
+	workflowID := uuid.New()
+
+	repo := &timelineRepositoryMock{
+		execution: &database.Execution{
+			ID:         executionID,
+			WorkflowID: workflowID,
+			Status:     "failed",
+			StartedAt:  time.Now().Add(-2 * time.Minute),
+			CompletedAt: func() *time.Time {
+				ts := time.Now().Add(-time.Minute)
+				return &ts
+			}(),
+		},
+		steps:     []*database.ExecutionStep{},
+		artifacts: []*database.ExecutionArtifact{},
+		logs:      []*database.ExecutionLog{},
+	}
+
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	svc := NewWorkflowService(repo, nil, nil, log)
+
+	preview, err := svc.DescribeExecutionExport(context.Background(), executionID)
+	if err != nil {
+		t.Fatalf("DescribeExecutionExport returned error: %v", err)
+	}
+
+	if preview.Status != "unavailable" {
+		t.Fatalf("expected status 'unavailable', got %q", preview.Status)
+	}
+	if preview.Package != nil {
+		t.Fatalf("expected package to be nil for zero-frame export")
+	}
+	if !strings.Contains(strings.ToLower(preview.Message), "unavailable") {
+		t.Fatalf("expected message to explain unavailability, got %q", preview.Message)
+	}
+	if preview.CapturedFrameCount != 0 {
+		t.Fatalf("expected captured frame count 0, got %d", preview.CapturedFrameCount)
+	}
+	if preview.AvailableAssetCount != 0 {
+		t.Fatalf("expected available asset count 0, got %d", preview.AvailableAssetCount)
+	}
+	if preview.TotalDurationMs != 0 {
+		t.Fatalf("expected total duration 0, got %d", preview.TotalDurationMs)
+	}
+	if preview.SpecID != executionID.String() {
+		t.Fatalf("expected spec id %s, got %s", executionID, preview.SpecID)
+	}
+}
+
+func TestDescribeExecutionExportPendingForRunningExecutions(t *testing.T) {
+	executionID := uuid.New()
+	workflowID := uuid.New()
+
+	repo := &timelineRepositoryMock{
+		execution: &database.Execution{
+			ID:         executionID,
+			WorkflowID: workflowID,
+			Status:     "running",
+			StartedAt:  time.Now().Add(-30 * time.Second),
+		},
+		steps:     []*database.ExecutionStep{},
+		artifacts: []*database.ExecutionArtifact{},
+		logs:      []*database.ExecutionLog{},
+	}
+
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	svc := NewWorkflowService(repo, nil, nil, log)
+
+	preview, err := svc.DescribeExecutionExport(context.Background(), executionID)
+	if err != nil {
+		t.Fatalf("DescribeExecutionExport returned error: %v", err)
+	}
+
+	if preview.Status != "pending" {
+		t.Fatalf("expected status 'pending', got %q", preview.Status)
+	}
+	if preview.Package != nil {
+		t.Fatalf("expected package to be nil while replay is pending")
+	}
+	if preview.CapturedFrameCount != 0 {
+		t.Fatalf("expected captured frame count 0, got %d", preview.CapturedFrameCount)
+	}
+	if preview.SpecID != executionID.String() {
+		t.Fatalf("expected spec id %s, got %s", executionID, preview.SpecID)
+	}
+}
+
+func TestDescribeExecutionExportReadyIncludesMetrics(t *testing.T) {
+	executionID := uuid.New()
+	workflowID := uuid.New()
+
+	repo := &timelineRepositoryMock{
+		execution: &database.Execution{
+			ID:         executionID,
+			WorkflowID: workflowID,
+			Status:     "completed",
+			StartedAt:  time.Now().Add(-2 * time.Minute),
+			CompletedAt: func() *time.Time {
+				s := time.Now().Add(-time.Minute)
+				return &s
+			}(),
+		},
+		artifacts: []*database.ExecutionArtifact{
+			{
+				ArtifactType: "timeline_frame",
+				Payload: database.JSONMap{
+					"stepIndex":       0,
+					"nodeId":          "step-1",
+					"stepType":        "navigate",
+					"status":          "completed",
+					"success":         true,
+					"durationMs":      1600,
+					"start_offset_ms": 0,
+				},
+			},
+		},
+	}
+
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	svc := NewWorkflowService(repo, nil, nil, log)
+
+	preview, err := svc.DescribeExecutionExport(context.Background(), executionID)
+	if err != nil {
+		t.Fatalf("DescribeExecutionExport returned error: %v", err)
+	}
+
+	if preview.Status != "ready" {
+		t.Fatalf("expected status 'ready', got %q", preview.Status)
+	}
+	if preview.Package == nil {
+		t.Fatalf("expected replay package when ready")
+	}
+	if preview.CapturedFrameCount != 1 {
+		t.Fatalf("expected captured frame count 1, got %d", preview.CapturedFrameCount)
+	}
+	if preview.AvailableAssetCount < 0 {
+		t.Fatalf("expected non-negative asset count, got %d", preview.AvailableAssetCount)
+	}
+	if preview.TotalDurationMs <= 0 {
+		t.Fatalf("expected positive total duration, got %d", preview.TotalDurationMs)
+	}
+	if preview.SpecID != executionID.String() {
+		t.Fatalf("expected spec id %s, got %s", executionID, preview.SpecID)
+	}
+}
+
 func (m *workflowUpdateRepoMock) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
 	if m.project == nil || projectID != m.project.ID || m.workflow == nil {
 		return []*database.Workflow{}, nil

@@ -84,10 +84,14 @@ type WorkflowUpdateInput struct {
 
 // ExecutionExportPreview summarises the export readiness state for an execution.
 type ExecutionExportPreview struct {
-	ExecutionID uuid.UUID            `json:"execution_id"`
-	Status      string               `json:"status"`
-	Message     string               `json:"message"`
-	Package     *ReplayExportPackage `json:"package,omitempty"`
+	ExecutionID         uuid.UUID        `json:"execution_id"`
+	SpecID              string           `json:"spec_id"`
+	Status              string           `json:"status"`
+	Message             string           `json:"message"`
+	CapturedFrameCount  int              `json:"captured_frame_count"`
+	AvailableAssetCount int              `json:"available_asset_count"`
+	TotalDurationMs     int              `json:"total_duration_ms"`
+	Package             *ReplayMovieSpec `json:"package,omitempty"`
 }
 
 // NewWorkflowService creates a new workflow service
@@ -145,7 +149,7 @@ func workflowDefinitionStats(def database.JSONMap) (nodeCount, edgeCount int) {
 }
 
 var previewDataKeys = map[string]struct{}{
-	"previewScreenshot":          {},
+	"previewScreenshot":           {},
 	"previewScreenshotCapturedAt": {},
 	"previewScreenshotSourceUrl":  {},
 }
@@ -842,7 +846,61 @@ func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, execution
 		return nil, err
 	}
 
-	exportPackage, err := BuildReplayExport(execution, workflow, timeline)
+	capturedFrames := len(timeline.Frames)
+	assetCount := 0
+	for _, frame := range timeline.Frames {
+		if frame.Screenshot != nil {
+			assetCount++
+		}
+		assetCount += len(frame.Artifacts)
+	}
+	totalDurationMs := 0
+	if timeline != nil {
+		for _, frame := range timeline.Frames {
+			if frame.TotalDurationMs > 0 {
+				totalDurationMs += frame.TotalDurationMs
+			} else if frame.DurationMs > 0 {
+				totalDurationMs += frame.DurationMs
+			}
+		}
+	}
+	specID := execution.ID.String()
+
+	if capturedFrames == 0 {
+		status := strings.ToLower(strings.TrimSpace(execution.Status))
+		previewStatus := "pending"
+		message := "Replay export pending – timeline frames not captured yet"
+		if status == "failed" {
+			previewStatus = "unavailable"
+			message = "Replay export unavailable – execution failed before capturing any steps"
+		} else if status == "completed" {
+			previewStatus = "unavailable"
+			message = "Replay export unavailable – workflow finished without timeline frames"
+		}
+		preview := &ExecutionExportPreview{
+			ExecutionID:         execution.ID,
+			SpecID:              specID,
+			Status:              previewStatus,
+			Message:             message,
+			CapturedFrameCount:  capturedFrames,
+			AvailableAssetCount: assetCount,
+			TotalDurationMs:     totalDurationMs,
+			Package:             nil,
+		}
+		if s.log != nil {
+			s.log.WithFields(logrus.Fields{
+				"execution_id":      execution.ID,
+				"workflow_id":       execution.WorkflowID,
+				"export_status":     previewStatus,
+				"captured_frames":   capturedFrames,
+				"available_assets":  assetCount,
+				"timeline_total_ms": totalDurationMs,
+			}).Debug("DescribeExecutionExport returning preview")
+		}
+		return preview, nil
+	}
+
+	exportPackage, err := BuildReplayMovieSpec(execution, workflow, timeline)
 	if err != nil {
 		return nil, err
 	}
@@ -852,13 +910,37 @@ func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, execution
 		frameCount = len(timeline.Frames)
 	}
 	message := fmt.Sprintf("Replay export ready (%d frames, %dms)", frameCount, exportPackage.Summary.TotalDurationMs)
+	assetCount = len(exportPackage.Assets)
+	if exportPackage.Summary.TotalDurationMs > 0 {
+		totalDurationMs = exportPackage.Summary.TotalDurationMs
+	}
+	if exportPackage.Execution.ExecutionID != uuid.Nil {
+		specID = exportPackage.Execution.ExecutionID.String()
+	}
 
-	return &ExecutionExportPreview{
-		ExecutionID: execution.ID,
-		Status:      "ready",
-		Message:     message,
-		Package:     exportPackage,
-	}, nil
+	preview := &ExecutionExportPreview{
+		ExecutionID:         execution.ID,
+		SpecID:              specID,
+		Status:              "ready",
+		Message:             message,
+		CapturedFrameCount:  frameCount,
+		AvailableAssetCount: assetCount,
+		TotalDurationMs:     totalDurationMs,
+		Package:             exportPackage,
+	}
+
+	if s.log != nil {
+		s.log.WithFields(logrus.Fields{
+			"execution_id":      execution.ID,
+			"workflow_id":       execution.WorkflowID,
+			"export_status":     "ready",
+			"captured_frames":   frameCount,
+			"available_assets":  assetCount,
+			"timeline_total_ms": totalDurationMs,
+		}).Debug("DescribeExecutionExport returning preview")
+	}
+
+	return preview, nil
 }
 
 // GetExecutionScreenshots gets screenshots for an execution

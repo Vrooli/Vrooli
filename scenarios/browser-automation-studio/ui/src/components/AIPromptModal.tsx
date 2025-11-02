@@ -4,12 +4,14 @@ import { useWorkflowStore } from '../stores/workflowStore';
 import toast from 'react-hot-toast';
 import ResponsiveDialog from './ResponsiveDialog';
 
+import type { Workflow } from '../stores/workflowStore';
+
 interface AIPromptModalProps {
   onClose: () => void;
   folder: string;
   projectId?: string;
   onSwitchToManual?: () => void;
-  onSuccess?: (workflow: any) => Promise<void> | void;
+  onSuccess?: (workflow: Workflow) => Promise<void> | void;
 }
 
 const examplePrompts = [

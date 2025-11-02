@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import type { ViteDevServer, Plugin, Connect } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import http from 'http';
@@ -16,18 +17,34 @@ const WS_HOST = process.env.WS_HOST || 'localhost';
 
 const bootstrapEntry = path.resolve(__dirname, 'src/bootstrap.tsx');
 const mainEntry = path.resolve(__dirname, 'index.html');
+const composerEntry = path.resolve(__dirname, 'src/export/composer.html');
+
+interface HealthResponse {
+  status: 'healthy' | 'degraded';
+  service: string;
+  timestamp: string;
+  readiness: boolean;
+  api_connectivity: {
+    connected: boolean;
+    api_url: string | null;
+    last_check: string;
+    error: { code: string; message: string; category: string; retryable: boolean } | null;
+    latency_ms: number | null;
+    upstream: unknown;
+  };
+}
 
 // Health endpoint middleware plugin for dev mode
 // Extracted logic to reduce config file complexity
-const healthEndpointPlugin = () => ({
+const healthEndpointPlugin = (): Plugin => ({
   name: 'health-endpoint',
-  configureServer(server: any) {
-    server.middlewares.use(async (req: any, res: any, next: () => void) => {
+  configureServer(server: ViteDevServer) {
+    server.middlewares.use(async (req: Connect.IncomingMessage, res: http.ServerResponse, next: () => void) => {
       if (req.url !== '/health') {
         return next();
       }
 
-      const healthResponse: any = {
+      const healthResponse: HealthResponse = {
         status: 'healthy',
         service: 'browser-automation-studio-ui',
         timestamp: new Date().toISOString(),
@@ -71,8 +88,8 @@ const healthEndpointPlugin = () => ({
                 }
 
                 let body = '';
-                healthRes.on('data', (chunk: any) => {
-                  body += chunk;
+                healthRes.on('data', (chunk: Buffer) => {
+                  body += chunk.toString();
                 });
                 healthRes.on('end', () => {
                   try {
@@ -180,9 +197,18 @@ export default defineConfig({
       input: {
         main: mainEntry,
         bootstrap: bootstrapEntry,
+        composer: composerEntry,
       },
       output: {
-        entryFileNames: (chunk) => (chunk.name === 'bootstrap' ? 'bootstrap.js' : 'assets/[name]-[hash].js'),
+        entryFileNames: (chunk) => {
+          if (chunk.name === 'bootstrap') {
+            return 'bootstrap.js';
+          }
+          if (chunk.name === 'composer') {
+            return 'export/composer.js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
         // Manual chunk splitting to reduce large bundle sizes

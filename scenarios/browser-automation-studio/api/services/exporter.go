@@ -1,3 +1,5 @@
+//go:generate go run ../cmd/movie-spec-gen/main.go
+
 package services
 
 import (
@@ -13,30 +15,37 @@ import (
 )
 
 const (
-	replayExportSchemaVersion = "2025-11-07"
-	defaultFrameDurationMs    = 1600
-	minFrameDurationMs        = 900
-	minHoldDurationMs         = 600
-	transitionFraction        = 0.22
-	minTransitionDurationMs   = 180
-	maxTransitionDurationMs   = 600
-	fallbackViewportWidth     = 1920
-	fallbackViewportHeight    = 1080
+	replayExportSchemaVersion      = "2025-11-07"
+	defaultFrameDurationMs         = 1600
+	minFrameDurationMs             = 900
+	minHoldDurationMs              = 600
+	transitionFraction             = 0.22
+	minTransitionDurationMs        = 180
+	maxTransitionDurationMs        = 600
+	fallbackViewportWidth          = 1920
+	fallbackViewportHeight         = 1080
+	defaultPlaybackFrameIntervalMs = 40
+	defaultCursorSpeedProfile      = "easeInOut"
+	defaultCursorPathStyle         = "bezier"
 )
 
-// ReplayExportPackage encapsulates replay metadata ready for renderer/export tooling.
-type ReplayExportPackage struct {
-	Version     string                  `json:"version"`
-	GeneratedAt time.Time               `json:"generated_at"`
-	Execution   ExportExecutionMetadata `json:"execution"`
-	Theme       ExportTheme             `json:"theme"`
-	Cursor      ExportCursorSpec        `json:"cursor"`
-	Frames      []ExportFrame           `json:"frames"`
-	Assets      []ExportAsset           `json:"assets"`
-	Summary     ExportSummary           `json:"summary"`
+// ReplayMovieSpec encapsulates replay metadata ready for renderer/export tooling.
+type ReplayMovieSpec struct {
+	Version      string                  `json:"version"`
+	GeneratedAt  time.Time               `json:"generated_at"`
+	Execution    ExportExecutionMetadata `json:"execution"`
+	Theme        ExportTheme             `json:"theme"`
+	Cursor       ExportCursorSpec        `json:"cursor"`
+	Decor        ExportDecor             `json:"decor"`
+	Playback     ExportPlayback          `json:"playback"`
+	Presentation ExportPresentation      `json:"presentation"`
+	CursorMotion ExportCursorMotion      `json:"cursor_motion"`
+	Frames       []ExportFrame           `json:"frames"`
+	Assets       []ExportAsset           `json:"assets"`
+	Summary      ExportSummary           `json:"summary"`
 }
 
-// ExportExecutionMetadata summarises execution context for the replay package.
+// ExportExecutionMetadata summarises execution context for the replay movie spec.
 type ExportExecutionMetadata struct {
 	ExecutionID   uuid.UUID  `json:"execution_id"`
 	WorkflowID    uuid.UUID  `json:"workflow_id"`
@@ -76,6 +85,50 @@ type ExportCursorSpec struct {
 	Scale       float64           `json:"scale,omitempty"`
 	InitialPos  string            `json:"initial_position,omitempty"`
 	ClickAnim   string            `json:"click_animation,omitempty"`
+}
+
+// ExportDecor captures the high-level presentation presets selected in the UI.
+type ExportDecor struct {
+	ChromeTheme          string  `json:"chrome_theme,omitempty"`
+	BackgroundTheme      string  `json:"background_theme,omitempty"`
+	CursorTheme          string  `json:"cursor_theme,omitempty"`
+	CursorInitial        string  `json:"cursor_initial_position,omitempty"`
+	CursorClickAnimation string  `json:"cursor_click_animation,omitempty"`
+	CursorScale          float64 `json:"cursor_scale,omitempty"`
+}
+
+// ExportPlayback captures canonical playback configuration for renderers.
+type ExportPlayback struct {
+	FPS             int `json:"fps"`
+	DurationMs      int `json:"duration_ms"`
+	FrameIntervalMs int `json:"frame_interval_ms"`
+	TotalFrames     int `json:"total_frames"`
+}
+
+// ExportFrameRect describes the chrome bounding box for presentation framing.
+type ExportFrameRect struct {
+	X      int `json:"x"`
+	Y      int `json:"y"`
+	Width  int `json:"width"`
+	Height int `json:"height"`
+	Radius int `json:"radius,omitempty"`
+}
+
+// ExportPresentation captures the canvas and viewport dimensions for replay.
+type ExportPresentation struct {
+	Canvas            ExportDimensions `json:"canvas"`
+	Viewport          ExportDimensions `json:"viewport"`
+	BrowserFrame      ExportFrameRect  `json:"browser_frame"`
+	DeviceScaleFactor float64          `json:"device_scale_factor"`
+}
+
+// ExportCursorMotion summarises default cursor movement behaviours.
+type ExportCursorMotion struct {
+	SpeedProfile    string  `json:"speed_profile"`
+	PathStyle       string  `json:"path_style"`
+	InitialPosition string  `json:"initial_position"`
+	ClickAnimation  string  `json:"click_animation"`
+	CursorScale     float64 `json:"cursor_scale"`
 }
 
 // ExportCursorTrail describes cursor trail animation.
@@ -186,12 +239,12 @@ type ExportNormalizedRect struct {
 	Height float64 `json:"height"`
 }
 
-// BuildReplayExport compiles execution timeline data into an export-ready package.
-func BuildReplayExport(
+// BuildReplayMovieSpec compiles execution timeline data into an export-ready movie specification.
+func BuildReplayMovieSpec(
 	execution *database.Execution,
 	workflow *database.Workflow,
 	timeline *ExecutionTimeline,
-) (*ReplayExportPackage, error) {
+) (*ReplayMovieSpec, error) {
 	if execution == nil {
 		return nil, fmt.Errorf("execution is required for export")
 	}
@@ -206,9 +259,17 @@ func BuildReplayExport(
 	maxFrameDuration := 0
 	screenshotCount := 0
 	startOffset := 0
+	canvasDims := ExportDimensions{Width: fallbackViewportWidth, Height: fallbackViewportHeight}
+	viewportDims := canvasDims
 
 	for index, frame := range timeline.Frames {
 		dims := dimensionsForFrame(frame)
+		if index == 0 {
+			if dims.Width > 0 && dims.Height > 0 {
+				canvasDims = dims
+				viewportDims = dims
+			}
+		}
 		baseDuration := baseFrameDuration(frame)
 		enterDuration := transitionDuration(baseDuration)
 		exitDuration := transitionDuration(baseDuration)
@@ -347,16 +408,73 @@ func BuildReplayExport(
 	accent := "#38bdf8"
 	theme := defaultExportTheme(workflowName, accent)
 	cursor := defaultCursorSpec(accent)
+	decor := ExportDecor{
+		ChromeTheme:          "aurora",
+		BackgroundTheme:      "aurora",
+		CursorTheme:          "white",
+		CursorInitial:        cursor.InitialPos,
+		CursorClickAnimation: cursor.ClickAnim,
+		CursorScale:          cursor.Scale,
+	}
 
-	return &ReplayExportPackage{
+	frameInterval := defaultPlaybackFrameIntervalMs
+	if frameInterval <= 0 {
+		frameInterval = 40
+	}
+	fps := 0
+	if frameInterval > 0 {
+		fps = int(math.Round(1000.0 / float64(frameInterval)))
+		if fps <= 0 {
+			fps = 25
+		}
+	}
+	totalFrames := 0
+	if frameInterval > 0 && packageSummary.TotalDurationMs > 0 {
+		totalFrames = int(math.Ceil(float64(packageSummary.TotalDurationMs) / float64(frameInterval)))
+	}
+
+	presentation := ExportPresentation{
+		Canvas:            canvasDims,
+		Viewport:          viewportDims,
+		BrowserFrame:      ExportFrameRect{X: 0, Y: 0, Width: canvasDims.Width, Height: canvasDims.Height, Radius: 24},
+		DeviceScaleFactor: 1,
+	}
+
+	cursorMotion := ExportCursorMotion{
+		SpeedProfile:    defaultCursorSpeedProfile,
+		PathStyle:       defaultCursorPathStyle,
+		InitialPosition: strings.TrimSpace(decor.CursorInitial),
+		ClickAnimation:  strings.TrimSpace(decor.CursorClickAnimation),
+		CursorScale:     decor.CursorScale,
+	}
+	if cursorMotion.InitialPosition == "" {
+		cursorMotion.InitialPosition = cursor.InitialPos
+	}
+	if cursorMotion.ClickAnimation == "" {
+		cursorMotion.ClickAnimation = cursor.ClickAnim
+	}
+	if cursorMotion.CursorScale <= 0 {
+		cursorMotion.CursorScale = cursor.Scale
+	}
+
+	return &ReplayMovieSpec{
 		Version:     replayExportSchemaVersion,
 		GeneratedAt: time.Now().UTC(),
 		Execution:   executionMeta,
 		Theme:       theme,
 		Cursor:      cursor,
-		Frames:      frames,
-		Assets:      assets,
-		Summary:     packageSummary,
+		Decor:       decor,
+		Playback: ExportPlayback{
+			FPS:             fps,
+			DurationMs:      packageSummary.TotalDurationMs,
+			FrameIntervalMs: frameInterval,
+			TotalFrames:     totalFrames,
+		},
+		Presentation: presentation,
+		CursorMotion: cursorMotion,
+		Frames:       frames,
+		Assets:       assets,
+		Summary:      packageSummary,
 	}, nil
 }
 
@@ -398,7 +516,7 @@ func defaultCursorSpec(accent string) ExportCursorSpec {
 			DurationMs: 420,
 			Opacity:    0.65,
 		},
-		Scale:     1.0,
+		Scale:      1.0,
 		InitialPos: "center",
 		ClickAnim:  "pulse",
 	}

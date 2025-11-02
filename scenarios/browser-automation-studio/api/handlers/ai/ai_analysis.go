@@ -118,7 +118,7 @@ Example format:
 ]`, url, intent, domData)
 
 	// Call Ollama API directly using curl
-	ollamaPayload := map[string]interface{}{
+	ollamaPayload := map[string]any{
 		"model":  "llama3.2:3b", // Use a fast text model
 		"prompt": prompt,
 		"stream": false,

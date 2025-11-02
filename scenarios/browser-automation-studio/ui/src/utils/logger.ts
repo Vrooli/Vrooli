@@ -55,12 +55,15 @@ class Logger {
     switch (level) {
       case LogLevel.DEBUG:
       case LogLevel.INFO:
+        // eslint-disable-next-line no-console
         console.log(formattedMessage, context && Object.keys(context).length > 0 ? context : '');
         break;
       case LogLevel.WARN:
+        // eslint-disable-next-line no-console
         console.warn(formattedMessage, context && Object.keys(context).length > 0 ? context : '', error || '');
         break;
       case LogLevel.ERROR:
+        // eslint-disable-next-line no-console
         console.error(formattedMessage, context && Object.keys(context).length > 0 ? context : '', error || '');
         break;
     }

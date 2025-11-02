@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -21,6 +24,7 @@ type executionExportRequest struct {
 	Format    string                    `json:"format,omitempty"`
 	FileName  string                    `json:"file_name,omitempty"`
 	Overrides *executionExportOverrides `json:"overrides,omitempty"`
+	MovieSpec *services.ReplayMovieSpec `json:"movie_spec,omitempty"`
 }
 
 type executionExportOverrides struct {
@@ -254,7 +258,7 @@ var cursorThemePresets = map[string]cursorThemePreset{
 	},
 }
 
-func applyExportOverrides(pkg *services.ReplayExportPackage, overrides *executionExportOverrides) {
+func applyExportOverrides(pkg *services.ReplayMovieSpec, overrides *executionExportOverrides) {
 	if pkg == nil || overrides == nil {
 		return
 	}
@@ -276,7 +280,7 @@ func applyExportOverrides(pkg *services.ReplayExportPackage, overrides *executio
 
 const defaultAccentColor = "#38BDF8"
 
-func buildThemeFromPreset(pkg *services.ReplayExportPackage, preset *themePresetOverride) *services.ExportTheme {
+func buildThemeFromPreset(pkg *services.ReplayMovieSpec, preset *themePresetOverride) *services.ExportTheme {
 	if pkg == nil || preset == nil {
 		return nil
 	}
@@ -420,6 +424,458 @@ func applyCursorPreset(existing services.ExportCursorSpec, preset *cursorPresetO
 	return cursor
 }
 
+var errMovieSpecUnavailable = errors.New("movie spec unavailable")
+
+func buildExportSpec(baseline, incoming *services.ReplayMovieSpec, executionID uuid.UUID) (*services.ReplayMovieSpec, error) {
+	if incoming == nil && baseline == nil {
+		return nil, errMovieSpecUnavailable
+	}
+
+	var (
+		spec *services.ReplayMovieSpec
+		err  error
+	)
+
+	if incoming != nil {
+		spec, err = cloneMovieSpec(incoming)
+		if err != nil {
+			return nil, fmt.Errorf("invalid movie spec: %w", err)
+		}
+	} else {
+		spec, err = cloneMovieSpec(baseline)
+		if err != nil {
+			return nil, fmt.Errorf("failed to prepare movie spec: %w", err)
+		}
+	}
+
+	if err := harmonizeMovieSpec(spec, baseline, executionID); err != nil {
+		return nil, err
+	}
+	return spec, nil
+}
+
+func cloneMovieSpec(spec *services.ReplayMovieSpec) (*services.ReplayMovieSpec, error) {
+	if spec == nil {
+		return nil, nil
+	}
+	encoded, err := json.Marshal(spec)
+	if err != nil {
+		return nil, err
+	}
+	var cloned services.ReplayMovieSpec
+	if err := json.Unmarshal(encoded, &cloned); err != nil {
+		return nil, err
+	}
+	return &cloned, nil
+}
+
+func harmonizeMovieSpec(spec, baseline *services.ReplayMovieSpec, executionID uuid.UUID) error {
+	if spec == nil {
+		return errMovieSpecUnavailable
+	}
+
+	if spec.Execution.ExecutionID == uuid.Nil {
+		spec.Execution.ExecutionID = executionID
+	} else if spec.Execution.ExecutionID != executionID {
+		return fmt.Errorf("movie spec execution_id mismatch")
+	}
+
+	if baseline != nil {
+		if baseline.Execution.WorkflowID != uuid.Nil {
+			if spec.Execution.WorkflowID == uuid.Nil {
+				spec.Execution.WorkflowID = baseline.Execution.WorkflowID
+			} else if spec.Execution.WorkflowID != baseline.Execution.WorkflowID {
+				return fmt.Errorf("movie spec workflow_id mismatch")
+			}
+		}
+		if spec.Execution.WorkflowName == "" {
+			spec.Execution.WorkflowName = baseline.Execution.WorkflowName
+		}
+		if spec.Execution.Status == "" {
+			spec.Execution.Status = baseline.Execution.Status
+		}
+		if spec.Execution.Progress == 0 {
+			spec.Execution.Progress = baseline.Execution.Progress
+		}
+		if spec.Execution.StartedAt.IsZero() && !baseline.Execution.StartedAt.IsZero() {
+			spec.Execution.StartedAt = baseline.Execution.StartedAt
+		}
+		if spec.Execution.CompletedAt == nil && baseline.Execution.CompletedAt != nil {
+			t := *baseline.Execution.CompletedAt
+			spec.Execution.CompletedAt = &t
+		}
+	}
+
+	if spec.Version == "" && baseline != nil {
+		spec.Version = baseline.Version
+	}
+	if spec.Version == "" {
+		spec.Version = "2025-11-07"
+	}
+	if spec.GeneratedAt.IsZero() {
+		if baseline != nil && !baseline.GeneratedAt.IsZero() {
+			spec.GeneratedAt = baseline.GeneratedAt
+		} else {
+			spec.GeneratedAt = time.Now().UTC()
+		}
+	}
+
+	if len(spec.Frames) == 0 {
+		if baseline != nil && len(baseline.Frames) > 0 {
+			spec.Frames = baseline.Frames
+		} else {
+			return fmt.Errorf("movie spec missing frames")
+		}
+	}
+
+	ensureTheme(spec, baseline)
+	ensureDecor(spec, baseline)
+	ensureCursor(spec, baseline)
+	ensurePresentation(spec, baseline)
+	ensureSummaryAndPlayback(spec, baseline)
+
+	if len(spec.Assets) == 0 && baseline != nil {
+		spec.Assets = baseline.Assets
+	}
+
+	if spec.Execution.TotalDuration <= 0 {
+		spec.Execution.TotalDuration = spec.Summary.TotalDurationMs
+	}
+
+	return nil
+}
+
+func ensureTheme(spec, baseline *services.ReplayMovieSpec) {
+	if baseline != nil {
+		if len(spec.Theme.BackgroundGradient) == 0 {
+			spec.Theme.BackgroundGradient = baseline.Theme.BackgroundGradient
+		}
+		if spec.Theme.BackgroundPattern == "" {
+			spec.Theme.BackgroundPattern = baseline.Theme.BackgroundPattern
+		}
+		if spec.Theme.AccentColor == "" {
+			spec.Theme.AccentColor = baseline.Theme.AccentColor
+		}
+		if spec.Theme.SurfaceColor == "" {
+			spec.Theme.SurfaceColor = baseline.Theme.SurfaceColor
+		}
+		if spec.Theme.AmbientGlow == "" {
+			spec.Theme.AmbientGlow = baseline.Theme.AmbientGlow
+		}
+		if spec.Theme.BrowserChrome.Variant == "" && baseline.Theme.BrowserChrome.Variant != "" {
+			spec.Theme.BrowserChrome = baseline.Theme.BrowserChrome
+		} else {
+			if spec.Theme.BrowserChrome.AccentColor == "" {
+				spec.Theme.BrowserChrome.AccentColor = spec.Theme.AccentColor
+			}
+		}
+		return
+	}
+
+	if len(spec.Theme.BackgroundGradient) == 0 {
+		spec.Theme.BackgroundGradient = []string{"#0f172a", "#020617", "#111827"}
+	}
+	if spec.Theme.BackgroundPattern == "" {
+		spec.Theme.BackgroundPattern = "orbits"
+	}
+	if spec.Theme.AccentColor == "" {
+		spec.Theme.AccentColor = "#38BDF8"
+	}
+	if spec.Theme.SurfaceColor == "" {
+		spec.Theme.SurfaceColor = "rgba(15,23,42,0.72)"
+	}
+	if spec.Theme.AmbientGlow == "" {
+		spec.Theme.AmbientGlow = "rgba(56,189,248,0.22)"
+	}
+	if spec.Theme.BrowserChrome.Variant == "" {
+		spec.Theme.BrowserChrome = services.ExportBrowserChrome{
+			Visible:     true,
+			Variant:     "dark",
+			Title:       spec.Execution.WorkflowName,
+			ShowAddress: true,
+			AccentColor: spec.Theme.AccentColor,
+		}
+	} else if spec.Theme.BrowserChrome.AccentColor == "" {
+		spec.Theme.BrowserChrome.AccentColor = spec.Theme.AccentColor
+	}
+}
+
+func ensureDecor(spec, baseline *services.ReplayMovieSpec) {
+	if baseline != nil {
+		if spec.Decor.ChromeTheme == "" {
+			spec.Decor.ChromeTheme = baseline.Decor.ChromeTheme
+		}
+		if spec.Decor.BackgroundTheme == "" {
+			spec.Decor.BackgroundTheme = baseline.Decor.BackgroundTheme
+		}
+		if spec.Decor.CursorTheme == "" {
+			spec.Decor.CursorTheme = baseline.Decor.CursorTheme
+		}
+		if spec.Decor.CursorInitial == "" {
+			spec.Decor.CursorInitial = baseline.Decor.CursorInitial
+		}
+		if spec.Decor.CursorClickAnimation == "" {
+			spec.Decor.CursorClickAnimation = baseline.Decor.CursorClickAnimation
+		}
+		if spec.Decor.CursorScale == 0 {
+			spec.Decor.CursorScale = baseline.Decor.CursorScale
+		}
+		return
+	}
+
+	if spec.Decor.ChromeTheme == "" {
+		spec.Decor.ChromeTheme = "aurora"
+	}
+	if spec.Decor.BackgroundTheme == "" {
+		spec.Decor.BackgroundTheme = "aurora"
+	}
+	if spec.Decor.CursorTheme == "" {
+		spec.Decor.CursorTheme = "white"
+	}
+	if spec.Decor.CursorInitial == "" {
+		spec.Decor.CursorInitial = "center"
+	}
+	if spec.Decor.CursorClickAnimation == "" {
+		spec.Decor.CursorClickAnimation = "pulse"
+	}
+	if spec.Decor.CursorScale == 0 {
+		spec.Decor.CursorScale = 1
+	}
+}
+
+func ensureCursor(spec, baseline *services.ReplayMovieSpec) {
+	if baseline != nil {
+		if spec.Cursor.Style == "" {
+			spec.Cursor = baseline.Cursor
+		} else {
+			if spec.Cursor.AccentColor == "" {
+				spec.Cursor.AccentColor = baseline.Cursor.AccentColor
+			}
+			if spec.Cursor.InitialPos == "" {
+				spec.Cursor.InitialPos = baseline.Cursor.InitialPos
+			}
+			if spec.Cursor.ClickAnim == "" {
+				spec.Cursor.ClickAnim = baseline.Cursor.ClickAnim
+			}
+			if spec.Cursor.Trail.FadeMs == 0 {
+				spec.Cursor.Trail.FadeMs = baseline.Cursor.Trail.FadeMs
+			}
+			if spec.Cursor.Trail.Weight == 0 {
+				spec.Cursor.Trail.Weight = baseline.Cursor.Trail.Weight
+			}
+			if spec.Cursor.Trail.Opacity == 0 {
+				spec.Cursor.Trail.Opacity = baseline.Cursor.Trail.Opacity
+			}
+			if spec.Cursor.ClickPulse.Radius == 0 {
+				spec.Cursor.ClickPulse.Radius = baseline.Cursor.ClickPulse.Radius
+			}
+			if spec.Cursor.ClickPulse.DurationMs == 0 {
+				spec.Cursor.ClickPulse.DurationMs = baseline.Cursor.ClickPulse.DurationMs
+			}
+			if spec.Cursor.ClickPulse.Opacity == 0 {
+				spec.Cursor.ClickPulse.Opacity = baseline.Cursor.ClickPulse.Opacity
+			}
+			if !spec.Cursor.ClickPulse.Enabled && baseline.Cursor.ClickPulse.Enabled {
+				spec.Cursor.ClickPulse.Enabled = true
+			}
+			if !spec.Cursor.Trail.Enabled && baseline.Cursor.Trail.Enabled {
+				spec.Cursor.Trail.Enabled = true
+			}
+		}
+	} else {
+		if spec.Cursor.Style == "" {
+			spec.Cursor.Style = "halo"
+		}
+		if spec.Cursor.AccentColor == "" {
+			spec.Cursor.AccentColor = "#38BDF8"
+		}
+		if spec.Cursor.InitialPos == "" {
+			spec.Cursor.InitialPos = "center"
+		}
+		if spec.Cursor.ClickAnim == "" {
+			spec.Cursor.ClickAnim = "pulse"
+		}
+		if spec.Cursor.Trail.FadeMs == 0 {
+			spec.Cursor.Trail.FadeMs = 650
+		}
+		if spec.Cursor.Trail.Weight == 0 {
+			spec.Cursor.Trail.Weight = 0.16
+		}
+		if spec.Cursor.Trail.Opacity == 0 {
+			spec.Cursor.Trail.Opacity = 0.55
+		}
+		if spec.Cursor.ClickPulse.Radius == 0 {
+			spec.Cursor.ClickPulse.Radius = 42
+		}
+		if spec.Cursor.ClickPulse.DurationMs == 0 {
+			spec.Cursor.ClickPulse.DurationMs = 420
+		}
+		if spec.Cursor.ClickPulse.Opacity == 0 {
+			spec.Cursor.ClickPulse.Opacity = 0.65
+		}
+		if !spec.Cursor.ClickPulse.Enabled && !strings.EqualFold(spec.Cursor.Style, "hidden") {
+			spec.Cursor.ClickPulse.Enabled = true
+		}
+		if !spec.Cursor.Trail.Enabled && !strings.EqualFold(spec.Cursor.Style, "hidden") {
+			spec.Cursor.Trail.Enabled = true
+		}
+	}
+
+	spec.Cursor.Scale = clampCursorScale(spec.Cursor.Scale)
+
+	if spec.CursorMotion.SpeedProfile == "" && baseline != nil {
+		spec.CursorMotion.SpeedProfile = baseline.CursorMotion.SpeedProfile
+	}
+	if spec.CursorMotion.SpeedProfile == "" {
+		spec.CursorMotion.SpeedProfile = "easeInOut"
+	}
+	if spec.CursorMotion.PathStyle == "" && baseline != nil {
+		spec.CursorMotion.PathStyle = baseline.CursorMotion.PathStyle
+	}
+	if spec.CursorMotion.PathStyle == "" {
+		spec.CursorMotion.PathStyle = "linear"
+	}
+	if spec.CursorMotion.InitialPosition == "" {
+		spec.CursorMotion.InitialPosition = spec.Cursor.InitialPos
+	}
+	if spec.CursorMotion.ClickAnimation == "" {
+		spec.CursorMotion.ClickAnimation = spec.Cursor.ClickAnim
+	}
+	if spec.CursorMotion.CursorScale <= 0 {
+		spec.CursorMotion.CursorScale = spec.Cursor.Scale
+	}
+}
+
+func ensurePresentation(spec, baseline *services.ReplayMovieSpec) {
+	if baseline != nil {
+		if spec.Presentation.Canvas.Width == 0 {
+			spec.Presentation.Canvas = baseline.Presentation.Canvas
+		}
+		if spec.Presentation.Viewport.Width == 0 {
+			spec.Presentation.Viewport = baseline.Presentation.Viewport
+		}
+		if spec.Presentation.BrowserFrame.Width == 0 {
+			spec.Presentation.BrowserFrame = baseline.Presentation.BrowserFrame
+		}
+		if spec.Presentation.DeviceScaleFactor == 0 {
+			spec.Presentation.DeviceScaleFactor = baseline.Presentation.DeviceScaleFactor
+		}
+	} else {
+		if spec.Presentation.Canvas.Width == 0 {
+			spec.Presentation.Canvas.Width = 1920
+		}
+		if spec.Presentation.Canvas.Height == 0 {
+			spec.Presentation.Canvas.Height = 1080
+		}
+		if spec.Presentation.Viewport.Width == 0 {
+			spec.Presentation.Viewport.Width = spec.Presentation.Canvas.Width
+		}
+		if spec.Presentation.Viewport.Height == 0 {
+			spec.Presentation.Viewport.Height = spec.Presentation.Canvas.Height
+		}
+		if spec.Presentation.BrowserFrame.Width == 0 {
+			spec.Presentation.BrowserFrame = services.ExportFrameRect{
+				X:      0,
+				Y:      0,
+				Width:  spec.Presentation.Canvas.Width,
+				Height: spec.Presentation.Canvas.Height,
+				Radius: 24,
+			}
+		}
+	}
+
+	if spec.Presentation.DeviceScaleFactor == 0 {
+		spec.Presentation.DeviceScaleFactor = 1
+	}
+	if spec.Presentation.BrowserFrame.Radius == 0 {
+		spec.Presentation.BrowserFrame.Radius = 24
+	}
+}
+
+func ensureSummaryAndPlayback(spec, baseline *services.ReplayMovieSpec) {
+	fallbackInterval := spec.Playback.FrameIntervalMs
+	if fallbackInterval <= 0 && baseline != nil && baseline.Playback.FrameIntervalMs > 0 {
+		fallbackInterval = baseline.Playback.FrameIntervalMs
+	}
+	if fallbackInterval <= 0 {
+		fallbackInterval = 40
+	}
+
+	totalDuration, maxDuration := computeFrameDurations(spec.Frames, fallbackInterval)
+
+	if spec.Summary.FrameCount <= 0 {
+		spec.Summary.FrameCount = len(spec.Frames)
+	}
+	if spec.Summary.TotalDurationMs <= 0 {
+		spec.Summary.TotalDurationMs = totalDuration
+	}
+	if spec.Summary.MaxFrameDurationMs <= 0 {
+		spec.Summary.MaxFrameDurationMs = maxDuration
+	}
+	if spec.Summary.ScreenshotCount <= 0 {
+		count := countFrameScreenshots(spec.Frames)
+		if count > 0 {
+			spec.Summary.ScreenshotCount = count
+		} else if baseline != nil {
+			spec.Summary.ScreenshotCount = baseline.Summary.ScreenshotCount
+		}
+	}
+
+	if spec.Playback.FrameIntervalMs <= 0 {
+		spec.Playback.FrameIntervalMs = fallbackInterval
+	}
+	if spec.Playback.DurationMs <= 0 {
+		spec.Playback.DurationMs = spec.Summary.TotalDurationMs
+	}
+	if spec.Playback.TotalFrames <= 0 && spec.Playback.FrameIntervalMs > 0 && spec.Summary.TotalDurationMs > 0 {
+		spec.Playback.TotalFrames = int(math.Ceil(float64(spec.Summary.TotalDurationMs) / float64(spec.Playback.FrameIntervalMs)))
+	}
+	if spec.Playback.TotalFrames <= 0 {
+		spec.Playback.TotalFrames = spec.Summary.FrameCount
+	}
+	if spec.Playback.FPS <= 0 && spec.Playback.FrameIntervalMs > 0 {
+		spec.Playback.FPS = int(math.Round(1000.0 / float64(spec.Playback.FrameIntervalMs)))
+	}
+	if spec.Playback.FPS <= 0 && baseline != nil && baseline.Playback.FPS > 0 {
+		spec.Playback.FPS = baseline.Playback.FPS
+	}
+	if spec.Playback.FPS <= 0 {
+		spec.Playback.FPS = 25
+	}
+}
+
+func computeFrameDurations(frames []services.ExportFrame, fallback int) (int, int) {
+	if fallback <= 0 {
+		fallback = 40
+	}
+	total := 0
+	maxDuration := 0
+	for _, frame := range frames {
+		duration := frame.DurationMs
+		if duration <= 0 {
+			duration = frame.HoldMs + frame.Enter.DurationMs + frame.Exit.DurationMs
+		}
+		if duration <= 0 {
+			duration = fallback
+		}
+		total += duration
+		if duration > maxDuration {
+			maxDuration = duration
+		}
+	}
+	return total, maxDuration
+}
+
+func countFrameScreenshots(frames []services.ExportFrame) int {
+	count := 0
+	for _, frame := range frames {
+		if strings.TrimSpace(frame.ScreenshotAssetID) != "" {
+			count++
+		}
+	}
+	return count
+}
+
 func clampCursorScale(value float64) float64 {
 	if value <= 0 {
 		return 1.0
@@ -490,9 +946,15 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 
 	var body executionExportRequest
 	if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid json payload"}))
-			return
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&body); err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+				// Allow empty JSON bodies so clients can rely on defaults without triggering errors.
+				body = executionExportRequest{}
+			} else {
+				h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid json payload"}))
+				return
+			}
 		}
 	}
 
@@ -504,10 +966,10 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		format = "json"
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
-	defer cancel()
+	previewCtx, cancelPreview := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+	defer cancelPreview()
 
-	preview, svcErr := h.workflowService.DescribeExecutionExport(ctx, executionID)
+	preview, svcErr := h.workflowService.DescribeExecutionExport(previewCtx, executionID)
 	if svcErr != nil {
 		if errors.Is(svcErr, database.ErrNotFound) {
 			h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
@@ -518,22 +980,38 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	spec, specErr := buildExportSpec(preview.Package, body.MovieSpec, executionID)
+	if specErr != nil {
+		if errors.Is(specErr, errMovieSpecUnavailable) {
+			if format == "json" {
+				applyExportOverrides(preview.Package, body.Overrides)
+				h.respondSuccess(w, http.StatusOK, preview)
+			} else {
+				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": "export package unavailable"}))
+			}
+			return
+		}
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": specErr.Error()}))
+		return
+	}
+
+	preview.Package = spec
+
 	if format == "json" {
-		applyExportOverrides(preview.Package, body.Overrides)
+		applyExportOverrides(spec, body.Overrides)
 		h.respondSuccess(w, http.StatusOK, preview)
 		return
 	}
 
-	if preview.Package == nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": "export package unavailable"}))
-		return
-	}
-
 	if body.Overrides != nil {
-		applyExportOverrides(preview.Package, body.Overrides)
+		applyExportOverrides(spec, body.Overrides)
 	}
 
-	media, renderErr := h.replayRenderer.Render(ctx, preview.Package, services.RenderFormat(format), body.FileName)
+	renderTimeout := services.EstimateReplayRenderTimeout(spec)
+	renderCtx, cancelRender := context.WithTimeout(r.Context(), renderTimeout)
+	defer cancelRender()
+
+	media, renderErr := h.replayRenderer.Render(renderCtx, spec, services.RenderFormat(format), body.FileName)
 	if renderErr != nil {
 		h.log.WithError(renderErr).WithField("execution_id", executionID).Error("Failed to render replay export")
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "render_export"}))
